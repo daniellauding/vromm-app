@@ -3,15 +3,13 @@ import { YStack, Form, Input, Button, Select, Text } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Database } from '../lib/database.types';
-import { NavigationProp, useNavigation } from '@react-navigation/native';
 
 type ExperienceLevel = Database['public']['Enums']['experience_level'];
 
 const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced'];
 
 export function ProfileScreen() {
-  const { profile, updateProfile } = useAuth();
-  const navigation = useNavigation();
+  const { profile, updateProfile, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -28,6 +26,17 @@ export function ProfileScreen() {
       await updateProfile(formData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      setLoading(true);
+      await signOut();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign out');
     } finally {
       setLoading(false);
     }
@@ -76,9 +85,11 @@ export function ProfileScreen() {
             </Button>
 
             <Button 
-              onPress={() => navigation.goBack()}
+              theme="red"
+              onPress={handleSignOut}
+              disabled={loading}
             >
-              Go Back
+              Sign Out
             </Button>
           </YStack>
         </Form>

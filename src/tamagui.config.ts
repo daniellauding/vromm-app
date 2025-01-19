@@ -1,4 +1,4 @@
-import { createTamagui } from 'tamagui'
+import { createTamagui } from '@tamagui/core'
 import { createInterFont } from '@tamagui/font-inter'
 import { shorthands } from '@tamagui/shorthands'
 import { themes, tokens } from '@tamagui/themes'
@@ -36,9 +36,9 @@ const config = createTamagui({
   }),
 })
 
-export type Conf = typeof config
+type Conf = typeof config
 
-declare module 'tamagui' {
+declare module '@tamagui/core' {
   interface TamaguiCustomConfig extends Conf {}
 }
 
