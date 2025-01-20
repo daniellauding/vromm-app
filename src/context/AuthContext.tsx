@@ -14,12 +14,7 @@ type AuthContextType = {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, profileData: {
-    full_name: string;
-    role: UserRole;
-    location: string;
-    experience_level: ExperienceLevel;
-  }) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
 };
@@ -62,35 +57,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (
-    email: string, 
-    password: string,
-    profileData: {
-      full_name: string;
-      role: UserRole;
-      location: string;
-      experience_level: ExperienceLevel;
-    }
-  ) => {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (authError) throw authError;
-    if (!authData.user?.id) throw new Error('User creation failed');
-
-    // Create profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: authData.user.id,
-        ...profileData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+  const signUp = async (email: string, password: string) => {
+    console.log('Starting signup process for:', email);
+    
+    try {
+      // Include profile data in the signup metadata
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: email.split('@')[0],
+            role: 'student',
+            location: 'Unknown',
+            experience_level: 'beginner',
+            private_profile: false,
+          }
+        }
       });
 
-    if (profileError) throw profileError;
+      console.log('Auth signup response:', { authData, authError });
+
+      if (authError) throw authError;
+      if (!authData.user?.id) throw new Error('User creation failed');
+
+      // No need to create profile separately as it will be handled by Supabase's triggers
+      console.log('Signup successful for user:', authData.user.id);
+    } catch (error) {
+      console.error('Signup process failed:', error);
+      throw error;
+    }
   };
 
   const signIn = async (email: string, password: string) => {
