@@ -20,7 +20,7 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
 export function RouteDetailScreen() {
   const route = useRoute<RouteDetailRouteProp>();
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [routeData, setRouteData] = useState<Route | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +65,7 @@ export function RouteDetailScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <YStack f={1} padding="$4" space="$4">
           <Text color="$red10">{error || 'Route not found'}</Text>
-          <Button onPress={() => navigation.goBack()}>Go Back</Button>
+          <Button onPress={signOut}>Sign Out</Button>
         </YStack>
       </SafeAreaView>
     );
