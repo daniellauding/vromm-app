@@ -72,6 +72,7 @@ export function CreateRouteScreen({ route }: Props) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [newExercise, setNewExercise] = useState<Partial<Exercise>>({});
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -211,10 +212,6 @@ export function CreateRouteScreen({ route }: Props) {
 
   const handleCreate = async () => {
     if (!user?.id) return;
-    if (waypoints.length === 0) {
-      setError('Please add at least one waypoint');
-      return;
-    }
     if (!formData.name.trim()) {
       setError('Please enter a route name');
       return;
@@ -390,37 +387,57 @@ export function CreateRouteScreen({ route }: Props) {
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
+    
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
     if (!query.trim()) {
       setSearchResults([]);
       setShowSearchResults(false);
       return;
     }
 
-    try {
-      const results = await Location.geocodeAsync(query);
-      if (results.length > 0) {
-        const addresses = await Promise.all(
-          results.map(async result => {
-            const address = await Location.reverseGeocodeAsync({
-              latitude: result.latitude,
-              longitude: result.longitude,
-            });
-            return {
-              ...address[0],
-              coords: {
+    // Set new timeout for debounced search
+    const timeout = setTimeout(async () => {
+      try {
+        const results = await Location.geocodeAsync(query);
+        if (results.length > 0) {
+          const addresses = await Promise.all(
+            results.map(async result => {
+              const address = await Location.reverseGeocodeAsync({
                 latitude: result.latitude,
                 longitude: result.longitude,
-              }
-            };
-          })
-        );
-        setSearchResults(addresses);
-        setShowSearchResults(true);
+              });
+              return {
+                ...address[0],
+                coords: {
+                  latitude: result.latitude,
+                  longitude: result.longitude,
+                }
+              };
+            })
+          );
+          setSearchResults(addresses);
+          setShowSearchResults(true);
+        }
+      } catch (err) {
+        console.error('Geocoding error:', err);
       }
-    } catch (err) {
-      console.error('Geocoding error:', err);
-    }
+    }, 500); // 500ms delay
+
+    setSearchTimeout(timeout);
   };
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
 
   const handleLocationSelect = (result: (Location.LocationGeocodedAddress & { coords?: { latitude: number; longitude: number } })) => {
     if (result.coords) {
@@ -534,6 +551,8 @@ export function CreateRouteScreen({ route }: Props) {
                         onChangeText={handleSearch}
                         placeholder="Search location..."
                         borderRadius="$4"
+                        autoComplete="street-address"
+                        autoCapitalize="none"
                       />
                       <Button
                         size="$4"
@@ -842,7 +861,7 @@ export function CreateRouteScreen({ route }: Props) {
               <Button 
                 themeInverse
                 onPress={handleCreate}
-                disabled={loading || waypoints.length === 0}
+                disabled={loading || !formData.name.trim()}
                 size="$5"
                 borderRadius="$6"
                 pressStyle={{ opacity: 0.8 }}
