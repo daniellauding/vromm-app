@@ -2,7 +2,6 @@ import { TamaguiProvider, Theme } from 'tamagui';
 import config from './src/tamagui.config';
 import { AuthProvider } from './src/context/AuthContext';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { SignupScreen } from './src/screens/SignupScreen';
@@ -16,54 +15,10 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from 'tamagui';
 import { Platform } from 'react-native';
 import { useEffect } from 'react';
+import { RootStackParamList } from './src/types/navigation';
+import { TabNavigator } from './src/navigation/TabNavigator';
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
-
-function TabNavigator() {
-  const theme = useTheme();
-  
-  return (
-    <Tab.Navigator
-      screenOptions={{
-        tabBarActiveTintColor: theme.blue10.val,
-        tabBarInactiveTintColor: theme.gray11.val,
-        tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: theme.gray5.val,
-          backgroundColor: theme.background.val,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-        },
-        headerShown: true,
-      }}
-    >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeScreen}
-        options={{
-          title: 'Routes',
-          tabBarLabel: 'Routes',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="map" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="ProfileTab"
-        component={ProfileScreen}
-        options={{
-          title: 'Profile',
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="user" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
-  );
-}
 
 function AppContent() {
   const { user, loading } = useAuth();

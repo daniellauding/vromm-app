@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '../screens/HomeScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { MapScreen } from '../screens/MapScreen';
 import { Feather } from '@expo/vector-icons';
 import { TabParamList } from '../types/navigation';
 import { useTheme } from 'tamagui';
@@ -32,6 +33,17 @@ export function TabNavigator() {
         options={{
           title: 'Routes',
           tabBarLabel: 'Routes',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="list" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="MapTab"
+        component={MapScreen}
+        options={{
+          title: 'Map',
+          tabBarLabel: 'Map',
           tabBarIcon: ({ color, size }) => (
             <Feather name="map" size={size} color={color} />
           ),

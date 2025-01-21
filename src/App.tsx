@@ -1,18 +1,18 @@
 import { TamaguiProvider } from 'tamagui';
 import config from './tamagui.config';
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { LoginScreen } from './src/screens/LoginScreen';
-import { SignupScreen } from './src/screens/SignupScreen';
+import { LoginScreen } from './screens/LoginScreen';
+import { SignupScreen } from './screens/SignupScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
-import { CreateRouteScreen } from './src/screens/CreateRouteScreen';
-import { RouteDetailScreen } from './src/screens/RouteDetailScreen';
-import { useAuth } from './src/context/AuthContext';
+import { CreateRouteScreen } from './screens/CreateRouteScreen';
+import { RouteDetailScreen } from './screens/RouteDetailScreen';
+import { useAuth } from './context/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { RootStackParamList } from './src/types/navigation';
-import { TabNavigator } from './src/navigation/TabNavigator';
+import { RootStackParamList } from './types/navigation';
+import { TabNavigator } from './navigation/TabNavigator';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

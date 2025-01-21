@@ -5,26 +5,6 @@ import { Database } from '../lib/database.types';
 
 export type RootStackParamList = {
   Tabs: undefined;
-  CreateRoute: undefined;
-  RouteDetail: {
-    routeId: string;
-  };
-  Login: undefined;
-  Signup: undefined;
-};
-
-export type TabParamList = {
-  HomeTab: undefined;
-  ProfileTab: undefined;
-};
-
-// Combined navigation type that works with both stack and tab navigation
-export type NavigationProp = CompositeNavigationProp<
-  NativeStackNavigationProp<RootStackParamList>,
-  BottomTabNavigationProp<TabParamList>
->;
-
-export type RootStackParamList = {
   Home: undefined;
   Login: undefined;
   Signup: undefined;
@@ -35,4 +15,14 @@ export type RootStackParamList = {
   };
 };
 
-export type NavigationProp = NativeStackNavigationProp<RootStackParamList>; 
+export type TabParamList = {
+  HomeTab: undefined;
+  MapTab: undefined;
+  ProfileTab: undefined;
+};
+
+// Combined navigation type that works with both stack and tab navigation
+export type NavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<RootStackParamList>,
+  BottomTabNavigationProp<TabParamList>
+>; 
