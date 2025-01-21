@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { Form, YStack } from 'tamagui';
-import { Button, Input, Text } from 'tamagui';
+import { YStack, XStack } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../components/Screen';
+import { FormField } from '../components/FormField';
+import { useLanguage } from '../context/LanguageContext';
+import { Button } from '../components/Button';
+import { Text } from '../components/Text';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -12,9 +15,14 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { signIn } = useAuth();
+  const { t } = useLanguage();
   const navigation = useNavigation<NavigationProp>();
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      setError(t('auth.signIn.error.emptyFields'));
+      return;
+    }
     try {
       setLoading(true);
       setError('');
@@ -28,48 +36,80 @@ export function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <YStack f={1} padding="$4" space="$4">
-        <Text fontSize="$6" fontWeight="bold">Login</Text>
-        
-        <Form onSubmit={handleLogin}>
-          <YStack space="$4">
-            <Input
-              placeholder="Email"
+    <Screen>
+      <YStack f={1} justifyContent="center" gap={32}>
+        <YStack gap={8}>
+          <Text size="3xl" weight="bold" textAlign="center">
+            {t('auth.signIn.title')}
+          </Text>
+          <Text size="md" intent="muted" textAlign="center">
+            {t('auth.signIn.slogan')}
+          </Text>
+        </YStack>
+
+        <YStack gap={24}>
+          <YStack gap={16}>
+            <FormField
+              label={t('auth.signIn.emailLabel')}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+              placeholder={t('auth.signIn.emailPlaceholder')}
+              autoComplete="email"
             />
-            
-            <Input
-              placeholder="Password"
+
+            <FormField
+              label={t('auth.signIn.passwordLabel')}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              placeholder={t('auth.signIn.passwordPlaceholder')}
+              autoComplete="password"
             />
+          </YStack>
 
-            {error ? (
-              <Text color="$red10" fontSize="$3">{error}</Text>
-            ) : null}
+          {error ? (
+            <Text size="sm" intent="error" textAlign="center">
+              {error}
+            </Text>
+          ) : null}
 
-            <Button 
-              themeInverse
+          <YStack gap={16}>
+            <Button
               onPress={handleLogin}
               disabled={loading}
+              variant="primary"
+              size="lg"
             >
-              {loading ? 'Loading...' : 'Sign In'}
+              {loading ? t('auth.signIn.loading') : t('auth.signIn.signInButton')}
+            </Button>
+
+            <Button
+              onPress={() => navigation.navigate('ForgotPassword')}
+              variant="secondary"
+              size="md"
+            >
+              {t('auth.signIn.forgotPassword')}
             </Button>
           </YStack>
-        </Form>
-        
-        <Button
-          variant="outlined"
-          onPress={() => navigation.navigate('Signup')}
-        >
-          Need an account? Sign up
-        </Button>
+        </YStack>
+
+        <XStack justifyContent="center" alignItems="center" gap={8}>
+          <Text size="md" intent="muted">
+            {t('auth.signIn.noAccount')}
+          </Text>
+          <Button
+            variant="link"
+            size="md"
+            onPress={() => navigation.navigate('Signup')}
+            paddingVertical={0}
+            height="auto"
+          >
+            {t('auth.signIn.signUpLink')}
+          </Button>
+        </XStack>
       </YStack>
-    </SafeAreaView>
+    </Screen>
   );
 } 

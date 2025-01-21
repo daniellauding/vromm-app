@@ -1,104 +1,115 @@
-import { useState, useCallback } from 'react';
-import { Form, YStack } from 'tamagui';
-import { Button, Input, Text } from 'tamagui';
+import { useState } from 'react';
+import { Form, YStack, XStack } from 'tamagui';
+import { Text } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../components/Screen';
+import { FormField } from '../components/FormField';
+import { Header } from '../components/Header';
+import { useLanguage } from '../context/LanguageContext';
+import { Button } from '../components/Button';
 
 export function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [lastAttempt, setLastAttempt] = useState(0);
   const { signUp } = useAuth();
+  const { t } = useLanguage();
   const navigation = useNavigation<NavigationProp>();
 
-  const handleSignup = useCallback(async () => {
-    if (!email.trim()) {
-      setError('Email is required');
+  const handleSignup = async () => {
+    if (!email || !password || !confirmPassword) {
+      setError(t('auth.signUp.error.emptyFields'));
       return;
     }
-    if (!password.trim()) {
-      setError('Password is required');
+    if (password !== confirmPassword) {
+      setError(t('auth.signUp.error.passwordMismatch'));
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
-    // Rate limiting check
-    const now = Date.now();
-    if (now - lastAttempt < 60000) { // 60 seconds
-      setError('Please wait a minute before trying again');
-      return;
-    }
-
     try {
       setLoading(true);
       setError('');
-      setLastAttempt(now);
-      console.log('Starting signup...');
       await signUp(email, password);
-      console.log('Signup completed successfully');
+      // Success message will be shown by Supabase's email confirmation
     } catch (err) {
-      console.error('Signup error:', err);
       const error = err as Error;
-      if (error.message.includes('security purposes')) {
-        setError('Please wait a minute before trying again');
-      } else {
-        setError(error.message);
-      }
+      setError(error.message);
     } finally {
       setLoading(false);
     }
-  }, [email, password, lastAttempt, signUp]);
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <YStack f={1} padding="$4" space="$4">
-        <Text fontSize="$6" fontWeight="bold">Create Account</Text>
+    <Screen>
+      <YStack f={1} gap={16}>
+        <Header title={t('auth.signUp.title')} />
         
-        <Form onSubmit={handleSignup}>
-          <YStack space="$4">
-            <Input
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            
-            <Input
-              placeholder="Password (min 6 characters)"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+        <YStack gap={32}>
+          <Text size="md" intent="muted">
+            {t('auth.signUp.subtitle')}
+          </Text>
+
+          <YStack gap={24}>
+            <YStack gap={16}>
+              <FormField
+                label={t('auth.signUp.emailLabel')}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder={t('auth.signUp.emailPlaceholder')}
+                autoComplete="email"
+              />
+
+              <FormField
+                label={t('auth.signUp.passwordLabel')}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholder={t('auth.signUp.passwordPlaceholder')}
+                autoComplete="password-new"
+              />
+
+              <FormField
+                label={t('auth.signUp.confirmPasswordLabel')}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                placeholder={t('auth.signUp.confirmPasswordPlaceholder')}
+                autoComplete="password-new"
+              />
+            </YStack>
 
             {error ? (
-              <Text color="$red10" fontSize="$3">{error}</Text>
+              <Text size="sm" intent="error" textAlign="center">
+                {error}
+              </Text>
             ) : null}
 
-            <Button 
-              themeInverse
-              onPress={handleSignup}
-              disabled={loading || (Date.now() - lastAttempt < 60000)}
-            >
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </Button>
+            <YStack gap={16}>
+              <Button
+                onPress={handleSignup}
+                disabled={loading}
+                variant="primary"
+                size="lg"
+              >
+                {loading ? t('auth.signUp.loading') : t('auth.signUp.signUpButton')}
+              </Button>
+
+              <Button
+                onPress={() => navigation.navigate('Login')}
+                variant="secondary"
+                size="md"
+              >
+                {t('auth.signUp.signInLink')}
+              </Button>
+            </YStack>
           </YStack>
-        </Form>
-        
-        <Button
-          variant="outlined"
-          onPress={() => navigation.navigate('Login')}
-        >
-          Already have an account? Sign in
-        </Button>
+        </YStack>
       </YStack>
-    </SafeAreaView>
+    </Screen>
   );
 } 

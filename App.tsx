@@ -1,6 +1,7 @@
-import { TamaguiProvider, Theme } from 'tamagui';
-import config from './src/tamagui.config';
-import { AuthProvider } from './src/context/AuthContext';
+import { TamaguiProvider, Theme, useTheme } from 'tamagui';
+import { config } from './src/theme';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -9,19 +10,21 @@ import { HomeScreen } from './src/screens/HomeScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { CreateRouteScreen } from './src/screens/CreateRouteScreen';
 import { RouteDetailScreen } from './src/screens/RouteDetailScreen';
-import { useAuth } from './src/context/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useTheme } from 'tamagui';
 import { Platform } from 'react-native';
 import { useEffect } from 'react';
 import { RootStackParamList } from './src/types/navigation';
-import { TabNavigator } from './src/navigation/TabNavigator';
+import { TabNavigator } from './src/components/TabNavigator';
+import { useColorScheme } from 'react-native';
+import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const theme = useTheme();
+  const colorScheme = useColorScheme();
 
   useEffect(() => {
     console.log('AppContent mounted:', { user, loading, platform: Platform.OS });
@@ -35,54 +38,48 @@ function AppContent() {
   console.log('Rendering navigation, user:', user);
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      {user ? (
-        <>
-          <Stack.Screen 
-            name="Tabs" 
-            component={TabNavigator}
-          />
-          <Stack.Group screenOptions={{ headerShown: true }}>
-            <Stack.Screen 
-              name="CreateRoute" 
-              component={CreateRouteScreen}
-              options={{
-                title: 'Create Route',
-                presentation: Platform.OS === 'ios' ? 'modal' : 'card',
-              }}
-            />
+    <NavigationContainer>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          headerStyle: {
+            backgroundColor: theme.background.val,
+          },
+          headerTintColor: theme.color.val,
+          contentStyle: {
+            backgroundColor: theme.background.val,
+          },
+        }}
+      >
+        {!user ? (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="MainTabs" component={TabNavigator} />
             <Stack.Screen 
               name="RouteDetail" 
               component={RouteDetailScreen}
-              options={{
-                title: 'Route Details',
-              }}
+              options={{ headerShown: true }}
             />
-          </Stack.Group>
-        </>
-      ) : (
-        <>
-          <Stack.Screen 
-            name="Login" 
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen 
-            name="Signup" 
-            component={SignupScreen}
-            options={{ headerShown: false }}
-          />
-        </>
-      )}
-    </Stack.Navigator>
+            <Stack.Screen 
+              name="CreateRoute" 
+              component={CreateRouteScreen}
+              options={{ headerShown: true }}
+            />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 export default function App() {
+  const colorScheme = useColorScheme();
+
   useEffect(() => {
     console.log('App mounted');
   }, []);
@@ -90,17 +87,12 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <TamaguiProvider config={config}>
-        <Theme name="light">
-          <AuthProvider>
-            <NavigationContainer
-              documentTitle={{
-                formatter: (options, route) =>
-                  `${options?.title ?? route?.name} - Korvagen`,
-              }}
-            >
+        <Theme name={colorScheme === 'dark' ? 'dark' : 'light'}>
+          <LanguageProvider>
+            <AuthProvider>
               <AppContent />
-            </NavigationContainer>
-          </AuthProvider>
+            </AuthProvider>
+          </LanguageProvider>
         </Theme>
       </TamaguiProvider>
     </SafeAreaProvider>

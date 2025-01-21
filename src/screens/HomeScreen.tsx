@@ -7,6 +7,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { RouteList } from '../components/RouteList';
 import { Database } from '../lib/database.types';
+import { View } from 'react-native';
+import { tokens } from '../tokens';
 
 type Route = Database['public']['Tables']['routes']['Row'] & {
   creator: {
@@ -30,8 +32,12 @@ export function HomeScreen() {
   }, [loadRoutes]);
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <YStack f={1}>
+    <View style={{ 
+      flex: 1, 
+      backgroundColor: tokens.color.white,
+      paddingBottom: tokens.size[10], // Add padding for tab bar
+    }}>
+      <YStack f={1} p="$4">
         <Button
           margin="$4"
           themeInverse
@@ -45,6 +51,6 @@ export function HomeScreen() {
           onRefresh={loadRoutes}
         />
       </YStack>
-    </SafeAreaView>
+    </View>
   );
 } 

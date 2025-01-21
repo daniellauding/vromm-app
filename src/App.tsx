@@ -1,87 +1,106 @@
-import { TamaguiProvider } from 'tamagui';
-import config from './tamagui.config';
-import { AuthProvider } from './context/AuthContext';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { TamaguiProvider } from 'tamagui';
+import { config } from './theme';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
+import { RootStackParamList } from './types/navigation';
+
+// Auth screens
 import { LoginScreen } from './screens/LoginScreen';
 import { SignupScreen } from './screens/SignupScreen';
-import { HomeScreen } from './src/screens/HomeScreen';
-import { ProfileScreen } from './src/screens/ProfileScreen';
-import { CreateRouteScreen } from './screens/CreateRouteScreen';
+import { ForgotPasswordScreen } from './screens/ForgotPasswordScreen';
+
+// Main app screens
+import { TabNavigator } from './components/TabNavigator';
 import { RouteDetailScreen } from './screens/RouteDetailScreen';
-import { useAuth } from './context/AuthContext';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { RootStackParamList } from './types/navigation';
-import { TabNavigator } from './navigation/TabNavigator';
+import { CreateRouteScreen } from './screens/CreateRouteScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
-  if (loading) {
-    return null;
-  }
+  console.log('[DEBUG] AppContent rendering');
+  console.log('[DEBUG] Auth state:', { isAuthenticated: !!user });
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
+    <NavigationContainer
+      onStateChange={(state) => {
+        console.log('[DEBUG] Navigation state:', state);
       }}
     >
-      {user ? (
-        <>
-          <Stack.Screen 
-            name="Tabs" 
-            component={TabNavigator}
-          />
-          <Stack.Group screenOptions={{ headerShown: true }}>
+      <Stack.Navigator 
+        screenOptions={{ 
+          headerShown: false,
+        }}
+      >
+        {!user ? (
+          // Auth stack
+          <>
             <Stack.Screen 
-              name="CreateRoute" 
-              component={CreateRouteScreen}
+              name="Login" 
+              component={LoginScreen}
               options={{
-                title: 'Create Route',
-                presentation: 'modal',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen 
+              name="Signup" 
+              component={SignupScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen 
+              name="ForgotPassword" 
+              component={ForgotPasswordScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+          </>
+        ) : (
+          // Main app stack
+          <>
+            <Stack.Screen 
+              name="MainTabs" 
+              component={TabNavigator}
+              options={{
+                headerShown: false,
               }}
             />
             <Stack.Screen 
               name="RouteDetail" 
               component={RouteDetailScreen}
-              options={{
-                title: 'Route Details',
+              options={{ 
+                headerShown: true,
               }}
             />
-          </Stack.Group>
-        </>
-      ) : (
-        // Non-authenticated stack
-        <>
-          <Stack.Screen 
-            name="Login" 
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen 
-            name="Signup" 
-            component={SignupScreen}
-            options={{ headerShown: false }}
-          />
-        </>
-      )}
-    </Stack.Navigator>
+            <Stack.Screen 
+              name="CreateRoute" 
+              component={CreateRouteScreen}
+              options={{ 
+                headerShown: true,
+              }}
+            />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 export default function App() {
+  console.log('[DEBUG] App rendering');
+  
   return (
-    <SafeAreaProvider>
-      <TamaguiProvider config={config}>
+    <TamaguiProvider config={config}>
+      <LanguageProvider>
         <AuthProvider>
-          <NavigationContainer>
-            <AppContent />
-          </NavigationContainer>
+          <AppContent />
         </AuthProvider>
-      </TamaguiProvider>
-    </SafeAreaProvider>
+      </LanguageProvider>
+    </TamaguiProvider>
   );
 } 
