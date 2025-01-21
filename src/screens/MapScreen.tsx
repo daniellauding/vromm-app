@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map } from '../components/Map';
@@ -6,6 +6,9 @@ import { supabase } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { Database } from '../lib/database.types';
+import { YStack, XStack, Card, Input, Button } from 'tamagui';
+import * as Location from 'expo-location';
+import { Feather } from '@expo/vector-icons';
 
 type WaypointData = {
   lat: number;
@@ -43,15 +46,34 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
 export function MapScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [routes, setRoutes] = useState<Route[]>([]);
+  const searchInputRef = useRef<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Location.LocationGeocodedAddress[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [region, setRegion] = useState({
-    latitude: 55.7047, // Centered on Sweden
+    latitude: 55.7047,
     longitude: 13.191,
-    latitudeDelta: 0.1, // Smaller number = more zoomed in
+    latitudeDelta: 0.1,
     longitudeDelta: 0.1,
   });
 
   useEffect(() => {
     fetchRoutes();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({});
+        setRegion(prev => ({
+          ...prev,
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        }));
+      }
+    })();
   }, []);
 
   const fetchRoutes = async () => {
@@ -71,28 +93,30 @@ export function MapScreen() {
       // Calculate bounds for all waypoints across all routes
       const allWaypoints = typedData.flatMap(route => {
         const waypointsData = route.waypoint_details || route.metadata?.waypoints || [];
-        return waypointsData as WaypointData[];
+        return Array.isArray(waypointsData) ? waypointsData : [];
       });
 
       if (allWaypoints.length > 0) {
-        const latitudes = allWaypoints.map((wp: WaypointData) => wp.lat);
-        const longitudes = allWaypoints.map((wp: WaypointData) => wp.lng);
+        const latitudes = allWaypoints.map((wp: WaypointData) => wp.lat).filter(Boolean);
+        const longitudes = allWaypoints.map((wp: WaypointData) => wp.lng).filter(Boolean);
         
-        const minLat = Math.min(...latitudes);
-        const maxLat = Math.max(...latitudes);
-        const minLng = Math.min(...longitudes);
-        const maxLng = Math.max(...longitudes);
-        
-        // Add more padding to show a wider area
-        const latPadding = Math.max((maxLat - minLat) * 0.5, 0.02);
-        const lngPadding = Math.max((maxLng - minLng) * 0.5, 0.02);
-        
-        setRegion({
-          latitude: (minLat + maxLat) / 2,
-          longitude: (minLng + maxLng) / 2,
-          latitudeDelta: Math.max((maxLat - minLat) + latPadding, 0.02),
-          longitudeDelta: Math.max((maxLng - minLng) + lngPadding, 0.02),
-        });
+        if (latitudes.length > 0 && longitudes.length > 0) {
+          const minLat = Math.min(...latitudes);
+          const maxLat = Math.max(...latitudes);
+          const minLng = Math.min(...longitudes);
+          const maxLng = Math.max(...longitudes);
+          
+          // Add more padding to show a wider area
+          const latPadding = Math.max((maxLat - minLat) * 0.5, 0.02);
+          const lngPadding = Math.max((maxLng - minLng) * 0.5, 0.02);
+          
+          setRegion({
+            latitude: (minLat + maxLat) / 2,
+            longitude: (minLng + maxLng) / 2,
+            latitudeDelta: Math.max((maxLat - minLat) + latPadding, 0.02),
+            longitudeDelta: Math.max((maxLng - minLng) + lngPadding, 0.02),
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching routes:', error);
@@ -101,32 +125,30 @@ export function MapScreen() {
 
   const getAllWaypoints = () => {
     return routes.flatMap(route => {
-      // Get waypoints from all possible sources
-      const waypointsFromDetails = (route.waypoint_details || []).map((wp: WaypointData) => ({
+      const waypointsFromDetails = Array.isArray(route.waypoint_details) ? route.waypoint_details.map((wp: WaypointData) => ({
         latitude: wp.lat,
         longitude: wp.lng,
         title: wp.title || route.name,
         description: wp.description || `${route.spot_type} - ${route.difficulty}`,
         onPress: () => navigation.navigate('RouteDetail', { routeId: route.id }),
-      }));
+      })) : [];
 
-      const waypointsFromMetadata = (route.metadata?.waypoints || []).map((wp: WaypointData) => ({
+      const waypointsFromMetadata = Array.isArray(route.metadata?.waypoints) ? route.metadata.waypoints.map((wp: WaypointData) => ({
         latitude: wp.lat,
         longitude: wp.lng,
         title: wp.title || route.name,
         description: wp.description || `${route.spot_type} - ${route.difficulty}`,
         onPress: () => navigation.navigate('RouteDetail', { routeId: route.id }),
-      }));
+      })) : [];
 
-      const pinsFromMetadata = (route.metadata?.pins || []).map((pin: PinData) => ({
+      const pinsFromMetadata = Array.isArray(route.metadata?.pins) ? route.metadata.pins.map((pin: PinData) => ({
         latitude: pin.lat,
         longitude: pin.lng,
         title: pin.title || route.name,
         description: pin.description || `${route.spot_type} - ${route.difficulty}`,
         onPress: () => navigation.navigate('RouteDetail', { routeId: route.id }),
-      }));
+      })) : [];
 
-      // Combine all sources, prioritizing waypoint_details
       return waypointsFromDetails.length > 0 
         ? waypointsFromDetails 
         : waypointsFromMetadata.length > 0
@@ -134,6 +156,117 @@ export function MapScreen() {
           : pinsFromMetadata;
     });
   };
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    // Set new timeout for debounced search
+    const timeout = setTimeout(async () => {
+      try {
+        // Try with city/country first
+        let results = await Location.geocodeAsync(query);
+        
+        // If no results, try with more specific search
+        if (results.length === 0) {
+          // Add country/city to make search more specific
+          const searchTerms = [
+            `${query}, Sweden`,
+            `${query}, Gothenburg`,
+            `${query}, Stockholm`,
+            `${query}, Malmö`,
+            query // Original query as fallback
+          ];
+
+          for (const term of searchTerms) {
+            results = await Location.geocodeAsync(term);
+            if (results.length > 0) break;
+          }
+        }
+
+        if (results.length > 0) {
+          const addresses = await Promise.all(
+            results.map(async result => {
+              const address = await Location.reverseGeocodeAsync({
+                latitude: result.latitude,
+                longitude: result.longitude,
+              });
+              return {
+                ...address[0],
+                coords: {
+                  latitude: result.latitude,
+                  longitude: result.longitude,
+                }
+              };
+            })
+          );
+
+          // Filter out duplicates and null values
+          const uniqueAddresses = addresses.filter((addr, index, self) => 
+            addr && addr.coords &&
+            index === self.findIndex(a => 
+              a.coords?.latitude === addr.coords?.latitude && 
+              a.coords?.longitude === addr.coords?.longitude
+            )
+          );
+
+          setSearchResults(uniqueAddresses);
+          setShowSearchResults(true);
+        }
+      } catch (err) {
+        console.error('Geocoding error:', err);
+      }
+    }, 300); // Reduced delay to 300ms for more responsive feel
+
+    setSearchTimeout(timeout);
+  };
+
+  const handleLocationSelect = (result: (Location.LocationGeocodedAddress & { coords?: { latitude: number; longitude: number } })) => {
+    if (result.coords) {
+      setRegion({
+        latitude: result.coords.latitude,
+        longitude: result.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+      setSearchQuery(`${result.street || ''} ${result.city || ''} ${result.country || ''}`.trim());
+      setShowSearchResults(false);
+    }
+  };
+
+  const handleLocateMe = async () => {
+    try {
+      const location = await Location.getCurrentPositionAsync({});
+      setRegion(prev => ({
+        ...prev,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }));
+    } catch (err) {
+      console.error('Error getting location:', err);
+    }
+  };
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
 
   useEffect(() => {
     console.log('MapScreen mounted, fetching routes...');
@@ -150,13 +283,62 @@ export function MapScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <View style={{ flex: 1 }}>
-        <Map
-          waypoints={getAllWaypoints()}
-          region={region}
-          onRegionChangeComplete={setRegion}
-        />
-      </View>
+      <YStack padding="$4" space="$4" flex={1}>
+        {/* Search Bar */}
+        <Card bordered elevate padding="$4">
+          <YStack space="$2">
+            <XStack space="$2">
+              <Input
+                ref={searchInputRef}
+                flex={1}
+                size="$4"
+                value={searchQuery}
+                onChangeText={handleSearch}
+                placeholder="Search location..."
+                borderRadius="$4"
+                autoComplete="street-address"
+                autoCapitalize="none"
+              />
+              <Button
+                size="$4"
+                theme="blue"
+                onPress={handleLocateMe}
+                icon={<Feather name="crosshair" size={18} color="white" />}
+              />
+            </XStack>
+
+            {showSearchResults && searchResults.length > 0 && (
+              <Card bordered size="$2" padding="$2">
+                <YStack space="$1">
+                  {searchResults.map((result, index) => (
+                    <Button
+                      key={index}
+                      size="$3"
+                      theme="alt2"
+                      justifyContent="flex-start"
+                      onPress={() => handleLocationSelect(result)}
+                    >
+                      {[result.street, result.city, result.country]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </Button>
+                  ))}
+                </YStack>
+              </Card>
+            )}
+          </YStack>
+        </Card>
+
+        {/* Map */}
+        <View style={{ flex: 1, borderRadius: 12, overflow: 'hidden' }}>
+          <Map
+            waypoints={getAllWaypoints()}
+            region={region}
+            onRegionChangeComplete={setRegion}
+            showControls
+          />
+        </View>
+      </YStack>
     </SafeAreaView>
   );
 } 

@@ -211,9 +211,12 @@ export function CreateRouteScreen({ route }: Props) {
   };
 
   const handleCreate = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      Alert.alert('Error', 'Please sign in to create a route');
+      return;
+    }
     if (!formData.name.trim()) {
-      setError('Please enter a route name');
+      Alert.alert('Error', 'Please enter a route name');
       return;
     }
 
@@ -228,68 +231,103 @@ export function CreateRouteScreen({ route }: Props) {
         description: wp.description
       }));
 
-      // Upload media files to storage
-      const mediaUrls = await Promise.all(
-        media.map(async (item) => {
-          const filename = item.uri.split('/').pop();
-          const ext = filename?.split('.').pop();
-          const path = `routes/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
-          
-          const response = await fetch(item.uri);
-          const blob = await response.blob();
-          
-          const { error: uploadError, data } = await supabase.storage
-            .from('media')
-            .upload(path, blob);
+      // Upload media files to storage if they exist
+      let mediaUrls = [];
+      if (media.length > 0) {
+        try {
+          mediaUrls = await Promise.all(
+            media.map(async (item) => {
+              // For YouTube videos, just pass through the URL
+              if (item.type === 'youtube') {
+                return {
+                  type: 'video',
+                  url: item.uri,
+                  description: item.description
+                };
+              }
 
-          if (uploadError) throw uploadError;
-          
-          return {
-            type: item.type,
-            url: data?.path || '',
-            description: item.description
-          };
-        })
-      );
+              // For local files, upload to storage
+              const filename = item.uri.split('/').pop();
+              const ext = filename?.split('.').pop();
+              const path = `route-attachments/new/${Math.random()}.${ext}`;
+              
+              const response = await fetch(item.uri);
+              const blob = await response.blob();
+              
+              const { error: uploadError, data } = await supabase.storage
+                .from('route-attachments')
+                .upload(path, blob);
+
+              if (uploadError) {
+                console.error('Upload error:', uploadError);
+                throw uploadError;
+              }
+              
+              const publicUrl = `${supabase.storageUrl}/object/public/route-attachments/${data?.path}`;
+              
+              return {
+                type: item.type,
+                url: publicUrl,
+                description: item.description
+              };
+            })
+          );
+        } catch (uploadErr) {
+          console.error('Media upload error:', uploadErr);
+          Alert.alert('Upload Error', 'Failed to upload media files. Try again or create route without media.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const routeData = {
+        name: formData.name,
+        description: formData.description,
+        difficulty: formData.difficulty,
+        spot_type: formData.spot_type,
+        visibility: formData.visibility,
+        best_season: formData.best_season,
+        best_times: formData.best_times,
+        vehicle_types: formData.vehicle_types,
+        activity_level: formData.activity_level,
+        spot_subtype: formData.spot_subtype,
+        transmission_type: formData.transmission_type,
+        category: formData.category,
+        creator_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_public: formData.visibility === 'public',
+        waypoint_details: waypointDetails,
+        metadata: {
+          waypoints: waypointDetails,
+          pins: [],
+          options: {
+            reverse: false,
+            closeLoop: false,
+            doubleBack: false
+          },
+          coordinates: []
+        },
+        suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises) : '',
+        media_attachments: mediaUrls
+      };
 
       const { error: routeError } = await supabase
         .from('routes')
-        .insert({
-          name: formData.name,
-          description: formData.description,
-          difficulty: formData.difficulty,
-          spot_type: formData.spot_type,
-          visibility: formData.visibility,
-          best_season: formData.best_season,
-          best_times: formData.best_times,
-          vehicle_types: formData.vehicle_types,
-          activity_level: formData.activity_level,
-          spot_subtype: formData.spot_subtype,
-          transmission_type: formData.transmission_type,
-          category: formData.category,
-          creator_id: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          is_public: formData.visibility === 'public',
-          waypoint_details: waypointDetails,
-          metadata: {
-            waypoints: waypointDetails,
-            pins: [],
-            options: {
-              reverse: false,
-              closeLoop: false,
-              doubleBack: false
-            },
-            coordinates: []
-          },
-          exercises: exercises,
-          media: mediaUrls,
-        });
+        .insert(routeData);
 
-      if (routeError) throw routeError;
+      if (routeError) {
+        console.error('Route creation error:', routeError);
+        throw routeError;
+      }
+      
       navigation.goBack();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create route');
+      console.error('Create route error:', err);
+      Alert.alert(
+        'Error',
+        err instanceof Error ? err.message : 'Failed to create route. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -402,7 +440,26 @@ export function CreateRouteScreen({ route }: Props) {
     // Set new timeout for debounced search
     const timeout = setTimeout(async () => {
       try {
-        const results = await Location.geocodeAsync(query);
+        // Try with city/country first
+        let results = await Location.geocodeAsync(query);
+        
+        // If no results, try with more specific search
+        if (results.length === 0) {
+          // Add country/city to make search more specific
+          const searchTerms = [
+            `${query}, Sweden`,
+            `${query}, Gothenburg`,
+            `${query}, Stockholm`,
+            `${query}, Malmö`,
+            query // Original query as fallback
+          ];
+
+          for (const term of searchTerms) {
+            results = await Location.geocodeAsync(term);
+            if (results.length > 0) break;
+          }
+        }
+
         if (results.length > 0) {
           const addresses = await Promise.all(
             results.map(async result => {
@@ -419,13 +476,23 @@ export function CreateRouteScreen({ route }: Props) {
               };
             })
           );
-          setSearchResults(addresses);
+
+          // Filter out duplicates and null values
+          const uniqueAddresses = addresses.filter((addr, index, self) => 
+            addr && addr.coords &&
+            index === self.findIndex(a => 
+              a.coords?.latitude === addr.coords?.latitude && 
+              a.coords?.longitude === addr.coords?.longitude
+            )
+          );
+
+          setSearchResults(uniqueAddresses);
           setShowSearchResults(true);
         }
       } catch (err) {
         console.error('Geocoding error:', err);
       }
-    }, 500); // 500ms delay
+    }, 300); // Reduced delay to 300ms for more responsive feel
 
     setSearchTimeout(timeout);
   };
@@ -447,7 +514,18 @@ export function CreateRouteScreen({ route }: Props) {
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       });
-      setSearchQuery(`${result.street || ''} ${result.city || ''} ${result.country || ''}`.trim());
+
+      // Add a waypoint at the selected location
+      const newWaypoint = {
+        latitude: result.coords.latitude,
+        longitude: result.coords.longitude,
+        title: [result.street, result.city, result.country].filter(Boolean).join(', '),
+        description: 'Selected location'
+      };
+      setWaypoints([...waypoints, newWaypoint]);
+
+      // Update search UI
+      setSearchQuery([result.street, result.city, result.country].filter(Boolean).join(', '));
       setShowSearchResults(false);
     }
   };
