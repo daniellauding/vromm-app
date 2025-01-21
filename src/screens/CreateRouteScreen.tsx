@@ -643,26 +643,21 @@ export function CreateRouteScreen({ route }: Props) {
                     {showSearchResults && searchResults.length > 0 && (
                       <Card bordered size="$2" padding="$2">
                         <YStack space="$1">
-                          {searchResults.map((result, index) => {
-                            const coords = result.region?.split(',').map(Number);
-                            if (!coords || coords.length !== 2) return null;
-                            
-                            return (
-                              <Button
-                                key={index}
-                                size="$3"
-                                theme="alt2"
-                                justifyContent="flex-start"
-                                onPress={() => handleLocationSelect(result)}
-                              >
-                                <Text numberOfLines={1}>
-                                  {[result.street, result.city, result.country]
-                                    .filter(Boolean)
-                                    .join(', ')}
-                                </Text>
-                              </Button>
-                            );
-                          })}
+                          {searchResults.map((result, index) => (
+                            <Button
+                              key={index}
+                              size="$3"
+                              theme="alt2"
+                              justifyContent="flex-start"
+                              onPress={() => handleLocationSelect(result)}
+                            >
+                              <Text numberOfLines={1}>
+                                {[result.street, result.city, result.country]
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </Text>
+                            </Button>
+                          ))}
                         </YStack>
                       </Card>
                     )}
