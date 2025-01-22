@@ -31,7 +31,7 @@ const StyledLabel = styled(Label, {
 });
 
 type FormFieldProps = React.ComponentProps<typeof Input> & {
-  label: string;
+  label?: string;
   error?: string;
   rightElement?: React.ReactNode;
 };
@@ -44,7 +44,7 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <YStack gap={tokens.space[2]} w="100%">
-      <StyledLabel>{label}</StyledLabel>
+      {label && <StyledLabel>{label}</StyledLabel>}
       <XStack w="100%" gap={tokens.space[2]}>
         <StyledInput 
           {...inputProps} 

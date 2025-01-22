@@ -109,7 +109,7 @@ export function TabNavigator() {
         component={ProfileScreen}
         options={{
           title: t('navigation.profile'),
-          headerTitle: t('navigation.profile'),
+          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <Feather 
               name="user" 

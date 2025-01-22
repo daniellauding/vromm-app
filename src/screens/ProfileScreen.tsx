@@ -1,10 +1,16 @@
 import { useState, useCallback } from 'react';
-import { YStack, Form, Input, Button, Text, Switch, XStack } from 'tamagui';
+import { YStack, XStack, Switch, useTheme } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Database } from '../lib/database.types';
 import * as Location from 'expo-location';
-import { Alert, Modal, View } from 'react-native';
+import { Alert, Modal, View, Pressable } from 'react-native';
+import { Screen } from '../components/Screen';
+import { FormField } from '../components/FormField';
+import { Button } from '../components/Button';
+import { Text } from '../components/Text';
+import { Header } from '../components/Header';
+import { useColorScheme } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 
 type ExperienceLevel = Database['public']['Enums']['experience_level'];
 type UserRole = Database['public']['Enums']['user_role'];
@@ -18,6 +24,8 @@ export function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [showExperienceModal, setShowExperienceModal] = useState(false);
+  const theme = useTheme();
+  const colorScheme = useColorScheme();
   
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
@@ -92,104 +100,135 @@ export function ProfileScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <YStack f={1} padding="$4" space="$4">
-        <Text fontSize="$6" fontWeight="bold">Profile</Text>
+    <Screen scroll>
+      <YStack f={1} gap={24}>
+        <Header title="Profile" />
         
-        <Form onSubmit={handleUpdate}>
-          <YStack space="$4">
-            <Input
-              value={formData.full_name}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, full_name: text }))}
-              placeholder="Full Name"
-            />
-            
-            <XStack space="$2" alignItems="center">
-              <Input
-                flex={1}
+        <YStack gap={24}>
+          <YStack gap={24}>
+            <YStack>
+              <Text size="lg" weight="medium" mb="$2" color="$color">Full Name</Text>
+              <FormField
+                value={formData.full_name}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, full_name: text }))}
+                placeholder="Enter your full name"
+              />
+            </YStack>
+
+            <YStack>
+              <Text size="lg" weight="medium" mb="$2" color="$color">Location</Text>
+              <FormField
                 value={formData.location}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, location: text }))}
-                placeholder="Location"
+                placeholder="Enter your location"
+                rightElement={
+                  <Button
+                    onPress={detectLocation}
+                    disabled={loading}
+                    variant="secondary"
+                    padding="$2"
+                    backgroundColor="transparent"
+                    borderWidth={0}
+                  >
+                    <Feather name="map-pin" size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                  </Button>
+                }
               />
-              <Button
-                onPress={detectLocation}
-                disabled={loading}
-              >
-                Detect
-              </Button>
-            </XStack>
-            
-            <YStack space="$2">
-              <Text fontSize="$4" fontWeight="bold">Role</Text>
-              <Button
-                onPress={() => setShowRoleModal(true)}
-                theme="alt1"
-              >
-                {formData.role.charAt(0).toUpperCase() + formData.role.slice(1)}
-              </Button>
             </YStack>
 
-            <YStack space="$2">
-              <Text fontSize="$4" fontWeight="bold">Experience Level</Text>
-              <Button
-                onPress={() => setShowExperienceModal(true)}
-                theme="alt1"
-              >
-                {formData.experience_level.charAt(0).toUpperCase() + formData.experience_level.slice(1)}
-              </Button>
-            </YStack>
+            <Button
+              onPress={() => setShowRoleModal(true)}
+              variant="secondary"
+              size="lg"
+            >
+              <Text color="$color">{formData.role.charAt(0).toUpperCase() + formData.role.slice(1)}</Text>
+            </Button>
 
-            <XStack space="$4" alignItems="center" backgroundColor="$gray3" padding="$4" borderRadius="$4">
-              <Text fontSize="$4" fontWeight="bold">Private Profile</Text>
+            <Button
+              onPress={() => setShowExperienceModal(true)}
+              variant="secondary"
+              size="lg"
+            >
+              <Text color="$color">{formData.experience_level.charAt(0).toUpperCase() + formData.experience_level.slice(1)}</Text>
+            </Button>
+
+            <XStack 
+              justifyContent="space-between"
+              alignItems="center"
+              backgroundColor={formData.private_profile ? "$blue4" : undefined}
+              padding="$4"
+              borderRadius="$4"
+              pressStyle={{
+                scale: 0.98,
+              }}
+              onPress={() => setFormData(prev => ({ ...prev, private_profile: !prev.private_profile }))}
+            >
+              <Text size="lg" color="$color">Private Profile</Text>
               <Switch
-                backgroundColor="$gray5"
                 size="$6"
                 checked={formData.private_profile}
                 onCheckedChange={(checked) => 
                   setFormData(prev => ({ ...prev, private_profile: checked }))
                 }
+                backgroundColor={formData.private_profile ? "$blue8" : "$gray6"}
+                scale={1.2}
+                margin="$2"
+                pressStyle={{
+                  scale: 0.95
+                }}
               >
-                <Switch.Thumb />
+                <Switch.Thumb 
+                  scale={1.2}
+                  pressStyle={{
+                    scale: 0.95
+                  }}
+                />
               </Switch>
             </XStack>
 
             {error ? (
-              <Text color="$red10" fontSize="$3">{error}</Text>
+              <Text size="sm" intent="error" textAlign="center">
+                {error}
+              </Text>
             ) : null}
 
-            <Button 
-              themeInverse
+            <Button
               onPress={handleUpdate}
               disabled={loading}
+              variant="primary"
+              size="lg"
+              backgroundColor="$blue10"
             >
               {loading ? 'Updating...' : 'Update Profile'}
             </Button>
-
-            <Button 
-              theme="red"
-              onPress={handleSignOut}
-              disabled={loading}
-            >
-              Sign Out
-            </Button>
           </YStack>
-        </Form>
+        </YStack>
+      </YStack>
 
-        <Modal
-          visible={showRoleModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowRoleModal(false)}
+      {/* Role Selection Modal */}
+      <Modal
+        visible={showRoleModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRoleModal(false)}
+      >
+        <Pressable 
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} 
+          onPress={() => setShowRoleModal(false)}
         >
-          <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <YStack
-              backgroundColor="$background"
-              padding="$4"
-              margin="$4"
-              borderRadius="$4"
-              space="$2"
-            >
-              <Text fontSize="$5" fontWeight="bold">Select Role</Text>
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
+          >
+            <Text size="xl" weight="bold" color="$color">Select Role</Text>
+            <YStack gap="$2">
               {USER_ROLES.map((role) => (
                 <Button
                   key={role}
@@ -197,31 +236,50 @@ export function ProfileScreen() {
                     setFormData(prev => ({ ...prev, role: role as UserRole }));
                     setShowRoleModal(false);
                   }}
-                  theme={formData.role === role ? 'active' : undefined}
+                  variant={formData.role === role ? "primary" : "secondary"}
+                  backgroundColor={formData.role === role ? "$blue10" : undefined}
+                  size="lg"
                 >
                   {role.charAt(0).toUpperCase() + role.slice(1)}
                 </Button>
               ))}
-              <Button onPress={() => setShowRoleModal(false)}>Cancel</Button>
             </YStack>
-          </View>
-        </Modal>
-
-        <Modal
-          visible={showExperienceModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowExperienceModal(false)}
-        >
-          <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <YStack
-              backgroundColor="$background"
-              padding="$4"
-              margin="$4"
-              borderRadius="$4"
-              space="$2"
+            <Button 
+              onPress={() => setShowRoleModal(false)}
+              variant="secondary"
+              size="lg"
+              backgroundColor="$backgroundHover"
             >
-              <Text fontSize="$5" fontWeight="bold">Select Experience Level</Text>
+              Close
+            </Button>
+          </YStack>
+        </Pressable>
+      </Modal>
+
+      {/* Experience Level Modal */}
+      <Modal
+        visible={showExperienceModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowExperienceModal(false)}
+      >
+        <Pressable 
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} 
+          onPress={() => setShowExperienceModal(false)}
+        >
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
+          >
+            <Text size="xl" weight="bold" color="$color">Select Experience Level</Text>
+            <YStack gap="$2">
               {EXPERIENCE_LEVELS.map((level) => (
                 <Button
                   key={level}
@@ -229,16 +287,25 @@ export function ProfileScreen() {
                     setFormData(prev => ({ ...prev, experience_level: level as ExperienceLevel }));
                     setShowExperienceModal(false);
                   }}
-                  theme={formData.experience_level === level ? 'active' : undefined}
+                  variant={formData.experience_level === level ? "primary" : "secondary"}
+                  backgroundColor={formData.experience_level === level ? "$blue10" : undefined}
+                  size="lg"
                 >
                   {level.charAt(0).toUpperCase() + level.slice(1)}
                 </Button>
               ))}
-              <Button onPress={() => setShowExperienceModal(false)}>Cancel</Button>
             </YStack>
-          </View>
-        </Modal>
-      </YStack>
-    </SafeAreaView>
+            <Button 
+              onPress={() => setShowExperienceModal(false)}
+              variant="secondary"
+              size="lg"
+              backgroundColor="$backgroundHover"
+            >
+              Close
+            </Button>
+          </YStack>
+        </Pressable>
+      </Modal>
+    </Screen>
   );
 } 
