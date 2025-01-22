@@ -103,10 +103,10 @@ const ButtonText = styled(Text, {
         color: 'white',
       },
       secondary: { 
-        color: '#0f172a', // Dark text for secondary
+        color: '$color',  // This will use the theme's text color
       },
       link: { 
-        color: '#2563eb', // Blue text for links
+        color: '$indigo600',
         textDecorationLine: 'underline',
       },
     },

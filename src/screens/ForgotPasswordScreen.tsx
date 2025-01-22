@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Form, YStack } from 'tamagui';
-import { Text } from 'tamagui';
+import { YStack } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
@@ -9,6 +8,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { Button } from '../components/Button';
+import { Text } from '../components/Text';
 
 export function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');

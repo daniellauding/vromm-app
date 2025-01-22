@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Form, YStack, XStack } from 'tamagui';
-import { Text } from 'tamagui';
+import { YStack, XStack } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
@@ -9,6 +8,7 @@ import { FormField } from '../components/FormField';
 import { Header } from '../components/Header';
 import { useLanguage } from '../context/LanguageContext';
 import { Button } from '../components/Button';
+import { Text } from '../components/Text';
 
 export function SignupScreen() {
   const [email, setEmail] = useState('');

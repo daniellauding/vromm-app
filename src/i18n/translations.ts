@@ -10,8 +10,8 @@ export const translations = {
     // Auth screens
     auth: {
       signIn: {
-        title: 'Välkommen tillbaka',
-        slogan: 'Upptäck och dela klätterrutter',
+        title: 'Dags att hitta en ny övningsrutt',
+        slogan: 'Upptäck perfekta övningskörningsrutter nära dig. Filtrera efter svårighetsgrad, längd och mer.',
         emailLabel: 'E-post',
         emailPlaceholder: 'Din e-postadress',
         passwordLabel: 'Lösenord',
@@ -85,8 +85,8 @@ export const translations = {
     // Auth screens
     auth: {
       signIn: {
-        title: 'Welcome Back',
-        slogan: 'Discover and share climbing routes',
+        title: 'Time to find a new exercise route',
+        slogan: 'Discover perfect practice driving routes near you. Filter by difficulty, length and more',
         emailLabel: 'Email',
         emailPlaceholder: 'Your email address',
         passwordLabel: 'Password',

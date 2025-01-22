@@ -7,7 +7,7 @@ export type TextIntent = 'default' | 'muted' | 'success' | 'error' | 'warning'
 
 export const Text = styled(TamaguiText, {
   name: 'Text',
-  color: '$gray12',
+  color: '$color',
 
   variants: {
     size: {
@@ -31,11 +31,11 @@ export const Text = styled(TamaguiText, {
     },
 
     intent: {
-      default: { color: '$gray12' },
-      muted: { color: '$gray11' },
-      success: { color: '$green10' },
-      error: { color: '$red10' },
-      warning: { color: '$yellow10' },
+      default: { color: '$color' },
+      muted: { color: '$colorHover' },
+      success: { color: '$success' },
+      error: { color: '$error' },
+      warning: { color: '$warning' },
     },
   } as const,
 

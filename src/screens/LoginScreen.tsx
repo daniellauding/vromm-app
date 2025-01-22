@@ -36,8 +36,8 @@ export function LoginScreen() {
   };
 
   return (
-    <Screen>
-      <YStack f={1} justifyContent="center" gap={32}>
+    <Screen scroll>
+      <YStack f={1} justifyContent="center" gap={32} width="100%">
         <YStack gap={8}>
           <Text size="3xl" weight="bold" textAlign="center">
             {t('auth.signIn.title')}
@@ -47,7 +47,7 @@ export function LoginScreen() {
           </Text>
         </YStack>
 
-        <YStack gap={24}>
+        <YStack gap={24} width="100%">
           <YStack gap={16}>
             <FormField
               label={t('auth.signIn.emailLabel')}
@@ -75,7 +75,7 @@ export function LoginScreen() {
             </Text>
           ) : null}
 
-          <YStack gap={16}>
+          <YStack gap={16} width="100%">
             <Button
               onPress={handleLogin}
               disabled={loading}
