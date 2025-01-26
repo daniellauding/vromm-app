@@ -201,6 +201,15 @@ export function ProfileScreen() {
             >
               {loading ? 'Updating...' : 'Update Profile'}
             </Button>
+
+            <Button
+              onPress={handleSignOut}
+              disabled={loading}
+              variant="secondary"
+              size="lg"
+            >
+              Sign Out
+            </Button>
           </YStack>
         </YStack>
       </YStack>
