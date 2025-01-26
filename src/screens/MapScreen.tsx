@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map } from '../components/Map';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { Database } from '../lib/database.types';
-import { YStack, XStack, Card, Input, Button } from 'tamagui';
+import { YStack, XStack, Card, Input, Text } from 'tamagui';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 
@@ -282,63 +282,93 @@ export function MapScreen() {
   }, [routes]);
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <YStack padding="$4" space="$4" flex={1}>
-        {/* Search Bar */}
-        <Card bordered elevate padding="$4">
-          <YStack space="$2">
-            <XStack space="$2">
-              <Input
-                ref={searchInputRef}
-                flex={1}
-                size="$4"
-                value={searchQuery}
-                onChangeText={handleSearch}
-                placeholder="Search location..."
-                borderRadius="$4"
-                autoComplete="street-address"
-                autoCapitalize="none"
-              />
-              <Button
-                size="$4"
-                theme="blue"
-                onPress={handleLocateMe}
-                icon={<Feather name="crosshair" size={18} color="white" />}
-              />
-            </XStack>
+    <View style={styles.container}>
+      <Map
+        waypoints={getAllWaypoints()}
+        region={region}
+        onRegionChangeComplete={setRegion}
+        style={styles.map}
+        showControls={false}
+      />
+      
+      <SafeAreaView style={styles.searchContainer} edges={['top']}>
+        <XStack padding="$4" gap="$2">
+          <Input
+            ref={searchInputRef}
+            flex={1}
+            value={searchQuery}
+            onChangeText={handleSearch}
+            placeholder="Search location..."
+            backgroundColor="$background"
+            borderWidth={1}
+            borderColor="$borderColor"
+            borderRadius="$2"
+            height="$10"
+            paddingLeft="$3"
+            fontSize="$2"
+          />
+          <XStack
+            backgroundColor="$background"
+            borderRadius="$2"
+            width="$10"
+            height="$10"
+            alignItems="center"
+            justifyContent="center"
+            borderWidth={1}
+            borderColor="$borderColor"
+            onPress={handleLocateMe}
+            pressStyle={{ opacity: 0.7 }}
+          >
+            <Feather name="navigation" size={20} />
+          </XStack>
+        </XStack>
 
-            {showSearchResults && searchResults.length > 0 && (
-              <Card bordered size="$2" padding="$2">
-                <YStack space="$1">
-                  {searchResults.map((result, index) => (
-                    <Button
-                      key={index}
-                      size="$3"
-                      theme="alt2"
-                      justifyContent="flex-start"
-                      onPress={() => handleLocationSelect(result)}
-                    >
+        {showSearchResults && searchResults.length > 0 && (
+          <Card
+            elevate
+            bordered
+            backgroundColor="$background"
+            margin="$4"
+            marginTop={0}
+          >
+            <YStack padding="$2">
+              {searchResults.map((result, index) => (
+                <XStack
+                  key={index}
+                  padding="$3"
+                  pressStyle={{ opacity: 0.7 }}
+                  onPress={() => handleLocationSelect(result)}
+                >
+                  <Feather name="map-pin" size={16} marginRight="$2" />
+                  <YStack>
+                    <Text>
                       {[result.street, result.city, result.country]
                         .filter(Boolean)
                         .join(', ')}
-                    </Button>
-                  ))}
-                </YStack>
-              </Card>
-            )}
-          </YStack>
-        </Card>
-
-        {/* Map */}
-        <View style={{ flex: 1, borderRadius: 12, overflow: 'hidden' }}>
-          <Map
-            waypoints={getAllWaypoints()}
-            region={region}
-            onRegionChangeComplete={setRegion}
-            showControls
-          />
-        </View>
-      </YStack>
-    </SafeAreaView>
+                    </Text>
+                  </YStack>
+                </XStack>
+              ))}
+            </YStack>
+          </Card>
+        )}
+      </SafeAreaView>
+    </View>
   );
-} 
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  searchContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+  },
+}); 

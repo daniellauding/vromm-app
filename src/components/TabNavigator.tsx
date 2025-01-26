@@ -90,7 +90,7 @@ export function TabNavigator() {
         component={MapScreen}
         options={{
           title: t('navigation.map'),
-          headerTitle: t('navigation.map'),
+          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <Feather 
               name="map" 
