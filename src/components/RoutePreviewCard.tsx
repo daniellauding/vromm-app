@@ -7,7 +7,8 @@ import { Map } from './Map';
 import Carousel from 'react-native-reanimated-carousel';
 import { Region } from 'react-native-maps';
 import type { Route, WaypointData } from '../hooks/useRoutes';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useSharedValue } from 'react-native-reanimated';
 
 type MapItem = {
   type: 'map';
@@ -42,7 +43,12 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const width = Dimensions.get('window').width - 32;
+  const progressValue = useSharedValue<number>(0);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleProgressChange = useCallback((value: number) => {
+    setActiveIndex(Math.round(value));
+  }, []);
 
   const getMapRegion = () => {
     const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
@@ -153,7 +159,7 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
                   defaultIndex={0}
                   autoPlay={false}
                   enabled={true}
-                  onProgressChange={(offsetProgress) => setActiveIndex(Math.round(offsetProgress))}
+                  onProgressChange={handleProgressChange}
                   renderItem={({ item }) => (
                     <View style={{ borderRadius: 16, overflow: 'hidden' }}>
                       {item.type === 'map' ? (

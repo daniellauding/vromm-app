@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { FlatList, RefreshControl, View, useColorScheme, Image, Dimensions } from 'react-native';
 import { YStack, Text, Card, XStack } from 'tamagui';
 import { useNavigation } from '@react-navigation/native';
@@ -8,6 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import { Map } from './Map';
 import Carousel from 'react-native-reanimated-carousel';
 import { Region } from 'react-native-maps';
+import { useSharedValue } from 'react-native-reanimated';
 
 type WaypointData = {
   lat: number;
@@ -77,6 +78,7 @@ export function RouteList({ routes, onRefresh }: RouteListProps) {
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const width = Dimensions.get('window').width - 32; // Full width minus padding
+  const progressValues = useSharedValue<Record<string, number>>({});
 
   const handleRefresh = async () => {
     if (!onRefresh) return;
@@ -84,6 +86,13 @@ export function RouteList({ routes, onRefresh }: RouteListProps) {
     await onRefresh();
     setRefreshing(false);
   };
+
+  const handleProgressChange = useCallback((routeId: string, value: number) => {
+    setActiveIndices(prev => ({
+      ...prev,
+      [routeId]: Math.round(value)
+    }));
+  }, []);
 
   const getMapRegion = (route: Route) => {
     const waypointsData = route.waypoint_details || route.metadata?.waypoints || [];
@@ -192,12 +201,7 @@ export function RouteList({ routes, onRefresh }: RouteListProps) {
                     defaultIndex={0}
                     autoPlay={false}
                     enabled={true}
-                    onProgressChange={(offsetProgress) => 
-                      setActiveIndices(prev => ({
-                        ...prev,
-                        [route.id]: Math.round(offsetProgress)
-                      }))
-                    }
+                    onProgressChange={(value) => handleProgressChange(route.id, value)}
                     renderItem={({ item }) => (
                       <View style={{ borderRadius: 16, overflow: 'hidden' }}>
                         {item.type === 'map' ? (

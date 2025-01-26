@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Image, Alert } from 'react-native';
-import { YStack, Form, Input, Button, Text, TextArea, XStack, Select, Card, Separator } from 'tamagui';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, ScrollView, Image, Alert, useColorScheme } from 'react-native';
+import { YStack, Form, Input, TextArea, XStack, Card, Separator } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,12 @@ import { Map, Waypoint } from '../components/Map';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { Screen } from '../components/Screen';
+import { Button } from '../components/Button';
+import { Text } from '../components/Text';
+import { Header } from '../components/Header';
+import { FormField } from '../components/FormField';
+import { Region } from 'react-native-maps';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotType = Database['public']['Enums']['spot_type'];
@@ -38,9 +44,24 @@ type MediaItem = {
   thumbnail?: string;
 };
 
+type MediaUrl = {
+  type: 'video' | 'image';
+  url: string;
+  description?: string;
+};
+
 type RouteData = Database['public']['Tables']['routes']['Row'] & {
   exercises?: Exercise[];
   media?: MediaItem[];
+};
+
+type MapPressEvent = {
+  nativeEvent: {
+    coordinate: {
+      latitude: number;
+      longitude: number;
+    };
+  };
 };
 
 type Props = {
@@ -54,6 +75,8 @@ type Props = {
 export function CreateRouteScreen({ route }: Props) {
   const routeId = route?.params?.routeId;
   const isEditing = !!routeId;
+  const colorScheme = useColorScheme();
+  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const searchInputRef = useRef<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Location.LocationGeocodedAddress[]>([]);
@@ -109,7 +132,7 @@ export function CreateRouteScreen({ route }: Props) {
     category: 'parking' as Category,
   });
 
-  const handleMapPress = (e: any) => {
+  const handleMapPress = (e: MapPressEvent) => {
     const { latitude, longitude } = e.nativeEvent.coordinate;
     const newWaypoint: Waypoint = {
       latitude,
@@ -119,8 +142,9 @@ export function CreateRouteScreen({ route }: Props) {
     setWaypoints([...waypoints, newWaypoint]);
   };
 
-  const removeLastWaypoint = () => {
-    setWaypoints(waypoints.slice(0, -1));
+  const handleMapPressWrapper = () => {
+    // This function is required by the Map component's type,
+    // but we'll handle the actual press event in the native map component
   };
 
   const handleLocateMe = async () => {
@@ -131,6 +155,22 @@ export function CreateRouteScreen({ route }: Props) {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       }));
+
+      // Get address from coordinates
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      // Update search input with location name
+      const locationString = [
+        address.street,
+        address.city,
+        address.region,
+        address.country
+      ].filter(Boolean).join(', ');
+
+      setSearchQuery(locationString);
     } catch (err) {
       console.error('Error getting location:', err);
     }
@@ -232,15 +272,15 @@ export function CreateRouteScreen({ route }: Props) {
       }));
 
       // Upload media files to storage if they exist
-      let mediaUrls = [];
+      const mediaUrls: MediaUrl[] = [];
       if (media.length > 0) {
         try {
-          mediaUrls = await Promise.all(
+          const uploadedMedia = await Promise.all(
             media.map(async (item) => {
               // For YouTube videos, just pass through the URL
               if (item.type === 'youtube') {
                 return {
-                  type: 'video',
+                  type: 'video' as const,
                   url: item.uri,
                   description: item.description
                 };
@@ -263,7 +303,10 @@ export function CreateRouteScreen({ route }: Props) {
                 throw uploadError;
               }
               
-              const publicUrl = `${supabase.storageUrl}/object/public/route-attachments/${data?.path}`;
+              // Get the public URL using getPublicUrl instead of accessing storageUrl directly
+              const { data: { publicUrl } } = supabase.storage
+                .from('route-attachments')
+                .getPublicUrl(data?.path || '');
               
               return {
                 type: item.type,
@@ -272,6 +315,7 @@ export function CreateRouteScreen({ route }: Props) {
               };
             })
           );
+          mediaUrls.push(...uploadedMedia);
         } catch (uploadErr) {
           console.error('Media upload error:', uploadErr);
           Alert.alert('Upload Error', 'Failed to upload media files. Try again or create route without media.');
@@ -309,7 +353,8 @@ export function CreateRouteScreen({ route }: Props) {
           coordinates: []
         },
         suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises) : '',
-        media_attachments: mediaUrls
+        media_attachments: mediaUrls,
+        drawing_mode: 'waypoints'
       };
 
       const { error: routeError } = await supabase
@@ -324,10 +369,7 @@ export function CreateRouteScreen({ route }: Props) {
       navigation.goBack();
     } catch (err) {
       console.error('Create route error:', err);
-      Alert.alert(
-        'Error',
-        err instanceof Error ? err.message : 'Failed to create route. Please try again.'
-      );
+      setError(err instanceof Error ? err.message : 'Failed to create route. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -547,6 +589,31 @@ export function CreateRouteScreen({ route }: Props) {
                 latitudeDelta: 0.01,
                 longitudeDelta: 0.01,
               });
+
+              // Get address from coordinates
+              Location.reverseGeocodeAsync({
+                latitude: lat,
+                longitude: lng,
+              }).then(([address]) => {
+                if (address) {
+                  // Update search input with location name
+                  const locationString = [
+                    address.street,
+                    address.city,
+                    address.region,
+                    address.country
+                  ].filter(Boolean).join(', ');
+
+                  setSearchQuery(locationString);
+                } else {
+                  // If no address found, show coordinates
+                  setSearchQuery(`${lat}, ${lng}`);
+                }
+              }).catch(err => {
+                console.error('Error getting address:', err);
+                // If reverse geocoding fails, show coordinates
+                setSearchQuery(`${lat}, ${lng}`);
+              });
             } else {
               Alert.alert('Invalid coordinates', 'Please enter valid latitude and longitude values');
             }
@@ -558,318 +625,336 @@ export function CreateRouteScreen({ route }: Props) {
     );
   };
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <YStack padding="$4" space="$4">
-          <XStack justifyContent="space-between" alignItems="center">
-            <Text fontSize="$8" fontWeight="bold" color="$gray12">
-              {isEditing ? 'Edit Route' : 'Create New Route'}
-            </Text>
-            <XStack space="$2">
-              {isEditing && (
-                <Button
-                  size="$3"
-                  theme="red"
-                  onPress={handleDelete}
-                  icon={<Feather name="trash-2" size={18} color="white" />}
-                >
-                  Delete
-                </Button>
-              )}
-              <Button
-                size="$3"
-                theme="alt2"
-                onPress={() => navigation.goBack()}
-                icon={<Feather name="x" size={18} color="black" />}
-              >
-                Cancel
-              </Button>
-            </XStack>
-          </XStack>
+  // Update region state when map region changes
+  const handleRegionChange = (newRegion: Region) => {
+    setRegion(newRegion);
+  };
 
-          <Form onSubmit={handleCreate}>
-            <YStack space="$5">
-              {/* Basic Information Card */}
-              <Card bordered elevate size="$4" padding="$4">
-                <YStack space="$4">
-                  <Text fontSize="$6" fontWeight="600" color="$gray11">Basic Information</Text>
-                  <Input
-                    size="$4"
-                    borderRadius="$4"
-                    value={formData.name}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                    placeholder="Route Name"
-                  />
-                  
-                  <TextArea
-                    size="$4"
-                    borderRadius="$4"
-                    value={formData.description}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                    placeholder="Description"
-                    numberOfLines={4}
-                  />
-                </YStack>
-              </Card>
+  return (
+    <Screen scroll>
+      <YStack f={1} gap={24} paddingBottom={120}>
+        <YStack>
+          <Header title={isEditing ? 'Edit Route' : 'Create New Route'} />
+          <XStack gap="$2" justifyContent="flex-end" mt="$2">
+            {isEditing && (
+              <Button
+                onPress={handleDelete}
+                variant="secondary"
+                size="md"
+                backgroundColor="$red10"
+              >
+                <XStack gap="$2" alignItems="center">
+                  <Feather name="trash-2" size={18} color="white" />
+                  <Text color="white">Delete</Text>
+                </XStack>
+              </Button>
+            )}
+            <Button
+              onPress={() => navigation.goBack()}
+              variant="secondary"
+              size="md"
+            >
+              <XStack gap="$2" alignItems="center">
+                <Feather name="x" size={18} color={iconColor} />
+                <Text color="$color">Cancel</Text>
+              </XStack>
+            </Button>
+          </XStack>
+        </YStack>
+
+        <Form onSubmit={handleCreate}>
+          <YStack gap={24}>
+            {/* Basic Information Card */}
+            <YStack gap={24}>
+              <YStack>
+                <Text size="lg" weight="medium" mb="$2" color="$color">Basic Information</Text>
+                <FormField
+                  value={formData.name}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+                  placeholder="Route Name"
+                  accessibilityLabel="Route name input"
+                  autoCapitalize="words"
+                />
+                
+                <TextArea
+                  value={formData.description}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
+                  placeholder="Description"
+                  numberOfLines={4}
+                  accessibilityLabel="Route description input"
+                  size="md"
+                  backgroundColor="$backgroundHover"
+                  borderColor="$borderColor"
+                  marginTop="$2"
+                />
+              </YStack>
 
               {/* Map Card */}
-              <Card bordered elevate size="$4" padding="$4">
-                <YStack space="$4">
-                  <Text fontSize="$6" fontWeight="600" color="$gray11">Route Location</Text>
-                  <Text fontSize="$3" color="$gray10">Search for a location or tap on the map</Text>
+              <YStack gap={16}>
+                <Text size="lg" weight="medium" color="$color">Route Location</Text>
+                <Text size="sm" color="$gray11">Search for a location or tap on the map</Text>
 
-                  <YStack space="$2">
-                    <XStack space="$2">
-                      <Input
-                        ref={searchInputRef}
-                        flex={1}
-                        size="$4"
-                        value={searchQuery}
-                        onChangeText={handleSearch}
-                        placeholder="Search location..."
-                        borderRadius="$4"
-                        autoComplete="street-address"
-                        autoCapitalize="none"
-                      />
-                      <Button
-                        size="$4"
-                        theme="blue"
-                        onPress={handleManualCoordinates}
-                        icon={<Feather name="map-pin" size={18} color="white" />}
-                      />
-                    </XStack>
-
-                    {showSearchResults && searchResults.length > 0 && (
-                      <Card bordered size="$2" padding="$2">
-                        <YStack space="$1">
-                          {searchResults.map((result, index) => (
-                            <Button
-                              key={index}
-                              size="$3"
-                              theme="alt2"
-                              justifyContent="flex-start"
-                              onPress={() => handleLocationSelect(result)}
-                            >
-                              <Text numberOfLines={1}>
-                                {[result.street, result.city, result.country]
-                                  .filter(Boolean)
-                                  .join(', ')}
-                              </Text>
-                            </Button>
-                          ))}
-                        </YStack>
-                      </Card>
-                    )}
-                  </YStack>
-
-                  <View style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}>
-                    <Map
-                      waypoints={waypoints}
-                      region={region}
-                      onPress={handleMapPress}
-                      onRegionChangeComplete={setRegion}
-                      showControls
-                    />
-                    <Button
-                      position="absolute"
-                      bottom={16}
-                      left={16}
-                      icon={<Feather name="crosshair" size={20} color="white" />}
-                      onPress={handleLocateMe}
-                      backgroundColor="$blue10"
-                      borderRadius="$6"
-                      opacity={0.9}
-                      pressStyle={{ opacity: 0.7 }}
-                    >
-                      Locate Me
-                    </Button>
-                  </View>
-
-                  <XStack space="$4">
-                    <Button 
+                <YStack gap="$2">
+                  <XStack gap="$2">
+                    <FormField
+                      ref={searchInputRef}
                       flex={1}
-                      onPress={removeLastWaypoint} 
-                      disabled={waypoints.length === 0}
-                      theme="red"
-                      icon={<Feather name="trash-2" size={18} color="white" />}
-                      borderRadius="$6"
-                    >
-                      Remove Last Pin
-                    </Button>
+                      value={searchQuery}
+                      onChangeText={handleSearch}
+                      placeholder="Search location..."
+                      autoComplete="street-address"
+                      autoCapitalize="none"
+                      accessibilityLabel="Location search input"
+                      rightElement={
+                        <Button
+                          onPress={handleManualCoordinates}
+                          variant="secondary"
+                          padding="$2"
+                          backgroundColor="transparent"
+                          borderWidth={0}
+                        >
+                          <Feather name="map-pin" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                        </Button>
+                      }
+                    />
                   </XStack>
+
+                  {showSearchResults && searchResults.length > 0 && (
+                    <Card elevate>
+                      <YStack padding="$2" gap="$1">
+                        {searchResults.map((result, index) => (
+                          <Button
+                            key={index}
+                            onPress={() => handleLocationSelect(result)}
+                            variant="secondary"
+                            size="md"
+                            justifyContent="flex-start"
+                          >
+                            <Text numberOfLines={1} color="$color">
+                              {[result.street, result.city, result.country]
+                                .filter(Boolean)
+                                .join(', ')}
+                            </Text>
+                          </Button>
+                        ))}
+                      </YStack>
+                    </Card>
+                  )}
                 </YStack>
-              </Card>
+
+                <View style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}>
+                  <Map
+                    waypoints={waypoints}
+                    region={region}
+                    onPress={handleMapPressWrapper}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    position="absolute"
+                    bottom={16}
+                    left={16}
+                    onPress={handleLocateMe}
+                    variant="primary"
+                    backgroundColor="$blue10"
+                    size="md"
+                    opacity={0.9}
+                    pressStyle={{ opacity: 0.7 }}
+                  >
+                    <XStack gap="$2" alignItems="center">
+                      <Feather name="crosshair" size={20} color="white" />
+                      <Text color="white">Locate Me</Text>
+                    </XStack>
+                  </Button>
+                </View>
+
+                <Button 
+                  onPress={() => setWaypoints(waypoints.slice(0, -1))}
+                  disabled={waypoints.length === 0}
+                  variant="secondary"
+                  backgroundColor="$red10"
+                  size="lg"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="trash-2" size={18} color="white" />
+                    <Text color="white">Remove Last Pin</Text>
+                  </XStack>
+                </Button>
+              </YStack>
 
               {/* Exercises Card */}
-              <Card bordered elevate size="$4" padding="$4">
-                <YStack space="$4">
-                  <Text fontSize="$6" fontWeight="600" color="$gray11">Exercises</Text>
-                  
-                  <YStack space="$3">
-                    <Input
-                      size="$4"
-                      value={newExercise.title || ''}
-                      onChangeText={(text) => setNewExercise(prev => ({ ...prev, title: text }))}
-                      placeholder="Exercise Title"
+              <YStack gap={16}>
+                <Text size="lg" weight="medium" color="$color">Exercises</Text>
+                
+                <YStack gap="$3">
+                  <FormField
+                    value={newExercise.title || ''}
+                    onChangeText={(text) => setNewExercise(prev => ({ ...prev, title: text }))}
+                    placeholder="Exercise Title"
+                    accessibilityLabel="Exercise title input"
+                  />
+                  <TextArea
+                    value={newExercise.description || ''}
+                    onChangeText={(text) => setNewExercise(prev => ({ ...prev, description: text }))}
+                    placeholder="Exercise Description"
+                    numberOfLines={2}
+                    accessibilityLabel="Exercise description input"
+                    size="$4"
+                    backgroundColor="$backgroundHover"
+                    borderColor="$borderColor"
+                  />
+                  <XStack gap="$3">
+                    <FormField
+                      flex={1}
+                      value={newExercise.duration || ''}
+                      onChangeText={(text) => setNewExercise(prev => ({ ...prev, duration: text }))}
+                      placeholder="Duration (e.g., 30 sec)"
+                      accessibilityLabel="Exercise duration input"
                     />
-                    <TextArea
-                      size="$4"
-                      value={newExercise.description || ''}
-                      onChangeText={(text) => setNewExercise(prev => ({ ...prev, description: text }))}
-                      placeholder="Exercise Description"
-                      numberOfLines={2}
+                    <FormField
+                      flex={1}
+                      value={newExercise.repetitions || ''}
+                      onChangeText={(text) => setNewExercise(prev => ({ ...prev, repetitions: text }))}
+                      placeholder="Repetitions"
+                      accessibilityLabel="Exercise repetitions input"
                     />
-                    <XStack space="$3">
-                      <Input
-                        flex={1}
-                        size="$4"
-                        value={newExercise.duration || ''}
-                        onChangeText={(text) => setNewExercise(prev => ({ ...prev, duration: text }))}
-                        placeholder="Duration (e.g., 30 sec)"
-                      />
-                      <Input
-                        flex={1}
-                        size="$4"
-                        value={newExercise.repetitions || ''}
-                        onChangeText={(text) => setNewExercise(prev => ({ ...prev, repetitions: text }))}
-                        placeholder="Repetitions"
-                      />
-                    </XStack>
-                    <Button
-                      onPress={handleAddExercise}
-                      disabled={!newExercise.title}
-                      icon={<Feather name="plus" size={18} color="white" />}
-                      backgroundColor="$blue10"
-                    >
-                      Add Exercise
-                    </Button>
-                  </YStack>
-
-                  {exercises.length > 0 && (
-                    <YStack space="$3" marginTop="$3">
-                      <Text fontSize="$3" color="$gray10">Added Exercises</Text>
-                      {exercises.map((exercise) => (
-                        <Card key={exercise.id} bordered size="$2" padding="$3">
-                          <XStack justifyContent="space-between" alignItems="center">
-                            <YStack flex={1}>
-                              <Text fontWeight="600">{exercise.title}</Text>
-                              {exercise.description && (
-                                <Text fontSize="$2" color="$gray11">{exercise.description}</Text>
-                              )}
-                              <XStack space="$2" marginTop="$1">
-                                {exercise.duration && (
-                                  <Text fontSize="$2" color="$blue10">Duration: {exercise.duration}</Text>
-                                )}
-                                {exercise.repetitions && (
-                                  <Text fontSize="$2" color="$blue10">Reps: {exercise.repetitions}</Text>
-                                )}
-                              </XStack>
-                            </YStack>
-                            <Button
-                              size="$2"
-                              theme="red"
-                              onPress={() => handleRemoveExercise(exercise.id)}
-                              icon={<Feather name="trash-2" size={16} color="white" />}
-                            />
-                          </XStack>
-                        </Card>
-                      ))}
-                    </YStack>
-                  )}
+                  </XStack>
+                  <Button
+                    onPress={handleAddExercise}
+                    disabled={!newExercise.title}
+                    variant="primary"
+                    backgroundColor="$blue10"
+                    size="lg"
+                  >
+                    Add Exercise
+                  </Button>
                 </YStack>
-              </Card>
+
+                {exercises.length > 0 && (
+                  <YStack gap="$3">
+                    {exercises.map((exercise) => (
+                      <Card key={exercise.id} bordered backgroundColor="$backgroundHover">
+                        <XStack padding="$3" justifyContent="space-between" alignItems="center">
+                          <YStack gap="$1" flex={1}>
+                            <Text weight="medium" color="$color">{exercise.title}</Text>
+                            {exercise.description && (
+                              <Text size="sm" color="$gray11">{exercise.description}</Text>
+                            )}
+                            <XStack gap="$2">
+                              {exercise.duration && (
+                                <Text size="sm" color="$gray11">Duration: {exercise.duration}</Text>
+                              )}
+                              {exercise.repetitions && (
+                                <Text size="sm" color="$gray11">Reps: {exercise.repetitions}</Text>
+                              )}
+                            </XStack>
+                          </YStack>
+                          <Button
+                            onPress={() => handleRemoveExercise(exercise.id)}
+                            variant="secondary"
+                            backgroundColor="$red10"
+                            size="sm"
+                          >
+                            <XStack gap="$2" alignItems="center">
+                              <Feather name="trash-2" size={16} color="white" />
+                            </XStack>
+                          </Button>
+                        </XStack>
+                      </Card>
+                    ))}
+                  </YStack>
+                )}
+              </YStack>
 
               {/* Media Card */}
-              <Card bordered elevate size="$4" padding="$4">
-                <YStack space="$4">
-                  <Text fontSize="$6" fontWeight="600" color="$gray11">Media</Text>
-                  <Text fontSize="$3" color="$gray10">Add images, videos, or YouTube links</Text>
+              <YStack gap={16}>
+                <Text size="lg" weight="medium" color="$color">Media</Text>
+                <Text size="sm" color="$gray11">Add images, videos, or YouTube links</Text>
 
-                  <XStack space="$3">
-                    <Button
-                      flex={1}
-                      onPress={pickImage}
-                      icon={<Feather name="image" size={18} color="white" />}
-                      backgroundColor="$blue10"
-                    >
-                      Add Media
-                    </Button>
-                    <Button
-                      flex={1}
-                      onPress={addYoutubeLink}
-                      icon={<Feather name="youtube" size={18} color="white" />}
-                      backgroundColor="$red10"
-                    >
-                      Add YouTube
-                    </Button>
-                  </XStack>
+                <XStack gap="$3">
+                  <Button
+                    flex={1}
+                    onPress={pickImage}
+                    variant="primary"
+                    backgroundColor="$blue10"
+                    size="lg"
+                  >
+                    <XStack gap="$2" alignItems="center">
+                      <Feather name="image" size={18} color="white" />
+                      <Text color="white">Add Media</Text>
+                    </XStack>
+                  </Button>
+                  <Button
+                    flex={1}
+                    onPress={addYoutubeLink}
+                    variant="primary"
+                    backgroundColor="$red10"
+                    size="lg"
+                  >
+                    <XStack gap="$2" alignItems="center">
+                      <Feather name="youtube" size={18} color="white" />
+                      <Text color="white">Add YouTube</Text>
+                    </XStack>
+                  </Button>
+                </XStack>
 
-                  {media.length > 0 && (
-                    <YStack space="$3">
-                      {media.map((item) => (
-                        <Card key={item.id} bordered size="$2" padding="$3">
-                          <XStack space="$3" alignItems="center">
-                            {item.type === 'youtube' ? (
-                              <Image
-                                source={{ uri: item.thumbnail }}
-                                style={{ width: 120, height: 68, borderRadius: 8 }}
-                              />
-                            ) : (
-                              <Image
-                                source={{ uri: item.uri }}
-                                style={{ width: 80, height: 80, borderRadius: 8 }}
-                              />
-                            )}
-                            <YStack flex={1}>
-                              <Text fontWeight="600">
-                                {item.type === 'youtube' ? 'YouTube Video' : 
-                                 item.type === 'video' ? 'Video' : 'Image'}
-                              </Text>
-                              {item.type === 'youtube' && (
-                                <Text fontSize="$2" color="$gray11" numberOfLines={1} ellipsizeMode="middle">
-                                  {item.uri}
-                                </Text>
-                              )}
-                              <Input
-                                size="$3"
-                                value={item.description || ''}
-                                onChangeText={(text) => {
-                                  setMedia(media.map(m => 
-                                    m.id === item.id ? { ...m, description: text } : m
-                                  ));
-                                }}
-                                placeholder="Add description"
-                              />
-                            </YStack>
-                            <Button
-                              size="$2"
-                              theme="red"
-                              onPress={() => handleRemoveMedia(item.id)}
-                              icon={<Feather name="trash-2" size={16} color="white" />}
+                {media.length > 0 && (
+                  <YStack gap="$3">
+                    {media.map((item) => (
+                      <Card key={item.id} bordered backgroundColor="$backgroundHover">
+                        <XStack padding="$3" gap="$3" alignItems="center">
+                          {item.type === 'youtube' ? (
+                            <Image
+                              source={{ uri: item.thumbnail }}
+                              style={{ width: 120, height: 68, borderRadius: 8 }}
                             />
-                          </XStack>
-                        </Card>
-                      ))}
-                    </YStack>
-                  )}
-                </YStack>
-              </Card>
+                          ) : (
+                            <Image
+                              source={{ uri: item.uri }}
+                              style={{ width: 80, height: 80, borderRadius: 8 }}
+                            />
+                          )}
+                          <YStack flex={1} gap="$1">
+                            <Text weight="medium" color="$color">
+                              {item.type === 'youtube' ? 'YouTube Video' : 'Media'}
+                            </Text>
+                            {item.description && (
+                              <Text size="sm" color="$gray11" numberOfLines={2}>
+                                {item.description}
+                              </Text>
+                            )}
+                          </YStack>
+                          <Button
+                            onPress={() => setMedia(media.filter(m => m.id !== item.id))}
+                            variant="secondary"
+                            backgroundColor="$red10"
+                            size="sm"
+                          >
+                            <XStack gap="$2" alignItems="center">
+                              <Feather name="trash-2" size={16} color="white" />
+                            </XStack>
+                          </Button>
+                        </XStack>
+                      </Card>
+                    ))}
+                  </YStack>
+                )}
+              </YStack>
 
               {/* Route Details Card */}
-              <Card bordered elevate size="$4" padding="$4">
-                <YStack space="$4">
-                  <Text fontSize="$6" fontWeight="600" color="$gray11">Route Details</Text>
-                  
-                  <YStack space="$3">
-                    <Text fontSize="$3" color="$gray10">Difficulty Level</Text>
+              <YStack gap={16}>
+                <Text size="lg" weight="medium" color="$color">Route Details</Text>
+                
+                <YStack gap={16}>
+                  <YStack gap="$2">
+                    <Text size="sm" color="$gray11">Difficulty Level</Text>
                     <XStack flexWrap="wrap" gap="$2">
                       {DIFFICULTY_LEVELS.map((level) => (
                         <Button
                           key={level}
-                          size="$3"
-                          theme={formData.difficulty === level ? "active" : "alt2"}
                           onPress={() => setFormData(prev => ({ ...prev, difficulty: level }))}
+                          variant={formData.difficulty === level ? "primary" : "secondary"}
+                          backgroundColor={formData.difficulty === level ? "$blue10" : undefined}
+                          size="lg"
                         >
                           {level.charAt(0).toUpperCase() + level.slice(1)}
                         </Button>
@@ -877,15 +962,16 @@ export function CreateRouteScreen({ route }: Props) {
                     </XStack>
                   </YStack>
 
-                  <YStack space="$3">
-                    <Text fontSize="$3" color="$gray10">Spot Type</Text>
+                  <YStack gap="$2">
+                    <Text size="sm" color="$gray11">Spot Type</Text>
                     <XStack flexWrap="wrap" gap="$2">
                       {SPOT_TYPES.map((type) => (
                         <Button
                           key={type}
-                          size="$3"
-                          theme={formData.spot_type === type ? "active" : "alt2"}
                           onPress={() => setFormData(prev => ({ ...prev, spot_type: type }))}
+                          variant={formData.spot_type === type ? "primary" : "secondary"}
+                          backgroundColor={formData.spot_type === type ? "$blue10" : undefined}
+                          size="lg"
                         >
                           {type.charAt(0).toUpperCase() + type.slice(1)}
                         </Button>
@@ -893,15 +979,16 @@ export function CreateRouteScreen({ route }: Props) {
                     </XStack>
                   </YStack>
 
-                  <YStack space="$3">
-                    <Text fontSize="$3" color="$gray10">Category</Text>
+                  <YStack gap="$2">
+                    <Text size="sm" color="$gray11">Category</Text>
                     <XStack flexWrap="wrap" gap="$2">
                       {CATEGORIES.map((category) => (
                         <Button
                           key={category}
-                          size="$3"
-                          theme={formData.category === category ? "active" : "alt2"}
                           onPress={() => setFormData(prev => ({ ...prev, category: category }))}
+                          variant={formData.category === category ? "primary" : "secondary"}
+                          backgroundColor={formData.category === category ? "$blue10" : undefined}
+                          size="lg"
                         >
                           {category.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                         </Button>
@@ -909,15 +996,16 @@ export function CreateRouteScreen({ route }: Props) {
                     </XStack>
                   </YStack>
 
-                  <YStack space="$3">
-                    <Text fontSize="$3" color="$gray10">Visibility</Text>
+                  <YStack gap="$2">
+                    <Text size="sm" color="$gray11">Visibility</Text>
                     <XStack flexWrap="wrap" gap="$2">
                       {VISIBILITY_OPTIONS.map((option) => (
                         <Button
                           key={option}
-                          size="$3"
-                          theme={formData.visibility === option ? "active" : "alt2"}
                           onPress={() => setFormData(prev => ({ ...prev, visibility: option }))}
+                          variant={formData.visibility === option ? "primary" : "secondary"}
+                          backgroundColor={formData.visibility === option ? "$blue10" : undefined}
+                          size="lg"
                         >
                           {option.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                         </Button>
@@ -925,27 +1013,32 @@ export function CreateRouteScreen({ route }: Props) {
                     </XStack>
                   </YStack>
                 </YStack>
-              </Card>
+              </YStack>
 
-              {error ? (
-                <Text color="$red10" fontSize="$3">{error}</Text>
-              ) : null}
+              {error && (
+                <Text size="sm" intent="error" textAlign="center">
+                  {error}
+                </Text>
+              )}
 
               <Button 
-                themeInverse
                 onPress={handleCreate}
                 disabled={loading || !formData.name.trim()}
-                size="$5"
-                borderRadius="$6"
-                pressStyle={{ opacity: 0.8 }}
-                icon={loading ? undefined : <Feather name="check" size={20} color="white" />}
+                variant="primary"
+                backgroundColor="$blue10"
+                size="lg"
               >
-                {loading ? 'Creating...' : 'Create Route'}
+                <XStack gap="$2" alignItems="center">
+                  {!loading && <Feather name="check" size={20} color="white" />}
+                  <Text color="white">
+                    {loading ? 'Creating...' : isEditing ? 'Save Changes' : 'Create Route'}
+                  </Text>
+                </XStack>
               </Button>
             </YStack>
-          </Form>
-        </YStack>
-      </ScrollView>
-    </SafeAreaView>
+          </YStack>
+        </Form>
+      </YStack>
+    </Screen>
   );
 } 
