@@ -1,20 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Button, Text, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoutes } from '../hooks/useRoutes';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { RouteList } from '../components/RouteList';
-import { Database } from '../lib/database.types';
-import { View } from 'react-native';
-import { tokens } from '../tokens';
-
-type Route = Database['public']['Tables']['routes']['Row'] & {
-  creator: {
-    full_name: string;
-  } | null;
-};
+import { Screen } from '../components/Screen';
+import { Header } from '../components/Header';
+import { Button } from '../components/Button';
+import { Text } from '../components/Text';
+import type { Route } from '../hooks/useRoutes';
 
 export function HomeScreen() {
   const { user } = useAuth();
@@ -24,7 +19,7 @@ export function HomeScreen() {
 
   const loadRoutes = useCallback(async () => {
     const data = await fetchRoutes();
-    setRoutes(data as Route[]);
+    setRoutes(data);
   }, [fetchRoutes]);
 
   useEffect(() => {
@@ -32,25 +27,26 @@ export function HomeScreen() {
   }, [loadRoutes]);
 
   return (
-    <View style={{ 
-      flex: 1, 
-      backgroundColor: tokens.color.white,
-      paddingBottom: tokens.size[10], // Add padding for tab bar
-    }}>
-      <YStack f={1} p="$4">
-        <Button
-          margin="$4"
-          themeInverse
-          onPress={() => navigation.navigate('CreateRoute')}
-        >
-          Create New Route
-        </Button>
+    <Screen scroll={false}>
+      <YStack f={1} gap={24}>
+        <Header title="Routes" showBack={false} />
         
-        <RouteList 
-          routes={routes}
-          onRefresh={loadRoutes}
-        />
+        <YStack f={1} gap={24}>
+          <Button
+            onPress={() => navigation.navigate('CreateRoute')}
+            variant="primary"
+            size="lg"
+            backgroundColor="$blue10"
+          >
+            <Text color="$color">Create New Route</Text>
+          </Button>
+          
+          <RouteList 
+            routes={routes}
+            onRefresh={loadRoutes}
+          />
+        </YStack>
       </YStack>
-    </View>
+    </Screen>
   );
 } 

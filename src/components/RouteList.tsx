@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
-import { YStack, Text, Card, XStack, Button } from 'tamagui';
+import { FlatList, RefreshControl, View, useColorScheme, Image, Dimensions } from 'react-native';
+import { YStack, Text, Card, XStack } from 'tamagui';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { Database } from '../lib/database.types';
 import { Feather } from '@expo/vector-icons';
 import { Map } from './Map';
+import Carousel from 'react-native-reanimated-carousel';
+import { Region } from 'react-native-maps';
 
 type WaypointData = {
   lat: number;
@@ -25,12 +27,19 @@ type RouteMetadata = {
   coordinates?: any[];
 };
 
+type MediaAttachment = {
+  url: string;
+  type: 'image' | 'video';
+  description?: string;
+};
+
 type Route = Database['public']['Tables']['routes']['Row'] & {
   creator: {
     full_name: string;
   } | null;
   metadata: RouteMetadata;
   waypoint_details: WaypointData[];
+  media_attachments?: MediaAttachment[];
 };
 
 type RouteListProps = {
@@ -38,9 +47,36 @@ type RouteListProps = {
   onRefresh?: () => Promise<void>;
 };
 
+type MapItem = {
+  type: 'map';
+  data: {
+    waypoints: {
+      latitude: number;
+      longitude: number;
+      title?: string;
+      description?: string;
+    }[];
+    region: Region;
+  };
+};
+
+type ImageItem = {
+  type: 'image';
+  data: {
+    url: string;
+    description?: string;
+  };
+};
+
+type CarouselItem = MapItem | ImageItem;
+
 export function RouteList({ routes, onRefresh }: RouteListProps) {
   const navigation = useNavigation<NavigationProp>();
   const [refreshing, setRefreshing] = useState(false);
+  const [activeIndices, setActiveIndices] = useState<Record<string, number>>({});
+  const colorScheme = useColorScheme();
+  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const width = Dimensions.get('window').width - 32; // Full width minus padding
 
   const handleRefresh = async () => {
     if (!onRefresh) return;
@@ -92,50 +128,157 @@ export function RouteList({ routes, onRefresh }: RouteListProps) {
   const renderRoute = ({ item: route }: { item: Route }) => {
     const region = getMapRegion(route);
     const waypoints = getWaypoints(route);
+    const imageAttachments = route.media_attachments?.filter(attachment => attachment.type === 'image') || [];
+
+    // Combine map and images into a single carousel data array
+    const carouselItems: CarouselItem[] = [];
+    
+    // Add map as first item if we have waypoints
+    if (region && waypoints.length > 0) {
+      carouselItems.push({
+        type: 'map',
+        data: {
+          waypoints,
+          region
+        }
+      });
+    }
+
+    // Add images
+    imageAttachments.forEach(attachment => {
+      carouselItems.push({
+        type: 'image',
+        data: {
+          url: attachment.url
+        }
+      });
+    });
 
     return (
       <Card
-        marginVertical="$2"
-        padding="$4"
-        bordered
-        pressStyle={{ scale: 0.98 }}
+        padding="$0"
+        pressStyle={{ scale: 1 }}
         onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
       >
-        <YStack space="$2">
-          <Text fontSize="$5" fontWeight="bold">{route.name}</Text>
-          
-          <XStack space="$2" alignItems="center">
-            <Feather name="user" size={16} />
-            <Text color="$gray11">{route.creator?.full_name || 'Unknown'}</Text>
-          </XStack>
-          
-          {region && waypoints.length > 0 && (
-            <View style={{ height: 150, marginVertical: 8 }}>
-              <Map
-                waypoints={waypoints}
-                region={region}
-                style={{ borderRadius: 8 }}
-              />
+        <YStack space="$4">
+          {carouselItems.length > 0 && (
+            <View>
+              <View style={{ height: 220 }}>
+                {carouselItems.length === 1 ? (
+                  <View style={{ borderRadius: 16, overflow: 'hidden' }}>
+                    {carouselItems[0].type === 'map' ? (
+                      <Map
+                        waypoints={carouselItems[0].data.waypoints}
+                        region={carouselItems[0].data.region}
+                        scrollEnabled={false}
+                        zoomEnabled={false}
+                        pitchEnabled={false}
+                        rotateEnabled={false}
+                      />
+                    ) : (
+                      <Image
+                        source={{ uri: carouselItems[0].data.url }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    )}
+                  </View>
+                ) : (
+                  <Carousel
+                    loop
+                    width={width - 32}
+                    height={220}
+                    data={carouselItems}
+                    defaultIndex={0}
+                    autoPlay={false}
+                    enabled={true}
+                    onProgressChange={(offsetProgress) => 
+                      setActiveIndices(prev => ({
+                        ...prev,
+                        [route.id]: Math.round(offsetProgress)
+                      }))
+                    }
+                    renderItem={({ item }) => (
+                      <View style={{ borderRadius: 16, overflow: 'hidden' }}>
+                        {item.type === 'map' ? (
+                          <Map
+                            waypoints={item.data.waypoints}
+                            region={item.data.region}
+                            scrollEnabled={false}
+                            zoomEnabled={false}
+                            pitchEnabled={false}
+                            rotateEnabled={false}
+                          />
+                        ) : (
+                          <Image
+                            source={{ uri: item.data.url }}
+                            style={{ width: '100%', height: '100%' }}
+                            resizeMode="cover"
+                          />
+                        )}
+                      </View>
+                    )}
+                  />
+                )}
+              </View>
+              {carouselItems.length > 1 && (
+                <XStack 
+                  position="absolute" 
+                  bottom={8} 
+                  left={0} 
+                  right={0} 
+                  justifyContent="center" 
+                  space="$2"
+                  zIndex={1}
+                >
+                  {carouselItems.map((_, index) => {
+                    const isActive = index === (activeIndices[route.id] || 0);
+                    return (
+                      <View
+                        key={index}
+                        style={{
+                          width: isActive ? 8 : 6,
+                          height: isActive ? 8 : 6,
+                          borderRadius: isActive ? 4 : 3,
+                          backgroundColor: '#FFFFFF',
+                          opacity: isActive ? 1 : 0.5,
+                        }}
+                      />
+                    );
+                  })}
+                </XStack>
+              )}
             </View>
           )}
           
-          <XStack space="$4">
-            <XStack space="$1" alignItems="center">
-              <Feather name="bar-chart" size={16} />
-              <Text>{route.difficulty}</Text>
-            </XStack>
+          <YStack space="$4" padding="$0" margin="$0">
+            <Text fontSize="$5" fontWeight="bold">{route.name}</Text>
             
-            <XStack space="$1" alignItems="center">
-              <Feather name="map-pin" size={16} />
-              <Text>{route.spot_type}</Text>
-            </XStack>
-          </XStack>
+            <YStack space="$3">
+              <XStack space="$2" alignItems="center">
+                <Feather name="user" size={16} color={iconColor} />
+                <Text color="$gray11">{route.creator?.full_name || 'Unknown'}</Text>
+              </XStack>
+              
+              <XStack space="$4">
+                <XStack space="$1" alignItems="center">
+                  <Feather name="bar-chart" size={16} color={iconColor} />
+                  <Text>{route.difficulty}</Text>
+                </XStack>
+                
+                <XStack space="$1" alignItems="center">
+                  <Feather name="map-pin" size={16} color={iconColor} />
+                  <Text>{route.spot_type}</Text>
+                </XStack>
+              </XStack>
 
-          {route.description && (
-            <Text numberOfLines={2} color="$gray11">
-              {route.description}
-            </Text>
-          )}
+              {route.description && (
+                <Text numberOfLines={2} color="$gray11">
+                  {route.description}
+                </Text>
+              )}
+            </YStack>
+          </YStack>
         </YStack>
       </Card>
     );
@@ -146,12 +289,16 @@ export function RouteList({ routes, onRefresh }: RouteListProps) {
       data={routes}
       renderItem={renderRoute}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={{ padding: 16 }}
+      contentContainerStyle={{ 
+        padding: 0,
+        paddingBottom: 100 // Extra padding for bottom tab bar
+      }}
+      ItemSeparatorComponent={() => <YStack height={64} />}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
       }
       ListEmptyComponent={() => (
-        <YStack padding="$4" alignItems="center">
+        <YStack padding="$0" alignItems="center">
           <Text color="$gray11">No routes found</Text>
         </YStack>
       )}

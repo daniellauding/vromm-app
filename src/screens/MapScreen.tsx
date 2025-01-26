@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map } from '../components/Map';
 import { supabase } from '../lib/supabase';
@@ -9,13 +9,11 @@ import { Database } from '../lib/database.types';
 import { YStack, XStack, Card, Input, Text } from 'tamagui';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
-
-type WaypointData = {
-  lat: number;
-  lng: number;
-  title?: string;
-  description?: string;
-};
+import { Screen } from '../components/Screen';
+import { useRoutes } from '../hooks/useRoutes';
+import type { Route as RouteType, WaypointData } from '../hooks/useRoutes';
+import { RoutePreviewCard } from '../components/RoutePreviewCard';
+import { Region } from 'react-native-maps';
 
 type PinData = {
   lat: number;
@@ -45,7 +43,11 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
 
 export function MapScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [routes, setRoutes] = useState<Route[]>([]);
+  const [routes, setRoutes] = useState<RouteType[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
+  const { fetchRoutes } = useRoutes();
+  const colorScheme = useColorScheme();
+  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const searchInputRef = useRef<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Location.LocationGeocodedAddress[]>([]);
@@ -58,9 +60,14 @@ export function MapScreen() {
     longitudeDelta: 0.1,
   });
 
+  const loadRoutes = useCallback(async () => {
+    const data = await fetchRoutes();
+    setRoutes(data);
+  }, [fetchRoutes]);
+
   useEffect(() => {
-    fetchRoutes();
-  }, []);
+    loadRoutes();
+  }, [loadRoutes]);
 
   useEffect(() => {
     (async () => {
@@ -76,85 +83,58 @@ export function MapScreen() {
     })();
   }, []);
 
-  const fetchRoutes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('routes')
-        .select(`
-          *,
-          creator:creator_id(full_name)
-        `)
-        .eq('is_public', true);
+  const handleMarkerPress = (route: RouteType) => {
+    setSelectedRoute(route);
+  };
 
-      if (error) throw error;
-      const typedData = data as Route[];
-      setRoutes(typedData);
-
-      // Calculate bounds for all waypoints across all routes
-      const allWaypoints = typedData.flatMap(route => {
-        const waypointsData = route.waypoint_details || route.metadata?.waypoints || [];
-        return Array.isArray(waypointsData) ? waypointsData : [];
-      });
-
-      if (allWaypoints.length > 0) {
-        const latitudes = allWaypoints.map((wp: WaypointData) => wp.lat).filter(Boolean);
-        const longitudes = allWaypoints.map((wp: WaypointData) => wp.lng).filter(Boolean);
-        
-        if (latitudes.length > 0 && longitudes.length > 0) {
-          const minLat = Math.min(...latitudes);
-          const maxLat = Math.max(...latitudes);
-          const minLng = Math.min(...longitudes);
-          const maxLng = Math.max(...longitudes);
-          
-          // Add more padding to show a wider area
-          const latPadding = Math.max((maxLat - minLat) * 0.5, 0.02);
-          const lngPadding = Math.max((maxLng - minLng) * 0.5, 0.02);
-          
-          setRegion({
-            latitude: (minLat + maxLat) / 2,
-            longitude: (minLng + maxLng) / 2,
-            latitudeDelta: Math.max((maxLat - minLat) + latPadding, 0.02),
-            longitudeDelta: Math.max((maxLng - minLng) + lngPadding, 0.02),
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching routes:', error);
-    }
+  const handleMapPress = () => {
+    setSelectedRoute(null);
   };
 
   const getAllWaypoints = () => {
-    return routes.flatMap(route => {
-      const waypointsFromDetails = Array.isArray(route.waypoint_details) ? route.waypoint_details.map((wp: WaypointData) => ({
-        latitude: wp.lat,
-        longitude: wp.lng,
-        title: wp.title || route.name,
-        description: wp.description || `${route.spot_type} - ${route.difficulty}`,
-        onPress: () => navigation.navigate('RouteDetail', { routeId: route.id }),
-      })) : [];
+    return routes.map(route => {
+      const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
+      if (waypointsData.length === 0) return null;
+      
+      const firstWaypoint = waypointsData[0];
+      return {
+        latitude: firstWaypoint.lat,
+        longitude: firstWaypoint.lng,
+        onPress: () => handleMarkerPress(route),
+      };
+    }).filter((wp): wp is NonNullable<typeof wp> => wp !== null);
+  };
 
-      const waypointsFromMetadata = Array.isArray(route.metadata?.waypoints) ? route.metadata.waypoints.map((wp: WaypointData) => ({
-        latitude: wp.lat,
-        longitude: wp.lng,
-        title: wp.title || route.name,
-        description: wp.description || `${route.spot_type} - ${route.difficulty}`,
-        onPress: () => navigation.navigate('RouteDetail', { routeId: route.id }),
-      })) : [];
+  const getMapRegion = (): Region | undefined => {
+    const allWaypoints = routes.flatMap(route => 
+      (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[]
+    );
+    
+    if (allWaypoints.length > 0) {
+      const latitudes = allWaypoints.map(wp => wp.lat);
+      const longitudes = allWaypoints.map(wp => wp.lng);
+      
+      const minLat = Math.min(...latitudes);
+      const maxLat = Math.max(...latitudes);
+      const minLng = Math.min(...longitudes);
+      const maxLng = Math.max(...longitudes);
+      
+      const latPadding = (maxLat - minLat) * 0.1;
+      const lngPadding = (maxLng - minLng) * 0.1;
+      
+      const minDelta = 0.01;
+      const latDelta = Math.max((maxLat - minLat) + latPadding, minDelta);
+      const lngDelta = Math.max((maxLng - minLng) + lngPadding, minDelta);
 
-      const pinsFromMetadata = Array.isArray(route.metadata?.pins) ? route.metadata.pins.map((pin: PinData) => ({
-        latitude: pin.lat,
-        longitude: pin.lng,
-        title: pin.title || route.name,
-        description: pin.description || `${route.spot_type} - ${route.difficulty}`,
-        onPress: () => navigation.navigate('RouteDetail', { routeId: route.id }),
-      })) : [];
-
-      return waypointsFromDetails.length > 0 
-        ? waypointsFromDetails 
-        : waypointsFromMetadata.length > 0
-          ? waypointsFromMetadata
-          : pinsFromMetadata;
-    });
+      const region: Region = {
+        latitude: (minLat + maxLat) / 2,
+        longitude: (minLng + maxLng) / 2,
+        latitudeDelta: latDelta,
+        longitudeDelta: lngDelta,
+      };
+      return region;
+    }
+    return undefined;
   };
 
   const handleSearch = async (query: string) => {
@@ -282,17 +262,16 @@ export function MapScreen() {
   }, [routes]);
 
   return (
-    <View style={styles.container}>
+    <View style={StyleSheet.absoluteFill}>
       <Map
         waypoints={getAllWaypoints()}
-        region={region}
-        onRegionChangeComplete={setRegion}
-        style={styles.map}
-        showControls={false}
+        region={getMapRegion()}
+        onPress={handleMapPress}
+        style={StyleSheet.absoluteFill}
       />
       
       <SafeAreaView style={styles.searchContainer} edges={['top']}>
-        <XStack padding="$4" gap="$2">
+        <XStack padding="$2" gap="$2">
           <Input
             ref={searchInputRef}
             flex={1}
@@ -319,7 +298,7 @@ export function MapScreen() {
             onPress={handleLocateMe}
             pressStyle={{ opacity: 0.7 }}
           >
-            <Feather name="navigation" size={20} />
+            <Feather name="navigation" size={20} color={iconColor} />
           </XStack>
         </XStack>
 
@@ -328,7 +307,7 @@ export function MapScreen() {
             elevate
             bordered
             backgroundColor="$background"
-            margin="$4"
+            margin="$2"
             marginTop={0}
           >
             <YStack padding="$2">
@@ -353,17 +332,25 @@ export function MapScreen() {
           </Card>
         )}
       </SafeAreaView>
+
+      {selectedRoute && (
+        <YStack
+          position="absolute"
+          bottom={16}
+          left={16}
+          right={16}
+        >
+          <RoutePreviewCard
+            route={selectedRoute}
+            showMap={false}
+          />
+        </YStack>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
   searchContainer: {
     position: 'absolute',
     top: 0,

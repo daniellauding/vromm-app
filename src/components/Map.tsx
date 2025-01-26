@@ -1,6 +1,6 @@
 import React from 'react';
-import { Platform, View, TouchableOpacity } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { Platform, View, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import MapView, { Marker, Region } from 'react-native-maps';
 import { StyleSheet } from 'react-native';
 import { Text } from 'tamagui';
 import { WebView } from 'react-native-webview';
@@ -15,23 +15,26 @@ export type Waypoint = {
 };
 
 type MapProps = {
-  waypoints: Waypoint[];
-  region: {
+  waypoints: {
     latitude: number;
     longitude: number;
-    latitudeDelta: number;
-    longitudeDelta: number;
-  };
-  onRegionChangeComplete?: (region: any) => void;
-  onPress?: (e: any) => void;
-  style?: any;
-  showControls?: boolean;
+    title?: string;
+    description?: string;
+    onPress?: () => void;
+  }[];
+  region?: Region;
+  style?: StyleProp<ViewStyle>;
+  scrollEnabled?: boolean;
+  zoomEnabled?: boolean;
+  pitchEnabled?: boolean;
+  rotateEnabled?: boolean;
+  onPress?: () => void;
 };
 
 const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w'; // Replace with your Mapbox token
 
 function WebMap({ waypoints, region, style }: MapProps) {
-  const mapCenter = `[${region.longitude},${region.latitude}]`;
+  const mapCenter = `[${region?.longitude},${region?.latitude}]`;
   const zoom = 13;
 
   const markers = waypoints.map((wp, index) => 
@@ -118,15 +121,15 @@ function MapControls({ onZoomIn, onZoomOut }: { onZoomIn: () => void; onZoomOut:
   );
 }
 
-function NativeMap({ waypoints, region, onRegionChangeComplete, onPress, style, showControls }: MapProps) {
+function NativeMap({ waypoints, region, style, scrollEnabled = true, zoomEnabled = true, pitchEnabled = true, rotateEnabled = true }: MapProps) {
   const mapRef = React.useRef<MapView>(null);
 
   const handleZoomIn = () => {
     if (mapRef.current) {
       const newRegion = {
         ...region,
-        latitudeDelta: region.latitudeDelta / 2,
-        longitudeDelta: region.longitudeDelta / 2,
+        latitudeDelta: region?.latitudeDelta ? region.latitudeDelta / 2 : 0,
+        longitudeDelta: region?.longitudeDelta ? region.longitudeDelta / 2 : 0,
       };
       mapRef.current.animateToRegion(newRegion, 300);
     }
@@ -136,8 +139,8 @@ function NativeMap({ waypoints, region, onRegionChangeComplete, onPress, style, 
     if (mapRef.current) {
       const newRegion = {
         ...region,
-        latitudeDelta: region.latitudeDelta * 2,
-        longitudeDelta: region.longitudeDelta * 2,
+        latitudeDelta: region?.latitudeDelta ? region.latitudeDelta * 2 : 0,
+        longitudeDelta: region?.longitudeDelta ? region.longitudeDelta * 2 : 0,
       };
       mapRef.current.animateToRegion(newRegion, 300);
     }
@@ -153,37 +156,78 @@ function NativeMap({ waypoints, region, onRegionChangeComplete, onPress, style, 
     <View style={[styles.container, style]}>
       <MapView
         ref={mapRef}
-        style={styles.map}
-        initialRegion={region}
-        onRegionChangeComplete={onRegionChangeComplete}
-        onPress={onPress}
+        style={[{ width: '100%', height: '100%' }, style]}
+        region={region}
+        scrollEnabled={scrollEnabled}
+        zoomEnabled={zoomEnabled}
+        pitchEnabled={pitchEnabled}
+        rotateEnabled={rotateEnabled}
       >
         {waypoints.map((waypoint, index) => (
           <Marker
-            key={`${waypoint.latitude}-${waypoint.longitude}-${index}`}
+            key={index}
             coordinate={{
               latitude: waypoint.latitude,
               longitude: waypoint.longitude,
             }}
-            title={waypoint.title || `Waypoint ${index + 1}`}
+            title={waypoint.title}
             description={waypoint.description}
-            onCalloutPress={() => waypoint.onPress?.()}
-            onPress={() => waypoint.onPress?.()}
           />
         ))}
       </MapView>
-      {showControls && (
+      {zoomEnabled && (
         <MapControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
       )}
     </View>
   );
 }
 
-export function Map(props: MapProps) {
-  if (Platform.OS === 'web') {
-    return <WebMap {...props} />;
-  }
-  return <NativeMap {...props} />;
+export function Map({ 
+  waypoints, 
+  region, 
+  style,
+  scrollEnabled = true,
+  zoomEnabled = true,
+  pitchEnabled = true,
+  rotateEnabled = true,
+  onPress,
+}: MapProps) {
+  if (!region) return null;
+
+  const mapRegion: Region = {
+    latitude: region.latitude,
+    longitude: region.longitude,
+    latitudeDelta: region.latitudeDelta,
+    longitudeDelta: region.longitudeDelta,
+  };
+
+  return (
+    <MapView
+      style={[{ width: '100%', height: '100%' }, style]}
+      region={mapRegion}
+      scrollEnabled={scrollEnabled}
+      zoomEnabled={zoomEnabled}
+      pitchEnabled={pitchEnabled}
+      rotateEnabled={rotateEnabled}
+      onPress={onPress}
+    >
+      {waypoints.map((waypoint, index) => (
+        <Marker
+          key={index}
+          coordinate={{
+            latitude: waypoint.latitude,
+            longitude: waypoint.longitude,
+          }}
+          title={waypoint.title}
+          description={waypoint.description}
+          onPress={(e) => {
+            e.stopPropagation();
+            waypoint.onPress?.();
+          }}
+        />
+      ))}
+    </MapView>
+  );
 }
 
 const styles = StyleSheet.create({

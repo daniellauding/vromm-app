@@ -3,7 +3,7 @@ import { Feather } from '@expo/vector-icons';
 import { tokens } from '../tokens';
 import { useLanguage } from '../context/LanguageContext';
 import { TabParamList } from '../types/navigation';
-import { Platform } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 
 // Import screens
 import { HomeScreen } from '../screens/HomeScreen';
@@ -18,29 +18,33 @@ const TOTAL_HEIGHT = TAB_BAR_HEIGHT + BOTTOM_INSET;
 
 export function TabNavigator() {
   const { t } = useLanguage();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const tabBarStyle = {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: TOTAL_HEIGHT,
+    paddingTop: 8,
+    paddingBottom: BOTTOM_INSET,
+    backgroundColor: isDark ? tokens.color.gray900 : tokens.color.white,
+    borderTopWidth: 1,
+    borderTopColor: isDark ? tokens.color.gray800 : tokens.color.gray200,
+    elevation: 8,
+    shadowColor: isDark ? tokens.color.black : tokens.color.gray900,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    zIndex: 100,
+  } as const;
 
   return (
     <Tab.Navigator
       screenOptions={{
         // Tab bar style
-        tabBarStyle: {
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: TOTAL_HEIGHT,
-          paddingTop: 8,
-          paddingBottom: BOTTOM_INSET,
-          backgroundColor: tokens.color.white,
-          borderTopWidth: 1,
-          borderTopColor: tokens.color.gray200,
-          elevation: 8,
-          shadowColor: tokens.color.gray900,
-          shadowOffset: { width: 0, height: -3 },
-          shadowOpacity: 0.1,
-          shadowRadius: 3,
-          zIndex: 100,
-        },
+        tabBarStyle,
         // Label style
         tabBarLabelStyle: {
           fontSize: 12,
@@ -49,20 +53,20 @@ export function TabNavigator() {
           paddingBottom: 4,
         },
         // Active/Inactive colors
-        tabBarActiveTintColor: tokens.color.indigo600,
-        tabBarInactiveTintColor: tokens.color.gray400,
+        tabBarActiveTintColor: isDark ? tokens.color.indigo400 : tokens.color.indigo600,
+        tabBarInactiveTintColor: isDark ? tokens.color.gray500 : tokens.color.gray400,
         // Header style
         headerStyle: {
-          backgroundColor: tokens.color.white,
+          backgroundColor: isDark ? tokens.color.gray900 : tokens.color.white,
           borderBottomWidth: 1,
-          borderBottomColor: tokens.color.gray200,
+          borderBottomColor: isDark ? tokens.color.gray800 : tokens.color.gray200,
           elevation: 0,
           shadowOpacity: 0,
         },
         headerTitleStyle: {
           fontSize: 17,
           fontWeight: '600',
-          color: tokens.color.gray900,
+          color: isDark ? tokens.color.white : tokens.color.gray900,
         },
       }}
     >
@@ -71,7 +75,7 @@ export function TabNavigator() {
         component={HomeScreen}
         options={{
           title: t('navigation.home'),
-          headerTitle: t('navigation.home'),
+          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <Feather 
               name="home" 
