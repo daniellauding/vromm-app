@@ -1,11 +1,12 @@
 import { registerRootComponent } from 'expo';
 import App from './App';
 
+// Filter out Reanimated warnings in development
 if (__DEV__) {
-  const originalConsoleError = console.error;
-  console.error = (...args) => {
-    if (args[0]?.match?.(/Warning/)) return;
-    originalConsoleError(...args);
+  const originalConsoleWarn = console.warn;
+  console.warn = (...args) => {
+    if (args[0]?.includes?.('[Reanimated] Reading from `value` during component render')) return;
+    originalConsoleWarn(...args);
   };
 }
 

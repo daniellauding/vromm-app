@@ -1,3 +1,4 @@
+import React, { forwardRef } from 'react';
 import { Input, Text, YStack, XStack, Label, styled } from 'tamagui';
 import { tokens } from '../tokens';
 
@@ -36,17 +37,18 @@ type FormFieldProps = React.ComponentProps<typeof Input> & {
   rightElement?: React.ReactNode;
 };
 
-export function FormField({ 
+export const FormField = forwardRef<any, FormFieldProps>(({ 
   label, 
   error, 
   rightElement,
   ...inputProps 
-}: FormFieldProps) {
+}, ref) => {
   return (
     <YStack gap={tokens.space[2]} w="100%">
       {label && <StyledLabel>{label}</StyledLabel>}
       <XStack w="100%" gap={tokens.space[2]}>
         <StyledInput 
+          ref={ref}
           {...inputProps} 
           flex={1}
         />
@@ -59,4 +61,4 @@ export function FormField({
       ) : null}
     </YStack>
   );
-} 
+}); 

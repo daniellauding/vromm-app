@@ -7,7 +7,7 @@ import { Map } from './Map';
 import Carousel from 'react-native-reanimated-carousel';
 import { Region } from 'react-native-maps';
 import type { Route, WaypointData } from '../hooks/useRoutes';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 
 type MapItem = {
@@ -34,7 +34,7 @@ type CarouselItem = MapItem | ImageItem;
 
 type RoutePreviewCardProps = {
   route: Route & {
-    reviews: {
+    reviews?: { 
       id: string;
       rating: number;
       content: string;
@@ -42,11 +42,9 @@ type RoutePreviewCardProps = {
       visited_at: string;
       created_at: string;
       images: { url: string; description?: string }[];
-      user: {
-        id: string;
-        full_name: string;
-      };
+      user: { id: string; full_name: string; };
     }[];
+    average_rating?: { rating: number }[];
   };
   showMap?: boolean;
   onPress?: () => void;
@@ -102,30 +100,42 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
     }));
   };
 
-  // Prepare carousel items
-  const carouselItems: CarouselItem[] = [];
-  const region = getMapRegion();
-  const waypoints = getWaypoints();
-  const imageAttachments = route.media_attachments?.filter(attachment => attachment.type === 'image') || [];
-  
-  if (showMap && region && waypoints.length > 0) {
-    carouselItems.push({
-      type: 'map',
-      data: {
-        waypoints,
-        region
-      }
-    });
-  }
+  const getAllWaypoints = () => {
+    const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
+    return waypointsData.map(wp => ({
+      latitude: wp.lat,
+      longitude: wp.lng,
+      title: wp.title,
+      description: wp.description,
+    }));
+  };
 
-  imageAttachments.forEach(attachment => {
-    carouselItems.push({
-      type: 'image',
-      data: {
-        url: attachment.url
-      }
-    });
-  });
+  const carouselItems = useMemo(() => {
+    const items = [];
+
+    // Add map if waypoints exist
+    const region = getMapRegion();
+    const waypoints = getAllWaypoints();
+    if (showMap && region && waypoints.length > 0) {
+      items.push({
+        type: 'map' as const,
+        data: { region, waypoints },
+      });
+    }
+
+    // Add images if they exist
+    const images = route.reviews?.flatMap(review => review.images) || [];
+    if (images.length > 0) {
+      items.push(
+        ...images.map(image => ({
+          type: 'image' as const,
+          data: image,
+        }))
+      );
+    }
+
+    return items;
+  }, [route.reviews, showMap]);
 
   const handlePress = () => {
     if (onPress) {
@@ -137,20 +147,50 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
 
   return (
     <Card
-      padding="$4"
+      elevate
+      bordered
+      backgroundColor="$background"
       pressStyle={{ scale: 0.98 }}
       onPress={handlePress}
     >
-      <YStack space="$4">
-        {carouselItems.length > 0 && (
-          <View>
-            <View style={{ height: 220 }}>
-              {carouselItems.length === 1 ? (
+      <YStack>
+        {/* Carousel */}
+        <View style={{ height: 220 }}>
+          {carouselItems.length === 1 ? (
+            <View style={{ borderRadius: 16, overflow: 'hidden' }}>
+              {carouselItems[0].type === 'map' ? (
+                <Map
+                  waypoints={carouselItems[0].data.waypoints}
+                  region={carouselItems[0].data.region}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  rotateEnabled={false}
+                />
+              ) : (
+                <Image
+                  source={{ uri: carouselItems[0].data.url }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              )}
+            </View>
+          ) : carouselItems.length > 1 ? (
+            <Carousel
+              loop
+              width={width - 32}
+              height={220}
+              data={carouselItems}
+              defaultIndex={0}
+              autoPlay={false}
+              enabled={true}
+              onProgressChange={handleProgressChange}
+              renderItem={({ item }) => (
                 <View style={{ borderRadius: 16, overflow: 'hidden' }}>
-                  {carouselItems[0].type === 'map' ? (
+                  {item.type === 'map' ? (
                     <Map
-                      waypoints={carouselItems[0].data.waypoints}
-                      region={carouselItems[0].data.region}
+                      waypoints={item.data.waypoints}
+                      region={item.data.region}
                       scrollEnabled={false}
                       zoomEnabled={false}
                       pitchEnabled={false}
@@ -158,83 +198,35 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
                     />
                   ) : (
                     <Image
-                      source={{ uri: carouselItems[0].data.url }}
+                      source={{ uri: item.data.url }}
                       style={{ width: '100%', height: '100%' }}
                       resizeMode="cover"
                     />
                   )}
                 </View>
-              ) : (
-                <Carousel
-                  loop
-                  width={width - 32}
-                  height={220}
-                  data={carouselItems}
-                  defaultIndex={0}
-                  autoPlay={false}
-                  enabled={true}
-                  onProgressChange={handleProgressChange}
-                  renderItem={({ item }) => (
-                    <View style={{ borderRadius: 16, overflow: 'hidden' }}>
-                      {item.type === 'map' ? (
-                        <Map
-                          waypoints={item.data.waypoints}
-                          region={item.data.region}
-                          scrollEnabled={false}
-                          zoomEnabled={false}
-                          pitchEnabled={false}
-                          rotateEnabled={false}
-                        />
-                      ) : (
-                        <Image
-                          source={{ uri: item.data.url }}
-                          style={{ width: '100%', height: '100%' }}
-                          resizeMode="cover"
-                        />
-                      )}
-                    </View>
-                  )}
-                />
               )}
-            </View>
-            {carouselItems.length > 1 && (
-              <XStack 
-                position="absolute" 
-                bottom={8} 
-                left={0} 
-                right={0} 
-                justifyContent="center" 
-                space="$2"
-                zIndex={1}
-              >
-                {carouselItems.map((_, index) => {
-                  const isActive = index === activeIndex;
-                  return (
-                    <View
-                      key={index}
-                      style={{
-                        width: isActive ? 8 : 6,
-                        height: isActive ? 8 : 6,
-                        borderRadius: isActive ? 4 : 3,
-                        backgroundColor: '#FFFFFF',
-                        opacity: isActive ? 1 : 0.5,
-                      }}
-                    />
-                  );
-                })}
-              </XStack>
-            )}
-          </View>
-        )}
-        
-        <YStack space="$3">
-          <Text fontSize="$5" fontWeight="bold">{route.name}</Text>
-          
+            />
+          ) : null}
+        </View>
+
+        {/* Content */}
+        <YStack padding="$4" gap="$2">
+          <Text fontSize="$5" fontWeight="bold" numberOfLines={2}>
+            {route.name}
+          </Text>
+
           <XStack space="$2" alignItems="center">
-            <Feather name="user" size={16} color={iconColor} />
-            <Text color="$gray11">{route.creator?.full_name || 'Unknown'}</Text>
+            <XStack space="$1" alignItems="center">
+              <Feather name="star" size={16} color={iconColor} />
+              <Text fontSize="$4" fontWeight="bold" color="$yellow10">
+                {route.average_rating?.[0]?.rating || 0}
+              </Text>
+            </XStack>
+            <Text color="$gray11">
+              {route.reviews?.length || 0} {(route.reviews?.length || 0) === 1 ? 'review' : 'reviews'}
+            </Text>
           </XStack>
-          
+
           <XStack space="$4">
             <XStack space="$1" alignItems="center">
               <Feather name="bar-chart" size={16} color={iconColor} />
@@ -245,21 +237,6 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
               <Feather name="map-pin" size={16} color={iconColor} />
               <Text>{route.spot_type}</Text>
             </XStack>
-          </XStack>
-
-          <XStack space="$2" alignItems="center">
-            <XStack space="$1" alignItems="center">
-              <Feather name="star" size={16} color={iconColor} />
-              <Text fontSize="$4" fontWeight="bold" color="$yellow10">
-                {route.reviews?.length > 0 
-                  ? (route.reviews.reduce((sum, review) => sum + review.rating, 0) / route.reviews.length).toFixed(1)
-                  : '0.0'
-                }
-              </Text>
-            </XStack>
-            <Text color="$gray11">
-              {route.reviews?.length || 0} {route.reviews?.length === 1 ? 'review' : 'reviews'}
-            </Text>
           </XStack>
 
           {route.description && (

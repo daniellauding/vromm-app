@@ -39,6 +39,16 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
   } | null;
   metadata: RouteMetadata;
   waypoint_details: WaypointData[];
+  reviews?: { 
+    id: string;
+    rating: number;
+    content: string;
+    difficulty: string;
+    visited_at: string;
+    created_at: string;
+    images: { url: string; description?: string }[];
+    user: { id: string; full_name: string; };
+  }[];
 };
 
 export function MapScreen() {
@@ -53,6 +63,7 @@ export function MapScreen() {
   const [searchResults, setSearchResults] = useState<Location.LocationGeocodedAddress[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
   const [region, setRegion] = useState({
     latitude: 55.7047,
     longitude: 13.191,
@@ -63,6 +74,11 @@ export function MapScreen() {
   const loadRoutes = useCallback(async () => {
     const data = await fetchRoutes();
     setRoutes(data);
+    // After routes are loaded, check if we need to update the region
+    const mapRegion = getMapRegion();
+    if (mapRegion) {
+      setRegion(mapRegion);
+    }
   }, [fetchRoutes]);
 
   useEffect(() => {
@@ -80,6 +96,7 @@ export function MapScreen() {
           longitude: location.coords.longitude,
         }));
       }
+      setIsMapReady(true);
     })();
   }, []);
 
@@ -263,12 +280,15 @@ export function MapScreen() {
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      <Map
-        waypoints={getAllWaypoints()}
-        region={getMapRegion()}
-        onPress={handleMapPress}
-        style={StyleSheet.absoluteFill}
-      />
+      {isMapReady && (
+        <Map
+          key={`map-${routes.length}`}
+          waypoints={getAllWaypoints()}
+          region={region}
+          onPress={handleMapPress}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       
       <SafeAreaView style={styles.searchContainer} edges={['top']}>
         <XStack padding="$2" gap="$2">
