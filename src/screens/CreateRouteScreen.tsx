@@ -133,12 +133,47 @@ export function CreateRouteScreen({ route }: Props) {
 
   const handleMapPress = (e: MapPressEvent) => {
     const { latitude, longitude } = e.nativeEvent.coordinate;
-    const newWaypoint: Waypoint = {
+    
+    // Get address from coordinates
+    Location.reverseGeocodeAsync({
       latitude,
       longitude,
-      title: `Waypoint ${waypoints.length + 1}`,
-    };
-    setWaypoints([...waypoints, newWaypoint]);
+    }).then(([address]) => {
+      const title = address 
+        ? [address.street, address.city, address.country].filter(Boolean).join(', ')
+        : `Waypoint ${waypoints.length + 1}`;
+
+      const newWaypoint: Waypoint = {
+        latitude,
+        longitude,
+        title,
+        description: 'Tapped location'
+      };
+
+      setWaypoints(prev => [...prev, newWaypoint]);
+      
+      // Update search query with location
+      setSearchQuery(title);
+      
+      // Update region to center on new waypoint
+      setRegion(prev => ({
+        ...prev,
+        latitude,
+        longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }));
+    }).catch(err => {
+      console.error('Error getting address:', err);
+      // If reverse geocoding fails, still add waypoint with default title
+      const newWaypoint: Waypoint = {
+        latitude,
+        longitude,
+        title: `Waypoint ${waypoints.length + 1}`,
+        description: 'Tapped location'
+      };
+      setWaypoints(prev => [...prev, newWaypoint]);
+    });
   };
 
   const handleMapPressWrapper = () => {
@@ -149,29 +184,49 @@ export function CreateRouteScreen({ route }: Props) {
   const handleLocateMe = async () => {
     try {
       const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
+      // Update region
       setRegion(prev => ({
         ...prev,
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+        latitude,
+        longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
       }));
 
       // Get address from coordinates
       const [address] = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+        latitude,
+        longitude,
       });
 
-      // Update search input with location name
-      const locationString = [
-        address.street,
-        address.city,
-        address.region,
-        address.country
-      ].filter(Boolean).join(', ');
+      // Create location title
+      const title = [
+        address?.street,
+        address?.city,
+        address?.country
+      ].filter(Boolean).join(', ') || 'Current Location';
 
-      setSearchQuery(locationString);
+      // Add waypoint
+      const newWaypoint = {
+        latitude,
+        longitude,
+        title,
+        description: 'Current location'
+      };
+      setWaypoints(prev => [...prev, newWaypoint]);
+
+      // Update search input with location name
+      setSearchQuery(title);
+      
+      // Clear keyboard focus
+      if (searchInputRef.current) {
+        searchInputRef.current.blur();
+      }
     } catch (err) {
       console.error('Error getting location:', err);
+      Alert.alert('Error', 'Failed to get your current location. Please check your location permissions and try again.');
     }
   };
 
@@ -648,25 +703,38 @@ export function CreateRouteScreen({ route }: Props) {
 
   const handleLocationSelect = (result: (Location.LocationGeocodedAddress & { coords?: { latitude: number; longitude: number } })) => {
     if (result.coords) {
+      const { latitude, longitude } = result.coords;
+      
+      // Update region
       setRegion({
-        latitude: result.coords.latitude,
-        longitude: result.coords.longitude,
+        latitude,
+        longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       });
 
-      // Add a waypoint at the selected location
+      // Create location title
+      const title = [result.street, result.city, result.country]
+        .filter(Boolean)
+        .join(', ');
+
+      // Add waypoint
       const newWaypoint = {
-        latitude: result.coords.latitude,
-        longitude: result.coords.longitude,
-        title: [result.street, result.city, result.country].filter(Boolean).join(', '),
-        description: 'Selected location'
+        latitude,
+        longitude,
+        title,
+        description: 'Searched location'
       };
-      setWaypoints([...waypoints, newWaypoint]);
+      setWaypoints(prev => [...prev, newWaypoint]);
 
       // Update search UI
-      setSearchQuery([result.street, result.city, result.country].filter(Boolean).join(', '));
+      setSearchQuery(title);
       setShowSearchResults(false);
+      
+      // Clear keyboard focus
+      if (searchInputRef.current) {
+        searchInputRef.current.blur();
+      }
     }
   };
 

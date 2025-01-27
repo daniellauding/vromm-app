@@ -1,37 +1,33 @@
-import { XStack, Text, YStack, useTheme } from 'tamagui';
-import { Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { TouchableOpacity } from 'react-native';
-import { NavigationProp } from '../types/navigation';
-import { useColorScheme } from 'react-native';
+import { Text, XStack } from 'tamagui';
 
-type HeaderProps = {
+export interface HeaderProps {
   title: string;
-  showBack?: boolean;
-};
+  leftElement?: React.ReactNode;
+  rightElement?: React.ReactNode;
+}
 
-export function Header({ title, showBack = true }: HeaderProps) {
-  const navigation = useNavigation<NavigationProp>();
-  const theme = useTheme();
-  const colorScheme = useColorScheme();
-
+export function Header({ title, leftElement, rightElement }: HeaderProps) {
   return (
-    <YStack gap={16}>
-      {showBack && (
-        <TouchableOpacity onPress={navigation.goBack}>
-          <XStack p={8} pl={0}>
-            <Feather name="arrow-left" size={24} color={colorScheme === 'dark' ? theme.gray50?.get() : theme.gray900?.get()} />
-          </XStack>
-        </TouchableOpacity>
+    <XStack
+      backgroundColor="$background"
+      paddingHorizontal="$4"
+      paddingVertical="$3"
+      alignItems="center"
+      justifyContent="space-between"
+    >
+      {leftElement && (
+        <XStack alignItems="center">
+          {leftElement}
+        </XStack>
       )}
-      
-      <Text 
-        fontSize={28} 
-        fontWeight="800"
-        color="$color"
-      >
+      <Text fontSize="$6" fontWeight="600" color="$gray12" flex={1} textAlign="center">
         {title}
       </Text>
-    </YStack>
+      {rightElement && (
+        <XStack alignItems="center">
+          {rightElement}
+        </XStack>
+      )}
+    </XStack>
   );
 } 

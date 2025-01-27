@@ -51,6 +51,28 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
   }[];
 };
 
+const styles = StyleSheet.create({
+  searchContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+  },
+  mapContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  previewContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'transparent',
+    paddingBottom: 0,
+  }
+});
+
 export function MapScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [routes, setRoutes] = useState<RouteType[]>([]);
@@ -279,7 +301,7 @@ export function MapScreen() {
   }, [routes]);
 
   return (
-    <View style={StyleSheet.absoluteFill}>
+    <View style={styles.mapContainer}>
       {isMapReady && (
         <Map
           key={`map-${routes.length}`}
@@ -354,28 +376,13 @@ export function MapScreen() {
       </SafeAreaView>
 
       {selectedRoute && (
-        <YStack
-          position="absolute"
-          bottom={16}
-          left={16}
-          right={16}
-        >
+        <SafeAreaView style={styles.previewContainer} edges={['bottom']}>
           <RoutePreviewCard
             route={selectedRoute}
             showMap={false}
           />
-        </YStack>
+        </SafeAreaView>
       )}
     </View>
   );
-}
-
-const styles = StyleSheet.create({
-  searchContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-  },
-}); 
+} 

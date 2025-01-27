@@ -27,6 +27,7 @@ type ImageItem = {
   type: 'image';
   data: {
     url: string;
+    description?: string;
   };
 };
 
@@ -90,16 +91,6 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
     return null;
   };
 
-  const getWaypoints = () => {
-    const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
-    return waypointsData.map(wp => ({
-      latitude: wp.lat,
-      longitude: wp.lng,
-      title: wp.title,
-      description: wp.description,
-    }));
-  };
-
   const getAllWaypoints = () => {
     const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
     return waypointsData.map(wp => ({
@@ -123,19 +114,28 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
       });
     }
 
-    // Add images if they exist
-    const images = route.reviews?.flatMap(review => review.images) || [];
-    if (images.length > 0) {
-      items.push(
-        ...images.map(image => ({
-          type: 'image' as const,
-          data: image,
-        }))
-      );
-    }
+    // Add route media attachments
+    const media = route.media_attachments?.filter(m => m.type === 'image').map(m => ({
+      type: 'image' as const,
+      data: {
+        url: m.url,
+        description: m.description
+      }
+    })) || [];
 
-    return items;
-  }, [route.reviews, showMap]);
+    // Add review images
+    const reviewImages = route.reviews?.flatMap(review => 
+      (review.images || []).map(image => ({
+        type: 'image' as const,
+        data: {
+          url: image.url,
+          description: image.description
+        }
+      }))
+    ) || [];
+
+    return [...items, ...media, ...reviewImages];
+  }, [route.media_attachments, route.reviews, showMap]);
 
   const handlePress = () => {
     if (onPress) {
@@ -152,62 +152,69 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
       backgroundColor="$background"
       pressStyle={{ scale: 0.98 }}
       onPress={handlePress}
+      margin="$4"
+      marginBottom="$8"
+      overflow="hidden"
     >
       <YStack>
         {/* Carousel */}
-        <View style={{ height: 220 }}>
-          {carouselItems.length === 1 ? (
-            <View style={{ borderRadius: 16, overflow: 'hidden' }}>
-              {carouselItems[0].type === 'map' ? (
-                <Map
-                  waypoints={carouselItems[0].data.waypoints}
-                  region={carouselItems[0].data.region}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                  pitchEnabled={false}
-                  rotateEnabled={false}
-                />
-              ) : (
-                <Image
-                  source={{ uri: carouselItems[0].data.url }}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-              )}
-            </View>
-          ) : carouselItems.length > 1 ? (
-            <Carousel
-              loop
-              width={width - 32}
-              height={220}
-              data={carouselItems}
-              defaultIndex={0}
-              autoPlay={false}
-              enabled={true}
-              onProgressChange={handleProgressChange}
-              renderItem={({ item }) => (
-                <View style={{ borderRadius: 16, overflow: 'hidden' }}>
-                  {item.type === 'map' ? (
-                    <Map
-                      waypoints={item.data.waypoints}
-                      region={item.data.region}
-                      scrollEnabled={false}
-                      zoomEnabled={false}
-                      pitchEnabled={false}
-                      rotateEnabled={false}
-                    />
-                  ) : (
-                    <Image
-                      source={{ uri: item.data.url }}
-                      style={{ width: '100%', height: '100%' }}
-                      resizeMode="cover"
-                    />
-                  )}
-                </View>
-              )}
-            />
-          ) : null}
-        </View>
+        {carouselItems.length > 0 && (
+          <View style={{ height: 220, width: '100%', borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: 'hidden' }}>
+            {carouselItems.length === 1 ? (
+              <View style={{ flex: 1, width: '100%', height: '100%' }}>
+                {carouselItems[0].type === 'map' ? (
+                  <Map
+                    waypoints={carouselItems[0].data.waypoints}
+                    region={carouselItems[0].data.region}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                    pitchEnabled={false}
+                    rotateEnabled={false}
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                ) : (
+                  <Image
+                    source={{ uri: carouselItems[0].data.url }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                )}
+              </View>
+            ) : carouselItems.length > 1 ? (
+              <Carousel
+                loop
+                width={width}
+                height={220}
+                data={carouselItems}
+                defaultIndex={0}
+                autoPlay={false}
+                enabled={true}
+                onProgressChange={handleProgressChange}
+                renderItem={({ item }) => (
+                  <View style={{ flex: 1, width: '100%', height: '100%' }}>
+                    {item.type === 'map' ? (
+                      <Map
+                        waypoints={item.data.waypoints}
+                        region={item.data.region}
+                        scrollEnabled={false}
+                        zoomEnabled={false}
+                        pitchEnabled={false}
+                        rotateEnabled={false}
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                    ) : (
+                      <Image
+                        source={{ uri: item.data.url }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    )}
+                  </View>
+                )}
+              />
+            ) : null}
+          </View>
+        )}
 
         {/* Content */}
         <YStack padding="$4" gap="$2">

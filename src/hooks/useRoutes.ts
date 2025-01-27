@@ -59,7 +59,9 @@ export function useRoutes() {
         .from('routes')
         .select(`
           *,
-          creator:creator_id(full_name)
+          creator:creator_id(full_name),
+          reviews:route_reviews(count),
+          average_rating:route_reviews(rating)
         `);
 
       if (filters?.difficulty) {
@@ -87,6 +89,8 @@ export function useRoutes() {
         ...route,
         metadata: route.metadata as RouteMetadata || {},
         waypoint_details: (route.waypoint_details as WaypointData[]) || [],
+        reviews: route.reviews || [],
+        average_rating: route.average_rating || []
       })) as Route[];
 
       return transformedData;
