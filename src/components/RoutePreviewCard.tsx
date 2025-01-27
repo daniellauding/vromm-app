@@ -33,7 +33,21 @@ type ImageItem = {
 type CarouselItem = MapItem | ImageItem;
 
 type RoutePreviewCardProps = {
-  route: Route;
+  route: Route & {
+    reviews: {
+      id: string;
+      rating: number;
+      content: string;
+      difficulty: string;
+      visited_at: string;
+      created_at: string;
+      images: { url: string; description?: string }[];
+      user: {
+        id: string;
+        full_name: string;
+      };
+    }[];
+  };
   showMap?: boolean;
   onPress?: () => void;
 };
@@ -231,6 +245,21 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
               <Feather name="map-pin" size={16} color={iconColor} />
               <Text>{route.spot_type}</Text>
             </XStack>
+          </XStack>
+
+          <XStack space="$2" alignItems="center">
+            <XStack space="$1" alignItems="center">
+              <Feather name="star" size={16} color={iconColor} />
+              <Text fontSize="$4" fontWeight="bold" color="$yellow10">
+                {route.reviews?.length > 0 
+                  ? (route.reviews.reduce((sum, review) => sum + review.rating, 0) / route.reviews.length).toFixed(1)
+                  : '0.0'
+                }
+              </Text>
+            </XStack>
+            <Text color="$gray11">
+              {route.reviews?.length || 0} {route.reviews?.length === 1 ? 'review' : 'reviews'}
+            </Text>
           </XStack>
 
           {route.description && (

@@ -17,6 +17,7 @@ import { Text } from '../components/Text';
 import { Header } from '../components/Header';
 import { FormField } from '../components/FormField';
 import { Region } from 'react-native-maps';
+import { decode } from 'base64-arraybuffer';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotType = Database['public']['Enums']['spot_type'];
@@ -42,6 +43,8 @@ type MediaItem = {
   uri: string;
   description?: string;
   thumbnail?: string;
+  base64?: string;
+  fileName: string;
 };
 
 type MediaUrl = {
@@ -193,20 +196,109 @@ export function CreateRouteScreen({ route }: Props) {
     setExercises(exercises.filter(ex => ex.id !== id));
   };
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsEditing: true,
-      quality: 1,
-    });
+  const pickMedia = async (useCamera = false) => {
+    try {
+      // Request permissions first
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Camera permission is required to take photos/videos');
+          return;
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Media library permission is required to select photos/videos');
+          return;
+        }
+      }
 
-    if (!result.canceled) {
-      const newMedia: MediaItem = {
-        id: Date.now().toString(),
-        type: result.assets[0].type === 'video' ? 'video' : 'image',
-        uri: result.assets[0].uri,
-      };
-      setMedia([...media, newMedia]);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsMultipleSelection: !useCamera,
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled) {
+        const newMedia: MediaItem[] = result.assets.map((asset) => ({
+          id: Date.now().toString() + Math.random(),
+          type: asset.type === 'video' ? 'video' : 'image',
+          uri: asset.uri,
+          base64: asset.base64 || undefined,
+          fileName: asset.uri.split('/').pop() || 'file',
+        }));
+
+        setMedia([...media, ...newMedia]);
+      }
+    } catch (err) {
+      console.error('Error picking media:', err);
+      Alert.alert('Error', 'Failed to select media. Please try again.');
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Camera permission is required to take photos');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled) {
+        const asset = result.assets[0];
+        const newMedia: MediaItem = {
+          id: Date.now().toString() + Math.random(),
+          type: 'image',
+          uri: asset.uri,
+          base64: asset.base64 || undefined,
+          fileName: asset.uri.split('/').pop() || 'photo.jpg',
+        };
+
+        setMedia([...media, newMedia]);
+      }
+    } catch (err) {
+      console.error('Error taking photo:', err);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  const recordVideo = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Camera permission is required to record videos');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        quality: 0.8,
+        base64: true,
+        videoMaxDuration: 60,
+      });
+
+      if (!result.canceled) {
+        const asset = result.assets[0];
+        const newMedia: MediaItem = {
+          id: Date.now().toString() + Math.random(),
+          type: 'video',
+          uri: asset.uri,
+          base64: asset.base64 || undefined,
+          fileName: asset.uri.split('/').pop() || 'video.mp4',
+        };
+
+        setMedia([...media, newMedia]);
+      }
+    } catch (err) {
+      console.error('Error recording video:', err);
+      Alert.alert('Error', 'Failed to record video. Please try again.');
     }
   };
 
@@ -228,6 +320,7 @@ export function CreateRouteScreen({ route }: Props) {
       type: 'youtube',
       uri: `https://www.youtube.com/watch?v=${videoId}`,
       thumbnail,
+      fileName: 'YouTube Video',
     };
     setMedia([...media, newMedia]);
   };
@@ -271,8 +364,9 @@ export function CreateRouteScreen({ route }: Props) {
         description: wp.description
       }));
 
-      // Upload media files to storage if they exist
+      // Upload media files to storage
       const mediaUrls: MediaUrl[] = [];
+      
       if (media.length > 0) {
         try {
           const uploadedMedia = await Promise.all(
@@ -287,12 +381,19 @@ export function CreateRouteScreen({ route }: Props) {
               }
 
               // For local files, upload to storage
-              const filename = item.uri.split('/').pop();
-              const ext = filename?.split('.').pop();
+              const ext = item.fileName.split('.').pop()?.toLowerCase() || (item.type === 'video' ? 'mp4' : 'jpg');
               const path = `route-attachments/new/${Math.random()}.${ext}`;
-              
-              const response = await fetch(item.uri);
-              const blob = await response.blob();
+
+              let blob;
+              if (item.base64) {
+                // If we have base64, use it
+                const arrayBuffer = decode(item.base64);
+                blob = new Blob([arrayBuffer], { type: item.type === 'video' ? 'video/mp4' : 'image/jpeg' });
+              } else {
+                // Otherwise fetch the file
+                const response = await fetch(item.uri);
+                blob = await response.blob();
+              }
               
               const { error: uploadError, data } = await supabase.storage
                 .from('route-attachments')
@@ -303,7 +404,6 @@ export function CreateRouteScreen({ route }: Props) {
                 throw uploadError;
               }
               
-              // Get the public URL using getPublicUrl instead of accessing storageUrl directly
               const { data: { publicUrl } } = supabase.storage
                 .from('route-attachments')
                 .getPublicUrl(data?.path || '');
@@ -425,6 +525,7 @@ export function CreateRouteScreen({ route }: Props) {
           thumbnail: m.type === 'youtube' && m.url ? 
             `https://img.youtube.com/vi/${extractYoutubeVideoId(m.url)}/hqdefault.jpg` : 
             undefined,
+          fileName: m.fileName,
         })));
       }
     } catch (err) {
@@ -870,17 +971,41 @@ export function CreateRouteScreen({ route }: Props) {
                 <Text size="lg" weight="medium" color="$color">Media</Text>
                 <Text size="sm" color="$gray11">Add images, videos, or YouTube links</Text>
 
-                <XStack gap="$3">
+                <XStack gap="$3" flexWrap="wrap">
                   <Button
                     flex={1}
-                    onPress={pickImage}
+                    onPress={() => pickMedia(false)}
                     variant="primary"
                     backgroundColor="$blue10"
                     size="lg"
                   >
                     <XStack gap="$2" alignItems="center">
                       <Feather name="image" size={18} color="white" />
-                      <Text color="white">Add Media</Text>
+                      <Text color="white">Choose Media</Text>
+                    </XStack>
+                  </Button>
+                  <Button
+                    flex={1}
+                    onPress={takePhoto}
+                    variant="primary"
+                    backgroundColor="$green10"
+                    size="lg"
+                  >
+                    <XStack gap="$2" alignItems="center">
+                      <Feather name="camera" size={18} color="white" />
+                      <Text color="white">Take Photo</Text>
+                    </XStack>
+                  </Button>
+                  <Button
+                    flex={1}
+                    onPress={recordVideo}
+                    variant="primary"
+                    backgroundColor="$purple10"
+                    size="lg"
+                  >
+                    <XStack gap="$2" alignItems="center">
+                      <Feather name="video" size={18} color="white" />
+                      <Text color="white">Record Video</Text>
                     </XStack>
                   </Button>
                   <Button

@@ -27,6 +27,7 @@
     "@tamagui/react-native-media-driver": "^1.121.12",
     "@tamagui/shorthands": "^1.121.12",
     "@tamagui/themes": "^1.121.12",
+    "base64-arraybuffer": "^1.0.2",
     "date-fns": "^4.1.0",
     "expo": "~52.0.25",
     "expo-blur": "~14.0.2",

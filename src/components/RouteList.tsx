@@ -41,6 +41,10 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
   metadata: RouteMetadata;
   waypoint_details: WaypointData[];
   media_attachments?: MediaAttachment[];
+  reviews?: { count: number }[];
+  average_rating?: { rating: number }[];
+  review_count?: number;
+  comment_count?: number;
 };
 
 type RouteListProps = {
@@ -274,6 +278,18 @@ export function RouteList({ routes, onRefresh }: RouteListProps) {
                   <Feather name="map-pin" size={16} color={iconColor} />
                   <Text>{route.spot_type}</Text>
                 </XStack>
+              </XStack>
+
+              <XStack space="$2" alignItems="center">
+                <XStack space="$1" alignItems="center">
+                  <Feather name="star" size={16} color={iconColor} />
+                  <Text fontSize="$4" fontWeight="bold" color="$yellow10">
+                    {route.average_rating?.[0]?.rating || '0.0'}
+                  </Text>
+                </XStack>
+                <Text color="$gray11">
+                  {route.reviews?.[0]?.count || route.review_count || 0} {(route.reviews?.[0]?.count || route.review_count || 0) === 1 ? 'review' : 'reviews'}
+                </Text>
               </XStack>
 
               {route.description && (
