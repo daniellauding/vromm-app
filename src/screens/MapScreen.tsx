@@ -16,6 +16,9 @@ import { RoutePreviewCard } from '../components/RoutePreviewCard';
 import { Region } from 'react-native-maps';
 import { RouteList } from '../components/RouteList';
 import { PanGestureHandler, State, PanGestureHandlerGestureEvent, PanGestureHandlerStateChangeEvent } from 'react-native-gesture-handler';
+import MapView from 'react-native-maps';
+
+const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
 
 type SnapPoints = {
   collapsed: number;
@@ -64,6 +67,13 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
   }[];
 };
 
+type SearchResult = {
+  id: string;
+  place_name: string;
+  center: [number, number];
+  place_type: string[];
+};
+
 const styles = StyleSheet.create({
   searchContainer: {
     position: 'absolute',
@@ -71,6 +81,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1,
+    paddingTop: 8,
   },
   mapContainer: {
     flex: 1,
@@ -132,9 +143,10 @@ export function MapScreen() {
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const searchInputRef = useRef<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Location.LocationGeocodedAddress[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
 
   // Memoize initial region
@@ -267,90 +279,98 @@ export function MapScreen() {
     })();
   }, []);
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
+  // Add filtered routes state
+  const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>(routes);
+
+  const handleSearch = useCallback((text: string) => {
+    setSearchQuery(text);
     
-    // Clear previous timeout
+    // Clear any existing timeout
     if (searchTimeout) {
       clearTimeout(searchTimeout);
     }
 
-    if (!query.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-
-    // Set new timeout for debounced search
+    // Set a new timeout for search
     const timeout = setTimeout(async () => {
-      try {
-        // Try with city/country first
-        let results = await Location.geocodeAsync(query);
-        
-        // If no results, try with more specific search
-        if (results.length === 0) {
-          // Add country/city to make search more specific
-          const searchTerms = [
-            `${query}, Sweden`,
-            `${query}, Gothenburg`,
-            `${query}, Stockholm`,
-            `${query}, Malmö`,
-            query // Original query as fallback
-          ];
-
-          for (const term of searchTerms) {
-            results = await Location.geocodeAsync(term);
-            if (results.length > 0) break;
-          }
-        }
-
-        if (results.length > 0) {
-          const addresses = await Promise.all(
-            results.map(async result => {
-              const address = await Location.reverseGeocodeAsync({
-                latitude: result.latitude,
-                longitude: result.longitude,
-              });
-              return {
-                ...address[0],
-                coords: {
-                  latitude: result.latitude,
-                  longitude: result.longitude,
-                }
-              };
-            })
+      if (text.length > 0) {
+        setIsSearching(true);
+        try {
+          // Use Mapbox Geocoding API for better place suggestions
+          const response = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality,address,country,region&language=en`
           );
-
-          // Filter out duplicates and null values
-          const uniqueAddresses = addresses.filter((addr, index, self) => 
-            addr && addr.coords &&
-            index === self.findIndex(a => 
-              a.coords?.latitude === addr.coords?.latitude && 
-              a.coords?.longitude === addr.coords?.longitude
-            )
-          );
-
-          setSearchResults(uniqueAddresses);
+          const data = await response.json();
+          setSearchResults(data.features || []);
           setShowSearchResults(true);
+        } catch (error) {
+          console.error('Error searching locations:', error);
+        } finally {
+          setIsSearching(false);
         }
-      } catch (err) {
-        console.error('Geocoding error:', err);
+      } else {
+        setSearchResults([]);
+        setShowSearchResults(false);
       }
-    }, 300); // Reduced delay to 300ms for more responsive feel
+
+      // Filter routes based on search text
+      const searchLower = text.toLowerCase();
+      const filtered = routes.filter(route => {
+        return (
+          route.name.toLowerCase().includes(searchLower) ||
+          (route.description?.toLowerCase().includes(searchLower)) ||
+          (route.creator?.full_name.toLowerCase().includes(searchLower))
+        );
+      });
+      setFilteredRoutes(filtered);
+    }, 300); // Reduced debounce time for better responsiveness
 
     setSearchTimeout(timeout);
-  };
+  }, [routes]);
 
-  const handleLocationSelect = (result: (Location.LocationGeocodedAddress & { coords?: { latitude: number; longitude: number } })) => {
-    if (result.coords) {
-      setRegion({
-        latitude: result.coords.latitude,
-        longitude: result.coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
-      setSearchQuery(`${result.street || ''} ${result.city || ''} ${result.country || ''}`.trim());
+  // Reset filtered routes when routes change
+  useEffect(() => {
+    setFilteredRoutes(routes);
+  }, [routes]);
+
+  const handleLocationSelect = (result: SearchResult) => {
+    try {
+      if (!result?.center || result.center.length !== 2) {
+        console.error('Invalid location data:', result);
+        return;
+      }
+
+      const [longitude, latitude] = result.center;
+      
+      // Validate coordinates
+      if (typeof latitude !== 'number' || typeof longitude !== 'number' ||
+          isNaN(latitude) || isNaN(longitude)) {
+        console.error('Invalid coordinates:', { latitude, longitude });
+        return;
+      }
+
+      // Different zoom levels based on place type
+      let zoomLevel = 0.02; // default zoom (city level)
+      if (result.place_type[0] === 'country') {
+        zoomLevel = 8; // wide zoom for countries
+      } else if (result.place_type[0] === 'region') {
+        zoomLevel = 4; // medium zoom for regions
+      } else if (result.place_type[0] === 'address') {
+        zoomLevel = 0.005; // close zoom for addresses
+      }
+
+      const newRegion = {
+        latitude,
+        longitude,
+        latitudeDelta: zoomLevel,
+        longitudeDelta: zoomLevel,
+      };
+
+      setRegion(newRegion);
+      setSearchQuery(result.place_name || '');
       setShowSearchResults(false);
+    } catch (error) {
+      console.error('Error selecting location:', error);
+      // Optionally show an error message to the user
     }
   };
 
@@ -375,6 +395,7 @@ export function MapScreen() {
       if (searchTimeout) {
         clearTimeout(searchTimeout);
       }
+      
     };
   }, [searchTimeout]);
 
@@ -487,14 +508,14 @@ export function MapScreen() {
         />
 
         {/* Search bar overlay */}
-        <SafeAreaView style={[styles.searchContainer]} edges={['top']}>
+        <SafeAreaView style={[styles.searchContainer, { backgroundColor }]} edges={['top']}>
           <XStack padding="$2" gap="$2">
             <Input
               ref={searchInputRef}
               flex={1}
               value={searchQuery}
               onChangeText={handleSearch}
-              placeholder="Search location..."
+              placeholder="Search cities, addresses, routes..."
               backgroundColor="$background"
               borderWidth={1}
               borderColor="$borderColor"
@@ -526,21 +547,34 @@ export function MapScreen() {
               backgroundColor="$background"
               margin="$2"
               marginTop={0}
+              maxHeight={300}
             >
-              <YStack padding="$2">
-                {searchResults.map((result, index) => (
+              <YStack padding="$2" space="$1">
+                {searchResults.map((result) => (
                   <XStack
-                    key={index}
+                    key={result.id}
                     padding="$3"
                     pressStyle={{ opacity: 0.7 }}
                     onPress={() => handleLocationSelect(result)}
+                    alignItems="center"
+                    gap="$2"
                   >
-                    <Feather name="map-pin" size={16} marginRight="$2" />
-                    <YStack>
-                      <Text>
-                        {[result.street, result.city, result.country]
-                          .filter(Boolean)
-                          .join(', ')}
+                    <Feather 
+                      name={
+                        result.place_type[0] === 'country' ? 'flag' :
+                        result.place_type[0] === 'region' ? 'map' :
+                        result.place_type[0] === 'place' ? 'map-pin' :
+                        'navigation'
+                      } 
+                      size={16} 
+                      color={iconColor}
+                    />
+                    <YStack flex={1}>
+                      <Text numberOfLines={1} fontWeight="600">
+                        {result.place_name.split(',')[0]}
+                      </Text>
+                      <Text numberOfLines={1} fontSize="$1" color="$gray11">
+                        {result.place_name.split(',').slice(1).join(',')}
                       </Text>
                     </YStack>
                   </XStack>
@@ -575,13 +609,13 @@ export function MapScreen() {
                     fontWeight="600"
                     color="$color"
                   >
-                    {routes.length} {routes.length === 1 ? 'route' : 'routes'}
+                    {filteredRoutes.length} {filteredRoutes.length === 1 ? 'route' : 'routes'}
                   </Text>
                 </XStack>
               </View>
               <View style={styles.routeListContainer}>
                 <RouteList
-                  routes={routes}
+                  routes={filteredRoutes}
                   onRefresh={loadRoutes}
                   onScroll={handleScroll}
                 />
