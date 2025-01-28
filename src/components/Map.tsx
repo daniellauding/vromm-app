@@ -163,23 +163,73 @@ export function Map({
   if (!region) return null;
 
   const mapRef = React.useRef<MapView>(null);
-  const BASE_CLUSTER_DISTANCE = 25; // Reduced base distance for tighter clusters
+  const BASE_CLUSTER_DISTANCE = 25;
   const [expandedCluster, setExpandedCluster] = useState<string | null>(null);
+  const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(0);
+  const lastRegionChange = React.useRef<number>(0);
 
-  // Calculate cluster distance based on zoom level
-  const clusterDistance = useMemo(() => {
-    if (!region) return BASE_CLUSTER_DISTANCE;
-    
-    const zoomFactor = (region.latitudeDelta + region.longitudeDelta) / 2;
-    // More conservative clustering at higher zoom levels
-    return BASE_CLUSTER_DISTANCE * Math.min(zoomFactor * 40, 1.5);
-  }, [region]);
+  // Debug logging function - only log if more than 500ms has passed
+  const debugLog = useCallback((message: string, data?: any) => {
+    const now = Date.now();
+    if (now - lastRegionChange.current > 500) {
+      console.log(`[Map] ${message}`, data || '');
+      lastRegionChange.current = now;
+    }
+  }, []);
 
-  // Calculate clusters based on current zoom level and waypoint positions
+  // Calculate zoom level from region
+  const calculateZoomLevel = useCallback((region: Region) => {
+    const { longitudeDelta } = region;
+    return Math.round(Math.log(360 / longitudeDelta) / Math.LN2);
+  }, []);
+
+  // Handle region changes
+  const handleRegionChange = useCallback((newRegion: Region) => {
+    try {
+      const newZoomLevel = calculateZoomLevel(newRegion);
+      
+      // Only process if zoom level has changed significantly
+      if (Math.abs(newZoomLevel - currentZoomLevel) >= 0.5) {
+        debugLog('Significant zoom change:', {
+          oldZoom: currentZoomLevel,
+          newZoom: newZoomLevel,
+          delta: Math.abs(newZoomLevel - currentZoomLevel)
+        });
+        
+        setCurrentZoomLevel(newZoomLevel);
+        
+        // Auto expand/collapse based on zoom
+        if (newZoomLevel >= 10) { // Lower threshold for earlier expansion
+          debugLog('Expanding clusters at zoom level:', newZoomLevel);
+          setExpandedCluster('all');
+        } else {
+          debugLog('Collapsing clusters at zoom level:', newZoomLevel);
+          setExpandedCluster(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleRegionChange:', error);
+    }
+  }, [currentZoomLevel, calculateZoomLevel, debugLog]);
+
+  // Calculate clusters
   const clusters = useMemo(() => {
     if (!region || !waypoints.length) return [];
 
-    // Filter out any invalid waypoints
+    // If we're zoomed in enough, don't cluster at all
+    if (expandedCluster === 'all') {
+      debugLog('Zoom level high enough, showing all points individually');
+      return waypoints.map(point => ({
+        id: `marker-${point.id || Math.random()}`,
+        coordinate: {
+          latitude: point.latitude,
+          longitude: point.longitude,
+        },
+        points: [point],
+      }));
+    }
+
+    // Otherwise, proceed with clustering
     const validWaypoints = waypoints.filter(wp => 
       wp.latitude && wp.longitude && 
       !isNaN(wp.latitude) && !isNaN(wp.longitude) &&
@@ -187,6 +237,16 @@ export function Map({
     );
 
     if (validWaypoints.length === 0) return [];
+
+    // Calculate clustering based on zoom level
+    const zoomLevel = calculateZoomLevel(region);
+    const clusterDistance = BASE_CLUSTER_DISTANCE * Math.max(1, (20 - zoomLevel) / 10);
+
+    debugLog('Clustering state:', {
+      zoomLevel,
+      clusterDistance,
+      waypoints: validWaypoints.length
+    });
 
     const { width } = Dimensions.get('window');
     const latDelta = region.latitudeDelta;
@@ -221,7 +281,7 @@ export function Map({
 
       const clusterId = `cluster-${clusterIdCounter++}`;
       
-      // Only create a cluster if we have more than 2 points total (current point + 2 nearby)
+      // Only create a cluster if we have more than 2 points total
       if (nearbyPoints.length >= 2) {
         const allPoints = [point, ...nearbyPoints];
         const centerLat = allPoints.reduce((sum, p) => sum + p.latitude, 0) / allPoints.length;
@@ -236,7 +296,7 @@ export function Map({
           points: allPoints,
         });
       } else {
-        // If not enough nearby points, add original point as a standalone marker
+        // If not enough nearby points, add as standalone markers
         clusters.push({
           id: `marker-${point.id || clusterId}`,
           coordinate: {
@@ -246,7 +306,6 @@ export function Map({
           points: [point],
         });
         
-        // Add back the nearby points as standalone markers
         nearbyPoints.forEach(nearbyPoint => {
           clusters.push({
             id: `marker-${nearbyPoint.id || clusterIdCounter++}`,
@@ -260,8 +319,9 @@ export function Map({
       }
     }
 
+    debugLog('Created clusters:', clusters.length);
     return clusters;
-  }, [waypoints, region, clusterDistance]);
+  }, [region, waypoints, calculateZoomLevel, debugLog, expandedCluster]);
 
   const handleClusterPress = useCallback((cluster: Cluster) => {
     if (mapRef.current) {
@@ -288,16 +348,6 @@ export function Map({
     }
   }, []);
 
-  // Handle region change to collapse expanded cluster when zooming out
-  const handleRegionChange = useCallback((newRegion: Region) => {
-    if (expandedCluster && (
-      newRegion.latitudeDelta > region.latitudeDelta * 1.5 ||
-      newRegion.longitudeDelta > region.longitudeDelta * 1.5
-    )) {
-      setExpandedCluster(null);
-    }
-  }, [expandedCluster, region]);
-
   return (
     <View style={[styles.container, style]}>
       <MapView
@@ -312,8 +362,8 @@ export function Map({
         onRegionChangeComplete={handleRegionChange}
       >
         {clusters.map((cluster) => {
-          // Show individual pins for single markers or expanded clusters
-          if (cluster.points.length === 1 || cluster.id === expandedCluster) {
+          // Show individual pins for single markers, expanded clusters, or when zoomed in
+          if (cluster.points.length === 1 || expandedCluster === 'all' || cluster.id === expandedCluster) {
             return cluster.points.map((point, index) => (
               <Marker
                 key={`${cluster.id}-point-${index}`}
