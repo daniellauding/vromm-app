@@ -39,8 +39,8 @@ export function ForgotPasswordScreen() {
 
   return (
     <Screen>
-      <YStack f={1} gap={16}>
-        <Header title={t('auth.resetPassword.title')} />
+      <YStack f={1} gap={4}>
+        <Header title={t('auth.resetPassword.title')} showback={true}/>
         
         <YStack gap={32}>
           <Text size="md" intent="muted">

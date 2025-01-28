@@ -380,17 +380,17 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1 }}>
+      <Screen>
         <YStack f={1} padding="$4" justifyContent="center" alignItems="center">
           <Text>Loading...</Text>
         </YStack>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (error || !routeData) {
     return (
-      <SafeAreaView style={{ flex: 1 }}>
+      <Screen>
         <YStack f={1} padding="$4" justifyContent="center" alignItems="center">
           <Text color="$red10">{error || 'Failed to load route'}</Text>
           <Button
@@ -401,97 +401,92 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
             Go Back
           </Button>
         </YStack>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
     <Screen>
-      <YStack f={1} gap="$4">
-        {/* Header */}
-        <Header 
-          title={routeData?.name || 'Route Details'}
-          leftElement={
+      <YStack f={1}>
+      <Header title={routeData?.name || 'Route Details'} showBack={true} />
+        <XStack
+          backgroundColor="$background"
+          borderBottomColor="$borderColor"
+          borderBottomWidth={1}
+          paddingHorizontal="$4"
+          paddingVertical="$3"
+          alignItems="center"
+          position="relative"
+        >
+          <Button
+            size="$3"
+            backgroundColor="transparent"
+            onPress={() => navigation.goBack()}
+            icon={<Feather name="arrow-left" size={24} color="$color" />}
+          />
+          <XStack gap="$2">
+            {user?.id === routeData?.creator_id && (
+              <Button
+                size="$3"
+                backgroundColor="transparent"
+                onPress={() => {
+                  if (routeId) {
+                    navigation.navigate('CreateRoute', { routeId } as any);
+                  }
+                }}
+                icon={<Feather name="edit-2" size={24} color="$color" />}
+              />
+            )}
             <Button
               size="$3"
-              variant="outlined"
               backgroundColor="transparent"
-              onPress={() => navigation.goBack()}
-              icon={<Feather name="arrow-left" size={18} />}
+              onPress={handleSaveRoute}
+              icon={<Feather name="bookmark" size={24} color={isSaved ? "$blue10" : "$color"} />}
             />
-          }
-          rightElement={
-            <XStack space="$2">
-              {user?.id === routeData?.creator_id && (
-                <Button
-                  size="$3"
-                  variant="outlined"
-                  backgroundColor="$blue10"
-                  onPress={() => {
-                    if (routeId) {
-                      navigation.navigate('CreateRoute', { routeId } as any);
-                    }
-                  }}
-                  icon={<Feather name="edit-2" size={18} color="white" />}
-                />
-              )}
-              <Button
-                size="$3"
-                variant="outlined"
-                backgroundColor={isSaved ? "$green10" : undefined}
-                onPress={handleSaveRoute}
-                icon={<Feather name="bookmark" size={18} color={isSaved ? "white" : undefined} />}
-              />
-              <Button
-                size="$3"
-                variant="outlined"
-                backgroundColor={isDriven ? "$green10" : undefined}
-                onPress={handleMarkDriven}
-                icon={<Feather name="check-circle" size={18} color={isDriven ? "white" : undefined} />}
-              />
-              <Button
-                size="$3"
-                variant="outlined"
-                backgroundColor="$red10"
-                onPress={() => setShowReportModal(true)}
-                icon={<Feather name="flag" size={18} color="white" />}
-              />
-            </XStack>
-          }
-        />
+            <Button
+              size="$3"
+              backgroundColor="transparent"
+              onPress={handleMarkDriven}
+              icon={<Feather name="check-circle" size={24} color={isDriven ? "$blue10" : "$color"} />}
+            />
+            <Button
+              size="$3"
+              backgroundColor="transparent"
+              onPress={() => setShowReportModal(true)}
+              icon={<Feather name="flag" size={24} color="$red10" />}
+            />
+          </XStack>
+        </XStack>
 
-        {/* Content */}
         <ScrollView>
-          <YStack gap="$4">
-            {/* Basic Info */}
-            <Card bordered elevate size="$4" padding="$4">
-              <YStack space="$3">
-                <Text fontSize="$3" color="$gray11">
-                  {routeData?.description}
-                </Text>
-                <XStack space="$2" marginTop="$2">
-                  <Text fontSize="$2" color="$blue10">
-                    {routeData?.difficulty?.toUpperCase()}
-                  </Text>
-                  <Text fontSize="$2" color="$gray10">•</Text>
-                  <Text fontSize="$2" color="$gray11">
-                    {routeData?.spot_type}
-                  </Text>
-                  <Text fontSize="$2" color="$gray10">•</Text>
-                  <Text fontSize="$2" color="$gray11">
-                    {routeData?.category?.split('_').map((word: string) => 
+          <YStack padding="$4" gap="$4">
+            {/* Basic Info Card */}
+            <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+              <YStack gap="$2">
+                <XStack gap="$2" alignItems="center">
+                  <Text fontSize="$6" fontWeight="600" color="$color">{routeData.difficulty?.toUpperCase()}</Text>
+                  <Text fontSize="$4" color="$gray11">•</Text>
+                  <Text fontSize="$6" color="$gray11">{routeData.spot_type}</Text>
+                  <Text fontSize="$4" color="$gray11">•</Text>
+                  <Text fontSize="$6" color="$gray11">
+                    {routeData.category?.split('_').map(word => 
                       word.charAt(0).toUpperCase() + word.slice(1)
                     ).join(' ')}
                   </Text>
                 </XStack>
+                {routeData.description && (
+                  <Text fontSize="$4" color="$gray11" marginTop="$2">
+                    {routeData.description}
+                  </Text>
+                )}
               </YStack>
             </Card>
 
-            {/* Map */}
-            <Card bordered elevate size="$4" padding="$4">
-              <YStack space="$3">
-                <Text fontSize="$6" fontWeight="600" color="$gray11">Location</Text>
-                <View style={{ height: 200, borderRadius: 12, overflow: 'hidden' }}>
+            {/* Map Card */}
+            <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+              <YStack gap="$3">
+                <Text fontSize="$6" fontWeight="600" color="$color">Location</Text>
+                <View style={{ height: 250, borderRadius: 12, overflow: 'hidden' }}>
                   <Map
                     waypoints={(routeData as RouteData)?.waypoint_details?.map((wp) => ({
                       latitude: wp.lat,
@@ -510,159 +505,22 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               </YStack>
             </Card>
 
-            {/* Details */}
-            <Card bordered elevate size="$4" padding="$4">
-              <YStack space="$3">
-                <Text fontSize="$6" fontWeight="600" color="$gray11">Details</Text>
-                <XStack flexWrap="wrap" gap="$2">
-                  {routeData?.best_season && (
-                    <Card bordered size="$2" padding="$2">
-                      <XStack space="$2" alignItems="center">
-                        <Feather name="sun" size={16} />
-                        <Text>Best Season: {routeData.best_season}</Text>
-                      </XStack>
-                    </Card>
-                  )}
-                  {routeData?.best_times && (
-                    <Card bordered size="$2" padding="$2">
-                      <XStack space="$2" alignItems="center">
-                        <Feather name="clock" size={16} />
-                        <Text>Best Times: {routeData.best_times}</Text>
-                      </XStack>
-                    </Card>
-                  )}
-                  {routeData?.activity_level && (
-                    <Card bordered size="$2" padding="$2">
-                      <XStack space="$2" alignItems="center">
-                        <Feather name="activity" size={16} />
-                        <Text>Activity Level: {routeData.activity_level}</Text>
-                      </XStack>
-                    </Card>
-                  )}
-                  {routeData?.transmission_type && (
-                    <Card bordered size="$2" padding="$2">
-                      <XStack space="$2" alignItems="center">
-                        <Feather name="settings" size={16} />
-                        <Text>Transmission: {routeData.transmission_type}</Text>
-                      </XStack>
-                    </Card>
-                  )}
-                  {routeData?.vehicle_types?.length > 0 && (
-                    <Card bordered size="$2" padding="$2">
-                      <XStack space="$2" alignItems="center">
-                        <Feather name="truck" size={16} />
-                        <Text>Vehicles: {routeData.vehicle_types.join(', ')}</Text>
-                      </XStack>
-                    </Card>
-                  )}
-                  {routeData?.full_address && (
-                    <Card bordered size="$2" padding="$2">
-                      <XStack space="$2" alignItems="center">
-                        <Feather name="map-pin" size={16} />
-                        <Text>{routeData.full_address}</Text>
-                      </XStack>
-                    </Card>
-                  )}
-                </XStack>
+            {/* Details Card */}
+            <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+              <YStack gap="$4">
+                <Text fontSize="$6" fontWeight="600" color="$color">Details</Text>
+                {routeData.waypoint_details?.map((waypoint, index) => (
+                  <YStack key={index} gap="$2">
+                    <Text fontSize="$5" fontWeight="600" color="$color">{waypoint.title}</Text>
+                    {waypoint.description && (
+                      <Text fontSize="$4" color="$gray11">{waypoint.description}</Text>
+                    )}
+                  </YStack>
+                ))}
               </YStack>
             </Card>
 
-            {/* Media */}
-            {(routeData as RouteData)?.media_attachments?.length > 0 && (
-              <YStack space="$4">
-                {/* Videos */}
-                {(routeData as RouteData).media_attachments.filter(item => item.type === 'video').length > 0 && (
-                  <Card bordered elevate size="$4" padding="$4">
-                    <YStack space="$3">
-                      <Text fontSize="$6" fontWeight="600" color="$gray11">Videos</Text>
-                      <YStack space="$2">
-                        {(routeData as RouteData).media_attachments
-                          .filter(item => item.type === 'video')
-                          .map((item, index) => (
-                            <Card key={index} bordered elevate style={{ height: 200 }}>
-                              <WebView
-                                source={{ uri: item.url }}
-                                style={{ flex: 1 }}
-                                allowsFullscreenVideo
-                              />
-                              {item.description && (
-                                <Text
-                                  padding="$2"
-                                  fontSize="$2"
-                                  color="$gray11"
-                                >
-                                  {item.description}
-                                </Text>
-                              )}
-                            </Card>
-                          ))}
-                      </YStack>
-                    </YStack>
-                  </Card>
-                )}
-
-                {/* Images */}
-                {(routeData as RouteData).media_attachments.filter(item => item.type === 'image').length > 0 && (
-                  <Card bordered elevate size="$4" padding="$4">
-                    <YStack space="$3">
-                      <Text fontSize="$6" fontWeight="600" color="$gray11">Images</Text>
-                      <Carousel
-                        width={windowWidth - 32}
-                        height={200}
-                        data={(routeData as RouteData).media_attachments.filter(item => item.type === 'image')}
-                        renderItem={({ item }: { item: MediaAttachment & Json }) => (
-                          <Card bordered elevate style={{ width: windowWidth - 32, height: 200 }}>
-                            <Image
-                              source={{ uri: item.url }}
-                              style={{ width: '100%', height: '100%', borderRadius: 12 }}
-                              resizeMode="cover"
-                            />
-                            {item.description && (
-                              <Text
-                                position="absolute"
-                                bottom={0}
-                                left={0}
-                                right={0}
-                                backgroundColor="rgba(0,0,0,0.5)"
-                                color="white"
-                                padding="$2"
-                                fontSize="$2"
-                              >
-                                {item.description}
-                              </Text>
-                            )}
-                          </Card>
-                        )}
-                        onSnapToItem={setActiveMediaIndex}
-                        loop={false}
-                        mode="parallax"
-                        modeConfig={{
-                          parallaxScrollingScale: 0.9,
-                          parallaxScrollingOffset: 50,
-                        }}
-                      />
-                      <XStack justifyContent="center" space="$1" marginTop="$2">
-                        {(routeData as RouteData).media_attachments
-                          .filter(item => item.type === 'image')
-                          .map((_, index) => (
-                            <View
-                              key={index}
-                              style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: 4,
-                                backgroundColor: index === activeMediaIndex ? '#007AFF' : '#E5E5E5',
-                              }}
-                            />
-                          ))}
-                      </XStack>
-                    </YStack>
-                  </Card>
-                )}
-              </YStack>
-            )}
-
-            {/* Reviews */}
+            {/* Reviews Section */}
             <ReviewSection
               routeId={routeId}
               reviews={reviews}

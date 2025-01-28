@@ -797,9 +797,10 @@ export function CreateRouteScreen({ route }: Props) {
   };
 
   return (
+    <Screen>
     <YStack f={1} backgroundColor="$background">
       {/* Header */}
-      <YStack paddingHorizontal="$4" paddingTop="$6" paddingBottom="$2">
+      {/* <YStack paddingHorizontal="$4" paddingTop="$6" paddingBottom="$2">
         <XStack alignItems="center" justifyContent="space-between">
           <XStack space="$2" alignItems="center">
             <Button
@@ -822,11 +823,13 @@ export function CreateRouteScreen({ route }: Props) {
             <Feather name="check" size={24} color={loading || !formData.name.trim() ? "$gray8" : "$blue10"} />
           </Button>
         </XStack>
-      </YStack>
+      </YStack> */}
+      
 
       {/* Content */}
       <YStack f={1} backgroundColor="$background">
         {/* Navigation Chips */}
+        <Header title={`Create Route`} showBack={true} />
         <XStack padding="$4" gap="$2" flexWrap="wrap">
           <Chip 
             active={activeSection === 'basic'}
@@ -1273,5 +1276,6 @@ export function CreateRouteScreen({ route }: Props) {
         </Button>
       </YStack>
     </YStack>
+    </Screen>
   );
 } 

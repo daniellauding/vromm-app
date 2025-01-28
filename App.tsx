@@ -1,74 +1,88 @@
-import { TamaguiProvider, Theme, useTheme } from 'tamagui';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { TamaguiProvider, Theme } from 'tamagui';
 import { config } from './src/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider } from './src/context/LanguageContext';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { RootStackParamList } from './src/types/navigation';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useColorScheme } from 'react-native';
+
+// Auth screens
 import { LoginScreen } from './src/screens/LoginScreen';
 import { SignupScreen } from './src/screens/SignupScreen';
-import { HomeScreen } from './src/screens/HomeScreen';
-import { ProfileScreen } from './src/screens/ProfileScreen';
-import { CreateRouteScreen } from './src/screens/CreateRouteScreen';
-import { RouteDetailScreen } from './src/screens/RouteDetailScreen';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
-import { Platform } from 'react-native';
-import { useEffect } from 'react';
-import { RootStackParamList } from './src/types/navigation';
-import { TabNavigator } from './src/components/TabNavigator';
-import { useColorScheme } from 'react-native';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
+
+// Main app screens
+import { TabNavigator } from './src/components/TabNavigator';
+import { RouteDetailScreen } from './src/screens/RouteDetailScreen';
+import { CreateRouteScreen } from './src/screens/CreateRouteScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppContent() {
-  const { user, loading } = useAuth();
-  const theme = useTheme();
+  const { user } = useAuth();
   const colorScheme = useColorScheme();
 
-  useEffect(() => {
-    console.log('AppContent mounted:', { user, loading, platform: Platform.OS });
-  }, []);
-
-  if (loading) {
-    console.log('Loading state...');
-    return null;
-  }
-
-  console.log('Rendering navigation, user:', user);
+  console.log('[DEBUG] AppContent rendering');
+  console.log('[DEBUG] Auth state:', { isAuthenticated: !!user });
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
+    <NavigationContainer
+      onStateChange={(state) => {
+        console.log('[DEBUG] Navigation state:', state);
+      }}
+    >
+      <Stack.Navigator 
+        screenOptions={{ 
           headerShown: false,
-          headerStyle: {
-            backgroundColor: theme.background.val,
-          },
-          headerTintColor: theme.color.val,
-          contentStyle: {
-            backgroundColor: theme.background.val,
-          },
         }}
       >
         {!user ? (
+          // Auth stack
           <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen 
+              name="Login" 
+              component={LoginScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen 
+              name="Signup" 
+              component={SignupScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen 
+              name="ForgotPassword" 
+              component={ForgotPasswordScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
           </>
         ) : (
+          // Main app stack
           <>
-            <Stack.Screen name="MainTabs" component={TabNavigator} />
+            <Stack.Screen 
+              name="MainTabs" 
+              component={TabNavigator}
+              options={{
+                headerShown: false,
+              }}
+            />
             <Stack.Screen 
               name="RouteDetail" 
               component={RouteDetailScreen}
-              options={{ headerShown: true }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen 
               name="CreateRoute" 
               component={CreateRouteScreen}
-              options={{ headerShown: true }}
+              options={{ headerShown: false }}
             />
           </>
         )}
@@ -79,22 +93,22 @@ function AppContent() {
 
 export default function App() {
   const colorScheme = useColorScheme();
-
-  useEffect(() => {
-    console.log('App mounted');
-  }, []);
-
+  
+  console.log('[DEBUG] App rendering');
+  
   return (
-    <SafeAreaProvider>
-      <TamaguiProvider config={config}>
-        <Theme name={colorScheme === 'dark' ? 'dark' : 'light'}>
-          <LanguageProvider>
-            <AuthProvider>
-              <AppContent />
-            </AuthProvider>
-          </LanguageProvider>
-        </Theme>
-      </TamaguiProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <TamaguiProvider config={config}>
+          <Theme name={colorScheme === 'dark' ? 'dark' : 'light'}>
+            <LanguageProvider>
+              <AuthProvider>
+                <AppContent />
+              </AuthProvider>
+            </LanguageProvider>
+          </Theme>
+        </TamaguiProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 } 

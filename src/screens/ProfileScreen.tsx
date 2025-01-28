@@ -102,8 +102,7 @@ export function ProfileScreen() {
   return (
     <Screen scroll>
       <YStack f={1} gap={24}>
-        <Header title="Profile" showBack={false} />
-        
+        <Header title="Profile" />
         <YStack gap={24}>
           <YStack gap={24}>
             <YStack>

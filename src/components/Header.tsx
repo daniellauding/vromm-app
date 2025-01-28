@@ -1,12 +1,17 @@
-import { Text, XStack } from 'tamagui';
+import { Text, XStack, Button } from 'tamagui';
+import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 export interface HeaderProps {
   title: string;
   leftElement?: React.ReactNode;
   rightElement?: React.ReactNode;
+  showBack?: boolean;
 }
 
-export function Header({ title, leftElement, rightElement }: HeaderProps) {
+export function Header({ title, leftElement, rightElement, showBack = false }: HeaderProps) {
+  const navigation = useNavigation();
+
   return (
     <XStack
       backgroundColor="$background"
@@ -14,17 +19,28 @@ export function Header({ title, leftElement, rightElement }: HeaderProps) {
       paddingVertical="$3"
       alignItems="center"
       justifyContent="space-between"
+      borderBottomColor="$borderColor"
+      borderBottomWidth={1}
     >
-      {leftElement && (
-        <XStack alignItems="center">
+      {(showBack || leftElement) && (
+        <XStack alignItems="center" gap="$2" minWidth={40}>
+          {showBack && (
+            <Button
+              size="$3"
+              backgroundColor="transparent"
+              paddingHorizontal="$2"
+              onPress={() => navigation.goBack()}
+              icon={<Feather name="arrow-left" size={24} color="$color" />}
+            />
+          )}
           {leftElement}
         </XStack>
       )}
-      <Text fontSize="$6" fontWeight="600" color="$gray12" flex={1} textAlign="center">
+      <Text fontSize="$6" fontWeight="600" color="$color" flex={1} textAlign="left">
         {title}
       </Text>
       {rightElement && (
-        <XStack alignItems="center">
+        <XStack alignItems="center" minWidth={40}>
           {rightElement}
         </XStack>
       )}

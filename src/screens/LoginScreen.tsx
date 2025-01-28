@@ -38,11 +38,11 @@ export function LoginScreen() {
   return (
     <Screen scroll>
       <YStack f={1} justifyContent="center" gap={32} width="100%">
-        <YStack gap={8}>
-          <Text size="3xl" weight="bold" textAlign="center">
+        <YStack gap={12}>
+          <Text size="3xl" weight="bold" textAlign="left">
             {t('auth.signIn.title')}
           </Text>
-          <Text size="md" intent="muted" textAlign="center">
+          <Text size="md" intent="muted" textAlign="left">
             {t('auth.signIn.slogan')}
           </Text>
         </YStack>
