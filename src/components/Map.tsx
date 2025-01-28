@@ -37,7 +37,12 @@ type Cluster = {
   points: Waypoint[];
 };
 
-function ClusterMarker({ count, onPress }: { count: number; onPress?: () => void }) {
+type ClusterMarkerProps = {
+  count: number;
+  onPress?: (e?: { stopPropagation: () => void }) => void;
+};
+
+function ClusterMarker({ count, onPress }: ClusterMarkerProps) {
   return (
     <TouchableOpacity onPress={onPress}>
       <Circle 
@@ -316,7 +321,10 @@ export function Map({
                   latitude: point.latitude,
                   longitude: point.longitude,
                 }}
-                onPress={() => onMarkerPress?.(point)}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onMarkerPress?.(point);
+                }}
                 pinColor={selectedPin === point.id ? "red" : "coral"}
               />
             ));
@@ -327,11 +335,17 @@ export function Map({
             <Marker
               key={cluster.id}
               coordinate={cluster.coordinate}
-              onPress={() => handleClusterPress(cluster)}
+              onPress={(e: { stopPropagation: () => void }) => {
+                e.stopPropagation();
+                handleClusterPress(cluster);
+              }}
             >
               <ClusterMarker 
                 count={cluster.points.length}
-                onPress={() => handleClusterPress(cluster)}
+                onPress={(e?: { stopPropagation: () => void }) => {
+                  e?.stopPropagation();
+                  handleClusterPress(cluster);
+                }}
               />
             </Marker>
           );

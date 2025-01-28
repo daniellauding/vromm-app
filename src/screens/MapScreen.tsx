@@ -198,19 +198,52 @@ export function MapScreen() {
   }, [routes]);
 
   const handleMarkerPress = useCallback((waypoint: Waypoint) => {
+    console.log('Pin pressed:', {
+      waypointId: waypoint.id,
+      currentSelectedPin: selectedPin,
+      hasRoute: !!routesById[waypoint.id!]
+    });
+
     const route = routesById[waypoint.id!];
     if (route) {
-      setSelectedRoute(route);
-      setSelectedPin(waypoint.id!);
+      // If clicking the same pin, hide it
+      if (selectedPin === waypoint.id) {
+        console.log('Same pin clicked - hiding preview');
+        setSelectedRoute(null);
+        setSelectedPin(null);
+      } 
+      // Otherwise, show the new route
+      else {
+        console.log('New pin clicked - showing route:', route.name);
+        setSelectedRoute(route);
+        setSelectedPin(waypoint.id!);
+      }
     }
-  }, [routesById]);
+    // Prevent map press from triggering
+    return true;
+  }, [routesById, selectedPin, setSelectedRoute]);
 
-  const handleMapPress = useCallback(() => {
-    if (selectedRoute) {
+  const handleMapPress = useCallback((_: { defaultPrevented?: boolean } = {}) => {
+    console.log('Map pressed:', {
+      defaultPrevented: _.defaultPrevented,
+      hasSelectedRoute: !!selectedRoute
+    });
+    
+    // Only hide if we actually clicked the map (not a marker)
+    if (selectedRoute && !_.defaultPrevented) {
+      console.log('Hiding route preview from map press');
       setSelectedRoute(null);
       setSelectedPin(null);
     }
   }, [selectedRoute]);
+
+  // Add effect to track state changes
+  useEffect(() => {
+    console.log('State updated:', {
+      selectedPinId: selectedPin,
+      selectedRouteName: selectedRoute?.name
+    });
+  }, [selectedPin, selectedRoute]);
 
   // Memoize getMapRegion to prevent recreation
   const getMapRegion = useMemo(() => {
