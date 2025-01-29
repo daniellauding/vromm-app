@@ -484,7 +484,6 @@ export function CreateRouteScreen({ route }: Props) {
         transmission_type: formData.transmission_type,
         category: formData.category,
         creator_id: user.id,
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         is_public: formData.visibility === 'public',
         waypoint_details: waypointDetails,
@@ -503,25 +502,40 @@ export function CreateRouteScreen({ route }: Props) {
         drawing_mode: 'waypoints'
       };
 
-      // Create the route first
-      const { data: newRoute, error: routeError } = await supabase
-        .from('routes')
-        .insert(routeData)
-        .select()
-        .single();
+      let route;
+      if (isEditing && routeId) {
+        // Update existing route
+        const { data: updatedRoute, error: updateError } = await supabase
+          .from('routes')
+          .update(routeData)
+          .eq('id', routeId)
+          .select()
+          .single();
 
-      if (routeError) throw routeError;
+        if (updateError) throw updateError;
+        route = updatedRoute;
+      } else {
+        // Create new route
+        const { data: newRoute, error: createError } = await supabase
+          .from('routes')
+          .insert({ ...routeData, created_at: new Date().toISOString() })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        route = newRoute;
+      }
 
       // Start media upload in background if there are media items
-      if (media.length > 0 && newRoute?.id) {
-        uploadMediaInBackground(media, newRoute.id);
+      if (media.length > 0 && route?.id) {
+        uploadMediaInBackground(media, route.id);
       }
       
       // Navigate back immediately
       navigation.goBack();
     } catch (err) {
-      console.error('Create route error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create route. Please try again.');
+      console.error('Route operation error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save route. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -17,6 +17,8 @@ import { Region } from 'react-native-maps';
 import { RouteList } from '../components/RouteList';
 import { PanGestureHandler, State, PanGestureHandlerGestureEvent, PanGestureHandlerStateChangeEvent } from 'react-native-gesture-handler';
 import MapView from 'react-native-maps';
+import { ScrollView } from 'react-native';
+import { AppHeader } from '../components/AppHeader';
 
 const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
 
@@ -128,11 +130,59 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
   },
+  searchResultsContainer: {
+    position: 'absolute',
+    top: 60, // Below search bar
+    left: 0,
+    right: 0,
+    backgroundColor: '$background',
+    borderBottomWidth: 1,
+    borderBottomColor: '$borderColor',
+    maxHeight: '80%',
+  },
+  searchResultItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '$borderColor',
+  },
+  distanceText: {
+    fontSize: 14,
+    color: '$gray11',
+    marginLeft: 8,
+  },
+  searchOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    zIndex: 1,
+  },
+  searchView: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '$background',
+    zIndex: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '$borderColor',
+    paddingBottom: 8,
+  },
+  searchResultsList: {
+    maxHeight: '80%',
+    backgroundColor: '$background',
+  },
+  searchBackButton: {
+    padding: 8,
+  }
 });
 
 const BOTTOM_NAV_HEIGHT = 80; // Height of bottom navigation bar including safe area
 
-export function MapScreen() {
+export function MapScreen({ route }: { route: any }) {
   const navigation = useNavigation<NavigationProp>();
   const [routes, setRoutes] = useState<RouteType[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
@@ -316,6 +366,7 @@ export function MapScreen() {
   const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>(routes);
 
   const handleSearch = useCallback((text: string) => {
+    console.log('Search input:', text);
     setSearchQuery(text);
     
     // Clear any existing timeout
@@ -328,15 +379,27 @@ export function MapScreen() {
       if (text.length > 0) {
         setIsSearching(true);
         try {
+          console.log('Fetching search results for:', text);
           // Use Mapbox Geocoding API for better place suggestions
           const response = await fetch(
             `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality,address,country,region&language=en`
           );
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
           const data = await response.json();
+          console.log('Search response:', {
+            status: response.status,
+            resultCount: data.features?.length || 0
+          });
+          
           setSearchResults(data.features || []);
           setShowSearchResults(true);
         } catch (error) {
-          console.error('Error searching locations:', error);
+          console.error('Search error:', error);
+          setSearchResults([]);
         } finally {
           setIsSearching(false);
         }
@@ -355,7 +418,7 @@ export function MapScreen() {
         );
       });
       setFilteredRoutes(filtered);
-    }, 300); // Reduced debounce time for better responsiveness
+    }, 300);
 
     setSearchTimeout(timeout);
   }, [routes]);
@@ -366,6 +429,12 @@ export function MapScreen() {
   }, [routes]);
 
   const handleLocationSelect = (result: SearchResult) => {
+    console.log('Location selected:', {
+      result,
+      center: result?.center,
+      place_type: result?.place_type?.[0]
+    });
+
     try {
       if (!result?.center || result.center.length !== 2) {
         console.error('Invalid location data:', result);
@@ -373,6 +442,7 @@ export function MapScreen() {
       }
 
       const [longitude, latitude] = result.center;
+      console.log('Parsed coordinates:', { latitude, longitude });
       
       // Validate coordinates
       if (typeof latitude !== 'number' || typeof longitude !== 'number' ||
@@ -391,6 +461,13 @@ export function MapScreen() {
         zoomLevel = 0.005; // close zoom for addresses
       }
 
+      console.log('Setting new region:', {
+        latitude,
+        longitude,
+        zoomLevel,
+        place_type: result.place_type[0]
+      });
+
       const newRegion = {
         latitude,
         longitude,
@@ -398,12 +475,45 @@ export function MapScreen() {
         longitudeDelta: zoomLevel,
       };
 
+      // Update map region
       setRegion(newRegion);
-      setSearchQuery(result.place_name || '');
-      setShowSearchResults(false);
-    } catch (error) {
-      console.error('Error selecting location:', error);
-      // Optionally show an error message to the user
+
+      // Filter routes based on proximity to selected location
+      const MAX_DISTANCE_KM = 50; // Maximum distance to show routes
+      const filteredByLocation = routes.filter(route => {
+        const firstWaypoint = (route.waypoint_details?.[0] || route.metadata?.waypoints?.[0]);
+        if (!firstWaypoint) return false;
+
+        const routeLat = Number(firstWaypoint.lat);
+        const routeLng = Number(firstWaypoint.lng);
+
+        // Calculate distance between selected location and route
+        const distance = calculateDistance(latitude, longitude, routeLat, routeLng);
+        const distanceNum = parseFloat(distance.replace(/[^0-9.]/g, ''));
+        const isKm = distance.includes('km');
+
+        // Include routes within MAX_DISTANCE_KM kilometers
+        return isKm ? distanceNum <= MAX_DISTANCE_KM : true;
+      });
+
+      console.log('Filtered routes:', {
+        total: routes.length,
+        filtered: filteredByLocation.length,
+        location: result.place_name
+      });
+
+      setFilteredRoutes(filteredByLocation);
+
+      // Collapse bottom sheet to show more of the map
+      snapTo(snapPoints.collapsed);
+
+    } catch (error: any) {
+      console.error('Error in handleLocationSelect:', error);
+      console.error('Error details:', {
+        error_message: error.message,
+        error_stack: error.stack,
+        result_data: result
+      });
     }
   };
 
@@ -527,6 +637,42 @@ export function MapScreen() {
     }, [])
   );
 
+  // Add distance calculation
+  const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    return distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`;
+  }, []);
+
+  // Update search results with distance
+  const searchResultsWithDistance = useMemo(() => {
+    if (!region || !searchResults.length) return [];
+    return searchResults.map(result => ({
+      ...result,
+      distance: calculateDistance(
+        region.latitude,
+        region.longitude,
+        result.center[1],
+        result.center[0]
+      )
+    }));
+  }, [searchResults, region, calculateDistance]);
+
+  // Handle location selection from search screen
+  useEffect(() => {
+    if (route.params?.selectedLocation) {
+      const result = route.params.selectedLocation;
+      handleLocationSelect(result);
+    }
+  }, [route.params?.selectedLocation]);
+
   return (
     <Screen>
       <View style={{ flex: 1 }}>
@@ -540,81 +686,9 @@ export function MapScreen() {
           onMarkerPress={handleMarkerPress}
         />
 
-        {/* Search bar overlay */}
-        <SafeAreaView style={[styles.searchContainer, { backgroundColor }]} edges={['top']}>
-          <XStack padding="$2" gap="$2">
-            <Input
-              ref={searchInputRef}
-              flex={1}
-              value={searchQuery}
-              onChangeText={handleSearch}
-              placeholder="Search cities, addresses, routes..."
-              backgroundColor="$background"
-              borderWidth={1}
-              borderColor="$borderColor"
-              borderRadius="$2"
-              height="$10"
-              paddingLeft="$3"
-              fontSize="$2"
-            />
-            <XStack
-              backgroundColor="$background"
-              borderRadius="$2"
-              width="$10"
-              height="$10"
-              alignItems="center"
-              justifyContent="center"
-              borderWidth={1}
-              borderColor="$borderColor"
-              onPress={handleLocateMe}
-              pressStyle={{ opacity: 0.7 }}
-            >
-              <Feather name="navigation" size={20} color={iconColor} />
-            </XStack>
-          </XStack>
-
-          {showSearchResults && searchResults.length > 0 && (
-            <Card
-              elevate
-              bordered
-              backgroundColor="$background"
-              margin="$2"
-              marginTop={0}
-              maxHeight={300}
-            >
-              <YStack padding="$2" space="$1">
-                {searchResults.map((result) => (
-                  <XStack
-                    key={result.id}
-                    padding="$3"
-                    pressStyle={{ opacity: 0.7 }}
-                    onPress={() => handleLocationSelect(result)}
-                    alignItems="center"
-                    gap="$2"
-                  >
-                    <Feather 
-                      name={
-                        result.place_type[0] === 'country' ? 'flag' :
-                        result.place_type[0] === 'region' ? 'map' :
-                        result.place_type[0] === 'place' ? 'map-pin' :
-                        'navigation'
-                      } 
-                      size={16} 
-                      color={iconColor}
-                    />
-                    <YStack flex={1}>
-                      <Text numberOfLines={1} fontWeight="600">
-                        {result.place_name.split(',')[0]}
-                      </Text>
-                      <Text numberOfLines={1} fontSize="$1" color="$gray11">
-                        {result.place_name.split(',').slice(1).join(',')}
-                      </Text>
-                    </YStack>
-                  </XStack>
-                ))}
-              </YStack>
-            </Card>
-          )}
+        {/* Replace SearchView with AppHeader */}
+        <SafeAreaView edges={['top']}>
+          <AppHeader onLocateMe={handleLocateMe} />
         </SafeAreaView>
 
         {/* Bottom sheet - hide when preview card is shown */}

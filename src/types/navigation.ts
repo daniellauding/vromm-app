@@ -3,6 +3,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { Database } from '../lib/database.types';
+import { SearchResult } from '../components/SearchView';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -10,7 +11,9 @@ export type RootStackParamList = {
   Signup: undefined;
   ForgotPassword: undefined;
   RouteDetail: { routeId: string };
-  CreateRoute: undefined;
+  CreateRoute: { routeId?: string };
+  Map: { selectedLocation?: SearchResult };
+  Search: undefined;
 };
 
 export type TabParamList = {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ScrollView, Image, Dimensions, Alert, View, Modal } from 'react-native';
+import { ScrollView, Image, Dimensions, Alert, View, Modal, useColorScheme } from 'react-native';
 import { YStack, XStack, Text, Card, Button, TextArea, Progress, Separator } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -116,6 +116,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   const { routeId } = route.params;
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
+  const colorScheme = useColorScheme();
+  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [routeData, setRouteData] = useState<RouteData | null>(null);
@@ -396,7 +398,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           <Button
             marginTop="$4"
             onPress={() => navigation.goBack()}
-            icon={<Feather name="arrow-left" size={18} />}
+            icon={<Feather name="arrow-left" size={18} color={iconColor} />}
           >
             Go Back
           </Button>
@@ -418,42 +420,66 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           alignItems="center"
           position="relative"
         >
-          <Button
-            size="$3"
-            backgroundColor="transparent"
-            onPress={() => navigation.goBack()}
-            icon={<Feather name="arrow-left" size={24} color="$color" />}
-          />
           <XStack gap="$2">
-            {user?.id === routeData?.creator_id && (
-              <Button
-                size="$3"
-                backgroundColor="transparent"
-                onPress={() => {
-                  if (routeId) {
-                    navigation.navigate('CreateRoute', { routeId } as any);
-                  }
-                }}
-                icon={<Feather name="edit-2" size={24} color="$color" />}
-              />
+            {user?.id === routeData.creator_id && (
+              <XStack gap="$2">
+                <Button
+                  size="$10"
+                  backgroundColor="transparent"
+                  onPress={() => navigation.navigate('CreateRoute', { routeId: routeData.id })}
+                  icon={<Feather name="edit-2" size={24} color={iconColor} />}
+                />
+                <Button
+                  size="$10"
+                  backgroundColor="transparent"
+                  onPress={() => {
+                    Alert.alert(
+                      'Delete Route',
+                      'Are you sure you want to delete this route? This action cannot be undone.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              const { error } = await supabase
+                                .from('routes')
+                                .delete()
+                                .eq('id', routeData.id);
+                              
+                              if (error) throw error;
+                              navigation.goBack();
+                            } catch (err) {
+                              console.error('Delete error:', err);
+                              Alert.alert('Error', 'Failed to delete route');
+                            }
+                          }
+                        }
+                      ]
+                    );
+                  }}
+                  icon={<Feather name="trash-2" size={24} color={iconColor} />}
+                />
+              </XStack>
             )}
             <Button
-              size="$3"
+              size="$10"
               backgroundColor="transparent"
               onPress={handleSaveRoute}
-              icon={<Feather name="bookmark" size={24} color={isSaved ? "$blue10" : "$color"} />}
+              icon={<Feather name="bookmark" size={24} color={isSaved ? iconColor : iconColor} />}
             />
             <Button
-              size="$3"
+              size="$10"
               backgroundColor="transparent"
               onPress={handleMarkDriven}
-              icon={<Feather name="check-circle" size={24} color={isDriven ? "$blue10" : "$color"} />}
+              icon={<Feather name="check-circle" size={24} color={isDriven ? iconColor : iconColor} />}
             />
             <Button
-              size="$3"
+              size="$10"
               backgroundColor="transparent"
               onPress={() => setShowReportModal(true)}
-              icon={<Feather name="flag" size={24} color="$red10" />}
+              icon={<Feather name="flag" size={24} color={iconColor} />}
             />
           </XStack>
         </XStack>
