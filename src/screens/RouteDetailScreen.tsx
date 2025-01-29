@@ -151,7 +151,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
             loadRouteData(),
             loadReviews()
           ]);
-          if (user) {
+    if (user) {
             await Promise.all([
               checkSavedStatus(),
               checkDrivenStatus()
@@ -171,10 +171,10 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   const loadRouteData = useCallback(async () => {
     if (!routeId) return;
 
-    const { data, error } = await supabase
-      .from('routes')
-      .select(`
-        *,
+      const { data, error } = await supabase
+        .from('routes')
+        .select(`
+          *,
         creator:creator_id(full_name),
         waypoint_details,
         media_attachments,
@@ -184,11 +184,11 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           content
         ),
         average_rating:route_reviews(rating)
-      `)
-      .eq('id', routeId)
-      .single();
+        `)
+        .eq('id', routeId)
+        .single();
 
-    if (error) throw error;
+      if (error) throw error;
     if (!data) throw new Error('Route not found');
 
     const routeResponse = data as unknown as SupabaseRouteResponse;
@@ -213,7 +213,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       : [];
     
     // Transform the raw data into our expected format
-    const transformedData: RouteData = {
+      const transformedData: RouteData = {
       ...routeResponse,
       waypoint_details: waypoints as (WaypointDetail & Json)[],
       media_attachments: media as (MediaAttachment & Json)[],
@@ -222,7 +222,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       average_rating: routeResponse.average_rating || []
     };
 
-    setRouteData(transformedData);
+      setRouteData(transformedData);
   }, [routeId]);
 
   const loadReviews = async () => {
@@ -423,7 +423,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           <XStack gap="$2">
             {user?.id === routeData.creator_id && (
               <XStack gap="$2">
-                <Button
+            <Button
                   size="$10"
                   backgroundColor="transparent"
                   onPress={() => navigation.navigate('CreateRoute', { routeId: routeData.id })}
@@ -462,27 +462,27 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   icon={<Feather name="trash-2" size={24} color={iconColor} />}
                 />
               </XStack>
-            )}
-            <Button
+              )}
+              <Button
               size="$10"
               backgroundColor="transparent"
-              onPress={handleSaveRoute}
+                onPress={handleSaveRoute}
               icon={<Feather name="bookmark" size={24} color={isSaved ? iconColor : iconColor} />}
             />
-            <Button
+              <Button
               size="$10"
               backgroundColor="transparent"
-              onPress={handleMarkDriven}
+                onPress={handleMarkDriven}
               icon={<Feather name="check-circle" size={24} color={isDriven ? iconColor : iconColor} />}
             />
-            <Button
+              <Button
               size="$10"
               backgroundColor="transparent"
-              onPress={() => setShowReportModal(true)}
+                onPress={() => setShowReportModal(true)}
               icon={<Feather name="flag" size={24} color={iconColor} />}
-            />
+              />
+            </XStack>
           </XStack>
-        </XStack>
 
         <ScrollView>
           <YStack padding="$4" gap="$4">
@@ -496,17 +496,17 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   <Text fontSize="$4" color="$gray11">•</Text>
                   <Text fontSize="$6" color="$gray11">
                     {routeData.category?.split('_').map(word => 
-                      word.charAt(0).toUpperCase() + word.slice(1)
-                    ).join(' ')}
-                  </Text>
-                </XStack>
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                  ).join(' ')}
+                </Text>
+              </XStack>
                 {routeData.description && (
                   <Text fontSize="$4" color="$gray11" marginTop="$2">
                     {routeData.description}
                   </Text>
                 )}
-              </YStack>
-            </Card>
+            </YStack>
+          </Card>
 
             {/* Map Card */}
             <Card backgroundColor="$backgroundStrong" bordered padding="$4">
@@ -515,21 +515,21 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                 <View style={{ height: 250, borderRadius: 12, overflow: 'hidden' }}>
                   <Map
                     waypoints={(routeData as RouteData)?.waypoint_details?.map((wp) => ({
-                      latitude: wp.lat,
-                      longitude: wp.lng,
-                      title: wp.title,
-                      description: wp.description,
-                    })) || []}
-                    region={{
+                    latitude: wp.lat,
+                    longitude: wp.lng,
+                    title: wp.title,
+                    description: wp.description,
+                  })) || []}
+                  region={{
                       latitude: (routeData as RouteData)?.waypoint_details?.[0]?.lat || 0,
                       longitude: (routeData as RouteData)?.waypoint_details?.[0]?.lng || 0,
-                      latitudeDelta: 0.02,
-                      longitudeDelta: 0.02,
-                    }}
-                  />
-                </View>
-              </YStack>
-            </Card>
+                    latitudeDelta: 0.02,
+                    longitudeDelta: 0.02,
+                  }}
+                />
+              </View>
+            </YStack>
+          </Card>
 
             {/* Details Card */}
             <Card backgroundColor="$backgroundStrong" bordered padding="$4">
@@ -552,8 +552,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               reviews={reviews}
               onReviewAdded={loadReviews}
             />
-          </YStack>
-        </ScrollView>
+        </YStack>
+      </ScrollView>
       </YStack>
 
       {/* Report Modal */}

@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Region } from 'react-native-maps';
 import { decode } from 'base64-arraybuffer';
+import { useLocation } from '../context/LocationContext';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotType = Database['public']['Enums']['spot_type'];
@@ -95,20 +96,71 @@ export function CreateRouteScreen({ route }: Props) {
   const [newExercise, setNewExercise] = useState<Partial<Exercise>>({});
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [activeSection, setActiveSection] = useState('basic'); // 'basic', 'exercises', 'media', 'details'
+  const { getCurrentLocation, locationPermission, requestLocationPermission } = useLocation();
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
-        setRegion(prev => ({
-          ...prev,
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        }));
-      }
-    })();
-  }, []);
+    // Only try to get current location if we're creating a new route (not editing)
+    if (!isEditing) {
+      (async () => {
+        try {
+          if (!locationPermission) {
+            await requestLocationPermission();
+          }
+          
+          if (locationPermission) {
+            const location = await getCurrentLocation();
+            if (location) {
+              const { latitude, longitude } = location.coords;
+
+              // Update region to current location
+              setRegion({
+                latitude,
+                longitude,
+                latitudeDelta: 0.02,
+                longitudeDelta: 0.02,
+              });
+
+              // Get address from coordinates
+              const [address] = await Location.reverseGeocodeAsync({
+                latitude,
+                longitude,
+              });
+
+              if (address) {
+                // Create location title
+                const title = [
+                  address.street,
+                  address.city,
+                  address.country
+                ].filter(Boolean).join(', ');
+
+                // Add waypoint for current location
+                const newWaypoint = {
+                  latitude,
+                  longitude,
+                  title,
+                  description: 'Current location'
+                };
+                setWaypoints([newWaypoint]);
+
+                // Update search input with location name
+                setSearchQuery(title);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error getting current location:', err);
+          // Fallback to default location if there's an error
+          setRegion({
+            latitude: 55.7047,
+            longitude: 13.191,
+            latitudeDelta: 0.1,
+            longitudeDelta: 0.1,
+          });
+        }
+      })();
+    }
+  }, [isEditing, locationPermission]);
 
   useEffect(() => {
     if (isEditing && routeId) {
@@ -528,15 +580,32 @@ export function CreateRouteScreen({ route }: Props) {
 
       // Start media upload in background if there are media items
       if (media.length > 0 && route?.id) {
-        uploadMediaInBackground(media, route.id);
+        try {
+          await uploadMediaInBackground(media, route.id);
+        } catch (mediaError) {
+          console.error('Media upload error:', mediaError);
+          // Continue with navigation even if media upload fails
+        }
       }
       
-      // Navigate back immediately
-      navigation.goBack();
+      // Set loading to false before navigation
+      setLoading(false);
+      
+      // Navigate back after saving
+      if (isEditing) {
+        navigation.goBack(); // Go back to RouteDetail screen
+        // Optionally refresh the route detail screen by triggering a reload
+        const previousScreen = navigation.getState().routes[navigation.getState().routes.length - 2];
+        if (previousScreen.name === 'RouteDetail') {
+          // @ts-ignore - params exist on the route
+          previousScreen.params = { ...previousScreen.params, shouldRefresh: true };
+        }
+      } else {
+        navigation.goBack();
+      }
     } catch (err) {
       console.error('Route operation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to save route. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -570,12 +639,28 @@ export function CreateRouteScreen({ route }: Props) {
       });
 
       if (route.waypoint_details) {
-        setWaypoints(route.waypoint_details.map((wp: any) => ({
+        const waypoints = route.waypoint_details.map((wp: any) => ({
           latitude: wp.lat,
           longitude: wp.lng,
           title: wp.title,
           description: wp.description,
-        })));
+        }));
+        
+        setWaypoints(waypoints);
+
+        // Set initial region based on first waypoint
+        if (waypoints.length > 0) {
+          const firstWaypoint = waypoints[0];
+          setRegion({
+            latitude: firstWaypoint.latitude,
+            longitude: firstWaypoint.longitude,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          });
+
+          // Set search query to first waypoint title
+          setSearchQuery(firstWaypoint.title || '');
+        }
       }
 
       if (route.exercises) {
@@ -889,7 +974,7 @@ export function CreateRouteScreen({ route }: Props) {
                       onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
                       placeholder="Route Name"
                       accessibilityLabel="Route name input"
-                      autoCapitalize="words"
+                      autoCapitalize="none"
                     />
                     <TextArea
                       value={formData.description}
@@ -901,6 +986,7 @@ export function CreateRouteScreen({ route }: Props) {
                       backgroundColor="$backgroundHover"
                       borderColor="$borderColor"
                       marginTop="$2"
+                      autoCapitalize="none"
                     />
                   </YStack>
 
@@ -1008,6 +1094,7 @@ export function CreateRouteScreen({ route }: Props) {
                       onChangeText={(text) => setNewExercise(prev => ({ ...prev, title: text }))}
                       placeholder="Exercise Title"
                       accessibilityLabel="Exercise title input"
+                      autoCapitalize="none"
                     />
                     <TextArea
                       value={newExercise.description || ''}
@@ -1018,6 +1105,7 @@ export function CreateRouteScreen({ route }: Props) {
                       size="$4"
                       backgroundColor="$backgroundHover"
                       borderColor="$borderColor"
+                      autoCapitalize="none"
                     />
                     <XStack gap="$3">
                       <FormField
@@ -1166,7 +1254,7 @@ export function CreateRouteScreen({ route }: Props) {
                               )}
                             </YStack>
                             <Button
-                              onPress={() => setMedia(media.filter(m => m.id !== item.id))}
+                              onPress={() => handleRemoveMedia(item.id)}
                               variant="secondary"
                               backgroundColor="$red10"
                               size="sm"

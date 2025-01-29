@@ -4,6 +4,7 @@ import { TamaguiProvider, Theme } from 'tamagui';
 import { config } from './src/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider } from './src/context/LanguageContext';
+import { LocationProvider } from './src/context/LocationContext';
 import { RootStackParamList } from './src/types/navigation';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -103,7 +104,9 @@ export default function App() {
           <Theme name={colorScheme === 'dark' ? 'dark' : 'light'}>
             <LanguageProvider>
               <AuthProvider>
-                <AppContent />
+                <LocationProvider>
+                  <AppContent />
+                </LocationProvider>
               </AuthProvider>
             </LanguageProvider>
           </Theme>
