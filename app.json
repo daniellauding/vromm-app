@@ -3,6 +3,7 @@
     "name": "korvagen-app",
     "slug": "korvagen-app",
     "version": "1.0.0",
+    "owner": "korvagen",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -58,6 +59,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/2093698c-f1cc-4c9c-90da-9369a010e5d6"
-    }
+    },
+    "privacy": "hidden"
   }
 }
