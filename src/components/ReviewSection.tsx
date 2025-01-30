@@ -9,6 +9,8 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
+import { Analytics } from '../utils/analytics';
+import { Alert } from 'react-native';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 
@@ -84,8 +86,11 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
   };
 
   const handleSubmitReview = async () => {
-    if (!user) return;
-    
+    if (!user) {
+      Alert.alert('Sign in required', 'Please sign in to submit a review');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -133,6 +138,9 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
 
       if (reviewError) throw reviewError;
 
+      // Track review submission
+      await Analytics.trackReviewSubmit(routeId, newReview.rating);
+
       // Reset form and close
       setNewReview({
         rating: 0,
@@ -144,8 +152,11 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
       setShowReviewForm(false);
       setStep(1);
       onReviewAdded();
+
+      Alert.alert('Success', 'Review submitted successfully');
     } catch (err) {
-      setError('Failed to submit review');
+      console.error('Error submitting review:', err);
+      Alert.alert('Error', 'Failed to submit review');
     } finally {
       setLoading(false);
     }

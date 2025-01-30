@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, db } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { Database } from '../lib/database.types';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
+import { AppAnalytics } from '../utils/analytics';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type UserRole = Database['public']['Enums']['user_role'];
@@ -15,7 +16,7 @@ type AuthContextType = {
   loading: boolean;
   initialized: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, onSuccess?: () => void) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -62,22 +63,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, onSuccess?: () => void) => {
     console.log('Starting signup process for:', email);
     
     try {
-      // Include profile data in the signup metadata
+      const profileData = {
+        full_name: email.split('@')[0],
+        role: 'student' as UserRole,
+        location: 'Unknown',
+        experience_level: 'beginner' as ExperienceLevel,
+        private_profile: false,
+      };
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            full_name: email.split('@')[0],
-            role: 'student',
-            location: 'Unknown',
-            experience_level: 'beginner',
-            private_profile: false,
-          }
+          data: profileData
         }
       });
 
@@ -86,8 +88,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (authError) throw authError;
       if (!authData.user?.id) throw new Error('User creation failed');
 
-      // No need to create profile separately as it will be handled by Supabase's triggers
+      // Create profile record
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert([{ 
+          id: authData.user.id,
+          ...profileData
+        }]);
+
+      if (profileError) {
+        console.error('Profile creation failed:', profileError);
+        // Don't throw here as the user is already created
+      }
+
+      // Track signup event in the background
+      try {
+        AppAnalytics.trackSignUp('email').catch(err => {
+          console.warn('Analytics tracking failed:', err);
+        });
+      } catch (analyticsError) {
+        console.warn('Analytics tracking failed:', analyticsError);
+      }
+      
       console.log('Signup successful for user:', authData.user.id);
+
+      // Show confirmation alert
+      Alert.alert(
+        'Registration Successful',
+        'Please check your email to confirm your account. The confirmation email might take a few minutes to arrive.',
+        [
+          {
+            text: 'Resend Email',
+            onPress: async () => {
+              try {
+                const { error } = await supabase.auth.resend({
+                  type: 'signup',
+                  email: email,
+                });
+                if (error) throw error;
+                Alert.alert('Success', 'Confirmation email resent. Please check your inbox.');
+              } catch (err) {
+                console.error('Error resending confirmation:', err);
+                Alert.alert('Error', 'Failed to resend confirmation email. Please try again.');
+              }
+            },
+          },
+          {
+            text: 'OK',
+            onPress: () => {
+              // Call the success callback if provided
+              onSuccess?.();
+            },
+          },
+        ]
+      );
+
     } catch (error) {
       console.error('Signup process failed:', error);
       throw error;
@@ -95,8 +150,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      
+      // Check if email is confirmed
+      if (data?.user && !data.user.email_confirmed_at) {
+        Alert.alert(
+          'Email Not Confirmed',
+          'Please confirm your email address before signing in.',
+          [
+            {
+              text: 'Resend Confirmation',
+              onPress: async () => {
+                try {
+                  const { error } = await supabase.auth.resend({
+                    type: 'signup',
+                    email: email,
+                  });
+                  if (error) throw error;
+                  Alert.alert('Success', 'Confirmation email resent. Please check your inbox.');
+                } catch (err) {
+                  console.error('Error resending confirmation:', err);
+                  Alert.alert('Error', 'Failed to resend confirmation email. Please try again.');
+                }
+              },
+            },
+            { text: 'OK' },
+          ]
+        );
+        throw new Error('Please confirm your email before signing in');
+      }
+
+      // Only track signin event if successful
+      if (data?.user) {
+        try {
+          AppAnalytics.trackSignIn('email').catch(err => {
+            console.warn('Analytics tracking failed:', err);
+          });
+        } catch (analyticsError) {
+          console.warn('Analytics tracking failed:', analyticsError);
+        }
+      }
+    } catch (error) {
+      console.error('Sign in failed:', error);
+      throw error;
+    }
   };
 
   const signOut = async () => {
@@ -117,13 +216,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user?.id) throw new Error('No user logged in');
-    const { error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
-    
-    if (error) throw error;
-    setProfile(prev => prev ? { ...prev, ...updates } : null);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      setProfile(prev => prev ? { ...prev, ...updates } : null);
+      
+      // Track profile update in the background
+      try {
+        AppAnalytics.trackProfileUpdate().catch(err => {
+          console.warn('Analytics tracking failed:', err);
+        });
+      } catch (analyticsError) {
+        console.warn('Analytics tracking failed:', analyticsError);
+      }
+    } catch (error) {
+      console.error('Profile update failed:', error);
+      throw error;
+    }
   };
 
   const resetPassword = async (email: string) => {

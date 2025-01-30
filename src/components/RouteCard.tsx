@@ -1,11 +1,12 @@
-import React from 'react';
-import { View, Image, useColorScheme } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Image, useColorScheme, Dimensions } from 'react-native';
 import { YStack, Text, Card, XStack } from 'tamagui';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { Database } from '../lib/database.types';
 import { Feather } from '@expo/vector-icons';
 import { Map } from './Map';
+import Carousel from 'react-native-reanimated-carousel';
 
 type WaypointData = {
   lat: number;
@@ -49,6 +50,7 @@ export function RouteCard({ route }: RouteCardProps) {
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const width = Dimensions.get('window').width - 32; // Account for padding
 
   const getMapRegion = () => {
     const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
@@ -92,6 +94,31 @@ export function RouteCard({ route }: RouteCardProps) {
   const waypoints = getWaypoints();
   const imageAttachments = route.media_attachments?.filter(m => m.type === 'image') || [];
 
+  const carouselItems = useMemo(() => {
+    const items = [];
+
+    // Add map if waypoints exist
+    if (region && waypoints.length > 0) {
+      items.push({
+        type: 'map' as const,
+        data: { region, waypoints },
+      });
+    }
+
+    // Add route media attachments
+    const media = route.media_attachments
+      ?.filter(m => m.type === 'image')
+      .map(m => ({
+        type: 'image' as const,
+        data: {
+          url: m.url,
+          description: m.description,
+        },
+      })) || [];
+
+    return [...items, ...media];
+  }, [route.media_attachments, region, waypoints]);
+
   return (
     <Card
       padding="$4"
@@ -99,16 +126,60 @@ export function RouteCard({ route }: RouteCardProps) {
       onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
     >
       <YStack space="$4">
-        {(region && waypoints.length > 0) && (
+        {carouselItems.length > 0 && (
           <View style={{ height: 200, borderRadius: 16, overflow: 'hidden' }}>
-            <Map
-              waypoints={waypoints}
-              region={region}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              pitchEnabled={false}
-              rotateEnabled={false}
-            />
+            {carouselItems.length === 1 ? (
+              <View style={{ flex: 1 }}>
+                {carouselItems[0].type === 'map' ? (
+                  <Map
+                    waypoints={carouselItems[0].data.waypoints}
+                    region={carouselItems[0].data.region}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                    pitchEnabled={false}
+                    rotateEnabled={false}
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                ) : (
+                  <Image
+                    source={{ uri: carouselItems[0].data.url }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                )}
+              </View>
+            ) : (
+              <Carousel
+                loop
+                width={width}
+                height={200}
+                data={carouselItems}
+                defaultIndex={0}
+                autoPlay={false}
+                enabled={true}
+                renderItem={({ item }) => (
+                  <View style={{ flex: 1 }}>
+                    {item.type === 'map' ? (
+                      <Map
+                        waypoints={item.data.waypoints}
+                        region={item.data.region}
+                        scrollEnabled={false}
+                        zoomEnabled={false}
+                        pitchEnabled={false}
+                        rotateEnabled={false}
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                    ) : (
+                      <Image
+                        source={{ uri: item.data.url }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    )}
+                  </View>
+                )}
+              />
+            )}
           </View>
         )}
         

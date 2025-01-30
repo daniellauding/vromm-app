@@ -15,6 +15,7 @@ import * as FileSystem from 'expo-file-system';
 import { Region } from 'react-native-maps';
 import { decode } from 'base64-arraybuffer';
 import { useLocation } from '../context/LocationContext';
+import { AppAnalytics } from '../utils/analytics';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotType = Database['public']['Enums']['spot_type'];
@@ -566,6 +567,9 @@ export function CreateRouteScreen({ route }: Props) {
 
         if (updateError) throw updateError;
         route = updatedRoute;
+        
+        // Track route edit
+        await AppAnalytics.trackRouteEdit(routeId);
       } else {
         // Create new route
         const { data: newRoute, error: createError } = await supabase
@@ -576,6 +580,9 @@ export function CreateRouteScreen({ route }: Props) {
 
         if (createError) throw createError;
         route = newRoute;
+        
+        // Track route creation
+        await AppAnalytics.trackRouteCreate(formData.spot_type);
       }
 
       // Start media upload in background if there are media items

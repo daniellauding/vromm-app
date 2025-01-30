@@ -32,7 +32,9 @@ export function SignupScreen() {
     try {
       setLoading(true);
       setError('');
-      await signUp(email, password);
+      await signUp(email, password, () => {
+        navigation.navigate('Login');
+      });
       // Success message will be shown by Supabase's email confirmation
     } catch (err) {
       const error = err as Error;
