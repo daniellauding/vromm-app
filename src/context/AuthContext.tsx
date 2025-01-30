@@ -52,8 +52,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('Auth state changed:', { event: _event, session });
+      
+      // If user just signed in, ensure they have a profile
+      if (_event === 'SIGNED_IN' && session?.user) {
+        try {
+          // Check if profile exists
+          const { data: profile, error: fetchError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', session.user.id)
+            .single();
+
+          if (fetchError && fetchError.code === 'PGRST116') { // No profile found
+            // Create profile with user metadata
+            const metadata = session.user.user_metadata;
+            const { error: createError } = await supabase
+              .from('profiles')
+              .insert([{
+                id: session.user.id,
+                full_name: metadata.full_name || session.user.email?.split('@')[0] || 'Unknown',
+                role: metadata.role || 'student',
+                location: metadata.location || 'Unknown',
+                experience_level: metadata.experience_level || 'beginner',
+                private_profile: metadata.private_profile || false,
+              }]);
+
+            if (createError) {
+              console.error('Error creating profile on sign in:', createError);
+            }
+          }
+        } catch (err) {
+          console.error('Error handling profile creation:', err);
+        }
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -88,19 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (authError) throw authError;
       if (!authData.user?.id) throw new Error('User creation failed');
 
-      // Create profile record
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([{ 
-          id: authData.user.id,
-          ...profileData
-        }]);
-
-      if (profileError) {
-        console.error('Profile creation failed:', profileError);
-        // Don't throw here as the user is already created
-      }
-
+      // Remove profile creation from here since it will be handled on first sign in
+      
       // Track signup event in the background
       try {
         AppAnalytics.trackSignUp('email').catch(err => {

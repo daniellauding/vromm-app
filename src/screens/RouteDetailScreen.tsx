@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ScrollView, Image, Dimensions, Alert, View, Modal, useColorScheme, Share } from 'react-native';
+import { ScrollView, Image, Dimensions, Alert, View, Modal, useColorScheme, Share, Linking, Platform } from 'react-native';
 import { YStack, XStack, Text, Card, Button, TextArea, Progress, Separator } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -527,6 +527,46 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     return [...items, ...media, ...reviewImages];
   }, [routeData, getMapRegion, reviews]);
 
+  const handleOpenInMaps = () => {
+    if (!routeData?.waypoint_details?.length) {
+      Alert.alert('Error', 'No waypoints available for this route');
+      return;
+    }
+
+    const waypoints = routeData.waypoint_details;
+    const origin = `${waypoints[0].lat},${waypoints[0].lng}`;
+    const destination = `${waypoints[waypoints.length - 1].lat},${waypoints[waypoints.length - 1].lng}`;
+    
+    // Create waypoints string for intermediate points (skip first and last)
+    const waypointsStr = waypoints
+      .slice(1, -1)
+      .map(wp => `${wp.lat},${wp.lng}`)
+      .join('|');
+
+    let url;
+    if (Platform.OS === 'ios') {
+      // Apple Maps URL scheme
+      url = `maps://?saddr=${origin}&daddr=${destination}`;
+      if (waypointsStr) {
+        url += `&via=${waypointsStr}`;
+      }
+    } else {
+      // Google Maps URL scheme
+      url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+      if (waypointsStr) {
+        url += `&waypoints=${waypointsStr}`;
+      }
+    }
+
+    Linking.canOpenURL(url).then(supported => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Could not open maps application');
+      }
+    });
+  };
+
   if (loading) {
     return (
       <Screen>
@@ -673,6 +713,12 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                 backgroundColor="transparent"
                 onPress={handleShare}
                 icon={<Feather name="share-2" size={24} color={iconColor} />}
+                />
+                <Button
+                  size="$10"
+                  backgroundColor="transparent"
+                  onPress={handleOpenInMaps}
+                  icon={<Feather name="map" size={24} color={iconColor} />}
                 />
               </XStack>
             </XStack>
