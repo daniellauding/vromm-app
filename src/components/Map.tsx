@@ -365,9 +365,9 @@ export function Map({
           // Show individual pins for single markers, expanded clusters, or when zoomed in
           if (cluster.points.length === 1 || expandedCluster === 'all' || cluster.id === expandedCluster) {
             return cluster.points.map((point, index) => (
-              <Marker
+          <Marker
                 key={`${cluster.id}-point-${index}`}
-                coordinate={{
+            coordinate={{
                   latitude: point.latitude,
                   longitude: point.longitude,
                 }}

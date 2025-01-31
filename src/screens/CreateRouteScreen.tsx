@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Image, Alert, useColorScheme, Dimensions, TouchableOpacity } from 'react-native';
+import { View, ScrollView, Image, Alert, useColorScheme, Dimensions, TouchableOpacity, Platform } from 'react-native';
 import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -17,7 +17,7 @@ import { decode } from 'base64-arraybuffer';
 import { useLocation } from '../context/LocationContext';
 import { AppAnalytics } from '../utils/analytics';
 import { MediaCarousel } from '../components/MediaCarousel';
-import { MediaItem, Exercise, WaypointData } from '../types/route';
+import { MediaItem, Exercise, WaypointData, MediaUrl, RouteData } from '../types/route';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotType = Database['public']['Enums']['spot_type'];
@@ -414,57 +414,75 @@ export function CreateRouteScreen({ route }: Props) {
     return null;
   };
 
+  const handleAddMedia = (newMedia: Pick<MediaItem, 'type' | 'uri'>) => {
+    const newMediaItem: MediaItem = {
+      id: Date.now().toString(),
+      type: newMedia.type,
+      uri: newMedia.uri,
+      fileName: newMedia.uri.split('/').pop() || 'unknown',
+    };
+    // Keep existing media and add new one
+    setMedia(prev => [...prev, newMediaItem]);
+  };
+
+  const handleRemoveMedia = (index: number) => {
+    setMedia(prev => prev.filter((_, i) => i !== index));
+  };
+
   const uploadMediaInBackground = async (media: MediaItem[], routeId: string) => {
     try {
-      const mediaUrls: MediaUrl[] = [];
+      // Only upload new media items (ones that don't start with http)
+      const newMediaItems = media.filter(m => !m.uri.startsWith('http'));
       
-      for (const item of media) {
-        if (item.type === 'youtube') {
-          mediaUrls.push({
-            type: 'video',
-            url: item.uri,
-            description: item.description
-          });
-          continue;
-        }
+      for (const item of newMediaItems) {
+        const fileExtension = item.fileName.split('.').pop() || 'jpg';
+        const filePath = `routes/${routeId}/${Date.now()}.${fileExtension}`;
 
-        const ext = item.fileName.split('.').pop()?.toLowerCase() || (item.type === 'video' ? 'mp4' : 'jpg');
-        const path = `route-attachments/${routeId}/${Date.now()}-${Math.random()}.${ext}`;
-        
-        const base64 = await FileSystem.readAsStringAsync(item.uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        
-        const arrayBuffer = decode(base64);
-        
-        const { error: uploadError, data } = await supabase.storage
-          .from('route-attachments')
-          .upload(path, arrayBuffer, {
+        // Upload the file
+        const { error: uploadError } = await supabase.storage
+          .from('media')
+          .upload(filePath, decode(item.uri), {
             contentType: item.type === 'video' ? 'video/mp4' : 'image/jpeg',
             upsert: true
           });
 
         if (uploadError) throw uploadError;
 
+        // Get the public URL
         const { data: { publicUrl } } = supabase.storage
-          .from('route-attachments')
-          .getPublicUrl(data?.path || '');
+          .from('media')
+          .getPublicUrl(filePath);
 
-        mediaUrls.push({
-          type: item.type,
-          url: publicUrl,
-          description: item.description
-        });
+        // Get current media_attachments
+        const { data: currentRoute } = await supabase
+          .from('routes')
+          .select('media_attachments')
+          .eq('id', routeId)
+          .single();
+
+        const currentAttachments = (currentRoute?.media_attachments || []) as MediaUrl[];
+        
+        // Add new media to the array
+        const updatedAttachments = [
+          ...currentAttachments,
+          {
+            type: item.type,
+            url: publicUrl,
+            description: item.description
+          }
+        ];
+
+        // Update the route with the new media array
+        const { error: updateError } = await supabase
+          .from('routes')
+          .update({ media_attachments: updatedAttachments })
+          .eq('id', routeId);
+
+        if (updateError) throw updateError;
       }
-
-      // Update the route with the final media URLs
-      await supabase
-        .from('routes')
-        .update({ media_attachments: mediaUrls })
-        .eq('id', routeId);
-
     } catch (error) {
-      console.error('Background media upload error:', error);
+      console.error('Error uploading media:', error);
+      throw error;
     }
   };
 
@@ -489,9 +507,9 @@ export function CreateRouteScreen({ route }: Props) {
         description: wp.description
       }));
 
-      // When editing, only update changed media
+      // When editing, preserve existing media
       let mediaToUpdate: MediaUrl[] = [];
-      if (isEditing) {
+      if (isEditing && routeId) {
         // Get existing media from the route
         const { data: existingRoute } = await supabase
           .from('routes')
@@ -499,20 +517,20 @@ export function CreateRouteScreen({ route }: Props) {
           .eq('id', routeId)
           .single();
         
-        const existingMedia = existingRoute?.media_attachments || [];
+        const existingMedia = (existingRoute?.media_attachments || []) as MediaUrl[];
         
         // Keep existing media that hasn't been removed
-        const existingMediaUrls = existingMedia.map((m: MediaUrl) => m.url);
+        const existingMediaUrls = existingMedia.map(m => m.url);
         const currentMediaUrls = media.map(m => m.uri);
         
         mediaToUpdate = [
           // Keep existing media that hasn't been removed
-          ...existingMedia.filter((m: MediaUrl) => currentMediaUrls.includes(m.url)),
+          ...existingMedia.filter(m => currentMediaUrls.includes(m.url)),
           // Add new media (ones that don't exist in existingMediaUrls)
           ...media
-            .filter(m => !existingMediaUrls.includes(m.uri))
+            .filter(m => !existingMediaUrls.includes(m.uri) && !m.uri.startsWith('http'))
             .map(item => ({
-              type: item.type,
+              type: item.type as 'image' | 'video' | 'youtube',
               url: item.uri,
               description: item.description
             }))
@@ -520,15 +538,15 @@ export function CreateRouteScreen({ route }: Props) {
       } else {
         // For new routes, use all media
         mediaToUpdate = media.map(item => ({
-          type: item.type,
+          type: item.type as 'image' | 'video' | 'youtube',
           url: item.uri,
           description: item.description
         }));
       }
 
-      const routeData = {
+      const baseRouteData = {
         name: formData.name,
-        description: formData.description,
+        description: formData.description || '',
         difficulty: formData.difficulty,
         spot_type: formData.spot_type,
         visibility: formData.visibility,
@@ -563,7 +581,7 @@ export function CreateRouteScreen({ route }: Props) {
         // Update existing route
         const { data: updatedRoute, error: updateError } = await supabase
           .from('routes')
-          .update(routeData)
+          .update(baseRouteData)
           .eq('id', routeId)
           .select()
           .single();
@@ -577,7 +595,7 @@ export function CreateRouteScreen({ route }: Props) {
         // Create new route
         const { data: newRoute, error: createError } = await supabase
           .from('routes')
-          .insert({ ...routeData, created_at: new Date().toISOString() })
+          .insert({ ...baseRouteData, created_at: new Date().toISOString() })
           .select()
           .single();
 
@@ -600,14 +618,14 @@ export function CreateRouteScreen({ route }: Props) {
           }
         }
       }
-      
+
       // Set loading to false before navigation
       setLoading(false);
       
       // Navigate back after saving
       if (isEditing) {
-        navigation.goBack(); // Go back to RouteDetail screen
-        // Optionally refresh the route detail screen by triggering a reload
+        navigation.goBack();
+        // Optionally refresh the route detail screen
         const previousScreen = navigation.getState().routes[navigation.getState().routes.length - 2];
         if (previousScreen.name === 'RouteDetail') {
           // @ts-ignore - params exist on the route
@@ -907,20 +925,6 @@ export function CreateRouteScreen({ route }: Props) {
   // Update region state when map region changes
   const handleRegionChange = (newRegion: Region) => {
     setRegion(newRegion);
-  };
-
-  const handleAddMedia = (newMedia: Pick<MediaItem, 'type' | 'uri'>) => {
-    const newMediaItem: MediaItem = {
-      id: Date.now().toString(),
-      type: newMedia.type,
-      uri: newMedia.uri,
-      fileName: newMedia.uri.split('/').pop() || 'unknown',
-    };
-    setMedia(prev => [...prev, newMediaItem]);
-  };
-
-  const handleRemoveMedia = (index: number) => {
-    setMedia(prev => prev.filter((_, i) => i !== index));
   };
 
   return (

@@ -154,7 +154,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
             loadRouteData(),
             loadReviews()
           ]);
-          if (user) {
+    if (user) {
             await Promise.all([
               checkSavedStatus(),
               checkDrivenStatus()
@@ -172,6 +172,26 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       loadData();
     }
   }, [routeId, user]);
+
+  useEffect(() => {
+    loadRouteData();
+      checkSavedStatus();
+      checkDrivenStatus();
+    loadReviews();
+
+    // Listen for navigation focus events
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Check if we need to refresh reviews
+      const params = navigation.getState().routes.find(r => r.name === 'RouteDetail')?.params;
+      if (params && 'shouldRefreshReviews' in params) {
+        loadReviews();
+        // Clear the refresh flag
+        navigation.setParams({ shouldRefreshReviews: undefined });
+      }
+    });
+
+    return unsubscribe;
+  }, [routeId]);
 
   const loadRouteData = useCallback(async () => {
     if (!routeId) return;
@@ -331,31 +351,70 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   };
 
   const handleMarkDriven = async () => {
-    if (!user) {
-      Alert.alert('Sign in required', 'Please sign in to mark routes as driven');
+    if (!user?.id) {
+      Alert.alert('Error', 'Please sign in to mark this route as driven');
       return;
     }
 
-    try {
       if (isDriven) {
-        await supabase
+      // If already driven, show options
+      Alert.alert(
+        'Route Review',
+        'What would you like to do?',
+        [
+          {
+            text: 'View My Review',
+            onPress: () => {
+              // Find the user's review in the reviews list
+              const userReview = reviews.find(review => review.user_id === user?.id);
+              if (userReview) {
+                Alert.alert('Your Review', 
+                  `Rating: ${userReview.rating}/5\n` +
+                  `${userReview.content}\n` +
+                  `Difficulty: ${userReview.difficulty}\n` +
+                  `Visited: ${new Date(userReview.visited_at || '').toLocaleDateString()}`
+                );
+              } else {
+                Alert.alert('No Review Found', 'You have marked this route as driven but haven\'t left a review yet.');
+              }
+            }
+          },
+          {
+            text: 'Add New Review',
+            onPress: () => {
+              navigation.navigate('AddReview', { routeId: routeId });
+            }
+          },
+          {
+            text: 'Unmark as Driven',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const { error } = await supabase
           .from('driven_routes')
           .delete()
           .eq('route_id', routeId)
           .eq('user_id', user.id);
-      } else {
-        await supabase
-          .from('driven_routes')
-          .insert({
-            route_id: routeId,
-            user_id: user.id,
-            driven_at: new Date().toISOString(),
-          });
-      }
-      setIsDriven(!isDriven);
+
+                if (error) throw error;
+                
+                setIsDriven(false);
+                Alert.alert('Success', 'Route unmarked as driven');
     } catch (err) {
-      console.error('Error toggling driven status:', err);
-      Alert.alert('Error', 'Failed to update driven status');
+                console.error('Error unmarking route:', err);
+                Alert.alert('Error', 'Failed to unmark route as driven');
+              }
+            }
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          }
+        ]
+      );
+    } else {
+      // First time marking as driven
+      navigation.navigate('AddReview', { routeId: routeId });
     }
   };
 
@@ -595,136 +654,69 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   }
 
   return (
-    <Screen>
-      <ScrollView style={{ flex: 1 }}>
-        {/* Hero Section */}
-        <View style={{ height: HERO_HEIGHT, width: windowWidth }}>
-          {carouselItems.length > 0 ? (
-            carouselItems.length === 1 ? (
-              <View style={{ flex: 1 }}>
-                {carouselItems[0].type === 'map' ? (
-                  <Map
-                    waypoints={carouselItems[0].data.waypoints}
-                    region={carouselItems[0].data.region}
-                    scrollEnabled={false}
-                    zoomEnabled={false}
-                    pitchEnabled={false}
-                    rotateEnabled={false}
-                    style={{ width: '100%', height: '100%' }}
-                  />
-                ) : (
-                  <Image
-                    source={{ uri: carouselItems[0].data.url }}
-                    style={{ width: '100%', height: '100%' }}
-                    resizeMode="cover"
-                  />
-                )}
-              </View>
-            ) : (
-              <Carousel
-                loop
-                width={windowWidth}
-                height={HERO_HEIGHT}
-                data={carouselItems}
-                defaultIndex={0}
-                autoPlay={false}
-                enabled={true}
-                onProgressChange={(value) => setActiveMediaIndex(Math.round(value))}
-                renderItem={({ item }) => (
-                  <View style={{ flex: 1 }}>
-                    {item.type === 'map' ? (
-                      <Map
-                        waypoints={item.data.waypoints}
-                        region={item.data.region}
-                        scrollEnabled={false}
-                        zoomEnabled={false}
-                        pitchEnabled={false}
-                        rotateEnabled={false}
-                        style={{ width: '100%', height: '100%' }}
-                      />
-                    ) : (
-                      <Image
-                        source={{ uri: item.data.url }}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
-                    )}
-                  </View>
-                )}
-              />
-            )
-          ) : null}
-        </View>
-
-        {/* Existing Content */}
-        <YStack f={1} gap={2}>
-          <Header title={routeData?.name || ''} showBack={true}/>
-          
-          <XStack
-            backgroundColor="$background"
-            borderBottomColor="$borderColor"
-            borderBottomWidth={1}
-            paddingHorizontal="$4"
-            paddingVertical="$3"
-            alignItems="center"
-            justifyContent="space-between"
-            position="relative"
-          >
+    <Screen scroll={false}>
+      <YStack f={1}>
+        <Header
+          title={routeData?.name || ''}
+          showBack
+          rightElement={
             <XStack gap="$2">
+              {user?.id === routeData?.creator_id && (
+            <Button
+                  onPress={() => navigation.navigate('CreateRoute', { routeId: routeData?.id })}
+                  icon={<Feather name="edit-2" size={20} color="white" />}
+                  backgroundColor="$blue10"
+                />
+              )}
               <Button
-                size="$10"
-                backgroundColor="transparent"
-                onPress={handleSaveRoute}
-                icon={<Feather name="bookmark" size={24} color={isSaved ? iconColor : iconColor} />}
+                onPress={handleOpenInMaps}
+                icon={<Feather name="map" size={20} color="white" />}
+                backgroundColor="$blue10"
               />
               <Button
-                size="$10"
-                backgroundColor="transparent"
-                onPress={handleMarkDriven}
-                icon={<Feather name="check-circle" size={24} color={isDriven ? iconColor : iconColor} />}
-              />
-              <Button
-                size="$10"
-                backgroundColor="transparent"
-                onPress={() => setShowReportModal(true)}
-                icon={<Feather name="flag" size={24} color={iconColor} />}
-              />
-            </XStack>
-            
-            <XStack gap="$2">
-                {user?.id === routeData?.creator_id && (
-                <>
-                  <Button
-                    size="$10"
-                    backgroundColor="transparent"
-                    onPress={() => navigation.navigate('CreateRoute', { routeId: routeData?.id })}
-                    icon={<Feather name="edit-2" size={24} color={iconColor} />}
-                  />
-                  <Button
-                    size="$10"
-                    backgroundColor="transparent"
-                    onPress={handleDelete}
-                    icon={<Feather name="trash-2" size={24} color={iconColor} />}
-                  />
-                </>
-                )}
-                <Button
-                size="$10"
-                backgroundColor="transparent"
                 onPress={handleShare}
-                icon={<Feather name="share-2" size={24} color={iconColor} />}
-                />
+                icon={<Feather name="share-2" size={20} color="white" />}
+                backgroundColor="$blue10"
+              />
+              {user?.id === routeData?.creator_id && (
                 <Button
-                  size="$10"
-                  backgroundColor="transparent"
-                  onPress={handleOpenInMaps}
-                  icon={<Feather name="map" size={24} color={iconColor} />}
+                  onPress={handleDelete}
+                  icon={<Feather name="trash-2" size={20} color="white" />}
+                  backgroundColor="$red10"
                 />
-              </XStack>
+              )}
             </XStack>
+          }
+        />
 
-          <ScrollView>
-            <YStack padding="$4" gap="$4">
+        <ScrollView style={{ flex: 1 }}>
+          <YStack gap="$4" padding="$4">
+            {/* Route info section */}
+            <YStack gap="$2">
+              <XStack gap="$4" alignItems="center">
+                <Button
+                  onPress={handleMarkDriven}
+                  backgroundColor={isDriven ? "$gray10" : "$blue10"}
+                  icon={<Feather name="check-circle" size={20} color="white" />}
+                  size="$5"
+                >
+                  <Text color="white" fontSize="$3">
+                    {isDriven ? "Marked as driven" : "Mark as driven"}
+                  </Text>
+                </Button>
+
+              <Button
+                onPress={handleSaveRoute}
+                  backgroundColor={isSaved ? "$gray10" : "$blue10"}
+                  icon={<Feather name="bookmark" size={20} color="white" />}
+                  size="$5"
+              >
+                  <Text color="white" fontSize="$3">
+                    {isSaved ? "Saved" : "Save route"}
+                  </Text>
+              </Button>
+          </XStack>
+
               {/* Basic Info Card */}
               <Card backgroundColor="$backgroundStrong" bordered padding="$4">
                 <YStack gap="$2">
@@ -735,17 +727,17 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                     <Text fontSize="$4" color="$gray11">•</Text>
                     <Text fontSize="$6" color="$gray11">
                       {routeData.category?.split('_').map(word => 
-                      word.charAt(0).toUpperCase() + word.slice(1)
-                    ).join(' ')}
-                  </Text>
-                </XStack>
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                  ).join(' ')}
+                </Text>
+              </XStack>
                   {routeData.description && (
                     <Text fontSize="$4" color="$gray11" marginTop="$2">
                       {routeData.description}
                     </Text>
                   )}
-                </YStack>
-              </Card>
+            </YStack>
+          </Card>
 
                 {/* Map Card */}
                 <Card backgroundColor="$backgroundStrong" bordered padding="$4">
@@ -754,21 +746,21 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                     <View style={{ height: 250, borderRadius: 12, overflow: 'hidden' }}>
                       <Map
                         waypoints={(routeData as RouteData)?.waypoint_details?.map((wp) => ({
-                        latitude: wp.lat,
-                        longitude: wp.lng,
-                        title: wp.title,
-                        description: wp.description,
-                      })) || []}
-                      region={{
+                    latitude: wp.lat,
+                    longitude: wp.lng,
+                    title: wp.title,
+                    description: wp.description,
+                  })) || []}
+                  region={{
                           latitude: (routeData as RouteData)?.waypoint_details?.[0]?.lat || 0,
                           longitude: (routeData as RouteData)?.waypoint_details?.[0]?.lng || 0,
-                        latitudeDelta: 0.02,
-                        longitudeDelta: 0.02,
-                      }}
-                    />
-                  </View>
-                </YStack>
-              </Card>
+                    latitudeDelta: 0.02,
+                    longitudeDelta: 0.02,
+                  }}
+                />
+              </View>
+            </YStack>
+          </Card>
 
                 {/* Details Card */}
                 <Card backgroundColor="$backgroundStrong" bordered padding="$4">
@@ -780,7 +772,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                         {waypoint.description && (
                           <Text fontSize="$4" color="$gray11">{waypoint.description}</Text>
                         )}
-                      </YStack>
+                    </YStack>
                     ))}
                   </YStack>
                 </Card>
@@ -791,10 +783,10 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   reviews={reviews}
                   onReviewAdded={loadReviews}
                 />
-            </YStack>
-          </ScrollView>
-        </YStack>
-      </ScrollView>
+                      </YStack>
+              </YStack>
+        </ScrollView>
+                  </YStack>
 
       {/* Report Modal */}
       <Modal

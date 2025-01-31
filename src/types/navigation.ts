@@ -14,6 +14,7 @@ export type RootStackParamList = {
   CreateRoute: { routeId?: string };
   Map: { selectedLocation?: SearchResult };
   Search: undefined;
+  AddReview: { routeId: string };
 };
 
 export type TabParamList = {

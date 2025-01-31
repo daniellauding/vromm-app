@@ -676,11 +676,11 @@ export function MapScreen({ route }: { route: any }) {
   return (
     <Screen>
       <View style={{ flex: 1 }}>
-        <Map
+      <Map
           key={`map-${routes.length}`}
           waypoints={getAllWaypoints}
           region={region}
-          onPress={handleMapPress}
+        onPress={handleMapPress}
           style={StyleSheet.absoluteFillObject}
           selectedPin={selectedPin}
           onMarkerPress={handleMarkerPress}
@@ -717,7 +717,7 @@ export function MapScreen({ route }: { route: any }) {
                     color="$color"
                   >
                     {filteredRoutes.length} {filteredRoutes.length === 1 ? 'route' : 'routes'}
-                  </Text>
+                    </Text>
                 </XStack>
               </View>
               <View style={styles.routeListContainer}>
@@ -732,7 +732,7 @@ export function MapScreen({ route }: { route: any }) {
         )}
 
         {/* Route preview card */}
-        {selectedRoute && (
+      {selectedRoute && (
           <View style={{ 
             position: 'absolute',
             bottom: BOTTOM_NAV_HEIGHT,
@@ -747,18 +747,18 @@ export function MapScreen({ route }: { route: any }) {
             shadowRadius: 8,
             elevation: 5,
           }}>
-            <RoutePreviewCard
-              route={selectedRoute}
-              showMap={false}
+          <RoutePreviewCard
+            route={selectedRoute}
+            showMap={false}
               onPress={() => {
                 navigation.navigate('RouteDetail', { routeId: selectedRoute.id });
                 setSelectedRoute(null);
                 setSelectedPin(null);
               }}
-            />
+          />
           </View>
-        )}
-      </View>
+      )}
+    </View>
     </Screen>
   );
 } 

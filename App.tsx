@@ -19,6 +19,7 @@ import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { TabNavigator } from './src/components/TabNavigator';
 import { RouteDetailScreen } from './src/screens/RouteDetailScreen';
 import { CreateRouteScreen } from './src/screens/CreateRouteScreen';
+import { AddReviewScreen } from './src/screens/AddReviewScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -83,6 +84,11 @@ function AppContent() {
             <Stack.Screen 
               name="CreateRoute" 
               component={CreateRouteScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="AddReview" 
+              component={AddReviewScreen}
               options={{ headerShown: false }}
             />
           </>
