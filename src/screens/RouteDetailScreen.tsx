@@ -16,6 +16,8 @@ import { ReviewSection } from '../components/ReviewSection';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { AppAnalytics } from '../utils/analytics';
+import { MediaCarousel, CarouselMediaItem } from '../components/MediaCarousel';
+import { Region } from 'react-native-maps';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type RouteRow = Database['public']['Tables']['routes']['Row'];
@@ -143,6 +145,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     type: 'spam' as Database['public']['Enums']['report_type'],
     content: '',
   });
+  const [carouselHeight, setCarouselHeight] = useState(300); // Height for the carousel
 
   useEffect(() => {
     if (routeId) {
@@ -540,51 +543,94 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     };
   }, [routeData?.waypoint_details]);
 
-  const carouselItems = useMemo(() => {
+  const getCarouselItems = () => {
     const items = [];
 
-    // Add map if waypoints exist
-    const region = getMapRegion();
-    if (region && routeData?.waypoint_details?.length) {
-      items.push({
-        type: 'map' as const,
-        data: {
-          region,
-          waypoints: routeData.waypoint_details.map(wp => ({
-            latitude: wp.lat,
-            longitude: wp.lng,
-            title: wp.title,
-            description: wp.description,
-          })),
-        },
-      });
+    // Add map as first item if we have waypoints
+    if (routeData?.waypoint_details?.length) {
+      const waypoints = routeData.waypoint_details.map(wp => ({
+        latitude: wp.lat,
+        longitude: wp.lng,
+        title: wp.title,
+        description: wp.description,
+      }));
+
+      // Calculate region from waypoints
+      const lats = waypoints.map(w => w.latitude);
+      const lngs = waypoints.map(w => w.longitude);
+      const region: Region = {
+        latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
+        longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+        latitudeDelta: Math.max(...lats) - Math.min(...lats) + 0.02,
+        longitudeDelta: Math.max(...lngs) - Math.min(...lngs) + 0.02,
+      };
+
+      items.push({ type: 'map', waypoints, region });
     }
 
-    // Add route media attachments
-    const media = routeData?.media_attachments
-      ?.filter(m => m.type === 'image')
-      .map(m => ({
-        type: 'image' as const,
-        data: {
-          url: m.url,
-          description: m.description,
-        },
-      })) || [];
+    // Add media attachments
+    routeData?.media_attachments?.forEach(attachment => {
+      items.push({ type: attachment.type, url: attachment.url });
+    });
 
-    // Add review images
-    const reviewImages = reviews
-      .flatMap(review => 
-        review.images.map(image => ({
-          type: 'image' as const,
-          data: {
-            url: image.url,
-            description: `Review image from ${review.user?.full_name || 'Anonymous'}`,
-          },
-        }))
+    return items;
+  };
+
+  const renderCarouselItem = ({ item }: { item: any }) => {
+    if (item.type === 'map') {
+      return (
+        <Map
+          waypoints={item.waypoints}
+          region={item.region}
+          style={{ width: windowWidth, height: HERO_HEIGHT }}
+          zoomEnabled={true}
+          scrollEnabled={false}
+        />
       );
+    } else if (item.type === 'image') {
+      return (
+        <Image
+          source={{ uri: item.url }}
+          style={{ width: windowWidth, height: HERO_HEIGHT }}
+          resizeMode="cover"
+        />
+      );
+    } else if (item.type === 'youtube') {
+      return (
+        <WebView
+          source={{ uri: item.url }}
+          style={{ width: windowWidth, height: HERO_HEIGHT }}
+        />
+      );
+    }
+    return null;
+  };
 
-    return [...items, ...media, ...reviewImages];
-  }, [routeData, getMapRegion, reviews]);
+  const handleShowOptions = () => {
+    Alert.alert(
+      'Route Options',
+      '',
+      [
+        {
+          text: 'Open in Maps',
+          onPress: handleOpenInMaps,
+        },
+        {
+          text: 'Share Route',
+          onPress: handleShare,
+        },
+        user?.id === routeData?.creator_id ? {
+          text: 'Delete Route',
+          onPress: handleDelete,
+          style: 'destructive',
+        } : undefined,
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ].filter(Boolean) as Alert.AlertButton[]
+    );
+  };
 
   const handleOpenInMaps = () => {
     if (!routeData?.waypoint_details?.length) {
@@ -656,41 +702,76 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   return (
     <Screen scroll={false}>
       <YStack f={1}>
-        <Header
-          title={routeData?.name || ''}
-          showBack
-          rightElement={
-            <XStack gap="$2">
-              {user?.id === routeData?.creator_id && (
-            <Button
-                  onPress={() => navigation.navigate('CreateRoute', { routeId: routeData?.id })}
-                  icon={<Feather name="edit-2" size={20} color="white" />}
-                  backgroundColor="$blue10"
-                />
-              )}
-              <Button
-                onPress={handleOpenInMaps}
-                icon={<Feather name="map" size={20} color="white" />}
-                backgroundColor="$blue10"
-              />
-              <Button
-                onPress={handleShare}
-                icon={<Feather name="share-2" size={20} color="white" />}
-                backgroundColor="$blue10"
-              />
-              {user?.id === routeData?.creator_id && (
-                <Button
-                  onPress={handleDelete}
-                  icon={<Feather name="trash-2" size={20} color="white" />}
-                  backgroundColor="$red10"
-                />
-              )}
-            </XStack>
-          }
-        />
+        {/* Hero Carousel */}
+        {getCarouselItems().length > 0 && (
+          <View style={{ height: HERO_HEIGHT }}>
+            <Carousel
+              loop
+              width={windowWidth}
+              height={HERO_HEIGHT}
+              data={getCarouselItems()}
+              renderItem={renderCarouselItem}
+              onSnapToItem={setActiveMediaIndex}
+            />
+            {/* Pagination dots */}
+            {getCarouselItems().length > 1 && (
+              <XStack
+                position="absolute"
+                bottom={16}
+                alignSelf="center"
+                gap="$2"
+                padding="$2"
+                backgroundColor="rgba(0,0,0,0.5)"
+                borderRadius="$4"
+              >
+                {getCarouselItems().map((_, index) => (
+                  <View
+                    key={index}
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: index === activeMediaIndex ? 'white' : 'rgba(255,255,255,0.5)',
+                    }}
+                  />
+                ))}
+              </XStack>
+            )}
+          </View>
+        )}
 
-        <ScrollView style={{ flex: 1 }}>
+        <ScrollView>
           <YStack gap="$4" padding="$4">
+            {/* Header */}
+            <Header
+              title={routeData?.name || ''}
+              showBack
+              rightElement={
+                <XStack gap="$2">
+                  {user?.id === routeData?.creator_id && (
+                    <Button
+                      icon={<Feather name="edit-2" size={20} color={iconColor} />}
+                      onPress={() => navigation.navigate('CreateRoute', { routeId })}
+                      variant="outlined"
+                      size="md"
+                    />
+                  )}
+                  <Button
+                    icon={<Feather name={isSaved ? 'bookmark' : 'bookmark'} size={20} color={iconColor} />}
+                    onPress={handleSaveRoute}
+                    variant="outlined"
+                    size="md"
+                  />
+                  <Button
+                    icon={<Feather name="more-vertical" size={20} color={iconColor} />}
+                    onPress={handleShowOptions}
+                    variant="outlined"
+                    size="md"
+                  />
+                </XStack>
+              }
+            />
+
             {/* Route info section */}
             <YStack gap="$2">
               <XStack gap="$4" alignItems="center">
@@ -786,7 +867,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       </YStack>
               </YStack>
         </ScrollView>
-                  </YStack>
+      </YStack>
 
       {/* Report Modal */}
       <Modal
