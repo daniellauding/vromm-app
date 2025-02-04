@@ -18,6 +18,7 @@ import { useLocation } from '../context/LocationContext';
 import { AppAnalytics } from '../utils/analytics';
 import { MediaCarousel } from '../components/MediaCarousel';
 import { MediaItem, Exercise, WaypointData, MediaUrl, RouteData } from '../types/route';
+import { RouteExerciseForm } from '../components/RouteExerciseForm';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotType = Database['public']['Enums']['spot_type'];
@@ -1110,87 +1111,10 @@ export function CreateRouteScreen({ route }: Props) {
                 {activeSection === 'exercises' && (
                   <YStack gap="$4">
                     <Text size="lg" weight="medium" color="$color">Exercises</Text>
-                    
-                    <YStack gap="$3">
-                      <FormField
-                        value={newExercise.title || ''}
-                        onChangeText={(text) => setNewExercise(prev => ({ ...prev, title: text }))}
-                        placeholder="Exercise Title"
-                        accessibilityLabel="Exercise title input"
-                        autoCapitalize="none"
-                      />
-                      <TextArea
-                        value={newExercise.description || ''}
-                        onChangeText={(text) => setNewExercise(prev => ({ ...prev, description: text }))}
-                        placeholder="Exercise Description"
-                        numberOfLines={2}
-                        accessibilityLabel="Exercise description input"
-                        size="$4"
-                        backgroundColor="$backgroundHover"
-                        borderColor="$borderColor"
-                        autoCapitalize="none"
-                      />
-                      <XStack gap="$3">
-                        <FormField
-                          flex={1}
-                          value={newExercise.duration || ''}
-                          onChangeText={(text) => setNewExercise(prev => ({ ...prev, duration: text }))}
-                          placeholder="Duration (e.g., 30 sec)"
-                          accessibilityLabel="Exercise duration input"
-                        />
-                        <FormField
-                          flex={1}
-                          value={newExercise.repetitions || ''}
-                          onChangeText={(text) => setNewExercise(prev => ({ ...prev, repetitions: text }))}
-                          placeholder="Repetitions"
-                          accessibilityLabel="Exercise repetitions input"
-                        />
-                      </XStack>
-                      <Button
-                        onPress={handleAddExercise}
-                        disabled={!newExercise.title}
-                        variant="primary"
-                        backgroundColor="$blue10"
-                        size="lg"
-                      >
-                        Add Exercise
-                      </Button>
-                    </YStack>
-
-                    {exercises.length > 0 && (
-                      <YStack gap="$3">
-                        {exercises.map((exercise) => (
-                          <Card key={exercise.id} bordered backgroundColor="$backgroundHover">
-                            <XStack padding="$3" justifyContent="space-between" alignItems="center">
-                              <YStack gap="$1" flex={1}>
-                                <Text weight="medium" color="$color">{exercise.title}</Text>
-                                {exercise.description && (
-                                  <Text size="sm" color="$gray11">{exercise.description}</Text>
-                                )}
-                                <XStack gap="$2">
-                                  {exercise.duration && (
-                                    <Text size="sm" color="$gray11">Duration: {exercise.duration}</Text>
-                                  )}
-                                  {exercise.repetitions && (
-                                    <Text size="sm" color="$gray11">Reps: {exercise.repetitions}</Text>
-                                  )}
-                                </XStack>
-                              </YStack>
-                              <Button
-                                onPress={() => handleRemoveExercise(exercise.id)}
-                                variant="secondary"
-                                backgroundColor="$red10"
-                                size="sm"
-                              >
-                                <XStack gap="$2" alignItems="center">
-                                  <Feather name="trash-2" size={16} color="white" />
-                                </XStack>
-                              </Button>
-                            </XStack>
-                          </Card>
-                        ))}
-                      </YStack>
-                    )}
+                    <RouteExerciseForm
+                      exercises={exercises}
+                      onChange={setExercises}
+                    />
                   </YStack>
                 )}
 

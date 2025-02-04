@@ -1,3 +1,4 @@
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TamaguiProvider, Theme } from 'tamagui';
@@ -20,6 +21,7 @@ import { TabNavigator } from './src/components/TabNavigator';
 import { RouteDetailScreen } from './src/screens/RouteDetailScreen';
 import { CreateRouteScreen } from './src/screens/CreateRouteScreen';
 import { AddReviewScreen } from './src/screens/AddReviewScreen';
+import { TodoView } from './src/screens/TodoView';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -90,6 +92,22 @@ function AppContent() {
               name="AddReview" 
               component={AddReviewScreen}
               options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="TodoView"
+              component={TodoView}
+              options={{
+                headerLargeTitle: true,
+                headerTransparent: true,
+                headerLargeStyle: {
+                  backgroundColor: colorScheme === 'dark' ? '#000' : '#fff'
+                },
+                headerStyle: {
+                  backgroundColor: 'transparent'
+                },
+                headerTitle: 'My Tasks',
+                headerShown: true
+              }}
             />
           </>
         )}

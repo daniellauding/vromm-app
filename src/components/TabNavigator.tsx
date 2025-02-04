@@ -9,6 +9,7 @@ import { Platform, useColorScheme } from 'react-native';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MapScreen } from '../screens/MapScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { TodoScreen } from '../screens/TodoScreen';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
@@ -98,6 +99,25 @@ export function TabNavigator() {
           tabBarIcon: ({ color, focused }) => (
             <Feather 
               name="map" 
+              size={24} 
+              color={color}
+              style={{ 
+                opacity: focused ? 1 : 0.8,
+                marginBottom: -4,
+              }} 
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="TodoTab"
+        component={TodoScreen}
+        options={{
+          title: 'You',
+          headerShown: false,
+          tabBarIcon: ({ color, focused }) => (
+            <Feather 
+              name="grid" 
               size={24} 
               color={color}
               style={{ 

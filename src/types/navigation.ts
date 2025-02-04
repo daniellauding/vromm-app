@@ -15,11 +15,13 @@ export type RootStackParamList = {
   Map: { selectedLocation?: SearchResult };
   Search: undefined;
   AddReview: { routeId: string };
+  TodoView: undefined;
 };
 
 export type TabParamList = {
   HomeTab: undefined;
   MapTab: undefined;
+  TodoTab: undefined;
   ProfileTab: undefined;
 };
 
