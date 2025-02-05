@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ScrollView, Image, Dimensions, Alert, View, Modal, useColorScheme, Share, Linking, Platform, useWindowDimensions, AlertButton } from 'react-native';
+import { ScrollView, Image, Dimensions, Alert, View, Modal, useColorScheme, Share, Linking, Platform } from 'react-native';
 import { YStack, XStack, Text, Card, Button, TextArea, Progress, Separator } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -19,8 +19,6 @@ import { AppAnalytics } from '../utils/analytics';
 import { MediaCarousel, CarouselMediaItem } from '../components/MediaCarousel';
 import { Region } from 'react-native-maps';
 import { ReportDialog } from '../components/report/ReportDialog';
-import { RouteExerciseList } from '../components/RouteExerciseList';
-import type { Exercise } from '../types/route';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type RouteRow = Database['public']['Tables']['routes']['Row'];
@@ -58,6 +56,13 @@ interface WaypointDetail {
   lng: number;
   title: string;
   description?: string;
+}
+
+interface Exercise {
+  id: string;
+  title: string;
+  description?: string;
+  duration?: string;
 }
 
 interface MediaAttachment {
@@ -111,25 +116,6 @@ type RouteData = Omit<RouteRow, 'waypoint_details' | 'media_attachments'> & {
   average_rating?: { rating: number }[];
 };
 
-type CarouselItem = {
-  type: 'map';
-  data: {
-    region: Region;
-    waypoints: {
-      latitude: number;
-      longitude: number;
-      title?: string;
-      description?: string;
-    }[];
-  };
-} | {
-  type: 'image';
-  data: {
-    url: string;
-    description?: string;
-  };
-};
-
 export function RouteDetailScreen({ route }: RouteDetailProps) {
   const { routeId } = route.params;
   const { user } = useAuth();
@@ -162,7 +148,6 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   });
   const [carouselHeight, setCarouselHeight] = useState(300); // Height for the carousel
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [exercises, setExercises] = useState<Exercise[]>([]);
 
   useEffect(() => {
     if (routeId) {
@@ -228,8 +213,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           rating,
           content
         ),
-        average_rating:route_reviews(rating),
-        suggested_exercises
+        average_rating:route_reviews(rating)
         `)
         .eq('id', routeId)
         .single();
@@ -265,20 +249,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       media_attachments: media as (MediaAttachment & Json)[],
       creator: routeResponse.creator || undefined,
       reviews: routeResponse.reviews || [],
-      average_rating: routeResponse.average_rating || [],
-      suggested_exercises: routeResponse.suggested_exercises || ''
+      average_rating: routeResponse.average_rating || []
     };
-
-      // Parse exercises from suggested_exercises JSON string
-      let parsedExercises: Exercise[] = [];
-      if (transformedData.suggested_exercises) {
-        try {
-          parsedExercises = JSON.parse(transformedData.suggested_exercises);
-        } catch (err) {
-          console.error('Error parsing exercises:', err);
-        }
-      }
-      setExercises(parsedExercises);
 
       setRouteData(transformedData);
   }, [routeId]);
@@ -362,106 +334,21 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
     try {
       if (isSaved) {
-        const { error: deleteError } = await supabase
+        await supabase
           .from('saved_routes')
           .delete()
           .eq('route_id', routeId)
           .eq('user_id', user.id);
-
-        if (deleteError) {
-          console.error('Error deleting saved route:', deleteError);
-          throw deleteError;
-        }
-        setIsSaved(false);
       } else {
-        Alert.alert(
-          'Save Route',
-          'Would you like to add this route to your todo list?',
-          [
-            {
-              text: 'Save & Add Todo',
-              onPress: async () => {
-                try {
-                  // Save the route first
-                  const { error: saveError } = await supabase
-                    .from('saved_routes')
-                    .insert({
-                      route_id: routeId,
-                      user_id: user.id,
-                      saved_at: new Date().toISOString(),
-                    });
-
-                  if (saveError) {
-                    console.error('Error saving route:', saveError);
-                    throw saveError;
-                  }
-                  setIsSaved(true);
-
-                  // Then create a todo
-                  if (!routeData?.name) {
-                    throw new Error('Route data is missing');
-                  }
-
-                  const { error: todoError } = await supabase
-                    .from('todos')
-                    .insert({
-                      title: `Drive route: ${routeData.name}`,
-                      description: routeData.description || '',
-                      assigned_to: user.id,
-                      assigned_by: user.id,
-                      is_completed: false,
-                      created_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString(),
-                      metadata: {
-                        routeId: routeId,
-                        routeName: routeData.name,
-                        subtasks: [],
-                        attachments: []
-                      }
-                    });
-
-                  if (todoError) {
-                    console.error('Error creating todo:', todoError);
-                    throw todoError;
-                  }
-                  Alert.alert('Success', 'Route saved and added to your todo list');
-                } catch (err) {
-                  console.error('Error saving route and creating todo:', err);
-                  Alert.alert('Error', 'Failed to save route and create todo');
-                }
-              }
-            },
-            {
-              text: 'Just Save',
-              onPress: async () => {
-                try {
-                  const { error: saveError } = await supabase
-                    .from('saved_routes')
-                    .insert({
-                      route_id: routeId,
-                      user_id: user.id,
-                      saved_at: new Date().toISOString(),
-                    });
-
-                  if (saveError) {
-                    console.error('Error saving route:', saveError);
-                    throw saveError;
-                  }
-                  setIsSaved(true);
-                  Alert.alert('Success', 'Route saved');
-                } catch (err) {
-                  console.error('Error saving route:', err);
-                  Alert.alert('Error', 'Failed to save route');
-                }
-              }
-            },
-            {
-              text: 'Cancel',
-              style: 'cancel'
-            }
-          ]
-        );
+        await supabase
+          .from('saved_routes')
+          .insert({
+            route_id: routeId,
+            user_id: user.id,
+            saved_at: new Date().toISOString(),
+          });
       }
+      setIsSaved(!isSaved);
     } catch (err) {
       console.error('Error toggling save status:', err);
       Alert.alert('Error', 'Failed to update save status');
@@ -658,62 +545,67 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     };
   }, [routeData?.waypoint_details]);
 
-  const getAllWaypoints = useCallback(() => {
-    if (!routeData?.waypoint_details?.length) return [];
-    return routeData.waypoint_details.map(wp => ({
-      latitude: wp.lat,
-      longitude: wp.lng,
-      title: wp.title,
-      description: wp.description,
-    }));
-  }, [routeData?.waypoint_details]);
-
-  const carouselItems = useMemo(() => {
+  const getCarouselItems = () => {
     const items = [];
 
-    // Add map if waypoints exist
-    const region = getMapRegion();
-    const waypoints = getAllWaypoints();
-    if (region && waypoints.length > 0) {
-      items.push({
-        type: 'map' as const,
-        data: { region, waypoints },
-      });
+    // Add map as first item if we have waypoints
+    if (routeData?.waypoint_details?.length) {
+      const waypoints = routeData.waypoint_details.map(wp => ({
+        latitude: wp.lat,
+        longitude: wp.lng,
+        title: wp.title,
+        description: wp.description,
+      }));
+
+      // Calculate region from waypoints
+      const lats = waypoints.map(w => w.latitude);
+      const lngs = waypoints.map(w => w.longitude);
+      const region: Region = {
+        latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
+        longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+        latitudeDelta: Math.max(...lats) - Math.min(...lats) + 0.02,
+        longitudeDelta: Math.max(...lngs) - Math.min(...lngs) + 0.02,
+      };
+
+      items.push({ type: 'map', waypoints, region });
     }
 
-    // Add route media attachments
-    const media = routeData?.media_attachments?.filter(m => m.type === 'image').map(m => ({
-      type: 'image' as const,
-      data: {
-        url: m.url,
-        description: m.description
-      }
-    })) || [];
+    // Add media attachments
+    routeData?.media_attachments?.forEach(attachment => {
+      items.push({ type: attachment.type, url: attachment.url });
+    });
 
-    return [...items, ...media];
-  }, [routeData?.media_attachments, getMapRegion, getAllWaypoints]);
+    return items;
+  };
 
-  const renderCarouselItem = ({ item }: { item: CarouselItem }): React.ReactElement => {
+  const renderCarouselItem = ({ item }: { item: any }) => {
     if (item.type === 'map') {
       return (
         <Map
-          waypoints={item.data.waypoints}
-          region={item.data.region}
+          waypoints={item.waypoints}
+          region={item.region}
           style={{ width: windowWidth, height: HERO_HEIGHT }}
           zoomEnabled={true}
-          pitchEnabled={true}
-          rotateEnabled={true}
+          scrollEnabled={false}
         />
       );
-    } else {
+    } else if (item.type === 'image') {
       return (
         <Image
-          source={{ uri: item.data.url }}
+          source={{ uri: item.url }}
           style={{ width: windowWidth, height: HERO_HEIGHT }}
           resizeMode="cover"
         />
       );
+    } else if (item.type === 'youtube') {
+      return (
+        <WebView
+          source={{ uri: item.url }}
+          style={{ width: windowWidth, height: HERO_HEIGHT }}
+        />
+      );
     }
+    return null;
   };
 
   const handleShowOptions = () => {
@@ -743,7 +635,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           text: 'Cancel',
           style: 'cancel',
         },
-      ].filter(Boolean) as AlertButton[]
+      ].filter(Boolean) as Alert.AlertButton[]
     );
   };
 
@@ -818,18 +710,18 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     <Screen scroll={false}>
       <YStack f={1}>
         {/* Hero Carousel */}
-        {carouselItems.length > 0 && (
+        {getCarouselItems().length > 0 && (
           <View style={{ height: HERO_HEIGHT }}>
             <Carousel
               loop
               width={windowWidth}
               height={HERO_HEIGHT}
-              data={carouselItems}
+              data={getCarouselItems()}
               renderItem={renderCarouselItem}
               onSnapToItem={setActiveMediaIndex}
             />
             {/* Pagination dots */}
-            {carouselItems.length > 1 && (
+            {getCarouselItems().length > 1 && (
               <XStack
                 position="absolute"
                 bottom={16}
@@ -839,7 +731,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                 backgroundColor="rgba(0,0,0,0.5)"
                 borderRadius="$4"
               >
-                {carouselItems.map((_, index) => (
+                {getCarouselItems().map((_, index) => (
                   <View
                     key={index}
                     style={{
@@ -972,14 +864,6 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                     ))}
                   </YStack>
                 </Card>
-
-                {/* Add exercises section */}
-                {exercises.length > 0 && (
-                  <RouteExerciseList
-                    routeId={routeId}
-                    exercises={exercises}
-                  />
-                )}
 
                 {/* Reviews Section */}
                 <ReviewSection
