@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
 
 // Auth screens
+import { SplashScreen } from './src/screens/SplashScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { SignupScreen } from './src/screens/SignupScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
@@ -44,6 +45,13 @@ function AppContent() {
         {!user ? (
           // Auth stack
           <>
+            <Stack.Screen 
+              name="SplashScreen" 
+              component={SplashScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
             <Stack.Screen 
               name="Login" 
               component={LoginScreen}

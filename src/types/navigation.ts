@@ -6,6 +6,7 @@ import { Database } from '../lib/database.types';
 import { SearchResult } from '../components/SearchView';
 
 export type RootStackParamList = {
+  SplashScreen: undefined;
   MainTabs: undefined;
   Login: undefined;
   Signup: undefined;

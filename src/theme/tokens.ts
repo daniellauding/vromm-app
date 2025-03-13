@@ -2,6 +2,20 @@ import { createTokens } from 'tamagui'
 
 // Define our color palette
 const colors = {
+
+  // Base colors
+  white: '#ffffff',
+  black: '#000000',
+  
+  // Your brand colors - replace with your own hex values
+  brandPrimary: '#00FFBC',       // Your main brand color
+  brandPrimaryLight: '#00FFBC',  // Lighter version for hover states
+  brandPrimaryDark: '#00FFBC',   // Darker version for press states
+  
+  brandSecondary: '#FF6B00',     // Secondary brand color
+  brandSecondaryLight: '#FF8533',
+  brandSecondaryDark: '#CC5500',
+
   // Blues
   blue10: '#2563eb',
   blue9: '#3b82f6',

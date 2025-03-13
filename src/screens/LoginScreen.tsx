@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
+import { Header } from '../components/Header';
 import { useLanguage } from '../context/LanguageContext';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
@@ -37,15 +38,8 @@ export function LoginScreen() {
 
   return (
     <Screen scroll>
-      <YStack f={1} justifyContent="center" gap={32} width="100%">
-        <YStack gap={12}>
-          <Text size="3xl" weight="bold" textAlign="left">
-            {t('auth.signIn.title')}
-          </Text>
-          <Text size="md" intent="muted" textAlign="left">
-            {t('auth.signIn.slogan')}
-          </Text>
-        </YStack>
+      <YStack f={1} gap={32} width="100%">
+        <Header title="" showBack={true} />
 
         <YStack gap={24} width="100%">
           <YStack gap={16}>

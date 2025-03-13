@@ -41,13 +41,13 @@ const ButtonFrame = styled(Stack, {
 
     variant: {
       primary: {
-        backgroundColor: '#2563eb', // Solid blue
+        backgroundColor: '#00FFBC', // Brand teal color
         borderWidth: 0,
         hoverStyle: {
-          backgroundColor: '#1d4ed8', // Darker blue
+          backgroundColor: '#33FFD0', // Lighter teal
         },
         pressStyle: {
-          backgroundColor: '#1e40af', // Even darker blue
+          backgroundColor: '#00CC96', // Darker teal
         },
       },
       secondary: {
@@ -100,13 +100,13 @@ const ButtonText = styled(Text, {
     },
     variant: {
       primary: { 
-        color: 'white',
+        color: 'black', // Changed to black for better contrast with teal
       },
       secondary: { 
         color: '$color',  // This will use the theme's text color
       },
       link: { 
-        color: '$indigo600',
+        color: '#00FFBC', // Brand teal color for links
         textDecorationLine: 'underline',
       },
     },
@@ -152,13 +152,13 @@ export const NewButton = styled(TamaguiButton, {
   variants: {
     variant: {
       primary: {
-        bg: tokens.color.indigo600,
-        color: tokens.color.white,
+        bg: '#00FFBC', // Brand teal color
+        color: 'black', // Black text for better contrast
         hoverStyle: {
-          bg: tokens.color.indigo700,
+          bg: '#33FFD0', // Lighter teal
         },
         pressStyle: {
-          bg: tokens.color.indigo800,
+          bg: '#00CC96', // Darker teal
         },
       },
       secondary: {
@@ -175,7 +175,7 @@ export const NewButton = styled(TamaguiButton, {
       },
       link: {
         bg: 'transparent',
-        color: tokens.color.indigo600,
+        color: '#00FFBC', // Brand teal color for links
         h: 'auto',
         p: 0,
         textDecorationLine: 'underline',

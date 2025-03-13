@@ -47,7 +47,7 @@ export function SignupScreen() {
   return (
     <Screen>
       <YStack f={1} gap={2}>
-        <Header title={t('auth.signUp.title')} />
+        <Header title={t('auth.signUp.title')} showBack={true} />
         
         <YStack gap={32}>
           <Text size="md" intent="muted">
