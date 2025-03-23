@@ -283,9 +283,8 @@ export function HomeScreen() {
               onPress={() => navigation.navigate('CreateRoute', {})}
               variant="primary"
               size="lg"
-              backgroundColor="$blue10"
             >
-              <Text color="$color">Create New Route</Text>
+              Create New Route
             </Button>
 
             {/* Driven Routes Section */}

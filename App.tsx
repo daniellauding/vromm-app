@@ -9,6 +9,8 @@ import { RootStackParamList } from './src/types/navigation';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
+import * as Font from 'expo-font';
+import { useEffect, useState } from 'react';
 
 // Auth screens
 import { SplashScreen } from './src/screens/SplashScreen';
@@ -33,69 +35,69 @@ function AppContent() {
 
   return (
     <NavigationContainer
-      onStateChange={(state) => {
+      onStateChange={state => {
         console.log('[DEBUG] Navigation state:', state);
       }}
     >
-      <Stack.Navigator 
-        screenOptions={{ 
-          headerShown: false,
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false
         }}
       >
         {!user ? (
           // Auth stack
           <>
-            <Stack.Screen 
-              name="SplashScreen" 
+            <Stack.Screen
+              name="SplashScreen"
               component={SplashScreen}
               options={{
-                headerShown: false,
+                headerShown: false
               }}
             />
-            <Stack.Screen 
-              name="Login" 
+            <Stack.Screen
+              name="Login"
               component={LoginScreen}
               options={{
-                headerShown: false,
+                headerShown: false
               }}
             />
-            <Stack.Screen 
-              name="Signup" 
+            <Stack.Screen
+              name="Signup"
               component={SignupScreen}
               options={{
-                headerShown: false,
+                headerShown: false
               }}
             />
-            <Stack.Screen 
-              name="ForgotPassword" 
+            <Stack.Screen
+              name="ForgotPassword"
               component={ForgotPasswordScreen}
               options={{
-                headerShown: false,
+                headerShown: false
               }}
             />
           </>
         ) : (
           // Main app stack
           <>
-            <Stack.Screen 
-              name="MainTabs" 
+            <Stack.Screen
+              name="MainTabs"
               component={TabNavigator}
               options={{
-                headerShown: false,
+                headerShown: false
               }}
             />
-            <Stack.Screen 
-              name="RouteDetail" 
+            <Stack.Screen
+              name="RouteDetail"
               component={RouteDetailScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen 
-              name="CreateRoute" 
+            <Stack.Screen
+              name="CreateRoute"
               component={CreateRouteScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen 
-              name="AddReview" 
+            <Stack.Screen
+              name="AddReview"
               component={AddReviewScreen}
               options={{ headerShown: false }}
             />
@@ -108,9 +110,34 @@ function AppContent() {
 
 export default function App() {
   const colorScheme = useColorScheme();
-  
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          'Rubik-Regular': require('./assets/fonts/Rubik/static/Rubik-Regular.ttf'),
+          'Rubik-Medium': require('./assets/fonts/Rubik/static/Rubik-Medium.ttf'),
+          'Rubik-SemiBold': require('./assets/fonts/Rubik/static/Rubik-SemiBold.ttf'),
+          'Rubik-Bold': require('./assets/fonts/Rubik/static/Rubik-Bold.ttf'),
+          'Rubik-ExtraBold': require('./assets/fonts/Rubik/static/Rubik-ExtraBold.ttf'),
+          'Rubik-Black': require('./assets/fonts/Rubik/static/Rubik-Black.ttf')
+        });
+        console.log('Fonts loaded successfully');
+        setFontsLoaded(true);
+      } catch (error) {
+        console.error('Error loading fonts:', error);
+      }
+    }
+    loadFonts();
+  }, []);
+
+  if (!fontsLoaded) {
+    return null; // Or a loading screen
+  }
+
   console.log('[DEBUG] App rendering');
-  
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
@@ -128,4 +155,4 @@ export default function App() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
-} 
+}

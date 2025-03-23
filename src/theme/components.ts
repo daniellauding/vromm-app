@@ -4,6 +4,7 @@ import { lightTheme, darkTheme } from './theme'
 import { shorthands } from '@tamagui/shorthands'
 import { themes, tokens as tamaguiTokens } from '@tamagui/themes'
 import { createMedia } from '@tamagui/react-native-media-driver'
+import { rubikFont } from './fonts'
 
 const media = createMedia({
   xs: { maxWidth: 660 },
@@ -216,30 +217,8 @@ export const config = createTamagui({
   themeClassNameOnRoot: true,
   shorthands,
   fonts: {
-    heading: {
-      family: 'System',
-      size: {
-        1: tokens.fontSize[1],
-        2: tokens.fontSize[2],
-        3: tokens.fontSize[3],
-        4: tokens.fontSize[4],
-        5: tokens.fontSize[5],
-        6: tokens.fontSize[6],
-      },
-      lineHeight: tokens.lineHeight,
-    },
-    body: {
-      family: 'System',
-      size: {
-        1: tokens.fontSize[1],
-        2: tokens.fontSize[2],
-        3: tokens.fontSize[3],
-        4: tokens.fontSize[4],
-        5: tokens.fontSize[5],
-        6: tokens.fontSize[6],
-      },
-      lineHeight: tokens.lineHeight,
-    },
+    heading: rubikFont,
+    body: rubikFont,
   },
   themes: {
     light: lightTheme,
