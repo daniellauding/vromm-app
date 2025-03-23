@@ -758,6 +758,51 @@ export type Database = {
           },
         ]
       }
+      onboarding_slides: {
+        Row: {
+          id: string
+          title_en: string
+          title_sv: string
+          text_en: string
+          text_sv: string
+          image_url: string | null
+          icon: string | null
+          icon_color: string | null
+          order: number
+          active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title_en: string
+          title_sv: string
+          text_en: string
+          text_sv: string
+          image_url?: string | null
+          icon?: string | null
+          icon_color?: string | null
+          order?: number
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title_en?: string
+          title_sv?: string
+          text_en?: string
+          text_sv?: string
+          image_url?: string | null
+          icon?: string | null
+          icon_color?: string | null
+          order?: number
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       school_admin_memberships: {

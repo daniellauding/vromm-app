@@ -7,6 +7,7 @@ import { SearchResult } from '../components/SearchView';
 
 export type RootStackParamList = {
   SplashScreen: undefined;
+  Onboarding: undefined;
   MainTabs: undefined;
   Login: undefined;
   Signup: undefined;

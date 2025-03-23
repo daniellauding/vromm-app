@@ -11,12 +11,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
 import * as Font from 'expo-font';
 import { useEffect, useState } from 'react';
+import { supabase } from './src/lib/supabase';
 
 // Auth screens
 import { SplashScreen } from './src/screens/SplashScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { SignupScreen } from './src/screens/SignupScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
 
 // Main app screens
 import { TabNavigator } from './src/components/TabNavigator';
@@ -29,6 +31,30 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function AppContent() {
   const { user } = useAuth();
   const colorScheme = useColorScheme();
+
+  // Check for database tables on startup
+  useEffect(() => {
+    const checkDatabaseTables = async () => {
+      try {
+        // Check if onboarding_slides table exists
+        const { error } = await supabase.from('onboarding_slides').select('id').limit(1);
+
+        if (error && error.code === '42P01') {
+          console.log('===================================================');
+          console.log('⚠️ The onboarding_slides table is missing in your database!');
+          console.log('To create it, run the Supabase migration:');
+          console.log('supabase migration up');
+          console.log('or manually execute the SQL in:');
+          console.log('supabase/migrations/20240511000000_onboarding_slides.sql');
+          console.log('===================================================');
+        }
+      } catch (error) {
+        console.error('Error checking database tables:', error);
+      }
+    };
+
+    checkDatabaseTables();
+  }, []);
 
   console.log('[DEBUG] AppContent rendering');
   console.log('[DEBUG] Auth state:', { isAuthenticated: !!user });
@@ -79,6 +105,13 @@ function AppContent() {
         ) : (
           // Main app stack
           <>
+            <Stack.Screen
+              name="Onboarding"
+              component={OnboardingScreen}
+              options={{
+                headerShown: false
+              }}
+            />
             <Stack.Screen
               name="MainTabs"
               component={TabNavigator}

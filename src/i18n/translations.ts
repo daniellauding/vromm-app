@@ -11,7 +11,7 @@ export const translations = {
     auth: {
       signIn: {
         title: 'Dags att hitta en ny övningsrutt',
-        slogan: 'Upptäck perfekta övningskörningsrutter nära dig. Filtrera efter svårighetsgrad, längd och mer.',
+        slogan: 'Upptäck perfekta övningskörningsrutter nära dig. Filtrera efter svårighetsgrad, längd och mer',
         emailLabel: 'E-post',
         emailPlaceholder: 'Din e-postadress',
         passwordLabel: 'Lösenord',
@@ -24,6 +24,10 @@ export const translations = {
         error: {
           emptyFields: 'Vänligen fyll i alla fält',
         },
+        readMore: 'Läs mer om Vromm',
+        helpImprove: 'Hjälp oss förbättra körkortsutbildningen',
+        forLearners: 'För elever',
+        forSchools: 'För trafikskolor'
       },
       signUp: {
         title: 'Skapa konto',
@@ -99,6 +103,10 @@ export const translations = {
         error: {
           emptyFields: 'Please fill in all fields',
         },
+        readMore: 'Read more about Vromm',
+        helpImprove: 'Help Us Improve Driver Training',
+        forLearners: 'For Learners',
+        forSchools: 'For Schools'
       },
       signUp: {
         title: 'Create Account',

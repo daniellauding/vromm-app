@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { YStack, XStack, Card, Separator, ScrollView } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useRoutes } from '../hooks/useRoutes';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { RouteList } from '../components/RouteList';
 import { Screen } from '../components/Screen';
@@ -13,6 +13,9 @@ import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
 import type { Route } from '../hooks/useRoutes';
 import { Image } from 'react-native';
+import { OnboardingModal } from '../components/OnboardingModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { shouldShowOnboarding } from '../components/Onboarding';
 
 type Todo = {
   id: string;
@@ -64,10 +67,12 @@ type DrivenRoute = Route & {
 };
 
 const isValidRoute = (route: any): route is Route => {
-  return route && 
+  return (
+    route &&
     typeof route.id === 'string' &&
     typeof route.name === 'string' &&
-    Array.isArray(route.media_attachments);
+    Array.isArray(route.media_attachments)
+  );
 };
 
 export function HomeScreen() {
@@ -75,10 +80,42 @@ export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { fetchRoutes } = useRoutes();
   const [routes, setRoutes] = useState<Route[]>([]);
-  const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(false);
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
   const [drivenRoutes, setDrivenRoutes] = useState<DrivenRoute[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
+
+  // Check if this is the first login and should show onboarding
+  useEffect(() => {
+    const checkFirstLogin = async () => {
+      try {
+        const key = 'vromm_first_login';
+        const firstLoginValue = await AsyncStorage.getItem(key);
+
+        if (firstLoginValue === null) {
+          // First time login detected
+          setIsFirstLogin(true);
+          setShowOnboarding(true);
+          await AsyncStorage.setItem(key, 'false');
+        } else {
+          // Ensure we respect the user's choice to not see onboarding again
+          // Only check regular onboarding flag for first-time users or when there's a version change
+          const shouldShow = await shouldShowOnboarding('vromm_onboarding');
+
+          // Don't show onboarding if user has already seen it (unless there's a version update)
+          setShowOnboarding(shouldShow);
+        }
+      } catch (error) {
+        console.error('Error checking first login status:', error);
+      }
+    };
+
+    if (user) {
+      checkFirstLogin();
+    }
+  }, [user]);
 
   const loadTodos = async () => {
     if (!user) return;
@@ -90,7 +127,7 @@ export function HomeScreen() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       // Transform the data to ensure is_completed is always boolean
       const transformedTodos: Todo[] = (data as TodoFromDB[]).map(todo => ({
         id: todo.id,
@@ -98,7 +135,7 @@ export function HomeScreen() {
         is_completed: Boolean(todo.is_completed),
         metadata: todo.metadata
       }));
-      
+
       setTodos(transformedTodos);
     } catch (err) {
       console.error('Error loading todos:', err);
@@ -216,7 +253,7 @@ export function HomeScreen() {
           event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'driven_routes',
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${user.id}`
         },
         () => {
           // Reload driven routes when any change occurs
@@ -234,7 +271,7 @@ export function HomeScreen() {
           event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'saved_routes',
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${user.id}`
         },
         () => {
           // Reload saved routes when any change occurs
@@ -266,18 +303,23 @@ export function HomeScreen() {
   };
 
   const getRouteImage = (route: Route) => {
-    const firstImage = route.media_attachments?.find(
-      attachment => attachment.type === 'image'
-    );
+    const firstImage = route.media_attachments?.find(attachment => attachment.type === 'image');
     return firstImage?.url || null;
   };
 
   return (
     <Screen>
+      {/* Onboarding Modal */}
+      <OnboardingModal
+        visible={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        forceShow={isFirstLogin}
+      />
+
       <ScrollView>
         <YStack f={1} gap={24}>
           <Header title="Routes" showBack={false} />
-          
+
           <YStack f={1} gap={24} px="$4">
             <Button
               onPress={() => navigation.navigate('CreateRoute', {})}
@@ -290,10 +332,12 @@ export function HomeScreen() {
             {/* Driven Routes Section */}
             {drivenRoutes.length > 0 && (
               <YStack gap="$2">
-                <Text size="xl" weight="bold">Driven Routes</Text>
+                <Text size="xl" weight="bold">
+                  Driven Routes
+                </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
                   <XStack gap="$3" paddingVertical="$2">
-                    {drivenRoutes.map((route) => {
+                    {drivenRoutes.map(route => {
                       const imageUrl = getRouteImage(route);
                       return (
                         <Card
@@ -313,7 +357,7 @@ export function HomeScreen() {
                                   width: '100%',
                                   height: 120,
                                   borderTopLeftRadius: 12,
-                                  borderTopRightRadius: 12,
+                                  borderTopRightRadius: 12
                                 }}
                                 resizeMode="cover"
                               />
@@ -328,12 +372,7 @@ export function HomeScreen() {
                               </YStack>
                             )}
                             <YStack padding="$3" gap="$1" flex={1}>
-                              <Text
-                                size="md"
-                                weight="bold"
-                                numberOfLines={1}
-                                ellipsizeMode="tail"
-                              >
+                              <Text size="md" weight="bold" numberOfLines={1} ellipsizeMode="tail">
                                 {route.name}
                               </Text>
                               <Text size="sm" color="$gray11">
@@ -358,14 +397,16 @@ export function HomeScreen() {
                 </ScrollView>
               </YStack>
             )}
-            
+
             {/* Saved Routes Section */}
             {savedRoutes.length > 0 && (
               <YStack gap="$2">
-                <Text size="xl" weight="bold">Saved Routes</Text>
+                <Text size="xl" weight="bold">
+                  Saved Routes
+                </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
                   <XStack gap="$3" paddingVertical="$2">
-                    {savedRoutes.map((route) => {
+                    {savedRoutes.map(route => {
                       const imageUrl = getRouteImage(route);
                       return (
                         <Card
@@ -385,7 +426,7 @@ export function HomeScreen() {
                                   width: '100%',
                                   height: 120,
                                   borderTopLeftRadius: 12,
-                                  borderTopRightRadius: 12,
+                                  borderTopRightRadius: 12
                                 }}
                                 resizeMode="cover"
                               />
@@ -400,12 +441,7 @@ export function HomeScreen() {
                               </YStack>
                             )}
                             <YStack padding="$3" gap="$1" flex={1}>
-                              <Text
-                                size="md"
-                                weight="bold"
-                                numberOfLines={1}
-                                ellipsizeMode="tail"
-                              >
+                              <Text size="md" weight="bold" numberOfLines={1} ellipsizeMode="tail">
                                 {route.name}
                               </Text>
                               <Text size="sm" color="$gray11">
@@ -430,31 +466,33 @@ export function HomeScreen() {
                 </ScrollView>
               </YStack>
             )}
-            
+
             {/* Todos Section */}
             {todos.length > 0 && (
               <Card bordered elevate backgroundColor="$backgroundStrong" padding="$4">
                 <YStack gap="$4">
-                  <Text size="xl" weight="bold">My Todos</Text>
+                  <Text size="xl" weight="bold">
+                    My Todos
+                  </Text>
                   <YStack gap="$3">
-                    {todos.map((todo) => (
+                    {todos.map(todo => (
                       <XStack key={todo.id} gap="$3" alignItems="center">
                         <Button
                           size="sm"
                           padding="$0"
-                          backgroundColor={todo.is_completed ? "$green10" : "$gray5"}
+                          backgroundColor={todo.is_completed ? '$green10' : '$gray5'}
                           onPress={() => handleToggleTodo(todo.id, todo.is_completed)}
                         >
-                          <Feather 
-                            name={todo.is_completed ? "check" : "circle"} 
-                            size={20} 
-                            color={todo.is_completed ? "white" : "$gray11"} 
+                          <Feather
+                            name={todo.is_completed ? 'check' : 'circle'}
+                            size={20}
+                            color={todo.is_completed ? 'white' : '$gray11'}
                           />
                         </Button>
                         <YStack flex={1}>
-                          <Text 
-                            size="md" 
-                            textDecorationLine={todo.is_completed ? "line-through" : "none"}
+                          <Text
+                            size="md"
+                            textDecorationLine={todo.is_completed ? 'line-through' : 'none'}
                             opacity={todo.is_completed ? 0.6 : 1}
                           >
                             {todo.title}
@@ -471,7 +509,9 @@ export function HomeScreen() {
                             variant="secondary"
                             onPress={() => {
                               if (todo.metadata?.routeId) {
-                                navigation.navigate('RouteDetail', { routeId: todo.metadata.routeId });
+                                navigation.navigate('RouteDetail', {
+                                  routeId: todo.metadata.routeId
+                                });
                               }
                             }}
                           >
@@ -484,14 +524,11 @@ export function HomeScreen() {
                 </YStack>
               </Card>
             )}
-            
-            <RouteList 
-              routes={routes}
-              onRefresh={handleRefresh}
-            />
+
+            <RouteList routes={routes} onRefresh={handleRefresh} />
           </YStack>
         </YStack>
       </ScrollView>
     </Screen>
   );
-} 
+}

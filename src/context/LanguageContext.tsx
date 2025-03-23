@@ -19,7 +19,7 @@ function getDeviceLanguage(): Language {
     let deviceLanguage = 'sv'; // Default to Swedish
 
     if (Platform.OS === 'ios') {
-      deviceLanguage = 
+      deviceLanguage =
         NativeModules.SettingsManager?.settings?.AppleLocale ||
         NativeModules.SettingsManager?.settings?.AppleLanguages?.[0] ||
         'sv';
@@ -72,7 +72,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const t = (key: string) => {
     const keys = key.split('.');
     let value: any = translations[language];
-    
+
     for (const k of keys) {
       value = value?.[k];
       if (value === undefined) {
@@ -80,7 +80,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         return key;
       }
     }
-    
+
     return value;
   };
 
@@ -101,4 +101,4 @@ export const useLanguage = () => {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;
-}; 
+};
