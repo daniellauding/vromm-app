@@ -7,8 +7,35 @@ import { Button } from '../components/Button';
 import { useLanguage } from '../context/LanguageContext';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Animated, Linking, TouchableOpacity } from 'react-native';
-import { Feather, FontAwesome } from '@expo/vector-icons';
+import { Animated, Linking, TouchableOpacity, StyleSheet, View, StatusBar } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import { Video, ResizeMode } from 'expo-av';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Define styles outside of the component
+const styles = StyleSheet.create({
+  videoContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: -1
+  },
+  backgroundVideo: {
+    flex: 1,
+    width: '100%',
+    height: '100%'
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.75
+  }
+});
 
 export function SplashScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -17,6 +44,23 @@ export function SplashScreen() {
   const [contentOpacity] = useState(() => new Animated.Value(0));
   const [resetKey, setResetKey] = useState(0);
   const [isChangingLanguage, setIsChangingLanguage] = useState(false);
+  const videoRef = useRef<Video>(null);
+  const insets = useSafeAreaInsets();
+
+  // Hide status bar for this screen
+  useEffect(() => {
+    StatusBar.setHidden(true);
+    return () => {
+      StatusBar.setHidden(false);
+    };
+  }, []);
+
+  // Play video when component mounts
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playAsync();
+    }
+  }, []);
 
   // Reset animation when screen comes into focus, but not when changing language
   useFocusEffect(
@@ -26,6 +70,10 @@ export function SplashScreen() {
         contentOpacity.setValue(0);
         // Reset logo animation by changing the key
         setResetKey(prev => prev + 1);
+        // Restart video
+        if (videoRef.current) {
+          videoRef.current.replayAsync();
+        }
       }
       return () => {
         // Cleanup
@@ -92,11 +140,31 @@ export function SplashScreen() {
   };
 
   return (
-    <Screen>
+    // Use padding false to allow full screen content
+    <Screen padding={false} scroll={false}>
+      {/* Background Video with Overlay */}
+      <View style={styles.videoContainer}>
+        <Video
+          ref={videoRef}
+          source={require('../../assets/bg_video.mp4')}
+          style={styles.backgroundVideo}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay
+          isLooping
+          isMuted
+        />
+        <View
+          style={[
+            styles.overlay,
+            { backgroundColor: theme.splashVideoOverlay?.get() || '#397770' }
+          ]}
+        />
+      </View>
+
       {/* Language Toggle - Shows only the non-active language to toggle to */}
-      <XStack position="absolute" top="$4" right="$4" zIndex={100}>
+      <XStack position="absolute" top={insets.top} right="$4" zIndex={100}>
         <TouchableOpacity onPress={toggleLanguage}>
-          <Text size="md" weight="bold" color="$blue10">
+          <Text size="md" weight="bold" color="white">
             {language === 'sv' ? 'EN' : 'SV'}
           </Text>
         </TouchableOpacity>
@@ -111,10 +179,10 @@ export function SplashScreen() {
 
         <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
           <YStack gap={12} alignItems="center">
-            <Text size="3xl" weight="bold" textAlign="center" fontFamily="$heading">
+            <Text size="3xl" weight="bold" textAlign="center" fontFamily="$heading" color="white">
               {t('auth.signIn.title')}
             </Text>
-            <Text size="md" intent="muted" textAlign="center">
+            <Text size="md" color="white" textAlign="center">
               {t('auth.signIn.slogan')}
             </Text>
           </YStack>
@@ -135,15 +203,15 @@ export function SplashScreen() {
 
             {/* Survey Section */}
             <YStack gap={8} marginTop="$4">
-              <Text size="sm" intent="muted" textAlign="center">
+              <Text size="sm" color="white" textAlign="center">
                 {t('auth.signIn.helpImprove')}
               </Text>
               <XStack gap={8} justifyContent="center">
                 <Button variant="link" size="sm" onPress={() => handleOpenSurvey('driver')}>
-                  {t('auth.signIn.forLearners')}
+                  <Text color="white">{t('auth.signIn.forLearners')}</Text>
                 </Button>
                 <Button variant="link" size="sm" onPress={() => handleOpenSurvey('school')}>
-                  {t('auth.signIn.forSchools')}
+                  <Text color="white">{t('auth.signIn.forSchools')}</Text>
                 </Button>
               </XStack>
             </YStack>

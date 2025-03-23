@@ -6,6 +6,8 @@ const colors = {
   // Base colors
   white: '#ffffff',
   black: '#000000',
+
+  splashVideoOverlay: '#397770',
   
   // Your brand colors - replace with your own hex values
   brandPrimary: '#00FFBC',       // Your main brand color
