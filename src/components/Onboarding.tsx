@@ -130,7 +130,9 @@ export function Onboarding({
                   width: width * 0.6,
                   height: width * 0.6
                 }}
-                dangerouslySetInnerHTML={{ __html: item.iconSvg }}
+                dangerouslySetInnerHTML={{
+                  __html: item.iconSvg ? item.iconSvg : ''
+                }}
               />
             </YStack>
           ) : item.icon ? (
@@ -142,7 +144,7 @@ export function Onboarding({
               borderRadius="$10"
             >
               <FontAwesome
-                name={item.icon as any}
+                name={(item.icon as any) || 'info-circle'}
                 size={100}
                 color={item.iconColor || theme.blue10.get()}
               />
@@ -156,7 +158,17 @@ export function Onboarding({
                 resizeMode: 'contain'
               }}
             />
-          ) : null}
+          ) : (
+            <YStack
+              alignItems="center"
+              justifyContent="center"
+              bg="$backgroundStrong"
+              padding="$8"
+              borderRadius="$10"
+            >
+              <FontAwesome name="info-circle" size={100} color={theme.blue10.get()} />
+            </YStack>
+          )}
         </YStack>
         <YStack flex={1} alignItems="center" gap="$4">
           <Text size="3xl" weight="bold" textAlign="center" fontFamily="$heading">

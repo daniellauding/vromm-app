@@ -1,16 +1,17 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase, db } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { Database } from '../lib/database.types';
 import { Platform, Alert } from 'react-native';
 import { AppAnalytics } from '../utils/analytics';
 import { clearContentCache } from '../services/contentService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type UserRole = Database['public']['Enums']['user_role'];
 type ExperienceLevel = Database['public']['Enums']['experience_level'];
 
-type AuthContextType = {
+export interface AuthContextData {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
@@ -21,11 +22,33 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-};
+  forgotPassword: (email: string) => Promise<void>;
+}
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Create context with default values
+export const AuthContext = createContext<AuthContextData>({
+  user: null,
+  session: null,
+  profile: null,
+  loading: true,
+  initialized: false,
+  signIn: async () => {},
+  signUp: async () => {},
+  signOut: async () => {},
+  updateProfile: async () => {},
+  resetPassword: async () => {},
+  forgotPassword: async () => {}
+});
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+// Custom hook to use auth context
+export const useAuth = () => useContext(AuthContext);
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+// Auth provider component
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -45,13 +68,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     console.log('AuthProvider mounted');
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session:', session);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      setInitialized(true);
-    });
+    const checkSession = async () => {
+      try {
+        const {
+          data: { session },
+          error
+        } = await supabase.auth.getSession();
+        if (error) {
+          throw error;
+        }
+
+        setSession(session);
+        setUser(session?.user || null);
+        setLoading(false);
+        setInitialized(true);
+      } catch (error) {
+        console.error('Error checking session:', error);
+      }
+    };
+
+    checkSession();
 
     // Listen for auth changes
     const {
@@ -106,6 +142,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('Starting signup process for:', email);
 
     try {
+      setLoading(true);
+
       const profileData = {
         full_name: email.split('@')[0],
         role: 'student' as UserRole,
@@ -173,11 +211,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Signup process failed:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
+      setLoading(true);
+
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
@@ -221,11 +263,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Sign in failed:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
+      setLoading(true);
+
       // Clear content cache before signout
       await clearContentCache();
 
@@ -236,10 +282,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setSession(null);
       setProfile(null);
-      setLoading(false);
+
+      // Clear any user-specific data first to avoid race conditions
+      try {
+        await AsyncStorage.removeItem('user_profile');
+      } catch (e) {
+        console.error('Error clearing data before sign out:', e);
+      }
     } catch (error) {
       console.error('Error during sign out:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -272,30 +326,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        loading,
-        initialized,
-        signIn,
-        signUp,
-        signOut,
-        updateProfile,
-        resetPassword
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-}
+  const forgotPassword = async (email: string) => {
+    try {
+      setLoading(true);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'vrommapp://reset-password'
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      Alert.alert(
+        'Password Reset Email Sent',
+        'Check your email for a link to reset your password.'
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'An error occurred while sending the reset email');
+      console.error('Forgot password error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Values for context provider
+  const contextValue: AuthContextData = {
+    user,
+    session,
+    profile,
+    loading,
+    initialized,
+    signIn,
+    signUp,
+    signOut,
+    updateProfile,
+    resetPassword,
+    forgotPassword
+  };
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };

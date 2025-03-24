@@ -32,7 +32,7 @@ import { TranslationDemoScreen } from './src/screens/TranslationDemoScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const colorScheme = useColorScheme();
 
   // Check for database tables on startup
@@ -61,6 +61,11 @@ function AppContent() {
 
   console.log('[DEBUG] AppContent rendering');
   console.log('[DEBUG] Auth state:', { isAuthenticated: !!user });
+
+  // Don't render anything while auth is loading to prevent flash of wrong screens
+  if (authLoading) {
+    return null;
+  }
 
   return (
     <NavigationContainer
@@ -106,18 +111,18 @@ function AppContent() {
             />
           </>
         ) : (
-          // Main app stack
+          // Main app stack - NOTE: MainTabs must come first, Onboarding second to prevent crashes
           <>
             <Stack.Screen
-              name="Onboarding"
-              component={OnboardingScreen}
+              name="MainTabs"
+              component={TabNavigator}
               options={{
                 headerShown: false
               }}
             />
             <Stack.Screen
-              name="MainTabs"
-              component={TabNavigator}
+              name="Onboarding"
+              component={OnboardingScreen}
               options={{
                 headerShown: false
               }}
