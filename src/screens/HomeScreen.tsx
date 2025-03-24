@@ -11,11 +11,12 @@ import { Button } from '../components/Button';
 import { Text } from '../components/Text';
 import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
-import type { Route } from '../hooks/useRoutes';
-import { Image } from 'react-native';
+import type { Route, MediaAttachment } from '../hooks/useRoutes';
+import { Image, ImageSourcePropType } from 'react-native';
 import { OnboardingModal } from '../components/OnboardingModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shouldShowOnboarding } from '../components/Onboarding';
+import { useTranslation } from '../contexts/TranslationContext';
 
 type Todo = {
   id: string;
@@ -79,6 +80,7 @@ export function HomeScreen() {
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const { fetchRoutes } = useRoutes();
+  const { t } = useTranslation();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(false);
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
@@ -302,9 +304,25 @@ export function HomeScreen() {
     await Promise.all([loadRoutes(), loadTodos()]);
   };
 
-  const getRouteImage = (route: Route) => {
-    const firstImage = route.media_attachments?.find(attachment => attachment.type === 'image');
-    return firstImage?.url || null;
+  const getRouteImage = (route: Route): string | null => {
+    if (!route.media_attachments || !Array.isArray(route.media_attachments)) {
+      return null;
+    }
+
+    for (const attachment of route.media_attachments) {
+      if (
+        attachment &&
+        typeof attachment === 'object' &&
+        'type' in attachment &&
+        attachment.type === 'image' &&
+        'url' in attachment &&
+        typeof attachment.url === 'string'
+      ) {
+        return attachment.url;
+      }
+    }
+
+    return null;
   };
 
   return (
@@ -318,7 +336,7 @@ export function HomeScreen() {
 
       <ScrollView>
         <YStack f={1} gap={24}>
-          <Header title="Routes" showBack={false} />
+          <Header title={t('home.routes')} showBack={false} />
 
           <YStack f={1} gap={24} px="$4">
             <Button
@@ -326,14 +344,14 @@ export function HomeScreen() {
               variant="primary"
               size="lg"
             >
-              Create New Route
+              {t('home.createNewRoute')}
             </Button>
 
             {/* Driven Routes Section */}
             {drivenRoutes.length > 0 && (
               <YStack gap="$2">
                 <Text size="xl" weight="bold">
-                  Driven Routes
+                  {t('home.drivenRoutes')}
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
                   <XStack gap="$3" paddingVertical="$2">
@@ -352,7 +370,7 @@ export function HomeScreen() {
                           <YStack f={1}>
                             {imageUrl ? (
                               <Image
-                                source={{ uri: imageUrl }}
+                                source={{ uri: imageUrl } as ImageSourcePropType}
                                 style={{
                                   width: '100%',
                                   height: 120,
@@ -402,7 +420,7 @@ export function HomeScreen() {
             {savedRoutes.length > 0 && (
               <YStack gap="$2">
                 <Text size="xl" weight="bold">
-                  Saved Routes
+                  {t('home.savedRoutes')}
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
                   <XStack gap="$3" paddingVertical="$2">
@@ -421,7 +439,7 @@ export function HomeScreen() {
                           <YStack f={1}>
                             {imageUrl ? (
                               <Image
-                                source={{ uri: imageUrl }}
+                                source={{ uri: imageUrl } as ImageSourcePropType}
                                 style={{
                                   width: '100%',
                                   height: 120,
@@ -472,7 +490,7 @@ export function HomeScreen() {
               <Card bordered elevate backgroundColor="$backgroundStrong" padding="$4">
                 <YStack gap="$4">
                   <Text size="xl" weight="bold">
-                    My Todos
+                    {t('home.myTodos')}
                   </Text>
                   <YStack gap="$3">
                     {todos.map(todo => (
@@ -499,7 +517,7 @@ export function HomeScreen() {
                           </Text>
                           {todo.metadata?.routeName && (
                             <Text size="sm" color="$gray11">
-                              Route: {todo.metadata.routeName}
+                              {t('home.route')}: {todo.metadata.routeName}
                             </Text>
                           )}
                         </YStack>

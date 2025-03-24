@@ -17,19 +17,28 @@ import { resetOnboardingForCurrentUser } from '../services/onboardingService';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from '../types/navigation';
 import { forceRefreshTranslations, debugTranslations } from '../services/translationService';
+import { useTranslation } from '../contexts/TranslationContext';
+import { Language } from '../contexts/TranslationContext';
 
 type ExperienceLevel = Database['public']['Enums']['experience_level'];
 type UserRole = Database['public']['Enums']['user_role'];
 
 const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced'];
 const USER_ROLES: UserRole[] = ['student', 'instructor', 'school'];
+const LANGUAGES: Language[] = ['en', 'sv'];
+const LANGUAGE_LABELS: Record<Language, string> = {
+  en: 'English',
+  sv: 'Svenska',
+};
 
 export function ProfileScreen() {
   const { profile, updateProfile, signOut } = useAuth();
+  const { language, setLanguage, t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [showExperienceModal, setShowExperienceModal] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const theme = useTheme();
   const colorScheme = useColorScheme();
@@ -135,15 +144,15 @@ export function ProfileScreen() {
 
       // Ask for confirmation
       Alert.alert(
-        'Refresh Translations',
-        'This will clear the translation cache and fetch fresh translations from the server. Continue?',
+        t('profile.refreshTranslations'),
+        t('profile.refreshConfirm'),
         [
           {
-            text: 'Cancel',
+            text: t('common.cancel'),
             style: 'cancel'
           },
           {
-            text: 'Refresh',
+            text: t('common.save'),
             onPress: async () => {
               try {
                 // Force refresh all translations
@@ -152,10 +161,10 @@ export function ProfileScreen() {
                 // Debug the new translations cache
                 await debugTranslations();
 
-                Alert.alert('Success', 'Translations refreshed successfully');
+                Alert.alert('Success', t('profile.refreshSuccess'));
               } catch (err) {
                 console.error('Error refreshing translations:', err);
-                Alert.alert('Error', 'Failed to refresh translations');
+                Alert.alert(t('common.error'), 'Failed to refresh translations');
               } finally {
                 setLoading(false);
               }
@@ -165,11 +174,11 @@ export function ProfileScreen() {
       );
     } catch (err) {
       console.error('Error in refreshTranslations:', err);
-      Alert.alert('Error', 'Failed to handle translations');
+      Alert.alert(t('common.error'), 'Failed to handle translations');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   return (
     <Screen scroll>
@@ -180,28 +189,28 @@ export function ProfileScreen() {
       />
 
       <YStack f={1} gap={24}>
-        <Header title="Profile" />
+        <Header title={t('profile.title')} />
         <YStack gap={24}>
           <YStack gap={24} paddingBottom={56}>
             <YStack>
               <Text size="lg" weight="medium" mb="$2" color="$color">
-                Full Name
+                {t('profile.fullName')}
               </Text>
               <FormField
                 value={formData.full_name}
                 onChangeText={text => setFormData(prev => ({ ...prev, full_name: text }))}
-                placeholder="Enter your full name"
+                placeholder={t('profile.fullNamePlaceholder')}
               />
             </YStack>
 
             <YStack>
               <Text size="lg" weight="medium" mb="$2" color="$color">
-                Location
+                {t('profile.location')}
               </Text>
               <FormField
                 value={formData.location}
                 onChangeText={text => setFormData(prev => ({ ...prev, location: text }))}
-                placeholder="Enter your location"
+                placeholder={t('profile.locationPlaceholder')}
                 rightElement={
                   <Button
                     onPress={detectLocation}
@@ -223,14 +232,27 @@ export function ProfileScreen() {
 
             <Button onPress={() => setShowRoleModal(true)} variant="secondary" size="lg">
               <Text color="$color">
-                {formData.role.charAt(0).toUpperCase() + formData.role.slice(1)}
+                {formData.role === 'student' 
+                  ? t('profile.roles.student') 
+                  : formData.role === 'instructor'
+                  ? t('profile.roles.instructor')
+                  : t('profile.roles.school')}
               </Text>
             </Button>
 
             <Button onPress={() => setShowExperienceModal(true)} variant="secondary" size="lg">
               <Text color="$color">
-                {formData.experience_level.charAt(0).toUpperCase() +
-                  formData.experience_level.slice(1)}
+                {formData.experience_level === 'beginner'
+                  ? t('profile.experienceLevels.beginner')
+                  : formData.experience_level === 'intermediate'
+                  ? t('profile.experienceLevels.intermediate')
+                  : t('profile.experienceLevels.advanced')}
+              </Text>
+            </Button>
+
+            <Button onPress={() => setShowLanguageModal(true)} variant="secondary" size="lg">
+              <Text color="$color">
+                {LANGUAGE_LABELS[language]}
               </Text>
             </Button>
 
@@ -248,7 +270,7 @@ export function ProfileScreen() {
               }
             >
               <Text size="lg" color="$color">
-                Private Profile
+                {t('profile.privateProfile')}
               </Text>
               <Switch
                 size="$6"
@@ -276,45 +298,45 @@ export function ProfileScreen() {
               onPress={handleShowOnboarding}
               variant="secondary"
               size="lg"
-              icon={
+            >
+              <XStack gap="$2" alignItems="center">
                 <Feather
                   name="help-circle"
                   size={20}
                   color={colorScheme === 'dark' ? 'white' : 'black'}
                 />
-              }
-            >
-              Show Onboarding Tour
+                <Text>{t('profile.onboardingTour')}</Text>
+              </XStack>
             </Button>
 
             <Button
               onPress={navigateToOnboardingDemo}
               variant="secondary"
               size="lg"
-              icon={
+            >
+              <XStack gap="$2" alignItems="center">
                 <Feather
-                  name="refresh"
+                  name="refresh-cw"
                   size={20}
                   color={colorScheme === 'dark' ? 'white' : 'black'}
                 />
-              }
-            >
-              Content Live Updates Demo
+                <Text>{t('profile.contentUpdatesDemo')}</Text>
+              </XStack>
             </Button>
 
             <Button
               onPress={navigateToTranslationDemo}
               variant="secondary"
               size="lg"
-              icon={
+            >
+              <XStack gap="$2" alignItems="center">
                 <Feather
                   name="globe"
                   size={20}
                   color={colorScheme === 'dark' ? 'white' : 'black'}
                 />
-              }
-            >
-              Translation System Demo
+                <Text>{t('profile.translationDemo')}</Text>
+              </XStack>
             </Button>
 
             {error ? (
@@ -330,52 +352,52 @@ export function ProfileScreen() {
               size="lg"
               backgroundColor="$blue10"
             >
-              {loading ? 'Updating...' : 'Update Profile'}
+              {loading ? t('profile.updating') : t('profile.updateProfile')}
             </Button>
 
             <Button onPress={handleSignOut} disabled={loading} variant="secondary" size="lg">
-              Sign Out
+              {t('profile.signOut')}
             </Button>
 
             <Card bordered padding="$4" marginTop="$4">
               <YStack gap={8}>
                 <Text size="lg" weight="bold" mb="$2" color="$color">
-                  Developer Options
+                  {t('profile.developerOptions')}
                 </Text>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="md"
                   onPress={navigateToOnboardingDemo}
                   marginBottom="$2"
                 >
-                  Onboarding Content
+                  {t('profile.contentUpdatesDemo')}
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="md"
                   onPress={navigateToTranslationDemo}
                   marginBottom="$2"
                 >
-                  Translation Demo
+                  {t('profile.translationDemo')}
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="md"
                   onPress={handleShowOnboarding}
                   marginBottom="$2"
                 >
-                  Show Onboarding
+                  {t('profile.onboardingTour')}
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="md"
                   onPress={handleResetOnboarding}
                   marginBottom="$2"
                 >
-                  Reset Onboarding
+                  {t('profile.resetOnboarding')}
                 </Button>
-                <Button variant="outline" size="md" onPress={refreshTranslations} marginBottom="$2">
-                  Refresh Translations
+                <Button variant="secondary" size="md" onPress={refreshTranslations} marginBottom="$2">
+                  {t('profile.refreshTranslations')}
                 </Button>
               </YStack>
             </Card>
@@ -405,7 +427,7 @@ export function ProfileScreen() {
             gap="$4"
           >
             <Text size="xl" weight="bold" color="$color">
-              Select Role
+              {t('profile.roles.title')}
             </Text>
             <YStack gap="$2">
               {USER_ROLES.map(role => (
@@ -419,7 +441,11 @@ export function ProfileScreen() {
                   backgroundColor={formData.role === role ? '$blue10' : undefined}
                   size="lg"
                 >
-                  {role.charAt(0).toUpperCase() + role.slice(1)}
+                  {role === 'student' 
+                    ? t('profile.roles.student')
+                    : role === 'instructor'
+                    ? t('profile.roles.instructor')
+                    : t('profile.roles.school')}
                 </Button>
               ))}
             </YStack>
@@ -429,7 +455,7 @@ export function ProfileScreen() {
               size="lg"
               backgroundColor="$backgroundHover"
             >
-              Close
+              {t('common.cancel')}
             </Button>
           </YStack>
         </Pressable>
@@ -457,7 +483,7 @@ export function ProfileScreen() {
             gap="$4"
           >
             <Text size="xl" weight="bold" color="$color">
-              Select Experience Level
+              {t('profile.experienceLevels.title')}
             </Text>
             <YStack gap="$2">
               {EXPERIENCE_LEVELS.map(level => (
@@ -471,7 +497,11 @@ export function ProfileScreen() {
                   backgroundColor={formData.experience_level === level ? '$blue10' : undefined}
                   size="lg"
                 >
-                  {level.charAt(0).toUpperCase() + level.slice(1)}
+                  {level === 'beginner'
+                    ? t('profile.experienceLevels.beginner')
+                    : level === 'intermediate'
+                    ? t('profile.experienceLevels.intermediate')
+                    : t('profile.experienceLevels.advanced')}
                 </Button>
               ))}
             </YStack>
@@ -481,7 +511,59 @@ export function ProfileScreen() {
               size="lg"
               backgroundColor="$backgroundHover"
             >
-              Close
+              {t('common.cancel')}
+            </Button>
+          </YStack>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showLanguageModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLanguageModal(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowLanguageModal(false)}
+        >
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
+          >
+            <Text size="xl" weight="bold" color="$color">
+              {t('settings.language.title')}
+            </Text>
+            <YStack gap="$2">
+              {LANGUAGES.map(lang => (
+                <Button
+                  key={lang}
+                  onPress={async () => {
+                    await setLanguage(lang);
+                    setShowLanguageModal(false);
+                  }}
+                  variant={language === lang ? 'primary' : 'secondary'}
+                  backgroundColor={language === lang ? '$blue10' : undefined}
+                  size="lg"
+                >
+                  {LANGUAGE_LABELS[lang]}
+                </Button>
+              ))}
+            </YStack>
+            <Button
+              onPress={() => setShowLanguageModal(false)}
+              variant="secondary"
+              size="lg"
+              backgroundColor="$backgroundHover"
+            >
+              {t('common.cancel')}
             </Button>
           </YStack>
         </Pressable>

@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Image, Alert, useColorScheme, Dimensions, TouchableOpacity, Platform } from 'react-native';
+import {
+  View,
+  ScrollView,
+  Image,
+  Alert,
+  useColorScheme,
+  Dimensions,
+  TouchableOpacity,
+  Platform
+} from 'react-native';
 import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -18,6 +27,7 @@ import { useLocation } from '../context/LocationContext';
 import { AppAnalytics } from '../utils/analytics';
 import { MediaCarousel } from '../components/MediaCarousel';
 import { MediaItem, Exercise, WaypointData, MediaUrl, RouteData } from '../types/route';
+import { useTranslation } from '../contexts/TranslationContext';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotType = Database['public']['Enums']['spot_type'];
@@ -27,7 +37,14 @@ type Category = Database['public']['Enums']['spot_category'];
 const DIFFICULTY_LEVELS: DifficultyLevel[] = ['beginner', 'intermediate', 'advanced'];
 const SPOT_TYPES: SpotType[] = ['urban', 'rural', 'highway', 'residential'];
 const VISIBILITY_OPTIONS: SpotVisibility[] = ['public', 'private', 'school_only'];
-const CATEGORIES: Category[] = ['parking', 'roundabout', 'incline_start', 'straight_driving', 'reversing', 'highway_entry_exit'];
+const CATEGORIES: Category[] = [
+  'parking',
+  'roundabout',
+  'incline_start',
+  'straight_driving',
+  'reversing',
+  'highway_entry_exit'
+];
 
 type MapPressEvent = {
   nativeEvent: {
@@ -47,6 +64,7 @@ type Props = {
 };
 
 export function CreateRouteScreen({ route }: Props) {
+  const { t } = useTranslation();
   const routeId = route?.params?.routeId;
   const isEditing = !!routeId;
   const colorScheme = useColorScheme();
@@ -64,7 +82,7 @@ export function CreateRouteScreen({ route }: Props) {
     latitude: 55.7047,
     longitude: 13.191,
     latitudeDelta: 0.1,
-    longitudeDelta: 0.1,
+    longitudeDelta: 0.1
   });
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -84,7 +102,7 @@ export function CreateRouteScreen({ route }: Props) {
           if (!locationPermission) {
             await requestLocationPermission();
           }
-          
+
           if (locationPermission) {
             const location = await getCurrentLocation();
             if (location) {
@@ -95,22 +113,20 @@ export function CreateRouteScreen({ route }: Props) {
                 latitude,
                 longitude,
                 latitudeDelta: 0.02,
-                longitudeDelta: 0.02,
+                longitudeDelta: 0.02
               });
 
               // Get address from coordinates
               const [address] = await Location.reverseGeocodeAsync({
                 latitude,
-                longitude,
+                longitude
               });
 
               if (address) {
                 // Create location title
-                const title = [
-                  address.street,
-                  address.city,
-                  address.country
-                ].filter(Boolean).join(', ');
+                const title = [address.street, address.city, address.country]
+                  .filter(Boolean)
+                  .join(', ');
 
                 // Add waypoint for current location
                 const newWaypoint = {
@@ -133,7 +149,7 @@ export function CreateRouteScreen({ route }: Props) {
             latitude: 55.7047,
             longitude: 13.191,
             latitudeDelta: 0.1,
-            longitudeDelta: 0.1,
+            longitudeDelta: 0.1
           });
         }
       })();
@@ -158,52 +174,54 @@ export function CreateRouteScreen({ route }: Props) {
     activity_level: 'moderate',
     spot_subtype: 'standard',
     transmission_type: 'both',
-    category: 'parking' as Category,
+    category: 'parking' as Category
   });
 
   const handleMapPress = (e: MapPressEvent) => {
     const { latitude, longitude } = e.nativeEvent.coordinate;
-    
+
     // Get address from coordinates
     Location.reverseGeocodeAsync({
       latitude,
-      longitude,
-    }).then(([address]) => {
-      const title = address 
-        ? [address.street, address.city, address.country].filter(Boolean).join(', ')
-        : `Waypoint ${waypoints.length + 1}`;
+      longitude
+    })
+      .then(([address]) => {
+        const title = address
+          ? [address.street, address.city, address.country].filter(Boolean).join(', ')
+          : `Waypoint ${waypoints.length + 1}`;
 
-      const newWaypoint: Waypoint = {
-        latitude,
-        longitude,
-        title,
-        description: 'Tapped location'
-      };
+        const newWaypoint: Waypoint = {
+          latitude,
+          longitude,
+          title,
+          description: 'Tapped location'
+        };
 
-      setWaypoints(prev => [...prev, newWaypoint]);
-      
-      // Update search query with location
-      setSearchQuery(title);
-      
-      // Update region to center on new waypoint
-      setRegion(prev => ({
-        ...prev,
-        latitude,
-        longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }));
-    }).catch(err => {
-      console.error('Error getting address:', err);
-      // If reverse geocoding fails, still add waypoint with default title
-      const newWaypoint: Waypoint = {
-        latitude,
-        longitude,
-        title: `Waypoint ${waypoints.length + 1}`,
-        description: 'Tapped location'
-      };
-      setWaypoints(prev => [...prev, newWaypoint]);
-    });
+        setWaypoints(prev => [...prev, newWaypoint]);
+
+        // Update search query with location
+        setSearchQuery(title);
+
+        // Update region to center on new waypoint
+        setRegion(prev => ({
+          ...prev,
+          latitude,
+          longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01
+        }));
+      })
+      .catch(err => {
+        console.error('Error getting address:', err);
+        // If reverse geocoding fails, still add waypoint with default title
+        const newWaypoint: Waypoint = {
+          latitude,
+          longitude,
+          title: `Waypoint ${waypoints.length + 1}`,
+          description: 'Tapped location'
+        };
+        setWaypoints(prev => [...prev, newWaypoint]);
+      });
   };
 
   const handleMapPressWrapper = () => {
@@ -222,54 +240,55 @@ export function CreateRouteScreen({ route }: Props) {
         latitude,
         longitude,
         latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+        longitudeDelta: 0.01
       }));
 
       // Get address from coordinates
       const [address] = await Location.reverseGeocodeAsync({
         latitude,
-        longitude,
+        longitude
       });
 
       // Create location title
-      const title = [
-        address?.street,
-        address?.city,
-        address?.country
-      ].filter(Boolean).join(', ') || 'Current Location';
+      const title =
+        [address?.street, address?.city, address?.country].filter(Boolean).join(', ') ||
+        t('createRoute.locateMe');
 
       // Add waypoint
       const newWaypoint = {
         latitude,
         longitude,
         title,
-        description: 'Current location'
+        description: t('createRoute.locateMe')
       };
       setWaypoints(prev => [...prev, newWaypoint]);
 
       // Update search input with location name
       setSearchQuery(title);
-      
+
       // Clear keyboard focus
       if (searchInputRef.current) {
         searchInputRef.current.blur();
       }
     } catch (err) {
       console.error('Error getting location:', err);
-      Alert.alert('Error', 'Failed to get your current location. Please check your location permissions and try again.');
+      Alert.alert(t('common.error'), t('createRoute.locationPermissionMsg'));
     }
   };
 
   const handleAddExercise = () => {
     if (!newExercise.title) return;
-    
-    setExercises([...exercises, {
-      id: Date.now().toString(),
-      title: newExercise.title,
-      description: newExercise.description || '',
-      duration: newExercise.duration,
-      repetitions: newExercise.repetitions,
-    }]);
+
+    setExercises([
+      ...exercises,
+      {
+        id: Date.now().toString(),
+        title: newExercise.title,
+        description: newExercise.description || '',
+        duration: newExercise.duration,
+        repetitions: newExercise.repetitions
+      }
+    ]);
     setNewExercise({});
   };
 
@@ -289,7 +308,10 @@ export function CreateRouteScreen({ route }: Props) {
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Media library permission is required to select photos/videos');
+          Alert.alert(
+            'Permission needed',
+            'Media library permission is required to select photos/videos'
+          );
           return;
         }
       }
@@ -297,15 +319,15 @@ export function CreateRouteScreen({ route }: Props) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.All,
         allowsMultipleSelection: !useCamera,
-        quality: 0.8,
+        quality: 0.8
       });
 
       if (!result.canceled) {
-        const newMedia: MediaItem[] = result.assets.map((asset) => ({
+        const newMedia: MediaItem[] = result.assets.map(asset => ({
           id: Date.now().toString() + Math.random(),
           type: asset.type === 'video' ? 'video' : 'image',
           uri: asset.uri,
-          fileName: asset.uri.split('/').pop() || 'file',
+          fileName: asset.uri.split('/').pop() || 'file'
         }));
 
         setMedia([...media, ...newMedia]);
@@ -320,13 +342,13 @@ export function CreateRouteScreen({ route }: Props) {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Camera permission is required to take photos');
+        Alert.alert(t('createRoute.permissionDenied'), t('createRoute.cameraPermissionMsg'));
         return;
       }
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.8,
+        quality: 0.8
       });
 
       if (!result.canceled) {
@@ -335,14 +357,14 @@ export function CreateRouteScreen({ route }: Props) {
           id: Date.now().toString() + Math.random(),
           type: 'image',
           uri: asset.uri,
-          fileName: asset.uri.split('/').pop() || 'photo.jpg',
+          fileName: asset.uri.split('/').pop() || 'photo.jpg'
         };
 
         setMedia([...media, newMedia]);
       }
     } catch (err) {
       console.error('Error taking photo:', err);
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
+      Alert.alert(t('common.error'), 'Error taking photo');
     }
   };
 
@@ -357,7 +379,7 @@ export function CreateRouteScreen({ route }: Props) {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Videos,
         quality: 0.8,
-        videoMaxDuration: 60,
+        videoMaxDuration: 60
       });
 
       if (!result.canceled) {
@@ -366,7 +388,7 @@ export function CreateRouteScreen({ route }: Props) {
           id: Date.now().toString() + Math.random(),
           type: 'video',
           uri: asset.uri,
-          fileName: asset.uri.split('/').pop() || 'video.mp4',
+          fileName: asset.uri.split('/').pop() || 'video.mp4'
         };
 
         setMedia([...media, newMedia]);
@@ -378,24 +400,20 @@ export function CreateRouteScreen({ route }: Props) {
   };
 
   const addYoutubeLink = () => {
-    const youtubeUrl = prompt('Enter YouTube video URL:');
-    if (!youtubeUrl) return;
-
-    // Extract video ID from various YouTube URL formats
-    const videoId = extractYoutubeVideoId(youtubeUrl);
-    if (!videoId) {
-      setError('Invalid YouTube URL');
+    const ytVideoId = extractYoutubeVideoId(youtubeLink);
+    if (!ytVideoId) {
+      Alert.alert(t('common.error'), t('createRoute.invalidYoutubeLink'));
       return;
     }
 
-    const thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-    
+    const thumbnail = `https://img.youtube.com/vi/${ytVideoId}/hqdefault.jpg`;
+
     const newMedia: MediaItem = {
       id: Date.now().toString(),
       type: 'youtube',
-      uri: `https://www.youtube.com/watch?v=${videoId}`,
+      uri: `https://www.youtube.com/watch?v=${ytVideoId}`,
       thumbnail,
-      fileName: 'YouTube Video',
+      fileName: 'YouTube Video'
     };
     setMedia([...media, newMedia]);
   };
@@ -419,7 +437,7 @@ export function CreateRouteScreen({ route }: Props) {
       id: Date.now().toString(),
       type: newMedia.type,
       uri: newMedia.uri,
-      fileName: newMedia.uri.split('/').pop() || 'unknown',
+      fileName: newMedia.uri.split('/').pop() || 'unknown'
     };
     // Keep existing media and add new one
     setMedia(prev => [...prev, newMediaItem]);
@@ -433,7 +451,7 @@ export function CreateRouteScreen({ route }: Props) {
     try {
       // Only upload new media items (ones that don't start with http)
       const newMediaItems = media.filter(m => !m.uri.startsWith('http'));
-      
+
       for (const item of newMediaItems) {
         const fileExtension = item.fileName.split('.').pop() || 'jpg';
         const filePath = `routes/${routeId}/${Date.now()}.${fileExtension}`;
@@ -449,9 +467,9 @@ export function CreateRouteScreen({ route }: Props) {
         if (uploadError) throw uploadError;
 
         // Get the public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('media')
-          .getPublicUrl(filePath);
+        const {
+          data: { publicUrl }
+        } = supabase.storage.from('media').getPublicUrl(filePath);
 
         // Get current media_attachments
         const { data: currentRoute } = await supabase
@@ -461,7 +479,7 @@ export function CreateRouteScreen({ route }: Props) {
           .single();
 
         const currentAttachments = (currentRoute?.media_attachments || []) as MediaUrl[];
-        
+
         // Add new media to the array
         const updatedAttachments = [
           ...currentAttachments,
@@ -516,13 +534,13 @@ export function CreateRouteScreen({ route }: Props) {
           .select('media_attachments')
           .eq('id', routeId)
           .single();
-        
+
         const existingMedia = (existingRoute?.media_attachments || []) as MediaUrl[];
-        
+
         // Keep existing media that hasn't been removed
         const existingMediaUrls = existingMedia.map(m => m.url);
         const currentMediaUrls = media.map(m => m.uri);
-        
+
         mediaToUpdate = [
           // Keep existing media that hasn't been removed
           ...existingMedia.filter(m => currentMediaUrls.includes(m.url)),
@@ -588,9 +606,12 @@ export function CreateRouteScreen({ route }: Props) {
 
         if (updateError) throw updateError;
         route = updatedRoute;
-        
+
         // Track route edit
         await AppAnalytics.trackRouteEdit(routeId);
+
+        // Show success message
+        Alert.alert(t('common.success'), t('createRoute.routeUpdated'));
       } else {
         // Create new route
         const { data: newRoute, error: createError } = await supabase
@@ -601,9 +622,12 @@ export function CreateRouteScreen({ route }: Props) {
 
         if (createError) throw createError;
         route = newRoute;
-        
+
         // Track route creation
         await AppAnalytics.trackRouteCreate(formData.spot_type);
+
+        // Show success message
+        Alert.alert(t('common.success'), t('createRoute.routeCreated'));
       }
 
       // Only upload new media items that aren't already in storage
@@ -621,12 +645,13 @@ export function CreateRouteScreen({ route }: Props) {
 
       // Set loading to false before navigation
       setLoading(false);
-      
+
       // Navigate back after saving
       if (isEditing) {
         navigation.goBack();
         // Optionally refresh the route detail screen
-        const previousScreen = navigation.getState().routes[navigation.getState().routes.length - 2];
+        const previousScreen =
+          navigation.getState().routes[navigation.getState().routes.length - 2];
         if (previousScreen.name === 'RouteDetail') {
           // @ts-ignore - params exist on the route
           previousScreen.params = { ...previousScreen.params, shouldRefresh: true };
@@ -666,7 +691,7 @@ export function CreateRouteScreen({ route }: Props) {
         activity_level: route.activity_level || 'moderate',
         spot_subtype: route.spot_subtype || 'standard',
         transmission_type: route.transmission_type || 'both',
-        category: route.category || 'parking',
+        category: route.category || 'parking'
       });
 
       if (route.waypoint_details) {
@@ -674,9 +699,9 @@ export function CreateRouteScreen({ route }: Props) {
           latitude: wp.lat,
           longitude: wp.lng,
           title: wp.title,
-          description: wp.description,
+          description: wp.description
         }));
-        
+
         setWaypoints(waypoints);
 
         // Set initial region based on first waypoint
@@ -686,7 +711,7 @@ export function CreateRouteScreen({ route }: Props) {
             latitude: firstWaypoint.latitude,
             longitude: firstWaypoint.longitude,
             latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
+            longitudeDelta: 0.02
           });
 
           // Set search query to first waypoint title
@@ -705,9 +730,10 @@ export function CreateRouteScreen({ route }: Props) {
           uri: m.url,
           description: m.description,
           fileName: m.url.split('/').pop() || 'unknown',
-          thumbnail: m.type === 'youtube' ? 
-            `https://img.youtube.com/vi/${extractYoutubeVideoId(m.url)}/hqdefault.jpg` : 
-            undefined
+          thumbnail:
+            m.type === 'youtube'
+              ? `https://img.youtube.com/vi/${extractYoutubeVideoId(m.url)}/hqdefault.jpg`
+              : undefined
         }));
         setMedia(mediaItems);
       }
@@ -718,40 +744,40 @@ export function CreateRouteScreen({ route }: Props) {
   };
 
   const handleDelete = async () => {
-    if (!isEditing || !routeId) return;
+    if (!routeId) return;
 
-    Alert.alert(
-      'Delete Route',
-      'Are you sure you want to delete this route? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const { error } = await supabase
-                .from('routes')
-                .delete()
-                .eq('id', routeId);
+    Alert.alert(t('common.delete'), t('createRoute.confirmDelete'), [
+      {
+        text: t('common.cancel'),
+        style: 'cancel'
+      },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          setLoading(true);
+          try {
+            const { error } = await supabase.from('routes').delete().eq('id', routeId);
 
-              if (error) throw error;
-              navigation.goBack();
-            } catch (err) {
-              setError('Failed to delete route');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+            if (error) throw error;
+
+            // Track route deletion
+            await AppAnalytics.trackRouteCreate(formData.spot_type); // Reusing existing method for deletion tracking
+
+            // Navigate back
+            navigation.goBack();
+          } catch (err) {
+            Alert.alert(t('common.error'), 'Failed to delete route');
+            setLoading(false);
+          }
+        }
+      }
+    ]);
   };
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
-    
+
     // Clear previous timeout
     if (searchTimeout) {
       clearTimeout(searchTimeout);
@@ -768,7 +794,7 @@ export function CreateRouteScreen({ route }: Props) {
       try {
         // Try with city/country first
         let results = await Location.geocodeAsync(query);
-        
+
         // If no results, try with more specific search
         if (results.length === 0) {
           // Add country/city to make search more specific
@@ -791,25 +817,29 @@ export function CreateRouteScreen({ route }: Props) {
             results.map(async result => {
               const address = await Location.reverseGeocodeAsync({
                 latitude: result.latitude,
-                longitude: result.longitude,
+                longitude: result.longitude
               });
               return {
                 ...address[0],
                 coords: {
                   latitude: result.latitude,
-                  longitude: result.longitude,
+                  longitude: result.longitude
                 }
               };
             })
           );
 
           // Filter out duplicates and null values
-          const uniqueAddresses = addresses.filter((addr, index, self) => 
-            addr && addr.coords &&
-            index === self.findIndex(a => 
-              a.coords?.latitude === addr.coords?.latitude && 
-              a.coords?.longitude === addr.coords?.longitude
-            )
+          const uniqueAddresses = addresses.filter(
+            (addr, index, self) =>
+              addr &&
+              addr.coords &&
+              index ===
+                self.findIndex(
+                  a =>
+                    a.coords?.latitude === addr.coords?.latitude &&
+                    a.coords?.longitude === addr.coords?.longitude
+                )
           );
 
           setSearchResults(uniqueAddresses);
@@ -832,22 +862,22 @@ export function CreateRouteScreen({ route }: Props) {
     };
   }, [searchTimeout]);
 
-  const handleLocationSelect = (result: (Location.LocationGeocodedAddress & { coords?: { latitude: number; longitude: number } })) => {
+  const handleLocationSelect = (
+    result: Location.LocationGeocodedAddress & { coords?: { latitude: number; longitude: number } }
+  ) => {
     if (result.coords) {
       const { latitude, longitude } = result.coords;
-      
+
       // Update region
       setRegion({
         latitude,
         longitude,
         latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+        longitudeDelta: 0.01
       });
 
       // Create location title
-      const title = [result.street, result.city, result.country]
-        .filter(Boolean)
-        .join(', ');
+      const title = [result.street, result.city, result.country].filter(Boolean).join(', ');
 
       // Add waypoint
       const newWaypoint = {
@@ -861,7 +891,7 @@ export function CreateRouteScreen({ route }: Props) {
       // Update search UI
       setSearchQuery(title);
       setShowSearchResults(false);
-      
+
       // Clear keyboard focus
       if (searchInputRef.current) {
         searchInputRef.current.blur();
@@ -877,42 +907,49 @@ export function CreateRouteScreen({ route }: Props) {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'OK',
-          onPress: (text) => {
+          onPress: text => {
             const [lat, lng] = text?.split(',').map(n => parseFloat(n.trim())) || [];
             if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
               setRegion({
                 latitude: lat,
                 longitude: lng,
                 latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
+                longitudeDelta: 0.01
               });
 
               // Get address from coordinates
               Location.reverseGeocodeAsync({
                 latitude: lat,
-                longitude: lng,
-              }).then(([address]) => {
-                if (address) {
-                  // Update search input with location name
-                  const locationString = [
-                    address.street,
-                    address.city,
-                    address.region,
-                    address.country
-                  ].filter(Boolean).join(', ');
+                longitude: lng
+              })
+                .then(([address]) => {
+                  if (address) {
+                    // Update search input with location name
+                    const locationString = [
+                      address.street,
+                      address.city,
+                      address.region,
+                      address.country
+                    ]
+                      .filter(Boolean)
+                      .join(', ');
 
-                  setSearchQuery(locationString);
-                } else {
-                  // If no address found, show coordinates
+                    setSearchQuery(locationString);
+                  } else {
+                    // If no address found, show coordinates
+                    setSearchQuery(`${lat}, ${lng}`);
+                  }
+                })
+                .catch(err => {
+                  console.error('Error getting address:', err);
+                  // If reverse geocoding fails, show coordinates
                   setSearchQuery(`${lat}, ${lng}`);
-                }
-              }).catch(err => {
-                console.error('Error getting address:', err);
-                // If reverse geocoding fails, show coordinates
-                setSearchQuery(`${lat}, ${lng}`);
-              });
+                });
             } else {
-              Alert.alert('Invalid coordinates', 'Please enter valid latitude and longitude values');
+              Alert.alert(
+                'Invalid coordinates',
+                'Please enter valid latitude and longitude values'
+              );
             }
           }
         }
@@ -933,15 +970,19 @@ export function CreateRouteScreen({ route }: Props) {
         {/* Hero Section with MediaCarousel */}
         <MediaCarousel
           media={[
-            ...(waypoints.length > 0 ? [{
-              type: 'map' as const,
-              waypoints: waypoints,
-              region: region,
-            }] : []),
+            ...(waypoints.length > 0
+              ? [
+                  {
+                    type: 'map' as const,
+                    waypoints: waypoints,
+                    region: region
+                  }
+                ]
+              : []),
             ...media.map(m => ({
               type: m.type,
               uri: m.uri,
-              id: m.id,
+              id: m.id
             }))
           ]}
           onAddMedia={handleAddMedia}
@@ -951,35 +992,38 @@ export function CreateRouteScreen({ route }: Props) {
 
         {/* Existing Content */}
         <YStack f={1} gap={2}>
-          <Header title={isEditing ? 'Edit Route' : 'Create Route'} showBack />
+          <Header
+            title={isEditing ? t('createRoute.editTitle') : t('createRoute.createTitle')}
+            showBack
+          />
           <XStack padding="$4" gap="$2" flexWrap="wrap">
-            <Chip 
+            <Chip
               active={activeSection === 'basic'}
               onPress={() => setActiveSection('basic')}
               icon="info"
             >
-              Basic Info
+              {t('createRoute.routeName')}
             </Chip>
-            <Chip 
+            <Chip
               active={activeSection === 'exercises'}
               onPress={() => setActiveSection('exercises')}
               icon="activity"
             >
-              Exercises
+              {t('createRoute.exercises')}
             </Chip>
-            <Chip 
+            <Chip
               active={activeSection === 'media'}
               onPress={() => setActiveSection('media')}
               icon="image"
             >
-              Media
+              {t('createRoute.media')}
             </Chip>
-            <Chip 
+            <Chip
               active={activeSection === 'details'}
               onPress={() => setActiveSection('details')}
               icon="settings"
             >
-              Details
+              {t('common.details')}
             </Chip>
           </XStack>
 
@@ -991,20 +1035,22 @@ export function CreateRouteScreen({ route }: Props) {
                   <YStack gap="$4">
                     {/* Basic Information */}
                     <YStack>
-                      <Text size="lg" weight="medium" mb="$2" color="$color">Basic Information</Text>
+                      <Text size="lg" weight="medium" mb="$2" color="$color">
+                        {t('createRoute.routeName')}
+                      </Text>
                       <FormField
                         value={formData.name}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                        placeholder="Route Name"
-                        accessibilityLabel="Route name input"
+                        onChangeText={text => setFormData(prev => ({ ...prev, name: text }))}
+                        placeholder={t('createRoute.routeNamePlaceholder')}
+                        accessibilityLabel={t('createRoute.routeName')}
                         autoCapitalize="none"
                       />
                       <TextArea
                         value={formData.description}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                        placeholder="Description"
+                        onChangeText={text => setFormData(prev => ({ ...prev, description: text }))}
+                        placeholder={t('createRoute.descriptionPlaceholder')}
                         numberOfLines={4}
-                        accessibilityLabel="Route description input"
+                        accessibilityLabel={t('createRoute.description')}
                         size="md"
                         backgroundColor="$backgroundHover"
                         borderColor="$borderColor"
@@ -1015,8 +1061,12 @@ export function CreateRouteScreen({ route }: Props) {
 
                     {/* Route Location */}
                     <YStack gap="$4">
-                      <Text size="lg" weight="medium" color="$color">Route Location</Text>
-                      <Text size="sm" color="$gray11">Search for a location or tap on the map</Text>
+                      <Text size="lg" weight="medium" color="$color">
+                        {t('createRoute.locationCoordinates')}
+                      </Text>
+                      <Text size="sm" color="$gray11">
+                        {t('createRoute.searchLocation')}
+                      </Text>
 
                       <YStack gap="$2">
                         <XStack gap="$2">
@@ -1025,10 +1075,10 @@ export function CreateRouteScreen({ route }: Props) {
                             flex={1}
                             value={searchQuery}
                             onChangeText={handleSearch}
-                            placeholder="Search location..."
+                            placeholder={t('createRoute.searchLocation')}
                             autoComplete="street-address"
                             autoCapitalize="none"
-                            accessibilityLabel="Location search input"
+                            accessibilityLabel={t('createRoute.searchLocation')}
                             rightElement={
                               <Button
                                 onPress={handleManualCoordinates}
@@ -1037,10 +1087,21 @@ export function CreateRouteScreen({ route }: Props) {
                                 backgroundColor="transparent"
                                 borderWidth={0}
                               >
-                                <Feather name="map-pin" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                                <Feather
+                                  name="map-pin"
+                                  size={18}
+                                  color={colorScheme === 'dark' ? 'white' : 'black'}
+                                />
                               </Button>
                             }
                           />
+                          <Button
+                            onPress={handleLocateMe}
+                            variant="primary"
+                            backgroundColor="$blue10"
+                          >
+                            <Feather name="navigation" size={18} color="white" />
+                          </Button>
                         </XStack>
 
                         {showSearchResults && searchResults.length > 0 && (
@@ -1091,7 +1152,7 @@ export function CreateRouteScreen({ route }: Props) {
                         </Button>
                       </View>
 
-                      <Button 
+                      <Button
                         onPress={() => setWaypoints(waypoints.slice(0, -1))}
                         disabled={waypoints.length === 0}
                         variant="secondary"
@@ -1109,41 +1170,41 @@ export function CreateRouteScreen({ route }: Props) {
 
                 {activeSection === 'exercises' && (
                   <YStack gap="$4">
-                    <Text size="lg" weight="medium" color="$color">Exercises</Text>
-                    
-                    <YStack gap="$3">
+                    <Text size="lg" weight="medium" color="$color">
+                      {t('createRoute.exercises')}
+                    </Text>
+                    <Text size="sm" color="$gray11">
+                      {t('createRoute.addExercise')}
+                    </Text>
+
+                    <YStack gap="$4">
                       <FormField
                         value={newExercise.title || ''}
-                        onChangeText={(text) => setNewExercise(prev => ({ ...prev, title: text }))}
-                        placeholder="Exercise Title"
-                        accessibilityLabel="Exercise title input"
-                        autoCapitalize="none"
+                        onChangeText={text => setNewExercise(prev => ({ ...prev, title: text }))}
+                        placeholder={t('createRoute.exerciseTitlePlaceholder')}
+                        accessibilityLabel={t('createRoute.exerciseTitle')}
                       />
                       <TextArea
                         value={newExercise.description || ''}
-                        onChangeText={(text) => setNewExercise(prev => ({ ...prev, description: text }))}
-                        placeholder="Exercise Description"
-                        numberOfLines={2}
-                        accessibilityLabel="Exercise description input"
-                        size="$4"
+                        onChangeText={text =>
+                          setNewExercise(prev => ({ ...prev, description: text }))
+                        }
+                        placeholder={t('createRoute.exerciseDescriptionPlaceholder')}
+                        numberOfLines={3}
+                        accessibilityLabel={t('createRoute.exerciseDescription')}
+                        size="md"
                         backgroundColor="$backgroundHover"
                         borderColor="$borderColor"
-                        autoCapitalize="none"
                       />
-                      <XStack gap="$3">
+                      <XStack gap="$2">
                         <FormField
                           flex={1}
                           value={newExercise.duration || ''}
-                          onChangeText={(text) => setNewExercise(prev => ({ ...prev, duration: text }))}
-                          placeholder="Duration (e.g., 30 sec)"
-                          accessibilityLabel="Exercise duration input"
-                        />
-                        <FormField
-                          flex={1}
-                          value={newExercise.repetitions || ''}
-                          onChangeText={(text) => setNewExercise(prev => ({ ...prev, repetitions: text }))}
-                          placeholder="Repetitions"
-                          accessibilityLabel="Exercise repetitions input"
+                          onChangeText={text =>
+                            setNewExercise(prev => ({ ...prev, duration: text }))
+                          }
+                          placeholder={t('createRoute.durationPlaceholder')}
+                          accessibilityLabel={t('createRoute.duration')}
                         />
                       </XStack>
                       <Button
@@ -1151,53 +1212,64 @@ export function CreateRouteScreen({ route }: Props) {
                         disabled={!newExercise.title}
                         variant="primary"
                         backgroundColor="$blue10"
-                        size="lg"
                       >
-                        Add Exercise
+                        <XStack gap="$2" alignItems="center">
+                          <Feather name="plus" size={18} color="white" />
+                          <Text color="white">{t('createRoute.addExercise')}</Text>
+                        </XStack>
                       </Button>
                     </YStack>
 
-                    {exercises.length > 0 && (
-                      <YStack gap="$3">
-                        {exercises.map((exercise) => (
-                          <Card key={exercise.id} bordered backgroundColor="$backgroundHover">
-                            <XStack padding="$3" justifyContent="space-between" alignItems="center">
-                              <YStack gap="$1" flex={1}>
-                                <Text weight="medium" color="$color">{exercise.title}</Text>
-                                {exercise.description && (
-                                  <Text size="sm" color="$gray11">{exercise.description}</Text>
-                                )}
-                                <XStack gap="$2">
-                                  {exercise.duration && (
-                                    <Text size="sm" color="$gray11">Duration: {exercise.duration}</Text>
-                                  )}
-                                  {exercise.repetitions && (
-                                    <Text size="sm" color="$gray11">Reps: {exercise.repetitions}</Text>
-                                  )}
+                    <Separator marginVertical="$4" />
+
+                    {exercises.length > 0 ? (
+                      <YStack gap="$4">
+                        {exercises.map(exercise => (
+                          <Card key={exercise.id} bordered padding="$3">
+                            <YStack gap="$2">
+                              <XStack justifyContent="space-between" alignItems="center">
+                                <Text size="lg" weight="medium">
+                                  {exercise.title}
+                                </Text>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onPress={() => handleRemoveExercise(exercise.id)}
+                                >
+                                  <Feather name="trash-2" size={16} color="$gray11" />
+                                </Button>
+                              </XStack>
+                              {exercise.description && (
+                                <Text color="$gray11">{exercise.description}</Text>
+                              )}
+                              {exercise.duration && (
+                                <XStack gap="$1" alignItems="center">
+                                  <Feather name="clock" size={14} color="$gray11" />
+                                  <Text size="sm" color="$gray11">
+                                    {exercise.duration}
+                                  </Text>
                                 </XStack>
-                              </YStack>
-                              <Button
-                                onPress={() => handleRemoveExercise(exercise.id)}
-                                variant="secondary"
-                                backgroundColor="$red10"
-                                size="sm"
-                              >
-                                <XStack gap="$2" alignItems="center">
-                                  <Feather name="trash-2" size={16} color="white" />
-                                </XStack>
-                              </Button>
-                            </XStack>
+                              )}
+                            </YStack>
                           </Card>
                         ))}
                       </YStack>
+                    ) : (
+                      <Text color="$gray11" textAlign="center">
+                        {t('createRoute.noExercises')}
+                      </Text>
                     )}
                   </YStack>
                 )}
 
                 {activeSection === 'media' && (
                   <YStack gap="$4">
-                    <Text size="lg" weight="medium" color="$color">Media</Text>
-                    <Text size="sm" color="$gray11">Add images, videos, or YouTube links</Text>
+                    <Text size="lg" weight="medium" color="$color">
+                      {t('createRoute.media')}
+                    </Text>
+                    <Text size="sm" color="$gray11">
+                      {t('createRoute.addMedia')}
+                    </Text>
 
                     <XStack gap="$3" flexWrap="wrap">
                       <Button
@@ -1209,7 +1281,7 @@ export function CreateRouteScreen({ route }: Props) {
                       >
                         <XStack gap="$2" alignItems="center">
                           <Feather name="image" size={18} color="white" />
-                          <Text color="white">Choose Media</Text>
+                          <Text color="white">{t('createRoute.chooseFromLibrary')}</Text>
                         </XStack>
                       </Button>
                       <Button
@@ -1221,7 +1293,7 @@ export function CreateRouteScreen({ route }: Props) {
                       >
                         <XStack gap="$2" alignItems="center">
                           <Feather name="camera" size={18} color="white" />
-                          <Text color="white">Take Photo</Text>
+                          <Text color="white">{t('createRoute.takePicture')}</Text>
                         </XStack>
                       </Button>
                       <Button
@@ -1233,160 +1305,195 @@ export function CreateRouteScreen({ route }: Props) {
                       >
                         <XStack gap="$2" alignItems="center">
                           <Feather name="video" size={18} color="white" />
-                          <Text color="white">Record Video</Text>
-                        </XStack>
-                      </Button>
-                      <Button
-                        flex={1}
-                        onPress={addYoutubeLink}
-                        variant="primary"
-                        backgroundColor="$red10"
-                        size="lg"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="youtube" size={18} color="white" />
-                          <Text color="white">Add YouTube</Text>
+                          <Text color="white">{t('createRoute.takeVideo')}</Text>
                         </XStack>
                       </Button>
                     </XStack>
 
-                    {media.length > 0 && (
-                      <YStack gap="$3">
-                        <Text size="sm" color="$gray11">Uploaded Media</Text>
-                        <XStack flexWrap="wrap" gap="$2">
-                          {media.map((item, index) => (
-                            <View 
-                              key={item.id}
-                              style={{
-                                width: (windowWidth - 48) / 2, // 2 columns with padding
-                                height: 160,
-                                borderRadius: 12,
-                                overflow: 'hidden',
-                                position: 'relative',
-                              }}
-                            >
-                              {item.type === 'youtube' ? (
-                                <Image
-                                  source={{ uri: item.thumbnail }}
-                                  style={{ width: '100%', height: '100%' }}
-                                  resizeMode="cover"
-                                />
-                              ) : (
+                    {/* YouTube Link */}
+                    <YStack gap="$2">
+                      <Text size="md" weight="medium" color="$color">
+                        {t('createRoute.youtubeLink')}
+                      </Text>
+                      <XStack gap="$2">
+                        <FormField
+                          flex={1}
+                          value={youtubeLink}
+                          onChangeText={setYoutubeLink}
+                          placeholder={t('createRoute.youtubeLinkPlaceholder')}
+                          accessibilityLabel={t('createRoute.youtubeLink')}
+                        />
+                        <Button
+                          onPress={addYoutubeLink}
+                          disabled={!youtubeLink}
+                          variant="primary"
+                          backgroundColor="$red10"
+                        >
+                          <Feather name="plus" size={18} color="white" />
+                        </Button>
+                      </XStack>
+                    </YStack>
+
+                    {/* Media Preview List */}
+                    {media.length > 0 ? (
+                      <YStack gap="$4">
+                        {media.map((item, index) => (
+                          <Card key={item.id} bordered padding="$3">
+                            <XStack gap="$3">
+                              {item.type === 'image' && (
                                 <Image
                                   source={{ uri: item.uri }}
-                                  style={{ width: '100%', height: '100%' }}
-                                  resizeMode="cover"
+                                  style={{ width: 80, height: 80, borderRadius: 8 }}
                                 />
                               )}
-                              <TouchableOpacity
-                                style={{
-                                  position: 'absolute',
-                                  top: 8,
-                                  right: 8,
-                                  backgroundColor: 'rgba(0,0,0,0.5)',
-                                  borderRadius: 16,
-                                  padding: 8,
-                                }}
-                                onPress={() => handleRemoveMedia(index)}
-                              >
-                                <Feather name="trash-2" size={16} color="white" />
-                              </TouchableOpacity>
-                              <View
-                                style={{
-                                  position: 'absolute',
-                                  bottom: 0,
-                                  left: 0,
-                                  right: 0,
-                                  padding: 8,
-                                  backgroundColor: 'rgba(0,0,0,0.5)',
-                                }}
-                              >
-                                <Text size="xs" color="white">
-                                  {item.type === 'youtube' ? 'YouTube Video' : 
-                                   item.type === 'video' ? 'Video' : 'Image'}
+                              {item.type === 'video' && (
+                                <View
+                                  style={{
+                                    width: 80,
+                                    height: 80,
+                                    borderRadius: 8,
+                                    backgroundColor: '#000',
+                                    justifyContent: 'center',
+                                    alignItems: 'center'
+                                  }}
+                                >
+                                  <Feather name="video" size={24} color="white" />
+                                </View>
+                              )}
+                              {item.type === 'youtube' && (
+                                <View
+                                  style={{
+                                    width: 80,
+                                    height: 80,
+                                    borderRadius: 8,
+                                    backgroundColor: '#FF0000',
+                                    justifyContent: 'center',
+                                    alignItems: 'center'
+                                  }}
+                                >
+                                  <Feather name="youtube" size={24} color="white" />
+                                </View>
+                              )}
+                              <YStack flex={1} justifyContent="space-between">
+                                <Text weight="medium">
+                                  {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
                                 </Text>
-                              </View>
-                            </View>
-                          ))}
-                        </XStack>
+                                <Text size="sm" color="$gray11" numberOfLines={2}>
+                                  {item.uri.split('/').pop()}
+                                </Text>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onPress={() => handleRemoveMedia(index)}
+                                  backgroundColor="$red5"
+                                >
+                                  <XStack gap="$1" alignItems="center">
+                                    <Feather name="trash-2" size={14} color="$red10" />
+                                    <Text size="sm" color="$red10">
+                                      {t('createRoute.deleteMedia')}
+                                    </Text>
+                                  </XStack>
+                                </Button>
+                              </YStack>
+                            </XStack>
+                          </Card>
+                        ))}
                       </YStack>
+                    ) : (
+                      <Text color="$gray11" textAlign="center">
+                        {t('createRoute.noMedia')}
+                      </Text>
                     )}
                   </YStack>
                 )}
 
                 {activeSection === 'details' && (
                   <YStack gap="$4">
-                    <Text size="lg" weight="medium" color="$color">Route Details</Text>
-                    
-                    <YStack gap={16}>
-                      <YStack gap="$2">
-                        <Text size="sm" color="$gray11">Difficulty Level</Text>
-                        <XStack flexWrap="wrap" gap="$2">
-                          {DIFFICULTY_LEVELS.map((level) => (
-                            <Button
-                              key={level}
-                              onPress={() => setFormData(prev => ({ ...prev, difficulty: level }))}
-                              variant={formData.difficulty === level ? "primary" : "secondary"}
-                              backgroundColor={formData.difficulty === level ? "$blue10" : undefined}
-                              size="lg"
-                            >
-                              {level.charAt(0).toUpperCase() + level.slice(1)}
-                            </Button>
-                          ))}
-                        </XStack>
-                      </YStack>
+                    <Text size="lg" weight="medium" color="$color">
+                      {t('common.details')}
+                    </Text>
 
-                      <YStack gap="$2">
-                        <Text size="sm" color="$gray11">Spot Type</Text>
-                        <XStack flexWrap="wrap" gap="$2">
-                          {SPOT_TYPES.map((type) => (
-                            <Button
-                              key={type}
-                              onPress={() => setFormData(prev => ({ ...prev, spot_type: type }))}
-                              variant={formData.spot_type === type ? "primary" : "secondary"}
-                              backgroundColor={formData.spot_type === type ? "$blue10" : undefined}
-                              size="lg"
-                            >
-                              {type.charAt(0).toUpperCase() + type.slice(1)}
-                            </Button>
-                          ))}
-                        </XStack>
-                      </YStack>
-
-                      <YStack gap="$2">
-                        <Text size="sm" color="$gray11">Category</Text>
-                        <XStack flexWrap="wrap" gap="$2">
-                          {CATEGORIES.map((category) => (
-                            <Button
-                              key={category}
-                              onPress={() => setFormData(prev => ({ ...prev, category: category }))}
-                              variant={formData.category === category ? "primary" : "secondary"}
-                              backgroundColor={formData.category === category ? "$blue10" : undefined}
-                              size="lg"
-                            >
-                              {category.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                            </Button>
-                          ))}
-                        </XStack>
-                      </YStack>
-
-                      <YStack gap="$2">
-                        <Text size="sm" color="$gray11">Visibility</Text>
-                        <XStack flexWrap="wrap" gap="$2">
-                          {VISIBILITY_OPTIONS.map((option) => (
-                            <Button
-                              key={option}
-                              onPress={() => setFormData(prev => ({ ...prev, visibility: option }))}
-                              variant={formData.visibility === option ? "primary" : "secondary"}
-                              backgroundColor={formData.visibility === option ? "$blue10" : undefined}
-                              size="lg"
-                            >
-                              {option.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                            </Button>
-                          ))}
-                        </XStack>
-                      </YStack>
+                    {/* Difficulty */}
+                    <YStack gap="$2">
+                      <Text weight="medium" color="$color">
+                        {t('createRoute.difficulty')}
+                      </Text>
+                      <XStack gap="$2" flexWrap="wrap">
+                        {['beginner', 'intermediate', 'advanced'].map(level => (
+                          <Chip
+                            key={level}
+                            active={formData.difficulty === (level as DifficultyLevel)}
+                            onPress={() =>
+                              setFormData(prev => ({
+                                ...prev,
+                                difficulty: level as DifficultyLevel
+                              }))
+                            }
+                          >
+                            {level === 'beginner'
+                              ? t('profile.experienceLevels.beginner')
+                              : level === 'intermediate'
+                              ? t('profile.experienceLevels.intermediate')
+                              : t('profile.experienceLevels.advanced')}
+                          </Chip>
+                        ))}
+                      </XStack>
                     </YStack>
+
+                    {/* Spot Type */}
+                    <YStack gap="$2">
+                      <Text weight="medium" color="$color">
+                        {t('createRoute.spotType')}
+                      </Text>
+                      <XStack gap="$2" flexWrap="wrap">
+                        {['city', 'highway', 'rural', 'track', 'parking'].map(type => (
+                          <Chip
+                            key={type}
+                            active={formData.spot_type === (type as SpotType)}
+                            onPress={() =>
+                              setFormData(prev => ({ ...prev, spot_type: type as SpotType }))
+                            }
+                          >
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Chip>
+                        ))}
+                      </XStack>
+                    </YStack>
+
+                    {/* Visibility */}
+                    <YStack gap="$2">
+                      <Text weight="medium" color="$color">
+                        {t('createRoute.visibility')}
+                      </Text>
+                      <XStack gap="$2" flexWrap="wrap">
+                        {['public', 'private'].map(vis => (
+                          <Chip
+                            key={vis}
+                            active={formData.visibility === (vis as SpotVisibility)}
+                            onPress={() =>
+                              setFormData(prev => ({ ...prev, visibility: vis as SpotVisibility }))
+                            }
+                          >
+                            {vis === 'public' ? t('createRoute.public') : t('createRoute.private')}
+                          </Chip>
+                        ))}
+                      </XStack>
+                    </YStack>
+
+                    {/* Delete Button (only when editing) */}
+                    {isEditing && (
+                      <Button
+                        onPress={handleDelete}
+                        variant="secondary"
+                        backgroundColor="$red5"
+                        marginTop="$4"
+                      >
+                        <XStack gap="$2" alignItems="center">
+                          <Feather name="trash-2" size={18} color="$red10" />
+                          <Text color="$red10">{t('createRoute.deleteRoute')}</Text>
+                        </XStack>
+                      </Button>
+                    )}
                   </YStack>
                 )}
               </YStack>
@@ -1396,17 +1503,17 @@ export function CreateRouteScreen({ route }: Props) {
       </ScrollView>
 
       {/* Save Button */}
-      <YStack 
-        position="absolute" 
-        bottom={0} 
-        left={0} 
+      <YStack
+        position="absolute"
+        bottom={0}
+        left={0}
         right={0}
         padding="$4"
         backgroundColor="$background"
         borderTopWidth={1}
         borderTopColor="$borderColor"
       >
-        <Button 
+        <Button
           onPress={handleCreate}
           disabled={loading || !formData.name.trim()}
           variant="primary"
@@ -1416,11 +1523,15 @@ export function CreateRouteScreen({ route }: Props) {
           <XStack gap="$2" alignItems="center">
             {!loading && <Feather name="check" size={20} color="white" />}
             <Text color="white">
-              {loading ? 'Creating...' : isEditing ? 'Save Changes' : 'Create Route'}
+              {loading
+                ? t('createRoute.saving')
+                : isEditing
+                ? t('createRoute.save')
+                : t('createRoute.createTitle')}
             </Text>
           </XStack>
         </Button>
       </YStack>
     </Screen>
   );
-} 
+}

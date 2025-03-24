@@ -1,74 +1,71 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { YStack, Stack } from 'tamagui';
-import { ContentList } from './ContentList';
-import { ContentItem } from '../services/contentService';
-import { useLanguage } from '../context/LanguageContext';
+import React, { useState } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { tokens } from '../tokens';
+import { XStack, YStack, Button } from 'tamagui';
+import { Feather } from '@expo/vector-icons';
+import { useTranslation } from '../contexts/TranslationContext';
+import { Text } from './Text';
 
 interface MarketingBannerProps {
-  filter?: (item: ContentItem) => boolean;
-  limit?: number;
-  onItemPress?: (item: ContentItem) => void;
-  title?: string;
-  showTitle?: boolean;
+  onClose?: () => void;
 }
 
-export function MarketingBanner({
-  filter,
-  limit = 5,
-  onItemPress,
-  title = 'Featured',
-  showTitle = true
-}: MarketingBannerProps) {
-  const { language } = useLanguage();
+export function MarketingBanner({ onClose }: MarketingBannerProps) {
+  const { t } = useTranslation();
+  const [visible, setVisible] = useState(true);
+
+  const handleClose = () => {
+    setVisible(false);
+    onClose?.();
+  };
+
+  if (!visible) return null;
 
   return (
-    <YStack>
-      <ContentList
-        contentType="marketing"
-        language={language as any}
-        horizontal={true}
-        variant="card"
-        showTitle={showTitle}
-        title={title}
-        filter={filter}
-        limit={limit}
-        onItemPress={onItemPress}
-      />
+    <YStack
+      backgroundColor="$blue4"
+      padding="$4"
+      borderRadius="$4"
+      marginBottom="$4"
+      position="relative"
+    >
+      <Pressable style={styles.closeButton} onPress={handleClose}>
+        <Feather name="x" size={18} color={tokens.color.gray700} />
+      </Pressable>
+
+      <YStack gap="$2">
+        <Text weight="semibold" size="md" color="$blue11">
+          {t('auth.signIn.helpImprove')}
+        </Text>
+
+        <Text size="sm" color="$blue11" opacity={0.8}>
+          Vromm is a tool to help improve driving education. We're looking for feedback to make it
+          better!
+        </Text>
+
+        <XStack gap="$2" marginTop="$2">
+          <Button size="sm" backgroundColor="$blue5" paddingHorizontal="$3" borderColor="$blue7">
+            <Text size="sm" color="$blue11">
+              {t('auth.signIn.forLearners')}
+            </Text>
+          </Button>
+          <Button size="sm" backgroundColor="$blue5" paddingHorizontal="$3" borderColor="$blue7">
+            <Text size="sm" color="$blue11">
+              {t('auth.signIn.forSchools')}
+            </Text>
+          </Button>
+        </XStack>
+      </YStack>
     </YStack>
   );
 }
 
-// Single marketing item display for featured spots
-export function FeaturedMarketingItem({
-  marketingKey,
-  onPress
-}: {
-  marketingKey: string;
-  onPress?: (item: ContentItem) => void;
-}) {
-  const { language } = useLanguage();
-
-  // Apply filter to only show the item with the specified key
-  const keyFilter = (item: ContentItem) => item.key === marketingKey;
-
-  return (
-    <Stack padding="$2">
-      <ContentList
-        contentType="marketing"
-        language={language as any}
-        variant="card"
-        showTitle={false}
-        filter={keyFilter}
-        limit={1}
-        onItemPress={onPress}
-      />
-    </Stack>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: 8
+  closeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+    zIndex: 10
   }
 });

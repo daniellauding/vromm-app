@@ -1,155 +1,101 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Language, translations as staticTranslations } from '../i18n/translations';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from '../contexts/TranslationContext';
+import { Platform } from 'react-native';
 
-// Keys for AsyncStorage
-const TRANSLATIONS_CACHE_KEY = '@translations_cache';
-const TRANSLATIONS_TIMESTAMP_KEY = '@translations_timestamp';
-
-// Cache refresh interval in milliseconds (1 hour)
-const CACHE_REFRESH_INTERVAL = 60 * 60 * 1000;
-
-// Type for database translations
-interface DbTranslation {
-  id: string;
+// Type definitions
+interface Translation {
+  id?: string;
   key: string;
-  language: Language;
+  language: string;
   value: string;
+  platform?: string;
 }
 
-/**
- * Hook to fetch and use dynamic translations from Supabase
- * Merges with static translations and provides live updates
- */
+// Hook for loading translations from Supabase
 export function useSupabaseTranslations() {
-  const { language } = useLanguage();
-  const [dynamicTranslations, setDynamicTranslations] = useState<Record<string, Record<string, string>>>({});
+  const { language, refreshTranslations } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
+  const [translationMap, setTranslationMap] = useState<Record<string, string>>({});
   const [error, setError] = useState<Error | null>(null);
 
-  // Function to fetch translations from Supabase
-  const fetchTranslations = useCallback(async (forceRefresh = false) => {
+  // Function to load translations from Supabase
+  const loadTranslations = useCallback(async (forceRefresh = false) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Check if we have cached translations and they're still fresh
-      if (!forceRefresh) {
-        const cachedTimestamp = await AsyncStorage.getItem(TRANSLATIONS_TIMESTAMP_KEY);
-        const cachedTranslations = await AsyncStorage.getItem(TRANSLATIONS_CACHE_KEY);
-        
-        if (cachedTimestamp && cachedTranslations) {
-          const timestamp = parseInt(cachedTimestamp, 10);
-          const now = Date.now();
-          
-          // If cache is still fresh, use it
-          if (now - timestamp < CACHE_REFRESH_INTERVAL) {
-            const parsedTranslations = JSON.parse(cachedTranslations);
-            setDynamicTranslations(parsedTranslations);
-            setIsLoading(false);
-            return;
-          }
-        }
-      }
+      console.log(`[TRANSLATIONS] Loading translations for ${language} (force: ${forceRefresh})`);
 
-      // Fetch translations from Supabase
+      // Get platform-specific translation filter
+      const currentPlatform = Platform.OS === 'web' ? 'web' : 'mobile';
+
+      // Query Supabase for translations
       const { data, error } = await supabase
         .from('translations')
-        .select('id, key, language, value');
+        .select('*')
+        .eq('language', language)
+        .or(`platform.is.null,platform.eq.${currentPlatform}`);
 
       if (error) {
-        throw error;
+        throw new Error(`Failed to fetch translations: ${error.message}`);
       }
 
-      // Transform to nested structure: { key: { en: "value", sv: "value" } }
-      const translationsMap: Record<string, Record<string, string>> = {};
-      
+      // Process and store translations
+      const translations: Record<string, string> = {};
       if (data) {
-        (data as DbTranslation[]).forEach(item => {
-          if (!translationsMap[item.key]) {
-            translationsMap[item.key] = {};
-          }
-          translationsMap[item.key][item.language] = item.value;
+        data.forEach((item: Translation) => {
+          translations[item.key] = item.value;
         });
       }
 
-      // Update state and cache
-      setDynamicTranslations(translationsMap);
-      await AsyncStorage.setItem(TRANSLATIONS_CACHE_KEY, JSON.stringify(translationsMap));
-      await AsyncStorage.setItem(TRANSLATIONS_TIMESTAMP_KEY, Date.now().toString());
+      setTranslationMap(translations);
+      console.log(`[TRANSLATIONS] Loaded ${Object.keys(translations).length} translations`);
     } catch (err) {
-      console.error('Failed to fetch translations:', err);
-      setError(err instanceof Error ? err : new Error('Failed to fetch translations'));
+      console.error('Error loading translations:', err);
+      setError(err instanceof Error ? err : new Error('Failed to load translations'));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [language]);
 
-  // Subscribe to changes in the translations table
+  // Load translations initially and when language changes
   useEffect(() => {
-    fetchTranslations();
+    loadTranslations();
+  }, [loadTranslations]);
 
-    // Set up real-time subscription
-    const subscription = supabase
+  // Set up real-time subscription
+  useEffect(() => {
+    const channel = supabase
       .channel('translations_changes')
       .on(
         'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'translations' 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'translations'
         },
-        () => {
-          console.log('Translations changed, refreshing...');
-          fetchTranslations(true);
+        (payload) => {
+          console.log('[TRANSLATIONS] Translation update detected:', payload);
+          // Only reload if it matches our current language
+          if (payload.new && (payload.new as any).language === language) {
+            console.log('[TRANSLATIONS] Updating translations for current language');
+            loadTranslations(true);
+            refreshTranslations(); // Also refresh the global translations
+          }
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(subscription);
+      supabase.removeChannel(channel);
     };
-  }, [fetchTranslations]);
-
-  /**
-   * Get translation by key, checking dynamic translations first, then falling back to static
-   */
-  const getTranslation = useCallback(
-    (key: string): string => {
-      const parts = key.split('.');
-      const rootKey = parts[0];
-      
-      // Check if we have this key in dynamic translations
-      if (dynamicTranslations[key] && dynamicTranslations[key][language]) {
-        return dynamicTranslations[key][language];
-      }
-      
-      // If not found, fall back to static translations
-      let value: any = staticTranslations[language];
-      
-      for (const part of parts) {
-        value = value?.[part];
-        if (value === undefined) {
-          return key; // Key not found
-        }
-      }
-      
-      return typeof value === 'string' ? value : key;
-    },
-    [dynamicTranslations, language]
-  );
-
-  // Force refresh translations
-  const refreshTranslations = useCallback(() => {
-    return fetchTranslations(true);
-  }, [fetchTranslations]);
+  }, [language, loadTranslations, refreshTranslations]);
 
   return {
-    getTranslation,
-    refreshTranslations,
+    translations: translationMap,
     isLoading,
-    error
+    error,
+    refresh: () => loadTranslations(true)
   };
 } 

@@ -3,7 +3,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TamaguiProvider, Theme } from 'tamagui';
 import { config } from './src/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { LanguageProvider } from './src/context/LanguageContext';
 import { LocationProvider } from './src/context/LocationContext';
 import { TranslationProvider } from './src/contexts/TranslationContext';
 import { RootStackParamList } from './src/types/navigation';
@@ -169,7 +168,7 @@ function AppContent() {
               component={TranslationDemoScreen}
               options={{
                 headerShown: true,
-                title: 'Translation Demo'
+                title: 'Translation Admin'
               }}
             />
             <Stack.Screen
@@ -224,13 +223,11 @@ export default function App() {
         <TamaguiProvider config={config} defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}>
           <Theme>
             <TranslationProvider>
-              <LanguageProvider>
-                <AuthProvider>
-                  <LocationProvider>
-                    <AppContent />
-                  </LocationProvider>
-                </AuthProvider>
-              </LanguageProvider>
+              <AuthProvider>
+                <LocationProvider>
+                  <AppContent />
+                </LocationProvider>
+              </AuthProvider>
             </TranslationProvider>
           </Theme>
         </TamaguiProvider>

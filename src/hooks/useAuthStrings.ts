@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchAuthStrings, getAuthString, clearAuthStringsCache } from '../services/authStrings';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from '../contexts/TranslationContext';
 import { onContentChange, ContentType } from '../services/contentService';
 
 /**
@@ -8,7 +8,7 @@ import { onContentChange, ContentType } from '../services/contentService';
  * and real-time updates from the admin panel
  */
 export function useAuthStrings() {
-  const { language } = useLanguage();
+  const { language } = useTranslation();
   const [strings, setStrings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);

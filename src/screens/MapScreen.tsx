@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   Dimensions,
   NativeSyntheticEvent,
-  NativeScrollEvent
+  NativeScrollEvent,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map, Waypoint } from '../components/Map';
@@ -33,6 +34,7 @@ import {
 import MapView from 'react-native-maps';
 import { ScrollView } from 'react-native';
 import { AppHeader } from '../components/AppHeader';
+import { useTranslation } from '../contexts/TranslationContext';
 
 const MAPBOX_ACCESS_TOKEN =
   'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
@@ -198,6 +200,7 @@ const styles = StyleSheet.create({
 const BOTTOM_NAV_HEIGHT = 80; // Height of bottom navigation bar including safe area
 
 export function MapScreen({ route }: { route: any }) {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [routes, setRoutes] = useState<RouteType[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
@@ -555,6 +558,12 @@ export function MapScreen({ route }: { route: any }) {
 
   const handleLocateMe = async () => {
     try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(t('common.error'), t('map.permissionDenied'));
+        return;
+      }
+
       const location = await Location.getCurrentPositionAsync({});
       setRegion(prev => ({
         ...prev,
@@ -755,7 +764,8 @@ export function MapScreen({ route }: { route: any }) {
                 <XStack alignItems="center" gap="$2">
                   <Feather name="map" size={16} color={iconColor} />
                   <Text fontSize="$4" fontWeight="600" color="$color">
-                    {filteredRoutes.length} {filteredRoutes.length === 1 ? 'route' : 'routes'}
+                    {filteredRoutes.length}{' '}
+                    {filteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
                   </Text>
                 </XStack>
               </View>

@@ -7,7 +7,7 @@ import { Text } from '../components/Text';
 import { FormField } from '../components/FormField';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from '../contexts/TranslationContext';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
@@ -31,7 +31,7 @@ type Props = {
 export function AddReviewScreen({ route }: Props) {
   const { routeId } = route.params;
   const navigation = useNavigation<NavigationProp>();
-  const { t } = useLanguage();
+  const { language, t } = useTranslation();
   const { user } = useAuth();
 
   const [currentStep, setCurrentStep] = useState<Step>('rating');
@@ -47,51 +47,57 @@ export function AddReviewScreen({ route }: Props) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.8
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImages(prev => [...prev, { 
-        uri: result.assets[0].uri,
-        fileName: result.assets[0].uri.split('/').pop() || 'image.jpg'
-      }]);
+      setImages(prev => [
+        ...prev,
+        {
+          uri: result.assets[0].uri,
+          fileName: result.assets[0].uri.split('/').pop() || 'image.jpg'
+        }
+      ]);
     }
   };
 
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      alert('Sorry, we need camera permissions to make this work!');
+      alert(t('review.permissionDenied'));
       return;
     }
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.8
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImages(prev => [...prev, { 
-        uri: result.assets[0].uri,
-        fileName: result.assets[0].uri.split('/').pop() || 'image.jpg'
-      }]);
+      setImages(prev => [
+        ...prev,
+        {
+          uri: result.assets[0].uri,
+          fileName: result.assets[0].uri.split('/').pop() || 'image.jpg'
+        }
+      ]);
     }
   };
 
   const handleSubmit = async () => {
     if (!user?.id) {
-      Alert.alert('Error', 'Please sign in to submit a review');
+      Alert.alert(t('common.error'), t('review.signInRequired'));
       return;
     }
-    
+
     try {
       setLoading(true);
       setError(null);
 
       // Validate required fields
       if (!rating) {
-        throw new Error('Please provide a rating');
+        throw new Error(t('review.validationError'));
       }
 
       // Check if user already has a review for this route
@@ -115,13 +121,13 @@ export function AddReviewScreen({ route }: Props) {
               const base64data = reader.result as string;
               resolve(base64data.split(',')[1]); // Remove data URL prefix
             };
-            reader.onerror = () => reject(new Error('Failed to read image'));
+            reader.onerror = () => reject(new Error(t('review.processingError')));
             reader.readAsDataURL(blob);
           });
-          
+
           const ext = image.fileName?.split('.').pop()?.toLowerCase() || 'jpg';
           const path = `review-images/${routeId}/${Date.now()}-${Math.random()}.${ext}`;
-          
+
           console.log('Uploading image to path:', path);
           const { error: uploadError, data: uploadData } = await supabase.storage
             .from('review-images')
@@ -136,9 +142,9 @@ export function AddReviewScreen({ route }: Props) {
           }
 
           console.log('Image uploaded successfully');
-          const { data: { publicUrl } } = supabase.storage
-            .from('review-images')
-            .getPublicUrl(path);
+          const {
+            data: { publicUrl }
+          } = supabase.storage.from('review-images').getPublicUrl(path);
 
           uploadedImages.push({
             url: publicUrl,
@@ -146,7 +152,7 @@ export function AddReviewScreen({ route }: Props) {
           });
         } catch (imageError) {
           console.error('Error processing image:', imageError);
-          throw new Error(`Failed to process image: ${image.fileName}`);
+          throw new Error(t('review.processingError'));
         }
       }
 
@@ -157,11 +163,11 @@ export function AddReviewScreen({ route }: Props) {
         content,
         difficulty,
         visited_at: visitDate,
-        images: uploadedImages,
+        images: uploadedImages
       };
 
       let result;
-      
+
       if (existingReview) {
         // Update existing review
         console.log('Updating existing review');
@@ -175,11 +181,7 @@ export function AddReviewScreen({ route }: Props) {
       } else {
         // Create new review
         console.log('Creating new review');
-        result = await supabase
-          .from('route_reviews')
-          .insert(reviewData)
-          .select()
-          .single();
+        result = await supabase.from('route_reviews').insert(reviewData).select().single();
       }
 
       if (result.error) {
@@ -190,13 +192,11 @@ export function AddReviewScreen({ route }: Props) {
       console.log('Review operation successful:', result.data);
 
       // Mark route as driven (if not already)
-      const { error: drivenError } = await supabase
-        .from('driven_routes')
-        .upsert({
-          route_id: routeId,
-          user_id: user.id,
-          driven_at: visitDate,
-        });
+      const { error: drivenError } = await supabase.from('driven_routes').upsert({
+        route_id: routeId,
+        user_id: user.id,
+        driven_at: visitDate
+      });
 
       if (drivenError) {
         console.error('Driven route error:', drivenError);
@@ -205,15 +205,15 @@ export function AddReviewScreen({ route }: Props) {
 
       // Navigate back and ensure reviews are refreshed immediately
       // @ts-ignore - We know these params are valid for RouteDetail
-      navigation.navigate('RouteDetail', { 
-        routeId, 
+      navigation.navigate('RouteDetail', {
+        routeId,
         shouldRefreshReviews: true,
         timestamp: Date.now() // Force refresh by changing params
       });
     } catch (err) {
       console.error('Submit review error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to submit review');
-      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to submit review');
+      setError(err instanceof Error ? err.message : t('review.uploadError'));
+      Alert.alert(t('common.error'), err instanceof Error ? err.message : t('review.uploadError'));
     } finally {
       setLoading(false);
     }
@@ -224,22 +224,20 @@ export function AddReviewScreen({ route }: Props) {
       case 'rating':
         return (
           <YStack gap="$4" alignItems="center">
-            <Text size="xl" weight="bold">How would you rate this route?</Text>
+            <Text size="xl" weight="bold">
+              {t('review.ratingStep')}
+            </Text>
             <XStack gap="$2">
-              {[1, 2, 3, 4, 5].map((star) => (
+              {[1, 2, 3, 4, 5].map(star => (
                 <Button
                   key={star}
                   onPress={() => setRating(star)}
-                  backgroundColor={star <= rating ? "$blue10" : "transparent"}
+                  backgroundColor={star <= rating ? '$blue10' : 'transparent'}
                   borderColor="$blue10"
                   borderWidth={1}
                   size="lg"
                 >
-                  <Feather 
-                    name="star" 
-                    size={24} 
-                    color={star <= rating ? "white" : "#4287f5"} 
-                  />
+                  <Feather name="star" size={24} color={star <= rating ? 'white' : '#4287f5'} />
                 </Button>
               ))}
             </XStack>
@@ -250,7 +248,7 @@ export function AddReviewScreen({ route }: Props) {
               size="lg"
               backgroundColor="$blue10"
             >
-              Next
+              {t('review.ratingNext')}
             </Button>
           </YStack>
         );
@@ -258,14 +256,16 @@ export function AddReviewScreen({ route }: Props) {
       case 'content':
         return (
           <YStack gap="$4">
-            <Text size="xl" weight="bold">Share your experience</Text>
+            <Text size="xl" weight="bold">
+              {t('review.contentStep')}
+            </Text>
             <FormField
-              label="Review"
+              label={t('review.reviewLabel')}
               value={content}
               onChangeText={setContent}
               multiline
               numberOfLines={4}
-              placeholder="Write about your experience..."
+              placeholder={t('review.reviewPlaceholder')}
             />
             <XStack gap="$2" flexWrap="wrap">
               {images.map((image, index) => (
@@ -278,7 +278,7 @@ export function AddReviewScreen({ route }: Props) {
                   overflow="hidden"
                   position="relative"
                 >
-                  <Image 
+                  <Image
                     source={{ uri: image.uri }}
                     width="100%"
                     height="100%"
@@ -298,24 +298,16 @@ export function AddReviewScreen({ route }: Props) {
               ))}
               {images.length < 5 && (
                 <XStack gap="$2">
-                  <Button
-                    onPress={handlePickImage}
-                    backgroundColor="$blue10"
-                    size="lg"
-                  >
+                  <Button onPress={handlePickImage} backgroundColor="$blue10" size="lg">
                     <XStack gap="$2" alignItems="center">
                       <Feather name="image" size={20} color="white" />
-                      <Text color="white">Add Photo</Text>
+                      <Text color="white">{t('review.addPhoto')}</Text>
                     </XStack>
                   </Button>
-                  <Button
-                    onPress={handleTakePhoto}
-                    backgroundColor="$blue10"
-                    size="lg"
-                  >
+                  <Button onPress={handleTakePhoto} backgroundColor="$blue10" size="lg">
                     <XStack gap="$2" alignItems="center">
                       <Feather name="camera" size={20} color="white" />
-                      <Text color="white">Take Photo</Text>
+                      <Text color="white">{t('review.takePhoto')}</Text>
                     </XStack>
                   </Button>
                 </XStack>
@@ -328,7 +320,7 @@ export function AddReviewScreen({ route }: Props) {
                 size="lg"
                 flex={1}
               >
-                Back
+                {t('review.back')}
               </Button>
               <Button
                 onPress={() => setCurrentStep('details')}
@@ -337,7 +329,7 @@ export function AddReviewScreen({ route }: Props) {
                 backgroundColor="$blue10"
                 flex={1}
               >
-                Next
+                {t('review.ratingNext')}
               </Button>
             </XStack>
           </YStack>
@@ -346,31 +338,39 @@ export function AddReviewScreen({ route }: Props) {
       case 'details':
         return (
           <YStack gap="$4">
-            <Text size="xl" weight="bold">Additional Details</Text>
+            <Text size="xl" weight="bold">
+              {t('review.detailsStep')}
+            </Text>
             <YStack gap="$2">
-              <Text size="lg" weight="medium">Difficulty Level</Text>
+              <Text size="lg" weight="medium">
+                {t('review.difficultyLevel')}
+              </Text>
               <XStack gap="$2">
-                {(['beginner', 'intermediate', 'advanced'] as DifficultyLevel[]).map((level) => (
+                {(['beginner', 'intermediate', 'advanced'] as DifficultyLevel[]).map(level => (
                   <Button
                     key={level}
                     onPress={() => setDifficulty(level)}
-                    backgroundColor={difficulty === level ? "$blue10" : "transparent"}
+                    backgroundColor={difficulty === level ? '$blue10' : 'transparent'}
                     borderColor="$blue10"
                     borderWidth={1}
                     flex={1}
                   >
-                    <Text 
-                      color={difficulty === level ? "white" : "$blue10"}
+                    <Text
+                      color={difficulty === level ? 'white' : '$blue10'}
                       textTransform="capitalize"
                     >
-                      {level}
+                      {level === 'beginner'
+                        ? t('profile.experienceLevels.beginner')
+                        : level === 'intermediate'
+                        ? t('profile.experienceLevels.intermediate')
+                        : t('profile.experienceLevels.advanced')}
                     </Text>
                   </Button>
                 ))}
               </XStack>
             </YStack>
             <FormField
-              label="Visit Date"
+              label={t('review.visitDate')}
               value={new Date(visitDate).toLocaleDateString()}
               onPress={() => {
                 // You might want to add a date picker here
@@ -383,7 +383,7 @@ export function AddReviewScreen({ route }: Props) {
                 size="lg"
                 flex={1}
               >
-                Back
+                {t('review.back')}
               </Button>
               <Button
                 onPress={handleSubmit}
@@ -393,7 +393,7 @@ export function AddReviewScreen({ route }: Props) {
                 flex={1}
                 disabled={loading}
               >
-                {loading ? 'Submitting...' : 'Submit Review'}
+                {loading ? t('review.submitting') : t('review.submit')}
               </Button>
             </XStack>
           </YStack>
@@ -404,11 +404,8 @@ export function AddReviewScreen({ route }: Props) {
   return (
     <Screen>
       <YStack f={1} gap="$4">
-        <Header 
-          title="Add Review" 
-          showBack 
-        />
-        
+        <Header title={t('review.title')} showBack />
+
         {error ? (
           <Text size="sm" color="$red10" textAlign="center">
             {error}
@@ -419,4 +416,4 @@ export function AddReviewScreen({ route }: Props) {
       </YStack>
     </Screen>
   );
-} 
+}

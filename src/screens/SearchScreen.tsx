@@ -6,8 +6,10 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { TouchableOpacity, ScrollView } from 'react-native';
 import { useColorScheme } from 'react-native';
+import { useTranslation } from '../contexts/TranslationContext';
 
-const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
+const MAPBOX_ACCESS_TOKEN =
+  'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
 
 type SearchResult = {
   id: string;
@@ -19,7 +21,7 @@ type SearchResult = {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '$background',
+    backgroundColor: '$background'
   },
   searchHeader: {
     paddingTop: 8,
@@ -27,25 +29,26 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     backgroundColor: '$background',
     borderBottomWidth: 1,
-    borderBottomColor: '$borderColor',
+    borderBottomColor: '$borderColor'
   },
   searchResultsList: {
     flex: 1,
-    backgroundColor: '$background',
+    backgroundColor: '$background'
   },
   searchBackButton: {
     padding: 8,
-    marginLeft: -8,
+    marginLeft: -8
   },
   searchResultItem: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '$borderColor',
-  },
+    borderBottomColor: '$borderColor'
+  }
 });
 
 export function SearchScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -58,7 +61,7 @@ export function SearchScreen() {
   const handleSearch = useCallback((text: string) => {
     console.log('Search input:', text);
     setSearchQuery(text);
-    
+
     // Clear any existing timeout
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current);
@@ -71,19 +74,21 @@ export function SearchScreen() {
         try {
           console.log('Fetching search results for:', text);
           const response = await fetch(
-            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality,address,country,region&language=en`
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+              text
+            )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality,address,country,region&language=en`
           );
-          
+
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
-          
+
           const data = await response.json();
           console.log('Search response:', {
             status: response.status,
             resultCount: data.features?.length || 0
           });
-          
+
           setSearchResults(data.features || []);
         } catch (error: any) {
           console.error('Search error:', error);
@@ -108,10 +113,7 @@ export function SearchScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.searchHeader}>
         <XStack alignItems="center" gap="$2">
-          <TouchableOpacity 
-            style={styles.searchBackButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.searchBackButton} onPress={() => navigation.goBack()}>
             <Feather name="arrow-left" size={24} color={iconColor} />
           </TouchableOpacity>
           <Input
@@ -119,7 +121,7 @@ export function SearchScreen() {
             flex={1}
             value={searchQuery}
             onChangeText={handleSearch}
-            placeholder="Search cities, addresses, routes..."
+            placeholder={t('search.placeholder')}
             backgroundColor="$background"
             borderWidth={1}
             borderColor="$borderColor"
@@ -130,9 +132,7 @@ export function SearchScreen() {
             autoFocus
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-            >
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
               <Feather name="x" size={20} color={iconColor} />
             </TouchableOpacity>
           )}
@@ -141,10 +141,10 @@ export function SearchScreen() {
       <ScrollView style={styles.searchResultsList}>
         {isSearching ? (
           <XStack padding="$4" justifyContent="center">
-            <Text>Searching...</Text>
+            <Text>{t('search.searching')}</Text>
           </XStack>
         ) : searchResults.length > 0 ? (
-          searchResults.map((result) => (
+          searchResults.map(result => (
             <XStack
               key={result.id}
               style={styles.searchResultItem}
@@ -154,14 +154,17 @@ export function SearchScreen() {
               gap="$2"
             >
               <XStack flex={1} alignItems="center">
-                <Feather 
+                <Feather
                   name={
-                    result.place_type[0] === 'country' ? 'flag' :
-                    result.place_type[0] === 'region' ? 'map' :
-                    result.place_type[0] === 'place' ? 'map-pin' :
-                    'navigation'
-                  } 
-                  size={16} 
+                    result.place_type[0] === 'country'
+                      ? 'flag'
+                      : result.place_type[0] === 'region'
+                      ? 'map'
+                      : result.place_type[0] === 'place'
+                      ? 'map-pin'
+                      : 'navigation'
+                  }
+                  size={16}
                   color={iconColor}
                 />
                 <YStack flex={1} marginLeft="$2">
@@ -177,10 +180,10 @@ export function SearchScreen() {
           ))
         ) : searchQuery.length > 0 ? (
           <XStack padding="$4" justifyContent="center">
-            <Text>No results found</Text>
+            <Text>{t('search.noResults')}</Text>
           </XStack>
         ) : null}
       </ScrollView>
     </SafeAreaView>
   );
-} 
+}
