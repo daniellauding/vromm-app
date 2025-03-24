@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   Platform
 } from 'react-native';
-import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group } from 'tamagui';
+import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group, Heading } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -63,6 +63,12 @@ type Props = {
   };
 };
 
+function getTranslation(t: (key: string) => string, key: string, fallback: string): string {
+  const translation = t(key);
+  // If the translation is the same as the key, it means the translation is missing
+  return translation === key ? fallback : translation;
+}
+
 export function CreateRouteScreen({ route }: Props) {
   const { t } = useTranslation();
   const routeId = route?.params?.routeId;
@@ -93,6 +99,7 @@ export function CreateRouteScreen({ route }: Props) {
   const windowHeight = Dimensions.get('window').height;
   const windowWidth = Dimensions.get('window').width;
   const HERO_HEIGHT = windowHeight * 0.6;
+  const [youtubeLink, setYoutubeLink] = useState('');
 
   useEffect(() => {
     // Only try to get current location if we're creating a new route (not editing)
@@ -993,7 +1000,11 @@ export function CreateRouteScreen({ route }: Props) {
         {/* Existing Content */}
         <YStack f={1} gap={2}>
           <Header
-            title={isEditing ? t('createRoute.editTitle') : t('createRoute.createTitle')}
+            title={
+              isEditing
+                ? getTranslation(t, 'createRoute.editTitle', 'Edit Route')
+                : getTranslation(t, 'createRoute.createTitle', 'Create Route')
+            }
             showBack
           />
           <XStack padding="$4" gap="$2" flexWrap="wrap">
@@ -1002,28 +1013,28 @@ export function CreateRouteScreen({ route }: Props) {
               onPress={() => setActiveSection('basic')}
               icon="info"
             >
-              {t('createRoute.routeName')}
+              {getTranslation(t, 'createRoute.routeName', 'Route Name')}
             </Chip>
             <Chip
               active={activeSection === 'exercises'}
               onPress={() => setActiveSection('exercises')}
               icon="activity"
             >
-              {t('createRoute.exercises')}
+              {getTranslation(t, 'createRoute.exercises', 'Exercises')}
             </Chip>
             <Chip
               active={activeSection === 'media'}
               onPress={() => setActiveSection('media')}
               icon="image"
             >
-              {t('createRoute.media')}
+              {getTranslation(t, 'createRoute.media', 'Media')}
             </Chip>
             <Chip
               active={activeSection === 'details'}
               onPress={() => setActiveSection('details')}
               icon="settings"
             >
-              {t('common.details')}
+              {getTranslation(t, 'common.details', 'Details')}
             </Chip>
           </XStack>
 
@@ -1036,34 +1047,53 @@ export function CreateRouteScreen({ route }: Props) {
                     {/* Basic Information */}
                     <YStack>
                       <Text size="lg" weight="medium" mb="$2" color="$color">
-                        {t('createRoute.routeName')}
+                        {getTranslation(t, 'createRoute.routeName', 'Route Name')}
                       </Text>
                       <FormField
                         value={formData.name}
                         onChangeText={text => setFormData(prev => ({ ...prev, name: text }))}
-                        placeholder={t('createRoute.routeNamePlaceholder')}
-                        accessibilityLabel={t('createRoute.routeName')}
+                        placeholder={getTranslation(
+                          t,
+                          'createRoute.routeNamePlaceholder',
+                          'Enter route name'
+                        )}
+                        accessibilityLabel={getTranslation(
+                          t,
+                          'createRoute.routeName',
+                          'Route Name'
+                        )}
                         autoCapitalize="none"
                       />
                       <TextArea
                         value={formData.description}
                         onChangeText={text => setFormData(prev => ({ ...prev, description: text }))}
-                        placeholder={t('createRoute.descriptionPlaceholder')}
+                        placeholder={getTranslation(
+                          t,
+                          'createRoute.descriptionPlaceholder',
+                          'Enter description'
+                        )}
+                        accessibilityLabel={getTranslation(
+                          t,
+                          'createRoute.description',
+                          'Description'
+                        )}
                         numberOfLines={4}
-                        accessibilityLabel={t('createRoute.description')}
+                        mt="$2"
                         size="md"
                         backgroundColor="$backgroundHover"
                         borderColor="$borderColor"
-                        marginTop="$2"
-                        autoCapitalize="none"
                       />
                     </YStack>
 
                     {/* Route Location */}
                     <YStack gap="$4">
-                      <Text size="lg" weight="medium" color="$color">
-                        {t('createRoute.locationCoordinates')}
-                      </Text>
+                      <Heading>
+                        {getTranslation(
+                          t,
+                          'createRoute.locationCoordinates',
+                          'Location Coordinates'
+                        )}
+                      </Heading>
                       <Text size="sm" color="$gray11">
                         {t('createRoute.searchLocation')}
                       </Text>
@@ -1161,7 +1191,9 @@ export function CreateRouteScreen({ route }: Props) {
                       >
                         <XStack gap="$2" alignItems="center">
                           <Feather name="trash-2" size={18} color="white" />
-                          <Text color="white">Remove Last Pin</Text>
+                          <Text color="white">
+                            {getTranslation(t, 'createRoute.deleteWaypoint', 'Remove Last Pin')}
+                          </Text>
                         </XStack>
                       </Button>
                     </YStack>
@@ -1170,28 +1202,42 @@ export function CreateRouteScreen({ route }: Props) {
 
                 {activeSection === 'exercises' && (
                   <YStack gap="$4">
-                    <Text size="lg" weight="medium" color="$color">
-                      {t('createRoute.exercises')}
-                    </Text>
+                    <Heading>{getTranslation(t, 'createRoute.exercises', 'Exercises')}</Heading>
                     <Text size="sm" color="$gray11">
-                      {t('createRoute.addExercise')}
+                      {getTranslation(t, 'createRoute.addExercise', 'Add Exercise')}
                     </Text>
 
                     <YStack gap="$4">
                       <FormField
                         value={newExercise.title || ''}
                         onChangeText={text => setNewExercise(prev => ({ ...prev, title: text }))}
-                        placeholder={t('createRoute.exerciseTitlePlaceholder')}
-                        accessibilityLabel={t('createRoute.exerciseTitle')}
+                        placeholder={getTranslation(
+                          t,
+                          'createRoute.exerciseTitlePlaceholder',
+                          'Enter exercise title'
+                        )}
+                        accessibilityLabel={getTranslation(
+                          t,
+                          'createRoute.exerciseTitle',
+                          'Exercise Title'
+                        )}
                       />
                       <TextArea
                         value={newExercise.description || ''}
                         onChangeText={text =>
                           setNewExercise(prev => ({ ...prev, description: text }))
                         }
-                        placeholder={t('createRoute.exerciseDescriptionPlaceholder')}
+                        placeholder={getTranslation(
+                          t,
+                          'createRoute.exerciseDescriptionPlaceholder',
+                          'Enter exercise description'
+                        )}
                         numberOfLines={3}
-                        accessibilityLabel={t('createRoute.exerciseDescription')}
+                        accessibilityLabel={getTranslation(
+                          t,
+                          'createRoute.exerciseDescription',
+                          'Exercise Description'
+                        )}
                         size="md"
                         backgroundColor="$backgroundHover"
                         borderColor="$borderColor"
@@ -1203,19 +1249,26 @@ export function CreateRouteScreen({ route }: Props) {
                           onChangeText={text =>
                             setNewExercise(prev => ({ ...prev, duration: text }))
                           }
-                          placeholder={t('createRoute.durationPlaceholder')}
-                          accessibilityLabel={t('createRoute.duration')}
+                          placeholder={getTranslation(
+                            t,
+                            'createRoute.durationPlaceholder',
+                            'Duration (e.g., 30 sec)'
+                          )}
+                          accessibilityLabel={getTranslation(t, 'createRoute.duration', 'Duration')}
                         />
                       </XStack>
                       <Button
                         onPress={handleAddExercise}
                         disabled={!newExercise.title}
-                        variant="primary"
-                        backgroundColor="$blue10"
+                        variant="secondary"
+                        size="md"
+                        marginTop="$2"
                       >
                         <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="white" />
-                          <Text color="white">{t('createRoute.addExercise')}</Text>
+                          <Feather name="plus" size={18} color="$blue10" />
+                          <Text color="$blue10">
+                            {getTranslation(t, 'createRoute.addExercise', 'Add Exercise')}
+                          </Text>
                         </XStack>
                       </Button>
                     </YStack>
@@ -1256,7 +1309,7 @@ export function CreateRouteScreen({ route }: Props) {
                       </YStack>
                     ) : (
                       <Text color="$gray11" textAlign="center">
-                        {t('createRoute.noExercises')}
+                        {getTranslation(t, 'createRoute.noExercises', 'No exercises added yet')}
                       </Text>
                     )}
                   </YStack>
@@ -1264,57 +1317,61 @@ export function CreateRouteScreen({ route }: Props) {
 
                 {activeSection === 'media' && (
                   <YStack gap="$4">
-                    <Text size="lg" weight="medium" color="$color">
-                      {t('createRoute.media')}
-                    </Text>
+                    <Heading>{getTranslation(t, 'createRoute.media', 'Media')}</Heading>
                     <Text size="sm" color="$gray11">
-                      {t('createRoute.addMedia')}
+                      {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
                     </Text>
 
                     <XStack gap="$3" flexWrap="wrap">
                       <Button
                         flex={1}
                         onPress={() => pickMedia(false)}
-                        variant="primary"
-                        backgroundColor="$blue10"
-                        size="lg"
+                        variant="secondary"
+                        size="md"
+                        marginTop="$2"
                       >
                         <XStack gap="$2" alignItems="center">
-                          <Feather name="image" size={18} color="white" />
-                          <Text color="white">{t('createRoute.chooseFromLibrary')}</Text>
+                          <Feather name="plus" size={18} color="$blue10" />
+                          <Text color="$blue10">
+                            {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
+                          </Text>
                         </XStack>
                       </Button>
                       <Button
                         flex={1}
                         onPress={takePhoto}
-                        variant="primary"
-                        backgroundColor="$green10"
-                        size="lg"
+                        variant="secondary"
+                        size="md"
+                        marginTop="$2"
                       >
                         <XStack gap="$2" alignItems="center">
-                          <Feather name="camera" size={18} color="white" />
-                          <Text color="white">{t('createRoute.takePicture')}</Text>
+                          <Feather name="plus" size={18} color="$blue10" />
+                          <Text color="$blue10">
+                            {getTranslation(t, 'createRoute.takePicture', 'Take Picture')}
+                          </Text>
                         </XStack>
                       </Button>
                       <Button
                         flex={1}
                         onPress={recordVideo}
-                        variant="primary"
-                        backgroundColor="$purple10"
-                        size="lg"
+                        variant="secondary"
+                        size="md"
+                        marginTop="$2"
                       >
                         <XStack gap="$2" alignItems="center">
-                          <Feather name="video" size={18} color="white" />
-                          <Text color="white">{t('createRoute.takeVideo')}</Text>
+                          <Feather name="plus" size={18} color="$blue10" />
+                          <Text color="$blue10">
+                            {getTranslation(t, 'createRoute.takeVideo', 'Take Video')}
+                          </Text>
                         </XStack>
                       </Button>
                     </XStack>
 
                     {/* YouTube Link */}
                     <YStack gap="$2">
-                      <Text size="md" weight="medium" color="$color">
-                        {t('createRoute.youtubeLink')}
-                      </Text>
+                      <Heading marginTop="$4">
+                        {getTranslation(t, 'createRoute.youtubeLink', 'YouTube Link')}
+                      </Heading>
                       <XStack gap="$2">
                         <FormField
                           flex={1}
@@ -1326,10 +1383,16 @@ export function CreateRouteScreen({ route }: Props) {
                         <Button
                           onPress={addYoutubeLink}
                           disabled={!youtubeLink}
-                          variant="primary"
-                          backgroundColor="$red10"
+                          variant="secondary"
+                          size="md"
+                          marginTop="$2"
                         >
-                          <Feather name="plus" size={18} color="white" />
+                          <XStack gap="$2" alignItems="center">
+                            <Feather name="plus" size={18} color="$blue10" />
+                            <Text color="$blue10">
+                              {getTranslation(t, 'createRoute.addYoutubeLink', 'Add YouTube Link')}
+                            </Text>
+                          </XStack>
                         </Button>
                       </XStack>
                     </YStack>
@@ -1390,7 +1453,7 @@ export function CreateRouteScreen({ route }: Props) {
                                   <XStack gap="$1" alignItems="center">
                                     <Feather name="trash-2" size={14} color="$red10" />
                                     <Text size="sm" color="$red10">
-                                      {t('createRoute.deleteMedia')}
+                                      {getTranslation(t, 'createRoute.deleteMedia', 'Delete Media')}
                                     </Text>
                                   </XStack>
                                 </Button>
@@ -1401,7 +1464,7 @@ export function CreateRouteScreen({ route }: Props) {
                       </YStack>
                     ) : (
                       <Text color="$gray11" textAlign="center">
-                        {t('createRoute.noMedia')}
+                        {getTranslation(t, 'createRoute.noMedia', 'No media added yet')}
                       </Text>
                     )}
                   </YStack>
@@ -1416,7 +1479,7 @@ export function CreateRouteScreen({ route }: Props) {
                     {/* Difficulty */}
                     <YStack gap="$2">
                       <Text weight="medium" color="$color">
-                        {t('createRoute.difficulty')}
+                        {getTranslation(t, 'createRoute.difficulty', 'Difficulty')}
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
                         {['beginner', 'intermediate', 'advanced'].map(level => (
@@ -1454,7 +1517,12 @@ export function CreateRouteScreen({ route }: Props) {
                               setFormData(prev => ({ ...prev, spot_type: type as SpotType }))
                             }
                           >
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                            {/* Try to use the spot type translation with fallback */}
+                            {getTranslation(
+                              t,
+                              `createRoute.spotTypes.${type}`,
+                              type.charAt(0).toUpperCase() + type.slice(1)
+                            )}
                           </Chip>
                         ))}
                       </XStack>
@@ -1474,7 +1542,9 @@ export function CreateRouteScreen({ route }: Props) {
                               setFormData(prev => ({ ...prev, visibility: vis as SpotVisibility }))
                             }
                           >
-                            {vis === 'public' ? t('createRoute.public') : t('createRoute.private')}
+                            {vis === 'public'
+                              ? getTranslation(t, 'createRoute.public', 'Public')
+                              : getTranslation(t, 'createRoute.private', 'Private')}
                           </Chip>
                         ))}
                       </XStack>
@@ -1490,7 +1560,9 @@ export function CreateRouteScreen({ route }: Props) {
                       >
                         <XStack gap="$2" alignItems="center">
                           <Feather name="trash-2" size={18} color="$red10" />
-                          <Text color="$red10">{t('createRoute.deleteRoute')}</Text>
+                          <Text color="$red10">
+                            {getTranslation(t, 'createRoute.deleteRoute', 'Delete Route')}
+                          </Text>
                         </XStack>
                       </Button>
                     )}
@@ -1524,10 +1596,10 @@ export function CreateRouteScreen({ route }: Props) {
             {!loading && <Feather name="check" size={20} color="white" />}
             <Text color="white">
               {loading
-                ? t('createRoute.saving')
+                ? getTranslation(t, 'createRoute.saving', 'Saving...')
                 : isEditing
-                ? t('createRoute.save')
-                : t('createRoute.createTitle')}
+                ? getTranslation(t, 'createRoute.save', 'Save')
+                : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
             </Text>
           </XStack>
         </Button>

@@ -128,6 +128,11 @@ type RouteData = Omit<RouteRow, 'waypoint_details' | 'media_attachments'> & {
   average_rating?: { rating: number }[];
 };
 
+function getTranslation(t: (key: string) => string, key: string, fallback: string): string {
+  const translation = t(key);
+  return translation === key ? fallback : translation;
+}
+
 export function RouteDetailScreen({ route }: RouteDetailProps) {
   const { t } = useTranslation();
   const { routeId } = route.params;
@@ -725,7 +730,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     return (
       <Screen>
         <YStack f={1} padding="$4" justifyContent="center" alignItems="center">
-          <Text>{t('routeDetail.loading')}</Text>
+          <Text>{getTranslation(t, 'routeDetail.loading', 'Loading...')}</Text>
         </YStack>
       </Screen>
     );
@@ -735,13 +740,15 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     return (
       <Screen>
         <YStack f={1} padding="$4" justifyContent="center" alignItems="center">
-          <Text color="$red10">{error || t('routeDetail.routeNotFound')}</Text>
+          <Text color="$red10">
+            {error || getTranslation(t, 'routeDetail.routeNotFound', 'Route not found')}
+          </Text>
           <Button
             marginTop="$4"
             onPress={() => navigation.goBack()}
             icon={<Feather name="arrow-left" size={18} color={iconColor} />}
           >
-            {t('common.goBack')}
+            {getTranslation(t, 'common.goBack', 'Go Back')}
           </Button>
         </YStack>
       </Screen>
@@ -838,7 +845,9 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   size="$5"
                 >
                   <Text color="white" fontSize="$3">
-                    {isDriven ? 'Marked as driven' : 'Mark as driven'}
+                    {isDriven
+                      ? getTranslation(t, 'routeDetail.markedAsDriven', 'Marked as driven')
+                      : getTranslation(t, 'routeDetail.markAsDriven', 'Mark as driven')}
                   </Text>
                 </Button>
 
@@ -849,7 +858,9 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   size="$5"
                 >
                   <Text color="white" fontSize="$3">
-                    {isSaved ? 'Saved' : 'Save route'}
+                    {isSaved
+                      ? getTranslation(t, 'routeDetail.saved', 'Saved')
+                      : getTranslation(t, 'routeDetail.saveRoute', 'Save route')}
                   </Text>
                 </Button>
               </XStack>
@@ -859,22 +870,36 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                 <YStack gap="$2">
                   <XStack gap="$2" alignItems="center">
                     <Text fontSize="$6" fontWeight="600" color="$color">
-                      {routeData.difficulty?.toUpperCase()}
+                      {getTranslation(
+                        t,
+                        `common.difficulty.${routeData.difficulty?.toLowerCase() || 'unknown'}`,
+                        routeData.difficulty?.toUpperCase() || ''
+                      )}
                     </Text>
                     <Text fontSize="$4" color="$gray11">
                       •
                     </Text>
                     <Text fontSize="$6" color="$gray11">
-                      {routeData.spot_type}
+                      {getTranslation(
+                        t,
+                        `common.spotTypes.${routeData.spot_type?.toLowerCase() || 'unknown'}`,
+                        routeData.spot_type || ''
+                      )}
                     </Text>
                     <Text fontSize="$4" color="$gray11">
                       •
                     </Text>
                     <Text fontSize="$6" color="$gray11">
                       {routeData.category
-                        ?.split('_')
-                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                        .join(' ')}
+                        ? getTranslation(
+                            t,
+                            `common.categories.${routeData.category?.toLowerCase() || 'unknown'}`,
+                            routeData.category
+                              ?.split('_')
+                              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                              .join(' ')
+                          )
+                        : ''}
                     </Text>
                   </XStack>
                   {routeData.description && (
@@ -889,7 +914,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               <Card backgroundColor="$backgroundStrong" bordered padding="$4">
                 <YStack gap="$3">
                   <Text fontSize="$6" fontWeight="600" color="$color">
-                    Location
+                    {getTranslation(t, 'routeDetail.location', 'Location')}
                   </Text>
                   <View style={{ height: 250, borderRadius: 12, overflow: 'hidden' }}>
                     <Map
@@ -917,7 +942,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
             <Card backgroundColor="$backgroundStrong" bordered padding="$4">
               <YStack gap="$4">
                 <Text fontSize="$6" fontWeight="600" color="$color">
-                  Details
+                  {getTranslation(t, 'routeDetail.details', 'Details')}
                 </Text>
                 {routeData.waypoint_details?.map((waypoint, index) => (
                   <YStack key={index} gap="$2">
@@ -951,12 +976,12 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           <Card bordered elevate size="$4" backgroundColor="$background" margin="$4" padding="$4">
             <YStack space="$4">
               <Text fontSize="$6" fontWeight="bold">
-                Report Route
+                {getTranslation(t, 'routeDetail.reportRoute', 'Report Route')}
               </Text>
 
               <YStack space="$2">
                 <Text fontSize="$4" fontWeight="600">
-                  Report Type
+                  {getTranslation(t, 'routeDetail.reportType', 'Report Type')}
                 </Text>
                 <XStack space="$2" flexWrap="wrap">
                   {(['spam', 'harmful_content', 'privacy_issue', 'other'] as const).map(type => (
@@ -978,20 +1003,24 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
               <YStack space="$2">
                 <Text fontSize="$4" fontWeight="600">
-                  Details
+                  {getTranslation(t, 'routeDetail.details', 'Details')}
                 </Text>
                 <TextArea
                   size="$4"
                   value={reportData.content}
                   onChangeText={content => setReportData(prev => ({ ...prev, content }))}
-                  placeholder="Please provide details about your report..."
+                  placeholder={getTranslation(
+                    t,
+                    'routeDetail.reportDetailsPlaceholder',
+                    'Please provide details about your report...'
+                  )}
                   numberOfLines={4}
                 />
               </YStack>
 
               <XStack space="$2">
                 <Button flex={1} variant="outlined" onPress={() => setShowReportModal(false)}>
-                  Cancel
+                  {getTranslation(t, 'common.cancel', 'Cancel')}
                 </Button>
                 <Button
                   flex={1}
@@ -1000,7 +1029,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   onPress={handleReport}
                   disabled={!reportData.content.trim()}
                 >
-                  Submit Report
+                  {getTranslation(t, 'routeDetail.submitReport', 'Submit Report')}
                 </Button>
               </XStack>
             </YStack>

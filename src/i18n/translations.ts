@@ -63,7 +63,7 @@ export const translations = {
       errorSaving: 'Det gick inte att spara rutten. Försök igen.',
       routeUnsaved: 'Rutt borttagen från din samling',
       errorUnsaving: 'Det gick inte att ta bort rutten. Försök igen.',
-      errorStarting: 'Det gick inte att starta rutten. Försök igen.',
+      errorStarting: 'Fel vid start av rutt',
       ratingRequired: 'Välj ett betyg',
       reviewSubmitted: 'Recension skickad framgångsrikt',
       errorSubmittingReview: 'Det gick inte att skicka recensionen. Försök igen.',
@@ -79,10 +79,16 @@ export const translations = {
       review: 'Din recension',
       reviewPlaceholder: 'Skriv din recension här...',
       routeOptions: 'Ruttalternativ',
-      openInMaps: 'Öppna i kartor',
       shareRoute: 'Dela rutt',
-      deleteRoute: 'Ta bort rutt',
-      reportRoute: 'Rapportera rutt'
+      reportRoute: 'Rapportera rutt',
+      markedAsDriven: 'Markerad som körd',
+      markAsDriven: 'Markera som körd',
+      saveRoute: 'Spara rutt',
+      location: 'Plats',
+      details: 'Detaljer',
+      reportType: 'Typ av rapport',
+      reportDetailsPlaceholder: 'Vänligen ge detaljer om din rapport...',
+      submitReport: 'Skicka rapport'
     },
     // Create/Edit Route screen
     createRoute: {
@@ -138,20 +144,15 @@ export const translations = {
       selectOption: 'Välj ett alternativ',
       public: 'Offentlig',
       private: 'Privat',
-      noExercises: 'No exercises added yet',
-      noMedia: 'No media added yet',
-      difficulty: 'Difficulty Level',
-      spotType: 'Spot Type',
-      visibility: 'Visibility',
-      public: 'Public',
-      private: 'Private',
-      confirmDelete: 'Are you sure you want to delete this route? This action cannot be undone.',
-      noWaypoints: 'No waypoints added yet. Tap on the map or search for a location.',
-      routeCreated: 'Route created successfully',
-      routeUpdated: 'Route updated successfully',
-      deleteRoute: 'Delete Route',
-      saving: 'Saving...',
-      save: 'Spara ändringar'
+      deleteRoute: 'Radera rutt',
+      saveChanges: 'Spara ändringar',
+      spotTypes: {
+        city: 'Stad',
+        highway: 'Motorväg',
+        rural: 'Landsbygd',
+        track: 'Bana',
+        parking: 'Parkering'
+      }
     },
     // Map screen
     map: {
@@ -336,6 +337,22 @@ export const translations = {
       noData: 'Ingen data tillgänglig',
       retry: 'Försök igen',
       details: 'Detaljer'
+    },
+    // Reviews component
+    reviewSection: {
+      rate: 'Betygsätt denna rutt',
+      writeReview: 'Skriv din recension',
+      stepRating: 'Steg 1: Betyg',
+      stepReview: 'Steg 2: Recension',
+      stepDetails: 'Steg 3: Detaljer',
+      addImages: 'Lägg till bilder',
+      difficultyLevel: 'Svårighetsnivå',
+      submitting: 'Skickar...',
+      submitReview: 'Skicka recension',
+      reviewSuccess: 'Recension skickad',
+      reviewError: 'Det gick inte att skicka recensionen',
+      mediaPermissionDenied: 'Tillåtelse att använda mediebiblioteket nekades',
+      processingError: 'Det gick inte att bearbeta bilderna'
     }
   },
   en: {
@@ -412,15 +429,19 @@ export const translations = {
       reviews: 'Reviews',
       writeReview: 'Write a Review',
       anonymous: 'Anonymous',
-      seeAllReviews: 'See all {{count}} reviews',
       noReviews: 'No reviews yet',
       review: 'Your Review',
       reviewPlaceholder: 'Write your review here...',
       routeOptions: 'Route Options',
-      openInMaps: 'Open in Maps',
-      shareRoute: 'Share Route',
-      deleteRoute: 'Delete Route',
-      reportRoute: 'Report Route'
+      reportRoute: 'Report Route',
+      markedAsDriven: 'Marked as driven',
+      markAsDriven: 'Mark as driven',
+      saveRoute: 'Save route',
+      location: 'Location',
+      details: 'Details',
+      reportType: 'Report Type',
+      reportDetailsPlaceholder: 'Please provide details about your report...',
+      submitReport: 'Submit Report'
     },
     // Create/Edit Route screen
     createRoute: {
@@ -476,20 +497,15 @@ export const translations = {
       selectOption: 'Select an option',
       public: 'Public',
       private: 'Private',
-      noExercises: 'No exercises added yet',
-      noMedia: 'No media added yet',
-      difficulty: 'Difficulty Level',
-      spotType: 'Spot Type',
-      visibility: 'Visibility',
-      public: 'Public',
-      private: 'Private',
-      confirmDelete: 'Are you sure you want to delete this route? This action cannot be undone.',
-      noWaypoints: 'No waypoints added yet. Tap on the map or search for a location.',
-      routeCreated: 'Route created successfully',
-      routeUpdated: 'Route updated successfully',
       deleteRoute: 'Delete Route',
-      saving: 'Saving...',
-      save: 'Save Changes'
+      saveChanges: 'Save Changes',
+      spotTypes: {
+        city: 'City',
+        highway: 'Highway',
+        rural: 'Rural',
+        track: 'Track',
+        parking: 'Parking'
+      }
     },
     // Map screen
     map: {
@@ -623,10 +639,29 @@ export const translations = {
     },
     // Settings
     settings: {
-      language: {
-        title: 'Language',
-        swedish: 'Swedish',
-        english: 'English'
+      title: 'Settings',
+      account: 'Account',
+      profile: 'Profile',
+      notifications: 'Notifications',
+      appearance: 'Appearance',
+      language: 'Language',
+      theme: 'Theme',
+      privacy: 'Privacy',
+      security: 'Security',
+      help: 'Help & Support',
+      about: 'About',
+      version: 'Version',
+      logout: 'Log Out',
+      deleteAccount: 'Delete Account',
+      deleteAccountConfirm: 'Are you sure you want to delete your account? This action cannot be undone.',
+      darkMode: 'Dark Mode',
+      lightMode: 'Light Mode',
+      systemMode: 'System Mode',
+      enableNotifications: 'Enable Notifications',
+      disableNotifications: 'Disable Notifications',
+      languages: {
+        en: 'English',
+        sv: 'Swedish'
       }
     },
     // Common
@@ -655,6 +690,22 @@ export const translations = {
       noData: 'No data available',
       retry: 'Retry',
       details: 'Details'
+    },
+    // Reviews component
+    reviewSection: {
+      rate: 'Rate this route',
+      writeReview: 'Write your review',
+      stepRating: 'Step 1: Rating',
+      stepReview: 'Step 2: Review',
+      stepDetails: 'Step 3: Details',
+      addImages: 'Add Images',
+      difficultyLevel: 'Difficulty Level',
+      submitting: 'Submitting...',
+      submitReview: 'Submit Review',
+      reviewSuccess: 'Review submitted',
+      reviewError: 'Failed to submit review',
+      mediaPermissionDenied: 'Permission to access media library was denied',
+      processingError: 'Failed to process images'
     }
   }
 } as const; 

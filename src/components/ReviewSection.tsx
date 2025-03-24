@@ -9,8 +9,9 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
-import { Analytics } from '../utils/analytics';
+import { AppAnalytics } from '../utils/analytics';
 import { Alert } from 'react-native';
+import { useTranslation } from '../contexts/TranslationContext';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 
@@ -42,6 +43,7 @@ type ReviewSectionProps = {
 
 export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSectionProps) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,14 +53,14 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
     content: '',
     difficulty: 'beginner' as DifficultyLevel,
     images: [] as ReviewImage[],
-    visited_at: new Date().toISOString(),
+    visited_at: new Date().toISOString()
   });
 
   const handlePickImages = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        setError('Permission to access media library was denied');
+        setError(t('review.permissionDenied'));
         return;
       }
 
@@ -66,28 +68,28 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
         quality: 0.8,
-        base64: true,
+        base64: true
       });
 
       if (!result.canceled) {
         const newImages: ReviewImage[] = result.assets.map(asset => ({
           id: Date.now().toString() + Math.random(),
           uri: asset.uri,
-          base64: asset.base64,
+          base64: asset.base64 || undefined
         }));
         setNewReview(prev => ({
           ...prev,
-          images: [...prev.images, ...newImages],
+          images: [...prev.images, ...newImages]
         }));
       }
     } catch (err) {
-      setError('Failed to pick images');
+      setError(t('review.processingError'));
     }
   };
 
   const handleSubmitReview = async () => {
     if (!user) {
-      Alert.alert('Sign in required', 'Please sign in to submit a review');
+      Alert.alert(t('auth.signin'), t('review.signInRequired'));
       return;
     }
 
@@ -97,49 +99,47 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
 
       // Upload images first
       const uploadedImages = await Promise.all(
-        newReview.images.map(async (image) => {
+        newReview.images.map(async image => {
           if (!image.base64) return null;
 
           const fileName = `${Date.now()}-${Math.random()}.jpg`;
           const path = `review-images/${routeId}/${fileName}`;
-          
+
           const { error: uploadError } = await supabase.storage
             .from('review-images')
             .upload(path, decode(image.base64), {
               contentType: 'image/jpeg',
-              upsert: true,
+              upsert: true
             });
 
           if (uploadError) throw uploadError;
 
-          const { data: { publicUrl } } = supabase.storage
-            .from('review-images')
-            .getPublicUrl(path);
+          const {
+            data: { publicUrl }
+          } = supabase.storage.from('review-images').getPublicUrl(path);
 
           return {
             url: publicUrl,
-            description: image.description,
+            description: image.description
           };
         })
       );
 
       // Create review
-      const { error: reviewError } = await supabase
-        .from('route_reviews')
-        .insert({
-          route_id: routeId,
-          user_id: user.id,
-          rating: newReview.rating,
-          content: newReview.content,
-          difficulty: newReview.difficulty,
-          visited_at: newReview.visited_at,
-          images: uploadedImages.filter(Boolean),
-        });
+      const { error: reviewError } = await supabase.from('route_reviews').insert({
+        route_id: routeId,
+        user_id: user.id,
+        rating: newReview.rating,
+        content: newReview.content,
+        difficulty: newReview.difficulty,
+        visited_at: newReview.visited_at,
+        images: uploadedImages.filter(Boolean)
+      });
 
       if (reviewError) throw reviewError;
 
       // Track review submission
-      await Analytics.trackReviewSubmit(routeId, newReview.rating);
+      await AppAnalytics.trackReviewSubmit(routeId, newReview.rating);
 
       // Reset form and close
       setNewReview({
@@ -147,16 +147,16 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
         content: '',
         difficulty: 'beginner',
         images: [],
-        visited_at: new Date().toISOString(),
+        visited_at: new Date().toISOString()
       });
       setShowReviewForm(false);
       setStep(1);
       onReviewAdded();
 
-      Alert.alert('Success', 'Review submitted successfully');
+      Alert.alert(t('common.success'), t('routeDetail.reviewSubmitted'));
     } catch (err) {
       console.error('Error submitting review:', err);
-      Alert.alert('Error', 'Failed to submit review');
+      Alert.alert(t('common.error'), t('review.uploadError'));
     } finally {
       setLoading(false);
     }
@@ -167,27 +167,33 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
       case 1:
         return (
           <YStack space="$4">
-            <Text size="lg" weight="medium" color="$color">Rate this route</Text>
+            <Text size="lg" weight="medium" color="$color">
+              {t('reviewSection.rate')}
+            </Text>
             <XStack space="$2" justifyContent="center">
               {[1, 2, 3, 4, 5].map(rating => (
                 <Button
                   key={rating}
                   size="$4"
-                  variant={newReview.rating >= rating ? "primary" : "secondary"}
-                  backgroundColor={newReview.rating >= rating ? "$yellow10" : undefined}
+                  variant="outlined"
+                  backgroundColor={newReview.rating >= rating ? '$yellow10' : undefined}
                   onPress={() => setNewReview(prev => ({ ...prev, rating }))}
                 >
-                  <Feather name="star" size={24} color={newReview.rating >= rating ? "white" : undefined} />
+                  <Feather
+                    name="star"
+                    size={24}
+                    color={newReview.rating >= rating ? 'white' : undefined}
+                  />
                 </Button>
               ))}
             </XStack>
             <Button
               onPress={() => setStep(2)}
               disabled={!newReview.rating}
-              variant="primary"
+              variant="outlined"
               size="lg"
             >
-              Next
+              {t('common.next')}
             </Button>
           </YStack>
         );
@@ -195,25 +201,27 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
       case 2:
         return (
           <YStack space="$4">
-            <Text size="lg" weight="medium" color="$color">Write your review</Text>
+            <Text size="lg" weight="medium" color="$color">
+              {t('reviewSection.writeReview')}
+            </Text>
             <TextArea
               value={newReview.content}
               onChangeText={content => setNewReview(prev => ({ ...prev, content }))}
-              placeholder="Share your experience..."
+              placeholder={t('review.reviewPlaceholder')}
               numberOfLines={4}
               size="$4"
             />
             <Button
               onPress={handlePickImages}
-              variant="secondary"
+              variant="outlined"
               size="lg"
               icon={<Feather name="image" size={18} />}
             >
-              Add Images
+              {t('reviewSection.addImages')}
             </Button>
             {newReview.images.length > 0 && (
               <XStack flexWrap="wrap" gap="$2">
-                {newReview.images.map((image) => (
+                {newReview.images.map(image => (
                   <Card key={image.id} bordered elevate size="$2" padding="$2">
                     <Image
                       source={{ uri: image.uri }}
@@ -224,12 +232,14 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
                       top={4}
                       right={4}
                       size="$2"
-                      variant="secondary"
+                      variant="outlined"
                       backgroundColor="$red10"
-                      onPress={() => setNewReview(prev => ({
-                        ...prev,
-                        images: prev.images.filter(img => img.id !== image.id),
-                      }))}
+                      onPress={() =>
+                        setNewReview(prev => ({
+                          ...prev,
+                          images: prev.images.filter(img => img.id !== image.id)
+                        }))
+                      }
                     >
                       <Feather name="x" size={16} color="white" />
                     </Button>
@@ -238,21 +248,11 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
               </XStack>
             )}
             <XStack space="$2">
-              <Button
-                flex={1}
-                onPress={() => setStep(1)}
-                variant="secondary"
-                size="lg"
-              >
-                Back
+              <Button flex={1} onPress={() => setStep(1)} variant="outlined" size="lg">
+                {t('common.back')}
               </Button>
-              <Button
-                flex={1}
-                onPress={() => setStep(3)}
-                variant="primary"
-                size="lg"
-              >
-                Next
+              <Button flex={1} onPress={() => setStep(3)} variant="outlined" size="lg">
+                {t('common.next')}
               </Button>
             </XStack>
           </YStack>
@@ -261,40 +261,41 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
       case 3:
         return (
           <YStack space="$4">
-            <Text size="lg" weight="medium" color="$color">Additional Details</Text>
+            <Text size="lg" weight="medium" color="$color">
+              {t('review.detailsStep')}
+            </Text>
             <YStack space="$2">
-              <Text size="sm" color="$gray11">Difficulty Level</Text>
+              <Text size="sm" color="$gray11">
+                {t('reviewSection.difficultyLevel')}
+              </Text>
               <XStack flexWrap="wrap" gap="$2">
-                {['beginner', 'intermediate', 'advanced'].map((level) => (
+                {['beginner', 'intermediate', 'advanced'].map(level => (
                   <Button
                     key={level}
-                    onPress={() => setNewReview(prev => ({ ...prev, difficulty: level as DifficultyLevel }))}
-                    variant={newReview.difficulty === level ? "primary" : "secondary"}
-                    backgroundColor={newReview.difficulty === level ? "$blue10" : undefined}
+                    onPress={() =>
+                      setNewReview(prev => ({ ...prev, difficulty: level as DifficultyLevel }))
+                    }
+                    variant="outlined"
+                    backgroundColor={newReview.difficulty === level ? '$blue10' : undefined}
                     size="lg"
                   >
-                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                    {t(`profile.experienceLevels.${level}`)}
                   </Button>
                 ))}
               </XStack>
             </YStack>
             <XStack space="$2">
-              <Button
-                flex={1}
-                onPress={() => setStep(2)}
-                variant="secondary"
-                size="lg"
-              >
-                Back
+              <Button flex={1} onPress={() => setStep(2)} variant="outlined" size="lg">
+                {t('common.back')}
               </Button>
               <Button
                 flex={1}
                 onPress={handleSubmitReview}
                 disabled={loading}
-                variant="primary"
+                variant="outlined"
                 size="lg"
               >
-                {loading ? 'Submitting...' : 'Submit Review'}
+                {loading ? t('reviewSection.submitting') : t('reviewSection.submitReview')}
               </Button>
             </XStack>
           </YStack>
@@ -306,16 +307,18 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
     <Card bordered elevate size="$4" padding="$4">
       <YStack space="$4">
         <XStack justifyContent="space-between" alignItems="center">
-          <Text size="lg" weight="medium" color="$color">Reviews</Text>
+          <Text size="lg" weight="medium" color="$color">
+            {t('routeDetail.reviews')}
+          </Text>
           {!showReviewForm && (
             <Button
               onPress={() => setShowReviewForm(true)}
-              variant="primary"
+              variant="outlined"
               size="md"
               backgroundColor="$blue10"
               icon={<Feather name="plus" size={18} color="white" />}
             >
-              Write Review
+              {t('routeDetail.writeReview')}
             </Button>
           )}
         </XStack>
@@ -325,7 +328,11 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
             <YStack space="$4">
               <XStack justifyContent="space-between" alignItems="center">
                 <Text size="lg" weight="medium" color="$color">
-                  {step === 1 ? 'Step 1: Rating' : step === 2 ? 'Step 2: Review' : 'Step 3: Details'}
+                  {step === 1
+                    ? t('reviewSection.stepRating')
+                    : step === 2
+                    ? t('reviewSection.stepReview')
+                    : t('reviewSection.stepDetails')}
                 </Text>
                 <Button
                   onPress={() => {
@@ -336,10 +343,10 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
                       content: '',
                       difficulty: 'beginner',
                       images: [],
-                      visited_at: new Date().toISOString(),
+                      visited_at: new Date().toISOString()
                     });
                   }}
-                  variant="secondary"
+                  variant="outlined"
                   size="sm"
                   icon={<Feather name="x" size={18} />}
                 />
@@ -354,45 +361,53 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
           </Card>
         ) : (
           <YStack space="$4">
-            {reviews.map((review) => (
-              <Card key={review.id} bordered size="$4" padding="$4">
-                <YStack space="$2">
-                  <XStack space="$2" alignItems="center">
-                    <YStack>
-                      <Text weight="medium" color="$color">{review.user?.full_name}</Text>
-                      <Text size="sm" color="$gray11">
-                        {format(new Date(review.visited_at), 'MMM d, yyyy')}
-                      </Text>
-                    </YStack>
-                  </XStack>
-                  <XStack space="$1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Feather
-                        key={i}
-                        name="star"
-                        size={16}
-                        color={i < review.rating ? '#FFD700' : '#E5E5E5'}
-                      />
-                    ))}
-                  </XStack>
-                  <Text color="$color">{review.content}</Text>
-                  {review.images && review.images.length > 0 && (
-                    <XStack flexWrap="wrap" gap="$2">
-                      {review.images.map((image, index) => (
-                        <Image
-                          key={index}
-                          source={{ uri: image.url }}
-                          style={{ width: 80, height: 80, borderRadius: 8 }}
+            {reviews.length === 0 ? (
+              <Text color="$gray11" textAlign="center">
+                {t('routeDetail.noReviews')}
+              </Text>
+            ) : (
+              reviews.map(review => (
+                <Card key={review.id} bordered size="$4" padding="$4">
+                  <YStack space="$2">
+                    <XStack space="$2" alignItems="center">
+                      <YStack>
+                        <Text weight="medium" color="$color">
+                          {review.user?.full_name || t('routeDetail.anonymous')}
+                        </Text>
+                        <Text size="sm" color="$gray11">
+                          {format(new Date(review.visited_at), 'MMM d, yyyy')}
+                        </Text>
+                      </YStack>
+                    </XStack>
+                    <XStack space="$1">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Feather
+                          key={i}
+                          name="star"
+                          size={16}
+                          color={i < review.rating ? '#FFD700' : '#E5E5E5'}
                         />
                       ))}
                     </XStack>
-                  )}
-                </YStack>
-              </Card>
-            ))}
+                    <Text color="$color">{review.content}</Text>
+                    {review.images && review.images.length > 0 && (
+                      <XStack flexWrap="wrap" gap="$2">
+                        {review.images.map((image, index) => (
+                          <Image
+                            key={index}
+                            source={{ uri: image.url }}
+                            style={{ width: 80, height: 80, borderRadius: 8 }}
+                          />
+                        ))}
+                      </XStack>
+                    )}
+                  </YStack>
+                </Card>
+              ))
+            )}
           </YStack>
         )}
       </YStack>
     </Card>
   );
-} 
+}
