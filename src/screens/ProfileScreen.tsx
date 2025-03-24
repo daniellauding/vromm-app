@@ -14,6 +14,8 @@ import { Feather } from '@expo/vector-icons';
 import { OnboardingModal } from '../components/OnboardingModal';
 import { resetOnboarding } from '../components/Onboarding';
 import { resetOnboardingForCurrentUser } from '../services/onboardingService';
+import { useNavigation } from '@react-navigation/native';
+import { RootStackNavigationProp } from '../types/navigation';
 
 type ExperienceLevel = Database['public']['Enums']['experience_level'];
 type UserRole = Database['public']['Enums']['user_role'];
@@ -30,6 +32,7 @@ export function ProfileScreen() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const theme = useTheme();
   const colorScheme = useColorScheme();
+  const navigation = useNavigation<RootStackNavigationProp>();
 
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
@@ -114,6 +117,14 @@ export function ProfileScreen() {
       alert('Failed to reset onboarding.');
     }
   };
+
+  const navigateToOnboardingDemo = useCallback(() => {
+    navigation.navigate('OnboardingDemo');
+  }, [navigation]);
+
+  const navigateToTranslationDemo = useCallback(() => {
+    navigation.navigate('TranslationDemo');
+  }, [navigation]);
 
   return (
     <Screen scroll>
@@ -229,6 +240,36 @@ export function ProfileScreen() {
               }
             >
               Show Onboarding Tour
+            </Button>
+
+            <Button
+              onPress={navigateToOnboardingDemo}
+              variant="secondary"
+              size="lg"
+              icon={
+                <Feather
+                  name="refresh"
+                  size={20}
+                  color={colorScheme === 'dark' ? 'white' : 'black'}
+                />
+              }
+            >
+              Content Live Updates Demo
+            </Button>
+
+            <Button
+              onPress={navigateToTranslationDemo}
+              variant="secondary"
+              size="lg"
+              icon={
+                <Feather
+                  name="globe"
+                  size={20}
+                  color={colorScheme === 'dark' ? 'white' : 'black'}
+                />
+              }
+            >
+              Translation System Demo
             </Button>
 
             {error ? (

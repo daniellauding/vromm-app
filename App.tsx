@@ -5,6 +5,7 @@ import { config } from './src/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { LocationProvider } from './src/context/LocationContext';
+import { TranslationProvider } from './src/contexts/TranslationContext';
 import { RootStackParamList } from './src/types/navigation';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -25,6 +26,8 @@ import { TabNavigator } from './src/components/TabNavigator';
 import { RouteDetailScreen } from './src/screens/RouteDetailScreen';
 import { CreateRouteScreen } from './src/screens/CreateRouteScreen';
 import { AddReviewScreen } from './src/screens/AddReviewScreen';
+import { OnboardingDemoScreen } from './src/screens/OnboardingDemoScreen';
+import { TranslationDemoScreen } from './src/screens/TranslationDemoScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -134,6 +137,22 @@ function AppContent() {
               component={AddReviewScreen}
               options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="OnboardingDemo"
+              component={OnboardingDemoScreen}
+              options={{
+                headerShown: true,
+                title: 'Onboarding Content'
+              }}
+            />
+            <Stack.Screen
+              name="TranslationDemo"
+              component={TranslationDemoScreen}
+              options={{
+                headerShown: true,
+                title: 'Translation Demo'
+              }}
+            />
           </>
         )}
       </Stack.Navigator>
@@ -176,13 +195,15 @@ export default function App() {
       <SafeAreaProvider>
         <TamaguiProvider config={config}>
           <Theme name={colorScheme === 'dark' ? 'dark' : 'light'}>
-            <LanguageProvider>
-              <AuthProvider>
-                <LocationProvider>
-                  <AppContent />
-                </LocationProvider>
-              </AuthProvider>
-            </LanguageProvider>
+            <TranslationProvider>
+              <LanguageProvider>
+                <AuthProvider>
+                  <LocationProvider>
+                    <AppContent />
+                  </LocationProvider>
+                </AuthProvider>
+              </LanguageProvider>
+            </TranslationProvider>
           </Theme>
         </TamaguiProvider>
       </SafeAreaProvider>

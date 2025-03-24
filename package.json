@@ -9,7 +9,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest --watchAll",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "setup-translations": "node ./scripts/apply-translations-migration.js",
+    "manual-setup-translations": "node ./scripts/manual-apply-translations.js",
+    "cleanup-migrations": "node ./scripts/cleanup-translations-migrations.js",
+    "fix-translations": "node ./scripts/fix-translations-constraint.js",
+    "generate-translation-sql": "node ./scripts/generate-import-sql.js"
   },
   "jest": {
     "preset": "jest-expo"

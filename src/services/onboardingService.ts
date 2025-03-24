@@ -2,6 +2,8 @@ import { supabase } from '../lib/supabase';
 import { OnboardingSlide } from '../components/Onboarding';
 import { FontAwesome } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchOnboardingContent } from './contentService';
+import { contentItemsToOnboardingSlides } from '../adapters/contentAdapter';
 
 // Define the database slide structure
 interface SupabaseOnboardingSlide {
@@ -27,6 +29,24 @@ const FIRST_LOGIN_KEY = 'vromm_first_login';
 // Fetch all active onboarding slides
 export const fetchOnboardingSlides = async (): Promise<OnboardingSlide[]> => {
   try {
+    // Try the new content structure first
+    const contentItems = await fetchOnboardingContent();
+    
+    if (contentItems && contentItems.length > 0) {
+      console.log('Using new content structure for onboarding slides');
+      
+      // Convert content items to onboarding slides using adapter
+      const slides = contentItemsToOnboardingSlides(contentItems);
+      
+      // Check if content has changed (using simplified version for new content)
+      await checkContentVersionSimple(contentItems);
+      
+      return slides;
+    }
+    
+    // Fall back to the old structure if no content is found
+    console.log('No content found in new structure, trying legacy onboarding_slides table');
+    
     const { data, error } = await supabase
       .from('onboarding_slides')
       .select('*')
@@ -72,6 +92,35 @@ export const fetchOnboardingSlides = async (): Promise<OnboardingSlide[]> => {
     return getFallbackSlides();
   }
 };
+
+// Simplified content version check for the new content structure
+async function checkContentVersionSimple(contentItems: any[]) {
+  try {
+    // Create a simple content hash based on content IDs and update times
+    const contentHash = contentItems
+      .map(item => `${item.id}-${item.updated_at}`)
+      .join('|');
+    
+    // Get the stored hash
+    const storedHash = await AsyncStorage.getItem(ONBOARDING_CONTENT_HASH_KEY);
+    
+    // If hash has changed, we should reset the onboarding flag to show again
+    if (storedHash !== contentHash) {
+      console.log('Onboarding content has been updated, resetting onboarding flag');
+      
+      // Store the new hash
+      await AsyncStorage.setItem(ONBOARDING_CONTENT_HASH_KEY, contentHash);
+      
+      // Reset the onboarding flag but only if the hash isn't null (first time)
+      if (storedHash !== null) {
+        // This will force onboarding to show again on next check
+        await AsyncStorage.removeItem(ONBOARDING_KEY);
+      }
+    }
+  } catch (error) {
+    console.error('Error checking content version:', error);
+  }
+}
 
 // Check if content has changed and update the stored content hash
 async function checkContentVersion(data: SupabaseOnboardingSlide[]) {

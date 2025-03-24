@@ -9,6 +9,7 @@ import { Header } from '../components/Header';
 import { useLanguage } from '../context/LanguageContext';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
+import { useAuthStrings } from '../hooks/useAuthStrings';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -17,6 +18,7 @@ export function LoginScreen() {
   const [error, setError] = useState('');
   const { signIn } = useAuth();
   const { t } = useLanguage();
+  const { getString } = useAuthStrings();
   const navigation = useNavigation<NavigationProp>();
 
   const handleLogin = async () => {
@@ -39,26 +41,29 @@ export function LoginScreen() {
   return (
     <Screen scroll>
       <YStack f={1} gap={32} width="100%">
-        <Header title="" showBack={true} />
+        <Header title={getString('login_title', t('auth.signIn.title'))} showBack={true} />
 
         <YStack gap={24} width="100%">
           <YStack gap={16}>
             <FormField
-              label={t('auth.signIn.emailLabel')}
+              label={getString('signup_email_label', t('auth.signIn.emailLabel'))}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
-              placeholder={t('auth.signIn.emailPlaceholder')}
+              placeholder={getString('login_email_placeholder', t('auth.signIn.emailPlaceholder'))}
               autoComplete="email"
             />
 
             <FormField
-              label={t('auth.signIn.passwordLabel')}
+              label={getString('password_label', t('auth.signIn.passwordLabel'))}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-              placeholder={t('auth.signIn.passwordPlaceholder')}
+              placeholder={getString(
+                'login_password_placeholder',
+                t('auth.signIn.passwordPlaceholder')
+              )}
               autoComplete="password"
             />
           </YStack>
@@ -70,13 +75,10 @@ export function LoginScreen() {
           ) : null}
 
           <YStack gap={16} width="100%">
-            <Button
-              onPress={handleLogin}
-              disabled={loading}
-              variant="primary"
-              size="lg"
-            >
-              {loading ? t('auth.signIn.loading') : t('auth.signIn.signInButton')}
+            <Button onPress={handleLogin} disabled={loading} variant="primary" size="lg">
+              {loading
+                ? t('auth.signIn.loading')
+                : getString('sign_in_button', t('auth.signIn.signInButton'))}
             </Button>
 
             <Button
@@ -84,14 +86,14 @@ export function LoginScreen() {
               variant="secondary"
               size="md"
             >
-              {t('auth.signIn.forgotPassword')}
+              {getString('forgot_password', t('auth.signIn.forgotPassword'))}
             </Button>
           </YStack>
         </YStack>
 
         <XStack justifyContent="center" alignItems="center" gap={8}>
           <Text size="md" intent="muted">
-            {t('auth.signIn.noAccount')}
+            {getString('no_account', t('auth.signIn.noAccount'))}
           </Text>
           <Button
             variant="link"
@@ -100,10 +102,10 @@ export function LoginScreen() {
             paddingVertical={0}
             height="auto"
           >
-            {t('auth.signIn.signUpLink')}
+            {getString('create_account_button', t('auth.signIn.signUpLink'))}
           </Button>
         </XStack>
       </YStack>
     </Screen>
   );
-} 
+}

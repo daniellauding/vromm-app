@@ -17,6 +17,8 @@ export type RootStackParamList = {
   Map: { selectedLocation?: SearchResult };
   Search: undefined;
   AddReview: { routeId: string };
+  OnboardingDemo: undefined;
+  TranslationDemo: undefined;
 };
 
 export type TabParamList = {
