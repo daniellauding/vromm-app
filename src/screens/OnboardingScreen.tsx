@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
-import { Onboarding, OnboardingSlide } from '../components/Onboarding';
-import { fetchOnboardingSlides } from '../services/onboardingService';
+import { Onboarding, OnboardingSlide, shouldShowOnboarding } from '../components/Onboarding';
+import { fetchOnboardingSlides, shouldShowFirstOnboarding } from '../services/onboardingService';
 import { Stack } from 'tamagui';
 import { useTheme } from 'tamagui';
 
@@ -14,19 +14,40 @@ export function OnboardingScreen() {
   const theme = useTheme();
 
   useEffect(() => {
-    const loadSlides = async () => {
+    const checkAndLoadOnboarding = async () => {
       try {
+        setLoading(true);
+
+        // Check if onboarding should be shown at all
+        const shouldShow = await shouldShowFirstOnboarding();
+        console.log('Should show onboarding screen?', shouldShow);
+
+        if (!shouldShow) {
+          // Skip directly to main app if onboarding has been completed
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'MainTabs' }]
+          });
+          return;
+        }
+
+        // Otherwise load slides and show onboarding
         const onboardingSlides = await fetchOnboardingSlides();
         setSlides(onboardingSlides);
       } catch (error) {
-        console.error('Error loading onboarding slides:', error);
+        console.error('Error handling onboarding flow:', error);
+        // On error, navigate to main app to avoid blocking the user
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs' }]
+        });
       } finally {
         setLoading(false);
       }
     };
 
-    loadSlides();
-  }, []);
+    checkAndLoadOnboarding();
+  }, [navigation]);
 
   const handleDone = () => {
     // Navigate to the main application after onboarding

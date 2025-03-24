@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { YStack, XStack, Switch, useTheme } from 'tamagui';
+import { YStack, XStack, Switch, useTheme, Card } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 import * as Location from 'expo-location';

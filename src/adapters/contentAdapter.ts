@@ -17,9 +17,12 @@ export const contentItemToOnboardingSlide = (
     text_sv: contentItem.body.sv,
     image: contentItem.image_url 
       ? { uri: contentItem.image_url } 
-      : defaultImage,
+      : (!contentItem.icon && !contentItem.icon_svg) // Only use default image if no icon is provided
+        ? defaultImage
+        : undefined,
     icon: contentItem.icon || undefined,
     iconColor: contentItem.icon_color || undefined,
+    iconSvg: contentItem.icon_svg || undefined,
   };
 };
 

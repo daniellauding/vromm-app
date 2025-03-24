@@ -29,6 +29,7 @@ export interface OnboardingSlide {
   image: ImageSourcePropType;
   icon?: string; // FontAwesome icon name
   iconColor?: string;
+  iconSvg?: string; // SVG string for custom icon
 }
 
 interface OnboardingProps {
@@ -116,7 +117,23 @@ export function Onboarding({
         justifyContent="center"
       >
         <YStack flex={2} justifyContent="center" alignItems="center" marginBottom="$6">
-          {item.icon ? (
+          {item.iconSvg ? (
+            <YStack
+              alignItems="center"
+              justifyContent="center"
+              bg="$backgroundStrong"
+              padding="$8"
+              borderRadius="$10"
+            >
+              <View
+                style={{
+                  width: width * 0.6,
+                  height: width * 0.6
+                }}
+                dangerouslySetInnerHTML={{ __html: item.iconSvg }}
+              />
+            </YStack>
+          ) : item.icon ? (
             <YStack
               alignItems="center"
               justifyContent="center"
@@ -130,7 +147,7 @@ export function Onboarding({
                 color={item.iconColor || theme.blue10.get()}
               />
             </YStack>
-          ) : (
+          ) : item.image ? (
             <Image
               source={item.image}
               style={{
@@ -139,7 +156,7 @@ export function Onboarding({
                 resizeMode: 'contain'
               }}
             />
-          )}
+          ) : null}
         </YStack>
         <YStack flex={1} alignItems="center" gap="$4">
           <Text size="3xl" weight="bold" textAlign="center" fontFamily="$heading">

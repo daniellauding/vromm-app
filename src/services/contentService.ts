@@ -234,6 +234,16 @@ export const clearContentCache = async (): Promise<void> => {
   }
 };
 
+// Clear cache on app start to avoid stale content issues
+(async () => {
+  try {
+    await clearContentCache();
+    console.log('Content cache cleared on startup');
+  } catch (error) {
+    console.error('Failed to clear content cache on startup:', error);
+  }
+})();
+
 /**
  * Content change listener types and implementation
  */

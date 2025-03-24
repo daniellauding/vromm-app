@@ -26,9 +26,41 @@ const ONBOARDING_CONTENT_HASH_KEY = 'onboarding_content_hash';
 const ONBOARDING_KEY = 'vromm_onboarding';
 const FIRST_LOGIN_KEY = 'vromm_first_login';
 
+/**
+ * Check if a user should see the onboarding for the first time.
+ * This is separate from content change detection.
+ */
+export const shouldShowFirstOnboarding = async (): Promise<boolean> => {
+  try {
+    // Check if this is the first login
+    const firstLogin = await AsyncStorage.getItem(FIRST_LOGIN_KEY);
+    
+    // If this is the first login, show onboarding
+    if (firstLogin === null) {
+      // Mark that it's no longer the first login
+      await AsyncStorage.setItem(FIRST_LOGIN_KEY, 'false');
+      // Return true to show onboarding
+      return true;
+    }
+    
+    // Otherwise, check if onboarding should be shown based on regular rules
+    const onboardingStatus = await AsyncStorage.getItem(ONBOARDING_KEY);
+    // If onboarding_key is null or "true", show onboarding
+    return onboardingStatus === null || onboardingStatus === "true";
+  } catch (error) {
+    console.error('Error checking first onboarding status:', error);
+    // Default to showing onboarding if there's an error
+    return true;
+  }
+};
+
 // Fetch all active onboarding slides
 export const fetchOnboardingSlides = async (): Promise<OnboardingSlide[]> => {
   try {
+    // First check if we should show onboarding at all
+    const shouldShow = await shouldShowFirstOnboarding();
+    console.log('Should show onboarding?', shouldShow);
+    
     // Try the new content structure first
     const contentItems = await fetchOnboardingContent();
     
@@ -83,7 +115,9 @@ export const fetchOnboardingSlides = async (): Promise<OnboardingSlide[]> => {
       text_sv: slide.text_sv,
       image: slide.image_url 
         ? { uri: slide.image_url } 
-        : require('../../assets/images/default-onboarding.png'),
+        : (!slide.icon && !slide.icon_color) // Only use default image if no icon is provided
+          ? require('../../assets/images/default-onboarding.png')
+          : undefined,
       icon: slide.icon || undefined,
       iconColor: slide.icon_color || undefined,
     }));
@@ -104,17 +138,29 @@ async function checkContentVersionSimple(contentItems: any[]) {
     // Get the stored hash
     const storedHash = await AsyncStorage.getItem(ONBOARDING_CONTENT_HASH_KEY);
     
-    // If hash has changed, we should reset the onboarding flag to show again
+    // If hash has changed and this is not the first run (storedHash exists),
+    // we should reset the onboarding flag to show again
     if (storedHash !== contentHash) {
-      console.log('Onboarding content has been updated, resetting onboarding flag');
+      console.log('Onboarding content hash changed:', { 
+        storedHash, 
+        newHash: contentHash 
+      });
       
       // Store the new hash
       await AsyncStorage.setItem(ONBOARDING_CONTENT_HASH_KEY, contentHash);
       
-      // Reset the onboarding flag but only if the hash isn't null (first time)
+      // Only reset onboarding if:
+      // 1. We had a previous hash (not first time)
+      // 2. User has already completed onboarding before (ONBOARDING_KEY exists)
       if (storedHash !== null) {
-        // This will force onboarding to show again on next check
-        await AsyncStorage.removeItem(ONBOARDING_KEY);
+        // Check if user has completed onboarding before resetting
+        const onboardingStatus = await AsyncStorage.getItem(ONBOARDING_KEY);
+        // Only reset if user has completed onboarding before (not null or "true")
+        if (onboardingStatus !== null && onboardingStatus !== "true") {
+          console.log('Onboarding was previously completed. Resetting for content update.');
+          // This will force onboarding to show again on next check
+          await AsyncStorage.removeItem(ONBOARDING_KEY);
+        }
       }
     }
   } catch (error) {
@@ -135,15 +181,26 @@ async function checkContentVersion(data: SupabaseOnboardingSlide[]) {
     
     // If hash has changed, we should reset the onboarding flag to show again
     if (storedHash !== contentHash) {
-      console.log('Onboarding content has been updated, resetting onboarding flag');
+      console.log('Onboarding content hash changed:', { 
+        storedHash, 
+        newHash: contentHash 
+      });
       
       // Store the new hash
       await AsyncStorage.setItem(ONBOARDING_CONTENT_HASH_KEY, contentHash);
       
-      // Reset the onboarding flag but only if the hash isn't null (first time)
+      // Only reset onboarding if:
+      // 1. We had a previous hash (not first time)
+      // 2. User has already completed onboarding before (ONBOARDING_KEY exists)
       if (storedHash !== null) {
-        // This will force onboarding to show again on next check
-        await AsyncStorage.removeItem(ONBOARDING_KEY);
+        // Check if user has completed onboarding before resetting
+        const onboardingStatus = await AsyncStorage.getItem(ONBOARDING_KEY);
+        // Only reset if user has completed onboarding before (not null or "true")
+        if (onboardingStatus !== null && onboardingStatus !== "true") {
+          console.log('Onboarding was previously completed. Resetting for content update.');
+          // This will force onboarding to show again on next check
+          await AsyncStorage.removeItem(ONBOARDING_KEY);
+        }
       }
     }
   } catch (error) {
