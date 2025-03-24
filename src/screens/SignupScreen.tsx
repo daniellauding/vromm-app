@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { YStack, XStack } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -6,7 +6,7 @@ import { NavigationProp } from '../types/navigation';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
 import { Header } from '../components/Header';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from '../contexts/TranslationContext';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
 
@@ -17,8 +17,13 @@ export function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { signUp } = useAuth();
-  const { t } = useLanguage();
+  const { t, clearCache } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
+
+  useEffect(() => {
+    clearCache();
+    console.log('[SIGNUP] Forcing translation refresh');
+  }, []);
 
   const handleSignup = async () => {
     if (!email || !password || !confirmPassword) {
@@ -32,10 +37,7 @@ export function SignupScreen() {
     try {
       setLoading(true);
       setError('');
-      await signUp(email, password, () => {
-        navigation.navigate('Login');
-      });
-      // Success message will be shown by Supabase's email confirmation
+      await signUp(email, password);
     } catch (err) {
       const error = err as Error;
       setError(error.message);
@@ -45,11 +47,11 @@ export function SignupScreen() {
   };
 
   return (
-    <Screen>
-      <YStack f={1} gap={2}>
+    <Screen scroll>
+      <YStack f={1} gap={32} width="100%">
         <Header title={t('auth.signUp.title')} showBack={true} />
-        
-        <YStack gap={32}>
+
+        <YStack gap={24} width="100%">
           <Text size="md" intent="muted">
             {t('auth.signUp.subtitle')}
           </Text>
@@ -91,27 +93,29 @@ export function SignupScreen() {
               </Text>
             ) : null}
 
-            <YStack gap={16}>
-              <Button
-                onPress={handleSignup}
-                disabled={loading}
-                variant="primary"
-                size="lg"
-              >
+            <YStack gap={16} width="100%">
+              <Button onPress={handleSignup} disabled={loading} variant="primary" size="lg">
                 {loading ? t('auth.signUp.loading') : t('auth.signUp.signUpButton')}
-              </Button>
-
-              <Button
-                onPress={() => navigation.navigate('Login')}
-                variant="secondary"
-                size="md"
-              >
-                {t('auth.signUp.signInLink')}
               </Button>
             </YStack>
           </YStack>
         </YStack>
+
+        <XStack justifyContent="center" alignItems="center" gap={8}>
+          <Text size="md" intent="muted">
+            {t('auth.signUp.hasAccount')}
+          </Text>
+          <Button
+            variant="link"
+            size="md"
+            onPress={() => navigation.navigate('Login')}
+            paddingVertical={0}
+            height="auto"
+          >
+            {t('auth.signUp.signInLink')}
+          </Button>
+        </XStack>
       </YStack>
     </Screen>
   );
-} 
+}

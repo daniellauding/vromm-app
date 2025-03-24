@@ -4,7 +4,7 @@ import { NavigationProp } from '../types/navigation';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
 import { Button } from '../components/Button';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from '../contexts/TranslationContext';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
 
 export function SplashScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { t, language, setLanguage } = useLanguage();
+  const { t, language, setLanguage, clearCache } = useTranslation();
   const theme = useTheme();
   const [contentOpacity] = useState(() => new Animated.Value(0));
   const [resetKey, setResetKey] = useState(0);
@@ -82,6 +82,12 @@ export function SplashScreen() {
     }
   }, []);
 
+  // Force clear translation cache when the screen loads
+  useEffect(() => {
+    clearCache(); // Force refresh translations on splash screen
+    console.log('[SPLASH] Forcing translation refresh');
+  }, []);
+
   // Reset animation when screen comes into focus, but not when changing language
   useFocusEffect(
     useCallback(() => {
@@ -94,6 +100,8 @@ export function SplashScreen() {
         if (videoRef.current) {
           videoRef.current.replayAsync();
         }
+        // Refresh translations each time the splash screen is shown
+        clearCache();
       }
       return () => {
         // Cleanup

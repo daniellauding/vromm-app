@@ -62,6 +62,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // Function to fetch translations from Supabase
   const fetchTranslations = useCallback(async (forceRefresh = false) => {
     try {
+      console.log('[TRANSLATIONS] Fetching translations, forceRefresh:', forceRefresh);
+
       // Check if we have cached translations and they're still fresh
       if (!forceRefresh) {
         const cachedTimestamp = await AsyncStorage.getItem(TRANSLATIONS_TIMESTAMP_KEY);
@@ -73,11 +75,21 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
           // If cache is still fresh, use it
           if (now - timestamp < CACHE_REFRESH_INTERVAL) {
+            console.log(
+              '[TRANSLATIONS] Using cached translations, cache age:',
+              now - timestamp,
+              'ms'
+            );
             const parsedTranslations = JSON.parse(cachedTranslations);
             setDynamicTranslations(parsedTranslations);
             return;
           }
+          console.log('[TRANSLATIONS] Cache expired, fetching fresh translations');
+        } else {
+          console.log('[TRANSLATIONS] No cached translations found');
         }
+      } else {
+        console.log('[TRANSLATIONS] Force refreshing translations');
       }
 
       // Fetch translations from Supabase
@@ -86,8 +98,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         .select('id, key, language, value');
 
       if (error) {
+        console.error('[TRANSLATIONS] Error fetching translations:', error);
         throw error;
       }
+
+      console.log('[TRANSLATIONS] Fetched', data?.length, 'translations from Supabase');
 
       // Transform to nested structure: { key: { en: "value", sv: "value" } }
       const translationsMap: Record<string, Record<string, string>> = {};
@@ -103,10 +118,18 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
       // Update state and cache
       setDynamicTranslations(translationsMap);
+
+      // Clear the old cache
+      await AsyncStorage.removeItem(TRANSLATIONS_CACHE_KEY);
+      await AsyncStorage.removeItem(TRANSLATIONS_TIMESTAMP_KEY);
+
+      // Save the new cache
       await AsyncStorage.setItem(TRANSLATIONS_CACHE_KEY, JSON.stringify(translationsMap));
       await AsyncStorage.setItem(TRANSLATIONS_TIMESTAMP_KEY, Date.now().toString());
+
+      console.log('[TRANSLATIONS] Updated translations cache with timestamp:', Date.now());
     } catch (err) {
-      console.error('Failed to fetch translations:', err);
+      console.error('[TRANSLATIONS] Failed to fetch translations:', err);
     }
   }, []);
 
@@ -146,15 +169,24 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
           schema: 'public',
           table: 'translations'
         },
-        () => {
-          console.log('Translations changed, refreshing...');
+        payload => {
+          console.log('[TRANSLATIONS] Received real-time update:', payload);
           fetchTranslations(true);
         }
       )
       .subscribe();
 
+    console.log('[TRANSLATIONS] Set up real-time subscription');
+
+    // Also set up a periodic refresh every 5 minutes
+    const refreshInterval = setInterval(() => {
+      console.log('[TRANSLATIONS] Checking for translation updates (periodic)');
+      fetchTranslations(true);
+    }, 5 * 60 * 1000); // 5 minutes
+
     return () => {
       supabase.removeChannel(subscription);
+      clearInterval(refreshInterval);
     };
   }, [fetchTranslations]);
 
@@ -192,7 +224,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshTranslations = useCallback(() => {
-    return fetchTranslations(true);
+    console.log('[TRANSLATIONS] Manually refreshing translations from LanguageContext');
+    // Force a full refresh by removing cache files first
+    const clearCaches = async () => {
+      try {
+        // Clear the cache files
+        await AsyncStorage.removeItem(TRANSLATIONS_CACHE_KEY);
+        await AsyncStorage.removeItem(TRANSLATIONS_TIMESTAMP_KEY);
+        console.log('[TRANSLATIONS] LanguageContext cache files cleared before refresh');
+      } catch (err) {
+        console.error('[TRANSLATIONS] Error clearing caches:', err);
+      }
+    };
+
+    return clearCaches().then(() => fetchTranslations(true));
   }, [fetchTranslations]);
 
   if (isLoading) {

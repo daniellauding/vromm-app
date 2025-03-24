@@ -16,6 +16,7 @@ import { resetOnboarding } from '../components/Onboarding';
 import { resetOnboardingForCurrentUser } from '../services/onboardingService';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from '../types/navigation';
+import { forceRefreshTranslations, debugTranslations } from '../services/translationService';
 
 type ExperienceLevel = Database['public']['Enums']['experience_level'];
 type UserRole = Database['public']['Enums']['user_role'];
@@ -126,6 +127,50 @@ export function ProfileScreen() {
     navigation.navigate('TranslationDemo');
   }, [navigation]);
 
+  const refreshTranslations = useCallback(async () => {
+    try {
+      setLoading(true);
+      // First debug the current translation cache
+      await debugTranslations();
+
+      // Ask for confirmation
+      Alert.alert(
+        'Refresh Translations',
+        'This will clear the translation cache and fetch fresh translations from the server. Continue?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          },
+          {
+            text: 'Refresh',
+            onPress: async () => {
+              try {
+                // Force refresh all translations
+                await forceRefreshTranslations();
+
+                // Debug the new translations cache
+                await debugTranslations();
+
+                Alert.alert('Success', 'Translations refreshed successfully');
+              } catch (err) {
+                console.error('Error refreshing translations:', err);
+                Alert.alert('Error', 'Failed to refresh translations');
+              } finally {
+                setLoading(false);
+              }
+            }
+          }
+        ]
+      );
+    } catch (err) {
+      console.error('Error in refreshTranslations:', err);
+      Alert.alert('Error', 'Failed to handle translations');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return (
     <Screen scroll>
       <OnboardingModal
@@ -137,7 +182,7 @@ export function ProfileScreen() {
       <YStack f={1} gap={24}>
         <Header title="Profile" />
         <YStack gap={24}>
-          <YStack gap={24}>
+          <YStack gap={24} paddingBottom={56}>
             <YStack>
               <Text size="lg" weight="medium" mb="$2" color="$color">
                 Full Name
@@ -292,26 +337,48 @@ export function ProfileScreen() {
               Sign Out
             </Button>
 
-            {/* Developer Options - Only visible in development */}
-            {__DEV__ && (
-              <Card backgroundColor="$backgroundStrong" bordered marginTop="$4">
-                <YStack gap="$4" padding="$4">
-                  <Text weight="bold" size="lg">
-                    Developer Options
-                  </Text>
-
-                  <YStack gap="$4">
-                    <Button
-                      variant="secondary"
-                      onPress={handleResetOnboarding}
-                      icon={<Feather name="refresh-cw" size={18} color={theme.blue10.get()} />}
-                    >
-                      Reset Onboarding
-                    </Button>
-                  </YStack>
-                </YStack>
-              </Card>
-            )}
+            <Card bordered padding="$4" marginTop="$4">
+              <YStack gap={8}>
+                <Text size="lg" weight="bold" mb="$2" color="$color">
+                  Developer Options
+                </Text>
+                <Button
+                  variant="outline"
+                  size="md"
+                  onPress={navigateToOnboardingDemo}
+                  marginBottom="$2"
+                >
+                  Onboarding Content
+                </Button>
+                <Button
+                  variant="outline"
+                  size="md"
+                  onPress={navigateToTranslationDemo}
+                  marginBottom="$2"
+                >
+                  Translation Demo
+                </Button>
+                <Button
+                  variant="outline"
+                  size="md"
+                  onPress={handleShowOnboarding}
+                  marginBottom="$2"
+                >
+                  Show Onboarding
+                </Button>
+                <Button
+                  variant="outline"
+                  size="md"
+                  onPress={handleResetOnboarding}
+                  marginBottom="$2"
+                >
+                  Reset Onboarding
+                </Button>
+                <Button variant="outline" size="md" onPress={refreshTranslations} marginBottom="$2">
+                  Refresh Translations
+                </Button>
+              </YStack>
+            </Card>
           </YStack>
         </YStack>
       </YStack>

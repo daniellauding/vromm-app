@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { YStack, XStack } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -6,10 +6,9 @@ import { NavigationProp } from '../types/navigation';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
 import { Header } from '../components/Header';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from '../contexts/TranslationContext';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
-import { useAuthStrings } from '../hooks/useAuthStrings';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -17,9 +16,13 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { signIn } = useAuth();
-  const { t } = useLanguage();
-  const { getString } = useAuthStrings();
+  const { t, clearCache } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
+
+  useEffect(() => {
+    clearCache();
+    console.log('[LOGIN] Forcing translation refresh');
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -41,29 +44,26 @@ export function LoginScreen() {
   return (
     <Screen scroll>
       <YStack f={1} gap={32} width="100%">
-        <Header title={getString('login_title', t('auth.signIn.title'))} showBack={true} />
+        <Header title={t('auth.signIn.title')} showBack={true} />
 
         <YStack gap={24} width="100%">
           <YStack gap={16}>
             <FormField
-              label={getString('signup_email_label', t('auth.signIn.emailLabel'))}
+              label={t('auth.signIn.emailLabel')}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
-              placeholder={getString('login_email_placeholder', t('auth.signIn.emailPlaceholder'))}
+              placeholder={t('auth.signIn.emailPlaceholder')}
               autoComplete="email"
             />
 
             <FormField
-              label={getString('password_label', t('auth.signIn.passwordLabel'))}
+              label={t('auth.signIn.passwordLabel')}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-              placeholder={getString(
-                'login_password_placeholder',
-                t('auth.signIn.passwordPlaceholder')
-              )}
+              placeholder={t('auth.signIn.passwordPlaceholder')}
               autoComplete="password"
             />
           </YStack>
@@ -76,9 +76,7 @@ export function LoginScreen() {
 
           <YStack gap={16} width="100%">
             <Button onPress={handleLogin} disabled={loading} variant="primary" size="lg">
-              {loading
-                ? t('auth.signIn.loading')
-                : getString('sign_in_button', t('auth.signIn.signInButton'))}
+              {loading ? t('auth.signIn.loading') : t('auth.signIn.signInButton')}
             </Button>
 
             <Button
@@ -86,14 +84,14 @@ export function LoginScreen() {
               variant="secondary"
               size="md"
             >
-              {getString('forgot_password', t('auth.signIn.forgotPassword'))}
+              {t('auth.signIn.forgotPassword')}
             </Button>
           </YStack>
         </YStack>
 
         <XStack justifyContent="center" alignItems="center" gap={8}>
           <Text size="md" intent="muted">
-            {getString('no_account', t('auth.signIn.noAccount'))}
+            {t('auth.signIn.noAccount')}
           </Text>
           <Button
             variant="link"
@@ -102,7 +100,7 @@ export function LoginScreen() {
             paddingVertical={0}
             height="auto"
           >
-            {getString('create_account_button', t('auth.signIn.signUpLink'))}
+            {t('auth.signIn.signUpLink')}
           </Button>
         </XStack>
       </YStack>

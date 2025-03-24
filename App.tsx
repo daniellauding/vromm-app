@@ -13,6 +13,8 @@ import { useColorScheme } from 'react-native';
 import * as Font from 'expo-font';
 import { useEffect, useState } from 'react';
 import { supabase } from './src/lib/supabase';
+import { StatusBar } from 'expo-status-bar';
+import { setupTranslationSubscription } from './src/services/translationService';
 
 // Auth screens
 import { SplashScreen } from './src/screens/SplashScreen';
@@ -28,12 +30,24 @@ import { CreateRouteScreen } from './src/screens/CreateRouteScreen';
 import { AddReviewScreen } from './src/screens/AddReviewScreen';
 import { OnboardingDemoScreen } from './src/screens/OnboardingDemoScreen';
 import { TranslationDemoScreen } from './src/screens/TranslationDemoScreen';
+import { ContentDemoScreen } from './src/screens/ContentDemoScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
   const colorScheme = useColorScheme();
+
+  // Initialize translation service with real-time updates
+  useEffect(() => {
+    // Set up real-time translation updates
+    const cleanup = setupTranslationSubscription();
+
+    console.log('[APP] Translation subscription initialized');
+
+    // Clean up subscription when app unmounts
+    return cleanup;
+  }, []);
 
   // Check for database tables on startup
   useEffect(() => {
@@ -158,9 +172,18 @@ function AppContent() {
                 title: 'Translation Demo'
               }}
             />
+            <Stack.Screen
+              name="ContentDemo"
+              component={ContentDemoScreen}
+              options={{
+                headerShown: true,
+                title: 'Content Demo'
+              }}
+            />
           </>
         )}
       </Stack.Navigator>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </NavigationContainer>
   );
 }
@@ -198,8 +221,8 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <TamaguiProvider config={config}>
-          <Theme name={colorScheme === 'dark' ? 'dark' : 'light'}>
+        <TamaguiProvider config={config} defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}>
+          <Theme>
             <TranslationProvider>
               <LanguageProvider>
                 <AuthProvider>

@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { clearAllTranslationCaches } from '../services/translationService';
 
 // Types
 export type Language = 'en' | 'sv';
@@ -17,6 +18,9 @@ const TRANSLATION_CACHE_KEY = 'translations_cache';
 const TRANSLATION_VERSION_KEY = 'translations_version';
 const CURRENT_LANGUAGE_KEY = 'current_language';
 
+// Configure cache lifetime (set to a short period for testing)
+const CACHE_MAX_AGE = 10 * 1000; // 10 seconds for testing, you can increase later
+
 // Context type
 interface TranslationContextType {
   translations: Record<string, string>;
@@ -25,6 +29,7 @@ interface TranslationContextType {
   setLanguage: (lang: Language) => Promise<void>;
   t: (key: string) => string;
   clearCache: () => Promise<void>;
+  refreshTranslations: () => Promise<void>;
 }
 
 // Create context with default values
@@ -34,16 +39,20 @@ const TranslationContext = createContext<TranslationContextType>({
   language: 'en',
   setLanguage: async () => {},
   t: key => key,
-  clearCache: async () => {}
+  clearCache: async () => {},
+  refreshTranslations: async () => {}
 });
 
 // Logger utility (simplified)
 const logger = {
   info: (message: string, ...args: any[]) => {
-    if (__DEV__) console.log(`[INFO] ${message}`, ...args);
+    if (__DEV__) console.log(`[TRANSLATION] ${message}`, ...args);
   },
   error: (message: string, ...args: any[]) => {
-    console.error(`[ERROR] ${message}`, ...args);
+    console.error(`[TRANSLATION ERROR] ${message}`, ...args);
+  },
+  debug: (message: string, ...args: any[]) => {
+    if (__DEV__) console.log(`[TRANSLATION DEBUG] ${message}`, ...args);
   }
 };
 
@@ -51,6 +60,94 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [language, setLanguageState] = useState<Language>('en');
   const [isLoading, setIsLoading] = useState(true);
+  const [lastFetchTime, setLastFetchTime] = useState(0);
+
+  // Fetch translations from Supabase and cache them
+  const fetchAndCacheTranslations = useCallback(
+    async (lang: Language, forceFresh = false) => {
+      try {
+        // Check if we should use cache
+        const now = Date.now();
+        if (!forceFresh && now - lastFetchTime < CACHE_MAX_AGE) {
+          logger.debug(`Using recently fetched translations (${now - lastFetchTime}ms old)`);
+          return;
+        }
+
+        logger.info(`Fetching translations for ${lang}${forceFresh ? ' (forced)' : ''}`);
+        setIsLoading(true);
+
+        const currentPlatform = Platform.OS === 'web' ? 'web' : 'mobile';
+
+        const { data, error } = await supabase
+          .from('translations')
+          .select('key, value, platform, updated_at')
+          .eq('language', lang)
+          .or(`platform.is.null,platform.eq.${currentPlatform}`);
+
+        if (error) {
+          logger.error('Error fetching translations:', error);
+          setIsLoading(false);
+          return;
+        }
+
+        logger.info(`Received ${data?.length || 0} translations from Supabase`);
+
+        // Convert to record for easy lookup
+        const fetchedTranslations: Record<string, string> = {};
+        data?.forEach(item => {
+          fetchedTranslations[item.key] = item.value;
+          logger.debug(`Translation: ${item.key} = ${item.value} (updated ${item.updated_at})`);
+        });
+
+        // Cache the translations
+        await cacheTranslations(lang, fetchedTranslations);
+
+        // Update state
+        setTranslations(fetchedTranslations);
+        setLastFetchTime(now);
+        setIsLoading(false);
+      } catch (error) {
+        logger.error('Error fetching translations:', error);
+        setIsLoading(false);
+      }
+    },
+    [lastFetchTime]
+  );
+
+  // Set up real-time subscription for translation updates
+  useEffect(() => {
+    logger.info('Setting up real-time translation updates');
+
+    const subscription = supabase
+      .channel('translations_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'translations'
+        },
+        payload => {
+          logger.info('Translation change detected:', payload);
+
+          // If the change is for our current language, immediately refresh
+          if (payload.new && (payload.new as any).language === language) {
+            logger.info('Current language translation changed, refreshing');
+            // Clear cache and force a refresh
+            clearCache().then(() => {
+              fetchAndCacheTranslations(language, true);
+            });
+          }
+        }
+      )
+      .subscribe(status => {
+        logger.info(`Real-time subscription status: ${status}`);
+      });
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [language, fetchAndCacheTranslations]);
 
   // Load the current language from storage
   useEffect(() => {
@@ -76,20 +173,32 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         // Try to get from cache first
         const cachedTranslations = await getCachedTranslations(language);
         if (cachedTranslations) {
+          logger.debug('Using cached translations');
           setTranslations(cachedTranslations);
           setIsLoading(false);
 
-          // Check for updates in background
-          checkTranslationsVersion().then(needsUpdate => {
-            if (needsUpdate) {
-              fetchAndCacheTranslations(language);
+          // Always check for updates and refresh if needed
+          const needsUpdate = await checkTranslationsVersion();
+          if (needsUpdate) {
+            logger.info('Cache is stale, refreshing translations');
+            await fetchAndCacheTranslations(language, true);
+          } else {
+            // Even if the cache is valid, refresh if it's older than our max age
+            const now = Date.now();
+            const timestamp = parseInt(
+              (await AsyncStorage.getItem(TRANSLATION_VERSION_KEY)) || '0',
+              10
+            );
+            if (now - timestamp > CACHE_MAX_AGE) {
+              logger.debug('Cache is older than max age, refreshing in background');
+              fetchAndCacheTranslations(language, false);
             }
-          });
+          }
           return;
         }
 
         // If no cache, fetch from Supabase
-        await fetchAndCacheTranslations(language);
+        await fetchAndCacheTranslations(language, true);
       } catch (error) {
         logger.error('Error loading translations:', error);
         setIsLoading(false);
@@ -97,42 +206,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     loadTranslations();
-  }, [language]);
-
-  // Fetch translations from Supabase and cache them
-  const fetchAndCacheTranslations = async (lang: Language) => {
-    try {
-      const currentPlatform = Platform.OS === 'web' ? 'web' : 'mobile';
-
-      const { data, error } = await supabase
-        .from('translations')
-        .select('key, value, platform')
-        .eq('language', lang)
-        .or(`platform.is.null,platform.eq.${currentPlatform}`);
-
-      if (error) {
-        logger.error('Error fetching translations:', error);
-        setIsLoading(false);
-        return;
-      }
-
-      // Convert to record for easy lookup
-      const fetchedTranslations: Record<string, string> = {};
-      data?.forEach(item => {
-        fetchedTranslations[item.key] = item.value;
-      });
-
-      // Cache the translations
-      await cacheTranslations(lang, fetchedTranslations);
-
-      // Update state
-      setTranslations(fetchedTranslations);
-      setIsLoading(false);
-    } catch (error) {
-      logger.error('Error fetching translations:', error);
-      setIsLoading(false);
-    }
-  };
+  }, [language, fetchAndCacheTranslations]);
 
   // Set the language
   const setLanguage = async (lang: Language) => {
@@ -146,12 +220,28 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Get a translation by key
   const t = (key: string): string => {
+    if (!translations[key]) {
+      logger.debug(`Missing translation for key: ${key}`);
+    }
     return translations[key] || key;
   };
+
+  // Force refresh translations
+  const refreshTranslations = useCallback(async () => {
+    logger.info('Manual refresh of translations requested');
+    await clearCache();
+    return fetchAndCacheTranslations(language, true);
+  }, [language, fetchAndCacheTranslations]);
 
   // Clear the cache
   const clearCache = async () => {
     try {
+      logger.info('Clearing translation cache');
+
+      // Clear both our cache and the translationService cache
+      await clearAllTranslationCaches();
+
+      // Also clear our local cache keys
       const keys = [
         `${TRANSLATION_CACHE_KEY}_en`,
         `${TRANSLATION_CACHE_KEY}_sv`,
@@ -160,9 +250,6 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       await AsyncStorage.multiRemove(keys);
       logger.info('Translation cache cleared');
-
-      // Reload translations
-      await fetchAndCacheTranslations(language);
     } catch (error) {
       logger.error('Error clearing cache:', error);
     }
@@ -176,7 +263,8 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         language,
         setLanguage,
         t,
-        clearCache
+        clearCache,
+        refreshTranslations
       }}
     >
       {children}
@@ -210,10 +298,17 @@ async function cacheTranslations(
 ): Promise<void> {
   try {
     const cacheKey = `${TRANSLATION_CACHE_KEY}_${language}`;
+
+    // Clear previous cache
+    await AsyncStorage.removeItem(cacheKey);
+
+    // Set new cache
     await AsyncStorage.setItem(cacheKey, JSON.stringify(translations));
 
     // Also update the version timestamp
     await AsyncStorage.setItem(TRANSLATION_VERSION_KEY, Date.now().toString());
+
+    logger.debug(`Cached ${Object.keys(translations).length} translations for ${language}`);
   } catch (error) {
     logger.error('Error caching translations:', error);
   }
@@ -239,11 +334,22 @@ async function checkTranslationsVersion(): Promise<boolean> {
       const storedVersionStr = await AsyncStorage.getItem(TRANSLATION_VERSION_KEY);
 
       if (!storedVersionStr) {
+        logger.debug('No stored version, need to refresh');
         return true; // No stored version, need to refresh
       }
 
       const storedVersion = parseInt(storedVersionStr, 10);
-      return latestUpdateTime > storedVersion;
+      const needsUpdate = latestUpdateTime > storedVersion;
+
+      if (needsUpdate) {
+        logger.debug(
+          `Cache is outdated: ${new Date(storedVersion).toISOString()} vs ${new Date(
+            latestUpdateTime
+          ).toISOString()}`
+        );
+      }
+
+      return needsUpdate;
     }
 
     return false;

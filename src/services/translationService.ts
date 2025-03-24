@@ -16,16 +16,83 @@ export interface Translation {
 const TRANSLATION_CACHE_KEY = 'translations_cache';
 const TRANSLATION_VERSION_KEY = 'translations_version';
 
+// Set up real-time subscription
+let subscriptionActive = false;
+
+/**
+ * Sets up real-time subscription for translation updates
+ */
+export const setupTranslationSubscription = (): void => {
+  if (subscriptionActive) {
+    logger.info('[TRANSLATIONS] Real-time subscription already active');
+    return;
+  }
+
+  try {
+    const subscription = supabase
+      .channel('translations_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'translations'
+        },
+        (payload) => {
+          logger.info('[TRANSLATIONS] Real-time update received:', payload);
+          console.log('[TRANSLATIONS] Translation changed, refreshing cache');
+          // Force refresh translations when any change occurs
+          forceRefreshTranslations().catch(err => 
+            logger.error('[TRANSLATIONS] Error refreshing after real-time update:', err)
+          );
+        }
+      )
+      .subscribe((status) => {
+        logger.info(`[TRANSLATIONS] Subscription status: ${status}`);
+        subscriptionActive = status === 'SUBSCRIBED';
+        console.log(`[TRANSLATIONS] Real-time subscription ${subscriptionActive ? 'active' : 'failed'}`);
+      });
+
+    // Cleanup function for when app is unmounted
+    const cleanup = () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+        subscriptionActive = false;
+        logger.info('[TRANSLATIONS] Removed real-time subscription');
+      }
+    };
+
+    // Return cleanup function (can be used if needed)
+    return cleanup;
+  } catch (error) {
+    logger.error('[TRANSLATIONS] Error setting up real-time subscription:', error);
+    subscriptionActive = false;
+  }
+};
+
+// Initialize subscription when this module loads
+setupTranslationSubscription();
+
 /**
  * Fetches translations from Supabase for a specific language
  */
-export const fetchTranslations = async (language: Language = 'en'): Promise<Record<string, string>> => {
+export const fetchTranslations = async (language: Language = 'en', forceRefresh = false): Promise<Record<string, string>> => {
   try {
-    // First try to get cached translations
-    const cachedTranslations = await getCachedTranslations(language);
-    if (cachedTranslations) {
-      return cachedTranslations;
+    // Always check if an update is needed
+    const needsUpdate = await checkTranslationsVersion();
+    
+    // First try to get cached translations (if not forcing refresh and no update is needed)
+    if (!forceRefresh && !needsUpdate) {
+      const cachedTranslations = await getCachedTranslations(language);
+      if (cachedTranslations) {
+        console.log(`[TRANSLATIONS] Using cached translations for ${language}`);
+        return cachedTranslations;
+      }
+    } else if (needsUpdate) {
+      console.log(`[TRANSLATIONS] Update needed for ${language} translations`);
     }
+
+    console.log(`[TRANSLATIONS] Fetching fresh translations for ${language} from Supabase`);
 
     // If no cache, fetch from Supabase
     // Platform-specific queries
@@ -41,6 +108,8 @@ export const fetchTranslations = async (language: Language = 'en'): Promise<Reco
       logger.error('Error fetching translations:', error);
       return {};
     }
+
+    console.log(`[TRANSLATIONS] Received ${data?.length || 0} translations from Supabase`);
 
     // Convert to record for easy lookup
     const translations: Record<string, string> = {};
@@ -221,5 +290,92 @@ export const getTranslations = async (keys: string[], language?: Language): Prom
     });
     
     return result;
+  }
+};
+
+// Add a new function to force refresh translations
+
+/**
+ * Forces a refresh of translations from Supabase by clearing the cache and fetching fresh data
+ */
+export const forceRefreshTranslations = async (language?: Language): Promise<void> => {
+  try {
+    console.log('[TRANSLATIONS] Force refreshing translations');
+    
+    // Clear ALL translation caches (this service and LanguageContext)
+    await clearAllTranslationCaches();
+    
+    // If a specific language is provided, fetch only that language
+    if (language) {
+      await fetchTranslations(language);
+      console.log(`[TRANSLATIONS] Force refreshed '${language}' translations`);
+    } else {
+      // Otherwise refresh all languages
+      await fetchTranslations('en');
+      await fetchTranslations('sv');
+      console.log('[TRANSLATIONS] Force refreshed all translations');
+    }
+  } catch (error) {
+    logger.error('Error force refreshing translations:', error);
+  }
+};
+
+/**
+ * Clears ALL translation caches from both translationService and LanguageContext
+ */
+export const clearAllTranslationCaches = async (): Promise<void> => {
+  try {
+    // Clear caches from this service
+    const serviceKeys = [
+      `${TRANSLATION_CACHE_KEY}_en`,
+      `${TRANSLATION_CACHE_KEY}_sv`,
+      TRANSLATION_VERSION_KEY,
+      CURRENT_LANGUAGE_KEY
+    ];
+    
+    // Clear caches from LanguageContext
+    const languageContextKeys = [
+      '@translations_cache',
+      '@translations_timestamp',
+      '@language'
+    ];
+    
+    // Combine all keys to clear
+    const allKeys = [...serviceKeys, ...languageContextKeys];
+    
+    // Remove all keys
+    await AsyncStorage.multiRemove(allKeys);
+    
+    logger.info('[TRANSLATIONS] ALL translation caches cleared');
+    console.log('[TRANSLATIONS] Cleared all translation caches:', allKeys);
+  } catch (error) {
+    logger.error('Error clearing all translation caches:', error);
+  }
+};
+
+/**
+ * Utility function to debug translations - logs the current translation cache
+ */
+export const debugTranslations = async (): Promise<void> => {
+  try {
+    const enCache = await getCachedTranslations('en');
+    const svCache = await getCachedTranslations('sv');
+    const versionStr = await AsyncStorage.getItem(TRANSLATION_VERSION_KEY);
+    
+    console.log('=== TRANSLATION DEBUG ===');
+    console.log('Cache version timestamp:', versionStr);
+    console.log('EN cache entries:', enCache ? Object.keys(enCache).length : 0);
+    console.log('SV cache entries:', svCache ? Object.keys(svCache).length : 0);
+    
+    if (enCache) {
+      console.log('Sample EN entries:');
+      Object.entries(enCache).slice(0, 5).forEach(([key, value]) => {
+        console.log(`  ${key}: ${value}`);
+      });
+    }
+    
+    console.log('========================');
+  } catch (error) {
+    logger.error('Error debugging translations:', error);
   }
 }; 
