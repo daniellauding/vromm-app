@@ -15,8 +15,8 @@ import { YStack, XStack, useTheme, Stack } from 'tamagui';
 import { Text } from './Text';
 import { Button } from './Button';
 import { FontAwesome } from '@expo/vector-icons';
-import { useLanguage } from '../context/LanguageContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from '../contexts/TranslationContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -45,7 +45,7 @@ export function Onboarding({
   onSkip,
   showAgainKey = 'show_onboarding'
 }: OnboardingProps) {
-  const { language } = useLanguage();
+  const { language, t } = useTranslation();
   const theme = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -131,7 +131,7 @@ export function Onboarding({
                   height: width * 0.6
                 }}
                 dangerouslySetInnerHTML={{
-                  __html: item.iconSvg ? item.iconSvg : ''
+                  __html: typeof item.iconSvg === 'string' ? item.iconSvg : ''
                 }}
               />
             </YStack>
@@ -144,7 +144,7 @@ export function Onboarding({
               borderRadius="$10"
             >
               <FontAwesome
-                name={(item.icon as any) || 'info-circle'}
+                name={item.icon || 'info-circle'}
                 size={100}
                 color={item.iconColor || theme.blue10.get()}
               />
@@ -247,17 +247,11 @@ export function Onboarding({
 
         <XStack justifyContent="space-between" alignItems="center" marginTop="$4">
           <Button variant="link" size="md" onPress={skipOnboarding}>
-            {language === 'sv' ? 'Hoppa över' : 'Skip'}
+            {t('onboarding.skip')}
           </Button>
 
           <Button variant="primary" size="md" onPress={nextSlide}>
-            {currentIndex === slides.length - 1
-              ? language === 'sv'
-                ? 'Kom igång'
-                : 'Get Started'
-              : language === 'sv'
-              ? 'Nästa'
-              : 'Next'}
+            {currentIndex === slides.length - 1 ? t('onboarding.getStarted') : t('onboarding.next')}
           </Button>
         </XStack>
       </YStack>

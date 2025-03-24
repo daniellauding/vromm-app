@@ -9,20 +9,29 @@ export const contentItemToOnboardingSlide = (
   contentItem: ContentItem, 
   defaultImage: any = require('../../assets/images/default-onboarding.png')
 ): OnboardingSlide => {
+  // Safely handle image URL
+  const hasValidImageUrl = contentItem.image_url && typeof contentItem.image_url === 'string' && contentItem.image_url.trim().length > 0;
+  
+  // Safely handle icon
+  const hasValidIcon = contentItem.icon && typeof contentItem.icon === 'string' && contentItem.icon.trim().length > 0;
+  
+  // Safely handle SVG
+  const hasValidSvg = contentItem.icon_svg && typeof contentItem.icon_svg === 'string' && contentItem.icon_svg.trim().length > 0;
+  
   return {
     id: contentItem.id,
-    title_en: contentItem.title.en,
-    title_sv: contentItem.title.sv,
-    text_en: contentItem.body.en,
-    text_sv: contentItem.body.sv,
-    image: contentItem.image_url 
+    title_en: contentItem.title.en || '',
+    title_sv: contentItem.title.sv || '',
+    text_en: contentItem.body.en || '',
+    text_sv: contentItem.body.sv || '',
+    image: hasValidImageUrl
       ? { uri: contentItem.image_url } 
-      : (!contentItem.icon && !contentItem.icon_svg) // Only use default image if no icon is provided
+      : (!hasValidIcon && !hasValidSvg) // Only use default image if no icon/svg is provided
         ? defaultImage
         : undefined,
-    icon: contentItem.icon || undefined,
+    icon: hasValidIcon ? contentItem.icon : undefined,
     iconColor: contentItem.icon_color || undefined,
-    iconSvg: contentItem.icon_svg || undefined,
+    iconSvg: hasValidSvg ? contentItem.icon_svg : undefined,
   };
 };
 
@@ -33,6 +42,11 @@ export const contentItemsToOnboardingSlides = (
   contentItems: ContentItem[],
   defaultImage: any = require('../../assets/images/default-onboarding.png')
 ): OnboardingSlide[] => {
+  if (!contentItems || !Array.isArray(contentItems)) {
+    console.warn('Invalid content items provided to adapter, returning empty array');
+    return [];
+  }
+  
   return contentItems.map(item => contentItemToOnboardingSlide(item, defaultImage));
 };
 

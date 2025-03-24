@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, StyleSheet, useColorScheme, Animated, TouchableOpacity, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  useColorScheme,
+  Animated,
+  TouchableOpacity,
+  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map, Waypoint } from '../components/Map';
 import { supabase } from '../lib/supabase';
@@ -15,12 +24,18 @@ import type { Route as RouteType, WaypointData } from '../hooks/useRoutes';
 import { RoutePreviewCard } from '../components/RoutePreviewCard';
 import { Region } from 'react-native-maps';
 import { RouteList } from '../components/RouteList';
-import { PanGestureHandler, State, PanGestureHandlerGestureEvent, PanGestureHandlerStateChangeEvent } from 'react-native-gesture-handler';
+import {
+  PanGestureHandler,
+  State,
+  PanGestureHandlerGestureEvent,
+  PanGestureHandlerStateChangeEvent
+} from 'react-native-gesture-handler';
 import MapView from 'react-native-maps';
 import { ScrollView } from 'react-native';
 import { AppHeader } from '../components/AppHeader';
 
-const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
+const MAPBOX_ACCESS_TOKEN =
+  'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
 
 type SnapPoints = {
   collapsed: number;
@@ -57,7 +72,7 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
   } | null;
   metadata: RouteMetadata;
   waypoint_details: WaypointData[];
-  reviews?: { 
+  reviews?: {
     id: string;
     rating: number;
     content: string;
@@ -65,7 +80,7 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
     visited_at: string;
     created_at: string;
     images: { url: string; description?: string }[];
-    user: { id: string; full_name: string; };
+    user: { id: string; full_name: string };
   }[];
 };
 
@@ -83,11 +98,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1,
-    paddingTop: 8,
+    paddingTop: 8
   },
   mapContainer: {
     flex: 1,
-    position: 'relative',
+    position: 'relative'
   },
   previewContainer: {
     position: 'absolute',
@@ -95,7 +110,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: 'transparent',
-    paddingBottom: 0,
+    paddingBottom: 0
   },
   bottomSheet: {
     position: 'absolute',
@@ -106,29 +121,29 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: -2,
+      height: -2
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
+    elevation: 5
   },
   handleContainer: {
     paddingVertical: 8,
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
   },
   handle: {
     width: 40,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 2
   },
   routeListContainer: {
     flex: 1,
-    overflow: 'hidden',
+    overflow: 'hidden'
   },
   contentContainer: {
-    flex: 1,
+    flex: 1
   },
   searchResultsContainer: {
     position: 'absolute',
@@ -138,18 +153,18 @@ const styles = StyleSheet.create({
     backgroundColor: '$background',
     borderBottomWidth: 1,
     borderBottomColor: '$borderColor',
-    maxHeight: '80%',
+    maxHeight: '80%'
   },
   searchResultItem: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '$borderColor',
+    borderBottomColor: '$borderColor'
   },
   distanceText: {
     fontSize: 14,
     color: '$gray11',
-    marginLeft: 8,
+    marginLeft: 8
   },
   searchOverlay: {
     position: 'absolute',
@@ -158,7 +173,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.3)',
-    zIndex: 1,
+    zIndex: 1
   },
   searchView: {
     position: 'absolute',
@@ -169,14 +184,14 @@ const styles = StyleSheet.create({
     zIndex: 2,
     borderBottomWidth: 1,
     borderBottomColor: '$borderColor',
-    paddingBottom: 8,
+    paddingBottom: 8
   },
   searchResultsList: {
     maxHeight: '80%',
-    backgroundColor: '$background',
+    backgroundColor: '$background'
   },
   searchBackButton: {
-    padding: 8,
+    padding: 8
   }
 });
 
@@ -200,12 +215,15 @@ export function MapScreen({ route }: { route: any }) {
   const [isMapReady, setIsMapReady] = useState(false);
 
   // Memoize initial region
-  const initialRegion = useMemo(() => ({
-    latitude: 55.7047,
-    longitude: 13.191,
-    latitudeDelta: 0.1,
-    longitudeDelta: 0.1,
-  }), []);
+  const initialRegion = useMemo(
+    () => ({
+      latitude: 55.7047,
+      longitude: 13.191,
+      latitudeDelta: 0.1,
+      longitudeDelta: 0.1
+    }),
+    []
+  );
 
   const [region, setRegion] = useState(initialRegion);
   const { height: screenHeight } = Dimensions.get('window');
@@ -232,60 +250,70 @@ export function MapScreen({ route }: { route: any }) {
   }, [routes]);
 
   const getAllWaypoints = useMemo(() => {
-    return routes.map(route => {
-      const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
-      const firstWaypoint = waypointsData[0];
-      if (!firstWaypoint) return null;
-      
-      return {
-        latitude: Number(firstWaypoint.lat),
-        longitude: Number(firstWaypoint.lng),
-        title: route.name,
-        description: route.description || undefined,
-        id: route.id
-      };
-    }).filter((wp): wp is NonNullable<typeof wp> => wp !== null);
+    return routes
+      .map(route => {
+        const waypointsData = (route.waypoint_details ||
+          route.metadata?.waypoints ||
+          []) as WaypointData[];
+        const firstWaypoint = waypointsData[0];
+        if (!firstWaypoint) return null;
+
+        return {
+          latitude: Number(firstWaypoint.lat),
+          longitude: Number(firstWaypoint.lng),
+          title: route.name,
+          description: route.description || undefined,
+          id: route.id
+        };
+      })
+      .filter((wp): wp is NonNullable<typeof wp> => wp !== null);
   }, [routes]);
 
-  const handleMarkerPress = useCallback((waypoint: Waypoint) => {
-    console.log('Pin pressed:', {
-      waypointId: waypoint.id,
-      currentSelectedPin: selectedPin,
-      hasRoute: !!routesById[waypoint.id!]
-    });
+  const handleMarkerPress = useCallback(
+    (waypoint: Waypoint) => {
+      console.log('Pin pressed:', {
+        waypointId: waypoint.id,
+        currentSelectedPin: selectedPin,
+        hasRoute: !!routesById[waypoint.id!]
+      });
 
-    const route = routesById[waypoint.id!];
-    if (route) {
-      // If clicking the same pin, hide it
-      if (selectedPin === waypoint.id) {
-        console.log('Same pin clicked - hiding preview');
+      const route = routesById[waypoint.id!];
+      if (route) {
+        // If clicking the same pin, hide it
+        if (selectedPin === waypoint.id) {
+          console.log('Same pin clicked - hiding preview');
+          setSelectedRoute(null);
+          setSelectedPin(null);
+        }
+        // Otherwise, show the new route
+        else {
+          console.log('New pin clicked - showing route:', route.name);
+          setSelectedRoute(route);
+          setSelectedPin(waypoint.id!);
+        }
+      }
+      // Prevent map press from triggering
+      return true;
+    },
+    [routesById, selectedPin, setSelectedRoute]
+  );
+
+  const handleMapPress = useCallback(
+    (_: { defaultPrevented?: boolean } = {}) => {
+      console.log('Map pressed:', {
+        defaultPrevented: _.defaultPrevented,
+        hasSelectedRoute: !!selectedRoute
+      });
+
+      // Only hide if we actually clicked the map (not a marker)
+      if (selectedRoute && !_.defaultPrevented) {
+        console.log('Hiding route preview from map press');
         setSelectedRoute(null);
         setSelectedPin(null);
-      } 
-      // Otherwise, show the new route
-      else {
-        console.log('New pin clicked - showing route:', route.name);
-        setSelectedRoute(route);
-        setSelectedPin(waypoint.id!);
       }
-    }
-    // Prevent map press from triggering
-    return true;
-  }, [routesById, selectedPin, setSelectedRoute]);
-
-  const handleMapPress = useCallback((_: { defaultPrevented?: boolean } = {}) => {
-    console.log('Map pressed:', {
-      defaultPrevented: _.defaultPrevented,
-      hasSelectedRoute: !!selectedRoute
-    });
-    
-    // Only hide if we actually clicked the map (not a marker)
-    if (selectedRoute && !_.defaultPrevented) {
-      console.log('Hiding route preview from map press');
-      setSelectedRoute(null);
-      setSelectedPin(null);
-    }
-  }, [selectedRoute]);
+    },
+    [selectedRoute]
+  );
 
   // Add effect to track state changes
   useEffect(() => {
@@ -298,33 +326,33 @@ export function MapScreen({ route }: { route: any }) {
   // Memoize getMapRegion to prevent recreation
   const getMapRegion = useMemo(() => {
     if (routes.length === 0) return null;
-    
-    const allWaypoints = routes.flatMap(route => 
-      (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[]
+
+    const allWaypoints = routes.flatMap(
+      route => (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[]
     );
-    
+
     if (allWaypoints.length === 0) return null;
-    
+
     const latitudes = allWaypoints.map(wp => wp.lat);
     const longitudes = allWaypoints.map(wp => wp.lng);
-    
+
     const minLat = Math.min(...latitudes);
     const maxLat = Math.max(...latitudes);
     const minLng = Math.min(...longitudes);
     const maxLng = Math.max(...longitudes);
-    
+
     const latPadding = (maxLat - minLat) * 0.1;
     const lngPadding = (maxLng - minLng) * 0.1;
-    
+
     const minDelta = 0.01;
-    const latDelta = Math.max((maxLat - minLat) + latPadding, minDelta);
-    const lngDelta = Math.max((maxLng - minLng) + lngPadding, minDelta);
+    const latDelta = Math.max(maxLat - minLat + latPadding, minDelta);
+    const lngDelta = Math.max(maxLng - minLng + lngPadding, minDelta);
 
     return {
       latitude: (minLat + maxLat) / 2,
       longitude: (minLng + maxLng) / 2,
       latitudeDelta: latDelta,
-      longitudeDelta: lngDelta,
+      longitudeDelta: lngDelta
     };
   }, [routes]);
 
@@ -355,7 +383,7 @@ export function MapScreen({ route }: { route: any }) {
         setRegion(prev => ({
           ...prev,
           latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
+          longitude: location.coords.longitude
         }));
       }
       setIsMapReady(true);
@@ -365,63 +393,68 @@ export function MapScreen({ route }: { route: any }) {
   // Add filtered routes state
   const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>(routes);
 
-  const handleSearch = useCallback((text: string) => {
-    console.log('Search input:', text);
-    setSearchQuery(text);
-    
-    // Clear any existing timeout
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
+  const handleSearch = useCallback(
+    (text: string) => {
+      console.log('Search input:', text);
+      setSearchQuery(text);
 
-    // Set a new timeout for search
-    const timeout = setTimeout(async () => {
-      if (text.length > 0) {
-        setIsSearching(true);
-        try {
-          console.log('Fetching search results for:', text);
-          // Use Mapbox Geocoding API for better place suggestions
-          const response = await fetch(
-            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality,address,country,region&language=en`
-          );
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          console.log('Search response:', {
-            status: response.status,
-            resultCount: data.features?.length || 0
-          });
-          
-          setSearchResults(data.features || []);
-          setShowSearchResults(true);
-        } catch (error) {
-          console.error('Search error:', error);
-          setSearchResults([]);
-        } finally {
-          setIsSearching(false);
-        }
-      } else {
-        setSearchResults([]);
-        setShowSearchResults(false);
+      // Clear any existing timeout
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
       }
 
-      // Filter routes based on search text
-      const searchLower = text.toLowerCase();
-      const filtered = routes.filter(route => {
-        return (
-          route.name.toLowerCase().includes(searchLower) ||
-          (route.description?.toLowerCase().includes(searchLower)) ||
-          (route.creator?.full_name.toLowerCase().includes(searchLower))
-        );
-      });
-      setFilteredRoutes(filtered);
-    }, 300);
+      // Set a new timeout for search
+      const timeout = setTimeout(async () => {
+        if (text.length > 0) {
+          setIsSearching(true);
+          try {
+            console.log('Fetching search results for:', text);
+            // Use Mapbox Geocoding API for better place suggestions
+            const response = await fetch(
+              `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+                text
+              )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality,address,country,region&language=en`
+            );
 
-    setSearchTimeout(timeout);
-  }, [routes]);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Search response:', {
+              status: response.status,
+              resultCount: data.features?.length || 0
+            });
+
+            setSearchResults(data.features || []);
+            setShowSearchResults(true);
+          } catch (error) {
+            console.error('Search error:', error);
+            setSearchResults([]);
+          } finally {
+            setIsSearching(false);
+          }
+        } else {
+          setSearchResults([]);
+          setShowSearchResults(false);
+        }
+
+        // Filter routes based on search text
+        const searchLower = text.toLowerCase();
+        const filtered = routes.filter(route => {
+          return (
+            route.name.toLowerCase().includes(searchLower) ||
+            route.description?.toLowerCase().includes(searchLower) ||
+            route.creator?.full_name.toLowerCase().includes(searchLower)
+          );
+        });
+        setFilteredRoutes(filtered);
+      }, 300);
+
+      setSearchTimeout(timeout);
+    },
+    [routes]
+  );
 
   // Reset filtered routes when routes change
   useEffect(() => {
@@ -443,10 +476,14 @@ export function MapScreen({ route }: { route: any }) {
 
       const [longitude, latitude] = result.center;
       console.log('Parsed coordinates:', { latitude, longitude });
-      
+
       // Validate coordinates
-      if (typeof latitude !== 'number' || typeof longitude !== 'number' ||
-          isNaN(latitude) || isNaN(longitude)) {
+      if (
+        typeof latitude !== 'number' ||
+        typeof longitude !== 'number' ||
+        isNaN(latitude) ||
+        isNaN(longitude)
+      ) {
         console.error('Invalid coordinates:', { latitude, longitude });
         return;
       }
@@ -472,7 +509,7 @@ export function MapScreen({ route }: { route: any }) {
         latitude,
         longitude,
         latitudeDelta: zoomLevel,
-        longitudeDelta: zoomLevel,
+        longitudeDelta: zoomLevel
       };
 
       // Update map region
@@ -481,7 +518,7 @@ export function MapScreen({ route }: { route: any }) {
       // Filter routes based on proximity to selected location
       const MAX_DISTANCE_KM = 50; // Maximum distance to show routes
       const filteredByLocation = routes.filter(route => {
-        const firstWaypoint = (route.waypoint_details?.[0] || route.metadata?.waypoints?.[0]);
+        const firstWaypoint = route.waypoint_details?.[0] || route.metadata?.waypoints?.[0];
         if (!firstWaypoint) return false;
 
         const routeLat = Number(firstWaypoint.lat);
@@ -506,7 +543,6 @@ export function MapScreen({ route }: { route: any }) {
 
       // Collapse bottom sheet to show more of the map
       snapTo(snapPoints.collapsed);
-
     } catch (error: any) {
       console.error('Error in handleLocationSelect:', error);
       console.error('Error details:', {
@@ -525,7 +561,7 @@ export function MapScreen({ route }: { route: any }) {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+        longitudeDelta: 0.01
       }));
     } catch (err) {
       console.error('Error getting location:', err);
@@ -538,7 +574,6 @@ export function MapScreen({ route }: { route: any }) {
       if (searchTimeout) {
         clearTimeout(searchTimeout);
       }
-      
     };
   }, [searchTimeout]);
 
@@ -550,7 +585,7 @@ export function MapScreen({ route }: { route: any }) {
       const newPosition = lastGesture.current + translationY;
 
       // Add bounds checking
-      const maxTop = snapPoints.expanded;  // Don't allow dragging above expanded position
+      const maxTop = snapPoints.expanded; // Don't allow dragging above expanded position
       const maxBottom = snapPoints.collapsed; // Don't allow dragging below collapsed position
       const boundedPosition = Math.min(Math.max(newPosition, maxTop), maxBottom);
 
@@ -571,7 +606,7 @@ export function MapScreen({ route }: { route: any }) {
       overshootClamping: true,
       restDisplacementThreshold: 0.01,
       restSpeedThreshold: 0.01,
-      useNativeDriver: true,
+      useNativeDriver: true
     }).start();
   }, []);
 
@@ -595,7 +630,7 @@ export function MapScreen({ route }: { route: any }) {
         } else {
           // Based on position
           const positions = [snapPoints.expanded, snapPoints.mid, snapPoints.collapsed];
-          targetSnapPoint = positions.reduce((prev, curr) => 
+          targetSnapPoint = positions.reduce((prev, curr) =>
             Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev
           );
         }
@@ -612,22 +647,25 @@ export function MapScreen({ route }: { route: any }) {
     [snapPoints, snapTo]
   );
 
-  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (isDragging.current) return;
-    
-    const { contentOffset } = event.nativeEvent;
-    scrollOffset.current = contentOffset.y;
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (isDragging.current) return;
 
-    // If user is scrolling and sheet is not expanded, expand it
-    if (contentOffset.y > 0 && currentSnapPoint === snapPoints.collapsed) {
-      snapTo(snapPoints.mid);
-    }
+      const { contentOffset } = event.nativeEvent;
+      scrollOffset.current = contentOffset.y;
 
-    // If user scrolls to top and sheet is expanded, collapse it
-    if (contentOffset.y === 0 && currentSnapPoint !== snapPoints.collapsed) {
-      snapTo(snapPoints.collapsed);
-    }
-  }, [currentSnapPoint, snapPoints, snapTo]);
+      // If user is scrolling and sheet is not expanded, expand it
+      if (contentOffset.y > 0 && currentSnapPoint === snapPoints.collapsed) {
+        snapTo(snapPoints.mid);
+      }
+
+      // If user scrolls to top and sheet is expanded, collapse it
+      if (contentOffset.y === 0 && currentSnapPoint !== snapPoints.collapsed) {
+        snapTo(snapPoints.collapsed);
+      }
+    },
+    [currentSnapPoint, snapPoints, snapTo]
+  );
 
   // Update focus effect to reset both route and pin selection
   useFocusEffect(
@@ -638,18 +676,23 @@ export function MapScreen({ route }: { route: any }) {
   );
 
   // Add distance calculation
-  const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const distance = R * c;
-    return distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`;
-  }, []);
+  const calculateDistance = useCallback(
+    (lat1: number, lon1: number, lat2: number, lon2: number) => {
+      const R = 6371; // Earth's radius in km
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+      return distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`;
+    },
+    []
+  );
 
   // Update search results with distance
   const searchResultsWithDistance = useMemo(() => {
@@ -676,11 +719,11 @@ export function MapScreen({ route }: { route: any }) {
   return (
     <Screen>
       <View style={{ flex: 1 }}>
-      <Map
+        <Map
           key={`map-${routes.length}`}
           waypoints={getAllWaypoints}
           region={region}
-        onPress={handleMapPress}
+          onPress={handleMapPress}
           style={StyleSheet.absoluteFillObject}
           selectedPin={selectedPin}
           onMarkerPress={handleMarkerPress}
@@ -711,54 +754,48 @@ export function MapScreen({ route }: { route: any }) {
                 <View style={[styles.handle, { backgroundColor: handleColor }]} />
                 <XStack alignItems="center" gap="$2">
                   <Feather name="map" size={16} color={iconColor} />
-                  <Text
-                    fontSize="$4"
-                    fontWeight="600"
-                    color="$color"
-                  >
+                  <Text fontSize="$4" fontWeight="600" color="$color">
                     {filteredRoutes.length} {filteredRoutes.length === 1 ? 'route' : 'routes'}
-                    </Text>
+                  </Text>
                 </XStack>
               </View>
               <View style={styles.routeListContainer}>
-                <RouteList
-                  routes={filteredRoutes}
-                  onRefresh={loadRoutes}
-                  onScroll={handleScroll}
-                />
+                <RouteList routes={filteredRoutes} onRefresh={loadRoutes} onScroll={handleScroll} />
               </View>
             </Animated.View>
           </PanGestureHandler>
         )}
 
         {/* Route preview card */}
-      {selectedRoute && (
-          <View style={{ 
-            position: 'absolute',
-            bottom: BOTTOM_NAV_HEIGHT,
-            left: 0,
-            right: 0,
-            backgroundColor: '$background',
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            elevation: 5,
-          }}>
-          <RoutePreviewCard
-            route={selectedRoute}
-            showMap={false}
+        {selectedRoute && (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: BOTTOM_NAV_HEIGHT,
+              left: 0,
+              right: 0,
+              backgroundColor: '$background',
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 5
+            }}
+          >
+            <RoutePreviewCard
+              route={selectedRoute}
+              showMap={false}
               onPress={() => {
                 navigation.navigate('RouteDetail', { routeId: selectedRoute.id });
                 setSelectedRoute(null);
                 setSelectedPin(null);
               }}
-          />
+            />
           </View>
-      )}
-    </View>
+        )}
+      </View>
     </Screen>
   );
-} 
+}

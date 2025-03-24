@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
 import { tokens } from '../tokens';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from '../contexts/TranslationContext';
 import { TabParamList } from '../types/navigation';
 import { Platform, useColorScheme } from 'react-native';
 
@@ -17,7 +17,7 @@ const TAB_BAR_HEIGHT = 56;
 const TOTAL_HEIGHT = TAB_BAR_HEIGHT + BOTTOM_INSET;
 
 export function TabNavigator() {
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -37,7 +37,7 @@ export function TabNavigator() {
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    zIndex: 100,
+    zIndex: 100
   } as const;
 
   return (
@@ -50,7 +50,7 @@ export function TabNavigator() {
           fontSize: 12,
           fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
           fontWeight: '500',
-          paddingBottom: 4,
+          paddingBottom: 4
         },
         // Active/Inactive colors
         tabBarActiveTintColor: isDark ? tokens.color.indigo400 : tokens.color.indigo600,
@@ -61,13 +61,13 @@ export function TabNavigator() {
           borderBottomWidth: 1,
           borderBottomColor: isDark ? tokens.color.gray800 : tokens.color.gray200,
           elevation: 0,
-          shadowOpacity: 0,
+          shadowOpacity: 0
         },
         headerTitleStyle: {
           fontSize: 17,
           fontWeight: '600',
-          color: isDark ? tokens.color.white : tokens.color.gray900,
-        },
+          color: isDark ? tokens.color.white : tokens.color.gray900
+        }
       }}
     >
       <Tab.Screen
@@ -77,16 +77,16 @@ export function TabNavigator() {
           title: t('navigation.home'),
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Feather 
-              name="home" 
-              size={24} 
+            <Feather
+              name="home"
+              size={24}
               color={color}
-              style={{ 
+              style={{
                 opacity: focused ? 1 : 0.8,
-                marginBottom: -4,
-              }} 
+                marginBottom: -4
+              }}
             />
-          ),
+          )
         }}
       />
       <Tab.Screen
@@ -96,16 +96,16 @@ export function TabNavigator() {
           title: t('navigation.map'),
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Feather 
-              name="map" 
-              size={24} 
+            <Feather
+              name="map"
+              size={24}
               color={color}
-              style={{ 
+              style={{
                 opacity: focused ? 1 : 0.8,
-                marginBottom: -4,
-              }} 
+                marginBottom: -4
+              }}
             />
-          ),
+          )
         }}
       />
       <Tab.Screen
@@ -115,18 +115,18 @@ export function TabNavigator() {
           title: t('navigation.profile'),
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Feather 
-              name="user" 
-              size={24} 
+            <Feather
+              name="user"
+              size={24}
               color={color}
-              style={{ 
+              style={{
                 opacity: focused ? 1 : 0.8,
-                marginBottom: -4,
-              }} 
+                marginBottom: -4
+              }}
             />
-          ),
+          )
         }}
       />
     </Tab.Navigator>
   );
-} 
+}

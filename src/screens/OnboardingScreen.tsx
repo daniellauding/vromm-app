@@ -6,6 +6,7 @@ import { Onboarding, OnboardingSlide, shouldShowOnboarding } from '../components
 import { fetchOnboardingSlides, shouldShowFirstOnboarding } from '../services/onboardingService';
 import { Stack } from 'tamagui';
 import { useTheme } from 'tamagui';
+import { useTranslation } from '../contexts/TranslationContext';
 
 export function OnboardingScreen() {
   const [slides, setSlides] = useState<OnboardingSlide[]>([]);
@@ -13,6 +14,7 @@ export function OnboardingScreen() {
   const [error, setError] = useState<boolean>(false);
   const navigation = useNavigation<NavigationProp>();
   const theme = useTheme();
+  const { refreshTranslations, clearCache } = useTranslation();
 
   // Safe navigation function to prevent crashes
   const safeNavigateToMain = () => {
@@ -32,10 +34,28 @@ export function OnboardingScreen() {
   };
 
   useEffect(() => {
+    // Clear translation cache to ensure we show latest translations
+    clearCache()
+      .then(() => {
+        console.debug('Cleared translation cache for onboarding screen');
+      })
+      .catch(error => {
+        console.error('Failed to clear translation cache:', error);
+      });
+
     const checkAndLoadOnboarding = async () => {
       try {
         setLoading(true);
         setError(false);
+
+        // Refresh translations to ensure we have latest text
+        try {
+          await refreshTranslations();
+          console.debug('Refreshed translations for onboarding screen');
+        } catch (translationError) {
+          console.error('Error refreshing translations:', translationError);
+          // Continue anyway, this is not critical
+        }
 
         // Check if onboarding should be shown at all
         let shouldShow = false;

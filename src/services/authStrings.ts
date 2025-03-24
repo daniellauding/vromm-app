@@ -111,7 +111,7 @@ function getFallbackAuthStrings(): Record<string, string> {
     for_schools: 'For Schools',
     help_driver_training: 'Help Us Improve Driver Training',
     signup_title: 'Create Account',
-    signup_email_label: 'Email',
+    signup_email_label: 'Email', 
     login_title: 'Sign In',
     forgot_password: 'Forgot Password?',
     reset_password_title: 'Reset Password',
