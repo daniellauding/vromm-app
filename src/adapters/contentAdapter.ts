@@ -17,6 +17,10 @@ export const contentItemToOnboardingSlide = (
   
   // Safely handle SVG
   const hasValidSvg = contentItem.icon_svg && typeof contentItem.icon_svg === 'string' && contentItem.icon_svg.trim().length > 0;
+
+  // Safely handle embeds
+  const hasValidYouTube = contentItem.youtube_embed && typeof contentItem.youtube_embed === 'string' && contentItem.youtube_embed.trim().length > 0;
+  const hasValidIframe = contentItem.iframe_embed && typeof contentItem.iframe_embed === 'string' && contentItem.iframe_embed.trim().length > 0;
   
   return {
     id: contentItem.id,
@@ -24,14 +28,17 @@ export const contentItemToOnboardingSlide = (
     title_sv: contentItem.title.sv || '',
     text_en: contentItem.body.en || '',
     text_sv: contentItem.body.sv || '',
-    image: hasValidImageUrl
-      ? { uri: contentItem.image_url } 
-      : (!hasValidIcon && !hasValidSvg) // Only use default image if no icon/svg is provided
-        ? defaultImage
-        : undefined,
+    image_url: hasValidImageUrl ? contentItem.image_url : undefined,
+    image: (!hasValidImageUrl && !hasValidIcon && !hasValidSvg && !hasValidYouTube && !hasValidIframe)
+      ? defaultImage
+      : undefined,
     icon: hasValidIcon ? contentItem.icon : undefined,
     iconColor: contentItem.icon_color || undefined,
     iconSvg: hasValidSvg ? contentItem.icon_svg : undefined,
+    youtube_embed: hasValidYouTube ? contentItem.youtube_embed : undefined,
+    iframe_embed: hasValidIframe ? contentItem.iframe_embed : undefined,
+    media_type: contentItem.media_type || 'image',
+    media_enabled: contentItem.media_enabled !== false, // Default to true if not specified
   };
 };
 

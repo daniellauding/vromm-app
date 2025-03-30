@@ -32,6 +32,10 @@ export interface ContentItem {
   images: Record<string, any>;
   has_language_images: boolean;
   icon_svg: string | null;
+  youtube_embed?: string | null;
+  iframe_embed?: string | null;
+  media_type?: 'image' | 'video' | 'embed';
+  media_enabled?: boolean;
 }
 
 // Content version key in AsyncStorage

@@ -7,6 +7,7 @@ import { fetchOnboardingSlides, shouldShowFirstOnboarding } from '../services/on
 import { Stack } from 'tamagui';
 import { useTheme } from 'tamagui';
 import { useTranslation } from '../contexts/TranslationContext';
+import { clearContentCache } from '../services/contentService';
 
 export function OnboardingScreen() {
   const [slides, setSlides] = useState<OnboardingSlide[]>([]);
@@ -47,6 +48,10 @@ export function OnboardingScreen() {
       try {
         setLoading(true);
         setError(false);
+
+        // Clear content cache to ensure we get fresh data
+        await clearContentCache();
+        console.debug('Cleared content cache for onboarding screen');
 
         // Refresh translations to ensure we have latest text
         try {
@@ -119,7 +124,7 @@ export function OnboardingScreen() {
     return (
       <Stack flex={1} alignItems="center" justifyContent="center" backgroundColor="$background">
         <Stack alignItems="center" gap="$4">
-          <ActivityIndicator size="large" color={theme.blue10.get()} />
+          <ActivityIndicator size="large" color="$color" />
         </Stack>
       </Stack>
     );
@@ -128,7 +133,7 @@ export function OnboardingScreen() {
   if (loading) {
     return (
       <Stack flex={1} alignItems="center" justifyContent="center" backgroundColor="$background">
-        <ActivityIndicator size="large" color={theme.blue10.get()} />
+        <ActivityIndicator size="large" color="$color" />
       </Stack>
     );
   }
@@ -138,7 +143,7 @@ export function OnboardingScreen() {
     safeNavigateToMain();
     return (
       <Stack flex={1} alignItems="center" justifyContent="center" backgroundColor="$background">
-        <ActivityIndicator size="large" color={theme.blue10.get()} />
+        <ActivityIndicator size="large" color="$color" />
       </Stack>
     );
   }
