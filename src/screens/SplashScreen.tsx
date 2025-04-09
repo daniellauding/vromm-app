@@ -14,7 +14,9 @@ import {
   StyleSheet,
   View,
   StatusBar,
-  Platform
+  Platform,
+  Dimensions,
+  Modal
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
@@ -24,7 +26,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    position: 'relative'
+    position: 'relative',
+    height: '100%'
   },
   videoContainer: {
     position: 'absolute',
@@ -51,9 +54,51 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16
+    paddingHorizontal: 16,
+    height: '100%'
+  },
+  topSection: {
+    alignItems: 'center',
+    width: '100%',
+    paddingTop: 60
+  },
+  middleSection: {
+    alignItems: 'center',
+    width: '100%'
+  },
+  bottomSection: {
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 'auto',
+    paddingBottom: 20
+  },
+  surveyButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    padding: 16,
+    width: '100%'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end'
+  },
+  modalContent: {
+    backgroundColor: '#1c4240',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    paddingBottom: 40
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    alignSelf: 'center',
+    marginBottom: 20
   }
 });
 
@@ -63,8 +108,10 @@ export function SplashScreen() {
   const theme = useTheme();
   const [contentOpacity] = useState(() => new Animated.Value(0));
   const [isChangingLanguage, setIsChangingLanguage] = useState(false);
+  const [surveyModalVisible, setSurveyModalVisible] = useState(false);
   const videoRef = useRef<Video>(null);
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = Dimensions.get('window');
 
   // Hide status bar for this screen
   useEffect(() => {
@@ -118,6 +165,7 @@ export function SplashScreen() {
         : 'https://daniellauding.typeform.com/to/nuABX2Qp';
 
     Linking.openURL(surveyUrl);
+    setSurveyModalVisible(false);
   };
 
   const toggleLanguage = async () => {
@@ -167,7 +215,7 @@ export function SplashScreen() {
       </View>
 
       {/* Content */}
-      <View style={styles.content}>
+      <View style={[styles.content, { minHeight: screenHeight }]}>
         {/* Language Toggle - Shows only the non-active language to toggle to */}
         <XStack position="absolute" top={insets.top || 40} right="$4" zIndex={100}>
           <TouchableOpacity onPress={toggleLanguage}>
@@ -177,10 +225,14 @@ export function SplashScreen() {
           </TouchableOpacity>
         </XStack>
 
-        <YStack f={1} justifyContent="center" alignItems="center" gap={32} paddingHorizontal="$4">
-          <AnimatedLogo size={200} onAnimationComplete={handleLogoAnimationComplete} />
+        {/* Top Section - Logo */}
+        <View style={styles.topSection}>
+          <AnimatedLogo size={180} onAnimationComplete={handleLogoAnimationComplete} />
+        </View>
 
-          <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
+        {/* Middle Section - Title, Slogan, Buttons */}
+        <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
+          <View style={styles.middleSection}>
             <YStack gap={12} alignItems="center">
               <Heading style={{ fontWeight: '800', fontStyle: 'italic', textAlign: 'center' }}>
                 {t('auth.signIn.title')}
@@ -200,46 +252,89 @@ export function SplashScreen() {
               </Button>
 
               {/* Website Link Button */}
-              <Button variant="secondary" size="md" onPress={handleOpenWebsite}>
+              <Button variant="link" onPress={handleOpenWebsite}>
                 {t('auth.signIn.readMore')}
               </Button>
-
-              {/* Survey Section */}
-              <YStack gap={8} marginTop="$4">
-                <Text size="sm" color="white" textAlign="center">
-                  {t('auth.signIn.helpImprove')}
-                </Text>
-                <XStack gap={8} justifyContent="center">
-                  <Button variant="link" size="sm" onPress={() => handleOpenSurvey('driver')}>
-                    <Text color="white">{t('auth.signIn.forLearners')}</Text>
-                  </Button>
-                  <Button variant="link" size="sm" onPress={() => handleOpenSurvey('school')}>
-                    <Text color="white">{t('auth.signIn.forSchools')}</Text>
-                  </Button>
-                </XStack>
-              </YStack>
-
-              {/* Social Media Links */}
-              <YStack marginTop="$4" alignItems="center" paddingBottom={insets.bottom || 20}>
-                <XStack gap={24} justifyContent="center" marginTop="$2">
-                  <TouchableOpacity onPress={() => handleOpenSocialMedia('facebook')}>
-                    <FontAwesome name="facebook-square" size={28} color="white" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleOpenSocialMedia('instagram')}>
-                    <FontAwesome name="instagram" size={28} color="white" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleOpenSocialMedia('linkedin')}>
-                    <FontAwesome name="linkedin-square" size={28} color="white" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleOpenSocialMedia('mail')}>
-                    <FontAwesome name="envelope" size={28} color="white" />
-                  </TouchableOpacity>
-                </XStack>
-              </YStack>
             </YStack>
-          </Animated.View>
-        </YStack>
+          </View>
+        </Animated.View>
+
+        {/* Bottom Section - Survey Box and Social Media */}
+        <Animated.View style={{ opacity: contentOpacity, width: '100%' }}>
+          <View style={styles.bottomSection}>
+            {/* Survey Section as clickable area */}
+            <TouchableOpacity
+              style={styles.surveyButton}
+              onPress={() => setSurveyModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text size="sm" color="white" textAlign="center">
+                {t('auth.signIn.helpImprove')}
+              </Text>
+              <Text size="sm" color="#00FFBC" textAlign="center" marginTop={6}>
+                {t('auth.signIn.helpImprove.cta.text')}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Social Media Links */}
+            <XStack
+              gap={24}
+              justifyContent="center"
+              marginTop="$4"
+              paddingBottom={insets.bottom || 20}
+            >
+              <TouchableOpacity onPress={() => handleOpenSocialMedia('facebook')}>
+                <FontAwesome name="facebook-square" size={28} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleOpenSocialMedia('instagram')}>
+                <FontAwesome name="instagram" size={28} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleOpenSocialMedia('linkedin')}>
+                <FontAwesome name="linkedin-square" size={28} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleOpenSocialMedia('mail')}>
+                <FontAwesome name="envelope" size={28} color="white" />
+              </TouchableOpacity>
+            </XStack>
+          </View>
+        </Animated.View>
       </View>
+
+      {/* Survey Modal */}
+      <Modal
+        visible={surveyModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setSurveyModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+
+            <YStack gap="$4">
+              <Heading textAlign="center" size="$5" color="white">
+                {t('auth.signIn.helpImprove.drawer.title')}
+              </Heading>
+
+              <Text textAlign="center" color="white">
+                {t('auth.signIn.helpImprove.drawer.text')}
+              </Text>
+
+              <Button size="lg" marginTop="$2" onPress={() => handleOpenSurvey('driver')}>
+                {t('auth.signIn.forLearners')}
+              </Button>
+
+              <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('school')}>
+                {t('auth.signIn.forSchools')}
+              </Button>
+
+              <Button variant="link" onPress={() => setSurveyModalVisible(false)} marginTop="$2">
+                {language === 'en' ? 'Close' : 'Stäng'}
+              </Button>
+            </YStack>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

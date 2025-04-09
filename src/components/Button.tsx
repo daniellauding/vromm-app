@@ -6,6 +6,7 @@ import { tokens } from '../tokens';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'link';
 export type ButtonSize = keyof typeof sizes.button;
+export type ButtonRadius = keyof typeof sizes.radius;
 
 const ButtonFrame = styled(Stack, {
   name: 'Button',
@@ -39,10 +40,20 @@ const ButtonFrame = styled(Stack, {
       }
     },
 
+    radius: {
+      xs: { borderRadius: sizes.radius.xs },
+      sm: { borderRadius: sizes.radius.sm },
+      md: { borderRadius: sizes.radius.md },
+      lg: { borderRadius: sizes.radius.lg },
+      xl: { borderRadius: sizes.radius.xl },
+      full: { borderRadius: sizes.radius.full }
+    },
+
     variant: {
       primary: {
         backgroundColor: '#00FFBC', // Brand teal color
         borderWidth: 0,
+        radius: 'lg',
         hoverStyle: {
           backgroundColor: '#33FFD0' // Lighter teal
         },
@@ -53,6 +64,7 @@ const ButtonFrame = styled(Stack, {
       secondary: {
         backgroundColor: 'transparent',
         borderWidth: 1,
+        radius: 'lg',
         borderColor: '#e2e8f0', // Light gray border
         hoverStyle: {
           backgroundColor: '#f8fafc' // Very light gray background
@@ -82,7 +94,8 @@ const ButtonFrame = styled(Stack, {
 
   defaultVariants: {
     size: 'md',
-    variant: 'primary'
+    variant: 'primary',
+    radius: 'md'
   }
 });
 
@@ -90,6 +103,7 @@ const ButtonText = styled(Text, {
   textAlign: 'center',
   fontWeight: '800',
   fontStyle: 'italic',
+  textTransform: 'uppercase',
 
   variants: {
     size: {
@@ -101,7 +115,7 @@ const ButtonText = styled(Text, {
     },
     variant: {
       primary: {
-        color: 'black' // Changed to black for better contrast with teal
+        color: '#145251' // Changed to black for better contrast with teal
       },
       secondary: {
         color: '$color' // This will use the theme's text color
@@ -124,9 +138,16 @@ type ButtonProps = GetProps<typeof ButtonFrame> & {
 };
 
 export const Button = forwardRef<React.ElementRef<typeof ButtonFrame>, ButtonProps>(
-  ({ children, variant, size, disabled, ...props }, ref) => {
+  ({ children, variant, size, radius, disabled, ...props }, ref) => {
     return (
-      <ButtonFrame ref={ref} variant={variant} size={size} disabled={disabled} {...props}>
+      <ButtonFrame
+        ref={ref}
+        variant={variant}
+        size={size}
+        radius={radius}
+        disabled={disabled}
+        {...props}
+      >
         <ButtonText variant={variant} size={size}>
           {children}
         </ButtonText>
@@ -198,11 +219,20 @@ export const NewButton = styled(TamaguiButton, {
         px: tokens.space[5],
         fontSize: tokens.fontSize[3]
       }
+    },
+    radius: {
+      xs: { borderRadius: 4 },
+      sm: { borderRadius: 6 },
+      md: { borderRadius: 8 },
+      lg: { borderRadius: 12 },
+      xl: { borderRadius: 16 },
+      full: { borderRadius: 9999 }
     }
   } as const,
 
   defaultVariants: {
     variant: 'primary',
-    size: 'md'
+    size: 'md',
+    radius: 'md'
   }
 });
