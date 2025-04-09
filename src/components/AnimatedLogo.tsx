@@ -6,6 +6,9 @@ import { Asset } from 'expo-asset';
 // Import symbol with simpler path
 const symbolImage = require('../../assets/symbol.png');
 
+// Static flag to track if the animation has run during this app session
+let hasAnimationRunThisSession = false;
+
 interface AnimatedLogoProps {
   onAnimationComplete?: () => void;
   size?: number;
@@ -34,28 +37,14 @@ const LETTER_POSITIONS = {
 
 export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoProps) {
   const [assetsLoaded, setAssetsLoaded] = useState(false);
-  const animationComplete = useRef(false);
-
-  // Load assets
-  useEffect(() => {
-    async function loadAssets() {
-      try {
-        // Load symbol and letter images
-        await Promise.all([
-          Asset.fromModule(symbolImage).downloadAsync(),
-          ...Object.values(letterImages).map(module => Asset.fromModule(module).downloadAsync())
-        ]);
-        setAssetsLoaded(true);
-      } catch (error) {
-        console.error('Error loading assets:', error);
-      }
-    }
-    loadAssets();
-  }, []);
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const hasRunAnimation = useRef(false);
 
   // Animation values for each element
-  const symbolOpacity = new Animated.Value(0);
-  const letterAnimations: Record<LetterKey, { opacity: Animated.Value; scale: Animated.Value }> = {
+  const symbolOpacity = useRef(new Animated.Value(0)).current;
+  const letterAnimations = useRef<
+    Record<LetterKey, { opacity: Animated.Value; scale: Animated.Value }>
+  >({
     v: {
       opacity: new Animated.Value(0),
       scale: new Animated.Value(0.2)
@@ -76,76 +65,93 @@ export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoPr
       opacity: new Animated.Value(0),
       scale: new Animated.Value(0.2)
     }
-  };
+  }).current;
 
+  // Load assets
   useEffect(() => {
-    if (!assetsLoaded) return;
+    async function loadAssets() {
+      try {
+        // Load symbol and letter images
+        await Promise.all([
+          Asset.fromModule(symbolImage).downloadAsync(),
+          ...Object.values(letterImages).map(module => Asset.fromModule(module).downloadAsync())
+        ]);
+        setAssetsLoaded(true);
+      } catch (error) {
+        console.error('Error loading assets:', error);
+        // Even if there's an error, try to proceed with the animation
+        setAssetsLoaded(true);
+      }
+    }
+    loadAssets();
 
-    // Reset animation state on reload
-    animationComplete.current = false;
+    // Cleanup function
+    return () => {
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
+    };
+  }, []);
 
+  // Run animation when assets are loaded
+  useEffect(() => {
+    if (!assetsLoaded || hasRunAnimation.current) return;
+
+    // Create animation sequence
     const animationSequence = [
-      // Symbol fade in - faster
+      // Symbol fade in
       Animated.timing(symbolOpacity, {
         toValue: 1,
-        duration: 300,
+        duration: 400,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true
       }),
-      // Letters sequence - faster with smoothing
+      // Letters sequence with stagger
       Animated.stagger(
         100,
         LETTERS.map(letter =>
           Animated.parallel([
             Animated.timing(letterAnimations[letter].opacity, {
               toValue: 1,
-              duration: 200,
+              duration: 300,
               easing: Easing.out(Easing.ease),
               useNativeDriver: true
             }),
             Animated.timing(letterAnimations[letter].scale, {
               toValue: 1,
-              duration: 250,
-              easing: Easing.out(Easing.ease), // Same easing for all letters
+              duration: 350,
+              easing: Easing.out(Easing.ease),
               useNativeDriver: true
             })
           ])
-        )
-      ),
-      // Final adjustment to ensure all letters end at exact same scale
-      Animated.parallel(
-        LETTERS.map(letter =>
-          Animated.timing(letterAnimations[letter].scale, {
-            toValue: 1,
-            duration: 50,
-            easing: Easing.linear,
-            useNativeDriver: true
-          })
         )
       )
     ];
 
     // Run the sequence
-    Animated.sequence(animationSequence).start(() => {
-      // Ensure all letters end at the exact same scale value
-      LETTERS.forEach(letter => {
-        letterAnimations[letter].scale.setValue(1);
-        letterAnimations[letter].opacity.setValue(1);
-      });
+    animationRef.current = Animated.sequence(animationSequence);
+    animationRef.current.start(({ finished }) => {
+      if (finished) {
+        // Mark as completed
+        hasRunAnimation.current = true;
 
-      animationComplete.current = true;
-      onAnimationComplete?.();
+        // Ensure all letters end at exact values
+        LETTERS.forEach(letter => {
+          letterAnimations[letter].scale.setValue(1);
+          letterAnimations[letter].opacity.setValue(1);
+        });
+
+        // Notify completion
+        onAnimationComplete?.();
+      }
     });
 
-    // Cleanup animation on unmount
     return () => {
-      LETTERS.forEach(letter => {
-        letterAnimations[letter].scale.stopAnimation();
-        letterAnimations[letter].opacity.stopAnimation();
-      });
-      symbolOpacity.stopAnimation();
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
     };
-  }, [assetsLoaded]);
+  }, [assetsLoaded, onAnimationComplete]);
 
   if (!assetsLoaded) {
     return null;

@@ -62,7 +62,6 @@ export function SplashScreen() {
   const { t, language, setLanguage, clearCache } = useTranslation();
   const theme = useTheme();
   const [contentOpacity] = useState(() => new Animated.Value(0));
-  const [resetKey, setResetKey] = useState(0);
   const [isChangingLanguage, setIsChangingLanguage] = useState(false);
   const videoRef = useRef<Video>(null);
   const insets = useSafeAreaInsets();
@@ -85,30 +84,7 @@ export function SplashScreen() {
   // Force clear translation cache when the screen loads
   useEffect(() => {
     clearCache(); // Force refresh translations on splash screen
-    console.log('[SPLASH] Forcing translation refresh');
   }, []);
-
-  // Reset animation when screen comes into focus, but not when changing language
-  useFocusEffect(
-    useCallback(() => {
-      if (!isChangingLanguage) {
-        // Reset content opacity
-        contentOpacity.setValue(0);
-        // Reset logo animation by changing the key
-        setResetKey(prev => prev + 1);
-        // Restart video
-        if (videoRef.current) {
-          videoRef.current.replayAsync();
-        }
-        // Refresh translations each time the splash screen is shown
-        clearCache();
-      }
-      return () => {
-        // Cleanup
-        setIsChangingLanguage(false);
-      };
-    }, [isChangingLanguage])
-  );
 
   const handleLogin = () => {
     navigation.navigate('Login');
@@ -119,6 +95,7 @@ export function SplashScreen() {
   };
 
   const handleLogoAnimationComplete = () => {
+    // When logo animation finishes, fade in the content
     Animated.timing(contentOpacity, {
       toValue: 1,
       duration: 500,
@@ -146,6 +123,7 @@ export function SplashScreen() {
   const toggleLanguage = async () => {
     setIsChangingLanguage(true);
     await setLanguage(language === 'en' ? 'sv' : 'en');
+    setIsChangingLanguage(false);
   };
 
   const handleOpenSocialMedia = (platform: 'facebook' | 'instagram' | 'linkedin' | 'mail') => {
@@ -200,11 +178,7 @@ export function SplashScreen() {
         </XStack>
 
         <YStack f={1} justifyContent="center" alignItems="center" gap={32} paddingHorizontal="$4">
-          <AnimatedLogo
-            key={isChangingLanguage ? 'logo-persist' : `logo-${resetKey}`}
-            size={200}
-            onAnimationComplete={handleLogoAnimationComplete}
-          />
+          <AnimatedLogo size={200} onAnimationComplete={handleLogoAnimationComplete} />
 
           <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
             <YStack gap={12} alignItems="center">
