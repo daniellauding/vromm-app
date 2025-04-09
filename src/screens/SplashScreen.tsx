@@ -1,4 +1,4 @@
-import { YStack, XStack, useTheme } from 'tamagui';
+import { YStack, XStack, useTheme, Heading } from 'tamagui';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { Screen } from '../components/Screen';
@@ -208,21 +208,19 @@ export function SplashScreen() {
 
           <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
             <YStack gap={12} alignItems="center">
-              <Text size="3xl" weight="bold" textAlign="center" fontFamily="$heading" color="white">
-                {t('auth.signIn.title')}
-              </Text>
+              <Heading>{t('auth.signIn.title')}</Heading>
               <Text size="md" color="white" textAlign="center">
                 {t('auth.signIn.slogan')}
               </Text>
             </YStack>
 
             <YStack gap={16} width="100%" paddingHorizontal="$4" marginTop="$4">
-              <Button variant="primary" size="lg" onPress={handleLogin}>
-                {t('auth.signIn.signInButton')}
+              <Button variant="primary" size="lg" onPress={handleSignup}>
+                {t('auth.signUp.signUpButton')}
               </Button>
 
-              <Button variant="secondary" size="lg" onPress={handleSignup}>
-                {t('auth.signUp.signUpButton')}
+              <Button variant="secondary" size="lg" onPress={handleLogin}>
+                {t('auth.signIn.signInButton')}
               </Button>
 
               {/* Website Link Button */}
