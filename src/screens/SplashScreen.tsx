@@ -90,7 +90,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 20,
-    paddingBottom: 40
+    paddingBottom: 40,
+    position: 'relative'
   },
   modalHandle: {
     width: 40,
@@ -99,6 +100,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     alignSelf: 'center',
     marginBottom: 20
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 8,
+    zIndex: 1
   }
 });
 
@@ -272,7 +280,7 @@ export function SplashScreen() {
                 {t('auth.signIn.helpImprove')}
               </Text>
               <Text size="sm" color="#00FFBC" textAlign="center" marginTop={6}>
-                {t('auth.signIn.helpImprove.cta.text')}
+                {t('auth.signIn.helpImprove.cta')}
               </Text>
             </TouchableOpacity>
 
@@ -307,8 +315,23 @@ export function SplashScreen() {
         animationType="slide"
         onRequestClose={() => setSurveyModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setSurveyModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalContent}
+            activeOpacity={1}
+            onPress={e => e.stopPropagation()}
+          >
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setSurveyModalVisible(false)}
+            >
+              <FontAwesome name="times" size={24} color="white" />
+            </TouchableOpacity>
+
             <View style={styles.modalHandle} />
 
             <YStack gap="$4">
@@ -320,20 +343,21 @@ export function SplashScreen() {
                 {t('auth.signIn.helpImprove.drawer.text')}
               </Text>
 
-              <Button size="lg" marginTop="$2" onPress={() => handleOpenSurvey('driver')}>
+              <Button
+                variant="secondary"
+                size="lg"
+                marginTop="$2"
+                onPress={() => handleOpenSurvey('driver')}
+              >
                 {t('auth.signIn.forLearners')}
               </Button>
 
               <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('school')}>
                 {t('auth.signIn.forSchools')}
               </Button>
-
-              <Button variant="link" onPress={() => setSurveyModalVisible(false)} marginTop="$2">
-                {language === 'en' ? 'Close' : 'Stäng'}
-              </Button>
             </YStack>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
