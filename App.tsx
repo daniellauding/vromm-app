@@ -200,7 +200,12 @@ export default function App() {
           'Rubik-SemiBold': require('./assets/fonts/Rubik/static/Rubik-SemiBold.ttf'),
           'Rubik-Bold': require('./assets/fonts/Rubik/static/Rubik-Bold.ttf'),
           'Rubik-ExtraBold': require('./assets/fonts/Rubik/static/Rubik-ExtraBold.ttf'),
-          'Rubik-Black': require('./assets/fonts/Rubik/static/Rubik-Black.ttf')
+          'Rubik-Black': require('./assets/fonts/Rubik/static/Rubik-Black.ttf'),
+          'Rubik-Italic': require('./assets/fonts/Rubik/static/Rubik-Italic.ttf'),
+          'Rubik-MediumItalic': require('./assets/fonts/Rubik/static/Rubik-MediumItalic.ttf'),
+          'Rubik-BoldItalic': require('./assets/fonts/Rubik/static/Rubik-BoldItalic.ttf'),
+          'Rubik-ExtraBoldItalic': require('./assets/fonts/Rubik/static/Rubik-ExtraBoldItalic.ttf'),
+          'Rubik-BlackItalic': require('./assets/fonts/Rubik/static/Rubik-BlackItalic.ttf')
         });
         console.log('Fonts loaded successfully');
         setFontsLoaded(true);

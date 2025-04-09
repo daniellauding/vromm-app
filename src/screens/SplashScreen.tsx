@@ -208,7 +208,9 @@ export function SplashScreen() {
 
           <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
             <YStack gap={12} alignItems="center">
-              <Heading>{t('auth.signIn.title')}</Heading>
+              <Heading style={{ fontWeight: '800', fontStyle: 'italic', textAlign: 'center' }}>
+                {t('auth.signIn.title')}
+              </Heading>
               <Text size="md" color="white" textAlign="center">
                 {t('auth.signIn.slogan')}
               </Text>
