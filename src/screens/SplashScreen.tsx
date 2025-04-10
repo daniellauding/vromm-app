@@ -16,11 +16,14 @@ import {
   StatusBar,
   Platform,
   Dimensions,
-  Modal
+  Modal,
+  Easing,
+  Pressable
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Flag, HelpCircle, Check } from '@tamagui/lucide-icons';
 
 // Define styles outside of the component
 const styles = StyleSheet.create({
@@ -35,14 +38,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: -1
+    zIndex: -1,
+    backgroundColor: '#fff'
   },
   backgroundVideo: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0
+    bottom: 0,
+    opacity: 0.5
   },
   overlay: {
     position: 'absolute',
@@ -107,6 +112,23 @@ const styles = StyleSheet.create({
     right: 16,
     padding: 8,
     zIndex: 1
+  },
+  languageOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginVertical: 4
+  },
+  languageMenu: {
+    backgroundColor: '#1c4240',
+    borderRadius: 12,
+    padding: 8,
+    minWidth: 150,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5
   }
 });
 
@@ -120,6 +142,8 @@ export function SplashScreen() {
   const videoRef = useRef<Video>(null);
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = Dimensions.get('window');
+  const videoAnimation = useRef(new Animated.Value(0)).current;
+  const [isLanguageMenuVisible, setIsLanguageMenuVisible] = useState(false);
 
   // Hide status bar for this screen
   useEffect(() => {
@@ -140,6 +164,62 @@ export function SplashScreen() {
   useEffect(() => {
     clearCache(); // Force refresh translations on splash screen
   }, []);
+
+  // Create animation loop
+  useEffect(() => {
+    const createAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(videoAnimation, {
+            toValue: 1,
+            duration: 30000, // 30 seconds for a slower, more subtle cycle
+            easing: Easing.linear,
+            useNativeDriver: true
+          }),
+          Animated.timing(videoAnimation, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true
+          })
+        ])
+      ).start();
+    };
+
+    createAnimation();
+
+    return () => {
+      videoAnimation.stopAnimation();
+    };
+  }, []);
+
+  const videoAnimatedStyle = {
+    transform: [
+      {
+        scale: videoAnimation.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [1.8, 1.9, 1.8] // Much more zoomed in
+        })
+      },
+      {
+        rotate: videoAnimation.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['-5deg', '5deg']
+        })
+      },
+      {
+        translateX: videoAnimation.interpolate({
+          inputRange: [0, 0.25, 0.75, 1],
+          outputRange: [0, -15, 15, 0]
+        })
+      },
+      {
+        translateY: videoAnimation.interpolate({
+          inputRange: [0, 0.25, 0.75, 1],
+          outputRange: [0, 15, -15, 0]
+        })
+      }
+    ]
+  };
 
   const handleLogin = () => {
     navigation.navigate('Login');
@@ -176,10 +256,13 @@ export function SplashScreen() {
     setSurveyModalVisible(false);
   };
 
-  const toggleLanguage = async () => {
-    setIsChangingLanguage(true);
-    await setLanguage(language === 'en' ? 'sv' : 'en');
-    setIsChangingLanguage(false);
+  const handleLanguageSelect = async (newLanguage: 'en' | 'sv') => {
+    setIsLanguageMenuVisible(false);
+    if (newLanguage !== language) {
+      setIsChangingLanguage(true);
+      await setLanguage(newLanguage);
+      setIsChangingLanguage(false);
+    }
   };
 
   const handleOpenSocialMedia = (platform: 'facebook' | 'instagram' | 'linkedin' | 'mail') => {
@@ -205,15 +288,17 @@ export function SplashScreen() {
     <View style={styles.container}>
       {/* Background Video with Overlay */}
       <View style={styles.videoContainer}>
-        <Video
-          ref={videoRef}
-          source={require('../../assets/bg_video.mp4')}
-          style={styles.backgroundVideo}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          isLooping
-          isMuted
-        />
+        <Animated.View style={[styles.backgroundVideo, videoAnimatedStyle]}>
+          <Video
+            ref={videoRef}
+            source={require('../../assets/bg_video.mp4')}
+            style={StyleSheet.absoluteFill}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay
+            isLooping
+            isMuted
+          />
+        </Animated.View>
         <View
           style={[
             styles.overlay,
@@ -224,12 +309,59 @@ export function SplashScreen() {
 
       {/* Content */}
       <View style={[styles.content, { minHeight: screenHeight }]}>
-        {/* Language Toggle - Shows only the non-active language to toggle to */}
+        {/* Help Icon */}
+        <XStack position="absolute" top={insets.top || 40} left="$4" zIndex={100}>
+          <TouchableOpacity
+            onPress={handleOpenWebsite}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            activeOpacity={1}
+            onPressIn={e => {
+              e.currentTarget.setNativeProps({
+                style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' }
+              });
+            }}
+            onPressOut={e => {
+              e.currentTarget.setNativeProps({
+                style: { backgroundColor: 'transparent' }
+              });
+            }}
+          >
+            <HelpCircle size={20} color="white" />
+          </TouchableOpacity>
+        </XStack>
+
+        {/* Language Selector */}
         <XStack position="absolute" top={insets.top || 40} right="$4" zIndex={100}>
-          <TouchableOpacity onPress={toggleLanguage}>
-            <Text size="md" weight="bold" color="white">
-              {language === 'sv' ? 'EN' : 'SV'}
-            </Text>
+          <TouchableOpacity
+            onPress={() => setIsLanguageMenuVisible(true)}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            activeOpacity={1}
+            onPressIn={e => {
+              e.currentTarget.setNativeProps({
+                style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' }
+              });
+            }}
+            onPressOut={e => {
+              e.currentTarget.setNativeProps({
+                style: { backgroundColor: 'transparent' }
+              });
+            }}
+          >
+            <Flag size={20} color="white" />
           </TouchableOpacity>
         </XStack>
 
@@ -241,7 +373,7 @@ export function SplashScreen() {
         {/* Middle Section - Title, Slogan, Buttons */}
         <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
           <View style={styles.middleSection}>
-            <YStack gap={12} alignItems="center">
+            <YStack gap={12} alignItems="center" marginBottom={56}>
               <Heading style={{ fontWeight: '800', fontStyle: 'italic', textAlign: 'center' }}>
                 {t('auth.signIn.title')}
               </Heading>
@@ -257,11 +389,6 @@ export function SplashScreen() {
 
               <Button variant="secondary" size="lg" onPress={handleLogin}>
                 {t('auth.signIn.signInButton')}
-              </Button>
-
-              {/* Website Link Button */}
-              <Button variant="link" onPress={handleOpenWebsite}>
-                {t('auth.signIn.readMore')}
               </Button>
             </YStack>
           </View>
@@ -311,53 +438,143 @@ export function SplashScreen() {
       {/* Survey Modal */}
       <Modal
         visible={surveyModalVisible}
-        transparent={true}
+        transparent
         animationType="slide"
         onRequestClose={() => setSurveyModalVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
           onPress={() => setSurveyModalVisible(false)}
         >
-          <TouchableOpacity
-            style={styles.modalContent}
-            activeOpacity={1}
-            onPress={e => e.stopPropagation()}
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="#1c4240"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
           >
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setSurveyModalVisible(false)}
-            >
-              <FontAwesome name="times" size={24} color="white" />
-            </TouchableOpacity>
+            {/* Sheet Handle */}
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                alignSelf: 'center',
+                marginBottom: 12
+              }}
+            />
 
-            <View style={styles.modalHandle} />
+            <Heading textAlign="center" size="$5" color="white">
+              {t('auth.signIn.helpImprove.drawer.title')}
+            </Heading>
 
-            <YStack gap="$4">
-              <Heading textAlign="center" size="$5" color="white">
-                {t('auth.signIn.helpImprove.drawer.title')}
-              </Heading>
+            <Text textAlign="center" color="white">
+              {t('auth.signIn.helpImprove.drawer.text')}
+            </Text>
 
-              <Text textAlign="center" color="white">
-                {t('auth.signIn.helpImprove.drawer.text')}
-              </Text>
+            <YStack gap="$4" marginTop="$2">
+              <Button
+                variant="secondary"
+                size="lg"
+                backgroundColor="rgba(255, 255, 255, 0.1)"
+                onPress={() => handleOpenSurvey('driver')}
+              >
+                <Text color="white">{t('auth.signIn.forLearners')}</Text>
+              </Button>
 
               <Button
                 variant="secondary"
                 size="lg"
-                marginTop="$2"
-                onPress={() => handleOpenSurvey('driver')}
+                backgroundColor="rgba(255, 255, 255, 0.1)"
+                onPress={() => handleOpenSurvey('school')}
               >
-                {t('auth.signIn.forLearners')}
-              </Button>
-
-              <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('school')}>
-                {t('auth.signIn.forSchools')}
+                <Text color="white">{t('auth.signIn.forSchools')}</Text>
               </Button>
             </YStack>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </YStack>
+        </Pressable>
+      </Modal>
+
+      {/* Language Selection Modal */}
+      <Modal
+        visible={isLanguageMenuVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsLanguageMenuVisible(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setIsLanguageMenuVisible(false)}
+        >
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="#1c4240"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
+          >
+            {/* Sheet Handle */}
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                alignSelf: 'center',
+                marginBottom: 12
+              }}
+            />
+
+            <Text size="xl" weight="bold" color="white" textAlign="center">
+              {t('settings.language.title')}
+            </Text>
+
+            <YStack gap="$2" marginTop="$2">
+              <TouchableOpacity
+                style={[
+                  styles.languageOption,
+                  language === 'en' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+                ]}
+                onPress={() => handleLanguageSelect('en')}
+              >
+                <XStack gap={8} padding="$2" alignItems="center">
+                  <Text color="white" size="lg">
+                    English
+                  </Text>
+                  {language === 'en' && (
+                    <Check size={16} color="white" style={{ marginLeft: 'auto' }} />
+                  )}
+                </XStack>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.languageOption,
+                  language === 'sv' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+                ]}
+                onPress={() => handleLanguageSelect('sv')}
+              >
+                <XStack gap={8} padding="$2" alignItems="center">
+                  <Text color="white" size="lg">
+                    Svenska
+                  </Text>
+                  {language === 'sv' && (
+                    <Check size={16} color="white" style={{ marginLeft: 'auto' }} />
+                  )}
+                </XStack>
+              </TouchableOpacity>
+            </YStack>
+          </YStack>
+        </Pressable>
       </Modal>
     </View>
   );
