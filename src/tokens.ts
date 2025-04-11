@@ -3,6 +3,10 @@ export const tokens = {
     // Base colors
     white: '#ffffff',
     black: '#000000',
+    background: '#1C1C1C',
+    backgroundHover: '#242424',
+    backgroundPress: '#2A2A2A',
+    backgroundFocus: '#242424',
     
     // Gray scale
     gray50: '#f9fafb',
@@ -27,6 +31,18 @@ export const tokens = {
     indigo700: '#4338ca',
     indigo800: '#3730a3',
     indigo900: '#312e81',
+
+    // Emerald scale
+    emerald50: '#ecfdf3',
+    emerald100: '#d1fae5',
+    emerald200: '#a3e6d9',
+    emerald300: '#63b3ad',
+    emerald400: '#34d399',
+    emerald500: '#10b981',
+    emerald600: '#059669',
+    emerald700: '#047857',
+    emerald800: '#065f46',
+    emerald900: '#064e3b',
     
     // Red scale
     red50: '#fef2f2',

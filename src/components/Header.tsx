@@ -39,7 +39,8 @@ export function Header({ title, leftElement, rightElement, showBack = false }: H
             {leftElement}
             <Text
               fontSize="$6"
-              fontWeight="600"
+              fontWeight="800"
+              fontStyle="italic"
               color="$color"
               flex={1}
               flexShrink={1}
@@ -59,7 +60,8 @@ export function Header({ title, leftElement, rightElement, showBack = false }: H
           {leftElement}
           <Text
             fontSize="$6"
-            fontWeight="600"
+            fontWeight="800"
+            fontStyle="italic"
             color="$color"
             flex={1}
             flexShrink={1}
@@ -76,4 +78,4 @@ export function Header({ title, leftElement, rightElement, showBack = false }: H
       )}
     </XStack>
   );
-} 
+}

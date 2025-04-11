@@ -2,7 +2,6 @@ import { createTokens } from 'tamagui'
 
 // Define our color palette
 const colors = {
-
   // Base colors
   white: '#ffffff',
   black: '#000000',
@@ -31,10 +30,6 @@ const colors = {
   gray2: '#f8fafc',
   gray1: '#f9fafb',
   
-  // Base
-  white: '#ffffff',
-  black: '#000000',
-
   // Gray scale
   gray50: '#F9FAFB',
   gray100: '#F3F4F6',
@@ -158,10 +153,10 @@ export const darkColors = {
   secondary: colors.emerald400,
   secondaryHover: colors.emerald500,
   secondaryPress: colors.emerald600,
-  background: colors.gray900,
-  backgroundHover: colors.gray800,
-  backgroundPress: colors.gray700,
-  backgroundFocus: colors.gray800,
+  background: '#1C1C1C',
+  backgroundHover: '#242424',
+  backgroundPress: '#2A2A2A',
+  backgroundFocus: '#242424',
   text: colors.gray50,
   textMuted: colors.gray400,
   textSecondary: colors.gray300,
