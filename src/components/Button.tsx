@@ -130,7 +130,7 @@ const ButtonText = styled(Text, {
         color: '#145251' // Changed to black for better contrast with teal
       },
       secondary: {
-        color: '$color' // This will use the theme's text color
+        color: 'white' // Always white for secondary buttons
       },
       tertiary: {
         color: '#00FFBC' // Brand teal color for text
