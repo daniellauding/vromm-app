@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
 import { Input, Text, YStack, XStack, Label, styled } from 'tamagui';
 import { tokens } from '../tokens';
+import { darkColors } from '../theme/tokens';
 
 const StyledInput = styled(Input, {
   name: 'StyledInput',
@@ -12,6 +13,7 @@ const StyledInput = styled(Input, {
   px: tokens.space[3],
   fontSize: tokens.fontSize[2],
   color: '$color',
+  placeholderTextColor: darkColors.textMuted,
 
   // Focus state
   hoverStyle: {

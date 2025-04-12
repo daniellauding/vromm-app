@@ -12,8 +12,7 @@ export interface HeaderProps {
 
 export function Header({ title, leftElement, rightElement, showBack = false }: HeaderProps) {
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const iconColor = 'white';
 
   return (
     <XStack
