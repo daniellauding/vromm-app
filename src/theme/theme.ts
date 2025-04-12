@@ -3,16 +3,16 @@ import { tokens, darkColors } from './tokens'
 
 // Create themes using our tokens
 export const lightTheme = createTheme({
-  background: tokens.color.background,
-  backgroundHover: tokens.color.backgroundHover,
-  backgroundPress: tokens.color.backgroundPress,
-  backgroundFocus: tokens.color.backgroundFocus,
-  color: tokens.color.text,
-  colorHover: tokens.color.textMuted,
-  borderColor: tokens.color.border,
-  borderColorHover: tokens.color.borderHover,
-  shadowColor: tokens.color.shadowColor,
-  shadowColorHover: tokens.color.borderHover,
+  background: darkColors.background,
+  backgroundHover: darkColors.backgroundHover,
+  backgroundPress: darkColors.backgroundPress,
+  backgroundFocus: darkColors.backgroundFocus,
+  color: darkColors.text,
+  colorHover: darkColors.textMuted,
+  borderColor: darkColors.border,
+  borderColorHover: darkColors.borderHover,
+  shadowColor: darkColors.shadowColor,
+  shadowColorHover: darkColors.borderHover,
 
   // Component-specific colors
   primary: tokens.color.primary,
