@@ -20,10 +20,19 @@ import {
   Easing,
   Pressable
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import {
+  Flag,
+  HelpCircle,
+  Check,
+  GraduationCap,
+  School,
+  Facebook,
+  Instagram,
+  Linkedin,
+  Mail
+} from '@tamagui/lucide-icons';
 import { Video, ResizeMode } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Flag, HelpCircle, Check } from '@tamagui/lucide-icons';
 
 // Define styles outside of the component
 const styles = StyleSheet.create({
@@ -128,6 +137,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5
+  },
+  surveyOption: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8
   }
 });
 
@@ -492,16 +512,16 @@ export function SplashScreen() {
               paddingBottom={insets.bottom || 20}
             >
               <TouchableOpacity onPress={() => handleOpenSocialMedia('facebook')}>
-                <FontAwesome name="facebook-square" size={28} color="white" />
+                <Facebook size={28} color="white" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleOpenSocialMedia('instagram')}>
-                <FontAwesome name="instagram" size={28} color="white" />
+                <Instagram size={28} color="white" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleOpenSocialMedia('linkedin')}>
-                <FontAwesome name="linkedin-square" size={28} color="white" />
+                <Linkedin size={28} color="white" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleOpenSocialMedia('mail')}>
-                <FontAwesome name="envelope" size={28} color="white" />
+                <Mail size={28} color="white" />
               </TouchableOpacity>
             </XStack>
           </View>
@@ -559,15 +579,55 @@ export function SplashScreen() {
                   {t('auth.signIn.helpImprove.drawer.text')}
                 </Text>
 
-                <YStack gap="$4" marginTop="$2">
-                  <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('driver')}>
-                    <Text color="white">{t('auth.signIn.forLearners')}</Text>
-                  </Button>
+                <XStack gap="$4" marginTop="$4" paddingHorizontal="$2">
+                  <TouchableOpacity
+                    style={styles.surveyOption}
+                    onPress={() => handleOpenSurvey('driver')}
+                  >
+                    <YStack alignItems="center" gap="$3">
+                      <View
+                        style={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: 40,
+                          backgroundColor: 'rgba(255, 255, 255, 0)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: 8
+                        }}
+                      >
+                        <GraduationCap size={40} color="white" />
+                      </View>
+                      <Text color="white" size="lg" textAlign="center">
+                        {t('auth.signIn.forLearners')}
+                      </Text>
+                    </YStack>
+                  </TouchableOpacity>
 
-                  <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('school')}>
-                    <Text color="white">{t('auth.signIn.forSchools')}</Text>
-                  </Button>
-                </YStack>
+                  <TouchableOpacity
+                    style={styles.surveyOption}
+                    onPress={() => handleOpenSurvey('school')}
+                  >
+                    <YStack alignItems="center" gap="$3">
+                      <View
+                        style={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: 40,
+                          backgroundColor: 'rgba(255, 255, 255, 0)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: 8
+                        }}
+                      >
+                        <School size={40} color="white" />
+                      </View>
+                      <Text color="white" size="lg" textAlign="center">
+                        {t('auth.signIn.forSchools')}
+                      </Text>
+                    </YStack>
+                  </TouchableOpacity>
+                </XStack>
               </YStack>
             </Animated.View>
           </Pressable>
