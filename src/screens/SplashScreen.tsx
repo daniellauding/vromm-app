@@ -20,17 +20,8 @@ import {
   Easing,
   Pressable
 } from 'react-native';
-import {
-  Flag,
-  HelpCircle,
-  Check,
-  GraduationCap,
-  School,
-  Facebook,
-  Instagram,
-  Linkedin,
-  Mail
-} from '@tamagui/lucide-icons';
+import { Flag, HelpCircle, Check, GraduationCap, School } from '@tamagui/lucide-icons';
+import { FontAwesome } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -403,7 +394,15 @@ export function SplashScreen() {
       {/* Content */}
       <View style={[styles.content, { minHeight: screenHeight }]}>
         {/* Help Icon */}
-        <XStack position="absolute" top={insets.top || 40} left="$4" zIndex={100}>
+        <Animated.View
+          style={{
+            opacity: contentOpacity,
+            position: 'absolute',
+            top: insets.top || 40,
+            left: 16,
+            zIndex: 100
+          }}
+        >
           <TouchableOpacity
             onPress={handleOpenWebsite}
             style={{
@@ -428,10 +427,18 @@ export function SplashScreen() {
           >
             <HelpCircle size={20} color="white" />
           </TouchableOpacity>
-        </XStack>
+        </Animated.View>
 
         {/* Language Selector */}
-        <XStack position="absolute" top={insets.top || 40} right="$4" zIndex={100}>
+        <Animated.View
+          style={{
+            opacity: contentOpacity,
+            position: 'absolute',
+            top: insets.top || 40,
+            right: 16,
+            zIndex: 100
+          }}
+        >
           <TouchableOpacity
             onPress={showLanguageModal}
             style={{
@@ -456,7 +463,7 @@ export function SplashScreen() {
           >
             <Flag size={20} color="white" />
           </TouchableOpacity>
-        </XStack>
+        </Animated.View>
 
         {/* Top Section - Logo */}
         <View style={styles.topSection}>
@@ -512,16 +519,16 @@ export function SplashScreen() {
               paddingBottom={insets.bottom || 20}
             >
               <TouchableOpacity onPress={() => handleOpenSocialMedia('facebook')}>
-                <Facebook size={28} color="white" />
+                <FontAwesome name="facebook-square" size={28} color="white" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleOpenSocialMedia('instagram')}>
-                <Instagram size={28} color="white" />
+                <FontAwesome name="instagram" size={28} color="white" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleOpenSocialMedia('linkedin')}>
-                <Linkedin size={28} color="white" />
+                <FontAwesome name="linkedin-square" size={28} color="white" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleOpenSocialMedia('mail')}>
-                <Mail size={28} color="white" />
+                <FontAwesome name="envelope" size={28} color="white" />
               </TouchableOpacity>
             </XStack>
           </View>
