@@ -91,7 +91,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   modalContent: {
-    backgroundColor: '#1c4240',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 20,
@@ -534,7 +533,7 @@ export function SplashScreen() {
               }}
             >
               <YStack
-                backgroundColor="#1c4240"
+                backgroundColor="$background"
                 padding="$4"
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
@@ -600,7 +599,7 @@ export function SplashScreen() {
               }}
             >
               <YStack
-                backgroundColor="#1c4240"
+                backgroundColor="$background"
                 padding="$4"
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
