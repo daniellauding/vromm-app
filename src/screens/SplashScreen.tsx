@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     marginVertical: 4
   },
   languageMenu: {
-    backgroundColor: '#1c4240',
+    backgroundColor: '$background',
     borderRadius: 12,
     padding: 8,
     minWidth: 150,
@@ -474,7 +474,14 @@ export function SplashScreen() {
         <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
           <View style={styles.middleSection}>
             <YStack gap={12} alignItems="center" marginBottom={56}>
-              <Heading style={{ fontWeight: '800', fontStyle: 'italic', textAlign: 'center' }}>
+              <Heading
+                style={{
+                  fontWeight: '800',
+                  fontStyle: 'italic',
+                  textAlign: 'center',
+                  color: 'white'
+                }}
+              >
                 {t('auth.signIn.title')}
               </Heading>
               <Text size="md" color="white" textAlign="center">
