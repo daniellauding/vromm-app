@@ -478,21 +478,11 @@ export function SplashScreen() {
             </Text>
 
             <YStack gap="$4" marginTop="$2">
-              <Button
-                variant="secondary"
-                size="lg"
-                backgroundColor="rgba(255, 255, 255, 0.1)"
-                onPress={() => handleOpenSurvey('driver')}
-              >
+              <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('driver')}>
                 <Text color="white">{t('auth.signIn.forLearners')}</Text>
               </Button>
 
-              <Button
-                variant="secondary"
-                size="lg"
-                backgroundColor="rgba(255, 255, 255, 0.1)"
-                onPress={() => handleOpenSurvey('school')}
-              >
+              <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('school')}>
                 <Text color="white">{t('auth.signIn.forSchools')}</Text>
               </Button>
             </YStack>

@@ -4,7 +4,7 @@ import { Text } from 'tamagui';
 import { sizes } from '../theme/sizes';
 import { tokens } from '../tokens';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'link';
+export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'link';
 export type ButtonSize = keyof typeof sizes.button;
 export type ButtonRadius = keyof typeof sizes.radius;
 
@@ -62,8 +62,8 @@ const ButtonFrame = styled(Stack, {
         }
       },
       secondary: {
-        backgroundColor: 'transparent',
-        borderWidth: 1,
+        backgroundColor: '#145251',
+        borderWidth: 0,
         radius: 'lg',
         borderColor: '#e2e8f0', // Light gray border
         hoverStyle: {
@@ -71,6 +71,18 @@ const ButtonFrame = styled(Stack, {
         },
         pressStyle: {
           backgroundColor: '#f1f5f9' // Slightly darker gray
+        }
+      },
+      tertiary: {
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderColor: '#fff', // Brand teal color for border
+        radius: 'lg',
+        hoverStyle: {
+          backgroundColor: 'rgba(0, 255, 188, 0.1)' // Very light teal background
+        },
+        pressStyle: {
+          backgroundColor: 'rgba(0, 255, 188, 0.2)' // Slightly darker teal background
         }
       },
       link: {
@@ -119,6 +131,9 @@ const ButtonText = styled(Text, {
       },
       secondary: {
         color: '$color' // This will use the theme's text color
+      },
+      tertiary: {
+        color: '#00FFBC' // Brand teal color for text
       },
       link: {
         color: '#00FFBC', // Brand teal color for links
@@ -187,6 +202,18 @@ export const NewButton = styled(TamaguiButton, {
         },
         pressStyle: {
           bg: tokens.color.gray100
+        }
+      },
+      tertiary: {
+        bg: 'transparent',
+        color: '#00FFBC', // Brand teal color for text
+        borderWidth: 1,
+        borderColor: '#00FFBC', // Brand teal color for border
+        hoverStyle: {
+          bg: 'rgba(0, 255, 188, 0.1)' // Very light teal background
+        },
+        pressStyle: {
+          bg: 'rgba(0, 255, 188, 0.2)' // Slightly darker teal background
         }
       },
       link: {
