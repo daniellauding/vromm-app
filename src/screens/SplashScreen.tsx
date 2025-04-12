@@ -144,6 +144,10 @@ export function SplashScreen() {
   const { height: screenHeight } = Dimensions.get('window');
   const videoAnimation = useRef(new Animated.Value(0)).current;
   const [isLanguageMenuVisible, setIsLanguageMenuVisible] = useState(false);
+  const surveyBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const surveySheetTranslateY = useRef(new Animated.Value(300)).current;
+  const languageBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const languageSheetTranslateY = useRef(new Animated.Value(300)).current;
 
   // Hide status bar for this screen
   useEffect(() => {
@@ -284,6 +288,76 @@ export function SplashScreen() {
     Linking.openURL(url);
   };
 
+  const showSurveyModal = () => {
+    setSurveyModalVisible(true);
+    // Fade in the backdrop
+    Animated.timing(surveyBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true
+    }).start();
+    // Slide up the sheet
+    Animated.timing(surveySheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true
+    }).start();
+  };
+
+  const hideSurveyModal = () => {
+    // Fade out the backdrop
+    Animated.timing(surveyBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true
+    }).start();
+    // Slide down the sheet
+    Animated.timing(surveySheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true
+    }).start(() => {
+      setSurveyModalVisible(false);
+    });
+  };
+
+  const showLanguageModal = () => {
+    setIsLanguageMenuVisible(true);
+    // Fade in the backdrop
+    Animated.timing(languageBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true
+    }).start();
+    // Slide up the sheet
+    Animated.timing(languageSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true
+    }).start();
+  };
+
+  const hideLanguageModal = () => {
+    // Fade out the backdrop
+    Animated.timing(languageBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true
+    }).start();
+    // Slide down the sheet
+    Animated.timing(languageSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true
+    }).start(() => {
+      setIsLanguageMenuVisible(false);
+    });
+  };
+
   return (
     <View style={styles.container}>
       {/* Background Video with Overlay */}
@@ -340,7 +414,7 @@ export function SplashScreen() {
         {/* Language Selector */}
         <XStack position="absolute" top={insets.top || 40} right="$4" zIndex={100}>
           <TouchableOpacity
-            onPress={() => setIsLanguageMenuVisible(true)}
+            onPress={showLanguageModal}
             style={{
               width: 36,
               height: 36,
@@ -400,7 +474,7 @@ export function SplashScreen() {
             {/* Survey Section as clickable area */}
             <TouchableOpacity
               style={styles.surveyButton}
-              onPress={() => setSurveyModalVisible(true)}
+              onPress={showSurveyModal}
               activeOpacity={0.7}
             >
               <Text size="sm" color="white" textAlign="center">
@@ -439,132 +513,154 @@ export function SplashScreen() {
       <Modal
         visible={surveyModalVisible}
         transparent
-        animationType="slide"
-        onRequestClose={() => setSurveyModalVisible(false)}
+        animationType="none"
+        onRequestClose={hideSurveyModal}
       >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onPress={() => setSurveyModalVisible(false)}
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: surveyBackdropOpacity
+          }}
         >
-          <YStack
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            backgroundColor="#1c4240"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-            gap="$4"
-          >
-            {/* Sheet Handle */}
-            <View
+          <Pressable style={{ flex: 1 }} onPress={hideSurveyModal}>
+            <Animated.View
               style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                alignSelf: 'center',
-                marginBottom: 12
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: surveySheetTranslateY }]
               }}
-            />
+            >
+              <YStack
+                backgroundColor="#1c4240"
+                padding="$4"
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+                {/* Sheet Handle */}
+                <View
+                  style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                    alignSelf: 'center',
+                    marginBottom: 12
+                  }}
+                />
 
-            <Heading textAlign="center" size="$5" color="white">
-              {t('auth.signIn.helpImprove.drawer.title')}
-            </Heading>
+                <Heading textAlign="center" size="$5" color="white">
+                  {t('auth.signIn.helpImprove.drawer.title')}
+                </Heading>
 
-            <Text textAlign="center" color="white">
-              {t('auth.signIn.helpImprove.drawer.text')}
-            </Text>
+                <Text textAlign="center" color="white">
+                  {t('auth.signIn.helpImprove.drawer.text')}
+                </Text>
 
-            <YStack gap="$4" marginTop="$2">
-              <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('driver')}>
-                <Text color="white">{t('auth.signIn.forLearners')}</Text>
-              </Button>
+                <YStack gap="$4" marginTop="$2">
+                  <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('driver')}>
+                    <Text color="white">{t('auth.signIn.forLearners')}</Text>
+                  </Button>
 
-              <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('school')}>
-                <Text color="white">{t('auth.signIn.forSchools')}</Text>
-              </Button>
-            </YStack>
-          </YStack>
-        </Pressable>
+                  <Button variant="secondary" size="lg" onPress={() => handleOpenSurvey('school')}>
+                    <Text color="white">{t('auth.signIn.forSchools')}</Text>
+                  </Button>
+                </YStack>
+              </YStack>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
       </Modal>
 
       {/* Language Selection Modal */}
       <Modal
         visible={isLanguageMenuVisible}
         transparent
-        animationType="slide"
-        onRequestClose={() => setIsLanguageMenuVisible(false)}
+        animationType="none"
+        onRequestClose={hideLanguageModal}
       >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onPress={() => setIsLanguageMenuVisible(false)}
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: languageBackdropOpacity
+          }}
         >
-          <YStack
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            backgroundColor="#1c4240"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-            gap="$4"
-          >
-            {/* Sheet Handle */}
-            <View
+          <Pressable style={{ flex: 1 }} onPress={hideLanguageModal}>
+            <Animated.View
               style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                alignSelf: 'center',
-                marginBottom: 12
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: languageSheetTranslateY }]
               }}
-            />
-
-            <Text size="xl" weight="bold" color="white" textAlign="center">
-              {t('settings.language.title')}
-            </Text>
-
-            <YStack gap="$2" marginTop="$2">
-              <TouchableOpacity
-                style={[
-                  styles.languageOption,
-                  language === 'en' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
-                ]}
-                onPress={() => handleLanguageSelect('en')}
+            >
+              <YStack
+                backgroundColor="#1c4240"
+                padding="$4"
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
               >
-                <XStack gap={8} padding="$2" alignItems="center">
-                  <Text color="white" size="lg">
-                    English
-                  </Text>
-                  {language === 'en' && (
-                    <Check size={16} color="white" style={{ marginLeft: 'auto' }} />
-                  )}
-                </XStack>
-              </TouchableOpacity>
+                {/* Sheet Handle */}
+                <View
+                  style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                    alignSelf: 'center',
+                    marginBottom: 12
+                  }}
+                />
 
-              <TouchableOpacity
-                style={[
-                  styles.languageOption,
-                  language === 'sv' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
-                ]}
-                onPress={() => handleLanguageSelect('sv')}
-              >
-                <XStack gap={8} padding="$2" alignItems="center">
-                  <Text color="white" size="lg">
-                    Svenska
-                  </Text>
-                  {language === 'sv' && (
-                    <Check size={16} color="white" style={{ marginLeft: 'auto' }} />
-                  )}
-                </XStack>
-              </TouchableOpacity>
-            </YStack>
-          </YStack>
-        </Pressable>
+                <Text size="xl" weight="bold" color="white" textAlign="center">
+                  {t('settings.language.title')}
+                </Text>
+
+                <YStack gap="$2" marginTop="$2">
+                  <TouchableOpacity
+                    style={[
+                      styles.languageOption,
+                      language === 'en' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+                    ]}
+                    onPress={() => handleLanguageSelect('en')}
+                  >
+                    <XStack gap={8} padding="$2" alignItems="center">
+                      <Text color="white" size="lg">
+                        English
+                      </Text>
+                      {language === 'en' && (
+                        <Check size={16} color="white" style={{ marginLeft: 'auto' }} />
+                      )}
+                    </XStack>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.languageOption,
+                      language === 'sv' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+                    ]}
+                    onPress={() => handleLanguageSelect('sv')}
+                  >
+                    <XStack gap={8} padding="$2" alignItems="center">
+                      <Text color="white" size="lg">
+                        Svenska
+                      </Text>
+                      {language === 'sv' && (
+                        <Check size={16} color="white" style={{ marginLeft: 'auto' }} />
+                      )}
+                    </XStack>
+                  </TouchableOpacity>
+                </YStack>
+              </YStack>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
       </Modal>
     </View>
   );
