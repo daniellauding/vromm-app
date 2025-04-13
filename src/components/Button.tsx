@@ -137,7 +137,9 @@ const ButtonText = styled(Text, {
       },
       link: {
         color: '#00FFBC', // Brand teal color for links
-        textDecorationLine: 'underline'
+        textDecorationLine: 'none',
+        fontStyle: 'normal',
+        textTransform: 'none'
       }
     }
   } as const,

@@ -86,7 +86,7 @@ export function ForgotPasswordScreen() {
               {loading ? t('auth.resetPassword.loading') : t('auth.resetPassword.resetButton')}
             </Button>
 
-            <Button onPress={() => navigation.navigate('Login')} variant="secondary" size="md">
+            <Button onPress={() => navigation.navigate('Login')} variant="link" size="md">
               {t('auth.resetPassword.backToLogin')}
             </Button>
           </YStack>

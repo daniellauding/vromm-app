@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from '../contexts/TranslationContext';
 import WebView from 'react-native-webview';
 import { SvgXml } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -58,6 +59,7 @@ export function Onboarding({
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
 
   // Mark onboarding as viewed
   const completeOnboarding = async () => {
@@ -146,9 +148,10 @@ export function Onboarding({
           key="image-container"
           alignItems="center"
           justifyContent="center"
-          width={width * 0.8}
-          height={width * 0.8}
-          marginBottom="$4"
+          width={width * 1}
+          height={width * 1}
+          marginBottom="0"
+          marginTop="90"
         >
           <Image
             key="image"
@@ -317,7 +320,13 @@ export function Onboarding({
           {renderMedia(item)}
         </YStack>
         <YStack flex={1} alignItems="center" gap="$4">
-          <Text size="3xl" weight="bold" textAlign="center" fontFamily="$heading">
+          <Text
+            size="3xl"
+            weight="bold"
+            fontStyle="italic"
+            textAlign="center"
+            fontFamily="$heading"
+          >
             {getTitle(item)}
           </Text>
           <Text size="lg" intent="muted" textAlign="center">
@@ -344,6 +353,8 @@ export function Onboarding({
             extrapolate: 'clamp'
           });
 
+          const isActive = currentIndex === i;
+
           return (
             <Animated.View
               key={`dot-${i}`}
@@ -351,7 +362,7 @@ export function Onboarding({
                 width: dotWidth,
                 height: 10,
                 borderRadius: 5,
-                backgroundColor: '$color',
+                backgroundColor: isActive ? '#00FFBC' : '#374151',
                 marginHorizontal: 4,
                 opacity
               }}
@@ -364,6 +375,36 @@ export function Onboarding({
 
   return (
     <Stack flex={1} bg="$background">
+      {currentIndex > 0 && (
+        <Button
+          variant="link"
+          size="md"
+          onPress={() => scrollTo(currentIndex - 1)}
+          style={{
+            position: 'absolute',
+            top: insets.top || 40,
+            left: 16,
+            zIndex: 100
+          }}
+        >
+          {t('onboarding.previous')}
+        </Button>
+      )}
+
+      <Button
+        variant="link"
+        size="md"
+        onPress={skipOnboarding}
+        style={{
+          position: 'absolute',
+          top: insets.top || 40,
+          right: 16,
+          zIndex: 100
+        }}
+      >
+        {t('onboarding.skip')}
+      </Button>
+
       <FlatList
         data={slides}
         renderItem={renderItem}
@@ -391,15 +432,11 @@ export function Onboarding({
       >
         {renderDots()}
 
-        <XStack justifyContent="space-between" alignItems="center" marginTop="$4">
-          <Button variant="link" size="md" onPress={skipOnboarding}>
-            {t('onboarding.skip')}
-          </Button>
-
-          <Button variant="primary" size="md" onPress={nextSlide}>
+        <YStack marginTop="$4" width="100%">
+          <Button variant="primary" size="lg" onPress={nextSlide}>
             {currentIndex === slides.length - 1 ? t('onboarding.getStarted') : t('onboarding.next')}
           </Button>
-        </XStack>
+        </YStack>
       </YStack>
     </Stack>
   );

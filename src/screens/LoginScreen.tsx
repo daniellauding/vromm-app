@@ -79,17 +79,13 @@ export function LoginScreen() {
               {loading ? t('auth.signIn.loading') : t('auth.signIn.signInButton')}
             </Button>
 
-            <Button
-              onPress={() => navigation.navigate('ForgotPassword')}
-              variant="secondary"
-              size="md"
-            >
+            <Button onPress={() => navigation.navigate('ForgotPassword')} variant="link" size="md">
               {t('auth.signIn.forgotPassword')}
             </Button>
           </YStack>
         </YStack>
 
-        <XStack justifyContent="center" alignItems="center" gap={8}>
+        <XStack justifyContent="center" alignItems="center" gap={0}>
           <Text size="md" intent="muted">
             {t('auth.signIn.noAccount')}
           </Text>
