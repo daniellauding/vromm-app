@@ -29,11 +29,11 @@ export function TabNavigator() {
     height: TOTAL_HEIGHT,
     paddingTop: 8,
     paddingBottom: BOTTOM_INSET,
-    backgroundColor: isDark ? tokens.color.gray900 : tokens.color.white,
+    backgroundColor: '#1F1F1F',
     borderTopWidth: 1,
-    borderTopColor: isDark ? tokens.color.gray800 : tokens.color.gray200,
+    borderTopColor: '#2D3130',
     elevation: 8,
-    shadowColor: isDark ? tokens.color.black : tokens.color.gray900,
+    shadowColor: tokens.color.black,
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -53,20 +53,20 @@ export function TabNavigator() {
           paddingBottom: 4
         },
         // Active/Inactive colors
-        tabBarActiveTintColor: isDark ? tokens.color.indigo400 : tokens.color.indigo600,
-        tabBarInactiveTintColor: isDark ? tokens.color.gray500 : tokens.color.gray400,
+        tabBarActiveTintColor: '#9DBCB7',
+        tabBarInactiveTintColor: '#9DBCB7',
         // Header style
         headerStyle: {
-          backgroundColor: isDark ? tokens.color.gray900 : tokens.color.white,
+          backgroundColor: '#1F1F1F',
           borderBottomWidth: 1,
-          borderBottomColor: isDark ? tokens.color.gray800 : tokens.color.gray200,
+          borderBottomColor: '#2D3130',
           elevation: 0,
           shadowOpacity: 0
         },
         headerTitleStyle: {
           fontSize: 17,
           fontWeight: '600',
-          color: isDark ? tokens.color.white : tokens.color.gray900
+          color: '#9DBCB7'
         }
       }}
     >

@@ -29,7 +29,8 @@ export function Header({ title, leftElement, rightElement, showBack = false }: H
           <Button
             size="$10"
             backgroundColor="transparent"
-            paddingHorizontal="$0"
+            paddingHorizontal="$2"
+            marginLeft={-12}
             alignSelf="flex-start"
             onPress={() => navigation.goBack()}
             icon={<Feather name="arrow-left" size={24} color={iconColor} />}
