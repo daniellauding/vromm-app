@@ -4,12 +4,13 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { TabParamList } from '../types/navigation';
 import { Platform, useColorScheme, TouchableOpacity, ViewStyle, View } from 'react-native';
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import { HomeIcon, MapIcon, ProfileIcon } from './icons/TabIcons';
+import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
 
 // Import screens
 import { HomeScreen } from '../screens/HomeScreen';
 import { MapScreen } from '../screens/MapScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { PractiseScreen } from '../screens/PractiseScreen';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
@@ -112,6 +113,20 @@ export function TabNavigator() {
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <HomeIcon
+              color={color}
+              size={24}
+            />
+          )
+        }}
+      />
+      <Tab.Screen
+        name="PractiseTab"
+        component={PractiseScreen}
+        options={{
+          title: t('navigation.practise'),
+          headerShown: false,
+          tabBarIcon: ({ color, focused }) => (
+            <PractiseIcon
               color={color}
               size={24}
             />
