@@ -10,7 +10,7 @@ import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MapScreen } from '../screens/MapScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { PractiseScreen } from '../screens/PractiseScreen';
+import { ProgressScreen } from '../screens/ProgressScreen';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
@@ -34,7 +34,7 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps) => {
             height: 56,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#2D3130',
+            backgroundColor: 'transparent',
             borderRadius: 12,
           },
           isSelected && {
@@ -61,11 +61,13 @@ export function TabNavigator() {
     height: TOTAL_HEIGHT,
     paddingTop: 8,
     paddingBottom: BOTTOM_INSET,
-    backgroundColor: tokens.color.background,
+    paddingLeft: 20,
+    paddingRight: 20,
+    backgroundColor: '#1F1F1F',
     borderTopWidth: 1,
     borderTopColor: tokens.color.backgroundPress,
-    borderTopRightRadius: 20,
-    borderTopLeftRadius: 20,
+    borderTopRightRadius: 16,
+    borderTopLeftRadius: 16,
     elevation: 8,
     shadowColor: tokens.color.black,
     shadowOffset: { width: 0, height: -3 },
@@ -120,10 +122,10 @@ export function TabNavigator() {
         }}
       />
       <Tab.Screen
-        name="PractiseTab"
-        component={PractiseScreen}
+        name="ProgressTab"
+        component={ProgressScreen}
         options={{
-          title: t('navigation.practise'),
+          title: t('navigation.progress'),
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <PractiseIcon
