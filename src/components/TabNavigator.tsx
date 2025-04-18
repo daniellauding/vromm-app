@@ -1,9 +1,10 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Feather } from '@expo/vector-icons';
 import { tokens } from '../tokens';
 import { useTranslation } from '../contexts/TranslationContext';
 import { TabParamList } from '../types/navigation';
-import { Platform, useColorScheme } from 'react-native';
+import { Platform, useColorScheme, TouchableOpacity, ViewStyle, View } from 'react-native';
+import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
+import { HomeIcon, MapIcon, ProfileIcon } from './icons/TabIcons';
 
 // Import screens
 import { HomeScreen } from '../screens/HomeScreen';
@@ -15,6 +16,36 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 const TAB_BAR_HEIGHT = 56;
 const TOTAL_HEIGHT = TAB_BAR_HEIGHT + BOTTOM_INSET;
+
+// Custom tab bar button component
+const CustomTabBarButton = (props: BottomTabBarButtonProps) => {
+  const { accessibilityState, children, onPress, style } = props;
+  const isSelected = accessibilityState?.selected;
+  
+  return (
+    <View style={style as ViewStyle}>
+      <TouchableOpacity
+        onPress={onPress}
+        style={[
+          {
+            display: 'flex',
+            width: 64,
+            height: 56,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#2D3130',
+            borderRadius: 12,
+          },
+          isSelected && {
+            backgroundColor: '#2D3130'
+          }
+        ]}
+      >
+        {children}
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 export function TabNavigator() {
   const { t } = useTranslation();
@@ -29,9 +60,11 @@ export function TabNavigator() {
     height: TOTAL_HEIGHT,
     paddingTop: 8,
     paddingBottom: BOTTOM_INSET,
-    backgroundColor: '#1F1F1F',
+    backgroundColor: tokens.color.background,
     borderTopWidth: 1,
-    borderTopColor: '#2D3130',
+    borderTopColor: tokens.color.backgroundPress,
+    borderTopRightRadius: 20,
+    borderTopLeftRadius: 20,
     elevation: 8,
     shadowColor: tokens.color.black,
     shadowOffset: { width: 0, height: -3 },
@@ -47,19 +80,18 @@ export function TabNavigator() {
         tabBarStyle,
         // Label style
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 10,
           fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
           fontWeight: '500',
-          paddingBottom: 4
         },
         // Active/Inactive colors
         tabBarActiveTintColor: '#9DBCB7',
-        tabBarInactiveTintColor: '#9DBCB7',
+        tabBarInactiveTintColor: '#A5A5A5',
         // Header style
         headerStyle: {
-          backgroundColor: '#1F1F1F',
+          backgroundColor: tokens.color.background,
           borderBottomWidth: 1,
-          borderBottomColor: '#2D3130',
+          borderBottomColor: tokens.color.backgroundPress,
           elevation: 0,
           shadowOpacity: 0
         },
@@ -67,7 +99,9 @@ export function TabNavigator() {
           fontSize: 17,
           fontWeight: '600',
           color: '#9DBCB7'
-        }
+        },
+        // Use custom tab bar button
+        tabBarButton: (props) => <CustomTabBarButton {...props} />
       }}
     >
       <Tab.Screen
@@ -77,14 +111,9 @@ export function TabNavigator() {
           title: t('navigation.home'),
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Feather
-              name="home"
-              size={24}
+            <HomeIcon
               color={color}
-              style={{
-                opacity: focused ? 1 : 0.8,
-                marginBottom: -4
-              }}
+              size={24}
             />
           )
         }}
@@ -96,14 +125,9 @@ export function TabNavigator() {
           title: t('navigation.map'),
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Feather
-              name="map"
-              size={24}
+            <MapIcon
               color={color}
-              style={{
-                opacity: focused ? 1 : 0.8,
-                marginBottom: -4
-              }}
+              size={24}
             />
           )
         }}
@@ -115,14 +139,9 @@ export function TabNavigator() {
           title: t('navigation.profile'),
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Feather
-              name="user"
-              size={24}
+            <ProfileIcon
               color={color}
-              style={{
-                opacity: focused ? 1 : 0.8,
-                marginBottom: -4
-              }}
+              size={24}
             />
           )
         }}
