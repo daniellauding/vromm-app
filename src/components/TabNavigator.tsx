@@ -15,7 +15,7 @@ import { ProgressScreen } from '../screens/ProgressScreen';
 const Tab = createBottomTabNavigator<TabParamList>();
 
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
-const TAB_BAR_HEIGHT = 56;
+const TAB_BAR_HEIGHT = 64;
 const TOTAL_HEIGHT = TAB_BAR_HEIGHT + BOTTOM_INSET;
 
 // Custom tab bar button component
@@ -36,6 +36,7 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps) => {
             justifyContent: 'center',
             backgroundColor: 'transparent',
             borderRadius: 12,
+            gap: 4,
           },
           isSelected && {
             backgroundColor: '#2D3130'
