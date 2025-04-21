@@ -1,0 +1,12 @@
+{
+  "common": {
+    "seeAll": "See All"
+  },
+  "home": {
+    "savedRoutes": "Saved Routes",
+    "drivenRoutes": "Driven Routes",
+    "createdRoutes": "Created Routes",
+    "nearbyRoutes": "Nearby Routes",
+    "createNewRoute": "Create New Route"
+  }
+} 

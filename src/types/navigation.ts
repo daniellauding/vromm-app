@@ -30,7 +30,7 @@ export type RootStackParamList = {
   RouteList: {
     title: string;
     routes: Route[];
-    type: 'saved' | 'driven' | 'difficulty' | 'spot_type' | 'category' | 'city' | 'transmission_type' | 'activity_level' | 'best_season' | 'vehicle_types';
+    type: 'saved' | 'driven' | 'created' | 'nearby' | 'difficulty' | 'spot_type' | 'category' | 'city' | 'transmission_type' | 'activity_level' | 'best_season' | 'vehicle_types';
     activeFilter?: FilterCategory;
   };
 };

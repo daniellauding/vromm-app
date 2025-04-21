@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { YStack, XStack, Card, Separator, ScrollView, Select } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useRoutes } from '../hooks/useRoutes';
@@ -13,7 +13,7 @@ import { Text } from '../components/Text';
 import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
 import type { Route, MediaAttachment } from '../hooks/useRoutes';
-import { Image, ImageSourcePropType, Platform, PermissionsAndroid } from 'react-native';
+import { Image, ImageSourcePropType, Platform, PermissionsAndroid, Animated, Pressable, Modal, View, TouchableOpacity } from 'react-native';
 import { OnboardingModal } from '../components/OnboardingModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shouldShowOnboarding } from '../components/Onboarding';
@@ -21,6 +21,9 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { HeroCarousel } from '../components/HeroCarousel';
 import * as Location from 'expo-location';
 import type { FilterCategory } from '../types/navigation';
+import { Easing } from 'react-native';
+import { RouteType } from '../types/route';
+import { RouteCard } from '../components/RouteCard';
 
 type Todo = {
   id: string;
@@ -80,11 +83,38 @@ const isValidRoute = (route: any): route is Route => {
   );
 };
 
+// Helper functions (outside component)
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+};
+
+const deg2rad = (deg: number) => {
+  return deg * (Math.PI / 180);
+};
+
+// Helper function to get city from waypoint details
+const getCityFromWaypoints = (route: Route): string => {
+  if (!route.waypoint_details || route.waypoint_details.length === 0) {
+    return 'Unknown';
+  }
+  return route.waypoint_details[0].title || 'Unknown';
+};
+
 export function HomeScreen() {
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const { fetchRoutes } = useRoutes();
   const { t } = useTranslation();
+  
+  // State declarations
   const [routes, setRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(false);
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
@@ -97,6 +127,163 @@ export function HomeScreen() {
   const [routesByCity, setRoutesByCity] = useState<{ [key: string]: Route[] }>({});
   const [allFilters, setAllFilters] = useState<FilterCategory[]>([]);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [isCityMenuVisible, setIsCityMenuVisible] = useState(false);
+  const [createdRoutes, setCreatedRoutes] = useState<Route[]>([]);
+  
+  // Refs
+  const cityBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const citySheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Location and route organization effects
+  useEffect(() => {
+    const requestLocationPermission = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          setUserLocation(location);
+        }
+      } catch (err) {
+        console.warn('Error getting location:', err);
+      }
+    };
+
+    requestLocationPermission();
+  }, []);
+
+  // Route organization and filtering
+  useEffect(() => {
+    if (routes.length > 0) {
+      // Organize routes by city
+      const cityMap: { [key: string]: Route[] } = {};
+      routes.forEach(route => {
+        const city = getCityFromWaypoints(route);
+        if (!cityMap[city]) {
+          cityMap[city] = [];
+        }
+        cityMap[city].push(route);
+      });
+      setRoutesByCity(cityMap);
+
+      // Extract filters
+      const filterMap = new Map<string, FilterCategory>();
+      routes.forEach(route => {
+        if (route.difficulty) {
+          filterMap.set(`difficulty-${route.difficulty}`, {
+            id: `difficulty-${route.difficulty}`,
+            label: route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
+            value: route.difficulty,
+            type: 'difficulty'
+          });
+        }
+        // Add other filter types...
+      });
+      setAllFilters(Array.from(filterMap.values()));
+
+      // Update nearby routes if we have location
+      if (userLocation) {
+        const routesWithDistance = routes.map(route => {
+          if (!route.waypoint_details?.[0]) return { route, distance: Infinity };
+          
+          const distance = calculateDistance(
+            userLocation.coords.latitude,
+            userLocation.coords.longitude,
+            route.waypoint_details[0].lat,
+            route.waypoint_details[0].lng
+          );
+          
+          return { route, distance };
+        });
+
+        const closest = routesWithDistance
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 3)
+          .map(item => item.route);
+
+        setNearbyRoutes(closest);
+      }
+    }
+  }, [routes, userLocation]);
+
+  // City selection effect
+  useEffect(() => {
+    if (!selectedCity && routesByCity && userLocation) {
+      const cities = Object.keys(routesByCity);
+      let closestCity = null;
+      let shortestDistance = Infinity;
+
+      cities.forEach(city => {
+        const cityRoutes = routesByCity[city];
+        if (cityRoutes && cityRoutes.length > 0) {
+          const route = cityRoutes[0];
+          if (route.waypoint_details && route.waypoint_details.length > 0) {
+            const waypoint = route.waypoint_details[0];
+            const distance = calculateDistance(
+              userLocation.coords.latitude,
+              userLocation.coords.longitude,
+              waypoint.lat,
+              waypoint.lng
+            );
+            if (distance < shortestDistance) {
+              shortestDistance = distance;
+              closestCity = city;
+            }
+          }
+        }
+      });
+
+      if (closestCity) {
+        setSelectedCity(closestCity);
+      } else if (cities.length > 0) {
+        setSelectedCity(cities[0]);
+      }
+    }
+  }, [routesByCity, userLocation, selectedCity]);
+
+  // Modal handlers
+  const showCityModal = () => {
+    setIsCityMenuVisible(true);
+    Animated.timing(cityBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true
+    }).start();
+    Animated.timing(citySheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true
+    }).start();
+  };
+
+  const hideCityModal = () => {
+    Animated.timing(cityBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true
+    }).start();
+    Animated.timing(citySheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true
+    }).start(() => {
+      setIsCityMenuVisible(false);
+    });
+  };
+
+  const handleCitySelect = (city: string) => {
+    setSelectedCity(city);
+    hideCityModal();
+  };
+
+  const handleSeeAllPress = (type: RouteType) => {
+    navigation.navigate('RouteList', { 
+      type,
+      title: type === 'created' ? t('home.createdRoutes') : t('home.nearbyRoutes'),
+      routes: type === 'created' ? createdRoutes : nearbyRoutes
+    });
+  };
 
   // Check if this is the first login and should show onboarding
   useEffect(() => {
@@ -251,6 +438,24 @@ export function HomeScreen() {
     }
   };
 
+  // Load created routes
+  const loadCreatedRoutes = async () => {
+    if (!user) return;
+    try {
+      const { data: createdData, error: createdError } = await supabase
+        .from('routes')
+        .select('*')
+        .eq('creator_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (createdError) throw createdError;
+
+      setCreatedRoutes(createdData as Route[]);
+    } catch (err) {
+      console.error('Error loading created routes:', err);
+    }
+  };
+
   // Add real-time subscription for driven routes
   useEffect(() => {
     if (!user) return;
@@ -302,15 +507,16 @@ export function HomeScreen() {
     };
   }, [user]);
 
-  // Remove loadSavedRoutes and loadDrivenRoutes from this useEffect since they're now handled by the subscription
+  // Update useEffect to include loadCreatedRoutes
   useEffect(() => {
     loadRoutes();
     loadTodos();
+    loadCreatedRoutes();
   }, [loadRoutes]);
 
-  // Update the refresh function to not include loadSavedRoutes and loadDrivenRoutes since they're real-time now
+  // Update handleRefresh to include loadCreatedRoutes
   const handleRefresh = async () => {
-    await Promise.all([loadRoutes(), loadTodos()]);
+    await Promise.all([loadRoutes(), loadTodos(), loadCreatedRoutes()]);
   };
 
   const getRouteImage: (route: Route) => string | null = (route) => {
@@ -476,16 +682,6 @@ export function HomeScreen() {
     </Card>
   );
 
-  // Helper function to get city from waypoint details
-  const getCityFromWaypoints = (route: Route): string => {
-    if (!route.waypoint_details || route.waypoint_details.length === 0) {
-      return 'Unknown';
-    }
-    // Assuming the first waypoint's title contains the city
-    // You might want to adjust this logic based on your data structure
-    return route.waypoint_details[0].title || 'Unknown';
-  };
-
   // Organize routes by city
   const organizeRoutesByCity = useCallback((routes: Route[]) => {
     const cityMap: { [key: string]: Route[] } = {};
@@ -580,14 +776,6 @@ export function HomeScreen() {
     setAllFilters(Array.from(filterMap.values()));
   }, []);
 
-  // Update useEffect to extract all filters
-  useEffect(() => {
-    if (routes.length > 0) {
-      organizeRoutesByCity(routes);
-      extractAllFilters(routes);
-    }
-  }, [routes, organizeRoutesByCity, extractAllFilters]);
-
   const handleFilterPress = (filter: FilterCategory) => {
     navigation.navigate('RouteList', {
       title: `${filter.label} Routes`,
@@ -634,69 +822,6 @@ export function HomeScreen() {
     </YStack>
   );
 
-  // Calculate distance between two points
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Radius of the earth in km
-    const dLat = deg2rad(lat2 - lat1);
-    const dLon = deg2rad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distance in km
-  };
-
-  const deg2rad = (deg: number) => {
-    return deg * (Math.PI / 180);
-  };
-
-  // Find closest city based on user location
-  const findClosestCity = useCallback((cities: string[]) => {
-    if (!userLocation || cities.length === 0) return null;
-
-    let closestCity = cities[0];
-    let shortestDistance = Infinity;
-
-    cities.forEach(city => {
-      const cityRoutes = routesByCity[city];
-      if (cityRoutes && cityRoutes.length > 0) {
-        const route = cityRoutes[0];
-        if (route.waypoint_details && route.waypoint_details.length > 0) {
-          const waypoint = route.waypoint_details[0];
-          const distance = calculateDistance(
-            userLocation.coords.latitude,
-            userLocation.coords.longitude,
-            waypoint.lat,
-            waypoint.lng
-          );
-          if (distance < shortestDistance) {
-            shortestDistance = distance;
-            closestCity = city;
-          }
-        }
-      }
-    });
-
-    return closestCity;
-  }, [userLocation, routesByCity]);
-
-  // Update useEffect to set the closest city when routes or location changes
-  useEffect(() => {
-    if (routes.length > 0) {
-      organizeRoutesByCity(routes);
-      extractAllFilters(routes);
-      
-      const cities = Object.keys(routesByCity);
-      const closest = findClosestCity(cities);
-      if (closest && !selectedCity) {
-        setSelectedCity(closest);
-      } else if (!selectedCity && cities.length > 0) {
-        setSelectedCity(cities[0]);
-      }
-    }
-  }, [routes, organizeRoutesByCity, extractAllFilters, findClosestCity, selectedCity, routesByCity]);
-
   // Render routes for selected city
   const renderCityRoutes = () => {
     if (!selectedCity) return null;
@@ -705,28 +830,17 @@ export function HomeScreen() {
     return (
       <YStack gap="$4">
         <XStack px="$4" justifyContent="space-between" alignItems="center">
-          <Select
-            value={selectedCity}
-            onValueChange={setSelectedCity}
+          <Button
+            size="md"
+            variant="secondary"
+            backgroundColor="$backgroundStrong"
+            onPress={showCityModal}
           >
-            <Select.Trigger width={200}>
-              <Select.Value>
-                <Text>{selectedCity || 'Select a city'}</Text>
-              </Select.Value>
-            </Select.Trigger>
-
-            <Select.Content>
-              <Select.Viewport>
-                <Select.Group>
-                  {Object.keys(routesByCity).map((city, index) => (
-                    <Select.Item key={city} index={index} value={city}>
-                      <Select.ItemText>{city}</Select.ItemText>
-                    </Select.Item>
-                  ))}
-                </Select.Group>
-              </Select.Viewport>
-            </Select.Content>
-          </Select>
+            <XStack gap="$2" alignItems="center">
+              <Text>{selectedCity || 'Select a city'}</Text>
+              <Feather name="chevron-down" size={20} />
+            </XStack>
+          </Button>
 
           <Button
             size="sm"
@@ -747,94 +861,76 @@ export function HomeScreen() {
         </XStack>
 
         <YStack gap="$3" px="$4">
-          {cityRoutes.slice(0, 3).map(route => (
-            <Card
-              key={route.id}
-              bordered
-              elevate
-              backgroundColor="$backgroundStrong"
-              width="100%"
-              height={280}
-              onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
-            >
-              <YStack f={1}>
-                {getRouteImage(route) ? (
-                  <Image
-                    source={{ uri: getRouteImage(route) } as ImageSourcePropType}
-                    style={{
-                      width: '100%',
-                      height: 180,
-                      borderTopLeftRadius: 12,
-                      borderTopRightRadius: 12
-                    }}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <YStack
-                    height={180}
-                    backgroundColor="$gray5"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    <Feather name="image" size={32} color="$gray11" />
-                  </YStack>
-                )}
-                <YStack padding="$3" gap="$2">
-                  <XStack justifyContent="space-between" alignItems="center">
-                    <YStack>
-                      <Text size="lg" weight="bold" numberOfLines={1} ellipsizeMode="tail">
-                        {route.name}
-                      </Text>
-                      <Text size="sm" color="$gray11">
-                        {route.difficulty?.toUpperCase()}
-                      </Text>
+          {cityRoutes.length > 0 ? (
+            cityRoutes.slice(0, 3).map(route => (
+              <Card
+                key={route.id}
+                bordered
+                elevate
+                backgroundColor="$backgroundStrong"
+                width="100%"
+                height={280}
+                onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
+              >
+                <YStack f={1}>
+                  {getRouteImage(route) ? (
+                    <Image
+                      source={{ uri: getRouteImage(route) } as ImageSourcePropType}
+                      style={{
+                        width: '100%',
+                        height: 180,
+                        borderTopLeftRadius: 12,
+                        borderTopRightRadius: 12
+                      }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <YStack
+                      height={180}
+                      backgroundColor="$gray5"
+                      alignItems="center"
+                      justifyContent="center"
+                    >
+                      <Feather name="image" size={32} color="$gray11" />
                     </YStack>
-                    {userLocation && route.waypoint_details?.[0] && (
-                      <Text size="sm" color="$gray11">
-                        {calculateDistance(
-                          userLocation.coords.latitude,
-                          userLocation.coords.longitude,
-                          route.waypoint_details[0].lat,
-                          route.waypoint_details[0].lng
-                        ).toFixed(1)} km away
+                  )}
+                  <YStack padding="$3" gap="$2">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <YStack>
+                        <Text size="lg" weight="bold" numberOfLines={1} ellipsizeMode="tail">
+                          {route.name}
+                        </Text>
+                        <Text size="sm" color="$gray11">
+                          {route.difficulty?.toUpperCase()}
+                        </Text>
+                      </YStack>
+                      {userLocation && route.waypoint_details?.[0] && (
+                        <Text size="sm" color="$gray11">
+                          {calculateDistance(
+                            userLocation.coords.latitude,
+                            userLocation.coords.longitude,
+                            route.waypoint_details[0].lat,
+                            route.waypoint_details[0].lng
+                          ).toFixed(1)} km away
+                        </Text>
+                      )}
+                    </XStack>
+                    {route.description && (
+                      <Text size="sm" color="$gray11" numberOfLines={2} ellipsizeMode="tail">
+                        {route.description}
                       </Text>
                     )}
-                  </XStack>
-                  {route.description && (
-                    <Text size="sm" color="$gray11" numberOfLines={2} ellipsizeMode="tail">
-                      {route.description}
-                    </Text>
-                  )}
+                  </YStack>
                 </YStack>
-              </YStack>
-            </Card>
-          ))}
+              </Card>
+            ))
+          ) : (
+            renderEmptyState('No Routes', 'No routes available in this city yet')
+          )}
         </YStack>
       </YStack>
     );
   };
-
-  // Request location permissions and get location
-  const requestLocationPermission = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
-        setUserLocation(location);
-        // TODO: When backend is ready, fetch nearby routes using location
-        // For now, we'll just use the regular routes
-        if (routes.length > 0) {
-          setNearbyRoutes(routes.slice(0, 3)); // Limit to 3 routes for now
-        }
-      }
-    } catch (err) {
-      console.warn('Error getting location:', err);
-    }
-  };
-
-  useEffect(() => {
-    requestLocationPermission();
-  }, []);
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
@@ -919,31 +1015,42 @@ export function HomeScreen() {
             {/* City Routes - Now with dropdown and full-width cards */}
             {renderCityRoutes()}
 
-            {/* Nearby Routes - Using full width cards */}
-            <YStack gap="$2">
-              <XStack px="$4" justifyContent="space-between" alignItems="center">
-                <Text size="xl" weight="bold">
-                  Nearby Suggested Routes
+            {/* Created Routes Section */}
+            <YStack space="$4">
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text fontFamily="$heading" fontSize="$6">
+                  {t('home.createdRoutes')}
                 </Text>
-                <Button size="sm" variant="secondary" opacity={0.5}>
-                  <XStack gap="$2" alignItems="center">
-                    <Text>See All</Text>
-                    <Feather name="chevron-right" size={20} />
-                  </XStack>
+                <Button variant="link" onPress={() => handleSeeAllPress('created')}>
+                  {t('common.seeAll')}
                 </Button>
               </XStack>
-              {nearbyRoutes.length > 0 ? (
-                renderFullWidthRouteList(nearbyRoutes, getRouteImage)
-              ) : (
-                <YStack px="$4">
-                  {renderEmptyState(
-                    'No Nearby Routes',
-                    userLocation 
-                      ? 'No routes available in your area yet'
-                      : 'Enable location to see routes near you'
-                  )}
-                </YStack>
-              )}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <XStack space="$4">
+                  {createdRoutes.slice(0, 3).map((route) => (
+                    <RouteCard key={route.id} route={route} />
+                  ))}
+                </XStack>
+              </ScrollView>
+            </YStack>
+
+            {/* Nearby Routes Section */}
+            <YStack space="$4">
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text fontFamily="$heading" fontSize="$6">
+                  {t('home.nearbyRoutes')}
+                </Text>
+                <Button variant="link" onPress={() => handleSeeAllPress('nearby')}>
+                  {t('common.seeAll')}
+                </Button>
+              </XStack>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <XStack space="$4">
+                  {nearbyRoutes.slice(0, 3).map((route) => (
+                    <RouteCard key={route.id} route={route} />
+                  ))}
+                </XStack>
+              </ScrollView>
             </YStack>
 
             {/* Driven Routes - Using horizontal scroll */}
@@ -986,6 +1093,84 @@ export function HomeScreen() {
             </Button>
           </YStack>
         </YStack>
+
+        {/* City Selection Modal */}
+        <Modal
+          visible={isCityMenuVisible}
+          transparent
+          animationType="none"
+          onRequestClose={hideCityModal}
+        >
+          <Animated.View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              opacity: cityBackdropOpacity
+            }}
+          >
+            <Pressable style={{ flex: 1 }} onPress={hideCityModal}>
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  transform: [{ translateY: citySheetTranslateY }]
+                }}
+              >
+                <YStack
+                  backgroundColor="$background"
+                  padding="$4"
+                  borderTopLeftRadius="$4"
+                  borderTopRightRadius="$4"
+                  gap="$4"
+                >
+                  {/* Sheet Handle */}
+                  <View
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                      alignSelf: 'center',
+                      marginBottom: 12
+                    }}
+                  />
+
+                  <Text size="xl" weight="bold" color="white" textAlign="center">
+                    Select City
+                  </Text>
+
+                  <YStack gap="$2" marginTop="$2">
+                    {Object.keys(routesByCity).map((city) => (
+                      <TouchableOpacity
+                        key={city}
+                        style={[
+                          {
+                            paddingVertical: 12,
+                            paddingHorizontal: 16,
+                            borderRadius: 8
+                          },
+                          selectedCity === city && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+                        ]}
+                        onPress={() => handleCitySelect(city)}
+                      >
+                        <XStack gap={8} padding="$2" alignItems="center">
+                          <Text color="white" size="lg">
+                            {city}
+                          </Text>
+                          {selectedCity === city && (
+                            <Feather name="check" size={16} color="white" style={{ marginLeft: 'auto' }} />
+                          )}
+                        </XStack>
+                      </TouchableOpacity>
+                    ))}
+                  </YStack>
+                </YStack>
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        </Modal>
       </ScrollView>
     </Screen>
   );

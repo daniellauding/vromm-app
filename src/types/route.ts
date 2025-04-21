@@ -30,6 +30,20 @@ export type Exercise = {
   repetitions?: string;
 };
 
+export type RouteType =
+  | 'difficulty'
+  | 'spot_type'
+  | 'category'
+  | 'transmission_type'
+  | 'activity_level'
+  | 'best_season'
+  | 'vehicle_types'
+  | 'saved'
+  | 'driven'
+  | 'city'
+  | 'created'
+  | 'nearby';
+
 export type RouteData = Database['public']['Tables']['routes']['Row'] & {
   waypoint_details: WaypointData[];
   media_attachments: MediaUrl[];
