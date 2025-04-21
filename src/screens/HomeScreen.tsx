@@ -24,6 +24,7 @@ import type { FilterCategory } from '../types/navigation';
 import { Easing } from 'react-native';
 import { RouteType } from '../types/route';
 import { RouteCard } from '../components/RouteCard';
+import { SectionHeader } from '../components/SectionHeader';
 
 type Todo = {
   id: string;
@@ -167,7 +168,9 @@ export function HomeScreen() {
 
       // Extract filters
       const filterMap = new Map<string, FilterCategory>();
+
       routes.forEach(route => {
+        // Difficulty
         if (route.difficulty) {
           filterMap.set(`difficulty-${route.difficulty}`, {
             id: `difficulty-${route.difficulty}`,
@@ -176,8 +179,70 @@ export function HomeScreen() {
             type: 'difficulty'
           });
         }
-        // Add other filter types...
+
+        // Spot Type
+        if (route.spot_type) {
+          filterMap.set(`spot-${route.spot_type}`, {
+            id: `spot-${route.spot_type}`,
+            label: route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
+            value: route.spot_type,
+            type: 'spot_type'
+          });
+        }
+
+        // Category
+        if (route.category) {
+          filterMap.set(`category-${route.category}`, {
+            id: `category-${route.category}`,
+            label: route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
+            value: route.category,
+            type: 'category'
+          });
+        }
+
+        // Transmission Type
+        if (route.transmission_type) {
+          filterMap.set(`transmission-${route.transmission_type}`, {
+            id: `transmission-${route.transmission_type}`,
+            label: route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.transmission_type.slice(1),
+            value: route.transmission_type,
+            type: 'transmission_type'
+          });
+        }
+
+        // Activity Level
+        if (route.activity_level) {
+          filterMap.set(`activity-${route.activity_level}`, {
+            id: `activity-${route.activity_level}`,
+            label: route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() + route.activity_level.slice(1),
+            value: route.activity_level,
+            type: 'activity_level'
+          });
+        }
+
+        // Best Season
+        if (route.best_season) {
+          filterMap.set(`season-${route.best_season}`, {
+            id: `season-${route.best_season}`,
+            label: route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() + route.best_season.slice(1),
+            value: route.best_season,
+            type: 'best_season'
+          });
+        }
+
+        // Vehicle Types
+        if (route.vehicle_types && Array.isArray(route.vehicle_types)) {
+          route.vehicle_types.forEach(type => {
+            filterMap.set(`vehicle-${type}`, {
+              id: `vehicle-${type}`,
+              label: type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
+              value: type,
+              type: 'vehicle_types'
+            });
+          });
+        }
       });
+
       setAllFilters(Array.from(filterMap.values()));
 
       // Update nearby routes if we have location
@@ -734,7 +799,7 @@ export function HomeScreen() {
       if (route.transmission_type) {
         filterMap.set(`transmission-${route.transmission_type}`, {
           id: `transmission-${route.transmission_type}`,
-          label: route.transmission_type.charAt(0).toUpperCase() + route.transmission_type.slice(1),
+          label: route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.transmission_type.slice(1),
           value: route.transmission_type,
           type: 'transmission_type'
         });
@@ -744,7 +809,7 @@ export function HomeScreen() {
       if (route.activity_level) {
         filterMap.set(`activity-${route.activity_level}`, {
           id: `activity-${route.activity_level}`,
-          label: route.activity_level.charAt(0).toUpperCase() + route.activity_level.slice(1),
+          label: route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() + route.activity_level.slice(1),
           value: route.activity_level,
           type: 'activity_level'
         });
@@ -765,7 +830,7 @@ export function HomeScreen() {
         route.vehicle_types.forEach(type => {
           filterMap.set(`vehicle-${type}`, {
             id: `vehicle-${type}`,
-            label: type.charAt(0).toUpperCase() + type.slice(1),
+            label: type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
             value: type,
             type: 'vehicle_types'
           });
@@ -804,9 +869,11 @@ export function HomeScreen() {
     });
   };
 
+  // Restore quick filters functionality
   const renderQuickFilters = () => (
-    <YStack paddingHorizontal="$4">
-      <XStack flexWrap="wrap" gap="$2" paddingVertical="$2">
+    <YStack gap="$2">
+      <SectionHeader title="Quick Filters" />
+      <XStack flexWrap="wrap" gap="$2" paddingHorizontal="$4">
         {allFilters.map((filter) => (
           <Button
             key={filter.id}
@@ -829,37 +896,12 @@ export function HomeScreen() {
 
     return (
       <YStack gap="$4">
-        <XStack px="$4" justifyContent="space-between" alignItems="center">
-          <Button
-            size="md"
-            variant="secondary"
-            backgroundColor="$backgroundStrong"
-            onPress={showCityModal}
-          >
-            <XStack gap="$2" alignItems="center">
-              <Text>{selectedCity || 'Select a city'}</Text>
-              <Feather name="chevron-down" size={20} />
-            </XStack>
-          </Button>
-
-          <Button
-            size="sm"
-            variant="secondary"
-            onPress={() => {
-              navigation.navigate('RouteList', {
-                title: `Routes in ${selectedCity}`,
-                routes: cityRoutes,
-                type: 'city'
-              });
-            }}
-          >
-            <XStack gap="$2" alignItems="center">
-              <Text>{t('common.seeAll')}</Text>
-              <Feather name="chevron-right" size={20} />
-            </XStack>
-          </Button>
-        </XStack>
-
+        <SectionHeader
+          title={selectedCity || 'Select a city'}
+          variant="dropdown"
+          onAction={showCityModal}
+          actionLabel={selectedCity || 'Select'}
+        />
         <YStack gap="$3" px="$4">
           {cityRoutes.length > 0 ? (
             cityRoutes.slice(0, 3).map(route => (
@@ -946,27 +988,18 @@ export function HomeScreen() {
           {/* Saved Routes Hero Carousel - Full Width */}
           {savedRoutes.length > 0 ? (
             <YStack gap="$2">
-              <XStack px="$4" justifyContent="space-between" alignItems="center">
-                <Text size="xl" weight="bold">
-                  {t('home.savedRoutes')}
-                </Text>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onPress={() => {
-                    navigation.navigate('RouteList', {
-                      title: t('home.savedRoutes'),
-                      routes: savedRoutes,
-                      type: 'saved'
-                    });
-                  }}
-                >
-                  <XStack gap="$2" alignItems="center">
-                    <Text>{t('common.seeAll')}</Text>
-                    <Feather name="chevron-right" size={20} />
-                  </XStack>
-                </Button>
-              </XStack>
+              <SectionHeader
+                title={t('home.savedRoutes')}
+                variant="chevron"
+                onAction={() => {
+                  navigation.navigate('RouteList', {
+                    title: t('home.savedRoutes'),
+                    routes: savedRoutes,
+                    type: 'saved'
+                  });
+                }}
+                actionLabel={t('common.seeAll')}
+              />
               <HeroCarousel
                 title={t('home.savedRoutes')}
                 items={savedRoutes}
@@ -981,52 +1014,23 @@ export function HomeScreen() {
             </YStack>
           )}
 
-          <YStack gap="$4" px="$4" mt="$4">
-            {/* Quick Filters - Now in a tag cloud layout */}
-            <YStack gap="$2">
-              <Text size="xl" weight="bold" px="$4">Quick Filters</Text>
-              {allFilters.length > 0 ? (
-                renderQuickFilters()
-              ) : (
-                <YStack px="$4">
-                  {renderEmptyState('No Filters Available', 'Add routes to see available filters')}
-                </YStack>
-              )}
-            </YStack>
+          {/* Quick Filters Section */}
+          {allFilters.length > 0 && renderQuickFilters()}
 
-            {/* Progress Section */}
-            <YStack gap="$2">
-              <Text size="xl" weight="bold">Ditt nästa körsteg</Text>
-              <Card bordered elevate backgroundColor="$backgroundStrong" padding="$4">
-                <YStack gap="$2">
-                  <Text size="lg" weight="bold">Steg 5 – Stadstrafik</Text>
-                  <Text size="md" color="$gray11">⭐ Progress: 3 av 5 övningar markerade</Text>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    opacity={0.5} // Disabled state
-                  >
-                    Visa övningar
-                  </Button>
-                </YStack>
-              </Card>
-            </YStack>
-
-            {/* City Routes - Now with dropdown and full-width cards */}
+          {/* City Routes - Now with dropdown and full-width cards */}
+          <YStack gap="$4">
             {renderCityRoutes()}
 
             {/* Created Routes Section */}
             <YStack space="$4">
-              <XStack justifyContent="space-between" alignItems="center">
-                <Text fontFamily="$heading" fontSize="$6">
-                  {t('home.createdRoutes')}
-                </Text>
-                <Button variant="link" onPress={() => handleSeeAllPress('created')}>
-                  {t('common.seeAll')}
-                </Button>
-              </XStack>
+              <SectionHeader
+                title={t('home.createdRoutes')}
+                variant="chevron"
+                onAction={() => handleSeeAllPress('created')}
+                actionLabel={t('common.seeAll')}
+              />
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <XStack space="$4">
+                <XStack space="$4" paddingHorizontal="$4">
                   {createdRoutes.slice(0, 3).map((route) => (
                     <RouteCard key={route.id} route={route} />
                   ))}
@@ -1036,16 +1040,14 @@ export function HomeScreen() {
 
             {/* Nearby Routes Section */}
             <YStack space="$4">
-              <XStack justifyContent="space-between" alignItems="center">
-                <Text fontFamily="$heading" fontSize="$6">
-                  {t('home.nearbyRoutes')}
-                </Text>
-                <Button variant="link" onPress={() => handleSeeAllPress('nearby')}>
-                  {t('common.seeAll')}
-                </Button>
-              </XStack>
+              <SectionHeader
+                title={t('home.nearbyRoutes')}
+                variant="chevron"
+                onAction={() => handleSeeAllPress('nearby')}
+                actionLabel={t('common.seeAll')}
+              />
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <XStack space="$4">
+                <XStack space="$4" paddingHorizontal="$4">
                   {nearbyRoutes.slice(0, 3).map((route) => (
                     <RouteCard key={route.id} route={route} />
                   ))}
@@ -1055,27 +1057,18 @@ export function HomeScreen() {
 
             {/* Driven Routes - Using horizontal scroll */}
             <YStack gap="$2">
-              <XStack justifyContent="space-between" alignItems="center">
-                <Text size="xl" weight="bold">
-                  {t('home.drivenRoutes')}
-                </Text>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onPress={() => {
-                    navigation.navigate('RouteList', {
-                      title: t('home.drivenRoutes'),
-                      routes: drivenRoutes,
-                      type: 'driven'
-                    });
-                  }}
-                >
-                  <XStack gap="$2" alignItems="center">
-                    <Text>{t('common.seeAll')}</Text>
-                    <Feather name="chevron-right" size={20} />
-                  </XStack>
-                </Button>
-              </XStack>
+              <SectionHeader
+                title={t('home.drivenRoutes')}
+                variant="chevron"
+                onAction={() => {
+                  navigation.navigate('RouteList', {
+                    title: t('home.drivenRoutes'),
+                    routes: drivenRoutes,
+                    type: 'driven'
+                  });
+                }}
+                actionLabel={t('common.seeAll')}
+              />
               {drivenRoutes.length > 0 ? (
                 renderHorizontalRouteList(drivenRoutes, getRouteImage)
               ) : (
@@ -1105,7 +1098,8 @@ export function HomeScreen() {
             style={{
               flex: 1,
               backgroundColor: 'rgba(0,0,0,0.5)',
-              opacity: cityBackdropOpacity
+              opacity: cityBackdropOpacity,
+              justifyContent: 'flex-end'
             }}
           >
             <Pressable style={{ flex: 1 }} onPress={hideCityModal}>
@@ -1115,6 +1109,8 @@ export function HomeScreen() {
                   bottom: 0,
                   left: 0,
                   right: 0,
+                  maxHeight: '80%',
+                  width: '100%',
                   transform: [{ translateY: citySheetTranslateY }]
                 }}
               >
@@ -1124,6 +1120,7 @@ export function HomeScreen() {
                   borderTopLeftRadius="$4"
                   borderTopRightRadius="$4"
                   gap="$4"
+                  width="100%"
                 >
                   {/* Sheet Handle */}
                   <View
@@ -1141,31 +1138,33 @@ export function HomeScreen() {
                     Select City
                   </Text>
 
-                  <YStack gap="$2" marginTop="$2">
-                    {Object.keys(routesByCity).map((city) => (
-                      <TouchableOpacity
-                        key={city}
-                        style={[
-                          {
-                            paddingVertical: 12,
-                            paddingHorizontal: 16,
-                            borderRadius: 8
-                          },
-                          selectedCity === city && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
-                        ]}
-                        onPress={() => handleCitySelect(city)}
-                      >
-                        <XStack gap={8} padding="$2" alignItems="center">
-                          <Text color="white" size="lg">
-                            {city}
-                          </Text>
-                          {selectedCity === city && (
-                            <Feather name="check" size={16} color="white" style={{ marginLeft: 'auto' }} />
-                          )}
-                        </XStack>
-                      </TouchableOpacity>
-                    ))}
-                  </YStack>
+                  <ScrollView style={{ maxHeight: '70%' }}>
+                    <YStack gap="$2">
+                      {Object.keys(routesByCity).map((city) => (
+                        <TouchableOpacity
+                          key={city}
+                          style={[
+                            {
+                              paddingVertical: 12,
+                              paddingHorizontal: 16,
+                              borderRadius: 8
+                            },
+                            selectedCity === city && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+                          ]}
+                          onPress={() => handleCitySelect(city)}
+                        >
+                          <XStack gap={8} padding="$2" alignItems="center">
+                            <Text color="white" size="lg">
+                              {city}
+                            </Text>
+                            {selectedCity === city && (
+                              <Feather name="check" size={16} color="white" style={{ marginLeft: 'auto' }} />
+                            )}
+                          </XStack>
+                        </TouchableOpacity>
+                      ))}
+                    </YStack>
+                  </ScrollView>
                 </YStack>
               </Animated.View>
             </Pressable>
