@@ -6,6 +6,13 @@ import { Database } from '../lib/database.types';
 import { SearchResult } from '../components/SearchView';
 import type { Route } from '../hooks/useRoutes';
 
+type FilterCategory = {
+  id: string;
+  label: string;
+  value: string;
+  type: 'difficulty' | 'spot_type' | 'category';
+};
+
 export type RootStackParamList = {
   SplashScreen: undefined;
   Onboarding: undefined;
@@ -23,7 +30,8 @@ export type RootStackParamList = {
   RouteList: {
     title: string;
     routes: Route[];
-    type: 'saved' | 'driven';
+    type: 'saved' | 'driven' | 'difficulty' | 'spot_type' | 'category' | 'city';
+    activeFilter?: FilterCategory;
   };
 };
 

@@ -70,6 +70,13 @@ type DrivenRoute = Route & {
   driven_at: string;
 };
 
+type FilterCategory = {
+  id: string;
+  label: string;
+  value: string;
+  type: 'difficulty' | 'spot_type' | 'category';
+};
+
 const isValidRoute = (route: any): route is Route => {
   return (
     route &&
@@ -93,6 +100,16 @@ export function HomeScreen() {
   const [isFirstLogin, setIsFirstLogin] = useState(false);
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
   const [nearbyRoutes, setNearbyRoutes] = useState<Route[]>([]);
+  const [routesByCity, setRoutesByCity] = useState<{ [key: string]: Route[] }>({});
+  const [filterCategories, setFilterCategories] = useState<{
+    difficulties: FilterCategory[];
+    spotTypes: FilterCategory[];
+    categories: FilterCategory[];
+  }>({
+    difficulties: [],
+    spotTypes: [],
+    categories: []
+  });
 
   // Check if this is the first login and should show onboarding
   useEffect(() => {
@@ -392,33 +409,6 @@ export function HomeScreen() {
     );
   };
 
-  const renderEmptyState = (title: string, message: string) => (
-    <Card bordered elevate backgroundColor="$backgroundStrong" padding="$4">
-      <YStack alignItems="center" gap="$2">
-        <Feather name="info" size={24} color="$gray11" />
-        <Text size="lg" weight="bold">{title}</Text>
-        <Text size="sm" color="$gray11" textAlign="center">{message}</Text>
-      </YStack>
-    </Card>
-  );
-
-  const renderQuickFilters = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <XStack gap="$2" paddingHorizontal="$4" paddingVertical="$2">
-        {['Parkering', 'Landsväg', 'Backstart', '< 15 min'].map((filter) => (
-          <Button
-            key={filter}
-            size="sm"
-            variant="secondary"
-            opacity={0.5} // Disabled state
-          >
-            {filter}
-          </Button>
-        ))}
-      </XStack>
-    </ScrollView>
-  );
-
   const renderFullWidthRouteList = (routes: Route[], imageGetter: (route: Route) => string | null) => {
     if (routes.length === 0) return null;
 
@@ -488,6 +478,194 @@ export function HomeScreen() {
       </YStack>
     );
   };
+
+  const renderEmptyState = (title: string, message: string) => (
+    <Card bordered elevate backgroundColor="$backgroundStrong" padding="$4">
+      <YStack alignItems="center" gap="$2">
+        <Feather name="info" size={24} color="$gray11" />
+        <Text size="lg" weight="bold">{title}</Text>
+        <Text size="sm" color="$gray11" textAlign="center">{message}</Text>
+      </YStack>
+    </Card>
+  );
+
+  // Helper function to get city from waypoint details
+  const getCityFromWaypoints = (route: Route): string => {
+    if (!route.waypoint_details || route.waypoint_details.length === 0) {
+      return 'Unknown';
+    }
+    // Assuming the first waypoint's title contains the city
+    // You might want to adjust this logic based on your data structure
+    return route.waypoint_details[0].title || 'Unknown';
+  };
+
+  // Organize routes by city
+  const organizeRoutesByCity = useCallback((routes: Route[]) => {
+    const cityMap: { [key: string]: Route[] } = {};
+    routes.forEach(route => {
+      const city = getCityFromWaypoints(route);
+      if (!cityMap[city]) {
+        cityMap[city] = [];
+      }
+      cityMap[city].push(route);
+    });
+    setRoutesByCity(cityMap);
+  }, []);
+
+  // Extract unique filter categories from routes
+  const extractFilterCategories = useCallback((routes: Route[]) => {
+    const difficulties = new Set<string>();
+    const spotTypes = new Set<string>();
+    const categories = new Set<string>();
+
+    routes.forEach(route => {
+      if (route.difficulty) difficulties.add(route.difficulty);
+      if (route.spot_type) spotTypes.add(route.spot_type);
+      if (route.category) categories.add(route.category);
+    });
+
+    setFilterCategories({
+      difficulties: Array.from(difficulties).map(d => ({
+        id: d,
+        label: d.charAt(0).toUpperCase() + d.slice(1),
+        value: d,
+        type: 'difficulty'
+      })),
+      spotTypes: Array.from(spotTypes).map(s => ({
+        id: s,
+        label: s.charAt(0).toUpperCase() + s.slice(1),
+        value: s,
+        type: 'spot_type'
+      })),
+      categories: Array.from(categories).map(c => ({
+        id: c,
+        label: c.charAt(0).toUpperCase() + c.slice(1),
+        value: c,
+        type: 'category'
+      }))
+    });
+  }, []);
+
+  // Update useEffect to organize routes when they're loaded
+  useEffect(() => {
+    if (routes.length > 0) {
+      organizeRoutesByCity(routes);
+      extractFilterCategories(routes);
+    }
+  }, [routes, organizeRoutesByCity, extractFilterCategories]);
+
+  const handleFilterPress = (filter: FilterCategory) => {
+    navigation.navigate('RouteList', {
+      title: `${filter.label} Routes`,
+      routes: routes.filter(route => {
+        switch (filter.type) {
+          case 'difficulty':
+            return route.difficulty === filter.value;
+          case 'spot_type':
+            return route.spot_type === filter.value;
+          case 'category':
+            return route.category === filter.value;
+          default:
+            return false;
+        }
+      }),
+      type: filter.type,
+      activeFilter: filter
+    });
+  };
+
+  const renderQuickFilters = () => (
+    <YStack gap="$4">
+      {/* Difficulty Filters */}
+      <YStack gap="$2">
+        <Text size="md" weight="bold" px="$4">Difficulty</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <XStack gap="$2" paddingHorizontal="$4" paddingVertical="$2">
+            {filterCategories.difficulties.map((filter) => (
+              <Button
+                key={filter.id}
+                size="sm"
+                variant="secondary"
+                onPress={() => handleFilterPress(filter)}
+              >
+                {filter.label}
+              </Button>
+            ))}
+          </XStack>
+        </ScrollView>
+      </YStack>
+
+      {/* Spot Type Filters */}
+      <YStack gap="$2">
+        <Text size="md" weight="bold" px="$4">Spot Type</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <XStack gap="$2" paddingHorizontal="$4" paddingVertical="$2">
+            {filterCategories.spotTypes.map((filter) => (
+              <Button
+                key={filter.id}
+                size="sm"
+                variant="secondary"
+                onPress={() => handleFilterPress(filter)}
+              >
+                {filter.label}
+              </Button>
+            ))}
+          </XStack>
+        </ScrollView>
+      </YStack>
+
+      {/* Category Filters */}
+      <YStack gap="$2">
+        <Text size="md" weight="bold" px="$4">Category</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <XStack gap="$2" paddingHorizontal="$4" paddingVertical="$2">
+            {filterCategories.categories.map((filter) => (
+              <Button
+                key={filter.id}
+                size="sm"
+                variant="secondary"
+                onPress={() => handleFilterPress(filter)}
+              >
+                {filter.label}
+              </Button>
+            ))}
+          </XStack>
+        </ScrollView>
+      </YStack>
+    </YStack>
+  );
+
+  // Update the renderRoutesByCity function to use renderHorizontalRouteList
+  const renderRoutesByCity = () => (
+    <YStack gap="$4">
+      {Object.entries(routesByCity).map(([city, cityRoutes]) => (
+        <YStack key={city} gap="$2">
+          <XStack px="$4" justifyContent="space-between" alignItems="center">
+            <Text size="xl" weight="bold">
+              {city}
+            </Text>
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() => {
+                navigation.navigate('RouteList', {
+                  title: `Routes in ${city}`,
+                  routes: cityRoutes,
+                  type: 'city'
+                });
+              }}
+            >
+              <XStack gap="$2" alignItems="center">
+                <Text>{t('common.seeAll')}</Text>
+                <Feather name="chevron-right" size={20} />
+              </XStack>
+            </Button>
+          </XStack>
+          {renderHorizontalRouteList(cityRoutes.slice(0, 3), getRouteImage)}
+        </YStack>
+      ))}
+    </YStack>
+  );
 
   // Request location permissions and get location
   const requestLocationPermission = async () => {
@@ -561,11 +739,8 @@ export function HomeScreen() {
           )}
 
           <YStack gap="$4" px="$4" mt="$4">
-            {/* Quick Filters */}
-            <YStack gap="$2">
-              <Text size="xl" weight="bold">Quick Filters</Text>
-              {renderQuickFilters()}
-            </YStack>
+            {/* Quick Filters - Now showing actual route properties */}
+            {renderQuickFilters()}
 
             {/* Progress Section */}
             <YStack gap="$2">
@@ -585,18 +760,16 @@ export function HomeScreen() {
               </Card>
             </YStack>
 
-            {/* Nearby Routes - Updated to full width */}
+            {/* Routes by City */}
+            {renderRoutesByCity()}
+
+            {/* Nearby Routes - Using full width cards */}
             <YStack gap="$2">
               <XStack px="$4" justifyContent="space-between" alignItems="center">
                 <Text size="xl" weight="bold">
                   Nearby Suggested Routes
                 </Text>
-                <Button 
-                  size="sm" 
-                  variant="secondary" 
-                  opacity={0.5}
-                  backgroundColor="$backgroundStrong"
-                >
+                <Button size="sm" variant="secondary" opacity={0.5}>
                   <XStack gap="$2" alignItems="center">
                     <Text>See All</Text>
                     <Feather name="chevron-right" size={20} />
@@ -617,7 +790,7 @@ export function HomeScreen() {
               )}
             </YStack>
 
-            {/* Driven Routes */}
+            {/* Driven Routes - Using horizontal scroll */}
             <YStack gap="$2">
               <XStack justifyContent="space-between" alignItems="center">
                 <Text size="xl" weight="bold">
