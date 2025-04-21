@@ -4,6 +4,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { Database } from '../lib/database.types';
 import { SearchResult } from '../components/SearchView';
+import type { Route } from '../hooks/useRoutes';
 
 export type RootStackParamList = {
   SplashScreen: undefined;
@@ -19,6 +20,11 @@ export type RootStackParamList = {
   AddReview: { routeId: string };
   OnboardingDemo: undefined;
   TranslationDemo: undefined;
+  RouteList: {
+    title: string;
+    routes: Route[];
+    type: 'saved' | 'driven';
+  };
 };
 
 export type TabParamList = {

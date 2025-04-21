@@ -38,9 +38,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   customMarker: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#00ffbc',
     borderColor: '#145251',
     borderWidth: 2,
@@ -52,7 +52,7 @@ export function HeroCarousel({
   items,
   onItemPress,
   getImageUrl,
-  height = Dimensions.get('window').height * 0.75, // 75vh equivalent
+  height = Dimensions.get('window').height * 0.85, // Increased to 85vh
   showTitle = true,
   showMapPreview = false,
 }: HeroCarouselProps) {

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useCallback, useEffect } from 'react';
 import { YStack, XStack, Card, Separator, ScrollView } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
@@ -305,7 +306,7 @@ export function HomeScreen() {
     await Promise.all([loadRoutes(), loadTodos()]);
   };
 
-  const getRouteImage = (route: Route): string | null => {
+  const getRouteImage: (route: Route) => string | null = (route) => {
     if (!route.media_attachments || !Array.isArray(route.media_attachments)) {
       return null;
     }
@@ -339,13 +340,36 @@ export function HomeScreen() {
         <YStack f={1}>
           {/* Saved Routes Hero Carousel - Full Width */}
           {savedRoutes.length > 0 && (
-            <HeroCarousel
-              title={t('home.savedRoutes')}
-              items={savedRoutes}
-              getImageUrl={getRouteImage}
-              showTitle={false}
-              showMapPreview={true}
-            />
+            <YStack gap="$2">
+              <XStack px="$4" justifyContent="space-between" alignItems="center">
+                <Text size="xl" weight="bold">
+                  {t('home.savedRoutes')}
+                </Text>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => {
+                    navigation.navigate('RouteList', {
+                      title: t('home.savedRoutes'),
+                      routes: savedRoutes,
+                      type: 'saved'
+                    });
+                  }}
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Text>{t('common.seeAll')}</Text>
+                    <Feather name="chevron-right" size={20} />
+                  </XStack>
+                </Button>
+              </XStack>
+              <HeroCarousel
+                title={t('home.savedRoutes')}
+                items={savedRoutes}
+                getImageUrl={getRouteImage}
+                showTitle={false}
+                showMapPreview={true}
+              />
+            </YStack>
           )}
 
           <YStack f={1} gap={24} px="$4" mt="$4">
@@ -360,138 +384,28 @@ export function HomeScreen() {
             {/* Driven Routes Section */}
             {drivenRoutes.length > 0 && (
               <YStack gap="$2">
-                <Text size="xl" weight="bold">
-                  {t('home.drivenRoutes')}
-                </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
-                  <XStack gap="$3" paddingVertical="$2">
-                    {drivenRoutes.map(route => {
-                      const imageUrl = getRouteImage(route);
-                      return (
-                        <Card
-                          key={route.id}
-                          bordered
-                          elevate
-                          backgroundColor="$backgroundStrong"
-                          width={200}
-                          height={240}
-                          onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
-                        >
-                          <YStack f={1}>
-                            {imageUrl ? (
-                              <Image
-                                source={{ uri: imageUrl } as ImageSourcePropType}
-                                style={{
-                                  width: '100%',
-                                  height: 120,
-                                  borderTopLeftRadius: 12,
-                                  borderTopRightRadius: 12
-                                }}
-                                resizeMode="cover"
-                              />
-                            ) : (
-                              <YStack
-                                height={120}
-                                backgroundColor="$gray5"
-                                alignItems="center"
-                                justifyContent="center"
-                              >
-                                <Feather name="image" size={32} color="$gray11" />
-                              </YStack>
-                            )}
-                            <YStack padding="$3" gap="$1" flex={1}>
-                              <Text size="md" weight="bold" numberOfLines={1} ellipsizeMode="tail">
-                                {route.name}
-                              </Text>
-                              <Text size="sm" color="$gray11">
-                                {route.difficulty?.toUpperCase()}
-                              </Text>
-                              {route.description && (
-                                <Text
-                                  size="sm"
-                                  color="$gray11"
-                                  numberOfLines={2}
-                                  ellipsizeMode="tail"
-                                >
-                                  {route.description}
-                                </Text>
-                              )}
-                            </YStack>
-                          </YStack>
-                        </Card>
-                      );
-                    })}
-                  </XStack>
-                </ScrollView>
-              </YStack>
-            )}
-
-            {/* Saved Routes Section - Keep this if you want both views */}
-            {savedRoutes.length > 0 && (
-              <YStack gap="$2">
-                <Text size="xl" weight="bold">
-                  {t('home.savedRoutes')}
-                </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
-                  <XStack gap="$3" paddingVertical="$2">
-                    {savedRoutes.map(route => {
-                      const imageUrl = getRouteImage(route);
-                      return (
-                        <Card
-                          key={route.id}
-                          bordered
-                          elevate
-                          backgroundColor="$backgroundStrong"
-                          width={200}
-                          height={240}
-                          onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
-                        >
-                          <YStack f={1}>
-                            {imageUrl ? (
-                              <Image
-                                source={{ uri: imageUrl } as ImageSourcePropType}
-                                style={{
-                                  width: '100%',
-                                  height: 120,
-                                  borderTopLeftRadius: 12,
-                                  borderTopRightRadius: 12
-                                }}
-                                resizeMode="cover"
-                              />
-                            ) : (
-                              <YStack
-                                height={120}
-                                backgroundColor="$gray5"
-                                alignItems="center"
-                                justifyContent="center"
-                              >
-                                <Feather name="image" size={32} color="$gray11" />
-                              </YStack>
-                            )}
-                            <YStack padding="$3" gap="$1" flex={1}>
-                              <Text size="md" weight="bold" numberOfLines={1} ellipsizeMode="tail">
-                                {route.name}
-                              </Text>
-                              <Text size="sm" color="$gray11">
-                                {route.difficulty?.toUpperCase()}
-                              </Text>
-                              {route.description && (
-                                <Text
-                                  size="sm"
-                                  color="$gray11"
-                                  numberOfLines={2}
-                                  ellipsizeMode="tail"
-                                >
-                                  {route.description}
-                                </Text>
-                              )}
-                            </YStack>
-                          </YStack>
-                        </Card>
-                      );
-                    })}
-                  </XStack>
-                </ScrollView>
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text size="xl" weight="bold">
+                    {t('home.drivenRoutes')}
+                  </Text>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onPress={() => {
+                      navigation.navigate('RouteList', {
+                        title: t('home.drivenRoutes'),
+                        routes: drivenRoutes,
+                        type: 'driven'
+                      });
+                    }}
+                  >
+                    <XStack gap="$2" alignItems="center">
+                      <Text>{t('common.seeAll')}</Text>
+                      <Feather name="chevron-right" size={20} />
+                    </XStack>
+                  </Button>
+                </XStack>
+                <RouteList routes={drivenRoutes} onRefresh={handleRefresh} />
               </YStack>
             )}
 

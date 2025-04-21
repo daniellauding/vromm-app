@@ -30,6 +30,7 @@ import { AddReviewScreen } from './src/screens/AddReviewScreen';
 import { OnboardingDemoScreen } from './src/screens/OnboardingDemoScreen';
 import { TranslationDemoScreen } from './src/screens/TranslationDemoScreen';
 import { ContentDemoScreen } from './src/screens/ContentDemoScreen';
+import { RouteListScreen } from './src/screens/RouteListScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -177,6 +178,13 @@ function AppContent() {
               options={{
                 headerShown: true,
                 title: 'Content Demo'
+              }}
+            />
+            <Stack.Screen
+              name="RouteList"
+              component={RouteListScreen}
+              options={{
+                headerShown: false
               }}
             />
           </>
