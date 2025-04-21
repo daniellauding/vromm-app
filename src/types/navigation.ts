@@ -6,11 +6,11 @@ import { Database } from '../lib/database.types';
 import { SearchResult } from '../components/SearchView';
 import type { Route } from '../hooks/useRoutes';
 
-type FilterCategory = {
+export type FilterCategory = {
   id: string;
   label: string;
   value: string;
-  type: 'difficulty' | 'spot_type' | 'category';
+  type: 'difficulty' | 'spot_type' | 'category' | 'transmission_type' | 'activity_level' | 'best_season' | 'vehicle_types';
 };
 
 export type RootStackParamList = {
@@ -30,7 +30,7 @@ export type RootStackParamList = {
   RouteList: {
     title: string;
     routes: Route[];
-    type: 'saved' | 'driven' | 'difficulty' | 'spot_type' | 'category' | 'city';
+    type: 'saved' | 'driven' | 'difficulty' | 'spot_type' | 'category' | 'city' | 'transmission_type' | 'activity_level' | 'best_season' | 'vehicle_types';
     activeFilter?: FilterCategory;
   };
 };

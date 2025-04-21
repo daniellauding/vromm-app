@@ -20,6 +20,7 @@ import { shouldShowOnboarding } from '../components/Onboarding';
 import { useTranslation } from '../contexts/TranslationContext';
 import { HeroCarousel } from '../components/HeroCarousel';
 import * as Location from 'expo-location';
+import type { FilterCategory } from '../types/navigation';
 
 type Todo = {
   id: string;
@@ -70,13 +71,6 @@ type DrivenRoute = Route & {
   driven_at: string;
 };
 
-type FilterCategory = {
-  id: string;
-  label: string;
-  value: string;
-  type: 'difficulty' | 'spot_type' | 'category';
-};
-
 const isValidRoute = (route: any): route is Route => {
   return (
     route &&
@@ -101,15 +95,7 @@ export function HomeScreen() {
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
   const [nearbyRoutes, setNearbyRoutes] = useState<Route[]>([]);
   const [routesByCity, setRoutesByCity] = useState<{ [key: string]: Route[] }>({});
-  const [filterCategories, setFilterCategories] = useState<{
-    difficulties: FilterCategory[];
-    spotTypes: FilterCategory[];
-    categories: FilterCategory[];
-  }>({
-    difficulties: [],
-    spotTypes: [],
-    categories: []
-  });
+  const [allFilters, setAllFilters] = useState<FilterCategory[]>([]);
 
   // Check if this is the first login and should show onboarding
   useEffect(() => {
@@ -512,47 +498,94 @@ export function HomeScreen() {
     setRoutesByCity(cityMap);
   }, []);
 
-  // Extract unique filter categories from routes
-  const extractFilterCategories = useCallback((routes: Route[]) => {
-    const difficulties = new Set<string>();
-    const spotTypes = new Set<string>();
-    const categories = new Set<string>();
+  // Extract all possible filters from routes
+  const extractAllFilters = useCallback((routes: Route[]) => {
+    const filterMap = new Map<string, FilterCategory>();
 
     routes.forEach(route => {
-      if (route.difficulty) difficulties.add(route.difficulty);
-      if (route.spot_type) spotTypes.add(route.spot_type);
-      if (route.category) categories.add(route.category);
+      // Difficulty
+      if (route.difficulty) {
+        filterMap.set(`difficulty-${route.difficulty}`, {
+          id: `difficulty-${route.difficulty}`,
+          label: route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
+          value: route.difficulty,
+          type: 'difficulty'
+        });
+      }
+
+      // Spot Type
+      if (route.spot_type) {
+        filterMap.set(`spot-${route.spot_type}`, {
+          id: `spot-${route.spot_type}`,
+          label: route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
+          value: route.spot_type,
+          type: 'spot_type'
+        });
+      }
+
+      // Category
+      if (route.category) {
+        filterMap.set(`category-${route.category}`, {
+          id: `category-${route.category}`,
+          label: route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
+          value: route.category,
+          type: 'category'
+        });
+      }
+
+      // Transmission Type
+      if (route.transmission_type) {
+        filterMap.set(`transmission-${route.transmission_type}`, {
+          id: `transmission-${route.transmission_type}`,
+          label: route.transmission_type.charAt(0).toUpperCase() + route.transmission_type.slice(1),
+          value: route.transmission_type,
+          type: 'transmission_type'
+        });
+      }
+
+      // Activity Level
+      if (route.activity_level) {
+        filterMap.set(`activity-${route.activity_level}`, {
+          id: `activity-${route.activity_level}`,
+          label: route.activity_level.charAt(0).toUpperCase() + route.activity_level.slice(1),
+          value: route.activity_level,
+          type: 'activity_level'
+        });
+      }
+
+      // Best Season
+      if (route.best_season) {
+        filterMap.set(`season-${route.best_season}`, {
+          id: `season-${route.best_season}`,
+          label: route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() + route.best_season.slice(1),
+          value: route.best_season,
+          type: 'best_season'
+        });
+      }
+
+      // Vehicle Types
+      if (route.vehicle_types && Array.isArray(route.vehicle_types)) {
+        route.vehicle_types.forEach(type => {
+          filterMap.set(`vehicle-${type}`, {
+            id: `vehicle-${type}`,
+            label: type.charAt(0).toUpperCase() + type.slice(1),
+            value: type,
+            type: 'vehicle_types'
+          });
+        });
+      }
     });
 
-    setFilterCategories({
-      difficulties: Array.from(difficulties).map(d => ({
-        id: d,
-        label: d.charAt(0).toUpperCase() + d.slice(1),
-        value: d,
-        type: 'difficulty'
-      })),
-      spotTypes: Array.from(spotTypes).map(s => ({
-        id: s,
-        label: s.charAt(0).toUpperCase() + s.slice(1),
-        value: s,
-        type: 'spot_type'
-      })),
-      categories: Array.from(categories).map(c => ({
-        id: c,
-        label: c.charAt(0).toUpperCase() + c.slice(1),
-        value: c,
-        type: 'category'
-      }))
-    });
+    setAllFilters(Array.from(filterMap.values()));
   }, []);
 
-  // Update useEffect to organize routes when they're loaded
+  // Update useEffect to extract all filters
   useEffect(() => {
     if (routes.length > 0) {
       organizeRoutesByCity(routes);
-      extractFilterCategories(routes);
+      extractAllFilters(routes);
     }
-  }, [routes, organizeRoutesByCity, extractFilterCategories]);
+  }, [routes, organizeRoutesByCity, extractAllFilters]);
 
   const handleFilterPress = (filter: FilterCategory) => {
     navigation.navigate('RouteList', {
@@ -565,6 +598,14 @@ export function HomeScreen() {
             return route.spot_type === filter.value;
           case 'category':
             return route.category === filter.value;
+          case 'transmission_type':
+            return route.transmission_type === filter.value;
+          case 'activity_level':
+            return route.activity_level === filter.value;
+          case 'best_season':
+            return route.best_season === filter.value;
+          case 'vehicle_types':
+            return route.vehicle_types?.includes(filter.value);
           default:
             return false;
         }
@@ -575,63 +616,20 @@ export function HomeScreen() {
   };
 
   const renderQuickFilters = () => (
-    <YStack gap="$4">
-      {/* Difficulty Filters */}
-      <YStack gap="$2">
-        <Text size="md" weight="bold" px="$4">Difficulty</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <XStack gap="$2" paddingHorizontal="$4" paddingVertical="$2">
-            {filterCategories.difficulties.map((filter) => (
-              <Button
-                key={filter.id}
-                size="sm"
-                variant="secondary"
-                onPress={() => handleFilterPress(filter)}
-              >
-                {filter.label}
-              </Button>
-            ))}
-          </XStack>
-        </ScrollView>
-      </YStack>
-
-      {/* Spot Type Filters */}
-      <YStack gap="$2">
-        <Text size="md" weight="bold" px="$4">Spot Type</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <XStack gap="$2" paddingHorizontal="$4" paddingVertical="$2">
-            {filterCategories.spotTypes.map((filter) => (
-              <Button
-                key={filter.id}
-                size="sm"
-                variant="secondary"
-                onPress={() => handleFilterPress(filter)}
-              >
-                {filter.label}
-              </Button>
-            ))}
-          </XStack>
-        </ScrollView>
-      </YStack>
-
-      {/* Category Filters */}
-      <YStack gap="$2">
-        <Text size="md" weight="bold" px="$4">Category</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <XStack gap="$2" paddingHorizontal="$4" paddingVertical="$2">
-            {filterCategories.categories.map((filter) => (
-              <Button
-                key={filter.id}
-                size="sm"
-                variant="secondary"
-                onPress={() => handleFilterPress(filter)}
-              >
-                {filter.label}
-              </Button>
-            ))}
-          </XStack>
-        </ScrollView>
-      </YStack>
+    <YStack paddingHorizontal="$4">
+      <XStack flexWrap="wrap" gap="$2" paddingVertical="$2">
+        {allFilters.map((filter) => (
+          <Button
+            key={filter.id}
+            size="sm"
+            variant="secondary"
+            onPress={() => handleFilterPress(filter)}
+            marginBottom="$2"
+          >
+            <Text numberOfLines={1}>{filter.label}</Text>
+          </Button>
+        ))}
+      </XStack>
     </YStack>
   );
 
@@ -739,8 +737,17 @@ export function HomeScreen() {
           )}
 
           <YStack gap="$4" px="$4" mt="$4">
-            {/* Quick Filters - Now showing actual route properties */}
-            {renderQuickFilters()}
+            {/* Quick Filters - Now in a tag cloud layout */}
+            <YStack gap="$2">
+              <Text size="xl" weight="bold" px="$4">Quick Filters</Text>
+              {allFilters.length > 0 ? (
+                renderQuickFilters()
+              ) : (
+                <YStack px="$4">
+                  {renderEmptyState('No Filters Available', 'Add routes to see available filters')}
+                </YStack>
+              )}
+            </YStack>
 
             {/* Progress Section */}
             <YStack gap="$2">
