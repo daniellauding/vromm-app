@@ -101,12 +101,27 @@ const deg2rad = (deg: number) => {
   return deg * (Math.PI / 180);
 };
 
-// Helper function to get city from waypoint details
+// Helper function to extract city from address
+const extractCityFromAddress = (address: string): string => {
+  // If the address contains a comma, take the part before the last comma
+  if (address.includes(',')) {
+    const parts = address.split(',');
+    // Try to get the city part (usually the second to last part)
+    if (parts.length >= 2) {
+      return parts[parts.length - 2].trim();
+    }
+  }
+  // If no comma or can't extract city, return the original string
+  return address;
+};
+
+// Update the getCityFromWaypoints function
 const getCityFromWaypoints = (route: Route): string => {
   if (!route.waypoint_details || route.waypoint_details.length === 0) {
     return 'Unknown';
   }
-  return route.waypoint_details[0].title || 'Unknown';
+  const waypoint = route.waypoint_details[0];
+  return extractCityFromAddress(waypoint.title || 'Unknown');
 };
 
 export function HomeScreen() {
@@ -1094,81 +1109,90 @@ export function HomeScreen() {
           animationType="none"
           onRequestClose={hideCityModal}
         >
-          <Animated.View
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              opacity: cityBackdropOpacity,
-              justifyContent: 'flex-end'
-            }}
-          >
-            <Pressable style={{ flex: 1 }} onPress={hideCityModal}>
-              <Animated.View
-                style={{
+          <View style={{ flex: 1 }}>
+            <Animated.View 
+              style={[
+                { 
+                  flex: 1, 
+                  backgroundColor: 'rgba(0,0,0,0.5)'
+                },
+                {
+                  opacity: cityBackdropOpacity
+                }
+              ]} 
+            >
+              <Pressable 
+                style={{ flex: 1 }} 
+                onPress={hideCityModal} 
+              />
+            </Animated.View>
+            <Animated.View
+              style={[
+                {
                   position: 'absolute',
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  maxHeight: '80%',
-                  width: '100%',
+                  backgroundColor: '#000',
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                },
+                {
                   transform: [{ translateY: citySheetTranslateY }]
-                }}
+                }
+              ]}
+            >
+              <YStack
+                backgroundColor="$background"
+                padding="$4"
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
               >
-                <YStack
-                  backgroundColor="$background"
-                  padding="$4"
-                  borderTopLeftRadius="$4"
-                  borderTopRightRadius="$4"
-                  gap="$4"
-                  width="100%"
-                >
-                  {/* Sheet Handle */}
-                  <View
-                    style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                      alignSelf: 'center',
-                      marginBottom: 12
-                    }}
-                  />
+                {/* Sheet Handle */}
+                <View
+                  style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                    alignSelf: 'center',
+                    marginBottom: 12
+                  }}
+                />
 
-                  <Text size="xl" weight="bold" color="white" textAlign="center">
-                    Select City
-                  </Text>
+                <Text size="xl" weight="bold" color="white" textAlign="center">
+                  Select City
+                </Text>
 
-                  <ScrollView style={{ maxHeight: '70%' }}>
-                    <YStack gap="$2">
-                      {Object.keys(routesByCity).map((city) => (
-                        <TouchableOpacity
-                          key={city}
-                          style={[
-                            {
-                              paddingVertical: 12,
-                              paddingHorizontal: 16,
-                              borderRadius: 8
-                            },
-                            selectedCity === city && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
-                          ]}
-                          onPress={() => handleCitySelect(city)}
+                <ScrollView style={{ maxHeight: '70%' }}>
+                  <YStack gap="$2">
+                    {Object.keys(routesByCity).map((city) => (
+                      <TouchableOpacity
+                        key={city}
+                        onPress={() => handleCitySelect(city)}
+                      >
+                        <XStack
+                          backgroundColor={selectedCity === city ? 'rgba(255, 255, 255, 0.1)' : undefined}
+                          padding="$2"
+                          borderRadius="$2"
+                          alignItems="center"
+                          gap="$2"
                         >
-                          <XStack gap={8} padding="$2" alignItems="center">
-                            <Text color="white" size="lg">
-                              {city}
-                            </Text>
-                            {selectedCity === city && (
-                              <Feather name="check" size={16} color="white" style={{ marginLeft: 'auto' }} />
-                            )}
-                          </XStack>
-                        </TouchableOpacity>
-                      ))}
-                    </YStack>
-                  </ScrollView>
-                </YStack>
-              </Animated.View>
-            </Pressable>
-          </Animated.View>
+                          <Text color="white" size="lg">
+                            {city}
+                          </Text>
+                          {selectedCity === city && (
+                            <Feather name="check" size={16} color="white" style={{ marginLeft: 'auto' }} />
+                          )}
+                        </XStack>
+                      </TouchableOpacity>
+                    ))}
+                  </YStack>
+                </ScrollView>
+              </YStack>
+            </Animated.View>
+          </View>
         </Modal>
       </ScrollView>
     </Screen>
