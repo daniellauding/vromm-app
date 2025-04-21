@@ -6,19 +6,30 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  Keyboard
+  Keyboard,
+  StatusBar
 } from 'react-native';
+import type { Edge } from 'react-native-safe-area-context';
 
 type ScreenProps = {
   children: ReactNode;
   padding?: boolean;
   scroll?: boolean;
+  edges?: Edge[];
+  hideStatusBar?: boolean;
 };
 
-export function Screen({ children, padding = true, scroll = true }: ScreenProps) {
+export function Screen({ 
+  children, 
+  padding = true, 
+  scroll = true, 
+  edges = ['top'], 
+  hideStatusBar = false 
+}: ScreenProps) {
   return (
     <YStack f={1} backgroundColor="$background">
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <StatusBar hidden={hideStatusBar} />
+      <SafeAreaView style={{ flex: 1 }} edges={edges}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}

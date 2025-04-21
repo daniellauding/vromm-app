@@ -17,6 +17,7 @@ import { OnboardingModal } from '../components/OnboardingModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shouldShowOnboarding } from '../components/Onboarding';
 import { useTranslation } from '../contexts/TranslationContext';
+import { HeroCarousel } from '../components/HeroCarousel';
 
 type Todo = {
   id: string;
@@ -326,7 +327,7 @@ export function HomeScreen() {
   };
 
   return (
-    <Screen>
+    <Screen edges={[]} padding={false} hideStatusBar>
       {/* Onboarding Modal */}
       <OnboardingModal
         visible={showOnboarding}
@@ -335,10 +336,19 @@ export function HomeScreen() {
       />
 
       <ScrollView>
-        <YStack f={1} gap={24}>
-          <Header title={t('home.routes')} showBack={false} />
+        <YStack f={1}>
+          {/* Saved Routes Hero Carousel - Full Width */}
+          {savedRoutes.length > 0 && (
+            <HeroCarousel
+              title={t('home.savedRoutes')}
+              items={savedRoutes}
+              getImageUrl={getRouteImage}
+              height={400}
+              showTitle={false}
+            />
+          )}
 
-          <YStack f={1} gap={24} px="$4">
+          <YStack f={1} gap={24} px="$4" mt="$4">
             <Button
               onPress={() => navigation.navigate('CreateRoute', {})}
               variant="primary"
@@ -416,7 +426,7 @@ export function HomeScreen() {
               </YStack>
             )}
 
-            {/* Saved Routes Section */}
+            {/* Saved Routes Section - Keep this if you want both views */}
             {savedRoutes.length > 0 && (
               <YStack gap="$2">
                 <Text size="xl" weight="bold">
