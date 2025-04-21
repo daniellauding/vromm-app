@@ -13,12 +13,13 @@ import { Text } from '../components/Text';
 import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
 import type { Route, MediaAttachment } from '../hooks/useRoutes';
-import { Image, ImageSourcePropType } from 'react-native';
+import { Image, ImageSourcePropType, Platform, PermissionsAndroid } from 'react-native';
 import { OnboardingModal } from '../components/OnboardingModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shouldShowOnboarding } from '../components/Onboarding';
 import { useTranslation } from '../contexts/TranslationContext';
 import { HeroCarousel } from '../components/HeroCarousel';
+import * as Location from 'expo-location';
 
 type Todo = {
   id: string;
@@ -90,6 +91,8 @@ export function HomeScreen() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isFirstLogin, setIsFirstLogin] = useState(false);
+  const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
+  const [nearbyRoutes, setNearbyRoutes] = useState<Route[]>([]);
 
   // Check if this is the first login and should show onboarding
   useEffect(() => {
@@ -416,6 +419,98 @@ export function HomeScreen() {
     </ScrollView>
   );
 
+  const renderFullWidthRouteList = (routes: Route[], imageGetter: (route: Route) => string | null) => {
+    if (routes.length === 0) return null;
+
+    return (
+      <YStack gap="$3" paddingHorizontal="$4">
+        {routes.map(route => {
+          const imageUrl = imageGetter(route);
+          return (
+            <Card
+              key={route.id}
+              bordered
+              elevate
+              backgroundColor="$backgroundStrong"
+              width="100%"
+              height={280}
+              onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
+            >
+              <YStack f={1}>
+                {imageUrl ? (
+                  <Image
+                    source={{ uri: imageUrl } as ImageSourcePropType}
+                    style={{
+                      width: '100%',
+                      height: 180,
+                      borderTopLeftRadius: 12,
+                      borderTopRightRadius: 12
+                    }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <YStack
+                    height={180}
+                    backgroundColor="$gray5"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
+                    <Feather name="image" size={32} color="$gray11" />
+                  </YStack>
+                )}
+                <YStack padding="$3" gap="$2">
+                  <XStack justifyContent="space-between" alignItems="center">
+                    <YStack>
+                      <Text size="lg" weight="bold" numberOfLines={1} ellipsizeMode="tail">
+                        {route.name}
+                      </Text>
+                      <Text size="sm" color="$gray11">
+                        {route.difficulty?.toUpperCase()}
+                      </Text>
+                    </YStack>
+                    {userLocation && (
+                      <Text size="sm" color="$gray11">
+                        {/* TODO: Calculate actual distance */}
+                        2.5 km away
+                      </Text>
+                    )}
+                  </XStack>
+                  {route.description && (
+                    <Text size="sm" color="$gray11" numberOfLines={2} ellipsizeMode="tail">
+                      {route.description}
+                    </Text>
+                  )}
+                </YStack>
+              </YStack>
+            </Card>
+          );
+        })}
+      </YStack>
+    );
+  };
+
+  // Request location permissions and get location
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({});
+        setUserLocation(location);
+        // TODO: When backend is ready, fetch nearby routes using location
+        // For now, we'll just use the regular routes
+        if (routes.length > 0) {
+          setNearbyRoutes(routes.slice(0, 3)); // Limit to 3 routes for now
+        }
+      }
+    } catch (err) {
+      console.warn('Error getting location:', err);
+    }
+  };
+
+  useEffect(() => {
+    requestLocationPermission();
+  }, []);
+
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
       {/* Onboarding Modal */}
@@ -490,23 +585,35 @@ export function HomeScreen() {
               </Card>
             </YStack>
 
-            {/* Nearby Routes */}
+            {/* Nearby Routes - Updated to full width */}
             <YStack gap="$2">
-              <XStack justifyContent="space-between" alignItems="center">
+              <XStack px="$4" justifyContent="space-between" alignItems="center">
                 <Text size="xl" weight="bold">
                   Nearby Suggested Routes
                 </Text>
-                <Button size="sm" variant="secondary" opacity={0.5}>
+                <Button 
+                  size="sm" 
+                  variant="secondary" 
+                  opacity={0.5}
+                  backgroundColor="$backgroundStrong"
+                >
                   <XStack gap="$2" alignItems="center">
                     <Text>See All</Text>
                     <Feather name="chevron-right" size={20} />
                   </XStack>
                 </Button>
               </XStack>
-              {routes.length > 0 ? (
-                renderHorizontalRouteList(routes, getRouteImage)
+              {nearbyRoutes.length > 0 ? (
+                renderFullWidthRouteList(nearbyRoutes, getRouteImage)
               ) : (
-                renderEmptyState('No Nearby Routes', 'No routes available in your area yet')
+                <YStack px="$4">
+                  {renderEmptyState(
+                    'No Nearby Routes',
+                    userLocation 
+                      ? 'No routes available in your area yet'
+                      : 'Enable location to see routes near you'
+                  )}
+                </YStack>
               )}
             </YStack>
 
