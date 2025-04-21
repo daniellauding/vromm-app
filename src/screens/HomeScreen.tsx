@@ -327,6 +327,95 @@ export function HomeScreen() {
     return null;
   };
 
+  const renderHorizontalRouteList = (routes: Route[], imageGetter: (route: Route) => string | null) => {
+    if (routes.length === 0) return null;
+
+    return (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
+        <XStack gap="$3" paddingVertical="$2">
+          {routes.map(route => {
+            const imageUrl = imageGetter(route);
+            return (
+              <Card
+                key={route.id}
+                bordered
+                elevate
+                backgroundColor="$backgroundStrong"
+                width={200}
+                height={240}
+                onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
+              >
+                <YStack f={1}>
+                  {imageUrl ? (
+                    <Image
+                      source={{ uri: imageUrl } as ImageSourcePropType}
+                      style={{
+                        width: '100%',
+                        height: 120,
+                        borderTopLeftRadius: 12,
+                        borderTopRightRadius: 12
+                      }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <YStack
+                      height={120}
+                      backgroundColor="$gray5"
+                      alignItems="center"
+                      justifyContent="center"
+                    >
+                      <Feather name="image" size={32} color="$gray11" />
+                    </YStack>
+                  )}
+                  <YStack padding="$3" gap="$1" flex={1}>
+                    <Text size="md" weight="bold" numberOfLines={1} ellipsizeMode="tail">
+                      {route.name}
+                    </Text>
+                    <Text size="sm" color="$gray11">
+                      {route.difficulty?.toUpperCase()}
+                    </Text>
+                    {route.description && (
+                      <Text size="sm" color="$gray11" numberOfLines={2} ellipsizeMode="tail">
+                        {route.description}
+                      </Text>
+                    )}
+                  </YStack>
+                </YStack>
+              </Card>
+            );
+          })}
+        </XStack>
+      </ScrollView>
+    );
+  };
+
+  const renderEmptyState = (title: string, message: string) => (
+    <Card bordered elevate backgroundColor="$backgroundStrong" padding="$4">
+      <YStack alignItems="center" gap="$2">
+        <Feather name="info" size={24} color="$gray11" />
+        <Text size="lg" weight="bold">{title}</Text>
+        <Text size="sm" color="$gray11" textAlign="center">{message}</Text>
+      </YStack>
+    </Card>
+  );
+
+  const renderQuickFilters = () => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <XStack gap="$2" paddingHorizontal="$4" paddingVertical="$2">
+        {['Parkering', 'Landsväg', 'Backstart', '< 15 min'].map((filter) => (
+          <Button
+            key={filter}
+            size="sm"
+            variant="secondary"
+            opacity={0.5} // Disabled state
+          >
+            {filter}
+          </Button>
+        ))}
+      </XStack>
+    </ScrollView>
+  );
+
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
       {/* Onboarding Modal */}
@@ -339,7 +428,7 @@ export function HomeScreen() {
       <ScrollView>
         <YStack f={1}>
           {/* Saved Routes Hero Carousel - Full Width */}
-          {savedRoutes.length > 0 && (
+          {savedRoutes.length > 0 ? (
             <YStack gap="$2">
               <XStack px="$4" justifyContent="space-between" alignItems="center">
                 <Text size="xl" weight="bold">
@@ -370,9 +459,88 @@ export function HomeScreen() {
                 showMapPreview={true}
               />
             </YStack>
+          ) : (
+            <YStack px="$4" mt="$4">
+              {renderEmptyState('No Saved Routes', 'Save routes to access them quickly')}
+            </YStack>
           )}
 
-          <YStack f={1} gap={24} px="$4" mt="$4">
+          <YStack gap="$4" px="$4" mt="$4">
+            {/* Quick Filters */}
+            <YStack gap="$2">
+              <Text size="xl" weight="bold">Quick Filters</Text>
+              {renderQuickFilters()}
+            </YStack>
+
+            {/* Progress Section */}
+            <YStack gap="$2">
+              <Text size="xl" weight="bold">Ditt nästa körsteg</Text>
+              <Card bordered elevate backgroundColor="$backgroundStrong" padding="$4">
+                <YStack gap="$2">
+                  <Text size="lg" weight="bold">Steg 5 – Stadstrafik</Text>
+                  <Text size="md" color="$gray11">⭐ Progress: 3 av 5 övningar markerade</Text>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    opacity={0.5} // Disabled state
+                  >
+                    Visa övningar
+                  </Button>
+                </YStack>
+              </Card>
+            </YStack>
+
+            {/* Nearby Routes */}
+            <YStack gap="$2">
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text size="xl" weight="bold">
+                  Nearby Suggested Routes
+                </Text>
+                <Button size="sm" variant="secondary" opacity={0.5}>
+                  <XStack gap="$2" alignItems="center">
+                    <Text>See All</Text>
+                    <Feather name="chevron-right" size={20} />
+                  </XStack>
+                </Button>
+              </XStack>
+              {routes.length > 0 ? (
+                renderHorizontalRouteList(routes, getRouteImage)
+              ) : (
+                renderEmptyState('No Nearby Routes', 'No routes available in your area yet')
+              )}
+            </YStack>
+
+            {/* Driven Routes */}
+            <YStack gap="$2">
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text size="xl" weight="bold">
+                  {t('home.drivenRoutes')}
+                </Text>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => {
+                    navigation.navigate('RouteList', {
+                      title: t('home.drivenRoutes'),
+                      routes: drivenRoutes,
+                      type: 'driven'
+                    });
+                  }}
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Text>{t('common.seeAll')}</Text>
+                    <Feather name="chevron-right" size={20} />
+                  </XStack>
+                </Button>
+              </XStack>
+              {drivenRoutes.length > 0 ? (
+                renderHorizontalRouteList(drivenRoutes, getRouteImage)
+              ) : (
+                renderEmptyState('No Driven Routes', 'Complete routes to see them here')
+              )}
+            </YStack>
+
+            {/* Create Route Button */}
             <Button
               onPress={() => navigation.navigate('CreateRoute', {})}
               variant="primary"
@@ -380,94 +548,6 @@ export function HomeScreen() {
             >
               {t('home.createNewRoute')}
             </Button>
-
-            {/* Driven Routes Section */}
-            {drivenRoutes.length > 0 && (
-              <YStack gap="$2">
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Text size="xl" weight="bold">
-                    {t('home.drivenRoutes')}
-                  </Text>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onPress={() => {
-                      navigation.navigate('RouteList', {
-                        title: t('home.drivenRoutes'),
-                        routes: drivenRoutes,
-                        type: 'driven'
-                      });
-                    }}
-                  >
-                    <XStack gap="$2" alignItems="center">
-                      <Text>{t('common.seeAll')}</Text>
-                      <Feather name="chevron-right" size={20} />
-                    </XStack>
-                  </Button>
-                </XStack>
-                <RouteList routes={drivenRoutes} onRefresh={handleRefresh} />
-              </YStack>
-            )}
-
-            {/* Todos Section */}
-            {todos.length > 0 && (
-              <Card bordered elevate backgroundColor="$backgroundStrong" padding="$4">
-                <YStack gap="$4">
-                  <Text size="xl" weight="bold">
-                    {t('home.myTodos')}
-                  </Text>
-                  <YStack gap="$3">
-                    {todos.map(todo => (
-                      <XStack key={todo.id} gap="$3" alignItems="center">
-                        <Button
-                          size="sm"
-                          padding="$0"
-                          backgroundColor={todo.is_completed ? '$green10' : '$gray5'}
-                          onPress={() => handleToggleTodo(todo.id, todo.is_completed)}
-                        >
-                          <Feather
-                            name={todo.is_completed ? 'check' : 'circle'}
-                            size={20}
-                            color={todo.is_completed ? 'white' : '$gray11'}
-                          />
-                        </Button>
-                        <YStack flex={1}>
-                          <Text
-                            size="md"
-                            textDecorationLine={todo.is_completed ? 'line-through' : 'none'}
-                            opacity={todo.is_completed ? 0.6 : 1}
-                          >
-                            {todo.title}
-                          </Text>
-                          {todo.metadata?.routeName && (
-                            <Text size="sm" color="$gray11">
-                              {t('home.route')}: {todo.metadata.routeName}
-                            </Text>
-                          )}
-                        </YStack>
-                        {todo.metadata?.routeId && (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onPress={() => {
-                              if (todo.metadata?.routeId) {
-                                navigation.navigate('RouteDetail', {
-                                  routeId: todo.metadata.routeId
-                                });
-                              }
-                            }}
-                          >
-                            <Feather name="chevron-right" size={20} color="$gray11" />
-                          </Button>
-                        )}
-                      </XStack>
-                    ))}
-                  </YStack>
-                </YStack>
-              </Card>
-            )}
-
-            <RouteList routes={routes} onRefresh={handleRefresh} />
           </YStack>
         </YStack>
       </ScrollView>
