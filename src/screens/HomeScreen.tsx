@@ -345,6 +345,7 @@ export function HomeScreen() {
               getImageUrl={getRouteImage}
               height={400}
               showTitle={false}
+              showMapPreview={true}
             />
           )}
 

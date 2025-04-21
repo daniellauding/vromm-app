@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import type { Route } from '../hooks/useRoutes';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Map } from './Map';
 
 type HeroCarouselProps = {
   title: string;
@@ -14,7 +15,29 @@ type HeroCarouselProps = {
   getImageUrl: (item: Route) => string | null;
   height?: number;
   showTitle?: boolean;
+  showMapPreview?: boolean;
 };
+
+const styles = StyleSheet.create({
+  mapPreviewContainer: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  }
+});
 
 export function HeroCarousel({
   title,
@@ -23,6 +46,7 @@ export function HeroCarousel({
   getImageUrl,
   height = 300,
   showTitle = true,
+  showMapPreview = false,
 }: HeroCarouselProps) {
   const navigation = useNavigation<NavigationProp>();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -49,6 +73,44 @@ export function HeroCarousel({
       x: index * screenWidth,
       animated: true,
     });
+  };
+
+  const getMapRegion = (item: Route) => {
+    const waypointsData = (item.waypoint_details || item.metadata?.waypoints || []);
+    if (waypointsData.length > 0) {
+      const latitudes = waypointsData.map(wp => Number(wp.lat));
+      const longitudes = waypointsData.map(wp => Number(wp.lng));
+      
+      const minLat = Math.min(...latitudes);
+      const maxLat = Math.max(...latitudes);
+      const minLng = Math.min(...longitudes);
+      const maxLng = Math.max(...longitudes);
+      
+      const latPadding = (maxLat - minLat) * 0.1;
+      const lngPadding = (maxLng - minLng) * 0.1;
+      
+      const minDelta = 0.01;
+      const latDelta = Math.max((maxLat - minLat) + latPadding, minDelta);
+      const lngDelta = Math.max((maxLng - minLng) + lngPadding, minDelta);
+
+      return {
+        latitude: (minLat + maxLat) / 2,
+        longitude: (minLng + maxLng) / 2,
+        latitudeDelta: latDelta,
+        longitudeDelta: lngDelta,
+      };
+    }
+    return null;
+  };
+
+  const getWaypoints = (item: Route) => {
+    const waypointsData = (item.waypoint_details || item.metadata?.waypoints || []);
+    return waypointsData.map(wp => ({
+      latitude: Number(wp.lat),
+      longitude: Number(wp.lng),
+      title: wp.title?.toString(),
+      description: wp.description?.toString(),
+    }));
   };
 
   if (items.length === 0) return null;
@@ -86,6 +148,9 @@ export function HeroCarousel({
       >
         {items.map((item) => {
           const imageUrl = getImageUrl(item);
+          const region = showMapPreview ? getMapRegion(item) : null;
+          const waypoints = showMapPreview ? getWaypoints(item) : [];
+          
           return (
             <Card
               key={item.id}
@@ -98,25 +163,40 @@ export function HeroCarousel({
               borderRadius={0}
             >
               <YStack f={1}>
-                {imageUrl ? (
-                  <Image
-                    source={{ uri: imageUrl } as ImageSourcePropType}
-                    style={{
-                      width: screenWidth,
-                      height: height * 0.7,
-                    }}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <YStack
-                    height={height * 0.7}
-                    backgroundColor="$gray5"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    <Feather name="image" size={48} color="$gray11" />
-                  </YStack>
-                )}
+                <View style={{ position: 'relative' }}>
+                  {imageUrl ? (
+                    <Image
+                      source={{ uri: imageUrl } as ImageSourcePropType}
+                      style={{
+                        width: screenWidth,
+                        height: height * 0.7,
+                      }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <YStack
+                      height={height * 0.7}
+                      backgroundColor="$gray5"
+                      alignItems="center"
+                      justifyContent="center"
+                    >
+                      <Feather name="image" size={48} color="$gray11" />
+                    </YStack>
+                  )}
+                  {showMapPreview && region && waypoints.length > 0 && (
+                    <View style={styles.mapPreviewContainer}>
+                      <Map
+                        waypoints={waypoints}
+                        region={region}
+                        scrollEnabled={false}
+                        zoomEnabled={false}
+                        pitchEnabled={false}
+                        rotateEnabled={false}
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                    </View>
+                  )}
+                </View>
                 <YStack padding="$4" gap="$2" flex={1}>
                   <Text size="lg" weight="bold" numberOfLines={1} ellipsizeMode="tail">
                     {item.name}
