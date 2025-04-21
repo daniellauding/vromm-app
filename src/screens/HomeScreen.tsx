@@ -343,7 +343,6 @@ export function HomeScreen() {
               title={t('home.savedRoutes')}
               items={savedRoutes}
               getImageUrl={getRouteImage}
-              height={400}
               showTitle={false}
               showMapPreview={true}
             />

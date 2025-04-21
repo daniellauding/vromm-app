@@ -23,8 +23,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 16,
     right: 16,
-    width: 120,
-    height: 120,
+    width: 100,
+    height: 100,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: 'white',
@@ -36,6 +36,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  customMarker: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#00ffbc',
+    borderColor: '#145251',
+    borderWidth: 2,
   }
 });
 
@@ -44,7 +52,7 @@ export function HeroCarousel({
   items,
   onItemPress,
   getImageUrl,
-  height = 300,
+  height = Dimensions.get('window').height * 0.75, // 75vh equivalent
   showTitle = true,
   showMapPreview = false,
 }: HeroCarouselProps) {
@@ -112,6 +120,10 @@ export function HeroCarousel({
       description: wp.description?.toString(),
     }));
   };
+
+  const renderCustomMarker = () => (
+    <View style={styles.customMarker} />
+  );
 
   if (items.length === 0) return null;
 
@@ -193,6 +205,7 @@ export function HeroCarousel({
                         pitchEnabled={false}
                         rotateEnabled={false}
                         style={{ width: '100%', height: '100%' }}
+                        customMarker={renderCustomMarker()}
                       />
                     </View>
                   )}

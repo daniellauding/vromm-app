@@ -26,6 +26,7 @@ type MapProps = {
   onPress?: () => void;
   selectedPin?: string | null;
   onMarkerPress?: (waypoint: Waypoint) => void;
+  customMarker?: React.ReactNode;
 };
 
 type Cluster = {
@@ -158,7 +159,8 @@ export function Map({
   rotateEnabled = true,
   onPress,
   selectedPin,
-  onMarkerPress
+  onMarkerPress,
+  customMarker
 }: MapProps) {
   if (!region) return null;
 
@@ -365,9 +367,9 @@ export function Map({
           // Show individual pins for single markers, expanded clusters, or when zoomed in
           if (cluster.points.length === 1 || expandedCluster === 'all' || cluster.id === expandedCluster) {
             return cluster.points.map((point, index) => (
-          <Marker
+              <Marker
                 key={`${cluster.id}-point-${index}`}
-            coordinate={{
+                coordinate={{
                   latitude: point.latitude,
                   longitude: point.longitude,
                 }}
@@ -375,8 +377,9 @@ export function Map({
                   e.stopPropagation();
                   onMarkerPress?.(point);
                 }}
-                pinColor={selectedPin === point.id ? "red" : "coral"}
-              />
+              >
+                {customMarker || <View style={{ width: 10, height: 10, backgroundColor: selectedPin === point.id ? "red" : "coral", borderRadius: 5 }} />}
+              </Marker>
             ));
           }
 
