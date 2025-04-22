@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   handleContainer: {
     paddingVertical: 8,
     alignItems: 'center',
-    gap: 4,
+    gap: 12,
     paddingHorizontal: 16
   },
   handle: {
@@ -231,9 +231,9 @@ export function MapScreen({ route }: { route: any }) {
   const [region, setRegion] = useState(initialRegion);
   const { height: screenHeight } = Dimensions.get('window');
   const snapPoints = {
-    expanded: 0, // Fully expanded
+    expanded: screenHeight * 0.06, // Fully expanded
     mid: screenHeight * 0.4, // Show 60% of the screen
-    collapsed: screenHeight - BOTTOM_NAV_HEIGHT - 140 // Show more of the handle + title above nav bar
+    collapsed: screenHeight - BOTTOM_NAV_HEIGHT - 80 // Show more of the handle + title above nav bar
   };
   const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.collapsed);
   const translateY = useRef(new Animated.Value(snapPoints.collapsed)).current;
@@ -726,7 +726,7 @@ export function MapScreen({ route }: { route: any }) {
   }, [route.params?.selectedLocation]);
 
   return (
-    <Screen>
+    <Screen edges={[]} padding={false} hideStatusBar>
       <View style={{ flex: 1 }}>
         <Map
           key={`map-${routes.length}`}
