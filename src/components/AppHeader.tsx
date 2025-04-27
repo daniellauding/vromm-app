@@ -1,58 +1,104 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { XStack, Input } from 'tamagui';
+import { XStack, Input, Button, Text } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
+import { NavigationProp } from '../types/navigation';
+
+interface FilterCategory {
+  id: string;
+  label: string;
+  value: string;
+  type: 'difficulty' | 'spot_type' | 'category' | 'transmission_type' | 'activity_level' | 'best_season' | 'vehicle_types';
+}
 
 interface AppHeaderProps {
   onLocateMe: () => void;
+  filters?: FilterCategory[];
+  onFilterPress?: (filter: FilterCategory) => void;
 }
 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  filtersContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   }
 });
 
-export function AppHeader({ onLocateMe }: AppHeaderProps) {
-  const navigation = useNavigation();
+export function AppHeader({ onLocateMe, filters = [], onFilterPress }: AppHeaderProps) {
+  const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
 
   return (
-    <XStack style={styles.container} gap="$2">
-      <Input
-        flex={1}
-        placeholder="Search cities, addresses, routes..."
-        backgroundColor="$background"
-        borderWidth={1}
-        borderColor="$borderColor"
-        borderRadius="$2"
-        height="$10"
-        paddingLeft="$3"
-        fontSize="$2"
-        onFocus={() => {
-          // Navigate to search screen when input is focused
-          navigation.navigate('Search');
-        }}
-        editable={false} // Make input non-editable since we're using it as a button
-      />
-      <XStack
-        backgroundColor="$background"
-        borderRadius="$2"
-        width="$10"
-        height="$10"
-        alignItems="center"
-        justifyContent="center"
-        borderWidth={1}
-        borderColor="$borderColor"
-        onPress={onLocateMe}
-        pressStyle={{ opacity: 0.7 }}
-      >
-        <Feather name="navigation" size={20} color={iconColor} />
+    <>
+      <XStack style={styles.container} gap="$2">
+        <Input
+          flex={1}
+          placeholder="Search cities, addresses, routes..."
+          backgroundColor="$background"
+          borderWidth={1}
+          borderColor="$borderColor"
+          borderRadius="$2"
+          height="$10"
+          paddingLeft="$3"
+          fontSize="$2"
+          onFocus={() => {
+            navigation.navigate('Search');
+          }}
+          editable={false} // Make input non-editable since we're using it as a button
+        />
+        <XStack
+          backgroundColor="$background"
+          borderRadius="$2"
+          width="$10"
+          height="$10"
+          alignItems="center"
+          justifyContent="center"
+          borderWidth={1}
+          borderColor="$borderColor"
+          onPress={onLocateMe}
+          pressStyle={{ opacity: 0.7 }}
+        >
+          <Feather name="navigation" size={20} color={iconColor} />
+        </XStack>
       </XStack>
-    </XStack>
+
+      {/* Quick Filters */}
+      {filters.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersContainer}
+        >
+          <XStack gap="$2">
+            {filters.map((filter) => (
+              <Button
+                key={filter.id}
+                size="$3"
+                backgroundColor="#1A3D3D"
+                borderRadius="$4"
+                pressStyle={{ opacity: 0.8 }}
+                onPress={() => onFilterPress?.(filter)}
+              >
+                <Text 
+                  color="white" 
+                  numberOfLines={1}
+                  textTransform="uppercase"
+                  fontWeight="500"
+                >
+                  {filter.label}
+                </Text>
+              </Button>
+            ))}
+          </XStack>
+        </ScrollView>
+      )}
+    </>
   );
 } 

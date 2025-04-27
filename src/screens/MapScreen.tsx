@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map, Waypoint } from '../components/Map';
 import { supabase } from '../lib/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { NavigationProp } from '../types/navigation';
+import { NavigationProp, FilterCategory } from '../types/navigation';
 import { Database } from '../lib/database.types';
 import { YStack, XStack, Card, Input, Text, Sheet } from 'tamagui';
 import * as Location from 'expo-location';
@@ -203,6 +203,7 @@ export function MapScreen({ route }: { route: any }) {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [routes, setRoutes] = useState<RouteType[]>([]);
+  const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
   const { fetchRoutes } = useRoutes();
   const colorScheme = useColorScheme();
@@ -216,6 +217,8 @@ export function MapScreen({ route }: { route: any }) {
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
+  const [allFilters, setAllFilters] = useState<FilterCategory[]>([]);
+  const [activeFilter, setActiveFilter] = useState<FilterCategory | null>(null);
 
   // Memoize initial region
   const initialRegion = useMemo(
@@ -231,7 +234,7 @@ export function MapScreen({ route }: { route: any }) {
   const [region, setRegion] = useState(initialRegion);
   const { height: screenHeight } = Dimensions.get('window');
   const snapPoints = {
-    expanded: screenHeight * 0.06, // Fully expanded
+    expanded: screenHeight * 0.2, // Fully expanded
     mid: screenHeight * 0.4, // Show 60% of the screen
     collapsed: screenHeight - BOTTOM_NAV_HEIGHT - 80 // Show more of the handle + title above nav bar
   };
@@ -253,7 +256,7 @@ export function MapScreen({ route }: { route: any }) {
   }, [routes]);
 
   const getAllWaypoints = useMemo(() => {
-    return routes
+    return filteredRoutes
       .map(route => {
         const waypointsData = (route.waypoint_details ||
           route.metadata?.waypoints ||
@@ -270,7 +273,7 @@ export function MapScreen({ route }: { route: any }) {
         };
       })
       .filter((wp): wp is NonNullable<typeof wp> => wp !== null);
-  }, [routes]);
+  }, [filteredRoutes]);
 
   const handleMarkerPress = useCallback(
     (waypoint: Waypoint) => {
@@ -392,9 +395,6 @@ export function MapScreen({ route }: { route: any }) {
       setIsMapReady(true);
     })();
   }, []);
-
-  // Add filtered routes state
-  const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>(routes);
 
   const handleSearch = useCallback(
     (text: string) => {
@@ -725,6 +725,125 @@ export function MapScreen({ route }: { route: any }) {
     }
   }, [route.params?.selectedLocation]);
 
+  // Extract filters from routes
+  const extractFilters = useCallback((routes: RouteType[]) => {
+    const filterMap: Record<string, FilterCategory> = {};
+
+    routes.forEach(route => {
+      // Difficulty
+      if (route.difficulty) {
+        filterMap[`difficulty-${route.difficulty}`] = {
+          id: `difficulty-${route.difficulty}`,
+          label: route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
+          value: route.difficulty,
+          type: 'difficulty'
+        };
+      }
+
+      // Spot Type
+      if (route.spot_type) {
+        filterMap[`spot-${route.spot_type}`] = {
+          id: `spot-${route.spot_type}`,
+          label: route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
+          value: route.spot_type,
+          type: 'spot_type'
+        };
+      }
+
+      // Category
+      if (route.category) {
+        filterMap[`category-${route.category}`] = {
+          id: `category-${route.category}`,
+          label: route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
+          value: route.category,
+          type: 'category'
+        };
+      }
+
+      // Transmission Type
+      if (route.transmission_type) {
+        filterMap[`transmission-${route.transmission_type}`] = {
+          id: `transmission-${route.transmission_type}`,
+          label: route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.transmission_type.slice(1),
+          value: route.transmission_type,
+          type: 'transmission_type'
+        };
+      }
+
+      // Activity Level
+      if (route.activity_level) {
+        filterMap[`activity-${route.activity_level}`] = {
+          id: `activity-${route.activity_level}`,
+          label: route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() + route.activity_level.slice(1),
+          value: route.activity_level,
+          type: 'activity_level'
+        };
+      }
+
+      // Best Season
+      if (route.best_season) {
+        filterMap[`season-${route.best_season}`] = {
+          id: `season-${route.best_season}`,
+          label: route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() + route.best_season.slice(1),
+          value: route.best_season,
+          type: 'best_season'
+        };
+      }
+
+      // Vehicle Types
+      if (route.vehicle_types && Array.isArray(route.vehicle_types)) {
+        route.vehicle_types.forEach(type => {
+          filterMap[`vehicle-${type}`] = {
+            id: `vehicle-${type}`,
+            label: type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
+            value: type,
+            type: 'vehicle_types'
+          };
+        });
+      }
+    });
+
+    setAllFilters(Object.values(filterMap));
+  }, []);
+
+  // Handle filter selection
+  const handleFilterPress = useCallback((filter: FilterCategory) => {
+    if (activeFilter?.id === filter.id) {
+      setActiveFilter(null);
+      setFilteredRoutes(routes);
+    } else {
+      setActiveFilter(filter);
+      const filtered = routes.filter(route => {
+        switch (filter.type) {
+          case 'difficulty':
+            return route.difficulty === filter.value;
+          case 'spot_type':
+            return route.spot_type === filter.value;
+          case 'category':
+            return route.category === filter.value;
+          case 'transmission_type':
+            return route.transmission_type === filter.value;
+          case 'activity_level':
+            return route.activity_level === filter.value;
+          case 'best_season':
+            return route.best_season === filter.value;
+          case 'vehicle_types':
+            return route.vehicle_types?.includes(filter.value);
+          default:
+            return false;
+        }
+      });
+      setFilteredRoutes(filtered);
+    }
+  }, [activeFilter, routes]);
+
+  // Update filters when routes change
+  useEffect(() => {
+    if (routes.length > 0) {
+      extractFilters(routes);
+    }
+  }, [routes, extractFilters]);
+
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
       <View style={{ flex: 1 }}>
@@ -740,7 +859,11 @@ export function MapScreen({ route }: { route: any }) {
 
         {/* Replace SearchView with AppHeader */}
         <SafeAreaView edges={['top']}>
-          <AppHeader onLocateMe={handleLocateMe} />
+          <AppHeader 
+            onLocateMe={handleLocateMe}
+            filters={allFilters}
+            onFilterPress={handleFilterPress}
+          />
         </SafeAreaView>
 
         {/* Bottom sheet - hide when preview card is shown */}
