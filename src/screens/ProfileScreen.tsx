@@ -3,7 +3,7 @@ import { YStack, XStack, Switch, useTheme, Card } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 import * as Location from 'expo-location';
-import { Alert, Modal, View, Pressable } from 'react-native';
+import { Alert, Modal, View, Pressable, Image } from 'react-native';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
 import { Button } from '../components/Button';
@@ -19,6 +19,9 @@ import { RootStackNavigationProp } from '../types/navigation';
 import { forceRefreshTranslations, debugTranslations } from '../services/translationService';
 import { useTranslation } from '../contexts/TranslationContext';
 import { Language } from '../contexts/TranslationContext';
+import * as ImagePicker from 'expo-image-picker';
+import { decode } from 'base64-arraybuffer';
+import { supabase } from '../lib/supabase';
 
 type ExperienceLevel = Database['public']['Enums']['experience_level'];
 type UserRole = Database['public']['Enums']['user_role'];
@@ -43,6 +46,7 @@ export function ProfileScreen() {
   const theme = useTheme();
   const colorScheme = useColorScheme();
   const navigation = useNavigation<RootStackNavigationProp>();
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
@@ -51,7 +55,8 @@ export function ProfileScreen() {
     experience_level: profile?.experience_level || ('beginner' as ExperienceLevel),
     private_profile: profile?.private_profile || false,
     location_lat: profile?.location_lat || null,
-    location_lng: profile?.location_lng || null
+    location_lng: profile?.location_lng || null,
+    avatar_url: profile?.avatar_url || null
   });
 
   const handleUpdate = async () => {
@@ -180,6 +185,84 @@ export function ProfileScreen() {
     }
   }, [t]);
 
+  // Avatar upload handler
+  const handlePickAvatar = async (useCamera = false) => {
+    try {
+      setAvatarUploading(true);
+      let result;
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Camera permission is required to take a photo');
+          setAvatarUploading(false);
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Media library permission is required');
+          setAvatarUploading(false);
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8
+        });
+      }
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve, reject) => {
+          reader.onloadend = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const ext = asset.uri.split('.').pop() || 'jpg';
+        const fileName = `avatars/${profile.id || user?.id || 'user'}/${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, decode(base64), {
+            contentType: 'image/jpeg',
+            upsert: true
+          });
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        // Save avatar URL to profile
+        await updateProfile({ ...formData, avatar_url: publicUrl });
+        setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
+        Alert.alert('Success', 'Avatar updated!');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to upload avatar');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  // Delete avatar handler
+  const handleDeleteAvatar = async () => {
+    try {
+      setAvatarUploading(true);
+      await updateProfile({ ...formData, avatar_url: null });
+      setFormData(prev => ({ ...prev, avatar_url: null }));
+      Alert.alert('Success', 'Avatar removed!');
+    } catch (err) {
+      Alert.alert('Error', 'Failed to delete avatar');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   return (
     <Screen scroll>
       <OnboardingModal
@@ -192,6 +275,46 @@ export function ProfileScreen() {
         <Header title={t('profile.title')} />
         <YStack gap={24}>
           <YStack gap={24} paddingBottom={56}>
+            <YStack alignItems="center" marginTop={24} marginBottom={8}>
+              <View style={{ position: 'relative' }}>
+                {formData.avatar_url ? (
+                  <View>
+                    <Image
+                      source={{ uri: formData.avatar_url }}
+                      style={{ width: 96, height: 96, borderRadius: 48, borderWidth: 2, borderColor: '#ccc' }}
+                    />
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      style={{ position: 'absolute', top: 0, right: 0, zIndex: 2 }}
+                      onPress={handleDeleteAvatar}
+                      disabled={avatarUploading}
+                      backgroundColor="$red10"
+                    >
+                      <Feather name="trash-2" size={16} color="white" />
+                    </Button>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => handlePickAvatar(false)}
+                    style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#ccc' }}
+                  >
+                    <Feather name="user" size={48} color="#bbb" />
+                  </Pressable>
+                )}
+              </View>
+              <XStack gap={8} marginTop={8}>
+                <Button size="sm" variant="secondary" onPress={() => handlePickAvatar(false)} disabled={avatarUploading}>
+                  <Feather name="image" size={16} color="#4287f5" />
+                  <Text ml={4}>Pick from Library</Text>
+                </Button>
+                <Button size="sm" variant="secondary" onPress={() => handlePickAvatar(true)} disabled={avatarUploading}>
+                  <Feather name="camera" size={16} color="#4287f5" />
+                  <Text ml={4}>Take Photo</Text>
+                </Button>
+              </XStack>
+            </YStack>
+
             <YStack>
               <Text size="lg" weight="medium" mb="$2" color="$color">
                 {t('profile.fullName')}
