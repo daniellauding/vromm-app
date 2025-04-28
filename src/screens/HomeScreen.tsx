@@ -1032,6 +1032,15 @@ export function HomeScreen() {
           {/* Quick Filters Section */}
           {allFilters.length > 0 && renderQuickFilters()}
 
+          {/* Create Route Button */}
+          <Button
+            onPress={() => navigation.navigate('CreateRoute', {})}
+            variant="primary"
+            size="lg"
+          >
+            {t('home.createNewRoute')}
+          </Button>
+
           {/* City Routes - Now with dropdown and full-width cards */}
           <YStack gap="$4">
             {renderCityRoutes()}
@@ -1046,7 +1055,7 @@ export function HomeScreen() {
               />
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <XStack space="$4" paddingHorizontal="$4">
-                  {createdRoutes.slice(0, 3).map((route) => (
+                  {createdRoutes.slice(0, 3).map(route => (
                     <RouteCard key={route.id} route={route} />
                   ))}
                 </XStack>
@@ -1063,7 +1072,7 @@ export function HomeScreen() {
               />
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <XStack space="$4" paddingHorizontal="$4">
-                  {nearbyRoutes.slice(0, 3).map((route) => (
+                  {nearbyRoutes.slice(0, 3).map(route => (
                     <RouteCard key={route.id} route={route} />
                   ))}
                 </XStack>
@@ -1084,21 +1093,10 @@ export function HomeScreen() {
                 }}
                 actionLabel={t('common.seeAll')}
               />
-              {drivenRoutes.length > 0 ? (
-                renderHorizontalRouteList(drivenRoutes, getRouteImage)
-              ) : (
-                renderEmptyState('No Driven Routes', 'Complete routes to see them here')
-              )}
+              {drivenRoutes.length > 0
+                ? renderHorizontalRouteList(drivenRoutes, getRouteImage)
+                : renderEmptyState('No Driven Routes', 'Complete routes to see them here')}
             </YStack>
-
-            {/* Create Route Button */}
-            <Button
-              onPress={() => navigation.navigate('CreateRoute', {})}
-              variant="primary"
-              size="lg"
-            >
-              {t('home.createNewRoute')}
-            </Button>
           </YStack>
         </YStack>
 
@@ -1110,21 +1108,18 @@ export function HomeScreen() {
           onRequestClose={hideCityModal}
         >
           <View style={{ flex: 1 }}>
-            <Animated.View 
+            <Animated.View
               style={[
-                { 
-                  flex: 1, 
+                {
+                  flex: 1,
                   backgroundColor: 'rgba(0,0,0,0.5)'
                 },
                 {
                   opacity: cityBackdropOpacity
                 }
-              ]} 
+              ]}
             >
-              <Pressable 
-                style={{ flex: 1 }} 
-                onPress={hideCityModal} 
-              />
+              <Pressable style={{ flex: 1 }} onPress={hideCityModal} />
             </Animated.View>
             <Animated.View
               style={[
@@ -1135,7 +1130,7 @@ export function HomeScreen() {
                   right: 0,
                   backgroundColor: '#000',
                   borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
+                  borderTopRightRadius: 16
                 },
                 {
                   transform: [{ translateY: citySheetTranslateY }]
@@ -1167,13 +1162,12 @@ export function HomeScreen() {
 
                 <ScrollView style={{ maxHeight: '70%' }}>
                   <YStack gap="$2">
-                    {Object.keys(routesByCity).map((city) => (
-                      <TouchableOpacity
-                        key={city}
-                        onPress={() => handleCitySelect(city)}
-                      >
+                    {Object.keys(routesByCity).map(city => (
+                      <TouchableOpacity key={city} onPress={() => handleCitySelect(city)}>
                         <XStack
-                          backgroundColor={selectedCity === city ? 'rgba(255, 255, 255, 0.1)' : undefined}
+                          backgroundColor={
+                            selectedCity === city ? 'rgba(255, 255, 255, 0.1)' : undefined
+                          }
                           padding="$2"
                           borderRadius="$2"
                           alignItems="center"
@@ -1183,7 +1177,12 @@ export function HomeScreen() {
                             {city}
                           </Text>
                           {selectedCity === city && (
-                            <Feather name="check" size={16} color="white" style={{ marginLeft: 'auto' }} />
+                            <Feather
+                              name="check"
+                              size={16}
+                              color="white"
+                              style={{ marginLeft: 'auto' }}
+                            />
                           )}
                         </XStack>
                       </TouchableOpacity>

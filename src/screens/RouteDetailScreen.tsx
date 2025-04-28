@@ -756,7 +756,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   }
 
   return (
-    <Screen scroll={false}>
+    <Screen edges={[]} padding={false} hideStatusBar>
       <YStack f={1}>
         {/* Hero Carousel */}
         {getCarouselItems().length > 0 && (

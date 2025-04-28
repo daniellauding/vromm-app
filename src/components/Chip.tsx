@@ -12,11 +12,8 @@ type ChipProps = {
 export function Chip({ active, icon, children, onPress }: ChipProps) {
   return (
     <Button
-      size="$4"
       backgroundColor={active ? "$blue10" : "$backgroundHover"}
       borderRadius="$6"
-      paddingHorizontal="$3"
-      paddingVertical="$2"
       onPress={onPress}
     >
       <XStack gap="$2" alignItems="center">

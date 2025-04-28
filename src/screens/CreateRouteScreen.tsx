@@ -972,7 +972,7 @@ export function CreateRouteScreen({ route }: Props) {
   };
 
   return (
-    <Screen>
+    <Screen edges={[]} padding={false} hideStatusBar>
       <ScrollView style={{ flex: 1 }}>
         {/* Hero Section with MediaCarousel */}
         <MediaCarousel
