@@ -1,182 +1,103 @@
-import React, { useState } from 'react';
-import { View, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
 
-// Define Step type
-interface Step {
-  id: number;
+// Define LearningPath type based on the learning_paths table
+interface LearningPath {
+  id: string;
   title: { en: string; sv: string };
-  subtext: { en: string; sv: string };
-  exercises: string[];
-  level?: string;
-  tag?: string;
+  description: { en: string; sv: string };
+  icon: string | null;
+  image: string | null;
+  order_index: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
 }
-
-const steps: Step[] = [
-  {
-    id: 1,
-    title: {
-      en: 'Driving Position',
-      sv: 'Körställning'
-    },
-    subtext: {
-      en: 'Description coming soon...',
-      sv: 'Beskrivning kommer snart...'
-    },
-    exercises: ['Basic Seating', 'Mirror Adjustment'],
-    level: 'Beginner',
-  },
-  {
-    id: 2,
-    title: { en: 'Initial Maneuvering', sv: 'Inledande manövrering' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Starting the Engine', 'Gentle Acceleration'],
-    level: 'Beginner',
-  },
-  {
-    id: 3,
-    title: { en: 'Increasing and Decreasing Speed', sv: 'Öka och minska hastighet' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Smooth Acceleration', 'Gradual Braking'],
-    level: 'Beginner',
-    tag: 'Safety',
-  },
-  {
-    id: 4,
-    title: { en: 'Maneuvering on an Incline', sv: 'Manövrering i lutning' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Hill Starts', 'Controlled Descents'],
-    level: 'Intermediate',
-  },
-  {
-    id: 5,
-    title: { en: 'General Maneuvering', sv: 'Allmän manövrering' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Lane Changing', 'Reverse Parking'],
-    level: 'Intermediate',
-  },
-  {
-    id: 6,
-    title: { en: 'Safety Checks and Functions', sv: 'Säkerhetskontroller och funktioner' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Pre-Drive Inspection', 'Emergency Procedures'],
-    tag: 'Safety',
-  },
-  {
-    id: 7,
-    title: { en: 'Coordination and Braking', sv: 'Koordination och bromsning' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Emergency Stops', 'Feathering the Brake'],
-    level: 'Intermediate',
-    tag: 'Safety',
-  },
-  {
-    id: 8,
-    title: { en: 'Driving in a Small Town', sv: 'Körning i småstad' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Navigating Roundabouts', 'Residential Area Driving'],
-    tag: 'Practical',
-  },
-  {
-    id: 9,
-    title: { en: 'Driving on a Small Country Road', sv: 'Körning på landsväg' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Narrow Road Navigation', 'Passing Oncoming Traffic'],
-    level: 'Advanced',
-    tag: 'Practical',
-  },
-  {
-    id: 10,
-    title: { en: 'Driving in the City', sv: 'Körning i stad' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Heavy Traffic Management', 'Multi-Lane Navigation'],
-    level: 'Advanced',
-    tag: 'Practical',
-  },
-  {
-    id: 11,
-    title: { en: 'Driving on a Main Road', sv: 'Körning på huvudväg' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Merging', 'Lane Discipline'],
-    level: 'Advanced',
-  },
-  {
-    id: 12,
-    title: { en: 'Driving on a Motorway and Expressway', sv: 'Körning på motorväg och motortrafikled' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['High-Speed Control', 'Safe Overtaking'],
-    level: 'Advanced',
-  },
-  {
-    id: 13,
-    title: { en: 'Night Driving', sv: 'Nattkörning' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Headlight Management', 'Reduced Visibility Techniques'],
-    tag: 'Special Conditions',
-  },
-  {
-    id: 14,
-    title: { en: 'Slippery Road Conditions', sv: 'Halka och svåra vägförhållanden' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Snow Driving', 'Wet Road Handling'],
-    tag: 'Special Conditions',
-  },
-  {
-    id: 15,
-    title: { en: 'Preparation for the Driving Test', sv: 'Förberedelse för uppkörning' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Mock Test', 'Common Mistake Review'],
-    tag: 'Test Preparation',
-  },
-  {
-    id: 16,
-    title: { en: 'Driving Test', sv: 'Uppkörning' },
-    subtext: { en: 'Description coming soon...', sv: 'Beskrivning kommer snart...' },
-    exercises: ['Test Day Preparation', 'Test Route Familiarity'],
-    tag: 'Test Preparation',
-  },
-];
 
 // For demo, English only. Replace with language context if needed.
 const lang = 'en';
 
 export function ProgressScreen() {
-  const [activeStep, setActiveStep] = useState<number>(1);
+  const [activePath, setActivePath] = useState<string>('');
   const [showDetail, setShowDetail] = useState<boolean>(false);
-  const [detailStep, setDetailStep] = useState<Step | null>(null);
+  const [detailPath, setDetailPath] = useState<LearningPath | null>(null);
+  const [paths, setPaths] = useState<LearningPath[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleStepPress = (step: Step) => {
-    setDetailStep(step);
+  useEffect(() => {
+    fetchLearningPaths();
+  }, []);
+
+  const fetchLearningPaths = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('learning_paths')
+        .select('*')
+        .eq('active', true)
+        .order('order_index', { ascending: true });
+
+      if (error) throw error;
+      setPaths(data || []);
+      // Set the first path as active by default
+      if (data && data.length > 0) {
+        setActivePath(data[0].id);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching learning paths');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePathPress = (path: LearningPath) => {
+    setActivePath(path.id);
+    setDetailPath(path);
     setShowDetail(true);
   };
 
-  if (showDetail && detailStep) {
+  if (loading) {
+    return (
+      <YStack flex={1} backgroundColor="$background" justifyContent="center" alignItems="center">
+        <ActivityIndicator size="large" color="#00E6C3" />
+      </YStack>
+    );
+  }
+
+  if (error) {
+    return (
+      <YStack flex={1} backgroundColor="$background" justifyContent="center" alignItems="center" padding={24}>
+        <Text color="$red10" textAlign="center">{error}</Text>
+        <TouchableOpacity 
+          onPress={fetchLearningPaths}
+          style={{ marginTop: 16, padding: 12, backgroundColor: '#00E6C3', borderRadius: 8 }}
+        >
+          <Text color="$background">Retry</Text>
+        </TouchableOpacity>
+      </YStack>
+    );
+  }
+
+  if (showDetail && detailPath) {
     return (
       <YStack flex={1} backgroundColor="$background" padding={24}>
         <TouchableOpacity onPress={() => setShowDetail(false)} style={{ marginBottom: 24 }}>
           <Feather name="arrow-left" size={28} color="#fff" />
         </TouchableOpacity>
         <Text fontSize={28} fontWeight="bold" color="$color" marginBottom={8}>
-          {detailStep.title[lang]}
+          {detailPath.title[lang]}
         </Text>
         <Text color="$gray11" marginBottom={16}>
-          {detailStep.subtext[lang]}
+          {detailPath.description[lang]}
         </Text>
-        <Text fontWeight="600" marginBottom={8}>Exercises / Tips:</Text>
-        <YStack gap={8}>
-          {detailStep.exercises.map((ex: string, i: number) => (
-            <XStack key={i} alignItems="center" gap={8}>
-              <Feather name="check-circle" size={18} color="#00E6C3" />
-              <Text color="$color">{ex}</Text>
-            </XStack>
-          ))}
-        </YStack>
-        {detailStep.level && (
-          <Text marginTop={16} color="$blue10">Level: {detailStep.level}</Text>
-        )}
-        {detailStep.tag && (
-          <Text color="$blue10">Tag: {detailStep.tag}</Text>
+        {detailPath.icon && (
+          <View style={{ marginTop: 16 }}>
+            <Feather name={detailPath.icon as any} size={24} color="#00E6C3" />
+          </View>
         )}
       </YStack>
     );
@@ -185,13 +106,13 @@ export function ProgressScreen() {
   return (
     <YStack flex={1} backgroundColor="$background" padding={0}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
-        {steps.map((step, idx) => {
-          const isActive = activeStep === step.id;
-          const isFinished = step.id < activeStep;
+        {paths.map((path, idx) => {
+          const isActive = activePath === path.id;
+          const isFinished = paths.findIndex(p => p.id === path.id) < paths.findIndex(p => p.id === activePath);
           return (
             <TouchableOpacity
-              key={step.id}
-              onPress={() => { setActiveStep(step.id); handleStepPress(step); }}
+              key={path.id}
+              onPress={() => handlePathPress(path)}
               activeOpacity={0.8}
               style={{ marginBottom: 20 }}
             >
@@ -217,10 +138,10 @@ export function ProgressScreen() {
                   </View>
                   <YStack flex={1}>
                     <Text fontSize={20} fontWeight={isActive ? 'bold' : '600'} color={isActive ? '$color' : '$gray11'}>
-                      {step.id}. {step.title[lang]}
+                      {idx + 1}. {path.title[lang]}
                     </Text>
                     <Text color="$gray11" fontSize={14} marginTop={2}>
-                      {step.subtext[lang]}
+                      {path.description[lang]}
                     </Text>
                   </YStack>
                 </XStack>
