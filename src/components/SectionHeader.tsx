@@ -27,16 +27,18 @@ export function SectionHeader({
       {onAction && (
         <Button
           size="sm"
-          variant="secondary"
+          variant="outlined"
+          backgroundColor="transparent"
+          borderWidth={0}
           onPress={onAction}
         >
           <XStack gap="$2" alignItems="center">
             <Text>{actionLabel}</Text>
             {showChevron && variant === 'chevron' && (
-              <Feather name="chevron-right" size={20} />
+              <Feather name="chevron-right" size={20} color="white" />
             )}
             {variant === 'dropdown' && (
-              <Feather name="chevron-down" size={20} />
+              <Feather name="chevron-down" size={20} color="white" />
             )}
           </XStack>
         </Button>

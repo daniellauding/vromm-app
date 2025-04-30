@@ -220,10 +220,17 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Get a translation by key
   const t = (key: string): string => {
-    if (!translations[key]) {
-      logger.debug(`Missing translation for key: ${key}`);
+    // If the key exists in translations but is explicitly empty, return empty string
+    if (key in translations && translations[key] === '') {
+      return '';
     }
-    return translations[key] || key;
+    // If the key doesn't exist in translations, return the key itself
+    if (!(key in translations)) {
+      logger.debug(`Missing translation for key: ${key}`);
+      return key;
+    }
+    // Otherwise return the translation
+    return translations[key];
   };
 
   // Force refresh translations

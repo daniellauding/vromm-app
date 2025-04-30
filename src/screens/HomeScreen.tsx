@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shouldShowOnboarding } from '../components/Onboarding';
 import { useTranslation } from '../contexts/TranslationContext';
 import { HeroCarousel } from '../components/HeroCarousel';
+import { ProgressSection } from '../components/ProgressSection';
 import * as Location from 'expo-location';
 import type { FilterCategory } from '../types/navigation';
 import { Easing } from 'react-native';
@@ -125,7 +126,7 @@ const getCityFromWaypoints = (route: Route): string => {
 };
 
 export function HomeScreen() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const { fetchRoutes } = useRoutes();
   const { t } = useTranslation();
@@ -998,11 +999,32 @@ export function HomeScreen() {
         forceShow={isFirstLogin}
       />
 
-      <ScrollView>
+      <ScrollView contentContainerStyle={{ paddingTop: 72 }}>
         <YStack f={1}>
+          {/* Welcome Message */}
+          <Text
+            fontSize="$6"
+            fontWeight="800"
+            fontStyle="italic"
+            color="$color"
+            paddingHorizontal="$4"
+            marginBottom="$4"
+          >
+            {/* Only show name if it's explicitly set and not an email or default value */}
+            {profile?.full_name && 
+             !profile.full_name.includes('@') && 
+             profile.full_name !== 'Unknown' &&
+             !profile.full_name.startsWith('user_')
+              ? t('home.welcomeWithName').replace('{name}', profile.full_name)
+              : t('home.welcome')}
+          </Text>
+
+          {/* Progress Section */}
+          <ProgressSection />
+
           {/* Saved Routes Hero Carousel - Full Width */}
           {savedRoutes.length > 0 ? (
-            <YStack gap="$2">
+            <YStack gap="$6">
               <SectionHeader
                 title={t('home.savedRoutes')}
                 variant="chevron"

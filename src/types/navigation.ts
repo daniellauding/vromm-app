@@ -37,7 +37,10 @@ export type RootStackParamList = {
 
 export type TabParamList = {
   HomeTab: undefined;
-  ProgressTab: undefined;
+  ProgressTab: {
+    selectedPathId?: string;
+    showDetail?: boolean;
+  };
   MapTab: undefined;
   ProfileTab: undefined;
 };

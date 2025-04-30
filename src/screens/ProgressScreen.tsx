@@ -3,6 +3,9 @@ import { View, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-nat
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import type { TabParamList } from '../types/navigation';
 
 // Define LearningPath type based on the learning_paths table
 interface LearningPath {
@@ -21,8 +24,11 @@ interface LearningPath {
 const lang = 'en';
 
 export function ProgressScreen() {
-  const [activePath, setActivePath] = useState<string>('');
-  const [showDetail, setShowDetail] = useState<boolean>(false);
+  const route = useRoute<RouteProp<TabParamList, 'ProgressTab'>>();
+  const { selectedPathId, showDetail } = route.params || {};
+
+  const [activePath, setActivePath] = useState<string>(selectedPathId || '');
+  const [showDetailView, setShowDetailView] = useState<boolean>(!!showDetail);
   const [detailPath, setDetailPath] = useState<LearningPath | null>(null);
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +37,16 @@ export function ProgressScreen() {
   useEffect(() => {
     fetchLearningPaths();
   }, []);
+
+  useEffect(() => {
+    if (selectedPathId && paths.length > 0) {
+      const path = paths.find(p => p.id === selectedPathId);
+      if (path) {
+        setDetailPath(path);
+        setShowDetailView(!!showDetail);
+      }
+    }
+  }, [selectedPathId, showDetail, paths]);
 
   const fetchLearningPaths = async () => {
     try {
@@ -43,8 +59,8 @@ export function ProgressScreen() {
 
       if (error) throw error;
       setPaths(data || []);
-      // Set the first path as active by default
-      if (data && data.length > 0) {
+      // Set the first path as active by default if no selectedPathId
+      if (data && data.length > 0 && !selectedPathId) {
         setActivePath(data[0].id);
       }
     } catch (err) {
@@ -57,7 +73,7 @@ export function ProgressScreen() {
   const handlePathPress = (path: LearningPath) => {
     setActivePath(path.id);
     setDetailPath(path);
-    setShowDetail(true);
+    setShowDetailView(true);
   };
 
   if (loading) {
@@ -82,10 +98,10 @@ export function ProgressScreen() {
     );
   }
 
-  if (showDetail && detailPath) {
+  if (showDetailView && detailPath) {
     return (
       <YStack flex={1} backgroundColor="$background" padding={24}>
-        <TouchableOpacity onPress={() => setShowDetail(false)} style={{ marginBottom: 24 }}>
+        <TouchableOpacity onPress={() => setShowDetailView(false)} style={{ marginBottom: 24 }}>
           <Feather name="arrow-left" size={28} color="#fff" />
         </TouchableOpacity>
         <Text fontSize={28} fontWeight="bold" color="$color" marginBottom={8}>

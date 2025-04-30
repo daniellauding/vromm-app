@@ -14,6 +14,7 @@ const StyledInput = styled(Input, {
   fontSize: tokens.fontSize[2],
   color: '$color',
   placeholderTextColor: darkColors.textMuted,
+  autoCapitalize: 'none',
 
   // Focus state
   hoverStyle: {
