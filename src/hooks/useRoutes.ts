@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Database } from '../lib/database.types';
 
@@ -50,7 +50,7 @@ export function useRoutes() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRoutes = async (filters?: RouteFilters) => {
+  const fetchRoutes = useCallback(async (filters?: RouteFilters) => {
     setLoading(true);
     setError(null);
 
@@ -102,7 +102,7 @@ export function useRoutes() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return { fetchRoutes, loading, error };
 } 

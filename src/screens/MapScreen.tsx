@@ -8,7 +8,8 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
-  Alert
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map, Waypoint } from '../components/Map';
@@ -29,7 +30,7 @@ import {
   PanGestureHandler,
   State,
   PanGestureHandlerGestureEvent,
-  PanGestureHandlerStateChangeEvent
+  PanGestureHandlerStateChangeEvent,
 } from 'react-native-gesture-handler';
 import MapView from 'react-native-maps';
 import { ScrollView } from 'react-native';
@@ -100,11 +101,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1,
-    paddingTop: 8
+    paddingTop: 8,
   },
   mapContainer: {
     flex: 1,
-    position: 'relative'
+    position: 'relative',
   },
   previewContainer: {
     position: 'absolute',
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: 'transparent',
-    paddingBottom: 0
+    paddingBottom: 0,
   },
   bottomSheet: {
     position: 'absolute',
@@ -123,29 +124,29 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: -2
+      height: -2,
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5
+    elevation: 5,
   },
   handleContainer: {
     paddingVertical: 8,
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 16
+    paddingHorizontal: 16,
   },
   handle: {
     width: 40,
     height: 4,
-    borderRadius: 2
+    borderRadius: 2,
   },
   routeListContainer: {
     flex: 1,
-    overflow: 'hidden'
+    overflow: 'hidden',
   },
   contentContainer: {
-    flex: 1
+    flex: 1,
   },
   searchResultsContainer: {
     position: 'absolute',
@@ -155,18 +156,18 @@ const styles = StyleSheet.create({
     backgroundColor: '$background',
     borderBottomWidth: 1,
     borderBottomColor: '$borderColor',
-    maxHeight: '80%'
+    maxHeight: '80%',
   },
   searchResultItem: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '$borderColor'
+    borderBottomColor: '$borderColor',
   },
   distanceText: {
     fontSize: 14,
     color: '$gray11',
-    marginLeft: 8
+    marginLeft: 8,
   },
   searchOverlay: {
     position: 'absolute',
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.3)',
-    zIndex: 1
+    zIndex: 1,
   },
   searchView: {
     position: 'absolute',
@@ -186,15 +187,15 @@ const styles = StyleSheet.create({
     zIndex: 2,
     borderBottomWidth: 1,
     borderBottomColor: '$borderColor',
-    paddingBottom: 8
+    paddingBottom: 8,
   },
   searchResultsList: {
     maxHeight: '80%',
-    backgroundColor: '$background'
+    backgroundColor: '$background',
   },
   searchBackButton: {
-    padding: 8
-  }
+    padding: 8,
+  },
 });
 
 const BOTTOM_NAV_HEIGHT = 80; // Height of bottom navigation bar including safe area
@@ -219,25 +220,24 @@ export function MapScreen({ route }: { route: any }) {
   const [isMapReady, setIsMapReady] = useState(false);
   const [allFilters, setAllFilters] = useState<FilterCategory[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterCategory | null>(null);
+  const mapRef = useRef<MapView>(null);
 
-  // Memoize initial region
-  const initialRegion = useMemo(
-    () => ({
-      latitude: 55.7047,
-      longitude: 13.191,
-      latitudeDelta: 0.1,
-      longitudeDelta: 0.1
-    }),
-    []
-  );
+  const [region, setRegion] = useState({
+    latitude: 0,
+    longitude: 0,
+    latitudeDelta: 0.1,
+    longitudeDelta: 0.1,
+  });
 
-  const [region, setRegion] = useState(initialRegion);
   const { height: screenHeight } = Dimensions.get('window');
-  const snapPoints = {
-    expanded: screenHeight * 0.2, // Fully expanded
-    mid: screenHeight * 0.4, // Show 60% of the screen
-    collapsed: screenHeight - BOTTOM_NAV_HEIGHT - 80 // Show more of the handle + title above nav bar
-  };
+  const snapPoints = useMemo(
+    () => ({
+      expanded: screenHeight * 0.2, // Fully expanded
+      mid: screenHeight * 0.4, // Show 60% of the screen
+      collapsed: screenHeight - BOTTOM_NAV_HEIGHT - 80, // Show more of the handle + title above nav bar
+    }),
+    [screenHeight],
+  );
   const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.collapsed);
   const translateY = useRef(new Animated.Value(snapPoints.collapsed)).current;
   const lastGesture = useRef(snapPoints.collapsed);
@@ -249,27 +249,32 @@ export function MapScreen({ route }: { route: any }) {
 
   // Create a map of routes by ID for quick lookup
   const routesById = useMemo(() => {
-    return routes.reduce((acc, route) => {
-      acc[route.id] = route;
-      return acc;
-    }, {} as Record<string, RouteType>);
+    return routes.reduce(
+      (acc, route) => {
+        acc[route.id] = route;
+        return acc;
+      },
+      {} as Record<string, RouteType>,
+    );
   }, [routes]);
 
   const getAllWaypoints = useMemo(() => {
     return filteredRoutes
-      .map(route => {
+      .map((route) => {
         const waypointsData = (route.waypoint_details ||
           route.metadata?.waypoints ||
           []) as WaypointData[];
         const firstWaypoint = waypointsData[0];
         if (!firstWaypoint) return null;
 
+        console.log(route);
+
         return {
           latitude: Number(firstWaypoint.lat),
           longitude: Number(firstWaypoint.lng),
           title: route.name,
           description: route.description || undefined,
-          id: route.id
+          id: route.id,
         };
       })
       .filter((wp): wp is NonNullable<typeof wp> => wp !== null);
@@ -280,7 +285,7 @@ export function MapScreen({ route }: { route: any }) {
       console.log('Pin pressed:', {
         waypointId: waypoint.id,
         currentSelectedPin: selectedPin,
-        hasRoute: !!routesById[waypoint.id!]
+        hasRoute: !!routesById[waypoint.id!],
       });
 
       const route = routesById[waypoint.id!];
@@ -301,14 +306,14 @@ export function MapScreen({ route }: { route: any }) {
       // Prevent map press from triggering
       return true;
     },
-    [routesById, selectedPin, setSelectedRoute]
+    [routesById, selectedPin, setSelectedRoute],
   );
 
   const handleMapPress = useCallback(
     (_: { defaultPrevented?: boolean } = {}) => {
       console.log('Map pressed:', {
         defaultPrevented: _.defaultPrevented,
-        hasSelectedRoute: !!selectedRoute
+        hasSelectedRoute: !!selectedRoute,
       });
 
       // Only hide if we actually clicked the map (not a marker)
@@ -318,17 +323,18 @@ export function MapScreen({ route }: { route: any }) {
         setSelectedPin(null);
       }
     },
-    [selectedRoute]
+    [selectedRoute],
   );
 
   // Add effect to track state changes
   useEffect(() => {
     console.log('State updated:', {
       selectedPinId: selectedPin,
-      selectedRouteName: selectedRoute?.name
+      selectedRouteName: selectedRoute?.name,
     });
   }, [selectedPin, selectedRoute]);
 
+  /*
   // Memoize getMapRegion to prevent recreation
   const getMapRegion = useMemo(() => {
     if (routes.length === 0) return null;
@@ -369,6 +375,7 @@ export function MapScreen({ route }: { route: any }) {
       setRegion(newRegion);
     }
   }, [getMapRegion]);
+  */
 
   // Optimize loadRoutes to prevent unnecessary re-renders
   const loadRoutes = useCallback(async () => {
@@ -385,11 +392,11 @@ export function MapScreen({ route }: { route: any }) {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
-        setRegion(prev => ({
+        const location = await Location.getLastKnownPositionAsync({});
+        setRegion((prev) => ({
           ...prev,
           latitude: location.coords.latitude,
-          longitude: location.coords.longitude
+          longitude: location.coords.longitude,
         }));
       }
       setIsMapReady(true);
@@ -415,8 +422,8 @@ export function MapScreen({ route }: { route: any }) {
             // Use Mapbox Geocoding API for better place suggestions
             const response = await fetch(
               `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-                text
-              )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality,address,country,region&language=en`
+                text,
+              )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality,address,country,region&language=en`,
             );
 
             if (!response.ok) {
@@ -426,7 +433,7 @@ export function MapScreen({ route }: { route: any }) {
             const data = await response.json();
             console.log('Search response:', {
               status: response.status,
-              resultCount: data.features?.length || 0
+              resultCount: data.features?.length || 0,
             });
 
             setSearchResults(data.features || []);
@@ -444,7 +451,7 @@ export function MapScreen({ route }: { route: any }) {
 
         // Filter routes based on search text
         const searchLower = text.toLowerCase();
-        const filtered = routes.filter(route => {
+        const filtered = routes.filter((route) => {
           return (
             route.name.toLowerCase().includes(searchLower) ||
             route.description?.toLowerCase().includes(searchLower) ||
@@ -456,7 +463,7 @@ export function MapScreen({ route }: { route: any }) {
 
       setSearchTimeout(timeout);
     },
-    [routes]
+    [routes],
   );
 
   // Reset filtered routes when routes change
@@ -468,7 +475,7 @@ export function MapScreen({ route }: { route: any }) {
     console.log('Location selected:', {
       result,
       center: result?.center,
-      place_type: result?.place_type?.[0]
+      place_type: result?.place_type?.[0],
     });
 
     try {
@@ -505,14 +512,14 @@ export function MapScreen({ route }: { route: any }) {
         latitude,
         longitude,
         zoomLevel,
-        place_type: result.place_type[0]
+        place_type: result.place_type[0],
       });
 
       const newRegion = {
         latitude,
         longitude,
         latitudeDelta: zoomLevel,
-        longitudeDelta: zoomLevel
+        longitudeDelta: zoomLevel,
       };
 
       // Update map region
@@ -520,7 +527,7 @@ export function MapScreen({ route }: { route: any }) {
 
       // Filter routes based on proximity to selected location
       const MAX_DISTANCE_KM = 50; // Maximum distance to show routes
-      const filteredByLocation = routes.filter(route => {
+      const filteredByLocation = routes.filter((route) => {
         const firstWaypoint = route.waypoint_details?.[0] || route.metadata?.waypoints?.[0];
         if (!firstWaypoint) return false;
 
@@ -539,7 +546,7 @@ export function MapScreen({ route }: { route: any }) {
       console.log('Filtered routes:', {
         total: routes.length,
         filtered: filteredByLocation.length,
-        location: result.place_name
+        location: result.place_name,
       });
 
       setFilteredRoutes(filteredByLocation);
@@ -551,12 +558,12 @@ export function MapScreen({ route }: { route: any }) {
       console.error('Error details:', {
         error_message: error.message,
         error_stack: error.stack,
-        result_data: result
+        result_data: result,
       });
     }
   };
 
-  const handleLocateMe = async () => {
+  const handleLocateMe = useCallback(async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -564,18 +571,20 @@ export function MapScreen({ route }: { route: any }) {
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
-      setRegion(prev => ({
-        ...prev,
+      const location = await Location.getLastKnownPositionAsync({});
+
+      console.log('setRegion', location);
+      console.log(mapRef.current);
+      mapRef.current?.animateToRegion({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01
-      }));
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+      });
     } catch (err) {
       console.error('Error getting location:', err);
     }
-  };
+  }, [t]);
 
   // Clean up timeout on unmount
   useEffect(() => {
@@ -600,24 +609,27 @@ export function MapScreen({ route }: { route: any }) {
 
       translateY.setValue(boundedPosition);
     },
-    [snapPoints]
+    [snapPoints],
   );
 
-  const snapTo = useCallback((point: number) => {
-    lastGesture.current = point;
-    setCurrentSnapPoint(point);
+  const snapTo = useCallback(
+    (point: number) => {
+      lastGesture.current = point;
+      setCurrentSnapPoint(point);
 
-    Animated.spring(translateY, {
-      toValue: point,
-      damping: 20,
-      mass: 1,
-      stiffness: 100,
-      overshootClamping: true,
-      restDisplacementThreshold: 0.01,
-      restSpeedThreshold: 0.01,
-      useNativeDriver: true
-    }).start();
-  }, []);
+      Animated.spring(translateY, {
+        toValue: point,
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+        useNativeDriver: true,
+      }).start();
+    },
+    [translateY],
+  );
 
   const onHandleStateChange = useCallback(
     (event: PanGestureHandlerStateChangeEvent) => {
@@ -640,20 +652,20 @@ export function MapScreen({ route }: { route: any }) {
           // Based on position
           const positions = [snapPoints.expanded, snapPoints.mid, snapPoints.collapsed];
           targetSnapPoint = positions.reduce((prev, curr) =>
-            Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev
+            Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
           );
         }
 
         // Ensure the target point is within bounds
         const boundedTarget = Math.min(
           Math.max(targetSnapPoint, snapPoints.expanded),
-          snapPoints.collapsed
+          snapPoints.collapsed,
         );
 
         snapTo(boundedTarget);
       }
     },
-    [snapPoints, snapTo]
+    [snapPoints, snapTo],
   );
 
   const handleScroll = useCallback(
@@ -673,7 +685,7 @@ export function MapScreen({ route }: { route: any }) {
         snapTo(snapPoints.collapsed);
       }
     },
-    [currentSnapPoint, snapPoints, snapTo]
+    [currentSnapPoint, snapPoints, snapTo],
   );
 
   // Update focus effect to reset both route and pin selection
@@ -681,7 +693,7 @@ export function MapScreen({ route }: { route: any }) {
     React.useCallback(() => {
       setSelectedRoute(null);
       setSelectedPin(null);
-    }, [])
+    }, []),
   );
 
   // Add distance calculation
@@ -700,20 +712,20 @@ export function MapScreen({ route }: { route: any }) {
       const distance = R * c;
       return distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`;
     },
-    []
+    [],
   );
 
   // Update search results with distance
   const searchResultsWithDistance = useMemo(() => {
     if (!region || !searchResults.length) return [];
-    return searchResults.map(result => ({
+    return searchResults.map((result) => ({
       ...result,
       distance: calculateDistance(
         region.latitude,
         region.longitude,
         result.center[1],
-        result.center[0]
-      )
+        result.center[0],
+      ),
     }));
   }, [searchResults, region, calculateDistance]);
 
@@ -723,20 +735,20 @@ export function MapScreen({ route }: { route: any }) {
       const result = route.params.selectedLocation;
       handleLocationSelect(result);
     }
-  }, [route.params?.selectedLocation]);
+  }, [route.params?.selectedLocation, handleLocationSelect]);
 
   // Extract filters from routes
   const extractFilters = useCallback((routes: RouteType[]) => {
     const filterMap: Record<string, FilterCategory> = {};
 
-    routes.forEach(route => {
+    routes.forEach((route) => {
       // Difficulty
       if (route.difficulty) {
         filterMap[`difficulty-${route.difficulty}`] = {
           id: `difficulty-${route.difficulty}`,
           label: route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
           value: route.difficulty,
-          type: 'difficulty'
+          type: 'difficulty',
         };
       }
 
@@ -744,9 +756,10 @@ export function MapScreen({ route }: { route: any }) {
       if (route.spot_type) {
         filterMap[`spot-${route.spot_type}`] = {
           id: `spot-${route.spot_type}`,
-          label: route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
+          label:
+            route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
           value: route.spot_type,
-          type: 'spot_type'
+          type: 'spot_type',
         };
       }
 
@@ -754,9 +767,10 @@ export function MapScreen({ route }: { route: any }) {
       if (route.category) {
         filterMap[`category-${route.category}`] = {
           id: `category-${route.category}`,
-          label: route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
+          label:
+            route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
           value: route.category,
-          type: 'category'
+          type: 'category',
         };
       }
 
@@ -764,9 +778,11 @@ export function MapScreen({ route }: { route: any }) {
       if (route.transmission_type) {
         filterMap[`transmission-${route.transmission_type}`] = {
           id: `transmission-${route.transmission_type}`,
-          label: route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.transmission_type.slice(1),
+          label:
+            route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() +
+            route.transmission_type.slice(1),
           value: route.transmission_type,
-          type: 'transmission_type'
+          type: 'transmission_type',
         };
       }
 
@@ -774,9 +790,11 @@ export function MapScreen({ route }: { route: any }) {
       if (route.activity_level) {
         filterMap[`activity-${route.activity_level}`] = {
           id: `activity-${route.activity_level}`,
-          label: route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() + route.activity_level.slice(1),
+          label:
+            route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() +
+            route.activity_level.slice(1),
           value: route.activity_level,
-          type: 'activity_level'
+          type: 'activity_level',
         };
       }
 
@@ -784,20 +802,22 @@ export function MapScreen({ route }: { route: any }) {
       if (route.best_season) {
         filterMap[`season-${route.best_season}`] = {
           id: `season-${route.best_season}`,
-          label: route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() + route.best_season.slice(1),
+          label:
+            route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() +
+            route.best_season.slice(1),
           value: route.best_season,
-          type: 'best_season'
+          type: 'best_season',
         };
       }
 
       // Vehicle Types
       if (route.vehicle_types && Array.isArray(route.vehicle_types)) {
-        route.vehicle_types.forEach(type => {
+        route.vehicle_types.forEach((type) => {
           filterMap[`vehicle-${type}`] = {
             id: `vehicle-${type}`,
             label: type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
             value: type,
-            type: 'vehicle_types'
+            type: 'vehicle_types',
           };
         });
       }
@@ -807,35 +827,38 @@ export function MapScreen({ route }: { route: any }) {
   }, []);
 
   // Handle filter selection
-  const handleFilterPress = useCallback((filter: FilterCategory) => {
-    if (activeFilter?.id === filter.id) {
-      setActiveFilter(null);
-      setFilteredRoutes(routes);
-    } else {
-      setActiveFilter(filter);
-      const filtered = routes.filter(route => {
-        switch (filter.type) {
-          case 'difficulty':
-            return route.difficulty === filter.value;
-          case 'spot_type':
-            return route.spot_type === filter.value;
-          case 'category':
-            return route.category === filter.value;
-          case 'transmission_type':
-            return route.transmission_type === filter.value;
-          case 'activity_level':
-            return route.activity_level === filter.value;
-          case 'best_season':
-            return route.best_season === filter.value;
-          case 'vehicle_types':
-            return route.vehicle_types?.includes(filter.value);
-          default:
-            return false;
-        }
-      });
-      setFilteredRoutes(filtered);
-    }
-  }, [activeFilter, routes]);
+  const handleFilterPress = useCallback(
+    (filter: FilterCategory) => {
+      if (activeFilter?.id === filter.id) {
+        setActiveFilter(null);
+        setFilteredRoutes(routes);
+      } else {
+        setActiveFilter(filter);
+        const filtered = routes.filter((route) => {
+          switch (filter.type) {
+            case 'difficulty':
+              return route.difficulty === filter.value;
+            case 'spot_type':
+              return route.spot_type === filter.value;
+            case 'category':
+              return route.category === filter.value;
+            case 'transmission_type':
+              return route.transmission_type === filter.value;
+            case 'activity_level':
+              return route.activity_level === filter.value;
+            case 'best_season':
+              return route.best_season === filter.value;
+            case 'vehicle_types':
+              return route.vehicle_types?.includes(filter.value);
+            default:
+              return false;
+          }
+        });
+        setFilteredRoutes(filtered);
+      }
+    },
+    [activeFilter, routes],
+  );
 
   // Update filters when routes change
   useEffect(() => {
@@ -843,6 +866,16 @@ export function MapScreen({ route }: { route: any }) {
       extractFilters(routes);
     }
   }, [routes, extractFilters]);
+
+  if (!isMapReady) {
+    return (
+      <Screen edges={[]} padding={false} hideStatusBar>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#0000ff" />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
@@ -855,18 +888,42 @@ export function MapScreen({ route }: { route: any }) {
           style={StyleSheet.absoluteFillObject}
           selectedPin={selectedPin}
           onMarkerPress={handleMarkerPress}
+          ref={mapRef}
         />
 
-        {/* Replace SearchView with AppHeader */}
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            bottom: 100,
+            right: 16,
+            backgroundColor: 'white',
+            width: 50,
+            height: 50,
+            borderRadius: 25,
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: {
+              width: 0,
+              height: 2,
+            },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+          }}
+          onPress={handleLocateMe}
+        >
+          <Feather name="crosshair" size={24} color="#000" />
+        </TouchableOpacity>
+
         <SafeAreaView edges={['top']}>
-          <AppHeader 
+          <AppHeader
             onLocateMe={handleLocateMe}
             filters={allFilters}
             onFilterPress={handleFilterPress}
           />
         </SafeAreaView>
 
-        {/* Bottom sheet - hide when preview card is shown */}
         {!selectedRoute && (
           <PanGestureHandler
             onGestureEvent={onGestureEvent}
@@ -878,8 +935,8 @@ export function MapScreen({ route }: { route: any }) {
                 {
                   height: screenHeight,
                   backgroundColor,
-                  transform: [{ translateY }]
-                }
+                  transform: [{ translateY }],
+                },
               ]}
             >
               <View style={styles.handleContainer}>
@@ -899,7 +956,6 @@ export function MapScreen({ route }: { route: any }) {
           </PanGestureHandler>
         )}
 
-        {/* Route preview card */}
         {selectedRoute && (
           <View
             style={{
@@ -914,7 +970,7 @@ export function MapScreen({ route }: { route: any }) {
               shadowOffset: { width: 0, height: -2 },
               shadowOpacity: 0.1,
               shadowRadius: 8,
-              elevation: 5
+              elevation: 5,
             }}
           >
             <RoutePreviewCard
