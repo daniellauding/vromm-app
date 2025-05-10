@@ -15,6 +15,8 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const { signIn } = useAuth();
   const { t, clearCache } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
@@ -25,17 +27,38 @@ export function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError(t('auth.signIn.error.emptyFields'));
+    let hasError = false;
+    setEmailError('');
+    setPasswordError('');
+    setError('');
+    if (!email) {
+      setEmailError(t('auth.invalidEmail'));
+      console.log('LoginScreen: Email is empty, setting email error');
+      hasError = true;
+    }
+    if (!password) {
+      setPasswordError(t('auth.invalidPassword'));
+      console.log('LoginScreen: Password is empty, setting password error');
+      hasError = true;
+    }
+    if (hasError) {
+      console.log('LoginScreen: Validation error, not attempting sign in');
       return;
     }
     try {
       setLoading(true);
       setError('');
+      setPasswordError('');
       await signIn(email, password);
     } catch (err) {
       const error = err as Error;
-      setError(error.message);
+      if (error.message && error.message.toLowerCase().includes('invalid login credentials')) {
+        setPasswordError(t('auth.invalidCredentials'));
+        console.log('LoginScreen: Invalid credentials, setting password error');
+      } else {
+        setError(error.message);
+        console.log('LoginScreen: Other error:', error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -56,6 +79,7 @@ export function LoginScreen() {
               keyboardType="email-address"
               placeholder={t('auth.signIn.emailPlaceholder')}
               autoComplete="email"
+              error={emailError}
             />
 
             <FormField
@@ -65,10 +89,11 @@ export function LoginScreen() {
               secureTextEntry
               placeholder={t('auth.signIn.passwordPlaceholder')}
               autoComplete="password"
+              error={passwordError}
             />
           </YStack>
 
-          {error ? (
+          {error && !passwordError ? (
             <Text size="sm" intent="error" textAlign="center">
               {error}
             </Text>

@@ -68,6 +68,7 @@ export const tokens = createTokens({
     ...colors,
     background: colors.white,
     text: colors.gray12,
+    error: colors.red500,
   },
   
   space: {

@@ -200,7 +200,8 @@ export const translations = {
       signInRequired: 'Logga in för att skicka recension',
       validationError: 'Vänligen ange ett betyg',
       processingError: 'Kunde inte behandla bild',
-      uploadError: 'Kunde inte ladda upp recension'
+      uploadError: 'Kunde inte ladda upp recension',
+      invalidCredentials: 'Felaktig e-post eller lösenord'
     },
     // Profile screen
     profile: {
@@ -282,7 +283,8 @@ export const translations = {
       verifyEmailError: 'Det gick inte att verifiera e-post',
       verifyEmailResend: 'Skicka verifieringsmail igen',
       verifyEmailResendSuccess: 'Verifieringsmail har skickats igen',
-      verifyEmailResendError: 'Det gick inte att skicka verifieringsmail igen'
+      verifyEmailResendError: 'Det gick inte att skicka verifieringsmail igen',
+      invalidCredentials: 'Felaktig e-post eller lösenord'
     },
     // Settings
     settings: {
@@ -553,7 +555,8 @@ export const translations = {
       signInRequired: 'Please sign in to submit a review',
       validationError: 'Please provide a rating',
       processingError: 'Failed to process image',
-      uploadError: 'Failed to submit review'
+      uploadError: 'Failed to submit review',
+      invalidCredentials: 'Invalid email or password'
     },
     // Profile screen
     profile: {
@@ -635,7 +638,8 @@ export const translations = {
       verifyEmailError: 'Failed to verify email',
       verifyEmailResend: 'Resend Verification Email',
       verifyEmailResendSuccess: 'Verification email resent successfully',
-      verifyEmailResendError: 'Failed to resend verification email'
+      verifyEmailResendError: 'Failed to resend verification email',
+      invalidCredentials: 'Invalid email or password'
     },
     // Settings
     settings: {

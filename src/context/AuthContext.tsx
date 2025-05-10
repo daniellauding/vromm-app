@@ -261,7 +261,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error('Sign in failed:', error);
+      // console.error('Sign in failed:', error);
       throw error;
     } finally {
       setLoading(false);
@@ -275,8 +275,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear content cache before signout
       await clearContentCache();
 
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error signing out:', error);
+      }
 
       // Explicitly clear all state
       setUser(null);

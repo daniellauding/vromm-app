@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { SectionHeader } from './SectionHeader';
+import Svg, { Circle } from 'react-native-svg';
 
 interface LearningPath {
   id: string;
@@ -21,15 +22,100 @@ interface LearningPath {
 
 const lang = 'en'; // For demo, English only. Replace with language context if needed.
 
+interface ProgressCircleProps {
+  percent: number;
+  size?: number;
+  color?: string;
+  bg?: string;
+}
+
+// ProgressCircle component
+function ProgressCircle({ percent, size = 40, color = '#00E6C3', bg = '#222' }: ProgressCircleProps) {
+  const strokeWidth = 6;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = Math.max(0, Math.min(percent, 1));
+  return (
+    <Svg width={size} height={size}>
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={bg}
+        strokeWidth={strokeWidth}
+        fill="none"
+      />
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeDasharray={`${circumference},${circumference}`}
+        strokeDashoffset={circumference * (1 - progress)}
+        strokeLinecap="round"
+        rotation="-90"
+        origin={`${size / 2},${size / 2}`}
+      />
+    </Svg>
+  );
+}
+
 export function ProgressSection() {
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [activePath, setActivePath] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation<NavigationProp>();
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     fetchLearningPaths();
   }, []);
+
+  useEffect(() => {
+    // Fetch user from supabase auth
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    // Fetch completions for the user
+    const fetchCompletions = async () => {
+      const { data, error } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('exercise_id')
+        .eq('user_id', user.id);
+      if (!error && data) {
+        setCompletedIds(data.map((c: any) => c.exercise_id));
+      } else {
+        setCompletedIds([]);
+      }
+    };
+    fetchCompletions();
+  }, [user]);
+
+  useEffect(() => {
+    // Fetch all exercises for each path
+    const fetchAllExercises = async () => {
+      const map: { [pathId: string]: string[] } = {};
+      for (const path of paths) {
+        const { data } = await supabase
+          .from('learning_path_exercises')
+          .select('id')
+          .eq('learning_path_id', path.id);
+        map[path.id] = data ? data.map((e: any) => e.id) : [];
+      }
+      setExercisesByPath(map);
+    };
+    if (paths.length > 0) fetchAllExercises();
+  }, [paths]);
 
   const fetchLearningPaths = async () => {
     try {
@@ -62,6 +148,14 @@ export function ProgressSection() {
     });
   };
 
+  // Calculate progress for each path
+  const getPathProgress = (pathId: string) => {
+    const ids = exercisesByPath[pathId] || [];
+    if (ids.length === 0) return 0;
+    const completed = ids.filter(id => completedIds.includes(id)).length;
+    return completed / ids.length;
+  };
+
   if (loading || paths.length === 0) {
     return null;
   }
@@ -71,51 +165,60 @@ export function ProgressSection() {
       <SectionHeader
         title="Your Progress"
         variant="chevron"
-        onAction={() => navigation.navigate('ProgressTab')}
+        onAction={() => navigation.navigate('ProgressTab', { selectedPathId: paths[0]?.id, showDetail: true })}
         actionLabel="See All"
       />
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <XStack space="$3" paddingHorizontal="$4">
           {paths.map((path, idx) => {
             const isActive = activePath === path.id;
-            const isFinished = paths.findIndex(p => p.id === path.id) < paths.findIndex(p => p.id === activePath);
-            
+            const percent = getPathProgress(path.id);
+            // Enable if first path, or previous path is 100% complete
+            const isEnabled = idx === 0 || getPathProgress(paths[idx - 1]?.id) === 1;
+            // Visual highlight for the next path that is now enabled
+            const isNextToUnlock = isEnabled && idx > 0 && getPathProgress(paths[idx - 1]?.id) === 1 && getPathProgress(path.id) < 1;
             return (
               <TouchableOpacity
                 key={path.id}
-                onPress={() => handlePathPress(path)}
-                activeOpacity={0.8}
+                onPress={() => isEnabled && handlePathPress(path)}
+                activeOpacity={isEnabled ? 0.8 : 1}
+                style={{
+                  opacity: isEnabled ? 1 : 0.5,
+                  borderWidth: isNextToUnlock ? 3 : 0,
+                  borderColor: isNextToUnlock ? '#00E6C3' : 'transparent',
+                  borderRadius: 24,
+                  shadowColor: isNextToUnlock ? '#00E6C3' : 'transparent',
+                  shadowOpacity: isNextToUnlock ? 0.5 : 0,
+                  shadowRadius: isNextToUnlock ? 12 : 0,
+                  shadowOffset: { width: 0, height: 0 },
+                  marginBottom: 8,
+                }}
+                disabled={!isEnabled}
               >
                 <YStack
                   backgroundColor={isActive ? "$blue5" : "$backgroundStrong"}
-                  padding="$3"
-                  borderRadius="$4"
+                  padding={12}
+                  borderRadius={20}
                   width={100}
                   height={120}
                   justifyContent="space-between"
-                  opacity={isFinished ? 0.6 : 1}
+                  alignItems="center"
                 >
-                  <View style={{ 
-                    width: 40, 
-                    height: 40, 
-                    borderRadius: 20, 
-                    backgroundColor: isActive ? '#00E6C3' : '#222',
-                    alignItems: 'center', 
-                    justifyContent: 'center' 
-                  }}>
-                    {isFinished ? (
-                      <Feather name="check" size={20} color="#fff" />
-                    ) : (
-                      <Text color={isActive ? '$color' : '$gray11'} size="lg" weight="bold">
-                        {idx + 1}
-                      </Text>
-                    )}
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isActive ? '#00E6C3' : '#222', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                    <ProgressCircle percent={percent} size={40} color="#fff" bg={isActive ? '#00E6C3' : '#222'} />
+                    <Text
+                      style={{ position: 'absolute', top: 0, left: 0, width: 40, height: 40, textAlign: 'center', textAlignVertical: 'center', lineHeight: 40, fontSize: 14, fontWeight: 'bold' }}
+                      color={isActive ? '$color' : '$gray11'}
+                    >
+                      {Math.round(percent * 100)}%
+                    </Text>
                   </View>
                   <Text 
-                    size="sm" 
-                    weight={isActive ? 'bold' : '600'} 
+                    fontSize={14}
+                    fontWeight={isActive ? 'bold' : '600'} 
                     color={isActive ? '$color' : '$gray11'}
                     numberOfLines={2}
+                    textAlign="center"
                   >
                     {path.title[lang]}
                   </Text>
