@@ -151,6 +151,17 @@ export function HomeScreen() {
   const cityBackdropOpacity = useRef(new Animated.Value(0)).current;
   const citySheetTranslateY = useRef(new Animated.Value(300)).current;
 
+  // Add progressSectionKey state
+  const [progressSectionKey, setProgressSectionKey] = useState(Date.now());
+  
+  // Reset progress section key when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('HomeScreen: Screen focused, refreshing ProgressSection');
+      setProgressSectionKey(Date.now());
+    }, [])
+  );
+
   // Location and route organization effects
   useEffect(() => {
     const requestLocationPermission = async () => {
@@ -1019,8 +1030,8 @@ export function HomeScreen() {
               : t('home.welcome')}
           </Text>
 
-          {/* Progress Section */}
-          <ProgressSection />
+          {/* Progress Section - with key that changes on focus */}
+          <ProgressSection key={progressSectionKey} />
 
           {/* Saved Routes Hero Carousel - Full Width */}
           {savedRoutes.length > 0 ? (
