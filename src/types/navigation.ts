@@ -27,6 +27,8 @@ export type RootStackParamList = {
   AddReview: { routeId: string };
   OnboardingDemo: undefined;
   TranslationDemo: undefined;
+  LicensePlanScreen: undefined;
+  RoleSelectionScreen: undefined;
   RouteList: {
     title: string;
     routes: Route[];

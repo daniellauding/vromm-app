@@ -1471,9 +1471,9 @@ export function ProgressScreen() {
     return (
       <YStack flex={1} backgroundColor="$background">
         <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
-          <TouchableOpacity onPress={() => setShowDetailView(false)} style={{ marginBottom: 24 }}>
-            <Feather name="arrow-left" size={28} color="#fff" />
-          </TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowDetailView(false)} style={{ marginBottom: 24 }}>
+          <Feather name="arrow-left" size={28} color="#fff" />
+        </TouchableOpacity>
           
           {/* Path header with icon if available */}
           <XStack alignItems="center" gap={12} marginBottom={16}>
@@ -1483,8 +1483,8 @@ export function ProgressScreen() {
               </View>
             )}
             <Text fontSize={28} fontWeight="bold" color="$color">
-              {detailPath.title[lang]}
-            </Text>
+          {detailPath.title[lang]}
+        </Text>
             
             {/* Show appropriate icon for path state */}
             {isPasswordLocked ? (
@@ -1494,9 +1494,9 @@ export function ProgressScreen() {
             ) : null}
           </XStack>
           
-          <Text color="$gray11" marginBottom={16}>
-            {detailPath.description[lang]}
-          </Text>
+        <Text color="$gray11" marginBottom={16}>
+          {detailPath.description[lang]}
+        </Text>
           
           {/* Locked Path State - ALWAYS takes precedence over Unavailable */}
           {isPasswordLocked ? (
@@ -1535,7 +1535,7 @@ export function ProgressScreen() {
                       placeholderTextColor="#666"
                       autoCapitalize="none"
                     />
-                  </View>
+          </View>
                   <Button 
                     size="$5"
                     backgroundColor="#FF9500"
@@ -1553,8 +1553,8 @@ export function ProgressScreen() {
                 <Text color="$gray11" fontSize={16} marginTop={16} textAlign="center">
                   This content is locked and cannot be accessed at this time.
                 </Text>
-              )}
-            </YStack>
+        )}
+      </YStack>
           ) : !isAvailable ? (
             /* Unavailable Path State - Show when path isn't available yet */
             <UnavailablePathView />
@@ -1780,7 +1780,7 @@ export function ProgressScreen() {
           </YStack>
         ) : (
           filteredPaths.map((path, idx) => {
-            const isActive = activePath === path.id;
+          const isActive = activePath === path.id;
             const percent = getPathProgress(path.id);
             
             // First path is always enabled, others depend on previous completion
@@ -1799,11 +1799,11 @@ export function ProgressScreen() {
             const isPasswordLocked = isPathPasswordLocked(path);
             const hasPassword = pathHasPassword(path);
             
-            return (
-              <TouchableOpacity
-                key={path.id}
+          return (
+            <TouchableOpacity
+              key={path.id}
                 onPress={() => handlePathPress(path, idx)}
-                activeOpacity={0.8}
+              activeOpacity={0.8}
                 style={{
                   marginBottom: 20,
                   opacity: isEnabled ? 1 : 0.5,
@@ -1815,14 +1815,14 @@ export function ProgressScreen() {
                   shadowRadius: isNextToUnlock ? 12 : (isPasswordLocked ? 8 : 0),
                   shadowOffset: { width: 0, height: 0 },
                 }}
-              >
-                <Card
+            >
+              <Card
                   backgroundColor={isActive ? "$blue5" : (isPasswordLocked ? "#331800" : "$backgroundStrong")}
-                  padding={20}
-                  borderRadius={20}
-                  elevate
-                >
-                  <XStack alignItems="center" gap={16}>
+                padding={20}
+                borderRadius={20}
+                elevate
+              >
+                <XStack alignItems="center" gap={16}>
                     <View style={{ 
                       width: 56, 
                       height: 56, 
@@ -1833,7 +1833,7 @@ export function ProgressScreen() {
                     }}>
                       {isPasswordLocked ? (
                         <MaterialIcons name="lock" size={30} color="#fff" />
-                      ) : (
+                    ) : (
                         <>
                           {/* Progress circle with percent */}
                           <ProgressCircle percent={percent} size={40} color="#fff" bg={isActive ? '#00E6C3' : '#222'} />
@@ -1845,17 +1845,17 @@ export function ProgressScreen() {
                             {Math.round(percent * 100)}%
                           </Text>
                         </>
-                      )}
-                    </View>
-                    <YStack flex={1}>
+                    )}
+                  </View>
+                  <YStack flex={1}>
                       <XStack alignItems="center" gap={8}>
                         <Text 
                           fontSize={20} 
                           fontWeight={isActive ? 'bold' : '600'} 
                           color={isActive ? '$color' : (isPasswordLocked ? '#FF9500' : '$gray11')}
                         >
-                          {idx + 1}. {path.title[lang]}
-                        </Text>
+                      {idx + 1}. {path.title[lang]}
+                    </Text>
                         
                         {/* Show appropriate icon based on state - LOCK gets priority */}
                         {isPasswordLocked && hasPassword && (
@@ -1875,9 +1875,9 @@ export function ProgressScreen() {
                         )}
                       </XStack>
                       
-                      <Text color="$gray11" fontSize={14} marginTop={2}>
-                        {path.description[lang]}
-                      </Text>
+                    <Text color="$gray11" fontSize={14} marginTop={2}>
+                      {path.description[lang]}
+                    </Text>
                       
                       {/* Category displays */}
                       <XStack flexWrap="wrap" marginTop={4} gap={4}>
@@ -1917,11 +1917,11 @@ export function ProgressScreen() {
                           </Text>
                         )}
                       </XStack>
-                    </YStack>
-                  </XStack>
-                </Card>
-              </TouchableOpacity>
-            );
+                  </YStack>
+                </XStack>
+              </Card>
+            </TouchableOpacity>
+          );
           })
         )}
       </ScrollView>

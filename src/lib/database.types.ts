@@ -140,6 +140,10 @@ export type Database = {
           private_profile: boolean
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
+          onboarding_completed: boolean
+          license_plan_completed: boolean
+          license_plan_data: Json | null
+          role_confirmed: boolean
         }
         Insert: {
           birthdate?: string | null
@@ -156,6 +160,10 @@ export type Database = {
           private_profile?: boolean
           role: Database["public"]["Enums"]["user_role"]
           updated_at?: string
+          onboarding_completed?: boolean
+          license_plan_completed?: boolean
+          license_plan_data?: Json | null
+          role_confirmed?: boolean
         }
         Update: {
           birthdate?: string | null
@@ -172,6 +180,10 @@ export type Database = {
           private_profile?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
+          onboarding_completed?: boolean
+          license_plan_completed?: boolean
+          license_plan_data?: Json | null
+          role_confirmed?: boolean
         }
         Relationships: []
       }

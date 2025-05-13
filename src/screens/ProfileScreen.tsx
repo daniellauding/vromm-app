@@ -379,6 +379,29 @@ export function ProfileScreen() {
               </Text>
             </Button>
 
+            <Card bordered padding="$4" marginVertical="$2">
+              <YStack gap="$2">
+                <Text size="lg" weight="bold" color="$color">Körkortsplan</Text>
+                <Text color="$gray11">
+                  {profile?.license_plan_completed 
+                    ? "Din körkortsplan är ifylld"
+                    : "Du har inte fyllt i din körkortsplan än"}
+                </Text>
+                <XStack justifyContent="space-between" alignItems="center" marginTop="$2">
+                  <Text weight="bold" color={profile?.license_plan_completed ? "$green10" : "$blue10"}>
+                    {profile?.license_plan_completed ? "100% Klar" : "0% Klar"}
+                  </Text>
+                  <Button 
+                    size="sm" 
+                    variant="secondary"
+                    onPress={() => navigation.navigate('LicensePlanScreen')}
+                  >
+                    {profile?.license_plan_completed ? "Redigera" : "Fyll i"}
+                  </Button>
+                </XStack>
+              </YStack>
+            </Card>
+
             <XStack
               justifyContent="space-between"
               alignItems="center"
@@ -559,6 +582,10 @@ export function ProfileScreen() {
                   onPress={() => {
                     setFormData(prev => ({ ...prev, role: role as UserRole }));
                     setShowRoleModal(false);
+                    updateProfile({ 
+                      role: role as UserRole, 
+                      role_confirmed: true 
+                    });
                   }}
                   variant={formData.role === role ? 'primary' : 'secondary'}
                   backgroundColor={formData.role === role ? '$blue10' : undefined}

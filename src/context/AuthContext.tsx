@@ -23,6 +23,7 @@ export interface AuthContextData {
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 // Create context with default values
@@ -37,7 +38,8 @@ export const AuthContext = createContext<AuthContextData>({
   signOut: async () => {},
   updateProfile: async () => {},
   resetPassword: async () => {},
-  forgotPassword: async () => {}
+  forgotPassword: async () => {},
+  refreshProfile: async () => {}
 });
 
 // Custom hook to use auth context
@@ -354,6 +356,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refreshProfile = async () => {
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) throw error;
+      setProfile(data);
+    } catch (err) {
+      console.error('Error refreshing profile:', err);
+    }
+  };
+
   // Values for context provider
   const contextValue: AuthContextData = {
     user,
@@ -366,7 +384,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signOut,
     updateProfile,
     resetPassword,
-    forgotPassword
+    forgotPassword,
+    refreshProfile
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
