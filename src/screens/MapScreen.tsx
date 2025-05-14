@@ -221,7 +221,7 @@ export function MapScreen({ route }: { route: any }) {
   const [allFilters, setAllFilters] = useState<FilterCategory[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterCategory | null>(null);
   const mapRef = useRef<MapView>(null);
-
+  console.log('render MapScreen');
   const [region, setRegion] = useState({
     latitude: 0,
     longitude: 0,
@@ -281,58 +281,31 @@ export function MapScreen({ route }: { route: any }) {
   }, [filteredRoutes]);
 
   const handleMarkerPress = useCallback(
-    (waypoint: Waypoint) => {
-      console.log('Pin pressed:', {
-        waypointId: waypoint.id,
-        currentSelectedPin: selectedPin,
-        hasRoute: !!routesById[waypoint.id!],
-      });
-
-      const route = routesById[waypoint.id!];
+    (waypointId: string) => {
+      const route = routesById[waypointId];
       if (route) {
         // If clicking the same pin, hide it
-        if (selectedPin === waypoint.id) {
-          console.log('Same pin clicked - hiding preview');
-          setSelectedRoute(null);
-          setSelectedPin(null);
-        }
-        // Otherwise, show the new route
-        else {
-          console.log('New pin clicked - showing route:', route.name);
+
+        setSelectedPin((prev) => {
+          if (prev === waypointId) {
+            setSelectedRoute(null);
+            return null;
+          }
+
           setSelectedRoute(route);
-          setSelectedPin(waypoint.id!);
-        }
+          return waypointId;
+        });
       }
       // Prevent map press from triggering
       return true;
     },
-    [routesById, selectedPin, setSelectedRoute],
+    [routesById, setSelectedRoute],
   );
 
-  const handleMapPress = useCallback(
-    (_: { defaultPrevented?: boolean } = {}) => {
-      console.log('Map pressed:', {
-        defaultPrevented: _.defaultPrevented,
-        hasSelectedRoute: !!selectedRoute,
-      });
-
-      // Only hide if we actually clicked the map (not a marker)
-      if (selectedRoute && !_.defaultPrevented) {
-        console.log('Hiding route preview from map press');
-        setSelectedRoute(null);
-        setSelectedPin(null);
-      }
-    },
-    [selectedRoute],
-  );
-
-  // Add effect to track state changes
-  useEffect(() => {
-    console.log('State updated:', {
-      selectedPinId: selectedPin,
-      selectedRouteName: selectedRoute?.name,
-    });
-  }, [selectedPin, selectedRoute]);
+  const handleMapPress = useCallback(() => {
+    setSelectedRoute(null);
+    setSelectedPin(null);
+  }, []);
 
   /*
   // Memoize getMapRegion to prevent recreation
@@ -471,121 +444,6 @@ export function MapScreen({ route }: { route: any }) {
     setFilteredRoutes(routes);
   }, [routes]);
 
-  const handleLocationSelect = (result: SearchResult) => {
-    console.log('Location selected:', {
-      result,
-      center: result?.center,
-      place_type: result?.place_type?.[0],
-    });
-
-    try {
-      if (!result?.center || result.center.length !== 2) {
-        console.error('Invalid location data:', result);
-        return;
-      }
-
-      const [longitude, latitude] = result.center;
-      console.log('Parsed coordinates:', { latitude, longitude });
-
-      // Validate coordinates
-      if (
-        typeof latitude !== 'number' ||
-        typeof longitude !== 'number' ||
-        isNaN(latitude) ||
-        isNaN(longitude)
-      ) {
-        console.error('Invalid coordinates:', { latitude, longitude });
-        return;
-      }
-
-      // Different zoom levels based on place type
-      let zoomLevel = 0.02; // default zoom (city level)
-      if (result.place_type[0] === 'country') {
-        zoomLevel = 8; // wide zoom for countries
-      } else if (result.place_type[0] === 'region') {
-        zoomLevel = 4; // medium zoom for regions
-      } else if (result.place_type[0] === 'address') {
-        zoomLevel = 0.005; // close zoom for addresses
-      }
-
-      console.log('Setting new region:', {
-        latitude,
-        longitude,
-        zoomLevel,
-        place_type: result.place_type[0],
-      });
-
-      const newRegion = {
-        latitude,
-        longitude,
-        latitudeDelta: zoomLevel,
-        longitudeDelta: zoomLevel,
-      };
-
-      // Update map region
-      setRegion(newRegion);
-
-      // Filter routes based on proximity to selected location
-      const MAX_DISTANCE_KM = 50; // Maximum distance to show routes
-      const filteredByLocation = routes.filter((route) => {
-        const firstWaypoint = route.waypoint_details?.[0] || route.metadata?.waypoints?.[0];
-        if (!firstWaypoint) return false;
-
-        const routeLat = Number(firstWaypoint.lat);
-        const routeLng = Number(firstWaypoint.lng);
-
-        // Calculate distance between selected location and route
-        const distance = calculateDistance(latitude, longitude, routeLat, routeLng);
-        const distanceNum = parseFloat(distance.replace(/[^0-9.]/g, ''));
-        const isKm = distance.includes('km');
-
-        // Include routes within MAX_DISTANCE_KM kilometers
-        return isKm ? distanceNum <= MAX_DISTANCE_KM : true;
-      });
-
-      console.log('Filtered routes:', {
-        total: routes.length,
-        filtered: filteredByLocation.length,
-        location: result.place_name,
-      });
-
-      setFilteredRoutes(filteredByLocation);
-
-      // Collapse bottom sheet to show more of the map
-      snapTo(snapPoints.collapsed);
-    } catch (error: any) {
-      console.error('Error in handleLocationSelect:', error);
-      console.error('Error details:', {
-        error_message: error.message,
-        error_stack: error.stack,
-        result_data: result,
-      });
-    }
-  };
-
-  const handleLocateMe = useCallback(async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(t('common.error'), t('map.permissionDenied'));
-        return;
-      }
-
-      const location = await Location.getLastKnownPositionAsync({});
-
-      console.log('setRegion', location);
-      console.log(mapRef.current);
-      mapRef.current?.animateToRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-      });
-    } catch (err) {
-      console.error('Error getting location:', err);
-    }
-  }, [t]);
-
   // Clean up timeout on unmount
   useEffect(() => {
     return () => {
@@ -713,6 +571,101 @@ export function MapScreen({ route }: { route: any }) {
       return distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`;
     },
     [],
+  );
+
+  const handleLocationSelect = useCallback(
+    (result: SearchResult) => {
+      console.log('Location selected:', {
+        result,
+        center: result?.center,
+        place_type: result?.place_type?.[0],
+      });
+
+      try {
+        if (!result?.center || result.center.length !== 2) {
+          console.error('Invalid location data:', result);
+          return;
+        }
+
+        const [longitude, latitude] = result.center;
+        console.log('Parsed coordinates:', { latitude, longitude });
+
+        // Validate coordinates
+        if (
+          typeof latitude !== 'number' ||
+          typeof longitude !== 'number' ||
+          isNaN(latitude) ||
+          isNaN(longitude)
+        ) {
+          console.error('Invalid coordinates:', { latitude, longitude });
+          return;
+        }
+
+        // Different zoom levels based on place type
+        let zoomLevel = 0.02; // default zoom (city level)
+        if (result.place_type[0] === 'country') {
+          zoomLevel = 8; // wide zoom for countries
+        } else if (result.place_type[0] === 'region') {
+          zoomLevel = 4; // medium zoom for regions
+        } else if (result.place_type[0] === 'address') {
+          zoomLevel = 0.005; // close zoom for addresses
+        }
+
+        console.log('Setting new region:', {
+          latitude,
+          longitude,
+          zoomLevel,
+          place_type: result.place_type[0],
+        });
+
+        const newRegion = {
+          latitude,
+          longitude,
+          latitudeDelta: zoomLevel,
+          longitudeDelta: zoomLevel,
+        };
+
+        // Update map region
+        setRegion(newRegion);
+
+        // Filter routes based on proximity to selected location
+        const MAX_DISTANCE_KM = 50; // Maximum distance to show routes
+        const filteredByLocation = routes.filter((route) => {
+          const firstWaypoint = route.waypoint_details?.[0] || route.metadata?.waypoints?.[0];
+          if (!firstWaypoint) return false;
+
+          const routeLat = Number(firstWaypoint.lat);
+          const routeLng = Number(firstWaypoint.lng);
+
+          // Calculate distance between selected location and route
+          const distance = calculateDistance(latitude, longitude, routeLat, routeLng);
+          const distanceNum = parseFloat(distance.replace(/[^0-9.]/g, ''));
+          const isKm = distance.includes('km');
+
+          // Include routes within MAX_DISTANCE_KM kilometers
+          return isKm ? distanceNum <= MAX_DISTANCE_KM : true;
+        });
+
+        console.log('Filtered routes:', {
+          total: routes.length,
+          filtered: filteredByLocation.length,
+          location: result.place_name,
+        });
+
+        setFilteredRoutes(filteredByLocation);
+
+        // Collapse bottom sheet to show more of the map
+        snapTo(snapPoints.collapsed);
+      } catch (error: any) {
+        console.error('Error in handleLocationSelect:', error);
+        console.error('Error details:', {
+          error_message: error.message,
+          error_stack: error.stack,
+          result_data: result,
+        });
+      }
+    },
+    [routes, setRegion, snapPoints, calculateDistance, snapTo],
   );
 
   // Update search results with distance
@@ -891,31 +844,35 @@ export function MapScreen({ route }: { route: any }) {
           ref={mapRef}
         />
 
-        <TouchableOpacity
-          style={{
-            position: 'absolute',
-            bottom: 100,
-            right: 16,
-            backgroundColor: 'white',
-            width: 50,
-            height: 50,
-            borderRadius: 25,
-            justifyContent: 'center',
-            alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: {
-              width: 0,
-              height: 2,
-            },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
-            elevation: 5,
-          }}
-          onPress={handleLocateMe}
-        >
-          <Feather name="crosshair" size={24} color="#000" />
-        </TouchableOpacity>
-
+        {selectedRoute && (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: BOTTOM_NAV_HEIGHT,
+              left: 0,
+              right: 0,
+              backgroundColor: '$background',
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 5,
+            }}
+          >
+            <RoutePreviewCard
+              route={selectedRoute}
+              showMap={false}
+              onPress={() => {
+                navigation.navigate('RouteDetail', { routeId: selectedRoute.id });
+                setSelectedRoute(null);
+                setSelectedPin(null);
+              }}
+            />
+          </View>
+        )}
+        {/*
         <SafeAreaView edges={['top']}>
           <AppHeader
             onLocateMe={handleLocateMe}
@@ -984,6 +941,7 @@ export function MapScreen({ route }: { route: any }) {
             />
           </View>
         )}
+          */}
       </View>
     </Screen>
   );

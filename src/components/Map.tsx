@@ -1,8 +1,9 @@
-import React, { useMemo, useCallback, useState } from 'react';
-import { Platform, View, TouchableOpacity, StyleProp, ViewStyle, Dimensions } from 'react-native';
-import MapView, { Marker, Region, Callout } from 'react-native-maps';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
+import { View, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import MapView, { Marker, Region } from 'react-native-maps';
 import { StyleSheet } from 'react-native';
-import { Text, Circle, XStack, YStack } from 'tamagui';
+import { Text, Circle } from 'tamagui';
+import Supercluster from 'supercluster';
 
 export type Waypoint = {
   latitude: number;
@@ -11,29 +12,6 @@ export type Waypoint = {
   description?: string;
   id?: string;
   onPress?: () => void;
-};
-
-type MapProps = {
-  waypoints: Waypoint[];
-  region?: Region;
-  style?: StyleProp<ViewStyle>;
-  scrollEnabled?: boolean;
-  zoomEnabled?: boolean;
-  pitchEnabled?: boolean;
-  rotateEnabled?: boolean;
-  onPress?: () => void;
-  selectedPin?: string | null;
-  onMarkerPress?: (waypoint: Waypoint) => void;
-  customMarker?: React.ReactNode;
-};
-
-type Cluster = {
-  id: string;
-  coordinate: {
-    latitude: number;
-    longitude: number;
-  };
-  points: Waypoint[];
 };
 
 type ClusterMarkerProps = {
@@ -59,33 +37,66 @@ function ClusterMarker({ count, onPress }: ClusterMarkerProps) {
   );
 }
 
-const MAPBOX_ACCESS_TOKEN =
-  'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w'; // Replace with your Mapbox token
+const toLocation = (
+  coordinate:
+    | Supercluster.PointFeature<Supercluster.AnyProps>['geometry']['coordinates']
+    | Supercluster.ClusterFeature<Supercluster.AnyProps>['geometry']['coordinates'],
+) => {
+  return {
+    latitude: coordinate?.[1],
+    longitude: coordinate?.[0],
+  };
+};
 
-const WaypointMarker = ({
-  cluster,
-  expandedCluster,
-  onMarkerPress,
-  customMarker,
-  selectedPin,
-  handleClusterPress,
-}: {
-  cluster: Cluster;
-  expandedCluster: string | null;
-  onMarkerPress: (waypoint: Waypoint) => void;
-  customMarker: React.ReactNode;
-  selectedPin: string | null;
-  handleClusterPress: (cluster: Cluster) => void;
-}) => {
-  // Show individual pins for single markers, expanded clusters, or when zoomed in
-  if (cluster.points.length === 1 || expandedCluster === 'all' || cluster.id === expandedCluster) {
+const WaypointMarker = React.memo(
+  ({
+    cluster,
+    onMarkerPress,
+    customMarker,
+    selectedPin,
+    handleClusterPress,
+  }: {
+    cluster:
+      | Supercluster.PointFeature<Supercluster.AnyProps>
+      | Supercluster.ClusterFeature<Supercluster.AnyProps>;
+    expandedCluster: string | null;
+    onMarkerPress: (waypointId: string) => void;
+    customMarker: React.ReactNode;
+    selectedPin: string | null;
+    handleClusterPress: (
+      cluster:
+        | Supercluster.PointFeature<Supercluster.AnyProps>
+        | Supercluster.ClusterFeature<Supercluster.AnyProps>,
+    ) => void;
+  }) => {
+    if (cluster.properties.cluster === true) {
+      // Show cluster marker
+      return (
+        <Marker
+          coordinate={toLocation(cluster.geometry.coordinates)}
+          onPress={(e: { stopPropagation: () => void }) => {
+            e.stopPropagation();
+            handleClusterPress(cluster);
+          }}
+        >
+          <ClusterMarker
+            count={cluster.properties.point_count}
+            onPress={(e?: { stopPropagation: () => void }) => {
+              e?.stopPropagation();
+              handleClusterPress(cluster);
+            }}
+          />
+        </Marker>
+      );
+    }
+
     return (
       <Marker
-        coordinate={cluster.coordinate}
+        coordinate={toLocation(cluster.geometry.coordinates)}
         anchor={{ x: 0, y: 0 }}
         onPress={(e) => {
           e.stopPropagation();
-          onMarkerPress?.(cluster.points[0]);
+          onMarkerPress?.(cluster.properties.id);
         }}
       >
         {customMarker || (
@@ -93,34 +104,47 @@ const WaypointMarker = ({
             style={{
               width: 10,
               height: 10,
-              backgroundColor: selectedPin === cluster.points[0].id ? 'red' : 'coral',
+              backgroundColor: selectedPin === cluster.properties.id ? 'red' : 'coral',
               borderRadius: 5,
             }}
           />
         )}
       </Marker>
     );
-  }
+  },
+  (prevProps, nextProps) => prevProps.cluster.id === nextProps.cluster.id,
+);
 
-  // Show cluster marker
-  return (
-    <Marker
-      coordinate={cluster.coordinate}
-      onPress={(e: { stopPropagation: () => void }) => {
-        e.stopPropagation();
-        handleClusterPress(cluster);
-      }}
-    >
-      <ClusterMarker
-        count={cluster.points.length}
-        onPress={(e?: { stopPropagation: () => void }) => {
-          e?.stopPropagation();
-          handleClusterPress(cluster);
-        }}
-      />
-    </Marker>
-  );
-};
+function getClusterExpansionRegion(supercluster: Supercluster, clusterId: number) {
+  // Retrieve all leaves (points) of the cluster
+  const leaves = supercluster.getLeaves(clusterId, Infinity);
+
+  // Extract coordinates from leaves
+  const coordinates = leaves.map((leaf) => leaf.geometry.coordinates);
+
+  // Calculate bounding box
+  const lats = coordinates.map((coord) => coord[1]);
+  const lngs = coordinates.map((coord) => coord[0]);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+
+  // Calculate center
+  const latitude = (minLat + maxLat) / 2;
+  const longitude = (minLng + maxLng) / 2;
+
+  // Calculate deltas with padding
+  const latDelta = (maxLat - minLat) * 1.2 || 0.02;
+  const lngDelta = (maxLng - minLng) * 1.2 || 0.02;
+
+  return {
+    latitude,
+    longitude,
+    latitudeDelta: latDelta,
+    longitudeDelta: lngDelta,
+  };
+}
 
 export function Map({
   waypoints,
@@ -135,184 +159,98 @@ export function Map({
   onMarkerPress,
   customMarker,
   ref,
+}: {
+  waypoints: Waypoint[];
+  region: Region;
+  style: StyleProp<ViewStyle>;
+  scrollEnabled: boolean;
+  zoomEnabled: boolean;
 }) {
   const mapRef = React.useRef<MapView>(null);
-  const BASE_CLUSTER_DISTANCE = 10;
-  const [expandedCluster, setExpandedCluster] = useState<string | null>(null);
-  const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(0);
   const lastRegionChange = React.useRef<number>(0);
-  const [clusters, setClusters] = useState<Cluster[]>([]);
-
+  const [clusters, setClusters] = useState<
+    (
+      | Supercluster.PointFeature<Supercluster.AnyProps>
+      | Supercluster.ClusterFeature<Supercluster.AnyProps>
+    )[]
+  >([]);
+  const supercluster = useRef<Supercluster | null>(
+    new Supercluster({ minZoom: 0, maxZoom: 15, radius: 30 }),
+  );
   // Forward the ref
   React.useImperativeHandle(ref, () => mapRef.current!, []);
 
-  // Debug logging function - only log if more than 500ms has passed
-  const debugLog = useCallback((message: string, data?: any) => {
-    const now = Date.now();
-    if (now - lastRegionChange.current > 500) {
-      console.log(`[Map] ${message}`, data || '');
-      lastRegionChange.current = now;
+  useEffect(() => {
+    if (waypoints.length > 0) {
+      const geoPoints = waypoints.map((point: Waypoint) => ({
+        type: 'Feature',
+        properties: {
+          id: point.id,
+          title: point.title,
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: [point.longitude, point.latitude],
+        },
+      }));
+      supercluster.current?.load(geoPoints);
     }
-  }, []);
-
-  // Calculate zoom level from region
-  const calculateZoomLevel = useCallback((region: Region) => {
-    const { longitudeDelta } = region;
-    return Math.round(Math.log(360 / longitudeDelta) / Math.LN2);
-  }, []);
+  }, [waypoints]);
 
   // Calculate clusters
   const calculateClusters = useCallback(
-    ({ region, expandedCluster }: { region: Region; expandedCluster: string | null }) => {
+    async ({ region }: { region: Region }) => {
       if (!region || !waypoints.length) return [];
 
-      // Otherwise, proceed with clustering
-      let validWaypoints = waypoints.filter(
-        (wp) =>
-          wp.latitude &&
-          wp.longitude &&
-          !isNaN(wp.latitude) &&
-          !isNaN(wp.longitude) &&
-          wp.latitude !== 0 &&
-          wp.longitude !== 0,
-      );
+      const bbox: GeoJSON.BBox = [
+        region.longitude - region.longitudeDelta / 2, // west
+        region.latitude - region.latitudeDelta / 2, // south
+        region.longitude + region.longitudeDelta / 2, // east
+        region.latitude + region.latitudeDelta / 2, // north
+      ];
 
-      // Filter waypoints outside the view bounding box
-      const minLat = region.latitude - region.latitudeDelta / 2;
-      const maxLat = region.latitude + region.latitudeDelta / 2;
-      const minLng = region.longitude - region.longitudeDelta / 2;
-      const maxLng = region.longitude + region.longitudeDelta / 2;
-
-      const inViewWaypoints = validWaypoints.filter(
-        (wp) =>
-          wp.latitude >= minLat &&
-          wp.latitude <= maxLat &&
-          wp.longitude >= minLng &&
-          wp.longitude <= maxLng,
-      );
-
-      validWaypoints = inViewWaypoints;
-
-      if (validWaypoints.length === 0) return [];
-
-      console.log('validWaypoints', validWaypoints.length);
-
-      // Calculate clustering based on zoom level
-      const zoomLevel = calculateZoomLevel(region);
-      const clusterDistance = BASE_CLUSTER_DISTANCE * Math.max(1, (20 - zoomLevel) / 10);
-
-      const { width } = Dimensions.get('window');
-      const latDelta = region.latitudeDelta;
-      const lngDelta = region.longitudeDelta;
-      const pixelsPerLat = width / latDelta;
-      const pixelsPerLng = width / lngDelta;
-
-      const clusters: Cluster[] = [];
-      const points = [...validWaypoints];
-      let clusterIdCounter = 0;
-
-      while (points.length > 0) {
-        const point = points.pop()!;
-        const nearbyPoints: Waypoint[] = [];
-
-        // Find all points within clustering distance
-        for (let i = points.length - 1; i >= 0; i--) {
-          const otherPoint = points[i];
-          const latDiff = Math.abs(point.latitude - otherPoint.latitude);
-          const lngDiff = Math.abs(point.longitude - otherPoint.longitude);
-
-          const pixelDist = Math.sqrt(
-            Math.pow(latDiff * pixelsPerLat, 2) + Math.pow(lngDiff * pixelsPerLng, 2),
-          );
-
-          if (pixelDist < clusterDistance) {
-            nearbyPoints.push(otherPoint);
-            points.splice(i, 1);
-          }
-        }
-
-        const clusterId = `cluster-${clusterIdCounter++}`;
-
-        // Only create a cluster if we have more than 2 points total
-        if (nearbyPoints.length >= 2) {
-          const allPoints = [point, ...nearbyPoints];
-          const centerLat = allPoints.reduce((sum, p) => sum + p.latitude, 0) / allPoints.length;
-          const centerLng = allPoints.reduce((sum, p) => sum + p.longitude, 0) / allPoints.length;
-
-          clusters.push({
-            id: clusterId,
-            coordinate: {
-              latitude: centerLat,
-              longitude: centerLng,
-            },
-            points: allPoints,
-          });
-        } else {
-          // If not enough nearby points, add as standalone markers
-          clusters.push({
-            id: `marker-${point.id || clusterId}`,
-            coordinate: {
-              latitude: point.latitude,
-              longitude: point.longitude,
-            },
-            points: [point],
-          });
-
-          nearbyPoints.forEach((nearbyPoint) => {
-            clusters.push({
-              id: `marker-${nearbyPoint.id || clusterIdCounter++}`,
-              coordinate: {
-                latitude: nearbyPoint.latitude,
-                longitude: nearbyPoint.longitude,
-              },
-              points: [nearbyPoint],
-            });
-          });
-        }
+      function getZoomLevel(region: Region) {
+        const { latitudeDelta } = region;
+        const zoomLevel = Math.log2(360 / latitudeDelta);
+        return zoomLevel;
       }
 
-      debugLog('Created clusters:', clusters.length);
-      setClusters(clusters);
+      const clusters = supercluster.current?.getClusters(bbox, getZoomLevel(region)) ?? [];
+
+      setClusters(clusters ?? []);
     },
-    [waypoints, calculateZoomLevel, debugLog],
+    [waypoints],
   );
 
   // Handle region changes
   const handleRegionChange = useCallback(
     (newRegion: Region) => {
       try {
-        calculateClusters({ region: newRegion, expandedCluster: null });
+        calculateClusters({ region: newRegion });
       } catch (error) {
         console.error('Error in handleRegionChange:', error);
       }
     },
-    [currentZoomLevel, calculateClusters, debugLog],
+    [calculateClusters],
   );
 
-  const handleClusterPress = useCallback((cluster: Cluster) => {
-    if (mapRef.current) {
-      const lats = cluster.points.map((p) => p.latitude);
-      const lngs = cluster.points.map((p) => p.longitude);
-      const minLat = Math.min(...lats);
-      const maxLat = Math.max(...lats);
-      const minLng = Math.min(...lngs);
-      const maxLng = Math.max(...lngs);
+  const handleClusterPress = useCallback(
+    (
+      cluster:
+        | Supercluster.PointFeature<Supercluster.AnyProps>
+        | Supercluster.ClusterFeature<Supercluster.AnyProps>,
+    ) => {
+      if (mapRef.current && supercluster.current) {
+        const region = getClusterExpansionRegion(
+          supercluster.current,
+          cluster.properties.cluster_id,
+        );
 
-      // Calculate a smaller delta to ensure pins are spread out
-      const latDelta = Math.max((maxLat - minLat) * 1.2, 0.005);
-      const lngDelta = Math.max((maxLng - minLng) * 1.2, 0.005);
-
-      const newRegion: Region = {
-        latitude: (minLat + maxLat) / 2,
-        longitude: (minLng + maxLng) / 2,
-        latitudeDelta: latDelta,
-        longitudeDelta: lngDelta,
-      };
-
-      setExpandedCluster(cluster.id);
-      mapRef.current.animateToRegion(newRegion, 300);
-    }
-  }, []);
+        mapRef.current.animateToRegion(region, 500);
+      }
+    },
+    [],
+  );
 
   if (!region) return null;
 
@@ -326,15 +264,16 @@ export function Map({
         zoomEnabled={zoomEnabled}
         pitchEnabled={pitchEnabled}
         rotateEnabled={rotateEnabled}
+        showsMyLocationButton={true}
+        showsUserLocation={true}
         onPress={onPress}
         onRegionChangeComplete={handleRegionChange}
       >
         {clusters.map((cluster) => {
           return (
             <WaypointMarker
-              key={cluster.id}
+              key={cluster.properties.cluster_id ?? cluster.properties.id ?? cluster.id}
               cluster={cluster}
-              expandedCluster={expandedCluster}
               onMarkerPress={onMarkerPress}
               customMarker={customMarker}
               selectedPin={selectedPin}
