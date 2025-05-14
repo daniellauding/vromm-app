@@ -820,6 +820,29 @@ export function MapScreen({ route }: { route: any }) {
     }
   }, [routes, extractFilters]);
 
+  const handleLocateMe = useCallback(async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(t('common.error'), t('map.permissionDenied'));
+        return;
+      }
+
+      const location = await Location.getLastKnownPositionAsync({});
+
+      console.log('setRegion', location);
+      console.log(mapRef.current);
+      mapRef.current?.animateToRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+      });
+    } catch (err) {
+      console.error('Error getting location:', err);
+    }
+  }, [t]);
+
   if (!isMapReady) {
     return (
       <Screen edges={[]} padding={false} hideStatusBar>
@@ -833,7 +856,7 @@ export function MapScreen({ route }: { route: any }) {
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
       <View style={{ flex: 1 }}>
-        <Map
+      <Map
           key={`map-${routes.length}`}
           waypoints={getAllWaypoints}
           region={region}
@@ -844,35 +867,6 @@ export function MapScreen({ route }: { route: any }) {
           ref={mapRef}
         />
 
-        {selectedRoute && (
-          <View
-            style={{
-              position: 'absolute',
-              bottom: BOTTOM_NAV_HEIGHT,
-              left: 0,
-              right: 0,
-              backgroundColor: '$background',
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: -2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 5,
-            }}
-          >
-            <RoutePreviewCard
-              route={selectedRoute}
-              showMap={false}
-              onPress={() => {
-                navigation.navigate('RouteDetail', { routeId: selectedRoute.id });
-                setSelectedRoute(null);
-                setSelectedPin(null);
-              }}
-            />
-          </View>
-        )}
-        {/*
         <SafeAreaView edges={['top']}>
           <AppHeader
             onLocateMe={handleLocateMe}
@@ -941,7 +935,6 @@ export function MapScreen({ route }: { route: any }) {
             />
           </View>
         )}
-          */}
       </View>
     </Screen>
   );

@@ -264,7 +264,6 @@ export function Map({
         zoomEnabled={zoomEnabled}
         pitchEnabled={pitchEnabled}
         rotateEnabled={rotateEnabled}
-        showsMyLocationButton={true}
         showsUserLocation={true}
         onPress={onPress}
         onRegionChangeComplete={handleRegionChange}

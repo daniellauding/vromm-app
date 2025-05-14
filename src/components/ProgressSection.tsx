@@ -3,10 +3,11 @@ import { ScrollView, TouchableOpacity, View } from 'react-native';
 import { XStack, YStack, Text } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { SectionHeader } from './SectionHeader';
 import Svg, { Circle } from 'react-native-svg';
+import { useCallback } from 'react';
 
 interface LearningPath {
   id: string;
@@ -71,6 +72,16 @@ export function ProgressSection() {
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [user, setUser] = useState<any>(null);
 
+  // Add useFocusEffect to refresh data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('ProgressSection: Screen focused, refreshing data');
+      if (user) {
+        fetchCompletions();
+      }
+    }, [user])
+  );
+
   useEffect(() => {
     fetchLearningPaths();
   }, []);
@@ -84,21 +95,75 @@ export function ProgressSection() {
     fetchUser();
   }, []);
 
+  // Set up real-time subscription for exercise completions
   useEffect(() => {
     if (!user) return;
-    // Fetch completions for the user
+
+    console.log('ProgressSection: Setting up real-time subscription', user.id);
+    
+    // Fetch completions - extract as standalone function for reuse
     const fetchCompletions = async () => {
-      const { data, error } = await supabase
-        .from('learning_path_exercise_completions')
-        .select('exercise_id')
-        .eq('user_id', user.id);
-      if (!error && data) {
-        setCompletedIds(data.map((c: any) => c.exercise_id));
-      } else {
+      try {
+        const { data, error } = await supabase
+          .from('learning_path_exercise_completions')
+          .select('exercise_id')
+          .eq('user_id', user.id);
+          
+        if (!error && data) {
+          // Use a function updater to ensure we're working with the latest state
+          console.log(`ProgressSection: Fetched ${data.length} completions`);
+          setCompletedIds(data.map((c: any) => c.exercise_id));
+        } else {
+          console.log('ProgressSection: No completions or error', error);
+          setCompletedIds([]);
+        }
+      } catch (err) {
+        console.error('Error fetching completions:', err);
         setCompletedIds([]);
       }
     };
+    
     fetchCompletions();
+
+    // Set up real-time subscription with a debounce mechanism
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    
+    // Create a unique channel name that includes the component instance
+    const channelName = `exercise-completions-home-${Date.now()}`;
+    console.log(`ProgressSection: Creating channel ${channelName}`);
+    
+    const subscription = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',  // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'learning_path_exercise_completions',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          // Log payload for debugging
+          console.log('ProgressSection: Realtime update received:', payload.eventType);
+          
+          // Debounce to handle batch updates (like Mark All)
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            console.log('ProgressSection: Executing debounced fetch');
+            fetchCompletions();
+          }, 200); // Short delay to batch multiple rapid changes
+        }
+      )
+      .subscribe((status) => {
+        console.log(`ProgressSection: Subscription status: ${status}`);
+      });
+
+    // Clean up subscription and timer on unmount
+    return () => {
+      console.log(`ProgressSection: Cleaning up subscription ${channelName}`);
+      clearTimeout(debounceTimer);
+      supabase.removeChannel(subscription);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -156,6 +221,29 @@ export function ProgressSection() {
     return completed / ids.length;
   };
 
+  // Make fetchCompletions available at component level
+  const fetchCompletions = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('exercise_id')
+        .eq('user_id', user.id);
+        
+      if (!error && data) {
+        console.log(`ProgressSection: Fetched ${data.length} completions`);
+        setCompletedIds(data.map((c: any) => c.exercise_id));
+      } else {
+        console.log('ProgressSection: No completions or error', error);
+        setCompletedIds([]);
+      }
+    } catch (err) {
+      console.error('Error fetching completions:', err);
+      setCompletedIds([]);
+    }
+  };
+
   if (loading || paths.length === 0) {
     return null;
   }
@@ -211,7 +299,7 @@ export function ProgressSection() {
                       color={isActive ? '$color' : '$gray11'}
                     >
                       {Math.round(percent * 100)}%
-                    </Text>
+                      </Text>
                   </View>
                   <Text 
                     fontSize={14}

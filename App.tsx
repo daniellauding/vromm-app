@@ -31,6 +31,8 @@ import { OnboardingDemoScreen } from './src/screens/OnboardingDemoScreen';
 import { TranslationDemoScreen } from './src/screens/TranslationDemoScreen';
 import { ContentDemoScreen } from './src/screens/ContentDemoScreen';
 import { RouteListScreen } from './src/screens/RouteListScreen';
+import { LicensePlanScreen } from './src/screens/LicensePlanScreen';
+import { RoleSelectionScreen } from './src/screens/RoleSelectionScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -183,6 +185,20 @@ function AppContent() {
             <Stack.Screen
               name="RouteList"
               component={RouteListScreen}
+              options={{
+                headerShown: false
+              }}
+            />
+            <Stack.Screen
+              name="LicensePlanScreen"
+              component={LicensePlanScreen}
+              options={{
+                headerShown: false
+              }}
+            />
+            <Stack.Screen
+              name="RoleSelectionScreen"
+              component={RoleSelectionScreen}
               options={{
                 headerShown: false
               }}

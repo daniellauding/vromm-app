@@ -146,10 +146,22 @@ export function HomeScreen() {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [isCityMenuVisible, setIsCityMenuVisible] = useState(false);
   const [createdRoutes, setCreatedRoutes] = useState<Route[]>([]);
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
   
   // Refs
   const cityBackdropOpacity = useRef(new Animated.Value(0)).current;
   const citySheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Add progressSectionKey state
+  const [progressSectionKey, setProgressSectionKey] = useState(Date.now());
+  
+  // Reset progress section key when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('HomeScreen: Screen focused, refreshing ProgressSection');
+      setProgressSectionKey(Date.now());
+    }, [])
+  );
 
   // Location and route organization effects
   useEffect(() => {
@@ -990,6 +1002,82 @@ export function HomeScreen() {
     );
   };
 
+  // Fetch completed exercises
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchCompletedExercises = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('learning_path_exercise_completions')
+          .select('exercise_id')
+          .eq('user_id', user.id);
+          
+        if (!error && data) {
+          setCompletedIds(data.map((c: any) => c.exercise_id));
+        } else {
+          setCompletedIds([]);
+        }
+      } catch (err) {
+        console.error('Error fetching completed exercises:', err);
+        setCompletedIds([]);
+      }
+    };
+    
+    fetchCompletedExercises();
+    
+    // Set up subscription for real-time updates
+    const subscription = supabase
+      .channel('exercise-completions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'learning_path_exercise_completions',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          fetchCompletedExercises();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [user]);
+
+  // Add this helper function before the return statement in the HomeScreen component 
+  const isAllOnboardingCompleted = () => {
+    // Check if all onboarding cards are completed
+    const hasLicensePlan = typedProfile?.license_plan_completed;
+    const hasCreatedRoute = createdRoutes.length > 0;
+    const hasCompletedExercise = completedIds?.length > 0;
+    const hasSavedRoute = savedRoutes.length > 0;
+    const hasRoleSelected = isRoleConfirmed();
+    
+    return hasLicensePlan && hasCreatedRoute && hasCompletedExercise && hasSavedRoute && hasRoleSelected;
+  };
+
+  // Check if user has confirmed their role
+  const isRoleConfirmed = () => {
+    return typedProfile?.role_confirmed === true;
+  };
+
+  // Type assertion helper for profile to handle new fields
+  const typedProfile = profile as (typeof profile & {
+    license_plan_completed?: boolean;
+    license_plan_data?: {
+      target_date?: string;
+      has_theory?: boolean;
+      has_practice?: boolean;
+      previous_experience?: string;
+      specific_goals?: string;
+    };
+    role_confirmed?: boolean;
+  });
+
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
       {/* Onboarding Modal */}
@@ -1019,8 +1107,266 @@ export function HomeScreen() {
               : t('home.welcome')}
           </Text>
 
+          {/* Getting Started Section - Only show if not all items are completed */}
+          {(!isAllOnboardingCompleted()) && (
+            <YStack space="$4" marginBottom="$6">
+              <SectionHeader
+                title="Komma igång"
+                variant="chevron"
+                onAction={() => {}}
+                actionLabel=""
+              />
+              
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <XStack space="$4" paddingHorizontal="$4">
+                  {/* 1. Din körkortsplan */}
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('LicensePlanScreen')}
+                    activeOpacity={0.8}
+                  >
+                    <YStack
+                      width={180}
+                      height={180}
+                      backgroundColor={typedProfile?.license_plan_completed ? "$green5" : "$blue5"}
+                      borderRadius={16}
+                      padding="$4"
+                      justifyContent="space-between"
+                    >
+                      <XStack justifyContent="space-between" alignItems="center">
+                        <Feather 
+                          name="clipboard" 
+                          size={24} 
+                          color={typedProfile?.license_plan_completed ? "#00E6C3" : "#4B6BFF"} 
+                        />
+                        {typedProfile?.license_plan_completed ? (
+                          <View style={{
+                            backgroundColor: "#00E6C3",
+                            borderRadius: 12,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                          }}>
+                            <Text fontSize={10} color="#000" fontWeight="bold">
+                              100%
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={{
+                            backgroundColor: "#4B6BFF",
+                            borderRadius: 12,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                          }}>
+                            <Text fontSize={10} color="#fff" fontWeight="bold">
+                              0%
+                            </Text>
+                          </View>
+                        )}
+                      </XStack>
+                      
+                      <YStack>
+                        <Text fontSize={18} fontWeight="bold" color="$color">
+                          Din körkortsplan
+                        </Text>
+                        <Text fontSize={14} color="$gray11" marginTop="$1">
+                          Berätta om dig och dina mål
+                        </Text>
+                      </YStack>
+                    </YStack>
+                  </TouchableOpacity>
+                  
+                  {/* 2. Lägg till din första rutt */}
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('CreateRoute', {})}
+                    activeOpacity={0.8}
+                  >
+                    <YStack
+                      width={180}
+                      height={180}
+                      backgroundColor={createdRoutes.length > 0 ? "$green5" : "$backgroundStrong"}
+                      borderRadius={16}
+                      padding="$4"
+                      justifyContent="space-between"
+                    >
+                      <XStack justifyContent="space-between" alignItems="center">
+                        <Feather 
+                          name="map-pin" 
+                          size={24} 
+                          color={createdRoutes.length > 0 ? "#00E6C3" : "#FF9500"} 
+                        />
+                        {createdRoutes.length > 0 && (
+                          <View style={{
+                            backgroundColor: "#00E6C3",
+                            borderRadius: 12,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                          }}>
+                            <Text fontSize={10} color="#000" fontWeight="bold">
+                              KLART
+                            </Text>
+                          </View>
+                        )}
+                      </XStack>
+                      
+                      <YStack>
+                        <Text fontSize={18} fontWeight="bold" color="$color">
+                          Lägg till din första rutt
+                        </Text>
+                        <Text fontSize={14} color="$gray11" marginTop="$1">
+                          Skapa en körrutt du använder ofta
+                        </Text>
+                      </YStack>
+                    </YStack>
+                  </TouchableOpacity>
+                  
+                  {/* 3. Progress start step 1 */}
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('ProgressTab', { showDetail: false })}
+                    activeOpacity={0.8}
+                  >
+                    <YStack
+                      width={180}
+                      height={180}
+                      backgroundColor={completedIds?.length > 0 ? "$green5" : "$backgroundStrong"}
+                      borderRadius={16}
+                      padding="$4"
+                      justifyContent="space-between"
+                    >
+                      <XStack justifyContent="space-between" alignItems="center">
+                        <Feather 
+                          name="play-circle" 
+                          size={24} 
+                          color={completedIds?.length > 0 ? "#00E6C3" : "#4B6BFF"} 
+                        />
+                        {completedIds?.length > 0 && (
+                          <View style={{
+                            backgroundColor: "#00E6C3",
+                            borderRadius: 12,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                          }}>
+                            <Text fontSize={10} color="#000" fontWeight="bold">
+                              KLART
+                            </Text>
+                          </View>
+                        )}
+                      </XStack>
+                      
+                      <YStack>
+                        <Text fontSize={18} fontWeight="bold" color="$color">
+                          Börja på steg 1 av 16
+                        </Text>
+                        <Text fontSize={14} color="$gray11" marginTop="$1">
+                          Starta din körkortsresa
+                        </Text>
+                      </YStack>
+                    </YStack>
+                  </TouchableOpacity>
+                  
+                  {/* 4. Save a public route */}
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('MapTab')}
+                    activeOpacity={0.8}
+                  >
+                    <YStack
+                      width={180}
+                      height={180}
+                      backgroundColor={savedRoutes.length > 0 ? "$green5" : "$backgroundStrong"}
+                      borderRadius={16}
+                      padding="$4"
+                      justifyContent="space-between"
+                    >
+                      <XStack justifyContent="space-between" alignItems="center">
+                        <Feather 
+                          name="bookmark" 
+                          size={24} 
+                          color={savedRoutes.length > 0 ? "#00E6C3" : "#FF9500"} 
+                        />
+                        {savedRoutes.length > 0 && (
+                          <View style={{
+                            backgroundColor: "#00E6C3",
+                            borderRadius: 12,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                          }}>
+                            <Text fontSize={10} color="#000" fontWeight="bold">
+                              KLART
+                            </Text>
+                          </View>
+                        )}
+                      </XStack>
+                      
+                      <YStack>
+                        <Text fontSize={18} fontWeight="bold" color="$color">
+                          Spara en körrutt
+                        </Text>
+                        <Text fontSize={14} color="$gray11" marginTop="$1">
+                          Hitta och spara en rutt från kartan
+                        </Text>
+                      </YStack>
+                    </YStack>
+                  </TouchableOpacity>
+                  
+                  {/* 5. Select your role */}
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('RoleSelectionScreen')}
+                    activeOpacity={0.8}
+                  >
+                    <YStack
+                      width={180}
+                      height={180}
+                      backgroundColor={isRoleConfirmed() ? "$green5" : "$backgroundStrong"}
+                      borderRadius={16}
+                      padding="$4"
+                      justifyContent="space-between"
+                    >
+                      <XStack justifyContent="space-between" alignItems="center">
+                        <Feather 
+                          name="user" 
+                          size={24} 
+                          color={isRoleConfirmed() ? "#00E6C3" : "#4B6BFF"} 
+                        />
+                        {isRoleConfirmed() ? (
+                          <View style={{
+                            backgroundColor: "#00E6C3",
+                            borderRadius: 12,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                          }}>
+                            <Text fontSize={10} color="#000" fontWeight="bold">
+                              100%
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={{
+                            backgroundColor: "#4B6BFF",
+                            borderRadius: 12,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                          }}>
+                            <Text fontSize={10} color="#fff" fontWeight="bold">
+                              0%
+                            </Text>
+                          </View>
+                        )}
+                      </XStack>
+                      
+                      <YStack>
+                        <Text fontSize={18} fontWeight="bold" color="$color">
+                          Välj din roll
+                        </Text>
+                        <Text fontSize={14} color="$gray11" marginTop="$1">
+                          Student, lärare eller trafikskola?
+                        </Text>
+                      </YStack>
+                    </YStack>
+                  </TouchableOpacity>
+                </XStack>
+              </ScrollView>
+            </YStack>
+          )}
+
           {/* Progress Section */}
-          <ProgressSection />
+          <ProgressSection key={progressSectionKey} />
 
           {/* Saved Routes Hero Carousel - Full Width */}
           {savedRoutes.length > 0 ? (

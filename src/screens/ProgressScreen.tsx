@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { YStack, XStack, Text, Card } from 'tamagui';
-import { Feather } from '@expo/vector-icons';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions, Linking, Platform, Modal as RNModal, Pressable, TextInput, Alert } from 'react-native';
+import { YStack, XStack, Text, Card, Select, Image as TamaguiImage, Button } from 'tamagui';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { TabParamList } from '../types/navigation';
 import { useAuth } from '../context/AuthContext';
 import Svg, { Circle } from 'react-native-svg';
+import WebView from 'react-native-webview';
+import { Image } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 
 // Define LearningPath type based on the learning_paths table
 interface LearningPath {
@@ -20,6 +24,16 @@ interface LearningPath {
   active: boolean;
   created_at: string;
   updated_at: string;
+  // Category fields
+  vehicle_type?: string;
+  transmission_type?: string;
+  license_type?: string;
+  experience_level?: string;
+  purpose?: string;
+  user_profile?: string;
+  // Lock fields
+  is_locked?: boolean;
+  lock_password?: string | null;
 }
 
 // Add Exercise type for learning_path_exercises
@@ -36,6 +50,13 @@ interface PathExercise {
   updated_at?: string;
   language_specific_media?: boolean;
   embed_code?: string;
+  // Lock fields
+  is_locked?: boolean;
+  lock_password?: string | null;
+  repeat_count?: number;
+  isRepeat?: boolean;
+  originalId?: string;
+  repeatNumber?: number;
 }
 
 // For demo, English only. Replace with language context if needed.
@@ -80,6 +101,18 @@ function ProgressCircle({ percent, size = 56, color = '#00E6C3', bg = '#222' }: 
   );
 }
 
+// Define category types based on the learning_path_categories table
+type CategoryType = 'vehicle_type' | 'transmission_type' | 'license_type' | 'experience_level' | 'purpose' | 'user_profile';
+
+interface CategoryOption {
+  id: string;
+  category: CategoryType;
+  value: string;
+  label: { en: string; sv: string };
+  order_index: number;
+  is_default: boolean;
+}
+
 export function ProgressScreen() {
   const route = useRoute<RouteProp<TabParamList, 'ProgressTab'>>();
   const { selectedPathId, showDetail } = route.params || {};
@@ -96,6 +129,351 @@ export function ProgressScreen() {
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [completionsLoading, setCompletionsLoading] = useState(false);
   const [pathProgress, setPathProgress] = useState<{ [pathId: string]: number }>({});
+
+  // Add category filters with proper state
+  const [categoryOptions, setCategoryOptions] = useState<Record<CategoryType, CategoryOption[]>>({
+    vehicle_type: [],
+    transmission_type: [],
+    license_type: [],
+    experience_level: [],
+    purpose: [],
+    user_profile: []
+  });
+
+  // State for which categories are selected
+  const [categoryFilters, setCategoryFilters] = useState<Record<CategoryType, string>>({
+    vehicle_type: '',
+    transmission_type: '',
+    license_type: '',
+    experience_level: '',
+    purpose: '',
+    user_profile: ''
+  });
+
+  // Add state for password inputs and unlocked items
+  const [pathPasswordInput, setPathPasswordInput] = useState('');
+  const [exercisePasswordInput, setExercisePasswordInput] = useState('');
+  const [unlockedPaths, setUnlockedPaths] = useState<string[]>([]);
+  const [unlockedExercises, setUnlockedExercises] = useState<string[]>([]);
+
+  // Load categories from Supabase
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('learning_path_categories')
+          .select('*')
+          .order('order_index', { ascending: true });
+        
+        if (error) {
+          console.error('Error fetching categories:', error);
+          return;
+        }
+
+        // Group by category type
+        const groupedCategories: Record<CategoryType, CategoryOption[]> = {
+          vehicle_type: [],
+          transmission_type: [],
+          license_type: [],
+          experience_level: [],
+          purpose: [],
+          user_profile: []
+        };
+
+        // Add an "All" option for each category
+        for (const key of Object.keys(groupedCategories) as CategoryType[]) {
+          groupedCategories[key].push({
+            id: `all-${key}`,
+            category: key,
+            value: 'all',
+            label: { en: 'All', sv: 'Alla' },
+            order_index: 0,
+            is_default: false
+          });
+        }
+        
+        // Process categories from database
+        data?.forEach(item => {
+          const category = item.category as CategoryType;
+          if (groupedCategories[category]) {
+            groupedCategories[category].push(item as CategoryOption);
+          }
+        });
+        
+        setCategoryOptions(groupedCategories);
+        
+        // Set default filters based on is_default flag
+        const defaultFilters: Record<CategoryType, string> = {
+          vehicle_type: 'all',
+          transmission_type: 'all',
+          license_type: 'all',
+          experience_level: 'all',
+          purpose: 'all',
+          user_profile: 'all'
+        };
+        
+        Object.keys(groupedCategories).forEach(key => {
+          const category = key as CategoryType;
+          const defaultOption = groupedCategories[category].find(opt => opt.is_default);
+          if (defaultOption) {
+            defaultFilters[category] = defaultOption.value;
+          }
+        });
+        
+        setCategoryFilters(defaultFilters);
+      } catch (err) {
+        console.error('Error processing categories:', err);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+
+  // Modal state for category filter selection
+  const [activeFilterType, setActiveFilterType] = useState<CategoryType | null>(null);
+
+  // Category labels for display
+  const categoryLabels: Record<CategoryType, string> = {
+    vehicle_type: 'Vehicle Type',
+    transmission_type: 'Transmission',
+    license_type: 'License Type',
+    experience_level: 'Experience Level',
+    purpose: 'Purpose',
+    user_profile: 'User Profile'
+  };
+
+  // Filter option selection handler
+  const handleFilterSelect = (filterType: CategoryType, value: string) => {
+    setCategoryFilters(prev => ({ ...prev, [filterType]: value }));
+    setActiveFilterType(null);
+  };
+
+  // Toggle completion for an exercise
+  const toggleCompletion = async (exerciseId: string) => {
+    if (!user) return;
+    
+    const isDone = completedIds.includes(exerciseId);
+    console.log(`ProgressScreen: Toggling exercise ${exerciseId} from ${isDone ? 'done' : 'not done'} to ${isDone ? 'not done' : 'done'}`);
+    
+    // Update UI immediately for better user experience
+    if (isDone) {
+      // Mark as not done - update UI first
+      setCompletedIds(prev => prev.filter(id => id !== exerciseId));
+      
+      // Then update database
+      try {
+        const { error } = await supabase
+          .from('learning_path_exercise_completions')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('exercise_id', exerciseId);
+          
+        if (error) {
+          console.error('ProgressScreen: Error removing completion', error);
+        } else {
+          console.log('ProgressScreen: Successfully removed completion');
+        }
+      } catch (err) {
+        console.error('ProgressScreen: Exception in toggleCompletion (remove)', err);
+      }
+    } else {
+      // Mark as done - update UI first
+      setCompletedIds(prev => [...prev, exerciseId]);
+      
+      // Then update database
+      try {
+        const { error } = await supabase
+          .from('learning_path_exercise_completions')
+          .insert([{ user_id: user.id, exercise_id: exerciseId }]);
+          
+        if (error) {
+          console.error('ProgressScreen: Error adding completion', error);
+        } else {
+          console.log('ProgressScreen: Successfully added completion');
+        }
+      } catch (err) {
+        console.error('ProgressScreen: Exception in toggleCompletion (add)', err);
+      }
+    }
+  };
+
+  // Mark all exercises as complete or incomplete
+  const handleMarkAllExercises = async (isComplete: boolean) => {
+    if (!user || !detailPath) return;
+    console.log(`ProgressScreen: Marking all exercises as ${isComplete ? 'complete' : 'incomplete'}`);
+
+    try {
+      setLoading(true);
+      // First get all exercise IDs for this learning path
+      const { data: exercises } = await supabase
+        .from('learning_path_exercises')
+        .select('id')
+        .eq('learning_path_id', detailPath.id);
+
+      if (!exercises || exercises.length === 0) return;
+      console.log(`ProgressScreen: Found ${exercises.length} exercises to mark`);
+
+      const exerciseIds = exercises.map(ex => ex.id);
+
+      // Update local state immediately for better UI feedback
+      if (isComplete) {
+        // Add all completions (that don't exist yet)
+        // First, filter out what's already completed
+        const exercisesToComplete = exerciseIds.filter(id => !completedIds.includes(id));
+        console.log(`ProgressScreen: Adding ${exercisesToComplete.length} new completions`);
+        
+        // Update state immediately before database operation
+        if (exercisesToComplete.length > 0) {
+          setCompletedIds(prev => [...prev, ...exercisesToComplete]);
+          
+          // Insert all completions at once
+          const completions = exercisesToComplete.map(exercise_id => ({
+            user_id: user.id,
+            exercise_id,
+          }));
+          
+          const { error } = await supabase
+            .from('learning_path_exercise_completions')
+            .insert(completions);
+            
+          if (error) {
+            console.error('ProgressScreen: Error in bulk insert', error);
+          } else {
+            console.log('ProgressScreen: Successfully added all completions');
+          }
+        }
+      } else {
+        // Mark all as incomplete - update state immediately
+        console.log(`ProgressScreen: Removing ${exerciseIds.length} completions`);
+        setCompletedIds(prev => prev.filter(id => !exerciseIds.includes(id)));
+        
+        // Delete all completions for this learning path
+        const { error } = await supabase
+          .from('learning_path_exercise_completions')
+          .delete()
+          .eq('user_id', user.id)
+          .in('exercise_id', exerciseIds);
+          
+        if (error) {
+          console.error('ProgressScreen: Error in bulk delete', error);
+        } else {
+          console.log('ProgressScreen: Successfully removed all completions');
+        }
+      }
+    } catch (err) {
+      console.error('Error marking all exercises:', err);
+      setError('Failed to update exercises. Please try again.');
+      
+      // If there was an error, refresh completions to restore correct state
+      fetchCompletions();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Dedicated function to fetch completions
+  const fetchCompletions = async () => {
+    if (!user) return;
+    setCompletionsLoading(true);
+    const { data, error } = await supabase
+      .from('learning_path_exercise_completions')
+      .select('exercise_id')
+      .eq('user_id', user.id);
+    if (!error && data) {
+      setCompletedIds(data.map((c: any) => c.exercise_id));
+    } else {
+      setCompletedIds([]);
+    }
+    setCompletionsLoading(false);
+  };
+
+  // Fetch completions for the current user
+  useEffect(() => {
+    fetchCompletions();
+
+    // Set up real-time subscription for completions
+    if (user) {
+      console.log('ProgressScreen: Setting up real-time subscription', user.id);
+      
+      // Create a unique channel name that includes the component instance
+      const channelName = `progress-screen-completions-${Date.now()}`;
+      console.log(`ProgressScreen: Creating channel ${channelName}`);
+      
+      const completionsSubscription = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',  // Listen to all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'learning_path_exercise_completions',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('ProgressScreen: Realtime update received:', payload.eventType);
+            fetchCompletions();
+          }
+        )
+        .subscribe((status) => {
+          console.log(`ProgressScreen: Subscription status: ${status}`);
+        });
+
+      // Clean up subscription on unmount
+      return () => {
+        console.log(`ProgressScreen: Cleaning up subscription ${channelName}`);
+        supabase.removeChannel(completionsSubscription);
+      };
+    }
+  }, [user]);
+
+  // Calculate percentage of completion for active path
+  const calculatePathCompletion = (pathId: string): number => {
+    if (!pathId) return 0;
+    
+    // Use an async function and await to properly handle the Promise
+    const getExercisesAndCalculate = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('learning_path_exercises')
+          .select('id')
+          .eq('learning_path_id', pathId);
+          
+        if (error || !data) return 0;
+        
+        const exerciseIds = data.map((e: { id: string }) => e.id);
+        if (exerciseIds.length === 0) return 0;
+        
+        const completed = exerciseIds.filter(id => completedIds.includes(id)).length;
+        return completed / exerciseIds.length * 100;
+      } catch (err) {
+        console.error('Error calculating path completion:', err);
+        return 0;
+      }
+    };
+    
+    // For now just return 0, we'll update this in the UI when the data is available
+    return 0;
+  };
+
+  // Filter paths based on selected categories
+  const filteredPaths = useMemo(() => {
+    return paths.filter(path => {
+      // Skip filtering for "all" values or if path doesn't have the property
+      const matchesVehicleType = categoryFilters.vehicle_type === 'all' || !path.vehicle_type || path.vehicle_type === categoryFilters.vehicle_type;
+      const matchesTransmission = categoryFilters.transmission_type === 'all' || !path.transmission_type || path.transmission_type === categoryFilters.transmission_type;
+      const matchesLicense = categoryFilters.license_type === 'all' || !path.license_type || path.license_type === categoryFilters.license_type; 
+      const matchesExperience = categoryFilters.experience_level === 'all' || !path.experience_level || path.experience_level === categoryFilters.experience_level;
+      const matchesPurpose = categoryFilters.purpose === 'all' || !path.purpose || path.purpose === categoryFilters.purpose;
+      const matchesUserProfile = categoryFilters.user_profile === 'all' || !path.user_profile || path.user_profile === categoryFilters.user_profile;
+      
+      return matchesVehicleType && 
+             matchesTransmission && 
+             matchesLicense && 
+             matchesExperience && 
+             matchesPurpose && 
+             matchesUserProfile;
+    });
+  }, [paths, categoryFilters]);
 
   useEffect(() => {
     fetchLearningPaths();
@@ -121,7 +499,36 @@ export function ProgressScreen() {
           .eq('learning_path_id', detailPath.id)
           .order('order_index', { ascending: true });
         if (!error && data) {
-          setExercises(data);
+          // Process exercises to handle repeats
+          const processedExercises: PathExercise[] = [];
+          
+          // For each exercise, add it multiple times based on repeat_count
+          data.forEach((exercise: PathExercise) => {
+            // Add the original exercise
+            processedExercises.push(exercise);
+            
+            // If it has a repeat_count > 1, add duplicates
+            if (exercise.repeat_count && exercise.repeat_count > 1) {
+              for (let i = 1; i < exercise.repeat_count; i++) {
+                // Create a duplicate with a unique ID (original ID + repeat number)
+                const repeatExercise: PathExercise = {
+                  ...exercise,
+                  id: `${exercise.id}-repeat-${i}`, // Add a suffix to make ID unique
+                  title: {
+                    en: `${exercise.title.en} (Repeat ${i+1}/${exercise.repeat_count})`,
+                    sv: exercise.title.sv ? `${exercise.title.sv} (Repetition ${i+1}/${exercise.repeat_count})` : ''
+                  },
+                  // Mark this as a repeat for special handling
+                  isRepeat: true,
+                  originalId: exercise.id,
+                  repeatNumber: i+1
+                };
+                processedExercises.push(repeatExercise);
+              }
+            }
+          });
+          
+          setExercises(processedExercises);
         } else {
           setExercises([]);
         }
@@ -129,25 +536,6 @@ export function ProgressScreen() {
       fetchExercises();
     }
   }, [showDetailView, detailPath]);
-
-  // Fetch completions for the current user
-  useEffect(() => {
-    const fetchCompletions = async () => {
-      if (!user) return;
-      setCompletionsLoading(true);
-      const { data, error } = await supabase
-        .from('learning_path_exercise_completions')
-        .select('exercise_id')
-        .eq('user_id', user.id);
-      if (!error && data) {
-        setCompletedIds(data.map((c: any) => c.exercise_id));
-      } else {
-        setCompletedIds([]);
-      }
-      setCompletionsLoading(false);
-    };
-    fetchCompletions();
-  }, [user, showDetailView, detailPath]);
 
   const fetchLearningPaths = async () => {
     try {
@@ -171,43 +559,402 @@ export function ProgressScreen() {
     }
   };
 
-  const handlePathPress = (path: LearningPath) => {
+  // Function to check if a path should be enabled (available to click)
+  const shouldPathBeEnabled = (path: LearningPath, index: number): boolean => {
+    // First path is always enabled
+    if (index === 0) return true;
+    
+    // If we can't determine the previous path, don't enable
+    if (index < 0 || index >= filteredPaths.length || !filteredPaths[index - 1]) {
+      return false; 
+    }
+    
+    // Get previous path ID safely
+    const previousPath = filteredPaths[index - 1];
+    if (!previousPath || !previousPath.id) {
+      return false;
+    }
+    
+    // Check if previous path is completed
+    const previousPathProgress = getPathProgress(previousPath.id);
+    return previousPathProgress === 1;
+  };
+
+  // Modified handlePathPress to allow clicking on future paths
+  const handlePathPress = (path: LearningPath, index: number) => {
     setActivePath(path.id);
     setDetailPath(path);
     setShowDetailView(true);
   };
 
-  // Toggle completion for an exercise
-  const toggleCompletion = async (exerciseId: string) => {
-    if (!user) return;
-    const isDone = completedIds.includes(exerciseId);
-    if (isDone) {
-      // Mark as not done
-      await supabase
-        .from('learning_path_exercise_completions')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('exercise_id', exerciseId);
-      setCompletedIds(ids => ids.filter(id => id !== exerciseId));
-    } else {
-      // Mark as done
-      await supabase
-        .from('learning_path_exercise_completions')
-        .insert([{ user_id: user.id, exercise_id: exerciseId }]);
-      setCompletedIds(ids => [...ids, exerciseId]);
-    }
-  };
-
   // Calculate progress for each path from local state
-  const getPathProgress = (pathId: string) => {
+  const getPathProgress = (pathId: string): number => {
+    if (!pathId) return 0;
+    
     // Only calculate for the currently loaded exercises if this is the active path
     if (activePath === pathId && exercises.length > 0) {
       const total = exercises.length;
       const completed = exercises.filter(ex => completedIds.includes(ex.id)).length;
       return total === 0 ? 0 : completed / total;
     }
-    // For other paths, fallback to 0 (or you can cache if you want)
-    return 0;
+    
+    // For other paths or if exercises aren't loaded, use a safer approach
+    const exerciseIds = exercises.filter(ex => ex.learning_path_id === pathId).map(ex => ex.id);
+    if (exerciseIds.length === 0) return 0;
+    
+    const completedExercises = exerciseIds.filter(id => completedIds.includes(id)).length;
+    return completedExercises / exerciseIds.length;
+  };
+
+  // Render the filter modals
+  const renderFilterModal = (filterType: CategoryType | null) => {
+    if (!filterType) return null;
+    
+    const options = categoryOptions[filterType] || [];
+    
+    return (
+      <RNModal
+        visible={!!filterType}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setActiveFilterType(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setActiveFilterType(null)}
+        >
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
+          >
+            <Text fontSize={20} fontWeight="bold" color="$color">
+              {categoryLabels[filterType]}
+            </Text>
+            <YStack gap="$2">
+              {options.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  onPress={() => handleFilterSelect(filterType, option.value)}
+                  style={{
+                    backgroundColor: categoryFilters[filterType] === option.value ? '#00E6C3' : '#222',
+                    padding: 16,
+                    borderRadius: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text 
+                    fontSize={16}
+                    color={categoryFilters[filterType] === option.value ? '#000' : '#fff'}
+                  >
+                    {option.label[lang] || option.label.en}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </YStack>
+            <TouchableOpacity
+              onPress={() => setActiveFilterType(null)}
+              style={{
+                backgroundColor: '#333',
+                padding: 16,
+                borderRadius: 8,
+                alignItems: 'center',
+              }}
+            >
+              <Text fontSize={16} color="#fff">Cancel</Text>
+            </TouchableOpacity>
+          </YStack>
+        </Pressable>
+      </RNModal>
+    );
+  };
+
+  // Youtube video component
+  const YouTubeEmbed = ({ videoId }: { videoId: string }) => {
+    const screenWidth = Dimensions.get('window').width;
+    const videoWidth = screenWidth - 48; // Account for padding
+    const videoHeight = videoWidth * 0.5625; // 16:9 aspect ratio
+    
+    return (
+      <View style={{ width: videoWidth, height: videoHeight, marginVertical: 12, borderRadius: 8, overflow: 'hidden' }}>
+        <WebView
+          source={{ uri: `https://www.youtube.com/embed/${videoId}` }}
+          style={{ flex: 1 }}
+          allowsFullscreenVideo
+          javaScriptEnabled
+        />
+      </View>
+    );
+  };
+
+  // TypeForm Embed component - improved version
+  const TypeFormEmbed = ({ formId }: { formId: string }) => {
+    const screenWidth = Dimensions.get('window').width;
+    const formWidth = screenWidth - 48;
+    const formHeight = 500; // Increased height for better visibility
+    
+    // Check if formId is a complete URL or just an ID
+    const isCompleteUrl = formId.startsWith('http');
+    
+    // Get the proper URL format for typeform
+    let typeformUrl = formId;
+    if (!isCompleteUrl) {
+      // If it's just an ID, construct the proper typeform URL
+      typeformUrl = `https://form.typeform.com/to/${formId}`;
+    }
+    
+    // Create HTML with proper script loading and sizing
+    const typeformHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+        <title>Typeform</title>
+        <style>
+          html { margin: 0; height: 100%; overflow: hidden; }
+          body { margin: 0; height: 100%; overflow: hidden; }
+          iframe { border: 0; height: 100%; left: 0; position: absolute; top: 0; width: 100%; }
+        </style>
+      </head>
+      <body>
+        <iframe id="typeform-full" width="100%" height="100%" frameborder="0" allow="camera; microphone; autoplay; encrypted-media;" src="${typeformUrl}"></iframe>
+      </body>
+      </html>
+    `;
+    
+    console.log('Rendering Typeform with URL:', typeformUrl);
+    
+    return (
+      <View style={{ 
+        width: formWidth, 
+        height: formHeight, 
+        marginVertical: 12, 
+        borderRadius: 8,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#333'
+      }}>
+        <WebView
+          source={{ html: typeformHtml }}
+          style={{ flex: 1 }}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          startInLoadingState={true}
+          scalesPageToFit={false}
+          scrollEnabled={false}
+          bounces={false}
+          allowsInlineMediaPlayback={true}
+          mediaPlaybackRequiresUserAction={false}
+          onError={(error) => console.error('Typeform WebView error:', error)}
+          onMessage={(event) => console.log('Typeform WebView message:', event.nativeEvent.data)}
+        />
+      </View>
+    );
+  };
+
+  // Extract YouTube video ID from URL
+  const getYouTubeVideoId = (url: string | undefined): string | null => {
+    if (!url) return null;
+
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[7].length === 11) ? match[7] : null;
+  };
+
+  // Extract TypeForm ID from embed code or URL
+  const getTypeformId = (embedCode: string | undefined): string | null => {
+    if (!embedCode) return null;
+    
+    // If it's already a full Typeform URL, return it directly
+    if (embedCode.startsWith('https://form.typeform.com/') || 
+        embedCode.startsWith('https://forms.typeform.com/')) {
+      return embedCode;
+    }
+    
+    // Extract ID from element with data-tf-live attribute
+    const tfLiveMatch = embedCode.match(/data-tf-live="([^"]+)"/);
+    if (tfLiveMatch) return tfLiveMatch[1];
+    
+    // Extract ID from to/XXXX format (common in Typeform URLs)
+    const toMatch = embedCode.match(/to\/([a-zA-Z0-9]+)/);
+    if (toMatch) return toMatch[1];
+    
+    // Extract just the ID if it's a plain ID format
+    const idOnlyMatch = embedCode.match(/^[a-zA-Z0-9]{16,32}$/);
+    if (idOnlyMatch) return embedCode;
+    
+    return null;
+  };
+
+  // Render media for an exercise
+  const renderExerciseMedia = (exercise: PathExercise) => {
+    return (
+      <YStack gap={16}>
+        {/* YouTube Video */}
+        {exercise.youtube_url && (
+          <YStack>
+            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>Video Tutorial</Text>
+            {(() => {
+              const videoId = getYouTubeVideoId(exercise.youtube_url);
+              return videoId ? (
+                <YouTubeEmbed videoId={videoId} />
+              ) : (
+                <TouchableOpacity 
+                  onPress={() => exercise.youtube_url && Linking.openURL(exercise.youtube_url)}
+                  style={{ padding: 8, backgroundColor: '#FF0000', borderRadius: 8 }}
+                >
+                  <Text color="white">Watch on YouTube</Text>
+                </TouchableOpacity>
+              );
+            })()}
+          </YStack>
+        )}
+
+        {/* Image */}
+        {exercise.image && (
+          <YStack>
+            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>Reference Image</Text>
+            <Image 
+              source={{ uri: exercise.image }} 
+              style={{ 
+                width: '100%', 
+                height: 200, 
+                borderRadius: 8,
+                resizeMode: 'cover'
+              }} 
+            />
+          </YStack>
+        )}
+
+        {/* Embed (TypeForm) */}
+        {exercise.embed_code && (() => {
+          const typeformValue = exercise.embed_code ? getTypeformId(exercise.embed_code) : null;
+          return typeformValue ? (
+            <YStack>
+              <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>Interactive Form</Text>
+              <TypeFormEmbed formId={typeformValue} />
+            </YStack>
+          ) : null;
+        })()}
+      </YStack>
+    );
+  };
+
+  // Function to check if a path is accessible
+  const isPathAccessible = (path: LearningPath): boolean => {
+    if (!path.is_locked) return true;
+    return unlockedPaths.includes(path.id);
+  };
+
+  // Function to check if an exercise is accessible
+  const isExerciseAccessible = (exercise: PathExercise): boolean => {
+    if (!exercise.is_locked) return true;
+    return unlockedExercises.includes(exercise.id);
+  };
+
+  // Enhanced isPathPasswordLocked function to check for locked status
+  const isPathPasswordLocked = (path: LearningPath): boolean => {
+    // Use !! to convert undefined to false, ensuring boolean return
+    return !!path.is_locked && !unlockedPaths.includes(path.id);
+  };
+
+  // Separate function to check if a path specifically has a password
+  const pathHasPassword = (path: LearningPath): boolean => {
+    return !!path.is_locked && !!path.lock_password;
+  };
+
+  // Function to check if an exercise is locked with password
+  const isExercisePasswordLocked = (exercise: PathExercise): boolean => {
+    // Use !! to convert undefined to false, ensuring boolean return
+    return !!exercise.is_locked && !!exercise.lock_password && !unlockedExercises.includes(exercise.id);
+  };
+
+  // Function to unlock a path with password
+  const unlockPath = () => {
+    if (!detailPath || !detailPath.lock_password) return;
+    
+    if (pathPasswordInput === detailPath.lock_password) {
+      setUnlockedPaths(prev => [...prev, detailPath.id]);
+      setPathPasswordInput('');
+    } else {
+      Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
+    }
+  };
+
+  // Function to unlock an exercise with password
+  const unlockExercise = () => {
+    if (!selectedExercise || !selectedExercise.lock_password) return;
+    
+    if (exercisePasswordInput === selectedExercise.lock_password) {
+      setUnlockedExercises(prev => [...prev, selectedExercise.id]);
+      setExercisePasswordInput('');
+    } else {
+      Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
+    }
+  };
+
+  // Add the UnavailablePathView component for paths that aren't ready yet
+  const UnavailablePathView = () => {
+    return (
+      <YStack gap={16} padding={24} alignItems="center">
+        <MaterialIcons name="hourglass-empty" size={48} color="#FF9500" />
+        <Text fontSize={20} fontWeight="bold" color="$color" textAlign="center">
+          This Learning Path is Not Available Yet
+        </Text>
+        <Text color="$gray11" textAlign="center">
+          You need to complete the previous learning path before accessing this one.
+        </Text>
+        <TouchableOpacity
+          onPress={() => setShowDetailView(false)}
+          style={{
+            marginTop: 16,
+            backgroundColor: '#333',
+            padding: 16,
+            borderRadius: 12,
+            alignItems: 'center',
+          }}
+        >
+          <Text color="$color" fontWeight="bold">
+            Go Back
+          </Text>
+        </TouchableOpacity>
+      </YStack>
+    );
+  };
+
+  // Add the UnavailableExerciseView component for exercises that aren't ready yet
+  const UnavailableExerciseView = () => {
+    return (
+      <YStack gap={16} padding={24} alignItems="center">
+        <MaterialIcons name="hourglass-empty" size={48} color="#FF9500" />
+        <Text fontSize={20} fontWeight="bold" color="$color" textAlign="center">
+          This Exercise is Not Available Yet
+        </Text>
+        <Text color="$gray11" textAlign="center">
+          You need to complete the previous exercises before accessing this one.
+        </Text>
+        <TouchableOpacity
+          onPress={() => setSelectedExercise(null)}
+          style={{
+            marginTop: 16,
+            backgroundColor: '#333',
+            padding: 16,
+            borderRadius: 12,
+            alignItems: 'center',
+          }}
+        >
+          <Text color="$color" fontWeight="bold">
+            Go Back
+          </Text>
+        </TouchableOpacity>
+      </YStack>
+    );
   };
 
   if (loading) {
@@ -234,124 +981,741 @@ export function ProgressScreen() {
 
   if (selectedExercise) {
     const isDone = completedIds.includes(selectedExercise.id);
+    const isPasswordLocked = isExercisePasswordLocked(selectedExercise);
+    
+    // For repeated exercises, check if previous repeats are complete
+    let previousRepeatsComplete = true;
+    if (selectedExercise.isRepeat && selectedExercise.originalId) {
+      // Find all previous repeats of this exercise
+      const previousRepeats = exercises
+        .filter(e => 
+          (e.id === selectedExercise.originalId || (e.isRepeat && e.originalId === selectedExercise.originalId)) && 
+          (e.repeatNumber === undefined || e.repeatNumber < (selectedExercise.repeatNumber || 0))
+        );
+        
+        // Check if all previous repeats are complete
+        previousRepeatsComplete = previousRepeats.every(prevEx => completedIds.includes(prevEx.id));
+    }
+    
+    // Determine if exercise should be available based on previous exercises
+    // For repeated exercises, we need all previous repeats to be complete
+    const originalIndex = exercises.findIndex(e => !e.isRepeat && e.id === (selectedExercise.isRepeat ? selectedExercise.originalId : selectedExercise.id));
+    const prevExercisesComplete = 
+      // If it's the first exercise or a repeat of the first exercise, it's always available
+      originalIndex <= 0 || 
+      // Otherwise, check if all previous non-repeat exercises are complete AND
+      // for a repeat, check if all previous repeats of the same exercise are complete
+      (exercises
+        .slice(0, originalIndex)
+        .filter(e => !e.isRepeat || e.originalId !== selectedExercise.originalId) // Exclude other repeats of this exercise
+        .every(prevEx => completedIds.includes(prevEx.id)) && 
+        previousRepeatsComplete);
+    
+    // Get information about repeats for navigation
+    const baseExercise = selectedExercise.isRepeat ? 
+      exercises.find(ex => ex.id === selectedExercise.originalId) : 
+      selectedExercise;
+    
+    const allRepeats = baseExercise ? 
+      [baseExercise, ...exercises.filter(ex => ex.isRepeat && ex.originalId === baseExercise.id)]
+        .sort((a, b) => (a.repeatNumber || 1) - (b.repeatNumber || 1)) : 
+      [];
+    
+    const currentRepeatIndex = allRepeats.findIndex(ex => ex.id === selectedExercise.id);
+    const hasNextRepeat = currentRepeatIndex < allRepeats.length - 1;
+    const hasPrevRepeat = currentRepeatIndex > 0;
+    
+    const totalRepeats = selectedExercise.repeat_count || 1;
+    const currentRepeatNumber = selectedExercise.isRepeat ? (selectedExercise.repeatNumber || 2) : 1;
+    
+    // Navigation functions
+    const goToNextRepeat = () => {
+      if (hasNextRepeat) {
+        setSelectedExercise(allRepeats[currentRepeatIndex + 1]);
+      }
+    };
+    
+    const goToPrevRepeat = () => {
+      if (hasPrevRepeat) {
+        setSelectedExercise(allRepeats[currentRepeatIndex - 1]);
+      }
+    };
+    
+    const goToBaseExercise = () => {
+      if (baseExercise && selectedExercise.id !== baseExercise.id) {
+        setSelectedExercise(baseExercise);
+      }
+    };
+    
     return (
-      <YStack flex={1} backgroundColor="$background" padding={24}>
-        <TouchableOpacity onPress={() => setSelectedExercise(null)} style={{ marginBottom: 24 }}>
-          <Feather name="arrow-left" size={28} color="#fff" />
-        </TouchableOpacity>
-        <Text fontSize={28} fontWeight="bold" color="$color" marginBottom={8}>
-          {selectedExercise.title?.[lang] || selectedExercise.title?.en || 'Untitled'}
-        </Text>
-        {selectedExercise.image && (
-          <View style={{ marginBottom: 16 }}>
-            <Text color="$gray11">Image: {selectedExercise.image}</Text>
-          </View>
-        )}
-        {selectedExercise.icon && (
-          <View style={{ marginBottom: 16 }}>
-            <Feather name={selectedExercise.icon as any} size={24} color="#00E6C3" />
-          </View>
-        )}
-        {selectedExercise.description?.[lang] && (
-          <Text color="$gray11" marginBottom={8}>{selectedExercise.description[lang]}</Text>
-        )}
-        {selectedExercise.youtube_url && selectedExercise.youtube_url.length > 0 && (
-          <Text color="$blue10" marginBottom={8}>YouTube: {selectedExercise.youtube_url}</Text>
-        )}
-        {/* Toggle done/not done button */}
-        <TouchableOpacity
-          onPress={() => toggleCompletion(selectedExercise.id)}
-          style={{
-            marginTop: 24,
-            backgroundColor: isDone ? '#00E6C3' : '#222',
-            padding: 16,
-            borderRadius: 12,
-            alignItems: 'center',
-          }}
-        >
-          <Text color={isDone ? '$background' : '$color'} fontWeight="bold">
-            {isDone ? 'Mark as Not Done' : 'Mark as Done'}
-          </Text>
-        </TouchableOpacity>
-        {/* List all other available fields for transparency */}
-        <YStack gap={8} marginTop={16}>
-          <Text color="$gray11">ID: {selectedExercise.id}</Text>
-          <Text color="$gray11">Order: {selectedExercise.order_index}</Text>
-          <Text color="$gray11">Created: {selectedExercise.created_at}</Text>
-          <Text color="$gray11">Updated: {selectedExercise.updated_at}</Text>
-          <Text color="$gray11">Language-specific media: {String(selectedExercise.language_specific_media)}</Text>
-          <Text color="$gray11">Embed code: {selectedExercise.embed_code || '-'}</Text>
-        </YStack>
+      <YStack flex={1} backgroundColor="$background">
+        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
+          {/* Header with back button and repetition indicators */}
+          <XStack justifyContent="space-between" alignItems="center" marginBottom={24}>
+            <TouchableOpacity onPress={() => setSelectedExercise(null)}>
+              <Feather name="arrow-left" size={28} color="#fff" />
+            </TouchableOpacity>
+            
+            {totalRepeats > 1 && (
+              <XStack gap={8} alignItems="center">
+                {Array.from({ length: totalRepeats }).map((_, i) => (
+                  <View 
+                    key={`indicator-${i}`}
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: i + 1 === currentRepeatNumber ? '#4B6BFF' : '#444',
+                    }}
+                  />
+                ))}
+              </XStack>
+            )}
+          </XStack>
+          
+          {/* Exercise header with icon if available */}
+          <XStack alignItems="center" gap={12} marginBottom={16}>
+            {selectedExercise.icon && (
+              <View style={{ marginRight: 8 }}>
+                <Feather name={selectedExercise.icon as any} size={28} color={isPasswordLocked ? "#FF9500" : "#00E6C3"} />
+              </View>
+            )}
+            <YStack flex={1}>
+              <XStack alignItems="center" gap={8}>
+                <Text fontSize={28} fontWeight="bold" color="$color" numberOfLines={1}>
+                  {selectedExercise.title?.[lang] || selectedExercise.title?.en || 'Untitled'}
+                </Text>
+                
+                {/* Show repeat indicator if it's a repeat */}
+                {selectedExercise.isRepeat && (
+                  <XStack 
+                    backgroundColor="#4B6BFF" 
+                    paddingHorizontal={8} 
+                    paddingVertical={4} 
+                    borderRadius={12} 
+                    alignItems="center" 
+                    gap={4}
+                  >
+                    <Feather name="repeat" size={14} color="white" />
+                    <Text fontSize={12} color="white" fontWeight="bold">
+                      {selectedExercise.repeatNumber}/{selectedExercise.repeat_count}
+                    </Text>
+                  </XStack>
+                )}
+              </XStack>
+              
+              {/* If not a repeat but has repeat_count > 1, show this information */}
+              {!selectedExercise.isRepeat && selectedExercise.repeat_count && selectedExercise.repeat_count > 1 && (
+                <XStack alignItems="center" gap={4} marginTop={4}>
+                  <Feather name="repeat" size={16} color="#4B6BFF" />
+                  <Text color="#4B6BFF" fontSize={14}>
+                    This exercise needs to be repeated {selectedExercise.repeat_count} times
+                  </Text>
+                </XStack>
+              )}
+            </YStack>
+            
+            {/* Show appropriate icon for exercise state */}
+            {isPasswordLocked ? (
+              <MaterialIcons name="lock" size={24} color="#FF9500" />
+            ) : !prevExercisesComplete ? (
+              <MaterialIcons name="hourglass-empty" size={24} color="#FF9500" />
+            ) : isDone ? (
+              <Feather name="check-circle" size={24} color="#00E6C3" />
+            ) : null}
+          </XStack>
+          
+          {selectedExercise.description?.[lang] && (
+            <Text color="$gray11" marginBottom={16}>{selectedExercise.description[lang]}</Text>
+          )}
+          
+          {/* Password Locked Exercise State - ALWAYS takes precedence */}
+          {isPasswordLocked ? (
+            <YStack gap={16} padding={24} alignItems="center">
+              <MaterialIcons name="lock" size={80} color="#FF9500" />
+              <Text fontSize={24} fontWeight="bold" color="#FF9500" textAlign="center">
+                This Exercise is Locked
+              </Text>
+              
+              {selectedExercise.lock_password ? (
+                <YStack width="100%" gap={8} marginTop={16} alignItems="center">
+                  <Text color="$gray11" fontSize={16} marginBottom={8}>Enter password to unlock:</Text>
+                  <View style={{
+                    width: '100%',
+                    maxWidth: 350,
+                    padding: 8,
+                    backgroundColor: 'rgba(255, 147, 0, 0.2)',
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: '#FF9500',
+                    marginBottom: 16
+                  }}>
+                    <TextInput
+                      value={exercisePasswordInput}
+                      onChangeText={setExercisePasswordInput}
+                      secureTextEntry
+                      style={{
+                        backgroundColor: '#222',
+                        color: '#fff',
+                        padding: 16,
+                        borderRadius: 8,
+                        width: '100%',
+                        fontSize: 18
+                      }}
+                      placeholder="Enter password"
+                      placeholderTextColor="#666"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  <Button 
+                    size="$5"
+                    backgroundColor="#FF9500"
+                    color="#000"
+                    fontWeight="bold"
+                    onPress={unlockExercise}
+                    pressStyle={{ backgroundColor: '#FF7B00' }}
+                    borderRadius={12}
+                    paddingHorizontal={32}
+                  >
+                    Unlock
+                  </Button>
+                </YStack>
+              ) : (
+                <Text color="$gray11" fontSize={16} marginTop={16} textAlign="center">
+                  This exercise is locked and cannot be accessed at this time.
+                </Text>
+              )}
+            </YStack>
+          ) : !prevExercisesComplete ? (
+            /* Unavailable Exercise State - When previous exercises aren't complete */
+            <UnavailableExerciseView />
+          ) : (
+            /* Normal Exercise Content when Available and Not Locked */
+            <>
+              {/* Media Rendering Section - Only show if exercise is accessible */}
+              {renderExerciseMedia(selectedExercise)}
+              
+              {/* Repetition Progress (if this is a repeated exercise) */}
+              {(selectedExercise.isRepeat || (selectedExercise.repeat_count && selectedExercise.repeat_count > 1)) && (
+                <YStack marginTop={16} marginBottom={8} backgroundColor="rgba(75, 107, 255, 0.1)" padding={16} borderRadius={12}>
+                  <XStack alignItems="center" gap={8} marginBottom={8}>
+                    <Feather name="repeat" size={20} color="#4B6BFF" />
+                    <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
+                      {selectedExercise.isRepeat
+                        ? `Repetition ${selectedExercise.repeatNumber} of ${selectedExercise.repeat_count}`
+                        : `This exercise requires ${selectedExercise.repeat_count} repetitions`}
+                    </Text>
+                  </XStack>
+                  
+                  {selectedExercise.isRepeat && (
+                    <Text color="$gray11">
+                      Complete this repetition to continue with your progress.
+                    </Text>
+                  )}
+                </YStack>
+              )}
+              
+              {/* List of all repeats if viewing the base exercise */}
+              {!selectedExercise.isRepeat && selectedExercise.repeat_count && selectedExercise.repeat_count > 1 && (
+                <YStack marginTop={16} marginBottom={16} gap={12}>
+                  <XStack alignItems="center" gap={8}>
+                    <Feather name="list" size={20} color="#4B6BFF" />
+                    <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
+                      All Repetitions
+                    </Text>
+                  </XStack>
+                  
+                  {/* Show the original exercise first */}
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#222',
+                      padding: 12,
+                      borderRadius: 8,
+                      borderLeftWidth: 4,
+                      borderLeftColor: '#4B6BFF',
+                    }}
+                  >
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <XStack gap={8} alignItems="center" flex={1}>
+                        <View 
+                          style={{
+                            width: 24, 
+                            height: 24, 
+                            borderRadius: 12,
+                            backgroundColor: completedIds.includes(selectedExercise.id) ? '#00E6C3' : '#333',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          {completedIds.includes(selectedExercise.id) && (
+                            <Feather name="check" size={16} color="#fff" />
+                          )}
+                        </View>
+                        <Text fontSize={16} color="$color" fontWeight="600" numberOfLines={1} flex={1}>
+                          {selectedExercise.title?.[lang] || selectedExercise.title?.en || 'Original'}
+                        </Text>
+                      </XStack>
+                      <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
+                        1/{selectedExercise.repeat_count}
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                  
+                  {/* Find and show all repeats */}
+                  {(() => {
+                    // Find all repeats of this exercise
+                    const repeats = exercises.filter(ex => 
+                      ex.isRepeat && ex.originalId === selectedExercise.id
+                    ).sort((a, b) => (a.repeatNumber || 0) - (b.repeatNumber || 0));
+                    
+                    // Check if we need to create the repeats (they may not be in the exercises array yet)
+                    if (repeats.length === 0 && selectedExercise.repeat_count && selectedExercise.repeat_count > 1) {
+                      // Just show placeholders
+                      return Array.from({ length: selectedExercise.repeat_count - 1 }).map((_, i) => {
+                        const repeatNumber = i + 2; // Start from 2 since 1 is the original
+                        
+                        return (
+                          <TouchableOpacity
+                            key={`placeholder-${i}`}
+                            style={{
+                              backgroundColor: '#222',
+                              padding: 12,
+                              borderRadius: 8,
+                              opacity: 0.7,
+                            }}
+                            disabled={true}
+                          >
+                            <XStack justifyContent="space-between" alignItems="center">
+                              <XStack gap={8} alignItems="center" flex={1}>
+                                <View 
+                                  style={{
+                                    width: 24, 
+                                    height: 24, 
+                                    borderRadius: 12,
+                                    backgroundColor: '#333',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                />
+                                <Text fontSize={16} color="$gray11" fontWeight="600" numberOfLines={1} flex={1}>
+                                  Repetition {repeatNumber}
+                                </Text>
+                              </XStack>
+                              <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
+                                {repeatNumber}/{selectedExercise.repeat_count}
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      });
+                    }
+                    
+                    return repeats.map(repeat => {
+                      const isDone = completedIds.includes(repeat.id);
+                      const isLocked = isExercisePasswordLocked(repeat);
+                      
+                      return (
+                        <TouchableOpacity
+                          key={repeat.id}
+                          style={{
+                            backgroundColor: isLocked ? 'rgba(255, 147, 0, 0.2)' : '#222',
+                            padding: 12,
+                            borderRadius: 8,
+                            borderLeftWidth: 4,
+                            borderLeftColor: isLocked ? '#FF9500' : (isDone ? '#00E6C3' : '#4B6BFF'),
+                          }}
+                          onPress={() => setSelectedExercise(repeat)}
+                        >
+                          <XStack justifyContent="space-between" alignItems="center">
+                            <XStack gap={8} alignItems="center" flex={1}>
+                              <View 
+                                style={{
+                                  width: 24, 
+                                  height: 24, 
+                                  borderRadius: 12,
+                                  backgroundColor: isDone ? '#00E6C3' : (isLocked ? '#FF9500' : '#333'),
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                {isDone ? (
+                                  <Feather name="check" size={16} color="#fff" />
+                                ) : isLocked ? (
+                                  <MaterialIcons name="lock" size={14} color="#fff" />
+                                ) : null}
+                              </View>
+                              <Text 
+                                fontSize={16} 
+                                color={isLocked ? '#FF9500' : '$color'} 
+                                fontWeight="600" 
+                                numberOfLines={1}
+                                flex={1}
+                              >
+                                {repeat.title?.[lang] || repeat.title?.en || `Repetition ${repeat.repeatNumber}`}
+                              </Text>
+                            </XStack>
+                            <Text fontSize={14} color={isLocked ? '#FF9500' : '#4B6BFF'} fontWeight="bold">
+                              {repeat.repeatNumber}/{repeat.repeat_count}
+                            </Text>
+                          </XStack>
+                        </TouchableOpacity>
+                      );
+                    });
+                  })()}
+                </YStack>
+              )}
+              
+              {/* Toggle done/not done button */}
+              <TouchableOpacity
+                onPress={() => toggleCompletion(selectedExercise.id)}
+                style={{
+                  marginTop: 24,
+                  backgroundColor: isDone ? '#00E6C3' : '#222',
+                  padding: 16,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                }}
+              >
+                <Text color={isDone ? '$background' : '$color'} fontWeight="bold">
+                  {isDone ? 'Mark as Not Done' : 'Mark as Done'}
+                </Text>
+              </TouchableOpacity>
+              
+              {/* Navigation buttons for repeats */}
+              {totalRepeats > 1 && (
+                <XStack marginTop={24} justifyContent="space-between">
+                  <Button
+                    size="$4"
+                    backgroundColor="#333"
+                    disabled={!hasPrevRepeat}
+                    opacity={hasPrevRepeat ? 1 : 0.5}
+                    onPress={goToPrevRepeat}
+                    iconAfter={
+                      <Feather name="chevron-left" size={18} color="white" />
+                    }
+                    padding={12}
+                    borderRadius={8}
+                  >
+                    Previous
+                  </Button>
+                  
+                  {selectedExercise.isRepeat && (
+                    <Button
+                      size="$4"
+                      backgroundColor="#333"
+                      onPress={goToBaseExercise}
+                      iconAfter={
+                        <Feather name="home" size={18} color="white" />
+                      }
+                      padding={12}
+                      borderRadius={8}
+                    >
+                      Base
+                    </Button>
+                  )}
+                  
+                  <Button
+                    size="$4"
+                    backgroundColor="#4B6BFF"
+                    disabled={!hasNextRepeat}
+                    opacity={hasNextRepeat ? 1 : 0.5}
+                    onPress={goToNextRepeat}
+                    iconAfter={
+                      <Feather name="chevron-right" size={18} color="white" />
+                    }
+                    padding={12}
+                    borderRadius={8}
+                  >
+                    Next
+                  </Button>
+                </XStack>
+              )}
+              
+              {/* Additional details section */}
+              <YStack gap={8} marginTop={16}>
+                <Text color="$gray11">ID: {selectedExercise.id}</Text>
+                <Text color="$gray11">Order: {selectedExercise.order_index}</Text>
+                {selectedExercise.isRepeat && selectedExercise.originalId && (
+                  <Text color="$gray11">Original Exercise ID: {selectedExercise.originalId}</Text>
+                )}
+                <Text color="$gray11">Created: {selectedExercise.created_at}</Text>
+                <Text color="$gray11">Updated: {selectedExercise.updated_at}</Text>
+              </YStack>
+            </>
+          )}
+        </ScrollView>
       </YStack>
     );
   }
 
   if (showDetailView && detailPath) {
+    // Calculate completion percentage for this path
+    const completedCount = exercises.filter(ex => completedIds.includes(ex.id)).length;
+    const totalCount = exercises.length;
+    const percentComplete = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    const isFullyComplete = totalCount > 0 && completedCount === totalCount;
+    
+    // Get the path index to determine if it's available yet
+    const pathIndex = filteredPaths.findIndex(p => p.id === detailPath.id);
+    const previousPathCompleted = pathIndex > 0 && 
+      filteredPaths[pathIndex-1] ? 
+      getPathProgress(filteredPaths[pathIndex-1].id) >= 1 : 
+      false;
+    const isFirstPath = pathIndex === 0;
+    const isAvailable = isFirstPath || previousPathCompleted;
+    
+    // Check if path is locked with password - HIGHEST PRIORITY
+    const isPasswordLocked = isPathPasswordLocked(detailPath);
+    const hasPassword = pathHasPassword(detailPath);
+    
     return (
-      <YStack flex={1} backgroundColor="$background" padding={24}>
+      <YStack flex={1} backgroundColor="$background">
+        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
         <TouchableOpacity onPress={() => setShowDetailView(false)} style={{ marginBottom: 24 }}>
           <Feather name="arrow-left" size={28} color="#fff" />
         </TouchableOpacity>
-        <Text fontSize={28} fontWeight="bold" color="$color" marginBottom={8}>
+          
+          {/* Path header with icon if available */}
+          <XStack alignItems="center" gap={12} marginBottom={16}>
+            {detailPath.icon && (
+              <View style={{ marginRight: 8 }}>
+                <Feather name={detailPath.icon as any} size={28} color={isPasswordLocked ? "#FF9500" : "#00E6C3"} />
+              </View>
+            )}
+            <Text fontSize={28} fontWeight="bold" color="$color">
           {detailPath.title[lang]}
         </Text>
+            
+            {/* Show appropriate icon for path state */}
+            {isPasswordLocked ? (
+              <MaterialIcons name="lock" size={24} color="#FF9500" />
+            ) : !isAvailable ? (
+              <MaterialIcons name="hourglass-empty" size={24} color="#FF9500" />
+            ) : null}
+          </XStack>
+          
         <Text color="$gray11" marginBottom={16}>
           {detailPath.description[lang]}
         </Text>
-        {detailPath.icon && (
-          <View style={{ marginTop: 16 }}>
-            <Feather name={detailPath.icon as any} size={24} color="#00E6C3" />
-          </View>
-        )}
-        {/* Exercises List */}
-        <YStack marginTop={32} gap={16}>
-          <Text fontSize={22} fontWeight="bold" color="$color" marginBottom={8}>
-            Exercises
-          </Text>
-          {exercises.length === 0 ? (
-            <Text color="$gray11">No exercises for this learning path.</Text>
-          ) : (
-            exercises.map((ex, idx) => {
-              const isDone = completedIds.includes(ex.id);
-              return (
-                <TouchableOpacity key={ex.id} onPress={() => setSelectedExercise(ex)}>
-                  <XStack alignItems="center" gap={12}>
-                    <TouchableOpacity
-                      onPress={e => {
-                        e.stopPropagation();
-                        toggleCompletion(ex.id);
-                      }}
+          
+          {/* Locked Path State - ALWAYS takes precedence over Unavailable */}
+          {isPasswordLocked ? (
+            <YStack gap={16} padding={24} alignItems="center">
+              <MaterialIcons name="lock" size={80} color="#FF9500" />
+              <Text fontSize={24} fontWeight="bold" color="#FF9500" textAlign="center">
+                This Learning Path is Locked
+              </Text>
+              
+              {hasPassword ? (
+                <YStack width="100%" gap={8} marginTop={16} alignItems="center">
+                  <Text color="$gray11" fontSize={16} marginBottom={8}>Enter password to unlock:</Text>
+                  <View style={{
+                    width: '100%',
+                    maxWidth: 350,
+                    padding: 8,
+                    backgroundColor: 'rgba(255, 147, 0, 0.2)',
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: '#FF9500',
+                    marginBottom: 16
+                  }}>
+                    <TextInput
+                      value={pathPasswordInput}
+                      onChangeText={setPathPasswordInput}
+                      secureTextEntry
                       style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 6,
-                        borderWidth: 2,
-                        borderColor: isDone ? '#00E6C3' : '#888',
-                        backgroundColor: isDone ? '#00E6C3' : 'transparent',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 8,
+                        backgroundColor: '#222',
+                        color: '#fff',
+                        padding: 16,
+                        borderRadius: 8,
+                        width: '100%',
+                        fontSize: 18
                       }}
-                    >
-                      {isDone && <Feather name="check" size={20} color="#fff" />}
-                    </TouchableOpacity>
-                    <Card padding={16} borderRadius={16} backgroundColor="$backgroundStrong" flex={1}>
-                      <Text fontSize={18} fontWeight="bold" color="$color">
-                        {idx + 1}. {ex.title?.[lang] || ex.title?.en || 'Untitled'}
-                      </Text>
-                      {ex.description?.[lang] && (
-                        <Text color="$gray11" marginTop={4}>{ex.description[lang]}</Text>
-                      )}
-                      {ex.youtube_url && ex.youtube_url.length > 0 && (
-                        <Text color="$blue10" marginTop={4}>YouTube: {ex.youtube_url}</Text>
-                      )}
-                    </Card>
+                      placeholder="Enter password"
+                      placeholderTextColor="#666"
+                      autoCapitalize="none"
+                    />
+          </View>
+                  <Button 
+                    size="$5"
+                    backgroundColor="#FF9500"
+                    color="#000"
+                    fontWeight="bold"
+                    onPress={unlockPath}
+                    pressStyle={{ backgroundColor: '#FF7B00' }}
+                    borderRadius={12}
+                    paddingHorizontal={32}
+                  >
+                    Unlock
+                  </Button>
+                </YStack>
+              ) : (
+                <Text color="$gray11" fontSize={16} marginTop={16} textAlign="center">
+                  This content is locked and cannot be accessed at this time.
+                </Text>
+        )}
+      </YStack>
+          ) : !isAvailable ? (
+            /* Unavailable Path State - Show when path isn't available yet */
+            <UnavailablePathView />
+          ) : (
+            /* Normal Path Content when Available and Not Locked */
+            <>
+              {/* Completion progress */}
+              {totalCount > 0 && (
+                <YStack marginTop={8} marginBottom={24}>
+                  <XStack justifyContent="space-between" alignItems="center" marginBottom={8}>
+                    <Text fontSize={18} fontWeight="bold" color="$color">Progress</Text>
+                    <Text fontSize={16} color={isFullyComplete ? '#00E6C3' : '$gray11'}>
+                      {completedCount}/{totalCount} ({percentComplete}%)
+                    </Text>
                   </XStack>
-                </TouchableOpacity>
-              );
-            })
+                  <View style={{ 
+                    width: '100%', 
+                    height: 8, 
+                    backgroundColor: '#333', 
+                    borderRadius: 4, 
+                    overflow: 'hidden' 
+                  }}>
+                    <View style={{ 
+                      width: `${percentComplete}%`, 
+                      height: '100%', 
+                      backgroundColor: '#00E6C3',
+                      borderRadius: 4
+                    }} />
+                  </View>
+                </YStack>
+              )}
+              
+              {/* Mark all button */}
+              <TouchableOpacity
+                onPress={() => handleMarkAllExercises(!isFullyComplete)}
+                style={{
+                  marginBottom: 24,
+                  backgroundColor: isFullyComplete ? '#333' : '#00E6C3',
+                  padding: 16,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                }}
+                disabled={totalCount === 0}
+              >
+                <Text color={isFullyComplete ? '$color' : '#000'} fontWeight="bold">
+                  {isFullyComplete ? 'Mark All as Incomplete' : 'Mark All as Complete'}
+                </Text>
+              </TouchableOpacity>
+              
+              <Text fontSize={22} fontWeight="bold" color="$color" marginBottom={16}>
+                Exercises
+              </Text>
+              
+              {exercises.length === 0 ? (
+                <Text color="$gray11">No exercises for this learning path.</Text>
+              ) : (
+                exercises.map((ex, idx) => {
+                  const isDone = completedIds.includes(ex.id);
+                  const isPasswordLocked = isExercisePasswordLocked(ex);
+                  
+                  // For repeated exercises, check if previous repeats are complete
+                  let previousRepeatsComplete = true;
+                  if (ex.isRepeat && ex.originalId) {
+                    // Find all previous repeats of this exercise
+                    const previousRepeats = exercises
+                      .filter(e => 
+                        (e.id === ex.originalId || (e.isRepeat && e.originalId === ex.originalId)) && 
+                        (e.repeatNumber === undefined || e.repeatNumber < (ex.repeatNumber || 0))
+                      );
+                      
+                      // Check if all previous repeats are complete
+                      previousRepeatsComplete = previousRepeats.every(prevEx => completedIds.includes(prevEx.id));
+                  }
+                  
+                  // Determine if exercise should be available based on previous exercises
+                  // For repeated exercises, we need all previous repeats to be complete
+                  const originalIndex = exercises.findIndex(e => !e.isRepeat && e.id === (ex.isRepeat ? ex.originalId : ex.id));
+                  const prevExercisesComplete = 
+                    // If it's the first exercise or a repeat of the first exercise, it's always available
+                    originalIndex <= 0 || 
+                    // Otherwise, check if all previous non-repeat exercises are complete AND
+                    // for a repeat, check if all previous repeats of the same exercise are complete
+                    (exercises
+                      .slice(0, idx)
+                      .filter(e => !e.isRepeat || e.originalId !== ex.originalId) // Exclude other repeats of this exercise
+                      .every(prevEx => completedIds.includes(prevEx.id)) && 
+                      previousRepeatsComplete);
+                  
+                  // Render the exercise with repeat indication if it's a repeat
+                  return (
+                    <TouchableOpacity key={ex.id} onPress={() => setSelectedExercise(ex)}>
+                      <XStack alignItems="center" gap={12} marginBottom={16}>
+                        <TouchableOpacity
+                          onPress={e => {
+                            e.stopPropagation();
+                            // Only allow toggling if exercise is not locked and previous exercises are done
+                            if (!isPasswordLocked && prevExercisesComplete) {
+                              toggleCompletion(ex.id);
+                            }
+                          }}
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            borderWidth: 2,
+                            borderColor: isDone ? '#00E6C3' : '#888',
+                            backgroundColor: isDone ? '#00E6C3' : 'transparent',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginRight: 8,
+                          }}
+                        >
+                          {isDone && <Feather name="check" size={20} color="#fff" />}
+                        </TouchableOpacity>
+                        <Card padding={16} borderRadius={16} backgroundColor="$backgroundStrong" flex={1}>
+                          <XStack justifyContent="space-between" alignItems="center">
+                            <XStack alignItems="center" gap={8} flex={1}>
+                              <Text fontSize={18} fontWeight="bold" color="$color" numberOfLines={1}>
+                                {idx + 1}. {ex.title?.[lang] || ex.title?.en || 'Untitled'}
+                              </Text>
+                              
+                              {/* Show repeat indicator if it's a repeat */}
+                              {ex.isRepeat && (
+                                <XStack 
+                                  backgroundColor="#4B6BFF" 
+                                  paddingHorizontal={8} 
+                                  paddingVertical={4} 
+                                  borderRadius={12} 
+                                  alignItems="center" 
+                                  gap={4}
+                                >
+                                  <Feather name="repeat" size={14} color="white" />
+                                  <Text fontSize={12} color="white" fontWeight="bold">
+                                    {ex.repeatNumber}/{ex.repeat_count}
+                                  </Text>
+                                </XStack>
+                              )}
+                            </XStack>
+                            
+                            {/* Show appropriate icon based on state - LOCK gets priority */}
+                            {isPasswordLocked ? (
+                              <MaterialIcons name="lock" size={20} color="#FF9500" />
+                            ) : !prevExercisesComplete ? (
+                              <MaterialIcons name="hourglass-empty" size={20} color="#FF9500" />
+                            ) : isDone ? (
+                              <Feather name="check-circle" size={20} color="#00E6C3" />
+                            ) : null}
+                          </XStack>
+                          
+                          {ex.description?.[lang] && (
+                            <Text color="$gray11" marginTop={4}>{ex.description[lang]}</Text>
+                          )}
+                        </Card>
+                      </XStack>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </>
           )}
-        </YStack>
+        </ScrollView>
       </YStack>
     );
   }
@@ -359,62 +1723,207 @@ export function ProgressScreen() {
   return (
     <YStack flex={1} backgroundColor="$background" padding={0}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
-        {paths.map((path, idx) => {
+        {/* Category filters */}
+        <YStack space={12} padding={16} backgroundColor="$backgroundStronger" borderRadius={16} marginBottom={24}>
+          <Text fontSize={16} fontWeight="bold" color="$color">Filter Learning Paths</Text>
+
+          <XStack flexWrap="wrap" gap={8} justifyContent="space-between">
+            {Object.keys(categoryFilters).map((filterType) => {
+              const type = filterType as CategoryType;
+              // Skip if there are no options for this category type
+              if (!categoryOptions[type] || categoryOptions[type].length <= 1) return null;
+              
+              // Find the selected option
+              const selectedOption = categoryOptions[type].find(
+                opt => opt.value === categoryFilters[type]
+              );
+              
+              const displayValue = selectedOption 
+                ? (selectedOption.label[lang] || selectedOption.label.en)
+                : 'All';
+              
+              return (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => setActiveFilterType(type)}
+                  style={{
+                    flexBasis: "48%",
+                    maxWidth: 150,
+                    backgroundColor: '#333',
+                    padding: 12,
+                    borderRadius: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text fontSize={14} color="$color" marginBottom={4}>
+                    {categoryLabels[type]}
+                  </Text>
+                  <Text fontSize={16} color="#00E6C3">
+                    {displayValue}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </XStack>
+        </YStack>
+
+        {/* Render filter selection modals */}
+        {renderFilterModal(activeFilterType)}
+
+        {filteredPaths.length === 0 ? (
+          <YStack padding={16} alignItems="center" justifyContent="center" gap={8}>
+            <Feather name="info" size={32} color="$gray11" />
+            <Text fontSize={20} fontWeight="bold" color="$color" textAlign="center">No learning paths found</Text>
+            <Text fontSize={16} color="$gray11" textAlign="center">
+              Try adjusting your filter settings to see more learning paths.
+            </Text>
+          </YStack>
+        ) : (
+          filteredPaths.map((path, idx) => {
           const isActive = activePath === path.id;
-          const percent = getPathProgress(path.id);
-          // Enable if first path, or previous path is 100% complete
-          const isEnabled = idx === 0 || getPathProgress(paths[idx - 1]?.id) === 1;
-          // Visual highlight for the next path that is now enabled
-          const isNextToUnlock = isEnabled && idx > 0 && getPathProgress(paths[idx - 1]?.id) === 1 && getPathProgress(path.id) < 1;
+            const percent = getPathProgress(path.id);
+            
+            // First path is always enabled, others depend on previous completion
+            const isFirstPath = idx === 0;
+            const previousPathCompleted = idx > 0 && 
+              filteredPaths[idx-1] ? 
+              getPathProgress(filteredPaths[idx-1].id) >= 1 : 
+              false;
+            
+            const isEnabled = isFirstPath || previousPathCompleted;
+            
+            // Visual highlight for the next path that is now enabled
+            const isNextToUnlock = isEnabled && !isFirstPath && previousPathCompleted && percent < 1;
+            
+            // Check if path is password-locked - HIGHEST PRIORITY
+            const isPasswordLocked = isPathPasswordLocked(path);
+            const hasPassword = pathHasPassword(path);
+            
           return (
             <TouchableOpacity
               key={path.id}
-              onPress={() => isEnabled && handlePathPress(path)}
-              activeOpacity={isEnabled ? 0.8 : 1}
-              style={{
-                marginBottom: 20,
-                opacity: isEnabled ? 1 : 0.5,
-                borderWidth: isNextToUnlock ? 3 : 0,
-                borderColor: isNextToUnlock ? '#00E6C3' : 'transparent',
-                borderRadius: 24,
-                shadowColor: isNextToUnlock ? '#00E6C3' : 'transparent',
-                shadowOpacity: isNextToUnlock ? 0.5 : 0,
-                shadowRadius: isNextToUnlock ? 12 : 0,
-                shadowOffset: { width: 0, height: 0 },
-              }}
-              disabled={!isEnabled}
+                onPress={() => handlePathPress(path, idx)}
+              activeOpacity={0.8}
+                style={{
+                  marginBottom: 20,
+                  opacity: isEnabled ? 1 : 0.5,
+                  borderWidth: isNextToUnlock ? 3 : (isPasswordLocked ? 2 : 0),
+                  borderColor: isNextToUnlock ? '#00E6C3' : (isPasswordLocked ? '#FF9500' : 'transparent'),
+                  borderRadius: 24,
+                  shadowColor: isNextToUnlock ? '#00E6C3' : (isPasswordLocked ? '#FF9500' : 'transparent'),
+                  shadowOpacity: isNextToUnlock ? 0.5 : (isPasswordLocked ? 0.3 : 0),
+                  shadowRadius: isNextToUnlock ? 12 : (isPasswordLocked ? 8 : 0),
+                  shadowOffset: { width: 0, height: 0 },
+                }}
             >
               <Card
-                backgroundColor={isActive ? "$blue5" : "$backgroundStrong"}
+                  backgroundColor={isActive ? "$blue5" : (isPasswordLocked ? "#331800" : "$backgroundStrong")}
                 padding={20}
                 borderRadius={20}
                 elevate
               >
                 <XStack alignItems="center" gap={16}>
-                  <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: isActive ? '#00E6C3' : '#222', alignItems: 'center', justifyContent: 'center' }}>
-                    {/* Progress circle with percent */}
-                    <ProgressCircle percent={percent} size={40} color="#fff" bg={isActive ? '#00E6C3' : '#222'} />
-                    <Text
-                      style={{ position: 'absolute', top: 0, left: 0, width: 40, height: 40, textAlign: 'center', textAlignVertical: 'center', lineHeight: 40 }}
-                      color={isActive ? '$color' : '$gray11'}
-                      fontWeight="bold"
-                    >
-                      {Math.round(percent * 100)}%
-                    </Text>
+                    <View style={{ 
+                      width: 56, 
+                      height: 56, 
+                      borderRadius: 16, 
+                      backgroundColor: isActive ? '#00E6C3' : (isPasswordLocked ? '#FF9500' : '#222'), 
+                      alignItems: 'center', 
+                      justifyContent: 'center' 
+                    }}>
+                      {isPasswordLocked ? (
+                        <MaterialIcons name="lock" size={30} color="#fff" />
+                    ) : (
+                        <>
+                          {/* Progress circle with percent */}
+                          <ProgressCircle percent={percent} size={40} color="#fff" bg={isActive ? '#00E6C3' : '#222'} />
+                          <Text
+                            style={{ position: 'absolute', top: 0, left: 0, width: 40, height: 40, textAlign: 'center', textAlignVertical: 'center', lineHeight: 40 }}
+                            color={isActive ? '$color' : '$gray11'}
+                            fontWeight="bold"
+                          >
+                            {Math.round(percent * 100)}%
+                          </Text>
+                        </>
+                    )}
                   </View>
                   <YStack flex={1}>
-                    <Text fontSize={20} fontWeight={isActive ? 'bold' : '600'} color={isActive ? '$color' : '$gray11'}>
+                      <XStack alignItems="center" gap={8}>
+                        <Text 
+                          fontSize={20} 
+                          fontWeight={isActive ? 'bold' : '600'} 
+                          color={isActive ? '$color' : (isPasswordLocked ? '#FF9500' : '$gray11')}
+                        >
                       {idx + 1}. {path.title[lang]}
                     </Text>
+                        
+                        {/* Show appropriate icon based on state - LOCK gets priority */}
+                        {isPasswordLocked && hasPassword && (
+                          <XStack 
+                            backgroundColor="#FF7300" 
+                            paddingHorizontal={8} 
+                            paddingVertical={4} 
+                            borderRadius={12} 
+                            alignItems="center" 
+                            gap={4}
+                          >
+                            <MaterialIcons name="vpn-key" size={16} color="white" />
+                            <Text fontSize={12} color="white" fontWeight="bold">
+                              Password
+                            </Text>
+                          </XStack>
+                        )}
+                      </XStack>
+                      
                     <Text color="$gray11" fontSize={14} marginTop={2}>
                       {path.description[lang]}
                     </Text>
+                      
+                      {/* Category displays */}
+                      <XStack flexWrap="wrap" marginTop={4} gap={4}>
+                        {path.vehicle_type && (
+                          <Text fontSize={12} color="$blue10">
+                            {path.vehicle_type}{path.transmission_type ? ' • ' : ''}
+                          </Text>
+                        )}
+                        
+                        {path.transmission_type && (
+                          <Text fontSize={12} color="$blue10">
+                            {path.transmission_type}{path.license_type ? ' • ' : ''}
+                          </Text>
+                        )}
+                        
+                        {path.license_type && (
+                          <Text fontSize={12} color="$blue10">
+                            {path.license_type}{path.experience_level ? ' • ' : ''}
+                          </Text>
+                        )}
+                        
+                        {path.experience_level && (
+                          <Text fontSize={12} color="$blue10">
+                            {path.experience_level}{path.purpose ? ' • ' : ''}
+                          </Text>
+                        )}
+                        
+                        {path.purpose && (
+                          <Text fontSize={12} color="$blue10">
+                            {path.purpose}{path.user_profile ? ' • ' : ''}
+                          </Text>
+                        )}
+                        
+                        {path.user_profile && (
+                          <Text fontSize={12} color="$blue10">
+                            {path.user_profile}
+                          </Text>
+                        )}
+                      </XStack>
                   </YStack>
                 </XStack>
               </Card>
             </TouchableOpacity>
           );
-        })}
+          })
+        )}
       </ScrollView>
     </YStack>
   );
