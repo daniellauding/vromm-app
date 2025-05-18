@@ -41,6 +41,7 @@ import { AppHeader } from '../components/AppHeader';
 import { useTranslation } from '../contexts/TranslationContext';
 import { FilterOptions, FilterSheetModal } from '../components/FilterSheet';
 import { useModal } from '../contexts/ModalContext';
+import { RecordDrivingModal } from '../components/RecordDrivingSheet';
 
 const MAPBOX_ACCESS_TOKEN =
   'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
@@ -247,7 +248,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   });
   const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
   const [showActionSheet, setShowActionSheet] = useState(false);
-  const [showRecordDriving, setShowRecordDriving] = useState(false);
 
   const { height: screenHeight } = Dimensions.get('window');
   const snapPoints = useMemo(
@@ -972,8 +972,9 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   // Handle Record Driving option
   const handleRecordDriving = useCallback(() => {
     setShowActionSheet(false);
-    setShowRecordDriving(true);
-  }, []);
+    // Directly render instead of using React element
+    showModal(<RecordDrivingModal />);
+  }, [showModal]);
 
   // Helper function to calculate distance
   const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -991,6 +992,48 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const deg2rad = (deg: number) => {
     return deg * (Math.PI / 180);
   };
+
+  // Check for recorded route data when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      console.log('MapScreen: useFocusEffect triggered');
+      
+      // Check if we have recorded route data from RecordDrivingSheet
+      if (global && (global as any).shouldOpenCreateRoute) {
+        console.log('MapScreen: global.shouldOpenCreateRoute is true');
+        const routeData = (global as any).recordedRouteData;
+        
+        if (routeData) {
+          console.log('MapScreen: Found route data', {
+            waypointsCount: routeData.waypoints?.length || 0,
+            name: routeData.name,
+            description: routeData.description
+          });
+          
+          // Reset the flag
+          (global as any).shouldOpenCreateRoute = false;
+          console.log('MapScreen: Reset shouldOpenCreateRoute to false');
+          
+          // Navigate to create route screen with the recorded data
+          console.log('MapScreen: Attempting navigation to CreateRouteScreen');
+          (navigation.navigate as any)('CreateRoute', {
+            initialWaypoints: routeData.waypoints,
+            initialName: routeData.name,
+            initialDescription: routeData.description,
+            initialSearchCoordinates: routeData.searchCoordinates,
+            initialRoutePath: routeData.routePath,
+            initialStartPoint: routeData.startPoint,
+            initialEndPoint: routeData.endPoint
+          });
+          console.log('MapScreen: Navigation attempted');
+        } else {
+          console.log('MapScreen: routeData is null or undefined');
+        }
+      } else {
+        console.log('MapScreen: No recorded route data to process');
+      }
+    }, [navigation])
+  );
 
   if (!isMapReady) {
     return (
@@ -1101,7 +1144,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
               >
                 <Feather name="map-pin" size={24} color={DARK_THEME.iconColor} />
                 <Text fontWeight="500" fontSize={18} color={DARK_THEME.text} marginLeft={12}>
-                  {t('createRoute.createTitle') || 'Create Route'}
+                  {'Create Route'}
                 </Text>
               </TouchableOpacity>
               
@@ -1117,67 +1160,9 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
               >
                 <Feather name="video" size={24} color={DARK_THEME.iconColor} />
                 <Text fontWeight="500" fontSize={18} color={DARK_THEME.text} marginLeft={12}>
-                  {t('map.recordDriving') || 'Record Driving'}
+                  {'Record Driving'}
                 </Text>
               </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Modal>
-
-        {/* Record Driving Modal */}
-        <Modal
-          visible={showRecordDriving}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowRecordDriving(false)}
-        >
-          <Pressable
-            style={{ 
-              flex: 1, 
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              justifyContent: 'flex-end'
-            }}
-            onPress={() => setShowRecordDriving(false)}
-          >
-            <View
-              style={{
-                backgroundColor: DARK_THEME.bottomSheet,
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                padding: 16,
-                paddingBottom: Platform.OS === 'ios' ? 34 + 16 : 16, // Account for bottom safe area
-              }}
-            >
-              <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                <View 
-                  style={{ 
-                    width: 40, 
-                    height: 4, 
-                    borderRadius: 2, 
-                    backgroundColor: DARK_THEME.handleColor,
-                    marginBottom: 8 
-                  }} 
-                />
-                <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
-                  {t('map.recordDriving') || 'Record Driving'}
-                </Text>
-              </View>
-              
-              <View style={{ marginBottom: 16 }}>
-                <Text color={DARK_THEME.text} fontSize={16}>
-                  This sheet will allow recording your driving session
-                </Text>
-              </View>
-              
-              <Button
-                onPress={() => setShowRecordDriving(false)}
-                backgroundColor={DARK_THEME.cardBackground}
-                color={DARK_THEME.text}
-                size="$4"
-                marginTop={16}
-              >
-                {t('common.close') || 'Close'}
-              </Button>
             </View>
           </Pressable>
         </Modal>

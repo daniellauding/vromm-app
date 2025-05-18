@@ -20,7 +20,12 @@ export const ModalProvider = ({ children }: { children: ReactNode }) => {
   const [modalContent, setModalContent] = useState<ReactNode | null>(null);
 
   const showModal = (content: ReactNode) => {
-    setModalContent(content);
+    // Ensure we're getting a proper React element
+    if (React.isValidElement(content)) {
+      setModalContent(content);
+    } else {
+      console.error('Invalid modal content - must be a valid React element');
+    }
   };
 
   const hideModal = () => {

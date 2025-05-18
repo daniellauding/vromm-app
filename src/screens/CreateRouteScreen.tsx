@@ -59,6 +59,22 @@ type Props = {
   route?: {
     params?: {
       routeId?: string;
+      initialWaypoints?: Waypoint[];
+      initialName?: string;
+      initialDescription?: string;
+      initialSearchCoordinates?: string;
+      initialRoutePath?: Array<{
+        latitude: number;
+        longitude: number;
+      }>;
+      initialStartPoint?: {
+        latitude: number;
+        longitude: number;
+      };
+      initialEndPoint?: {
+        latitude: number;
+        longitude: number;
+      };
     };
   };
 };
@@ -72,6 +88,13 @@ function getTranslation(t: (key: string) => string, key: string, fallback: strin
 export function CreateRouteScreen({ route }: Props) {
   const { t } = useTranslation();
   const routeId = route?.params?.routeId;
+  const initialWaypoints = route?.params?.initialWaypoints;
+  const initialName = route?.params?.initialName;
+  const initialDescription = route?.params?.initialDescription;
+  const initialSearchCoordinates = route?.params?.initialSearchCoordinates;
+  const initialRoutePath = route?.params?.initialRoutePath;
+  const initialStartPoint = route?.params?.initialStartPoint;
+  const initialEndPoint = route?.params?.initialEndPoint;
   const isEditing = !!routeId;
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
@@ -83,7 +106,7 @@ export function CreateRouteScreen({ route }: Props) {
   const navigation = useNavigation<NavigationProp>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
+  const [waypoints, setWaypoints] = useState<Waypoint[]>(initialWaypoints || []);
   const [region, setRegion] = useState({
     latitude: 55.7047,
     longitude: 13.191,
@@ -101,9 +124,22 @@ export function CreateRouteScreen({ route }: Props) {
   const HERO_HEIGHT = windowHeight * 0.6;
   const [youtubeLink, setYoutubeLink] = useState('');
 
+  // Initialize search query with coordinates if provided
   useEffect(() => {
-    // Only try to get current location if we're creating a new route (not editing)
-    if (!isEditing) {
+    if (initialSearchCoordinates && searchQuery === '') {
+      console.log('Setting initial search coordinates:', initialSearchCoordinates);
+      setSearchQuery(initialSearchCoordinates);
+    }
+  }, [initialSearchCoordinates]);
+
+  // Setup routePath for map if provided
+  const [routePath, setRoutePath] = useState<Array<{latitude: number, longitude: number}> | null>(
+    initialRoutePath || null
+  );
+
+  useEffect(() => {
+    // Only try to get current location if we're creating a new route (not editing) and there are no initial waypoints
+    if (!isEditing && !initialWaypoints?.length) {
       (async () => {
         try {
           if (!locationPermission) {
@@ -115,7 +151,7 @@ export function CreateRouteScreen({ route }: Props) {
             if (location) {
               const { latitude, longitude } = location.coords;
 
-              // Update region to current location
+              // Update region
               setRegion({
                 latitude,
                 longitude,
@@ -161,7 +197,29 @@ export function CreateRouteScreen({ route }: Props) {
         }
       })();
     }
-  }, [isEditing, locationPermission]);
+    
+    // If we have initial waypoints, set up the region based on them
+    if (initialWaypoints?.length) {
+      const latitudes = initialWaypoints.map(wp => wp.latitude);
+      const longitudes = initialWaypoints.map(wp => wp.longitude);
+      
+      const minLat = Math.min(...latitudes);
+      const maxLat = Math.max(...latitudes);
+      const minLng = Math.min(...longitudes);
+      const maxLng = Math.max(...longitudes);
+      
+      // Create a region that contains all waypoints
+      setRegion({
+        latitude: (minLat + maxLat) / 2,
+        longitude: (minLng + maxLng) / 2,
+        latitudeDelta: Math.max((maxLat - minLat) * 1.2, 0.02),
+        longitudeDelta: Math.max((maxLng - minLng) * 1.2, 0.02)
+      });
+      
+      // Set active section to basic to allow naming the route
+      setActiveSection('basic');
+    }
+  }, [isEditing, locationPermission, initialWaypoints]);
 
   useEffect(() => {
     if (isEditing && routeId) {
@@ -170,8 +228,8 @@ export function CreateRouteScreen({ route }: Props) {
   }, [isEditing, routeId]);
 
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    name: initialName || '',
+    description: initialDescription || '',
     difficulty: 'beginner' as DifficultyLevel,
     spot_type: 'urban' as SpotType,
     visibility: 'public' as SpotVisibility,
@@ -1163,6 +1221,8 @@ export function CreateRouteScreen({ route }: Props) {
                           region={region}
                           onPress={handleMapPressWrapper}
                           style={{ flex: 1 }}
+                          routePath={routePath || undefined}
+                          routePathColor="#1A73E8"
                         />
                         <Button
                           position="absolute"

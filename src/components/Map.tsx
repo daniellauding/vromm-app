@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { View, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker, Region, Polyline } from 'react-native-maps';
 import { StyleSheet } from 'react-native';
 import { Text, Circle } from 'tamagui';
 import Supercluster from 'supercluster';
@@ -12,6 +12,11 @@ export type Waypoint = {
   description?: string;
   id?: string;
   onPress?: () => void;
+};
+
+export type RoutePathPoint = {
+  latitude: number;
+  longitude: number;
 };
 
 type ClusterMarkerProps = {
@@ -159,6 +164,9 @@ export function Map({
   onMarkerPress,
   customMarker,
   ref,
+  routePath,
+  routePathColor = '#1A73E8',
+  routePathWidth = 3,
 }: {
   waypoints: Waypoint[];
   region: Region;
@@ -172,6 +180,9 @@ export function Map({
   onMarkerPress?: (waypointId: string) => boolean | void;
   customMarker?: React.ReactNode;
   ref?: React.Ref<MapView>;
+  routePath?: RoutePathPoint[];
+  routePathColor?: string;
+  routePathWidth?: number;
 }) {
   const mapRef = React.useRef<MapView>(null);
   const lastRegionChange = React.useRef<number>(0);
@@ -276,6 +287,16 @@ export function Map({
         onRegionChangeComplete={handleRegionChange}
         userInterfaceStyle="dark"
       >
+        {/* Display route path if provided */}
+        {routePath && routePath.length > 1 && (
+          <Polyline
+            coordinates={routePath}
+            strokeWidth={routePathWidth}
+            strokeColor={routePathColor}
+            lineJoin="round"
+          />
+        )}
+        
         {clusters.map((cluster) => {
           return (
             <WaypointMarker
