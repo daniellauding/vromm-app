@@ -7,18 +7,60 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "USE_HERMES": "0",
+        "RCT_NEW_ARCH_ENABLED": "0"
+      },
       "ios": {
         "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "USE_HERMES": "0",
+        "RCT_NEW_ARCH_ENABLED": "0"
+      },
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "image": "latest",
+        "simulator": false,
+        "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
+      }
+    },
+    "ios-preview": {
+      "distribution": "internal",
+      "channel": "ios-preview",
+      "env": {
+        "USE_HERMES": "0",
+        "RCT_NEW_ARCH_ENABLED": "0"
+      },
+      "cache": {
+        "disabled": true
+      },
+      "ios": {
+        "resourceClass": "m-medium",
+        "simulator": false,
+        "buildConfiguration": "Release",
+        "scheme": "vrommapp"
       }
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "USE_HERMES": "0",
+        "RCT_NEW_ARCH_ENABLED": "0"
+      },
       "ios": {
         "resourceClass": "m-medium",
         "image": "latest"
@@ -27,9 +69,29 @@
         "image": "latest",
         "buildType": "app-bundle"
       }
+    },
+    "testflight": {
+      "distribution": "store",
+      "channel": "production",
+      "env": {
+        "USE_HERMES": "0",
+        "RCT_NEW_ARCH_ENABLED": "0"
+      },
+      "ios": {
+        "resourceClass": "m-medium",
+        "scheme": "vrommapp",
+        "buildConfiguration": "Release"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {},
+    "testflight": {
+      "ios": {
+        "appleId": "daniel@lauding.se",
+        "ascAppId": "6580652031",
+        "appleTeamId": "P2HW38GPRE"
+      }
+    }
   }
 }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "766664821472",
+    "project_id": "korvagen",
+    "storage_bucket": "korvagen.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:766664821472:android:d94fc5cb0957dcaa28de85",
+        "android_client_info": {
+          "package_name": "com.vromm.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzS-fXvIMMtkEMzaNHjYAwyNWFjvUFSUo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

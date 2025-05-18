@@ -1,6 +1,40 @@
-import * as Analytics from 'expo-firebase-analytics';
-import { Platform } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 import Constants from 'expo-constants';
+
+// Create a conditional import for analytics
+let analyticsModule: any;
+try {
+  // Only import if the native module is available
+  if (NativeModules.RNFBAnalyticsModule) {
+    analyticsModule = require('@react-native-firebase/analytics').default;
+  } else {
+    // Create a mock analytics object if native module not available
+    analyticsModule = () => ({
+      setAnalyticsCollectionEnabled: async () => true,
+      setUserProperties: async () => {},
+      logEvent: async () => {},
+      app: null
+    });
+    console.log('Using mock analytics module');
+  }
+} catch (error) {
+  // Fallback to mock analytics
+  analyticsModule = () => ({
+    setAnalyticsCollectionEnabled: async () => true,
+    setUserProperties: async () => {},
+    logEvent: async () => {},
+    app: null
+  });
+  console.log('Error importing analytics, using mock:', error);
+}
+
+// Use our conditionally imported analytics
+const analytics = analyticsModule;
+
+// Check if Firebase is available
+const isFirebaseAvailable = () => {
+  return !!NativeModules.RNFBAnalyticsModule;
+};
 
 // Initialize Firebase Analytics with safety checks
 const initializeAnalytics = async () => {
@@ -11,11 +45,17 @@ const initializeAnalytics = async () => {
       return false;
     }
 
+    // Check if Firebase Analytics is available
+    if (!isFirebaseAvailable()) {
+      console.log('Firebase Analytics native module not available');
+      return false;
+    }
+
     // Enable analytics collection
-    await Analytics.setAnalyticsCollectionEnabled(true);
+    await analytics().setAnalyticsCollectionEnabled(true);
     
     // Set basic user properties
-    await Analytics.setUserProperties({
+    await analytics().setUserProperties({
       platform: Platform.OS,
       app_version: Constants.expoConfig?.version || 'unknown',
       build_number: (Constants.expoConfig?.ios?.buildNumber || 
@@ -39,8 +79,8 @@ const safeAnalytics = {
       if (!this.isInitialized) {
         this.isInitialized = await initializeAnalytics();
       }
-      if (this.isInitialized) {
-        await Analytics.logEvent(eventName, {
+      if (this.isInitialized && isFirebaseAvailable()) {
+        await analytics().logEvent(eventName, {
           ...properties,
           timestamp: new Date().toISOString()
         });
@@ -58,8 +98,8 @@ const safeAnalytics = {
       if (!this.isInitialized) {
         this.isInitialized = await initializeAnalytics();
       }
-      if (this.isInitialized) {
-        await Analytics.setUserProperties(properties);
+      if (this.isInitialized && isFirebaseAvailable()) {
+        await analytics().setUserProperties(properties);
       }
     } catch (error) {
       // Only log warning in development

@@ -1,13 +1,29 @@
 import { registerRootComponent } from 'expo';
 import App from './App';
+import { AppRegistry, NativeModules } from 'react-native';
+import { name as appName } from './app.json';
 
-// Filter out Reanimated warnings in development
-if (__DEV__) {
-  const originalConsoleWarn = console.warn;
-  console.warn = (...args) => {
-    if (args[0]?.includes?.('[Reanimated] Reading from `value` during component render')) return;
-    originalConsoleWarn(...args);
-  };
+// Only initialize Firebase if the native modules are available
+const firebaseModulesAvailable = 
+  NativeModules.RNFBAnalyticsModule && 
+  NativeModules.RNFBAppModule;
+
+// Initialize Firebase only if native modules are available
+if (firebaseModulesAvailable) {
+  try {
+    require('@react-native-firebase/app');
+    console.log('Firebase initialized successfully');
+    
+    // Enable debug mode for development
+    if (__DEV__) {
+      globalThis.RNFBDebug = true;
+    }
+  } catch (error) {
+    console.log('Failed to initialize Firebase:', error);
+  }
+} else {
+  console.log('Firebase native modules not available, skipping initialization');
 }
 
+// Register the app
 registerRootComponent(App); 

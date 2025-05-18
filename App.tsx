@@ -8,12 +8,36 @@ import { TranslationProvider } from './src/contexts/TranslationContext';
 import { RootStackParamList } from './src/types/navigation';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Platform, NativeModules } from 'react-native';
 import * as Font from 'expo-font';
 import { useEffect, useState } from 'react';
 import { supabase } from './src/lib/supabase';
 import { StatusBar } from 'expo-status-bar';
 import { setupTranslationSubscription } from './src/services/translationService';
+
+// Use lazy import to prevent NativeEventEmitter errors
+let analyticsModule: any;
+try {
+  if (NativeModules.RNFBAnalyticsModule) {
+    analyticsModule = require('@react-native-firebase/analytics').default;
+  } else {
+    analyticsModule = () => ({
+      setAnalyticsCollectionEnabled: async () => true,
+      logScreenView: async () => {},
+      app: null
+    });
+    console.log('[Firebase] Using mock analytics in App.tsx');
+  }
+} catch (error) {
+  analyticsModule = () => ({
+    setAnalyticsCollectionEnabled: async () => true,
+    logScreenView: async () => {},
+    app: null
+  });
+  console.log('[Firebase] Error initializing analytics in App.tsx:', error);
+}
+
+const analytics = analyticsModule;
 
 // Auth screens
 import { SplashScreen } from './src/screens/SplashScreen';
@@ -39,6 +63,27 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
   const colorScheme = useColorScheme();
+
+  // Enable analytics collection when the app starts
+  useEffect(() => {
+    const initializeAnalytics = async () => {
+      try {
+        // Check if the analytics module is available
+        if (!analytics().app) {
+          console.log('Firebase Analytics not available');
+          return;
+        }
+        
+        // Make sure analytics collection is enabled
+        await analytics().setAnalyticsCollectionEnabled(true);
+        console.log('Firebase Analytics initialized');
+      } catch (error) {
+        console.error('Failed to initialize analytics:', error);
+      }
+    };
+
+    initializeAnalytics();
+  }, []);
 
   // Initialize translation service with real-time updates
   useEffect(() => {
@@ -87,6 +132,27 @@ function AppContent() {
     <NavigationContainer
       onStateChange={state => {
         console.log('[DEBUG] Navigation state:', state);
+        
+        // Track screen views for analytics - works on both iOS and Android
+        if (state) {
+          const route = state.routes[state.index];
+          const screen_name = route.name;
+          const screen_class = route.name;
+          
+          try {
+            // Using React Native Firebase analytics
+            if (analytics().app) {
+              analytics()
+                .logScreenView({
+                  screen_name,
+                  screen_class,
+                })
+                .catch(err => console.log('Analytics error:', err));
+            }
+          } catch (error) {
+            console.log('Analytics not available for screen view');
+          }
+        }
       }}
     >
       <Stack.Navigator

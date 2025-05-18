@@ -8,21 +8,42 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
+    "jsEngine": "jsc",
+    "hermes": {
+      "enabled": false
+    },
     "ios": {
       "bundleIdentifier": "com.vromm.app",
-      "supportsTablet": true
+      "jsEngine": "jsc",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "location",
+          "fetch"
+        ],
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to show nearby services.",
+        "NSUserTrackingUsageDescription": "This allows us to understand how you use the app and improve your experience."
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "package": "com.vromm.app",
+      "jsEngine": "jsc",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -46,17 +67,6 @@
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
         }
       ],
-      [
-        "expo-firebase-core",
-        {
-          "ios": {
-            "googleServicesFile": "./GoogleService-Info.plist"
-          },
-          "android": {
-            "googleServicesFile": "./google-services.json"
-          }
-        }
-      ],
       "expo-font",
       "expo-web-browser"
     ],
@@ -71,11 +81,9 @@
         "projectId": "fa6c9622-c436-45f8-a238-abeb7b4b4c13"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
-      "url": "https://u.expo.dev/2093698c-f1cc-4c9c-90da-9369a010e5d6"
+      "url": "https://u.expo.dev/fa6c9622-c436-45f8-a238-abeb7b4b4c13"
     }
   }
 }
