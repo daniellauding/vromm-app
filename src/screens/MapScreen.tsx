@@ -99,6 +99,17 @@ type SearchResult = {
   place_type: string[];
 };
 
+const DARK_THEME = {
+  background: '#1A1A1A',
+  bottomSheet: '#1F1F1F',
+  text: 'white',
+  secondaryText: '#AAAAAA',
+  borderColor: '#333',
+  handleColor: '#666',
+  iconColor: 'white',
+  cardBackground: '#2D3130',
+};
+
 const styles = StyleSheet.create({
   searchContainer: {
     position: 'absolute',
@@ -212,10 +223,10 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
   const { fetchRoutes } = useRoutes();
-  const colorScheme = useColorScheme();
-  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
-  const handleColor = colorScheme === 'dark' ? '#666' : '#CCC';
-  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const backgroundColor = DARK_THEME.background;
+  const handleColor = DARK_THEME.handleColor;
+  const iconColor = DARK_THEME.iconColor;
+  const textColor = DARK_THEME.text;
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -1056,7 +1067,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           >
             <View
               style={{
-                backgroundColor: backgroundColor,
+                backgroundColor: DARK_THEME.bottomSheet,
                 borderTopLeftRadius: 20,
                 borderTopRightRadius: 20,
                 padding: 16,
@@ -1069,11 +1080,11 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                     width: 40, 
                     height: 4, 
                     borderRadius: 2, 
-                    backgroundColor: handleColor,
+                    backgroundColor: DARK_THEME.handleColor,
                     marginBottom: 8 
                   }} 
                 />
-                <Text fontWeight="600" fontSize={24} color={iconColor}>
+                <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
                   {t('map.actions') || 'Actions'}
                 </Text>
               </View>
@@ -1084,12 +1095,12 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                   alignItems: 'center',
                   padding: 16,
                   borderBottomWidth: 1,
-                  borderBottomColor: colorScheme === 'dark' ? '#333' : '#eee',
+                  borderBottomColor: DARK_THEME.borderColor,
                 }}
                 onPress={handleCreateRoute}
               >
-                <Feather name="map-pin" size={24} color={iconColor} />
-                <Text fontWeight="500" fontSize={18} color={iconColor} marginLeft={12}>
+                <Feather name="map-pin" size={24} color={DARK_THEME.iconColor} />
+                <Text fontWeight="500" fontSize={18} color={DARK_THEME.text} marginLeft={12}>
                   {t('createRoute.createTitle') || 'Create Route'}
                 </Text>
               </TouchableOpacity>
@@ -1100,12 +1111,12 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                   alignItems: 'center',
                   padding: 16,
                   borderBottomWidth: 1,
-                  borderBottomColor: colorScheme === 'dark' ? '#333' : '#eee',
+                  borderBottomColor: DARK_THEME.borderColor,
                 }}
                 onPress={handleRecordDriving}
               >
-                <Feather name="video" size={24} color={iconColor} />
-                <Text fontWeight="500" fontSize={18} color={iconColor} marginLeft={12}>
+                <Feather name="video" size={24} color={DARK_THEME.iconColor} />
+                <Text fontWeight="500" fontSize={18} color={DARK_THEME.text} marginLeft={12}>
                   {t('map.recordDriving') || 'Record Driving'}
                 </Text>
               </TouchableOpacity>
@@ -1130,7 +1141,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           >
             <View
               style={{
-                backgroundColor: backgroundColor,
+                backgroundColor: DARK_THEME.bottomSheet,
                 borderTopLeftRadius: 20,
                 borderTopRightRadius: 20,
                 padding: 16,
@@ -1143,25 +1154,25 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                     width: 40, 
                     height: 4, 
                     borderRadius: 2, 
-                    backgroundColor: handleColor,
+                    backgroundColor: DARK_THEME.handleColor,
                     marginBottom: 8 
                   }} 
                 />
-                <Text fontWeight="600" fontSize={24} color={iconColor}>
+                <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
                   {t('map.recordDriving') || 'Record Driving'}
                 </Text>
               </View>
               
               <View style={{ marginBottom: 16 }}>
-                <Text color={iconColor} fontSize={16}>
+                <Text color={DARK_THEME.text} fontSize={16}>
                   This sheet will allow recording your driving session
                 </Text>
               </View>
               
               <Button
                 onPress={() => setShowRecordDriving(false)}
-                backgroundColor={colorScheme === 'dark' ? '#333' : '#eee'}
-                color={iconColor}
+                backgroundColor={DARK_THEME.cardBackground}
+                color={DARK_THEME.text}
                 size="$4"
                 marginTop={16}
               >
@@ -1181,16 +1192,16 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                 styles.bottomSheet,
                 {
                   height: screenHeight,
-                  backgroundColor,
+                  backgroundColor: DARK_THEME.bottomSheet,
                   transform: [{ translateY }],
                 },
               ]}
             >
               <View style={styles.handleContainer}>
-                <View style={[styles.handle, { backgroundColor: handleColor }]} />
+                <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
                 <XStack alignItems="center" gap="$2">
-                  <Feather name="map" size={16} color={iconColor} />
-                  <Text fontSize="$4" fontWeight="600" color="$color">
+                  <Feather name="map" size={16} color={DARK_THEME.iconColor} />
+                  <Text fontSize="$4" fontWeight="600" color={DARK_THEME.text}>
                     {filteredRoutes.length}{' '}
                     {filteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
                   </Text>
@@ -1210,7 +1221,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
               bottom: BOTTOM_NAV_HEIGHT,
               left: 0,
               right: 0,
-              backgroundColor: '$background',
+              backgroundColor: DARK_THEME.cardBackground,
               borderTopLeftRadius: 16,
               borderTopRightRadius: 16,
               shadowColor: '#000',

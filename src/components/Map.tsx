@@ -274,6 +274,7 @@ export function Map({
         showsUserLocation={true}
         onPress={onPress}
         onRegionChangeComplete={handleRegionChange}
+        userInterfaceStyle="dark"
       >
         {clusters.map((cluster) => {
           return (

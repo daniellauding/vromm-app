@@ -123,11 +123,11 @@ export function FilterSheet({
   initialFilters = {},
 }: FilterSheetProps) {
   const { t } = useTranslation();
-  const colorScheme = useColorScheme();
-  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
-  const textColor = colorScheme === 'dark' ? 'white' : 'black';
-  const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
-  const handleColor = colorScheme === 'dark' ? '#666' : '#CCC';
+  // Force dark theme
+  const backgroundColor = '#1A1A1A';
+  const textColor = 'white';
+  const borderColor = '#333';
+  const handleColor = '#666';
 
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   
