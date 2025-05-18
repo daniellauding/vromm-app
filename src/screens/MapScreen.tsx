@@ -36,6 +36,9 @@ import MapView from 'react-native-maps';
 import { ScrollView } from 'react-native';
 import { AppHeader } from '../components/AppHeader';
 import { useTranslation } from '../contexts/TranslationContext';
+import { FilterOptions, FilterSheetModal } from '../components/FilterSheet';
+import { useModal } from '../contexts/ModalContext';
+import { ActionSheetModal } from '../components/ActionSheet';
 
 const MAPBOX_ACCESS_TOKEN =
   'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
@@ -200,7 +203,7 @@ const styles = StyleSheet.create({
 
 const BOTTOM_NAV_HEIGHT = 80; // Height of bottom navigation bar including safe area
 
-export function MapScreen({ route }: { route: any }) {
+export function MapScreen({ route }: { route: { params?: { selectedLocation?: any } } }) {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [routes, setRoutes] = useState<RouteType[]>([]);
@@ -211,7 +214,7 @@ export function MapScreen({ route }: { route: any }) {
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
   const handleColor = colorScheme === 'dark' ? '#666' : '#CCC';
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
-  const searchInputRef = useRef<any>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -220,6 +223,7 @@ export function MapScreen({ route }: { route: any }) {
   const [isMapReady, setIsMapReady] = useState(false);
   const [allFilters, setAllFilters] = useState<FilterCategory[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterCategory | null>(null);
+  const { showModal } = useModal();
   const mapRef = useRef<MapView>(null);
   console.log('render MapScreen');
   const [region, setRegion] = useState({
@@ -228,6 +232,7 @@ export function MapScreen({ route }: { route: any }) {
     latitudeDelta: 0.1,
     longitudeDelta: 0.1,
   });
+  const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
 
   const { height: screenHeight } = Dimensions.get('window');
   const snapPoints = useMemo(
@@ -366,11 +371,13 @@ export function MapScreen({ route }: { route: any }) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         const location = await Location.getLastKnownPositionAsync({});
-        setRegion((prev) => ({
-          ...prev,
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        }));
+        if (location) {
+          setRegion((prev) => ({
+            ...prev,
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          }));
+        }
       }
       setIsMapReady(true);
     })();
@@ -434,7 +441,7 @@ export function MapScreen({ route }: { route: any }) {
         setFilteredRoutes(filtered);
       }, 300);
 
-      setSearchTimeout(timeout);
+      setSearchTimeout(timeout as unknown as NodeJS.Timeout);
     },
     [routes],
   );
@@ -656,11 +663,11 @@ export function MapScreen({ route }: { route: any }) {
 
         // Collapse bottom sheet to show more of the map
         snapTo(snapPoints.collapsed);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error in handleLocationSelect:', error);
         console.error('Error details:', {
-          error_message: error.message,
-          error_stack: error.stack,
+          error_message: error instanceof Error ? error.message : 'Unknown error',
+          error_stack: error instanceof Error ? error.stack : 'No stack available',
           result_data: result,
         });
       }
@@ -829,19 +836,138 @@ export function MapScreen({ route }: { route: any }) {
       }
 
       const location = await Location.getLastKnownPositionAsync({});
-
-      console.log('setRegion', location);
-      console.log(mapRef.current);
-      mapRef.current?.animateToRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-      });
+      
+      if (location && mapRef.current) {
+        mapRef.current.animateToRegion({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+        });
+      }
     } catch (err) {
       console.error('Error getting location:', err);
     }
   }, [t]);
+
+  // Apply filters from the filter sheet
+  const handleApplyFilters = useCallback((filters: FilterOptions) => {
+    console.log('Applying filters:', filters);
+    setAppliedFilters(filters);
+
+    let filtered = [...routes];
+
+    // Apply difficulty filter
+    if (filters.difficulty?.length) {
+      filtered = filtered.filter(route => 
+        filters.difficulty?.includes(route.difficulty || '')
+      );
+    }
+
+    // Apply spot type filter
+    if (filters.spotType?.length) {
+      filtered = filtered.filter(route => 
+        filters.spotType?.includes(route.spot_type || '')
+      );
+    }
+
+    // Apply category filter
+    if (filters.category?.length) {
+      filtered = filtered.filter(route => 
+        filters.category?.includes(route.category || '')
+      );
+    }
+
+    // Apply transmission type filter
+    if (filters.transmissionType?.length) {
+      filtered = filtered.filter(route => 
+        filters.transmissionType?.includes(route.transmission_type || '')
+      );
+    }
+
+    // Apply activity level filter
+    if (filters.activityLevel?.length) {
+      filtered = filtered.filter(route => 
+        filters.activityLevel?.includes(route.activity_level || '')
+      );
+    }
+
+    // Apply best season filter
+    if (filters.bestSeason?.length) {
+      filtered = filtered.filter(route => 
+        filters.bestSeason?.includes(route.best_season || '')
+      );
+    }
+
+    // Apply vehicle types filter
+    if (filters.vehicleTypes?.length) {
+      filtered = filtered.filter(route => 
+        route.vehicle_types?.some(type => 
+          filters.vehicleTypes?.includes(type)
+        )
+      );
+    }
+
+    // Apply max distance filter (would need current location)
+    if (filters.maxDistance && region.latitude && region.longitude) {
+      filtered = filtered.filter(route => {
+        const firstWaypoint = route.waypoint_details?.[0] || route.metadata?.waypoints?.[0];
+        if (!firstWaypoint) return false;
+        
+        const routeLat = Number(firstWaypoint.lat);
+        const routeLng = Number(firstWaypoint.lng);
+        
+        // Calculate distance
+        const distanceKm = getDistanceFromLatLonInKm(
+          region.latitude,
+          region.longitude,
+          routeLat,
+          routeLng
+        );
+        
+        return distanceKm <= (filters.maxDistance || 100);
+      });
+    }
+
+    setFilteredRoutes(filtered);
+  }, [routes, region]);
+
+  // Handle filter button press
+  const handleFilterButtonPress = useCallback(() => {
+    showModal(
+      <FilterSheetModal
+        onApplyFilters={handleApplyFilters}
+        routeCount={filteredRoutes.length}
+        initialFilters={appliedFilters}
+      />
+    );
+  }, [showModal, handleApplyFilters, filteredRoutes.length, appliedFilters]);
+
+  // Helper function to calculate distance
+  const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in km
+    return d;
+  };
+
+  const deg2rad = (deg: number) => {
+    return deg * (Math.PI / 180);
+  };
+
+  // Add handler for + button press
+  const handleAddButtonPress = useCallback(() => {
+    showModal(
+      <ActionSheetModal 
+        onCreateRoute={() => navigation.navigate('CreateRoute', {})} 
+      />
+    );
+  }, [showModal, navigation]);
 
   if (!isMapReady) {
     return (
@@ -856,7 +982,7 @@ export function MapScreen({ route }: { route: any }) {
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
       <View style={{ flex: 1 }}>
-      <Map
+        <Map
           key={`map-${routes.length}`}
           waypoints={getAllWaypoints}
           region={region}
@@ -872,8 +998,34 @@ export function MapScreen({ route }: { route: any }) {
             onLocateMe={handleLocateMe}
             filters={allFilters}
             onFilterPress={handleFilterPress}
+            onFilterButtonPress={handleFilterButtonPress}
           />
         </SafeAreaView>
+
+        {/* Add Floating Action Button */}
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            right: 20,
+            bottom: BOTTOM_NAV_HEIGHT + 20, // Position above tab bar
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: '#1A3D3D', // Match the app's primary color
+            justifyContent: 'center',
+            alignItems: 'center',
+            elevation: 6,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.27,
+            shadowRadius: 4.65,
+            zIndex: 10,
+          }}
+          onPress={handleAddButtonPress}
+          accessibilityLabel="Add route or record driving"
+        >
+          <Feather name="plus" size={24} color="white" />
+        </TouchableOpacity>
 
         {!selectedRoute && (
           <PanGestureHandler

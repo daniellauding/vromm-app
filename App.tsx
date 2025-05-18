@@ -8,12 +8,15 @@ import { TranslationProvider } from './src/contexts/TranslationContext';
 import { RootStackParamList } from './src/types/navigation';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useColorScheme, Platform, NativeModules } from 'react-native';
+import { useColorScheme, Platform, NativeModules, View } from 'react-native';
 import * as Font from 'expo-font';
 import { useEffect, useState } from 'react';
 import { supabase } from './src/lib/supabase';
 import { StatusBar } from 'expo-status-bar';
 import { setupTranslationSubscription } from './src/services/translationService';
+import { ModalProvider } from './src/contexts/ModalContext';
+
+// Disable reanimated warnings about reading values during render
 
 // Use lazy import to prevent NativeEventEmitter errors
 let analyticsModule: any;
@@ -320,7 +323,9 @@ export default function App() {
             <TranslationProvider>
               <AuthProvider>
                 <LocationProvider>
-                  <AppContent />
+                  <ModalProvider>
+                    <AppContent />
+                  </ModalProvider>
                 </LocationProvider>
               </AuthProvider>
             </TranslationProvider>
@@ -329,4 +334,19 @@ export default function App() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+// Suppress Reanimated warnings in dev mode
+if (__DEV__) {
+  const originalWarn = console.warn;
+  console.warn = (...args) => {
+    // Silence Reanimated warnings about reading values during render
+    if (
+      typeof args[0] === 'string' &&
+      args[0].includes('[Reanimated] Reading from `value` during component render')
+    ) {
+      return;
+    }
+    originalWarn(...args);
+  };
 }

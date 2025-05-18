@@ -163,8 +163,15 @@ export function Map({
   waypoints: Waypoint[];
   region: Region;
   style: StyleProp<ViewStyle>;
-  scrollEnabled: boolean;
-  zoomEnabled: boolean;
+  scrollEnabled?: boolean;
+  zoomEnabled?: boolean;
+  pitchEnabled?: boolean;
+  rotateEnabled?: boolean;
+  onPress?: () => void;
+  selectedPin?: string | null;
+  onMarkerPress?: (waypointId: string) => boolean | void;
+  customMarker?: React.ReactNode;
+  ref?: React.Ref<MapView>;
 }) {
   const mapRef = React.useRef<MapView>(null);
   const lastRegionChange = React.useRef<number>(0);

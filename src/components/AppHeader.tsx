@@ -17,6 +17,7 @@ interface AppHeaderProps {
   onLocateMe: () => void;
   filters?: FilterCategory[];
   onFilterPress?: (filter: FilterCategory) => void;
+  onFilterButtonPress?: () => void;
 }
 
 const styles = StyleSheet.create({
@@ -30,7 +31,7 @@ const styles = StyleSheet.create({
   }
 });
 
-export function AppHeader({ onLocateMe, filters = [], onFilterPress }: AppHeaderProps) {
+export function AppHeader({ onLocateMe, filters = [], onFilterPress, onFilterButtonPress }: AppHeaderProps) {
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
@@ -53,6 +54,20 @@ export function AppHeader({ onLocateMe, filters = [], onFilterPress }: AppHeader
           }}
           editable={false} // Make input non-editable since we're using it as a button
         />
+        <XStack
+          backgroundColor="$background"
+          borderRadius="$2"
+          width="$10"
+          height="$10"
+          alignItems="center"
+          justifyContent="center"
+          borderWidth={1}
+          borderColor="$borderColor"
+          onPress={onFilterButtonPress}
+          pressStyle={{ opacity: 0.7 }}
+        >
+          <Feather name="filter" size={20} color={iconColor} />
+        </XStack>
         <XStack
           backgroundColor="$background"
           borderRadius="$2"
