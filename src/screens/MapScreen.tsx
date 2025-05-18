@@ -10,6 +10,9 @@ import {
   NativeScrollEvent,
   Alert,
   ActivityIndicator,
+  Modal,
+  Pressable,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map, Waypoint } from '../components/Map';
@@ -17,7 +20,7 @@ import { supabase } from '../lib/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp, FilterCategory } from '../types/navigation';
 import { Database } from '../lib/database.types';
-import { YStack, XStack, Card, Input, Text, Sheet } from 'tamagui';
+import { YStack, XStack, Card, Input, Text, Sheet, Button } from 'tamagui';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 import { Screen } from '../components/Screen';
@@ -38,7 +41,6 @@ import { AppHeader } from '../components/AppHeader';
 import { useTranslation } from '../contexts/TranslationContext';
 import { FilterOptions, FilterSheetModal } from '../components/FilterSheet';
 import { useModal } from '../contexts/ModalContext';
-import { ActionSheetModal } from '../components/ActionSheet';
 
 const MAPBOX_ACCESS_TOKEN =
   'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
@@ -233,6 +235,8 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     longitudeDelta: 0.1,
   });
   const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showRecordDriving, setShowRecordDriving] = useState(false);
 
   const { height: screenHeight } = Dimensions.get('window');
   const snapPoints = useMemo(
@@ -943,6 +947,23 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     );
   }, [showModal, handleApplyFilters, filteredRoutes.length, appliedFilters]);
 
+  // Handle + button to show action sheet
+  const handleAddButtonPress = useCallback(() => {
+    setShowActionSheet(true);
+  }, []);
+
+  // Handle Create Route option
+  const handleCreateRoute = useCallback(() => {
+    setShowActionSheet(false);
+    navigation.navigate('CreateRoute', {});
+  }, [navigation]);
+
+  // Handle Record Driving option
+  const handleRecordDriving = useCallback(() => {
+    setShowActionSheet(false);
+    setShowRecordDriving(true);
+  }, []);
+
   // Helper function to calculate distance
   const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371; // Radius of the earth in km
@@ -959,15 +980,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const deg2rad = (deg: number) => {
     return deg * (Math.PI / 180);
   };
-
-  // Add handler for + button press
-  const handleAddButtonPress = useCallback(() => {
-    showModal(
-      <ActionSheetModal 
-        onCreateRoute={() => navigation.navigate('CreateRoute', {})} 
-      />
-    );
-  }, [showModal, navigation]);
 
   if (!isMapReady) {
     return (
@@ -1026,6 +1038,138 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         >
           <Feather name="plus" size={24} color="white" />
         </TouchableOpacity>
+
+        {/* Action Sheet Modal */}
+        <Modal
+          visible={showActionSheet}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowActionSheet(false)}
+        >
+          <Pressable
+            style={{ 
+              flex: 1, 
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              justifyContent: 'flex-end'
+            }}
+            onPress={() => setShowActionSheet(false)}
+          >
+            <View
+              style={{
+                backgroundColor: backgroundColor,
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                padding: 16,
+                paddingBottom: Platform.OS === 'ios' ? 34 + 16 : 16, // Account for bottom safe area
+              }}
+            >
+              <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                <View 
+                  style={{ 
+                    width: 40, 
+                    height: 4, 
+                    borderRadius: 2, 
+                    backgroundColor: handleColor,
+                    marginBottom: 8 
+                  }} 
+                />
+                <Text fontWeight="600" fontSize={24} color={iconColor}>
+                  {t('map.actions') || 'Actions'}
+                </Text>
+              </View>
+              
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colorScheme === 'dark' ? '#333' : '#eee',
+                }}
+                onPress={handleCreateRoute}
+              >
+                <Feather name="map-pin" size={24} color={iconColor} />
+                <Text fontWeight="500" fontSize={18} color={iconColor} marginLeft={12}>
+                  {t('createRoute.createTitle') || 'Create Route'}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colorScheme === 'dark' ? '#333' : '#eee',
+                }}
+                onPress={handleRecordDriving}
+              >
+                <Feather name="video" size={24} color={iconColor} />
+                <Text fontWeight="500" fontSize={18} color={iconColor} marginLeft={12}>
+                  {t('map.recordDriving') || 'Record Driving'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* Record Driving Modal */}
+        <Modal
+          visible={showRecordDriving}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowRecordDriving(false)}
+        >
+          <Pressable
+            style={{ 
+              flex: 1, 
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              justifyContent: 'flex-end'
+            }}
+            onPress={() => setShowRecordDriving(false)}
+          >
+            <View
+              style={{
+                backgroundColor: backgroundColor,
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                padding: 16,
+                paddingBottom: Platform.OS === 'ios' ? 34 + 16 : 16, // Account for bottom safe area
+              }}
+            >
+              <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                <View 
+                  style={{ 
+                    width: 40, 
+                    height: 4, 
+                    borderRadius: 2, 
+                    backgroundColor: handleColor,
+                    marginBottom: 8 
+                  }} 
+                />
+                <Text fontWeight="600" fontSize={24} color={iconColor}>
+                  {t('map.recordDriving') || 'Record Driving'}
+                </Text>
+              </View>
+              
+              <View style={{ marginBottom: 16 }}>
+                <Text color={iconColor} fontSize={16}>
+                  This sheet will allow recording your driving session
+                </Text>
+              </View>
+              
+              <Button
+                onPress={() => setShowRecordDriving(false)}
+                backgroundColor={colorScheme === 'dark' ? '#333' : '#eee'}
+                color={iconColor}
+                size="$4"
+                marginTop={16}
+              >
+                {t('common.close') || 'Close'}
+              </Button>
+            </View>
+          </Pressable>
+        </Modal>
 
         {!selectedRoute && (
           <PanGestureHandler
