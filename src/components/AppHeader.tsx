@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, ScrollView } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { XStack, Input, Button, Text } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -10,7 +10,14 @@ interface FilterCategory {
   id: string;
   label: string;
   value: string;
-  type: 'difficulty' | 'spot_type' | 'category' | 'transmission_type' | 'activity_level' | 'best_season' | 'vehicle_types';
+  type:
+    | 'difficulty'
+    | 'spot_type'
+    | 'category'
+    | 'transmission_type'
+    | 'activity_level'
+    | 'best_season'
+    | 'vehicle_types';
 }
 
 interface AppHeaderProps {
@@ -28,32 +35,41 @@ const styles = StyleSheet.create({
   filtersContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-  }
+  },
 });
 
-export function AppHeader({ onLocateMe, filters = [], onFilterPress, onFilterButtonPress }: AppHeaderProps) {
+export function AppHeader({
+  onLocateMe,
+  filters = [],
+  onFilterPress,
+  onFilterButtonPress,
+}: AppHeaderProps) {
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
 
+  const handleSearchPress = () => {
+    navigation.navigate('Search');
+  };
+
   return (
     <>
       <XStack style={styles.container} gap="$2">
-        <Input
-          flex={1}
-          placeholder="Search cities, addresses, routes..."
-          backgroundColor="$background"
-          borderWidth={1}
-          borderColor="$borderColor"
-          borderRadius="$2"
-          height="$10"
-          paddingLeft="$3"
-          fontSize="$2"
-          onFocus={() => {
-            navigation.navigate('Search');
-          }}
-          editable={false} // Make input non-editable since we're using it as a button
-        />
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.7} onPress={handleSearchPress}>
+          <Input
+            flex={1}
+            placeholder="Search cities, addresses, routes..."
+            backgroundColor="$background"
+            borderWidth={1}
+            borderColor="$borderColor"
+            borderRadius="$2"
+            height="$10"
+            paddingLeft="$3"
+            fontSize="$2"
+            editable={false}
+            pointerEvents="none"
+          />
+        </TouchableOpacity>
         <XStack
           backgroundColor="$background"
           borderRadius="$2"
@@ -101,12 +117,7 @@ export function AppHeader({ onLocateMe, filters = [], onFilterPress, onFilterBut
                 pressStyle={{ opacity: 0.8 }}
                 onPress={() => onFilterPress?.(filter)}
               >
-                <Text 
-                  color="white" 
-                  numberOfLines={1}
-                  textTransform="uppercase"
-                  fontWeight="500"
-                >
+                <Text color="white" numberOfLines={1} textTransform="uppercase" fontWeight="500">
                   {filter.label}
                 </Text>
               </Button>

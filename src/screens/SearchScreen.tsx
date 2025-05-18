@@ -1,10 +1,9 @@
-import React, { useCallback, useState, useRef } from 'react';
-import { StyleSheet } from 'react-native';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
+import { StyleSheet, TouchableOpacity, Animated, Dimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { XStack, YStack, Input, Text, View } from 'tamagui';
+import { XStack, YStack, Input, Text, View, ScrollView } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { TouchableOpacity, ScrollView } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { useTranslation } from '../contexts/TranslationContext';
 
@@ -18,22 +17,31 @@ type SearchResult = {
   place_type: string[];
 };
 
+const { height: screenHeight } = Dimensions.get('window');
+const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '$background'
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1500,
+  },
+  contentContainer: {
+    flex: 1,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
   searchHeader: {
     paddingTop: 8,
     paddingHorizontal: 16,
     paddingBottom: 8,
-    backgroundColor: '$background',
-    borderBottomWidth: 1,
-    borderBottomColor: '$borderColor'
   },
   searchResultsList: {
     flex: 1,
-    backgroundColor: '$background'
   },
   searchBackButton: {
     padding: 8,
@@ -43,8 +51,26 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '$borderColor'
-  }
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    zIndex: 1400,
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 8,
+  },
 });
 
 export function SearchScreen() {
@@ -57,6 +83,48 @@ export function SearchScreen() {
   const searchInputRef = useRef<any>(null);
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
+  const borderColor = colorScheme === 'dark' ? '#333333' : '#DDDDDD';
+  const handleColor = colorScheme === 'dark' ? '#666666' : '#CCCCCC';
+  
+  // Animation values
+  const translateY = useRef(new Animated.Value(screenHeight)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  // Animate in on mount
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(translateY, {
+        toValue: 0,
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    // Auto focus the search input
+    setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    }, 300);
+
+    return () => {
+      // Clean up timeout
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+    };
+  }, [translateY, backdropOpacity]);
 
   const handleSearch = useCallback((text: string) => {
     console.log('Search input:', text);
@@ -105,85 +173,152 @@ export function SearchScreen() {
   }, []);
 
   const handleResultSelect = (result: SearchResult) => {
-    // Pass back the selected location and navigate back
-    navigation.navigate('Map', { selectedLocation: result });
+    // Animate out first
+    Animated.parallel([
+      Animated.spring(translateY, {
+        toValue: screenHeight,
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      // Pass back the selected location and navigate back
+      navigation.navigate('Map', { selectedLocation: result });
+    });
+  };
+
+  const handleClose = () => {
+    // Animate out
+    Animated.parallel([
+      Animated.spring(translateY, {
+        toValue: screenHeight,
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      navigation.goBack();
+    });
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.searchHeader}>
-        <XStack alignItems="center" gap="$2">
-          <TouchableOpacity style={styles.searchBackButton} onPress={() => navigation.goBack()}>
-            <Feather name="arrow-left" size={24} color={iconColor} />
-          </TouchableOpacity>
-          <Input
-            ref={searchInputRef}
-            flex={1}
-            value={searchQuery}
-            onChangeText={handleSearch}
-            placeholder={t('search.placeholder')}
-            backgroundColor="$background"
-            borderWidth={1}
-            borderColor="$borderColor"
-            borderRadius="$2"
-            height="$10"
-            paddingLeft="$3"
-            fontSize="$2"
-            autoFocus
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Feather name="x" size={20} color={iconColor} />
-            </TouchableOpacity>
-          )}
-        </XStack>
-      </View>
-      <ScrollView style={styles.searchResultsList}>
-        {isSearching ? (
-          <XStack padding="$4" justifyContent="center">
-            <Text>{t('search.searching')}</Text>
-          </XStack>
-        ) : searchResults.length > 0 ? (
-          searchResults.map(result => (
-            <XStack
-              key={result.id}
-              style={styles.searchResultItem}
-              pressStyle={{ opacity: 0.7 }}
-              onPress={() => handleResultSelect(result)}
-              alignItems="center"
-              gap="$2"
-            >
-              <XStack flex={1} alignItems="center">
-                <Feather
-                  name={
-                    result.place_type[0] === 'country'
-                      ? 'flag'
-                      : result.place_type[0] === 'region'
-                      ? 'map'
-                      : result.place_type[0] === 'place'
-                      ? 'map-pin'
-                      : 'navigation'
-                  }
-                  size={16}
-                  color={iconColor}
-                />
-                <YStack flex={1} marginLeft="$2">
-                  <Text numberOfLines={1} fontWeight="600">
-                    {result.place_name.split(',')[0]}
-                  </Text>
-                  <Text numberOfLines={1} fontSize="$1" color="$gray11">
-                    {result.place_name.split(',').slice(1).join(',').trim()}
-                  </Text>
-                </YStack>
-              </XStack>
+    <View style={styles.container}>
+      <Animated.View 
+        style={[
+          styles.backdrop, 
+          { opacity: backdropOpacity }
+        ]} 
+      />
+      <Animated.View
+        style={[
+          styles.contentContainer,
+          {
+            backgroundColor,
+            transform: [{ translateY }],
+            zIndex: 1501,
+          },
+        ]}
+      >
+        <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+          <View style={styles.handleContainer}>
+            <View style={[styles.handle, { backgroundColor: handleColor }]} />
+            <XStack width="100%" paddingHorizontal="$4" justifyContent="space-between">
+              <View style={{ width: 60 }} />
+              <Text fontWeight="600" fontSize="$5" color={iconColor}>
+                {t('search.title') || 'Search'}
+              </Text>
+              <TouchableOpacity onPress={handleClose}>
+                <Feather name="x" size={24} color={iconColor} />
+              </TouchableOpacity>
             </XStack>
-          ))
-        ) : searchQuery.length > 0 ? (
-          <XStack padding="$4" justifyContent="center">
-            <Text>{t('search.noResults')}</Text>
-          </XStack>
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+          </View>
+          <View style={[styles.searchHeader, { borderBottomColor: borderColor, borderBottomWidth: 1 }]}>
+            <XStack alignItems="center" gap="$2">
+              <Input
+                ref={searchInputRef}
+                flex={1}
+                value={searchQuery}
+                onChangeText={handleSearch}
+                placeholder={t('search.placeholder')}
+                backgroundColor="$background"
+                borderWidth={1}
+                borderColor={borderColor}
+                borderRadius="$2"
+                height="$10"
+                paddingLeft="$3"
+                fontSize={16}
+                autoFocus
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Feather name="x" size={20} color={iconColor} />
+                </TouchableOpacity>
+              )}
+            </XStack>
+          </View>
+          <ScrollView style={[styles.searchResultsList, { backgroundColor }]}>
+            {isSearching ? (
+              <XStack padding="$4" justifyContent="center">
+                <Text>{t('search.searching')}</Text>
+              </XStack>
+            ) : searchResults.length > 0 ? (
+              searchResults.map(result => (
+                <TouchableOpacity
+                  key={result.id}
+                  style={[styles.searchResultItem, { borderBottomColor: borderColor }]}
+                  onPress={() => handleResultSelect(result)}
+                >
+                  <XStack flex={1} alignItems="center">
+                    <Feather
+                      name={
+                        result.place_type[0] === 'country'
+                          ? 'flag'
+                          : result.place_type[0] === 'region'
+                          ? 'map'
+                          : result.place_type[0] === 'place'
+                          ? 'map-pin'
+                          : 'navigation'
+                      }
+                      size={16}
+                      color={iconColor}
+                    />
+                    <YStack flex={1} marginLeft="$2">
+                      <Text numberOfLines={1} fontWeight="600">
+                        {result.place_name.split(',')[0]}
+                      </Text>
+                      <Text numberOfLines={1} fontSize="$1" color="$gray11">
+                        {result.place_name.split(',').slice(1).join(',').trim()}
+                      </Text>
+                    </YStack>
+                  </XStack>
+                </TouchableOpacity>
+              ))
+            ) : searchQuery.length > 0 ? (
+              <XStack padding="$4" justifyContent="center">
+                <Text>{t('search.noResults')}</Text>
+              </XStack>
+            ) : null}
+          </ScrollView>
+        </SafeAreaView>
+      </Animated.View>
+    </View>
   );
 }

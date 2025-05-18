@@ -60,6 +60,7 @@ import { ContentDemoScreen } from './src/screens/ContentDemoScreen';
 import { RouteListScreen } from './src/screens/RouteListScreen';
 import { LicensePlanScreen } from './src/screens/LicensePlanScreen';
 import { RoleSelectionScreen } from './src/screens/RoleSelectionScreen';
+import { SearchScreen } from './src/screens/SearchScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -220,6 +221,11 @@ function AppContent() {
             <Stack.Screen
               name="CreateRoute"
               component={CreateRouteScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Search"
+              component={SearchScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
