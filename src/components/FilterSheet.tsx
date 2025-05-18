@@ -23,7 +23,7 @@ export type FilterOptions = {
   bestSeason?: string[];
   vehicleTypes?: string[];
   maxDistance?: number;
-  sort?: 'best_match' | 'most_popular' | 'closest' | 'newly_added' | 'newest';
+  sort?: 'best_match' | 'most_popular' | 'closest' | 'newly_added' | 'newest' | 'my_created' | 'best_review' | 'has_image';
   experienceLevel?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
 };
 
@@ -274,7 +274,7 @@ export function FilterSheet({
               {t('filters.sortBy')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['best_match', 'most_popular', 'closest', 'newly_added', 'newest'].map(sort => (
+              {['best_match', 'most_popular', 'closest', 'newly_added', 'newest', 'my_created', 'best_review', 'has_image'].map(sort => (
                 <TouchableOpacity
                   key={sort}
                   style={[
@@ -585,8 +585,25 @@ export function FilterSheet({
               <Slider.Track>
                 <Slider.TrackActive />
               </Slider.Track>
-              <Slider.Thumb circular index={0} />
+              <Slider.Thumb circular index={0}>
+                <View 
+                  style={{ 
+                    width: 24, 
+                    height: 24, 
+                    backgroundColor: '#1A3D3D',
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Feather name="move" size={14} color="white" />
+                </View>
+              </Slider.Thumb>
             </Slider>
+            <XStack marginTop="$2" alignItems="center" justifyContent="space-between">
+              <Text color="$gray10" fontSize="$1">0 km</Text>
+              <Text color="$gray10" fontSize="$1">100 km</Text>
+            </XStack>
           </YStack>
         </ScrollView>
 
