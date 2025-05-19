@@ -185,7 +185,7 @@ export function Map({
   routePathWidth?: number;
 }) {
   const mapRef = React.useRef<MapView>(null);
-  const lastRegionChange = React.useRef<number>(0);
+  const currentRegion = React.useRef<Region | null>(null);
   const [clusters, setClusters] = useState<
     (
       | Supercluster.PointFeature<Supercluster.AnyProps>
@@ -198,28 +198,12 @@ export function Map({
   // Forward the ref
   React.useImperativeHandle(ref, () => mapRef.current!, []);
 
-  useEffect(() => {
-    if (waypoints.length > 0) {
-      const geoPoints = waypoints.map((point: Waypoint) => ({
-        type: 'Feature',
-        properties: {
-          id: point.id,
-          title: point.title,
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: [point.longitude, point.latitude],
-        },
-      }));
-      supercluster.current?.load(geoPoints);
-    }
-  }, [waypoints]);
-
   // Calculate clusters
   const calculateClusters = useCallback(
-    async ({ region }: { region: Region }) => {
+    async ({ region }: { region: Region | null }) => {
       if (!region || !waypoints.length) return [];
 
+      console.log('calculateClusters', waypoints.length);
       const bbox: GeoJSON.BBox = [
         region.longitude - region.longitudeDelta / 2, // west
         region.latitude - region.latitudeDelta / 2, // south
@@ -240,9 +224,28 @@ export function Map({
     [waypoints],
   );
 
+  useEffect(() => {
+    if (waypoints.length > 0) {
+      const geoPoints = waypoints.map((point: Waypoint) => ({
+        type: 'Feature',
+        properties: {
+          id: point.id,
+          title: point.title,
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: [point.longitude, point.latitude],
+        },
+      }));
+      supercluster.current?.load(geoPoints);
+      calculateClusters({ region: currentRegion.current });
+    }
+  }, [waypoints, calculateClusters]);
+
   // Handle region changes
   const handleRegionChange = useCallback(
     (newRegion: Region) => {
+      currentRegion.current = newRegion;
       try {
         calculateClusters({ region: newRegion });
       } catch (error) {

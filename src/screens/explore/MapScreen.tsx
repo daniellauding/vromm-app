@@ -15,20 +15,20 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Map, Waypoint } from '../components/Map';
-import { supabase } from '../lib/supabase';
+import { Map, Waypoint } from '../../components/Map';
+import { supabase } from '../../lib/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { NavigationProp, FilterCategory } from '../types/navigation';
-import { Database } from '../lib/database.types';
+import { NavigationProp, FilterCategory } from '../../types/navigation';
+import { Database } from '../../lib/database.types';
 import { YStack, XStack, Card, Input, Text, Sheet, Button } from 'tamagui';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
-import { Screen } from '../components/Screen';
-import { useRoutes } from '../hooks/useRoutes';
-import type { Route as RouteType, WaypointData } from '../hooks/useRoutes';
-import { RoutePreviewCard } from '../components/RoutePreviewCard';
+import { Screen } from '../../components/Screen';
+import { useRoutes } from '../../hooks/useRoutes';
+import type { Route as RouteType, WaypointData } from '../../hooks/useRoutes';
+import { RoutePreviewCard } from '../../components/RoutePreviewCard';
 import { Region } from 'react-native-maps';
-import { RouteList } from '../components/RouteList';
+import { RouteList } from '../../components/RouteList';
 import {
   PanGestureHandler,
   State,
@@ -37,11 +37,11 @@ import {
 } from 'react-native-gesture-handler';
 import MapView from 'react-native-maps';
 import { ScrollView } from 'react-native';
-import { AppHeader } from '../components/AppHeader';
-import { useTranslation } from '../contexts/TranslationContext';
-import { FilterOptions, FilterSheetModal } from '../components/FilterSheet';
-import { useModal } from '../contexts/ModalContext';
-import { RecordDrivingModal } from '../components/RecordDrivingSheet';
+import { AppHeader } from '../../components/AppHeader';
+import { useTranslation } from '../../contexts/TranslationContext';
+import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
+import { useModal } from '../../contexts/ModalContext';
+import { RecordDrivingModal } from '../../components/RecordDrivingSheet';
 
 const MAPBOX_ACCESS_TOKEN =
   'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
@@ -239,7 +239,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const [activeFilter, setActiveFilter] = useState<FilterCategory | null>(null);
   const { showModal } = useModal();
   const mapRef = useRef<MapView>(null);
-  console.log('render MapScreen');
   const [region, setRegion] = useState({
     latitude: 0,
     longitude: 0,
@@ -286,8 +285,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           []) as WaypointData[];
         const firstWaypoint = waypointsData[0];
         if (!firstWaypoint) return null;
-
-        console.log(route);
 
         return {
           latitude: Number(firstWaypoint.lat),
@@ -633,13 +630,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           zoomLevel = 0.005; // close zoom for addresses
         }
 
-        console.log('Setting new region:', {
-          latitude,
-          longitude,
-          zoomLevel,
-          place_type: result.place_type[0],
-        });
-
         const newRegion = {
           latitude,
           longitude,
@@ -666,12 +656,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
           // Include routes within MAX_DISTANCE_KM kilometers
           return isKm ? distanceNum <= MAX_DISTANCE_KM : true;
-        });
-
-        console.log('Filtered routes:', {
-          total: routes.length,
-          filtered: filteredByLocation.length,
-          location: result.place_name,
         });
 
         setFilteredRoutes(filteredByLocation);
@@ -810,12 +794,15 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       } else {
         setActiveFilter(filter);
         const filtered = routes.filter((route) => {
+          // console.log('route', route);
           switch (filter.type) {
             case 'difficulty':
               return route.difficulty === filter.value;
             case 'spot_type':
+              console.log('spot_type', route.spot_type, filter.value);
               return route.spot_type === filter.value;
             case 'category':
+              console.log('category', route.category, filter.value);
               return route.category === filter.value;
             case 'transmission_type':
               return route.transmission_type === filter.value;
@@ -851,7 +838,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       }
 
       const location = await Location.getLastKnownPositionAsync({});
-      
+
       if (location && mapRef.current) {
         mapRef.current.animateToRegion({
           latitude: location.coords.latitude,
@@ -866,86 +853,80 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   }, [t]);
 
   // Apply filters from the filter sheet
-  const handleApplyFilters = useCallback((filters: FilterOptions) => {
-    console.log('Applying filters:', filters);
-    setAppliedFilters(filters);
+  const handleApplyFilters = useCallback(
+    (filters: FilterOptions) => {
+      setAppliedFilters(filters);
 
-    let filtered = [...routes];
+      let filtered = [...routes];
 
-    // Apply difficulty filter
-    if (filters.difficulty?.length) {
-      filtered = filtered.filter(route => 
-        filters.difficulty?.includes(route.difficulty || '')
-      );
-    }
+      // Apply difficulty filter
+      if (filters.difficulty?.length) {
+        filtered = filtered.filter((route) => filters.difficulty?.includes(route.difficulty || ''));
+      }
 
-    // Apply spot type filter
-    if (filters.spotType?.length) {
-      filtered = filtered.filter(route => 
-        filters.spotType?.includes(route.spot_type || '')
-      );
-    }
+      // Apply spot type filter
+      if (filters.spotType?.length) {
+        filtered = filtered.filter((route) => filters.spotType?.includes(route.spot_type || ''));
+      }
 
-    // Apply category filter
-    if (filters.category?.length) {
-      filtered = filtered.filter(route => 
-        filters.category?.includes(route.category || '')
-      );
-    }
+      // Apply category filter
+      if (filters.category?.length) {
+        filtered = filtered.filter((route) => filters.category?.includes(route.category || ''));
+      }
 
-    // Apply transmission type filter
-    if (filters.transmissionType?.length) {
-      filtered = filtered.filter(route => 
-        filters.transmissionType?.includes(route.transmission_type || '')
-      );
-    }
-
-    // Apply activity level filter
-    if (filters.activityLevel?.length) {
-      filtered = filtered.filter(route => 
-        filters.activityLevel?.includes(route.activity_level || '')
-      );
-    }
-
-    // Apply best season filter
-    if (filters.bestSeason?.length) {
-      filtered = filtered.filter(route => 
-        filters.bestSeason?.includes(route.best_season || '')
-      );
-    }
-
-    // Apply vehicle types filter
-    if (filters.vehicleTypes?.length) {
-      filtered = filtered.filter(route => 
-        route.vehicle_types?.some(type => 
-          filters.vehicleTypes?.includes(type)
-        )
-      );
-    }
-
-    // Apply max distance filter (would need current location)
-    if (filters.maxDistance && region.latitude && region.longitude) {
-      filtered = filtered.filter(route => {
-        const firstWaypoint = route.waypoint_details?.[0] || route.metadata?.waypoints?.[0];
-        if (!firstWaypoint) return false;
-        
-        const routeLat = Number(firstWaypoint.lat);
-        const routeLng = Number(firstWaypoint.lng);
-        
-        // Calculate distance
-        const distanceKm = getDistanceFromLatLonInKm(
-          region.latitude,
-          region.longitude,
-          routeLat,
-          routeLng
+      // Apply transmission type filter
+      if (filters.transmissionType?.length) {
+        filtered = filtered.filter((route) =>
+          filters.transmissionType?.includes(route.transmission_type || ''),
         );
-        
-        return distanceKm <= (filters.maxDistance || 100);
-      });
-    }
+      }
 
-    setFilteredRoutes(filtered);
-  }, [routes, region]);
+      // Apply activity level filter
+      if (filters.activityLevel?.length) {
+        filtered = filtered.filter((route) =>
+          filters.activityLevel?.includes(route.activity_level || ''),
+        );
+      }
+
+      // Apply best season filter
+      if (filters.bestSeason?.length) {
+        filtered = filtered.filter((route) =>
+          filters.bestSeason?.includes(route.best_season || ''),
+        );
+      }
+
+      // Apply vehicle types filter
+      if (filters.vehicleTypes?.length) {
+        filtered = filtered.filter((route) =>
+          route.vehicle_types?.some((type) => filters.vehicleTypes?.includes(type)),
+        );
+      }
+
+      // Apply max distance filter (would need current location)
+      if (filters.maxDistance && region.latitude && region.longitude) {
+        filtered = filtered.filter((route) => {
+          const firstWaypoint = route.waypoint_details?.[0] || route.metadata?.waypoints?.[0];
+          if (!firstWaypoint) return false;
+
+          const routeLat = Number(firstWaypoint.lat);
+          const routeLng = Number(firstWaypoint.lng);
+
+          // Calculate distance
+          const distanceKm = getDistanceFromLatLonInKm(
+            region.latitude,
+            region.longitude,
+            routeLat,
+            routeLng,
+          );
+
+          return distanceKm <= (filters.maxDistance || 100);
+        });
+      }
+
+      setFilteredRoutes(filtered);
+    },
+    [routes, region],
+  );
 
   // Handle filter button press
   const handleFilterButtonPress = useCallback(() => {
@@ -954,7 +935,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         onApplyFilters={handleApplyFilters}
         routeCount={filteredRoutes.length}
         initialFilters={appliedFilters}
-      />
+      />,
     );
   }, [showModal, handleApplyFilters, filteredRoutes.length, appliedFilters]);
 
@@ -997,23 +978,23 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   useFocusEffect(
     useCallback(() => {
       console.log('MapScreen: useFocusEffect triggered');
-      
+
       // Check if we have recorded route data from RecordDrivingSheet
       if (global && (global as any).shouldOpenCreateRoute) {
         console.log('MapScreen: global.shouldOpenCreateRoute is true');
         const routeData = (global as any).recordedRouteData;
-        
+
         if (routeData) {
           console.log('MapScreen: Found route data', {
             waypointsCount: routeData.waypoints?.length || 0,
             name: routeData.name,
-            description: routeData.description
+            description: routeData.description,
           });
-          
+
           // Reset the flag
           (global as any).shouldOpenCreateRoute = false;
           console.log('MapScreen: Reset shouldOpenCreateRoute to false');
-          
+
           // Navigate to create route screen with the recorded data
           console.log('MapScreen: Attempting navigation to CreateRouteScreen');
           (navigation.navigate as any)('CreateRoute', {
@@ -1023,7 +1004,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
             initialSearchCoordinates: routeData.searchCoordinates,
             initialRoutePath: routeData.routePath,
             initialStartPoint: routeData.startPoint,
-            initialEndPoint: routeData.endPoint
+            initialEndPoint: routeData.endPoint,
           });
           console.log('MapScreen: Navigation attempted');
         } else {
@@ -1032,7 +1013,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       } else {
         console.log('MapScreen: No recorded route data to process');
       }
-    }, [navigation])
+    }, [navigation]),
   );
 
   if (!isMapReady) {
@@ -1047,187 +1028,182 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
-      <View style={{ flex: 1 }}>
-        <Map
-          key={`map-${routes.length}`}
-          waypoints={getAllWaypoints}
-          region={region}
-          onPress={handleMapPress}
-          style={StyleSheet.absoluteFillObject}
-          selectedPin={selectedPin}
-          onMarkerPress={handleMarkerPress}
-          ref={mapRef}
+      <SafeAreaView edges={['top']} style={{ zIndex: 1000 }}>
+        <AppHeader
+          onLocateMe={handleLocateMe}
+          filters={allFilters}
+          onFilterPress={handleFilterPress}
+          onFilterButtonPress={handleFilterButtonPress}
         />
+      </SafeAreaView>
+      <Map
+        key={`map-${routes.length}`}
+        waypoints={getAllWaypoints}
+        region={region}
+        onPress={handleMapPress}
+        style={StyleSheet.absoluteFillObject}
+        selectedPin={selectedPin}
+        onMarkerPress={handleMarkerPress}
+        ref={mapRef}
+      />
 
-        <SafeAreaView edges={['top']}>
-          <AppHeader
-            onLocateMe={handleLocateMe}
-            filters={allFilters}
-            onFilterPress={handleFilterPress}
-            onFilterButtonPress={handleFilterButtonPress}
-          />
-        </SafeAreaView>
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          right: 20,
+          bottom: BOTTOM_NAV_HEIGHT + 20, // Position above tab bar
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: '#1A3D3D', // Match the app's primary color
+          justifyContent: 'center',
+          alignItems: 'center',
+          elevation: 6,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.27,
+          shadowRadius: 4.65,
+          zIndex: 10,
+        }}
+        onPress={handleAddButtonPress}
+        accessibilityLabel="Add route or record driving"
+      >
+        <Feather name="plus" size={24} color="white" />
+      </TouchableOpacity>
 
-        {/* Add Floating Action Button */}
-        <TouchableOpacity
+      <Modal
+        visible={showActionSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowActionSheet(false)}
+      >
+        <Pressable
           style={{
-            position: 'absolute',
-            right: 20,
-            bottom: BOTTOM_NAV_HEIGHT + 20, // Position above tab bar
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: '#1A3D3D', // Match the app's primary color
-            justifyContent: 'center',
-            alignItems: 'center',
-            elevation: 6,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 3 },
-            shadowOpacity: 0.27,
-            shadowRadius: 4.65,
-            zIndex: 10,
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'flex-end',
           }}
-          onPress={handleAddButtonPress}
-          accessibilityLabel="Add route or record driving"
+          onPress={() => setShowActionSheet(false)}
         >
-          <Feather name="plus" size={24} color="white" />
-        </TouchableOpacity>
-
-        {/* Action Sheet Modal */}
-        <Modal
-          visible={showActionSheet}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowActionSheet(false)}
-        >
-          <Pressable
-            style={{ 
-              flex: 1, 
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              justifyContent: 'flex-end'
-            }}
-            onPress={() => setShowActionSheet(false)}
-          >
-            <View
-              style={{
-                backgroundColor: DARK_THEME.bottomSheet,
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                padding: 16,
-                paddingBottom: Platform.OS === 'ios' ? 34 + 16 : 16, // Account for bottom safe area
-              }}
-            >
-              <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                <View 
-                  style={{ 
-                    width: 40, 
-                    height: 4, 
-                    borderRadius: 2, 
-                    backgroundColor: DARK_THEME.handleColor,
-                    marginBottom: 8 
-                  }} 
-                />
-                <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
-                  {t('map.actions') || 'Actions'}
-                </Text>
-              </View>
-              
-              <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  padding: 16,
-                  borderBottomWidth: 1,
-                  borderBottomColor: DARK_THEME.borderColor,
-                }}
-                onPress={handleCreateRoute}
-              >
-                <Feather name="map-pin" size={24} color={DARK_THEME.iconColor} />
-                <Text fontWeight="500" fontSize={18} color={DARK_THEME.text} marginLeft={12}>
-                  {'Create Route'}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  padding: 16,
-                  borderBottomWidth: 1,
-                  borderBottomColor: DARK_THEME.borderColor,
-                }}
-                onPress={handleRecordDriving}
-              >
-                <Feather name="video" size={24} color={DARK_THEME.iconColor} />
-                <Text fontWeight="500" fontSize={18} color={DARK_THEME.text} marginLeft={12}>
-                  {'Record Driving'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Modal>
-
-        {!selectedRoute && (
-          <PanGestureHandler
-            onGestureEvent={onGestureEvent}
-            onHandlerStateChange={onHandleStateChange}
-          >
-            <Animated.View
-              style={[
-                styles.bottomSheet,
-                {
-                  height: screenHeight,
-                  backgroundColor: DARK_THEME.bottomSheet,
-                  transform: [{ translateY }],
-                },
-              ]}
-            >
-              <View style={styles.handleContainer}>
-                <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
-                <XStack alignItems="center" gap="$2">
-                  <Feather name="map" size={16} color={DARK_THEME.iconColor} />
-                  <Text fontSize="$4" fontWeight="600" color={DARK_THEME.text}>
-                    {filteredRoutes.length}{' '}
-                    {filteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
-                  </Text>
-                </XStack>
-              </View>
-              <View style={styles.routeListContainer}>
-                <RouteList routes={filteredRoutes} onRefresh={loadRoutes} onScroll={handleScroll} />
-              </View>
-            </Animated.View>
-          </PanGestureHandler>
-        )}
-
-        {selectedRoute && (
           <View
             style={{
-              position: 'absolute',
-              bottom: BOTTOM_NAV_HEIGHT,
-              left: 0,
-              right: 0,
-              backgroundColor: DARK_THEME.cardBackground,
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: -2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 5,
+              backgroundColor: DARK_THEME.bottomSheet,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              padding: 16,
+              paddingBottom: Platform.OS === 'ios' ? 34 + 16 : 16, // Account for bottom safe area
             }}
           >
-            <RoutePreviewCard
-              route={selectedRoute}
-              showMap={false}
-              onPress={() => {
-                navigation.navigate('RouteDetail', { routeId: selectedRoute.id });
-                setSelectedRoute(null);
-                setSelectedPin(null);
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: DARK_THEME.handleColor,
+                  marginBottom: 8,
+                }}
+              />
+              <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
+                {t('map.actions') || 'Actions'}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: DARK_THEME.borderColor,
               }}
-            />
+              onPress={handleCreateRoute}
+            >
+              <Feather name="map-pin" size={24} color={DARK_THEME.iconColor} />
+              <Text fontWeight="500" fontSize={18} color={DARK_THEME.text} marginLeft={12}>
+                {'Create Route'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: DARK_THEME.borderColor,
+              }}
+              onPress={handleRecordDriving}
+            >
+              <Feather name="video" size={24} color={DARK_THEME.iconColor} />
+              <Text fontWeight="500" fontSize={18} color={DARK_THEME.text} marginLeft={12}>
+                {'Record Driving'}
+              </Text>
+            </TouchableOpacity>
           </View>
-        )}
-      </View>
+        </Pressable>
+      </Modal>
+
+      {!selectedRoute && (
+        <PanGestureHandler
+          onGestureEvent={onGestureEvent}
+          onHandlerStateChange={onHandleStateChange}
+        >
+          <Animated.View
+            style={[
+              styles.bottomSheet,
+              {
+                height: screenHeight,
+                backgroundColor: DARK_THEME.bottomSheet,
+                transform: [{ translateY }],
+              },
+            ]}
+          >
+            <View style={styles.handleContainer}>
+              <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
+              <XStack alignItems="center" gap="$2">
+                <Feather name="map" size={16} color={DARK_THEME.iconColor} />
+                <Text fontSize="$4" fontWeight="600" color={DARK_THEME.text}>
+                  {filteredRoutes.length}{' '}
+                  {filteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
+                </Text>
+              </XStack>
+            </View>
+            <View style={styles.routeListContainer}>
+              <RouteList routes={filteredRoutes} onRefresh={loadRoutes} onScroll={handleScroll} />
+            </View>
+          </Animated.View>
+        </PanGestureHandler>
+      )}
+
+      {selectedRoute && (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: BOTTOM_NAV_HEIGHT,
+            left: 0,
+            right: 0,
+            backgroundColor: DARK_THEME.cardBackground,
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 5,
+          }}
+        >
+          <RoutePreviewCard
+            route={selectedRoute}
+            showMap={false}
+            onPress={() => {
+              navigation.navigate('RouteDetail', { routeId: selectedRoute.id });
+              setSelectedRoute(null);
+              setSelectedPin(null);
+            }}
+          />
+        </View>
+      )}
     </Screen>
   );
 }

@@ -8,7 +8,7 @@ import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
 
 // Import screens
 import { HomeScreen } from '../screens/HomeScreen';
-import { MapScreen } from '../screens/MapScreen';
+import { MapScreen } from '../screens/explore/MapScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { ProgressScreen } from '../screens/ProgressScreen';
 

@@ -1,10 +1,9 @@
-import { createTamagui } from 'tamagui'
-import { tokens } from './tokens'
-import { lightTheme, darkTheme } from './theme'
-import { shorthands } from '@tamagui/shorthands'
-import { themes, tokens as tamaguiTokens } from '@tamagui/themes'
-import { createMedia } from '@tamagui/react-native-media-driver'
-import { rubikFont } from './fonts'
+import { createTamagui } from 'tamagui';
+import { tokens } from './tokens';
+import { lightTheme, darkTheme } from './theme';
+import { shorthands } from '@tamagui/shorthands';
+import { createMedia } from '@tamagui/react-native-media-driver';
+import { rubikFont } from './fonts';
 
 const media = createMedia({
   xs: { maxWidth: 660 },
@@ -21,8 +20,8 @@ const media = createMedia({
   tall: { minHeight: 820 },
   hoverNone: { hover: 'none' },
   pointerCoarse: { pointer: 'coarse' },
-})
-
+});
+console.log(tokens);
 // Define component themes
 export const componentThemes = {
   Button: {
@@ -208,7 +207,7 @@ export const componentThemes = {
       },
     },
   },
-}
+};
 
 // Create the Tamagui configuration
 export const config = createTamagui({
@@ -227,4 +226,4 @@ export const config = createTamagui({
   tokens,
   media,
   ...componentThemes,
-}) 
+});

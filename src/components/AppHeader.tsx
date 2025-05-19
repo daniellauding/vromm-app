@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { XStack, Input, Button, Text } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -53,8 +53,8 @@ export function AppHeader({
   };
 
   return (
-    <>
-      <XStack style={styles.container} gap="$2">
+    <View style={styles.container}>
+      <XStack gap="$2">
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.7} onPress={handleSearchPress}>
           <Input
             flex={1}
@@ -107,24 +107,20 @@ export function AppHeader({
           showsHorizontalScrollIndicator={false}
           style={styles.filtersContainer}
         >
-          <XStack gap="$2">
-            {filters.map((filter) => (
-              <Button
-                key={filter.id}
-                size="$3"
-                backgroundColor="#1A3D3D"
-                borderRadius="$4"
-                pressStyle={{ opacity: 0.8 }}
-                onPress={() => onFilterPress?.(filter)}
-              >
-                <Text color="white" numberOfLines={1} textTransform="uppercase" fontWeight="500">
-                  {filter.label}
-                </Text>
-              </Button>
-            ))}
-          </XStack>
+          {filters.map((filter) => (
+            <Button
+              key={filter.id}
+              size="$4"
+              backgroundColor="#1A3D3D"
+              borderRadius="$4"
+              pressStyle={{ opacity: 0.8 }}
+              onPress={() => onFilterPress?.(filter)}
+            >
+              {filter.label}
+            </Button>
+          ))}
         </ScrollView>
       )}
-    </>
+    </View>
   );
-} 
+}
