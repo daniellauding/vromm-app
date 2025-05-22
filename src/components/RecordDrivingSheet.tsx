@@ -8,6 +8,92 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { CreateRouteModal } from './CreateRouteModal';
 
+// Optional imports with fallbacks
+let Device: any = {
+  brand: 'Unknown',
+  manufacturer: 'Unknown',
+  modelName: 'Unknown',
+  getDeviceNameAsync: async () => 'Unknown Device',
+  deviceType: 'Unknown',
+  osName: Platform.OS,
+  osVersion: Platform.Version,
+  totalMemory: 0,
+};
+
+let Accelerometer = {
+  setUpdateInterval: () => {},
+  addListener: () => ({ remove: () => {} }),
+};
+
+let Gyroscope = {
+  setUpdateInterval: () => {},
+  addListener: () => ({ remove: () => {} }),
+};
+
+let Magnetometer = {
+  setUpdateInterval: () => {},
+  addListener: () => ({ remove: () => {} }),
+};
+
+let Pedometer = {
+  setUpdateInterval: () => {},
+  addListener: () => ({ remove: () => {} }),
+};
+
+let NetInfo = {
+  fetch: async () => ({
+    type: 'unknown',
+    isConnected: true,
+    details: null
+  })
+};
+
+let Battery = {
+  getBatteryLevelAsync: async () => 1.0,
+  getBatteryStateAsync: async () => 'full',
+  isLowPowerModeEnabledAsync: async () => false,
+};
+
+// Try to import the real modules if available
+try {
+  const DeviceModule = require('expo-device');
+  if (DeviceModule) {
+    Device = DeviceModule;
+  }
+} catch (error) {
+  console.log('expo-device not available, using fallback');
+}
+
+try {
+  const SensorsModule = require('expo-sensors');
+  if (SensorsModule) {
+    Accelerometer = SensorsModule.Accelerometer;
+    Gyroscope = SensorsModule.Gyroscope;
+    Magnetometer = SensorsModule.Magnetometer;
+    Pedometer = SensorsModule.Pedometer;
+  }
+} catch (error) {
+  console.log('expo-sensors not available, using fallbacks');
+}
+
+try {
+  const NetInfoModule = require('@react-native-community/netinfo');
+  if (NetInfoModule && NetInfoModule.default) {
+    NetInfo = NetInfoModule.default;
+  }
+} catch (error) {
+  console.log('@react-native-community/netinfo not available, using fallback');
+}
+
+try {
+  const BatteryModule = require('expo-battery');
+  if (BatteryModule) {
+    Battery = BatteryModule;
+  }
+} catch (error) {
+  console.log('expo-battery not available, using fallback');
+}
+
 // Dark theme constants
 const DARK_THEME = {
   background: '#1A1A1A',
@@ -96,6 +182,49 @@ interface RecordDrivingSheetProps {
   onCreateRoute?: (routeData: RecordedRouteData) => void;
 }
 
+// Improve speed sensitivity for walking or slow movement
+const MIN_DISTANCE_FILTER = 5; // meters, reduced from 20 to capture smaller movements
+const MIN_TIME_FILTER = 2000; // milliseconds, reduced from 5000 to update more frequently
+const MIN_SPEED_THRESHOLD = 0.1; // km/h, minimum speed to consider
+
+// Update speed display to handle very low speeds better
+const formatSpeed = (speed: number): string => {
+  if (speed < MIN_SPEED_THRESHOLD) {
+    return '0.0';
+  }
+  return speed.toFixed(1);
+};
+
+// Add device data state with fallback values since packages might be missing
+const defaultDeviceData = {
+  deviceInfo: {
+    brand: 'Unknown',
+    manufacturer: 'Unknown',
+    modelName: 'Unknown',
+    deviceName: 'Unknown',
+    deviceType: 'Unknown',
+    osName: Platform.OS,
+    osVersion: Platform.Version,
+    totalMemory: 0
+  },
+  battery: {
+    level: 1,
+    state: 'unknown',
+    isLowPowerMode: false
+  },
+  network: {
+    type: 'unknown',
+    isConnected: true,
+    details: null
+  },
+  motion: {
+    accelerometer: { x: 0, y: 0, z: 0 },
+    gyroscope: { x: 0, y: 0, z: 0 },
+    magnetometer: { x: 0, y: 0, z: 0 },
+    pedometer: null
+  }
+};
+
 // Simplified component with recording functionality
 export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
   const { isVisible, onClose, onCreateRoute } = props;
@@ -111,14 +240,14 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
   const [averageSpeed, setAverageSpeed] = useState(0);
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [locationSubscription, setLocationSubscription] = useState<Location.LocationSubscription | null>(null);
+  const [deviceData, setDeviceData] = useState(defaultDeviceData);
+  const [showSummary, setShowSummary] = useState(false);
   const startTimeRef = useRef<number | null>(null);
   const pausedTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const [showSummary, setShowSummary] = useState(false);
   const appState = useRef(AppState.currentState);
   const waypointThrottleRef = useRef<number>(0);
-  const MIN_DISTANCE_FILTER = 20; // meters, increased from 10
-  const MIN_TIME_FILTER = 5000; // milliseconds, increased from 2000
+  const motionSubscriptionsRef = useRef<any>({});
   
   // Set up background waypoint collection
   useEffect(() => {
@@ -251,6 +380,103 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
     return deg * (Math.PI / 180);
   };
 
+  // Add this to the top of startRecording function to gather device data
+  const gatherDeviceData = async () => {
+    try {
+      // Attempt to gather device info if available
+      let deviceInfo = {
+        brand: Platform.OS,
+        manufacturer: 'Unknown',
+        modelName: 'Unknown',
+        deviceName: 'Unknown Device',
+        deviceType: 'Unknown',
+        osName: Platform.OS,
+        osVersion: String(Platform.Version),
+        totalMemory: 0,
+      };
+      
+      // Attempt to gather battery info if available
+      let batteryInfo = {
+        level: 1,
+        state: 'unknown',
+        isLowPowerMode: false
+      };
+      
+      // Attempt to gather network info if available
+      let networkInfo = {
+        type: 'unknown',
+        isConnected: true,
+        details: null
+      };
+      
+      try {
+        const DeviceModule = require('expo-device');
+        if (DeviceModule) {
+          deviceInfo = {
+            brand: DeviceModule.brand || Platform.OS,
+            manufacturer: DeviceModule.manufacturer || 'Unknown',
+            modelName: DeviceModule.modelName || 'Unknown',
+            deviceName: await DeviceModule.getDeviceNameAsync() || 'Unknown Device',
+            deviceType: DeviceModule.deviceType || 'Unknown',
+            osName: DeviceModule.osName || Platform.OS,
+            osVersion: DeviceModule.osVersion || String(Platform.Version),
+            totalMemory: DeviceModule.totalMemory || 0,
+          };
+        }
+      } catch (e) {
+        console.log('expo-device not available for device info');
+      }
+      
+      try {
+        const BatteryModule = require('expo-battery');
+        if (BatteryModule) {
+          const batteryLevel = await BatteryModule.getBatteryLevelAsync();
+          const batteryState = await BatteryModule.getBatteryStateAsync();
+          const isLowPowerMode = await BatteryModule.isLowPowerModeEnabledAsync();
+          
+          batteryInfo = {
+            level: batteryLevel,
+            state: batteryState,
+            isLowPowerMode
+          };
+        }
+      } catch (e) {
+        console.log('expo-battery not available for battery info');
+      }
+      
+      try {
+        const NetInfoModule = require('@react-native-community/netinfo');
+        if (NetInfoModule?.fetch) {
+          const netInfo = await NetInfoModule.fetch();
+          
+          networkInfo = {
+            type: netInfo.type,
+            isConnected: netInfo.isConnected,
+            details: netInfo.details
+          };
+        }
+      } catch (e) {
+        console.log('@react-native-community/netinfo not available');
+      }
+      
+      // Update device data state
+      setDeviceData({
+        deviceInfo,
+        battery: batteryInfo,
+        network: networkInfo,
+        motion: deviceData.motion
+      });
+      
+      console.log('Device data gathered:', {
+        device: deviceInfo,
+        battery: batteryInfo,
+        network: networkInfo
+      });
+    } catch (error) {
+      console.error('Error gathering device data:', error);
+    }
+  };
+
   // Start recording location
   const startRecording = async () => {
     try {
@@ -290,9 +516,15 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
       // Set recording state
       setIsRecording(true);
       setIsPaused(false);
-      
+
       // Start location tracking
       await startLocationTracking();
+
+      // Call gatherDeviceData in startRecording
+      gatherDeviceData();
+
+      // Add this to startRecording to set up motion sensors
+      setupMotionSensors();
     } catch (error) {
       console.error('Error starting location tracking:', error);
     }
@@ -333,6 +565,9 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
     
     // Always show summary regardless of waypoint count
     setShowSummary(true);
+
+    // Clean up motion sensors in stopRecording
+    cleanupMotionSensors();
   };
 
   // Format time display (mm:ss)
@@ -415,45 +650,45 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
     // Save the recordedRouteData for the callback to use
     const savedData = {...recordedRouteData};
     
-    // First close the modal
-    hideModal();
-    console.log('RecordDrivingSheet: Modal closed');
-    
+            // First close the modal
+            hideModal();
+            console.log('RecordDrivingSheet: Modal closed');
+            
     // Call the callback with a timeout to ensure modal is closed first
-    if (onCreateRoute) {
+            if (onCreateRoute) {
       console.log('RecordDrivingSheet: Scheduling onCreateRoute call with timeout');
-      setTimeout(() => {
+              setTimeout(() => {
         console.log('RecordDrivingSheet: Calling onCreateRoute after timeout');
         onCreateRoute(savedData);
       }, 100);
-    } else {
-      console.log('RecordDrivingSheet: ERROR! onCreateRoute callback is NOT defined!');
-    }
+            } else {
+              console.log('RecordDrivingSheet: ERROR! onCreateRoute callback is NOT defined!');
+            }
   };
   
   // Cancel recording session
   const cancelRecording = () => {
     if (isRecording) {
-      if (locationSubscription) {
-        locationSubscription.remove();
-        setLocationSubscription(null);
-      }
-      
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+              if (locationSubscription) {
+                locationSubscription.remove();
+                setLocationSubscription(null);
+              }
+              
+              if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+              }
       
       // Stop background location tracking
       stopBackgroundLocationTask();
-      
-      setIsRecording(false);
+              
+              setIsRecording(false);
       setIsPaused(false);
-      setShowSummary(false);
-      setWaypoints([]);
-      setElapsedTime(0);
-      setDistance(0);
-      setAverageSpeed(0);
+              setShowSummary(false);
+              setWaypoints([]);
+              setElapsedTime(0);
+              setDistance(0);
+              setAverageSpeed(0);
       setCurrentSpeed(0);
     } else {
       onClose();
@@ -478,8 +713,8 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
     setIsPaused(false);
     
     // Resume timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
+              if (timerRef.current) {
+                clearInterval(timerRef.current);
     }
     
     timerRef.current = setInterval(() => {
@@ -528,9 +763,11 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
               accuracy: location.coords.accuracy,
             };
             
-            // Update current speed display
+            // Update current speed display - handle null speeds better
             if (location.coords.speed !== null) {
-              setCurrentSpeed(location.coords.speed * 3.6); // Convert m/s to km/h
+              const speedKmh = Math.max(0, location.coords.speed * 3.6); // Convert m/s to km/h and ensure non-negative
+              setCurrentSpeed(speedKmh);
+              console.log('Current speed:', speedKmh.toFixed(2), 'km/h');
             }
 
             setWaypoints(prevWaypoints => {
@@ -583,6 +820,83 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
     }
   };
   
+  // Setup motion sensors function with optional imports
+  const setupMotionSensors = () => {
+    try {
+      const SensorsModule = require('expo-sensors');
+      if (SensorsModule) {
+        // Accelerometer
+        if (SensorsModule.Accelerometer) {
+          SensorsModule.Accelerometer.setUpdateInterval(1000);
+          const accelerometerSubscription = SensorsModule.Accelerometer.addListener((data: { x: number, y: number, z: number }) => {
+            setDeviceData(prev => ({
+              ...prev,
+              motion: {
+                ...prev.motion,
+                accelerometer: data
+              }
+            }));
+          });
+          
+          // Gyroscope
+          let gyroscopeSubscription = { remove: () => {} };
+          if (SensorsModule.Gyroscope) {
+            SensorsModule.Gyroscope.setUpdateInterval(1000);
+            gyroscopeSubscription = SensorsModule.Gyroscope.addListener((data: { x: number, y: number, z: number }) => {
+              setDeviceData(prev => ({
+                ...prev,
+                motion: {
+                  ...prev.motion,
+                  gyroscope: data
+                }
+              }));
+            });
+          }
+          
+          // Magnetometer
+          let magnetometerSubscription = { remove: () => {} };
+          if (SensorsModule.Magnetometer) {
+            SensorsModule.Magnetometer.setUpdateInterval(1000);
+            magnetometerSubscription = SensorsModule.Magnetometer.addListener((data: { x: number, y: number, z: number }) => {
+              setDeviceData(prev => ({
+                ...prev,
+                motion: {
+                  ...prev.motion,
+                  magnetometer: data
+                }
+              }));
+            });
+          }
+          
+          // Store subscriptions for cleanup
+          motionSubscriptionsRef.current = {
+            accelerometer: accelerometerSubscription,
+            gyroscope: gyroscopeSubscription,
+            magnetometer: magnetometerSubscription
+          };
+        }
+      }
+    } catch (e) {
+      console.log('expo-sensors not available');
+      // Set empty cleanup functions
+      motionSubscriptionsRef.current = {
+        accelerometer: { remove: () => {} },
+        gyroscope: { remove: () => {} },
+        magnetometer: { remove: () => {} }
+      };
+    }
+  };
+
+  // Clean up motion sensors with safe checks
+  const cleanupMotionSensors = () => {
+    const subs = motionSubscriptionsRef.current;
+    if (subs) {
+      if (subs.accelerometer && subs.accelerometer.remove) subs.accelerometer.remove();
+      if (subs.gyroscope && subs.gyroscope.remove) subs.gyroscope.remove();
+      if (subs.magnetometer && subs.magnetometer.remove) subs.magnetometer.remove();
+    }
+  };
+  
   return (
     <View style={styles.container}>
       <TouchableOpacity 
@@ -615,10 +929,10 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
             <View style={styles.statItem}>
               <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>SPEED</Text>
               <XStack>
-                <Text color={DARK_THEME.text} fontSize={24} fontWeight="600">{averageSpeed.toFixed(1)}</Text>
+                <Text color={DARK_THEME.text} fontSize={24} fontWeight="600">{formatSpeed(averageSpeed)}</Text>
                 <Text color={DARK_THEME.text} fontSize={16} opacity={0.7} marginTop={4}> km/h</Text>
               </XStack>
-              <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>Current: {currentSpeed.toFixed(1)} km/h</Text>
+              <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>Current: {formatSpeed(currentSpeed)} km/h</Text>
             </View>
           </View>
           
@@ -652,15 +966,15 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
                   </TouchableOpacity>
                 </XStack>
               ) : (
-                <TouchableOpacity
-                  style={[
-                    styles.recordButton,
+              <TouchableOpacity
+                style={[
+                  styles.recordButton,
                     { backgroundColor: '#1A3D3D' },
-                  ]}
+                ]}
                   onPress={startRecording}
-                >
+              >
                   <Feather name="play" size={32} color="white" />
-                </TouchableOpacity>
+              </TouchableOpacity>
               )}
               <Text color={DARK_THEME.text} marginTop={8}>
                 {isRecording 
@@ -679,30 +993,30 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
                 Your route has been recorded successfully. You can now create a new route with these waypoints.
               </Text>
               
-              <Button
+                <Button
                 backgroundColor="#1A3D3D"
-                color="white"
+                  color="white"
                 onPress={saveRecording}
                 size="$4"
                 height={50}
                 pressStyle={{ opacity: 0.8 }}
-              >
+                >
                 <XStack gap="$2" alignItems="center">
                   <Feather name="check" size={24} color="white" />
                   <Text color="white" fontWeight="600" fontSize={18}>Create Route</Text>
                 </XStack>
-              </Button>
-              
-              <Button
+                </Button>
+                
+                <Button
                 backgroundColor="#3D3D1A"
-                color="white"
+                  color="white"
                 onPress={continueRecording}
                 marginBottom={8}
-              >
+                >
                 <XStack gap="$2" alignItems="center">
                   <Feather name="play" size={18} color="white" />
                   <Text color="white">Continue Recording</Text>
-                </XStack>
+              </XStack>
               </Button>
               
               <Button
@@ -728,6 +1042,40 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
                     {`${idx + Math.max(0, waypoints.length - 5)}: ${wp.latitude.toFixed(6)}, ${wp.longitude.toFixed(6)}${wp.speed !== null ? ` • ${(wp.speed * 3.6).toFixed(1)} km/h` : ''}`}
                   </Text>
                 ))}
+              </View>
+            </YStack>
+          )}
+          
+          {/* Device Data Debug Section */}
+          {isRecording && (
+            <YStack>
+              <Text color={DARK_THEME.text} fontWeight="600" marginBottom={4}>
+                Device Data:
+              </Text>
+              <View style={[styles.waypointContainer, { backgroundColor: DARK_THEME.cardBackground }]}>
+                <Text style={styles.waypointText} color={DARK_THEME.text}>
+                  Device: {deviceData.deviceInfo?.modelName || 'Unknown'}
+                </Text>
+                <Text style={styles.waypointText} color={DARK_THEME.text}>
+                  Battery: {deviceData.battery?.level ? Math.round(deviceData.battery.level * 100) + '%' : 'Unknown'}
+                </Text>
+                <Text style={styles.waypointText} color={DARK_THEME.text}>
+                  Network: {deviceData.network?.type || 'Unknown'}
+                </Text>
+                {deviceData.motion.accelerometer && (
+                  <Text style={styles.waypointText} color={DARK_THEME.text}>
+                    Accelerometer: x={deviceData.motion.accelerometer.x.toFixed(2)}, 
+                    y={deviceData.motion.accelerometer.y.toFixed(2)}, 
+                    z={deviceData.motion.accelerometer.z.toFixed(2)}
+                  </Text>
+                )}
+                {deviceData.motion.gyroscope && (
+                  <Text style={styles.waypointText} color={DARK_THEME.text}>
+                    Gyroscope: x={deviceData.motion.gyroscope.x.toFixed(2)}, 
+                    y={deviceData.motion.gyroscope.y.toFixed(2)}, 
+                    z={deviceData.motion.gyroscope.z.toFixed(2)}
+                  </Text>
+                )}
               </View>
             </YStack>
           )}

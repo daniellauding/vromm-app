@@ -28,6 +28,7 @@ import { AppAnalytics } from '../utils/analytics';
 import { MediaCarousel } from '../components/MediaCarousel';
 import { MediaItem, Exercise, WaypointData, MediaUrl, RouteData } from '../types/route';
 import { useTranslation } from '../contexts/TranslationContext';
+import * as mediaUtils from '../utils/mediaUtils';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotType = Database['public']['Enums']['spot_type'];
@@ -369,39 +370,21 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const pickMedia = async (useCamera = false) => {
     try {
-      // Request permissions first
+      let newMediaItems: mediaUtils.MediaItem[] | null = null;
+      
       if (useCamera) {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Camera permission is required to take photos/videos');
-          return;
+        // Take a photo with the camera
+        const newMedia = await mediaUtils.takePhoto();
+        if (newMedia) {
+          newMediaItems = [newMedia];
         }
       } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert(
-            'Permission needed',
-            'Media library permission is required to select photos/videos'
-          );
-          return;
-        }
+        // Pick media from library
+        newMediaItems = await mediaUtils.pickMediaFromLibrary(true);
       }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
-        allowsMultipleSelection: !useCamera,
-        quality: 0.8
-      });
-
-      if (!result.canceled) {
-        const newMedia: MediaItem[] = result.assets.map(asset => ({
-          id: Date.now().toString() + Math.random(),
-          type: asset.type === 'video' ? 'video' : 'image',
-          uri: asset.uri,
-          fileName: asset.uri.split('/').pop() || 'file'
-        }));
-
-        setMedia([...media, ...newMedia]);
+      
+      if (newMediaItems && newMediaItems.length > 0) {
+        setMedia([...media, ...newMediaItems]);
       }
     } catch (err) {
       console.error('Error picking media:', err);
@@ -411,26 +394,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const takePhoto = async () => {
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(t('createRoute.permissionDenied'), t('createRoute.cameraPermissionMsg'));
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.8
-      });
-
-      if (!result.canceled) {
-        const asset = result.assets[0];
-        const newMedia: MediaItem = {
-          id: Date.now().toString() + Math.random(),
-          type: 'image',
-          uri: asset.uri,
-          fileName: asset.uri.split('/').pop() || 'photo.jpg'
-        };
-
+      const newMedia = await mediaUtils.takePhoto();
+      if (newMedia) {
         setMedia([...media, newMedia]);
       }
     } catch (err) {
@@ -441,27 +406,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const recordVideo = async () => {
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Camera permission is required to record videos');
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-        quality: 0.8,
-        videoMaxDuration: 60
-      });
-
-      if (!result.canceled) {
-        const asset = result.assets[0];
-        const newMedia: MediaItem = {
-          id: Date.now().toString() + Math.random(),
-          type: 'video',
-          uri: asset.uri,
-          fileName: asset.uri.split('/').pop() || 'video.mp4'
-        };
-
+      const newMedia = await mediaUtils.recordVideo();
+      if (newMedia) {
         setMedia([...media, newMedia]);
       }
     } catch (err) {
@@ -471,36 +417,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   };
 
   const addYoutubeLink = () => {
-    const ytVideoId = extractYoutubeVideoId(youtubeLink);
-    if (!ytVideoId) {
+    const newMedia = mediaUtils.createYoutubeMediaItem(youtubeLink);
+    if (!newMedia) {
       Alert.alert(t('common.error'), t('createRoute.invalidYoutubeLink'));
       return;
     }
-
-    const thumbnail = `https://img.youtube.com/vi/${ytVideoId}/hqdefault.jpg`;
-
-    const newMedia: MediaItem = {
-      id: Date.now().toString(),
-      type: 'youtube',
-      uri: `https://www.youtube.com/watch?v=${ytVideoId}`,
-      thumbnail,
-      fileName: 'YouTube Video'
-    };
     setMedia([...media, newMedia]);
-  };
-
-  const extractYoutubeVideoId = (url: string): string | null => {
-    const patterns = [
-      /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i,
-      /^[a-zA-Z0-9_-]{11}$/
-    ];
-
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match) return match[1];
-    }
-
-    return null;
+    setYoutubeLink(''); // Clear the input after adding
   };
 
   const handleAddMedia = (newMedia: Pick<MediaItem, 'type' | 'uri'>) => {
@@ -518,30 +441,30 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     setMedia(prev => prev.filter((_, i) => i !== index));
   };
 
-  const uploadMediaInBackground = async (media: MediaItem[], routeId: string) => {
+  const uploadMediaInBackground = async (media: mediaUtils.MediaItem[], routeId: string) => {
     try {
       // Only upload new media items (ones that don't start with http)
       const newMediaItems = media.filter(m => !m.uri.startsWith('http'));
+      const uploadResults: { type: mediaUtils.MediaType; url: string; description?: string }[] = [];
 
       for (const item of newMediaItems) {
-        const fileExtension = item.fileName.split('.').pop() || 'jpg';
-        const filePath = `routes/${routeId}/${Date.now()}.${fileExtension}`;
+        try {
+          const publicUrl = await mediaUtils.uploadMediaToSupabase(item, 'media', `routes/${routeId}`);
+          
+          if (publicUrl) {
+            uploadResults.push({
+              type: item.type,
+              url: publicUrl,
+              description: item.description || ''
+            });
+          }
+        } catch (itemError) {
+          console.error('Error uploading media item:', itemError);
+          // Continue with other items even if one fails
+        }
+      }
 
-        // Upload the file
-        const { error: uploadError } = await supabase.storage
-          .from('media')
-          .upload(filePath, decode(item.uri), {
-            contentType: item.type === 'video' ? 'video/mp4' : 'image/jpeg',
-            upsert: true
-          });
-
-        if (uploadError) throw uploadError;
-
-        // Get the public URL
-        const {
-          data: { publicUrl }
-        } = supabase.storage.from('media').getPublicUrl(filePath);
-
+      if (uploadResults.length > 0) {
         // Get current media_attachments
         const { data: currentRoute } = await supabase
           .from('routes')
@@ -549,16 +472,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           .eq('id', routeId)
           .single();
 
-        const currentAttachments = (currentRoute?.media_attachments || []) as MediaUrl[];
+        const currentAttachments = (currentRoute?.media_attachments || []) as mediaUtils.MediaUrl[];
 
         // Add new media to the array
         const updatedAttachments = [
           ...currentAttachments,
-          {
-            type: item.type,
-            url: publicUrl,
-            description: item.description
-          }
+          ...uploadResults
         ];
 
         // Update the route with the new media array
@@ -570,8 +489,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         if (updateError) throw updateError;
       }
     } catch (error) {
-      console.error('Error uploading media:', error);
-      throw error;
+      console.error('Error in media upload process:', error);
+      // Don't throw here, just log the error to prevent app crashes
     }
   };
 
@@ -597,7 +516,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       }));
 
       // When editing, preserve existing media
-      let mediaToUpdate: MediaUrl[] = [];
+      let mediaToUpdate: mediaUtils.MediaUrl[] = [];
       if (isEditing && routeId) {
         // Get existing media from the route
         const { data: existingRoute } = await supabase
@@ -606,7 +525,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           .eq('id', routeId)
           .single();
 
-        const existingMedia = (existingRoute?.media_attachments || []) as MediaUrl[];
+        const existingMedia = (existingRoute?.media_attachments || []) as mediaUtils.MediaUrl[];
 
         // Keep existing media that hasn't been removed
         const existingMediaUrls = existingMedia.map(m => m.url);

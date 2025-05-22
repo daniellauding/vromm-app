@@ -13,7 +13,7 @@ import { Text } from '../components/Text';
 import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
 import type { Route, MediaAttachment } from '../hooks/useRoutes';
-import { Image, ImageSourcePropType, Platform, PermissionsAndroid, Animated, Pressable, Modal, View, TouchableOpacity } from 'react-native';
+import { Image, ImageSourcePropType, Platform, PermissionsAndroid, Animated, Pressable, Modal, View, TouchableOpacity, useColorScheme } from 'react-native';
 import { OnboardingModal } from '../components/OnboardingModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shouldShowOnboarding } from '../components/Onboarding';
@@ -74,6 +74,21 @@ type DrivenRouteFromDB = {
 
 type DrivenRoute = Route & {
   driven_at: string;
+};
+
+// Update the Route type to include creator id
+type Route = {
+  id: string;
+  name: string;
+  description?: string;
+  difficulty?: string;
+  spot_type?: string;
+  creator_id?: string;
+  creator?: {
+    id: string;
+    full_name: string;
+  };
+  // Rest of the route properties...
 };
 
 const isValidRoute = (route: any): route is Route => {
@@ -457,7 +472,7 @@ export function HomeScreen() {
     try {
       const { data: savedData, error: savedError } = await supabase
         .from('saved_routes')
-        .select('*, routes(*, creator:creator_id(full_name))')
+        .select('*, routes(*, creator:creator_id(id, full_name))')
         .eq('user_id', user.id)
         .order('saved_at', { ascending: false });
 
@@ -496,7 +511,7 @@ export function HomeScreen() {
     try {
       const { data: drivenData, error: drivenError } = await supabase
         .from('driven_routes')
-        .select('*, routes(*, creator:creator_id(full_name))')
+        .select('*, routes(*, creator:creator_id(id, full_name))')
         .eq('user_id', user.id)
         .not('driven_at', 'is', null)
         .order('driven_at', { ascending: false });
@@ -677,6 +692,21 @@ export function HomeScreen() {
                     <Text size="md" weight="bold" numberOfLines={1} ellipsizeMode="tail">
                       {route.name}
                     </Text>
+                    <XStack space="$1" alignItems="center" marginTop="$1">
+                      <Feather name="user" size={14} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                      <Text 
+                        color="$gray11"
+                        size="xs"
+                        onPress={() => {
+                          if (route.creator?.id) {
+                            navigation.navigate('PublicProfile', { userId: route.creator.id });
+                          }
+                        }}
+                        pressStyle={{ opacity: 0.7 }}
+                      >
+                        {route.creator?.full_name || 'Unknown'}
+                      </Text>
+                    </XStack>
                     <Text size="sm" color="$gray11">
                       {route.difficulty?.toUpperCase()}
                     </Text>
@@ -740,6 +770,21 @@ export function HomeScreen() {
                       <Text size="lg" weight="bold" numberOfLines={1} ellipsizeMode="tail">
                         {route.name}
                       </Text>
+                      <XStack space="$1" alignItems="center" marginTop="$1">
+                        <Feather name="user" size={14} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                        <Text 
+                          color="$gray11"
+                          size="xs"
+                          onPress={() => {
+                            if (route.creator?.id) {
+                              navigation.navigate('PublicProfile', { userId: route.creator.id });
+                            }
+                          }}
+                          pressStyle={{ opacity: 0.7 }}
+                        >
+                          {route.creator?.full_name || 'Unknown'}
+                        </Text>
+                      </XStack>
                       <Text size="sm" color="$gray11">
                         {route.difficulty?.toUpperCase()}
                       </Text>
@@ -970,6 +1015,21 @@ export function HomeScreen() {
                         <Text size="lg" weight="bold" numberOfLines={1} ellipsizeMode="tail">
                           {route.name}
                         </Text>
+                        <XStack space="$1" alignItems="center" marginTop="$1">
+                          <Feather name="user" size={14} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                          <Text 
+                            color="$gray11"
+                            size="xs"
+                            onPress={() => {
+                              if (route.creator?.id) {
+                                navigation.navigate('PublicProfile', { userId: route.creator.id });
+                              }
+                            }}
+                            pressStyle={{ opacity: 0.7 }}
+                          >
+                            {route.creator?.full_name || 'Unknown'}
+                          </Text>
+                        </XStack>
                         <Text size="sm" color="$gray11">
                           {route.difficulty?.toUpperCase()}
                         </Text>
@@ -1078,6 +1138,9 @@ export function HomeScreen() {
     role_confirmed?: boolean;
   });
 
+  // Add this near the top of the HomeScreen component, right after other hooks
+  const colorScheme = useColorScheme();
+
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
       {/* Onboarding Modal */}
@@ -1089,23 +1152,37 @@ export function HomeScreen() {
 
       <ScrollView contentContainerStyle={{ paddingTop: 72 }}>
         <YStack f={1}>
-          {/* Welcome Message */}
-          <Text
-            fontSize="$6"
-            fontWeight="800"
-            fontStyle="italic"
-            color="$color"
-            paddingHorizontal="$4"
-            marginBottom="$4"
+          {/* Header with Welcome and Users Button */}
+          <XStack 
+            justifyContent="space-between" 
+            alignItems="center" 
+            paddingHorizontal="$4" 
+            marginBottom="$2"
           >
-            {/* Only show name if it's explicitly set and not an email or default value */}
-            {profile?.full_name && 
-             !profile.full_name.includes('@') && 
-             profile.full_name !== 'Unknown' &&
-             !profile.full_name.startsWith('user_')
-              ? t('home.welcomeWithName').replace('{name}', profile.full_name)
-              : t('home.welcome')}
-          </Text>
+            <Text
+              fontSize="$6"
+              fontWeight="800"
+              fontStyle="italic"
+              color="$color"
+            >
+              {/* Only show name if it's explicitly set and not an email or default value */}
+              {profile?.full_name && 
+              !profile.full_name.includes('@') && 
+              profile.full_name !== 'Unknown' &&
+              !profile.full_name.startsWith('user_')
+                ? t('home.welcomeWithName').replace('{name}', profile.full_name)
+                : t('home.welcome')}
+            </Text>
+            
+            <Button
+              size="sm"
+              variant="outlined"
+              onPress={() => navigation.navigate('UsersScreen')}
+              icon={<Feather name="users" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />}
+            >
+              Users
+            </Button>
+          </XStack>
 
           {/* Getting Started Section - Only show if not all items are completed */}
           {(!isAllOnboardingCompleted()) && (

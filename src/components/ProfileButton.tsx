@@ -41,7 +41,7 @@ export function ProfileButton({ userId, isCurrentUser, size = 'md' }: ProfileBut
       variant="outlined"
       size={size}
     >
-      {isCurrentUser ? (t('profile.edit') || 'Edit') : (t('profile.view') || 'View Profile')}
+      {isCurrentUser ? (t('profile.edit') || 'Edit') : (t('profile.view') || 'View')}
     </Button>
   );
 } 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Image, Alert, StyleSheet, useColorScheme, Dimensions } from 'react-native';
 import { YStack, XStack, Card, ScrollView, Separator } from 'tamagui';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { ReportDialog } from '../components/report/ReportDialog';
 import { ProfileButton } from '../components/ProfileButton';
+import { useFocusEffect } from '@react-navigation/native';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   routes_created: number;
@@ -41,8 +42,12 @@ export function PublicProfileScreen() {
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   
-  // Get userId from route params
-  const userId = route.params?.userId;
+  // Get userId from route params with enhanced logging
+  const params = route.params || {};
+  const userId = params.userId;
+  
+  console.log('PublicProfileScreen: Received params:', params);
+  console.log('PublicProfileScreen: userId:', userId);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,10 +56,12 @@ export function PublicProfileScreen() {
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [recentRoutes, setRecentRoutes] = useState<any[]>([]);
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
+  const [learningPathSteps, setLearningPathSteps] = useState({ total: 25, completed: 0, currentTitle: '' });
+  const [showAdminControls, setShowAdminControls] = useState(false);
   
   useEffect(() => {
     loadProfile();
-  }, [userId]);
+  }, [userId, route.params?.refresh]);
   
   // Check if this is the current user's profile
   useEffect(() => {
@@ -63,8 +70,80 @@ export function PublicProfileScreen() {
     }
   }, [user, profile]);
 
+  // Fetch learning path data when profile loads
+  useEffect(() => {
+    if (profile?.id) {
+      fetchLearningPathData();
+    }
+  }, [profile?.id]);
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+          
+        if (!error && data && data.role === 'admin') {
+          setShowAdminControls(true);
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err);
+      }
+    };
+    
+    checkAdminStatus();
+  }, [user]);
+
+  // Function to fetch learning path data
+  const fetchLearningPathData = async () => {
+    try {
+      // Fetch completed steps
+      const { data: completedData } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('exercise_id')
+        .eq('user_id', userId);
+        
+      const completedCount = completedData?.length || 0;
+      
+      // Fetch the first learning path to get title
+      const { data: pathData } = await supabase
+        .from('learning_paths')
+        .select('*')
+        .eq('active', true)
+        .order('order_index', { ascending: true })
+        .limit(1);
+        
+      const currentTitle = pathData?.[0]?.title?.en || '';
+      
+      setLearningPathSteps({
+        total: 25, // Hardcoded total as specified
+        completed: completedCount,
+        currentTitle
+      });
+    } catch (err) {
+      console.error('Error fetching learning path data:', err);
+    }
+  };
+
+  // Force profile refresh on mount and when navigation params change
+  useFocusEffect(
+    useCallback(() => {
+      console.log('PublicProfile screen focused, refreshing data');
+      loadProfile();
+    }, [userId, route.params?.refresh])
+  );
+
   const loadProfile = async () => {
+    console.log('PublicProfileScreen.loadProfile: Starting with userId:', userId);
+    
     if (!userId) {
+      console.error('PublicProfileScreen.loadProfile: No user ID provided in params');
       setError('No user ID provided');
       setLoading(false);
       return;
@@ -73,6 +152,7 @@ export function PublicProfileScreen() {
     try {
       setLoading(true);
       
+      console.log('PublicProfileScreen.loadProfile: Fetching profile for userId:', userId);
       // Get profile data with counts - ensure proper field selection
       const { data, error } = await supabase
         .from('profiles')
@@ -170,11 +250,62 @@ export function PublicProfileScreen() {
   };
   
   const handleViewAllRoutes = () => {
-    navigation.navigate('Routes', { creatorId: userId });
+    navigation.navigate('RouteList', { 
+      title: t('profile.routesCreated') || 'Created Routes',
+      routes: recentRoutes,
+      type: 'created',
+      creatorId: userId
+    });
   };
   
   const handleReport = () => {
     setShowReportDialog(true);
+  };
+  
+  // Add admin delete function
+  const handleAdminDeleteUser = async () => {
+    if (!showAdminControls || !profile) return;
+    
+    // Don't allow admins to delete themselves
+    if (user?.id === profile.id) {
+      Alert.alert('Admin Action', 'You cannot delete your own account');
+      return;
+    }
+    
+    Alert.alert(
+      'Admin: Delete User',
+      `Are you sure you want to delete user "${profile.full_name}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // First delete related data
+              // Note: This assumes your database has proper cascade deletes or you need to handle these individually
+              
+              // Delete user profile
+              const { error } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', profile.id);
+              
+              if (error) throw error;
+              
+              // Navigate back
+              navigation.goBack();
+              
+              // Show confirmation
+              Alert.alert('Success', 'User deleted by admin');
+            } catch (err) {
+              console.error('Admin delete user error:', err);
+              Alert.alert('Error', 'Failed to delete user');
+            }
+          }
+        }
+      ]
+    );
   };
   
   if (loading) {
@@ -214,25 +345,40 @@ export function PublicProfileScreen() {
         title={profile.full_name || t('profile.user') || 'User'} 
         showBack 
         rightElement={
-          isCurrentUser ? (
-            <ProfileButton 
-              userId={profile.id} 
-              isCurrentUser={true} 
-              size="sm"
-            />
-          ) : (
-            <Button
-              onPress={handleReport}
-              icon={<Feather name="flag" size={20} color={iconColor} />}
-              variant="outlined"
-            >
-              {t('profile.report') || 'Report'}
-            </Button>
-          )
+          <>
+            {showAdminControls && (
+              <Button
+                onPress={handleAdminDeleteUser}
+                icon={<Feather name="trash-2" size={20} color="red" />}
+                variant="outlined"
+                marginRight="$2"
+              >
+                {t('profile.adminDelete') || 'Delete User'}
+              </Button>
+            )}
+            {isCurrentUser ? (
+              <ProfileButton 
+                userId={profile.id} 
+                isCurrentUser={true} 
+                size="sm"
+              />
+            ) : (
+              <Button
+                onPress={handleReport}
+                icon={<Feather name="flag" size={20} color={iconColor} />}
+                variant="outlined"
+              >
+                {t('profile.report') || 'Report'}
+              </Button>
+            )}
+          </>
         }
       />
       
-      <ScrollView>
+      <ScrollView 
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={true}
+      >
         <YStack padding="$4" gap="$4">
           {/* Profile header with avatar */}
           <YStack alignItems="center" gap="$2">
@@ -304,37 +450,59 @@ export function PublicProfileScreen() {
           {profile.role === 'student' && (
             <Card padding="$4" bordered>
               <YStack gap="$2">
-                <Text fontSize="$5" fontWeight="bold">{t('profile.learningPath') || 'Learning Path'}</Text>
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="$5" fontWeight="bold">{t('profile.learningPath') || 'Learning Path'}</Text>
+                  <Button 
+                    size="sm" 
+                    variant="outlined" 
+                    onPress={() => navigation.navigate('ProgressTab', { showDetail: true })}
+                  >
+                    {t('profile.viewDetails') || 'View Details'}
+                  </Button>
+                </XStack>
                 
                 <YStack gap="$2">
                   <XStack justifyContent="space-between">
                     <Text>{t('profile.learningProgress') || 'Progress'}</Text>
-                    <Text>{profile.license_plan_completed === true ? '100%' : '0%'}</Text>
+                    <Text>{learningPathSteps.completed}/{learningPathSteps.total} ({Math.round((learningPathSteps.completed/learningPathSteps.total) * 100)}%)</Text>
                   </XStack>
                   
                   <View style={{ height: 8, backgroundColor: '#eee', borderRadius: 4, overflow: 'hidden' }}>
                     <View 
                       style={{ 
                         height: '100%', 
-                        width: profile.license_plan_completed === true ? '100%' : '0%', 
+                        width: `${(learningPathSteps.completed/learningPathSteps.total) * 100}%`, 
                         backgroundColor: '#34C759' 
                       }} 
                     />
                   </View>
+                  
+                  {learningPathSteps.currentTitle && (
+                    <XStack alignItems="center" gap="$2">
+                      <Feather name="bookmark" size={14} color={iconColor} />
+                      <Text fontSize="$3" color="$gray11">
+                        {t('profile.currentStep') || 'Current step'}: {learningPathSteps.currentTitle}
+                      </Text>
+                    </XStack>
+                  )}
+                  
+                  <Text fontSize="$3" color="$gray11">
+                    {t('profile.learningPathNote') || `${learningPathSteps.completed} of ${learningPathSteps.total} steps completed. View details for more.`}
+                  </Text>
+                  
+                  {profile.experience_level && (
+                    <XStack alignItems="center" gap="$2" marginTop="$2">
+                      <Feather name="award" size={16} color={iconColor} />
+                      <Text>
+                        {profile.experience_level === 'beginner'
+                          ? t('profile.experienceLevels.beginner') || 'Beginner'
+                          : profile.experience_level === 'intermediate'
+                          ? t('profile.experienceLevels.intermediate') || 'Intermediate'
+                          : t('profile.experienceLevels.advanced') || 'Advanced'}
+                      </Text>
+                    </XStack>
+                  )}
                 </YStack>
-                
-                {profile.experience_level && (
-                  <XStack alignItems="center" gap="$2" marginTop="$2">
-                    <Feather name="award" size={16} color={iconColor} />
-                    <Text>
-                      {profile.experience_level === 'beginner'
-                        ? t('profile.experienceLevels.beginner') || 'Beginner'
-                        : profile.experience_level === 'intermediate'
-                        ? t('profile.experienceLevels.intermediate') || 'Intermediate'
-                        : t('profile.experienceLevels.advanced') || 'Advanced'}
-                    </Text>
-                  </XStack>
-                )}
               </YStack>
             </Card>
           )}

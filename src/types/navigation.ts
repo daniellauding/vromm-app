@@ -30,6 +30,7 @@ export type RootStackParamList = {
   LicensePlanScreen: undefined;
   RoleSelectionScreen: undefined;
   PublicProfile: { userId: string };
+  UsersScreen: undefined;
   RouteList: {
     title: string;
     routes: Route[];

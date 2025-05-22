@@ -110,6 +110,7 @@ interface RawMediaAttachment {
 
 interface SupabaseRouteResponse extends Omit<RouteRow, 'waypoint_details' | 'media_attachments'> {
   creator: {
+    id: string;
     full_name: string;
   } | null;
   waypoint_details: RawWaypointDetail[];
@@ -122,6 +123,7 @@ type RouteData = Omit<RouteRow, 'waypoint_details' | 'media_attachments'> & {
   waypoint_details: (WaypointDetail & Json)[];
   media_attachments: (MediaAttachment & Json)[];
   creator?: {
+    id: string;
     full_name: string;
   };
   reviews?: { count: number }[];
@@ -166,6 +168,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   });
   const [carouselHeight, setCarouselHeight] = useState(300); // Height for the carousel
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showAdminControls, setShowAdminControls] = useState(false);
 
   useEffect(() => {
     if (routeId) {
@@ -210,6 +213,28 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     return unsubscribe;
   }, [routeId]);
 
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+          
+        if (!error && data && data.role === 'admin') {
+          setShowAdminControls(true);
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err);
+      }
+    };
+    
+    checkAdminStatus();
+  }, [user]);
+
   const loadRouteData = useCallback(async () => {
     if (!routeId) return;
 
@@ -218,16 +243,16 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       .select(
         `
         *,
-      creator:creator_id(full_name),
-      waypoint_details,
-      media_attachments,
-      reviews:route_reviews(
-        id,
-        rating,
-        content
-      ),
-      average_rating:route_reviews(rating)
-      `
+        creator:creator_id(id, full_name),
+        waypoint_details,
+        media_attachments,
+        reviews:route_reviews(
+          id,
+          rating,
+          content
+        ),
+        average_rating:route_reviews(rating)
+        `
       )
       .eq('id', routeId)
       .single();
@@ -533,6 +558,39 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     );
   };
 
+  const handleAdminDelete = async () => {
+    if (!showAdminControls || !routeData) return;
+    
+    Alert.alert(
+      'Admin: Delete Route',
+      'Are you sure you want to delete this route as an admin? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.from('routes').delete().eq('id', routeData.id);
+              
+              if (error) throw error;
+              
+              // Clear the route data before navigating
+              setRouteData(null);
+              navigation.goBack();
+              
+              // Show confirmation
+              Alert.alert('Success', 'Route deleted by admin');
+            } catch (err) {
+              console.error('Admin delete error:', err);
+              Alert.alert('Error', 'Failed to delete route');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const getMapRegion = useCallback(() => {
     if (!routeData?.waypoint_details?.length) return null;
 
@@ -805,6 +863,14 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               showBack
               rightElement={
                 <XStack gap="$2">
+                  {showAdminControls && (
+                    <Button
+                      icon={<Feather name="trash-2" size={20} color="red" />}
+                      onPress={handleAdminDelete}
+                      variant="outlined"
+                      size="md"
+                    />
+                  )}
                   {user?.id === routeData?.creator_id && (
                     <Button
                       icon={<Feather name="edit-2" size={20} color={iconColor} />}
@@ -906,14 +972,19 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   {/* Creator info with clickable name */}
                   {routeData.creator && (
                     <XStack alignItems="center" gap="$2" marginTop="$2">
-                      <Feather name="user" size={16} color={iconColor} />
-                      <Text 
-                        color="$gray11"
-                        onPress={() => navigation.navigate('PublicProfile', { userId: routeData.creator_id })}
-                        pressStyle={{ opacity: 0.7 }}
+                      <Button 
+                        variant="secondary" 
+                        icon={<Feather name="user" size={16} color={iconColor} />}
+                        onPress={() => {
+                          if (routeData?.creator?.id) {
+                            navigation.navigate('PublicProfile', { userId: routeData.creator.id });
+                          } else if (routeData?.creator_id) {
+                            navigation.navigate('PublicProfile', { userId: routeData.creator_id });
+                          }
+                        }}
                       >
-                        {getTranslation(t, 'routeDetail.createdBy', 'Created by')}: {routeData.creator.full_name}
-                      </Text>
+                        {routeData?.creator?.full_name || t('routeDetail.unknownCreator')}
+                      </Button>
                     </XStack>
                   )}
                   
