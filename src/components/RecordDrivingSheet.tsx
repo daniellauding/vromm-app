@@ -7,6 +7,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { CreateRouteModal } from './CreateRouteModal';
+import { Map } from './Map';
 
 // Optional imports with fallbacks
 let Device: any = {
@@ -183,9 +184,9 @@ interface RecordDrivingSheetProps {
 }
 
 // Improve speed sensitivity for walking or slow movement
-const MIN_DISTANCE_FILTER = 5; // meters, reduced from 20 to capture smaller movements
-const MIN_TIME_FILTER = 2000; // milliseconds, reduced from 5000 to update more frequently
-const MIN_SPEED_THRESHOLD = 0.1; // km/h, minimum speed to consider
+const MIN_DISTANCE_FILTER = 2; // meters, reduced from 5 to better capture walking movements
+const MIN_TIME_FILTER = 1000; // milliseconds, reduced from 2000 to update more frequently
+const MIN_SPEED_THRESHOLD = 0.05; // km/h, lowered to detect very slow movement
 
 // Update speed display to handle very low speeds better
 const formatSpeed = (speed: number): string => {
@@ -194,6 +195,16 @@ const formatSpeed = (speed: number): string => {
   }
   return speed.toFixed(1);
 };
+
+// Add a debug log array
+let movementLogs: Array<{
+  timestamp: number;
+  latitude: number;
+  longitude: number;
+  speed: number | null;
+  distance: number | null;
+  accepted: boolean;
+}> = [];
 
 // Add device data state with fallback values since packages might be missing
 const defaultDeviceData = {
@@ -248,6 +259,26 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
   const appState = useRef(AppState.currentState);
   const waypointThrottleRef = useRef<number>(0);
   const motionSubscriptionsRef = useRef<any>({});
+  
+  // Add new state for debug info
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(true);
+  
+  // Add map state
+  const [initialRegion, setInitialRegion] = useState<{
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+  } | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  
+  // Clear logs when starting a new recording
+  useEffect(() => {
+    if (!isRecording) {
+      movementLogs = [];
+    }
+  }, [isRecording]);
   
   // Set up background waypoint collection
   useEffect(() => {
@@ -744,49 +775,78 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
         {
           accuracy: Location.Accuracy.BestForNavigation,
           timeInterval: MIN_TIME_FILTER,
-          distanceInterval: MIN_DISTANCE_FILTER,
+          distanceInterval: MIN_DISTANCE_FILTER/2, // Set lower to get more position updates
         },
         (location) => {
-          // Skip waypoints based on time throttle to reduce frequency
           const now = Date.now();
-          if (now - waypointThrottleRef.current < MIN_TIME_FILTER && waypointThrottleRef.current !== 0) {
-            return;
+          
+          // Calculate metrics even if we don't save the waypoint
+          const newWaypoint: RecordedWaypoint = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            timestamp: location.timestamp,
+            speed: location.coords.speed,
+            accuracy: location.coords.accuracy,
+          };
+          
+          // Calculate distance from last waypoint if we have one
+          let distanceFromLast = 0;
+          let shouldAddWaypoint = true;
+          
+          if (waypoints.length > 0) {
+            const lastWaypoint = waypoints[waypoints.length - 1];
+            distanceFromLast = calculateDistance(
+              lastWaypoint.latitude,
+              lastWaypoint.longitude,
+              newWaypoint.latitude,
+              newWaypoint.longitude
+            ) * 1000; // Convert to meters
+            
+            // Skip if too close to last point (but still log it)
+            if (distanceFromLast < MIN_DISTANCE_FILTER) {
+              shouldAddWaypoint = false;
+            }
           }
+          
+          // Update current speed display - handle null speeds better
+          let currentSpeedKmh = 0;
+          if (location.coords.speed !== null) {
+            currentSpeedKmh = Math.max(0, location.coords.speed * 3.6); // Convert m/s to km/h and ensure non-negative
+            setCurrentSpeed(currentSpeedKmh);
+          }
+          
+          // Log this movement for debugging
+          const log = {
+            timestamp: now,
+            latitude: newWaypoint.latitude,
+            longitude: newWaypoint.longitude,
+            speed: location.coords.speed !== null ? location.coords.speed * 3.6 : null,
+            distance: distanceFromLast,
+            accepted: shouldAddWaypoint && !isPaused
+          };
+          
+          movementLogs.push(log);
+          
+          // Keep the logs array to a reasonable size
+          if (movementLogs.length > 100) {
+            movementLogs = movementLogs.slice(-100);
+          }
+          
+          // Update debug display with recent movement data
+          const logString = `${new Date(now).toLocaleTimeString()}: ${distanceFromLast.toFixed(2)}m ${currentSpeedKmh.toFixed(2)}km/h ${shouldAddWaypoint ? 'SAVED' : 'skipped'}`;
+          setDebugLogs(prev => {
+            const newLogs = [...prev, logString];
+            return newLogs.slice(-10); // Keep last 10 logs
+          });
+          
+          // Skip throttling for debugging purposes
+          // if (now - waypointThrottleRef.current < MIN_TIME_FILTER && waypointThrottleRef.current !== 0) {
+          //   return;
+          // }
           waypointThrottleRef.current = now;
           
-          if (!isPaused) {
-            const newWaypoint: RecordedWaypoint = {
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              timestamp: location.timestamp,
-              speed: location.coords.speed,
-              accuracy: location.coords.accuracy,
-            };
-            
-            // Update current speed display - handle null speeds better
-            if (location.coords.speed !== null) {
-              const speedKmh = Math.max(0, location.coords.speed * 3.6); // Convert m/s to km/h and ensure non-negative
-              setCurrentSpeed(speedKmh);
-              console.log('Current speed:', speedKmh.toFixed(2), 'km/h');
-            }
-
+          if (!isPaused && shouldAddWaypoint) {
             setWaypoints(prevWaypoints => {
-              // Only add waypoint if we've moved a significant distance
-              if (prevWaypoints.length > 0) {
-                const lastWaypoint = prevWaypoints[prevWaypoints.length - 1];
-                const dist = calculateDistance(
-                  lastWaypoint.latitude,
-                  lastWaypoint.longitude,
-                  newWaypoint.latitude,
-                  newWaypoint.longitude
-                ) * 1000; // Convert to meters
-                
-                // Skip if too close to last point
-                if (dist < MIN_DISTANCE_FILTER) {
-                  return prevWaypoints;
-                }
-              }
-              
               const updatedWaypoints = [...prevWaypoints, newWaypoint];
               
               // Calculate total distance
@@ -897,6 +957,59 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
     }
   };
   
+  // Get current location for initial map position
+  useEffect(() => {
+    if (isVisible && !initialRegion) {
+      const getCurrentLocation = async () => {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            console.warn('Location permission not granted');
+            return;
+          }
+          
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced
+          });
+          
+          setInitialRegion({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01
+          });
+          
+          setMapReady(true);
+        } catch (error) {
+          console.error('Error getting current location:', error);
+        }
+      };
+      
+      getCurrentLocation();
+    }
+  }, [isVisible, initialRegion]);
+  
+  // Format waypoints for map display
+  const getRoutePath = () => {
+    return waypoints.map(wp => ({
+      latitude: wp.latitude,
+      longitude: wp.longitude
+    }));
+  };
+  
+  // Center map on current position when recording
+  useEffect(() => {
+    if (waypoints.length > 0 && mapReady) {
+      const lastWaypoint = waypoints[waypoints.length - 1];
+      setInitialRegion({
+        latitude: lastWaypoint.latitude,
+        longitude: lastWaypoint.longitude,
+        latitudeDelta: 0.005, // Closer zoom when recording
+        longitudeDelta: 0.005
+      });
+    }
+  }, [waypoints, mapReady]);
+  
   return (
     <View style={styles.container}>
       <TouchableOpacity 
@@ -914,6 +1027,40 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
             <Feather name="x" size={24} color={DARK_THEME.text} />
           </TouchableOpacity>
         </View>
+        
+        {/* Live Map */}
+        {initialRegion && (
+          <View style={styles.mapContainer}>
+            <Map 
+              waypoints={[]}
+              region={initialRegion}
+              style={styles.map}
+              routePath={getRoutePath()}
+              routePathColor={isPaused ? "#FF9500" : "#00E6C3"}
+              routePathWidth={4}
+            />
+            {waypoints.length > 0 && (
+              <View style={styles.mapOverlay}>
+                <TouchableOpacity 
+                  style={styles.centerButton}
+                  onPress={() => {
+                    if (waypoints.length > 0) {
+                      const lastWaypoint = waypoints[waypoints.length - 1];
+                      setInitialRegion({
+                        latitude: lastWaypoint.latitude,
+                        longitude: lastWaypoint.longitude,
+                        latitudeDelta: 0.005,
+                        longitudeDelta: 0.005
+                      });
+                    }
+                  }}
+                >
+                  <Feather name="crosshair" size={20} color="white" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
         
         <YStack padding={16} space={16}>
           {/* Stats display */}
@@ -1079,6 +1226,33 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
               </View>
             </YStack>
           )}
+          
+          {/* Movement Debug Logs */}
+          {showDebug && (
+            <YStack>
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text color={DARK_THEME.text} fontWeight="600" marginBottom={4}>
+                  Movement Debug ({waypoints.length} waypoints):
+                </Text>
+                <TouchableOpacity onPress={() => setShowDebug(!showDebug)}>
+                  <Text color={DARK_THEME.text} opacity={0.7}>Hide</Text>
+                </TouchableOpacity>
+              </XStack>
+              <View style={[styles.waypointContainer, { backgroundColor: DARK_THEME.cardBackground, maxHeight: 200 }]}>
+                {debugLogs.length > 0 ? (
+                  debugLogs.map((log, idx) => (
+                    <Text key={idx} style={styles.waypointText} color={DARK_THEME.text}>
+                      {log}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.waypointText} color={DARK_THEME.text}>
+                    Waiting for movement data...
+                  </Text>
+                )}
+              </View>
+            </YStack>
+          )}
         </YStack>
       </View>
     </View>
@@ -1138,6 +1312,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    maxHeight: '90%',
   },
   handleContainer: {
     flexDirection: 'row',
@@ -1191,5 +1366,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginBottom: 4,
+  },
+  // New map styles
+  mapContainer: {
+    width: '100%',
+    height: 250,
+    position: 'relative',
+    borderBottomWidth: 1,
+    borderBottomColor: DARK_THEME.borderColor,
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 0,
+  },
+  mapOverlay: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+  },
+  centerButton: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 }); 
