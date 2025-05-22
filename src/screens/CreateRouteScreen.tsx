@@ -75,8 +75,11 @@ type Props = {
         latitude: number;
         longitude: number;
       };
+      onClose?: () => void;
     };
   };
+  isModal?: boolean;
+  hideHeader?: boolean;
 };
 
 function getTranslation(t: (key: string) => string, key: string, fallback: string): string {
@@ -85,7 +88,7 @@ function getTranslation(t: (key: string) => string, key: string, fallback: strin
   return translation === key ? fallback : translation;
 }
 
-export function CreateRouteScreen({ route }: Props) {
+export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const { t } = useTranslation();
   const routeId = route?.params?.routeId;
   const initialWaypoints = route?.params?.initialWaypoints;
@@ -95,6 +98,7 @@ export function CreateRouteScreen({ route }: Props) {
   const initialRoutePath = route?.params?.initialRoutePath;
   const initialStartPoint = route?.params?.initialStartPoint;
   const initialEndPoint = route?.params?.initialEndPoint;
+  const onCloseModal = route?.params?.onClose;
   const isEditing = !!routeId;
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
@@ -103,7 +107,9 @@ export function CreateRouteScreen({ route }: Props) {
   const [searchResults, setSearchResults] = useState<Location.LocationGeocodedAddress[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const { user } = useAuth();
-  const navigation = useNavigation<NavigationProp>();
+  
+  // Use navigation conditionally
+  const navigation = isModal ? undefined : useNavigation<NavigationProp>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>(initialWaypoints || []);
@@ -675,8 +681,10 @@ export function CreateRouteScreen({ route }: Props) {
         // Track route edit
         await AppAnalytics.trackRouteEdit(routeId);
 
-        // Show success message
-        Alert.alert(t('common.success'), t('createRoute.routeUpdated'));
+        // Show success message only in non-modal mode
+        if (!isModal) {
+          Alert.alert(t('common.success'), t('createRoute.routeUpdated'));
+        }
       } else {
         // Create new route
         const { data: newRoute, error: createError } = await supabase
@@ -691,8 +699,10 @@ export function CreateRouteScreen({ route }: Props) {
         // Track route creation
         await AppAnalytics.trackRouteCreate(formData.spot_type);
 
-        // Show success message
-        Alert.alert(t('common.success'), t('createRoute.routeCreated'));
+        // Show success message only in non-modal mode
+        if (!isModal) {
+          Alert.alert(t('common.success'), t('createRoute.routeCreated'));
+        }
       }
 
       // Only upload new media items that aren't already in storage
@@ -711,18 +721,26 @@ export function CreateRouteScreen({ route }: Props) {
       // Set loading to false before navigation
       setLoading(false);
 
-      // Navigate back after saving
-      if (isEditing) {
-        navigation.goBack();
-        // Optionally refresh the route detail screen
-        const previousScreen =
-          navigation.getState().routes[navigation.getState().routes.length - 2];
-        if (previousScreen.name === 'RouteDetail') {
-          // @ts-ignore - params exist on the route
-          previousScreen.params = { ...previousScreen.params, shouldRefresh: true };
+      // Different navigation behavior based on whether we're in modal mode
+      if (isModal && onCloseModal) {
+        // If in modal mode, call the onClose callback
+        onCloseModal();
+      } else if (navigation) {
+        // Regular navigation back
+        if (isEditing) {
+          navigation.goBack();
+          // Optionally refresh the route detail screen
+          const previousScreen =
+            navigation.getState().routes[navigation.getState().routes.length - 2];
+          if (previousScreen.name === 'RouteDetail') {
+            // @ts-ignore - params exist on the route
+            previousScreen.params = { ...previousScreen.params, shouldRefresh: true };
+          }
+        } else {
+          navigation.goBack();
         }
       } else {
-        navigation.goBack();
+        console.warn('No navigation or onClose callback available');
       }
     } catch (err) {
       console.error('Route operation error:', err);
@@ -830,7 +848,13 @@ export function CreateRouteScreen({ route }: Props) {
             await AppAnalytics.trackRouteCreate(formData.spot_type); // Reusing existing method for deletion tracking
 
             // Navigate back
-            navigation.goBack();
+            if (navigation) {
+              navigation.goBack();
+            } else if (isModal && onCloseModal) {
+              onCloseModal();
+            } else {
+              console.warn('No navigation or onClose callback available');
+            }
           } catch (err) {
             Alert.alert(t('common.error'), 'Failed to delete route');
             setLoading(false);
@@ -1057,14 +1081,17 @@ export function CreateRouteScreen({ route }: Props) {
 
         {/* Existing Content */}
         <YStack f={1} gap={2}>
-          <Header
-            title={
-              isEditing
-                ? getTranslation(t, 'createRoute.editTitle', 'Edit Route')
-                : getTranslation(t, 'createRoute.createTitle', 'Create Route')
-            }
-            showBack
-          />
+          {!hideHeader && (
+            <Header
+              title={
+                isEditing
+                  ? getTranslation(t, 'createRoute.editTitle', 'Edit Route')
+                  : getTranslation(t, 'createRoute.createTitle', 'Create Route')
+              }
+              showBack={!isModal}
+              onBackPress={isModal && onCloseModal ? onCloseModal : undefined}
+            />
+          )}
           <XStack padding="$4" gap="$2" flexWrap="wrap">
             <Chip
               active={activeSection === 'basic'}

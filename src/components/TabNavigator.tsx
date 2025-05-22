@@ -5,14 +5,18 @@ import { TabParamList } from '../types/navigation';
 import { Platform, useColorScheme, TouchableOpacity, ViewStyle, View } from 'react-native';
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Import screens
 import { HomeScreen } from '../screens/HomeScreen';
 import { MapScreen } from '../screens/explore/MapScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { PublicProfileScreen } from '../screens/PublicProfileScreen';
 import { ProgressScreen } from '../screens/ProgressScreen';
+import { useAuth } from '../context/AuthContext';
 
 const Tab = createBottomTabNavigator<TabParamList>();
+const Stack = createNativeStackNavigator();
 
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 const TAB_BAR_HEIGHT = 64;
@@ -152,7 +156,6 @@ export function TabNavigator() {
       />
       <Tab.Screen
         name="ProfileTab"
-        component={ProfileScreen}
         options={{
           title: t('navigation.profile'),
           headerShown: false,
@@ -163,7 +166,30 @@ export function TabNavigator() {
             />
           )
         }}
-      />
+      >
+        {() => {
+          const { user } = useAuth();
+          
+          if (!user?.id) {
+            return <ProfileScreen />;
+          }
+          
+          // Create a nested stack navigator for profile-related screens
+          return (
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              <Stack.Screen 
+                name="PublicProfile"
+                component={PublicProfileScreen}
+                initialParams={{ userId: user.id }}
+              />
+              <Stack.Screen 
+                name="ProfileScreen" 
+                component={ProfileScreen} 
+              />
+            </Stack.Navigator>
+          );
+        }}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }

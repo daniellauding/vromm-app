@@ -457,7 +457,7 @@ export function HomeScreen() {
     try {
       const { data: savedData, error: savedError } = await supabase
         .from('saved_routes')
-        .select('*, routes(*)')
+        .select('*, routes(*, creator:creator_id(full_name))')
         .eq('user_id', user.id)
         .order('saved_at', { ascending: false });
 
@@ -496,7 +496,7 @@ export function HomeScreen() {
     try {
       const { data: drivenData, error: drivenError } = await supabase
         .from('driven_routes')
-        .select('*, routes(*)')
+        .select('*, routes(*, creator:creator_id(full_name))')
         .eq('user_id', user.id)
         .not('driven_at', 'is', null)
         .order('driven_at', { ascending: false });

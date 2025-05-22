@@ -902,6 +902,21 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                         : ''}
                     </Text>
                   </XStack>
+                  
+                  {/* Creator info with clickable name */}
+                  {routeData.creator && (
+                    <XStack alignItems="center" gap="$2" marginTop="$2">
+                      <Feather name="user" size={16} color={iconColor} />
+                      <Text 
+                        color="$gray11"
+                        onPress={() => navigation.navigate('PublicProfile', { userId: routeData.creator_id })}
+                        pressStyle={{ opacity: 0.7 }}
+                      >
+                        {getTranslation(t, 'routeDetail.createdBy', 'Created by')}: {routeData.creator.full_name}
+                      </Text>
+                    </XStack>
+                  )}
+                  
                   {routeData.description && (
                     <Text fontSize="$4" color="$gray11" marginTop="$2">
                       {routeData.description}
