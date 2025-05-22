@@ -183,10 +183,10 @@ interface RecordDrivingSheetProps {
   onCreateRoute?: (routeData: RecordedRouteData) => void;
 }
 
-// Improve speed sensitivity for walking or slow movement
-const MIN_DISTANCE_FILTER = 2; // meters, reduced from 5 to better capture walking movements
-const MIN_TIME_FILTER = 1000; // milliseconds, reduced from 2000 to update more frequently
-const MIN_SPEED_THRESHOLD = 0.05; // km/h, lowered to detect very slow movement
+// Increase sensitivity drastically to capture even tiny movements
+const MIN_DISTANCE_FILTER = 0.5; // meters, reduced from 2 to 0.5 to capture even tiny movements
+const MIN_TIME_FILTER = 500; // milliseconds, reduced from 1000 to update more frequently
+const MIN_SPEED_THRESHOLD = 0.01; // km/h, lowered to detect even slower movement
 
 // Update speed display to handle very low speeds better
 const formatSpeed = (speed: number): string => {
@@ -262,7 +262,7 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
   
   // Add new state for debug info
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
-  const [showDebug, setShowDebug] = useState(false);
+  const [showDebug, setShowDebug] = useState(true);
   
   // Add map state
   const [initialRegion, setInitialRegion] = useState<{
@@ -273,6 +273,36 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
   } | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  
+  // Add state to track if location is updating
+  const [lastLocationUpdate, setLastLocationUpdate] = useState<number | null>(null);
+  
+  // Add state to hide/show map
+  const [showMap, setShowMap] = useState(false); // Default to hidden to prevent crashes
+  
+  // Log critical information to help debug
+  useEffect(() => {
+    console.log(`RecordDrivingSheet: Recording status - isRecording=${isRecording}, isPaused=${isPaused}, waypoints=${waypoints.length}`);
+  }, [isRecording, isPaused, waypoints.length]);
+  
+  // Add interval to check if location updates are working
+  useEffect(() => {
+    if (isRecording && !isPaused) {
+      const interval = setInterval(() => {
+        const now = Date.now();
+        if (lastLocationUpdate && now - lastLocationUpdate > 10000) {
+          console.log("WARNING: No location updates in the last 10 seconds");
+          // Add visual indicator that updates are stalled
+          setDebugLogs(prev => {
+            const warningLog = `⚠️ ${new Date().toLocaleTimeString()}: NO UPDATES in 10s`;
+            return [...prev, warningLog].slice(-7);
+          });
+        }
+      }, 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isRecording, isPaused, lastLocationUpdate]);
   
   // Clear logs when starting a new recording
   useEffect(() => {
@@ -772,9 +802,12 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
   // Helper function to start location tracking
   const startLocationTracking = async () => {
     try {
+      console.log("RecordDrivingSheet: Starting location tracking");
+      
       // First check if location services are enabled
       const serviceEnabled = await Location.hasServicesEnabledAsync();
       if (!serviceEnabled) {
+        console.warn('Location services are not enabled');
         Alert.alert(
           "Location Services Disabled",
           "Please enable location services to record your route.",
@@ -786,6 +819,7 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
       // Verify permission is granted
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
+        console.warn('Location permission not granted');
         Alert.alert(
           "Permission Required",
           "Location permission is needed to record your route.",
@@ -794,22 +828,27 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
         return;
       }
       
+      console.log("RecordDrivingSheet: Permissions granted, setting up watch position");
+      
       // Set up error handling for watch position
       const subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
           timeInterval: MIN_TIME_FILTER,
-          distanceInterval: MIN_DISTANCE_FILTER/2,
+          distanceInterval: MIN_DISTANCE_FILTER/4, // Even lower to get more updates
         },
         (location) => {
           try {
             const now = Date.now();
+            setLastLocationUpdate(now);
             
             // Validate location data before processing
             if (!location || !location.coords) {
               console.warn('Received invalid location data');
               return;
             }
+            
+            console.log(`RecordDrivingSheet: Location update - lat=${location.coords.latitude.toFixed(6)}, lng=${location.coords.longitude.toFixed(6)}`);
             
             // Calculate metrics even if we don't save the waypoint
             const newWaypoint: RecordedWaypoint = {
@@ -833,8 +872,10 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
                 newWaypoint.longitude
               ) * 1000; // Convert to meters
               
-              // Skip if too close to last point (but still log it)
-              if (distanceFromLast < MIN_DISTANCE_FILTER) {
+              console.log(`RecordDrivingSheet: Distance moved: ${distanceFromLast.toFixed(2)}m`);
+              
+              // Accept almost all waypoints for better visualization
+              if (distanceFromLast < MIN_DISTANCE_FILTER/2) {
                 shouldAddWaypoint = false;
               }
             }
@@ -846,37 +887,36 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
               setCurrentSpeed(currentSpeedKmh);
             }
             
-            // Log this movement for debugging - limit frequency to reduce memory pressure
-            if (showDebug) {
-              const log = {
-                timestamp: now,
-                latitude: newWaypoint.latitude,
-                longitude: newWaypoint.longitude,
-                speed: location.coords.speed !== null ? location.coords.speed * 3.6 : null,
-                distance: distanceFromLast,
-                accepted: shouldAddWaypoint && !isPaused
-              };
-              
-              movementLogs.push(log);
-              
-              // Keep the logs array to a reasonable size
-              if (movementLogs.length > 50) { // Reduced from 100 to 50
-                movementLogs = movementLogs.slice(-50);
-              }
-              
-              // Only update debug logs every 3 seconds to reduce UI updates
-              if (now % 3000 < 100) {
-                const logString = `${new Date(now).toLocaleTimeString()}: ${distanceFromLast.toFixed(2)}m ${currentSpeedKmh.toFixed(2)}km/h ${shouldAddWaypoint ? 'SAVED' : 'skipped'}`;
-                setDebugLogs(prev => {
-                  const newLogs = [...prev, logString];
-                  return newLogs.slice(-7); // Reduced from 10 to 7 logs
-                });
-              }
+            // Always log movement data
+            const log = {
+              timestamp: now,
+              latitude: newWaypoint.latitude,
+              longitude: newWaypoint.longitude,
+              speed: location.coords.speed !== null ? location.coords.speed * 3.6 : null,
+              distance: distanceFromLast,
+              accepted: shouldAddWaypoint && !isPaused
+            };
+            
+            movementLogs.push(log);
+            
+            // Keep the logs array to a reasonable size
+            if (movementLogs.length > 50) {
+              movementLogs = movementLogs.slice(-50);
             }
+            
+            // Update debug logs more frequently
+            const logString = `${new Date(now).toLocaleTimeString()}: ${distanceFromLast.toFixed(2)}m ${currentSpeedKmh.toFixed(2)}km/h ${shouldAddWaypoint ? 'SAVED' : 'skipped'}`;
+            setDebugLogs(prev => {
+              const newLogs = [...prev, logString];
+              return newLogs.slice(-7);
+            });
             
             waypointThrottleRef.current = now;
             
-            if (!isPaused && shouldAddWaypoint) {
+            // Always add waypoints during recording for better visualization
+            if (!isPaused) {
+              console.log(`RecordDrivingSheet: Adding waypoint ${shouldAddWaypoint ? '(significant movement)' : '(minor movement)'}`);
+              
               setWaypoints(prevWaypoints => {
                 // Safety check for immutability
                 if (!prevWaypoints) return [newWaypoint];
@@ -906,6 +946,7 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
       );
 
       setLocationSubscription(subscription);
+      console.log("RecordDrivingSheet: Location tracking started successfully");
       
       // Try to restart background tracking
       try {
@@ -1001,13 +1042,16 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
     }
   };
   
-  // Format waypoints for map display with safety checks
+  // Modify the getRoutePath function to add start/end markers
   const getRoutePath = () => {
     try {
       // Safety check for empty waypoints
       if (!waypoints || waypoints.length === 0) {
         return [];
       }
+      
+      // Log the path details to help debug
+      console.log(`RecordDrivingSheet: Path has ${waypoints.length} waypoints`);
       
       // Filter out any invalid coordinates to prevent crashes
       return waypoints
@@ -1027,7 +1071,36 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
       return [];
     }
   };
-
+  
+  // Add waypoints for map display
+  const getWaypointMarkers = () => {
+    if (!waypoints || waypoints.length === 0) return [];
+    
+    // Just return start and current position for markers
+    const markers = [];
+    
+    // Add start marker
+    markers.push({
+      latitude: waypoints[0].latitude,
+      longitude: waypoints[0].longitude,
+      title: "Start",
+      description: "Recording start point"
+    });
+    
+    // Add current position marker if different from start
+    if (waypoints.length > 1) {
+      const current = waypoints[waypoints.length - 1];
+      markers.push({
+        latitude: current.latitude,
+        longitude: current.longitude,
+        title: "Current",
+        description: "Current position"
+      });
+    }
+    
+    return markers;
+  };
+  
   // Get current location for initial map position with better error handling
   useEffect(() => {
     let isMounted = true;
@@ -1150,59 +1223,106 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
           </TouchableOpacity>
         </View>
         
-        {/* Live Map with Error Handling */}
-        <View style={styles.mapContainer}>
-          {mapError ? (
-            <View style={[styles.mapErrorContainer, { backgroundColor: DARK_THEME.cardBackground }]}>
-              <Feather name="map-off" size={24} color="#FF9500" />
-              <Text color={DARK_THEME.text} textAlign="center" marginTop={8}>
-                Map unavailable. Recording will still work.
-              </Text>
-            </View>
-          ) : initialRegion ? (
+        {/* Map Toggle Button */}
+        <XStack justifyContent="center" marginBottom={8}>
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: showMap ? '#00E6C3' : '#FF9500',
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 16,
+            }}
+            onPress={() => setShowMap(!showMap)}
+          >
+            <Feather name={showMap ? "eye" : "eye-off"} size={16} color="white" />
+            <Text color="white" marginLeft={4} fontWeight="500">
+              {showMap ? "Hide Map (Safer)" : "Show Map (May Crash)"}
+            </Text>
+          </TouchableOpacity>
+        </XStack>
+        
+        {/* Map (only shown if showMap is true) */}
+        {showMap && (
+          <View style={styles.mapContainer}>
+            {/* Always show the map, even with errors */}
             <Map 
-              waypoints={[]}
-              region={initialRegion}
+              waypoints={getWaypointMarkers()}
+              region={initialRegion || {
+                latitude: 37.7749,
+                longitude: -122.4194,
+                latitudeDelta: 0.1,
+                longitudeDelta: 0.1
+              }}
               style={styles.map}
               routePath={getRoutePath()}
               routePathColor={isPaused ? "#FF9500" : "#00E6C3"}
               routePathWidth={4}
             />
-          ) : (
-            <View style={[styles.mapErrorContainer, { backgroundColor: DARK_THEME.cardBackground }]}>
-              <Feather name="loader" size={24} color={DARK_THEME.text} />
-              <Text color={DARK_THEME.text} textAlign="center" marginTop={8}>
-                Loading map...
+            
+            {/* Overlay error message if needed */}
+            {mapError && (
+              <View style={styles.mapErrorOverlay}>
+                <Text color="white" backgroundColor="rgba(0,0,0,0.7)" padding={8} borderRadius={4}>
+                  Map error: Still recording data
+                </Text>
+              </View>
+            )}
+            
+            {/* Always show the center button if recording */}
+            {isRecording && (
+              <View style={styles.mapOverlay}>
+                <TouchableOpacity 
+                  style={styles.centerButton}
+                  onPress={() => {
+                    try {
+                      if (waypoints.length > 0) {
+                        const lastWaypoint = waypoints[waypoints.length - 1];
+                        setInitialRegion({
+                          latitude: lastWaypoint.latitude,
+                          longitude: lastWaypoint.longitude,
+                          latitudeDelta: 0.005,
+                          longitudeDelta: 0.005
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Error centering map:', error);
+                    }
+                  }}
+                >
+                  <Feather name="crosshair" size={20} color="white" />
+                </TouchableOpacity>
+              </View>
+            )}
+            
+            {/* Add recording indicator */}
+            {isRecording && (
+              <View style={styles.recordingIndicator}>
+                <View style={[styles.recordingDot, isPaused ? styles.pausedDot : styles.activeDot]} />
+                <Text color="white" fontSize={12} marginLeft={4}>
+                  {isPaused ? "PAUSED" : "RECORDING"}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+        
+        {/* Recording Status Display (always shown, even when map is hidden) */}
+        {isRecording && !showMap && (
+          <View style={[styles.recordingStatusContainer, { backgroundColor: DARK_THEME.cardBackground }]}>
+            <View style={styles.recordingStatusInner}>
+              <View style={[styles.recordingDot, isPaused ? styles.pausedDot : styles.activeDot]} />
+              <Text color={DARK_THEME.text} fontSize={16} fontWeight="bold" marginLeft={8}>
+                {isPaused ? "RECORDING PAUSED" : "RECORDING ACTIVE"}
               </Text>
             </View>
-          )}
-          
-          {waypoints.length > 0 && !mapError && initialRegion && (
-            <View style={styles.mapOverlay}>
-              <TouchableOpacity 
-                style={styles.centerButton}
-                onPress={() => {
-                  try {
-                    if (waypoints.length > 0) {
-                      const lastWaypoint = waypoints[waypoints.length - 1];
-                      setInitialRegion({
-                        latitude: lastWaypoint.latitude,
-                        longitude: lastWaypoint.longitude,
-                        latitudeDelta: 0.005,
-                        longitudeDelta: 0.005
-                      });
-                    }
-                  } catch (error) {
-                    console.error('Error centering map:', error);
-                  }
-                }}
-              >
-                <Feather name="crosshair" size={20} color="white" />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-        
+            <Text color={DARK_THEME.text} marginTop={4}>
+              Recording {waypoints.length} waypoints • {distance.toFixed(2)} km
+            </Text>
+          </View>
+        )}
+
         <YStack padding={16} space={16}>
           {/* Stats display */}
           <View style={styles.statsContainer}>
@@ -1534,11 +1654,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mapErrorContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
+  mapErrorOverlay: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 10,
     alignItems: 'center',
-    padding: 20,
+  },
+  recordingIndicator: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 6,
+    borderRadius: 4,
+  },
+  recordingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  activeDot: {
+    backgroundColor: '#FF3B30',
+    opacity: 1,
+    // Add blinking animation
+  },
+  pausedDot: {
+    backgroundColor: '#FF9500',
+  },
+  recordingStatusContainer: {
+    marginHorizontal: 16,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  recordingStatusInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 }); 
