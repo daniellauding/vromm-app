@@ -203,7 +203,6 @@ export function Map({
     async ({ region }: { region: Region | null }) => {
       if (!region || !waypoints.length) return [];
 
-      console.log('calculateClusters', waypoints.length);
       const bbox: GeoJSON.BBox = [
         region.longitude - region.longitudeDelta / 2, // west
         region.latitude - region.latitudeDelta / 2, // south

@@ -3,44 +3,10 @@ import { View, Image, useColorScheme, Dimensions } from 'react-native';
 import { YStack, Text, Card, XStack } from 'tamagui';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
-import { Database } from '../lib/database.types';
 import { Feather } from '@expo/vector-icons';
 import { Map } from './Map';
 import Carousel from 'react-native-reanimated-carousel';
-
-type WaypointData = {
-  lat: number;
-  lng: number;
-  title?: string;
-  description?: string;
-};
-
-type MediaAttachment = {
-  url: string;
-  type: 'image' | 'video';
-  description?: string;
-};
-
-type Route = Database['public']['Tables']['routes']['Row'] & {
-  creator: {
-    full_name: string;
-  } | null;
-  metadata: {
-    waypoints?: WaypointData[];
-  };
-  waypoint_details: WaypointData[];
-  media_attachments?: MediaAttachment[];
-  reviews?: { 
-    id: string;
-    rating: number;
-    content: string;
-    difficulty: string;
-    visited_at: string;
-    created_at: string;
-    images: { url: string; description?: string }[];
-    user: { id: string; full_name: string; };
-  }[];
-};
+import { Route, WaypointData } from '@/src/types/route';
 
 interface RouteCardProps {
   route: Route;
@@ -53,22 +19,24 @@ export function RouteCard({ route }: RouteCardProps) {
   const width = Dimensions.get('window').width - 32; // Account for padding
 
   const getMapRegion = () => {
-    const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
+    const waypointsData = (route.waypoint_details ||
+      route.metadata?.waypoints ||
+      []) as WaypointData[];
     if (waypointsData.length > 0) {
-      const latitudes = waypointsData.map(wp => Number(wp.lat));
-      const longitudes = waypointsData.map(wp => Number(wp.lng));
-      
+      const latitudes = waypointsData.map((wp) => Number(wp.lat));
+      const longitudes = waypointsData.map((wp) => Number(wp.lng));
+
       const minLat = Math.min(...latitudes);
       const maxLat = Math.max(...latitudes);
       const minLng = Math.min(...longitudes);
       const maxLng = Math.max(...longitudes);
-      
+
       const latPadding = (maxLat - minLat) * 0.1;
       const lngPadding = (maxLng - minLng) * 0.1;
-      
+
       const minDelta = 0.01;
-      const latDelta = Math.max((maxLat - minLat) + latPadding, minDelta);
-      const lngDelta = Math.max((maxLng - minLng) + lngPadding, minDelta);
+      const latDelta = Math.max(maxLat - minLat + latPadding, minDelta);
+      const lngDelta = Math.max(maxLng - minLng + lngPadding, minDelta);
 
       return {
         latitude: (minLat + maxLat) / 2,
@@ -81,8 +49,10 @@ export function RouteCard({ route }: RouteCardProps) {
   };
 
   const getWaypoints = () => {
-    const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
-    return waypointsData.map(wp => ({
+    const waypointsData = (route.waypoint_details ||
+      route.metadata?.waypoints ||
+      []) as WaypointData[];
+    return waypointsData.map((wp) => ({
       latitude: Number(wp.lat),
       longitude: Number(wp.lng),
       title: wp.title?.toString(),
@@ -92,7 +62,7 @@ export function RouteCard({ route }: RouteCardProps) {
 
   const region = getMapRegion();
   const waypoints = getWaypoints();
-  const imageAttachments = route.media_attachments?.filter(m => m.type === 'image') || [];
+  const imageAttachments = route.media_attachments?.filter((m) => m.type === 'image') || [];
 
   const carouselItems = useMemo(() => {
     const items = [];
@@ -106,15 +76,16 @@ export function RouteCard({ route }: RouteCardProps) {
     }
 
     // Add route media attachments
-    const media = route.media_attachments
-      ?.filter(m => m.type === 'image')
-      .map(m => ({
-        type: 'image' as const,
-        data: {
-          url: m.url,
-          description: m.description,
-        },
-      })) || [];
+    const media =
+      route.media_attachments
+        ?.filter((m) => m.type === 'image')
+        .map((m) => ({
+          type: 'image' as const,
+          data: {
+            url: m.url,
+            description: m.description,
+          },
+        })) || [];
 
     return [...items, ...media];
   }, [route.media_attachments, region, waypoints]);
@@ -182,21 +153,23 @@ export function RouteCard({ route }: RouteCardProps) {
             )}
           </View>
         )}
-        
+
         <YStack space="$3">
-          <Text fontSize="$5" fontWeight="bold">{route.name}</Text>
-          
+          <Text fontSize="$5" fontWeight="bold">
+            {route.name}
+          </Text>
+
           <XStack space="$2" alignItems="center">
             <Feather name="user" size={16} color={iconColor} />
             <Text color="$gray11">{route.creator?.full_name || 'Unknown'}</Text>
           </XStack>
-          
+
           <XStack space="$4">
             <XStack space="$1" alignItems="center">
               <Feather name="bar-chart" size={16} color={iconColor} />
               <Text>{route.difficulty}</Text>
             </XStack>
-            
+
             <XStack space="$1" alignItems="center">
               <Feather name="map-pin" size={16} color={iconColor} />
               <Text>{route.spot_type}</Text>
@@ -224,4 +197,4 @@ export function RouteCard({ route }: RouteCardProps) {
       </YStack>
     </Card>
   );
-} 
+}
