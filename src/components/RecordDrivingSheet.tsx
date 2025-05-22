@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform, Dimensions, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform, Dimensions, Alert, AppState, AppStateStatus } from 'react-native';
 import { Text, YStack, Button, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useModal } from '../contexts/ModalContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import * as Location from 'expo-location';
+import * as TaskManager from 'expo-task-manager';
+import { CreateRouteModal } from './CreateRouteModal';
 
 // Dark theme constants
 const DARK_THEME = {
@@ -18,7 +20,11 @@ const DARK_THEME = {
   cardBackground: '#2D3130',
 };
 
-interface RecordedRouteData {
+// Background location task name
+const LOCATION_TRACKING = 'location-tracking';
+
+// Update the RecordedRouteData interface to be exported
+export interface RecordedRouteData {
   waypoints: Array<{
     latitude: number;
     longitude: number;
@@ -42,12 +48,6 @@ interface RecordedRouteData {
   };
 }
 
-interface RecordDrivingSheetProps {
-  isVisible: boolean;
-  onClose: () => void;
-  onCreateRoute?: (routeData: RecordedRouteData) => void;
-}
-
 // Location tracking type
 type RecordedWaypoint = {
   latitude: number;
@@ -59,6 +59,43 @@ type RecordedWaypoint = {
 
 const { height: screenHeight } = Dimensions.get('window');
 
+// Define task for background location tracking
+TaskManager.defineTask(LOCATION_TRACKING, async ({ data, error }) => {
+  if (error) {
+    console.error('LOCATION_TRACKING task error:', error);
+    return;
+  }
+  if (data) {
+    // @ts-ignore
+    const { locations } = data;
+    const location = locations[0];
+    
+    // Store this location in AsyncStorage or another persistent storage
+    if (location) {
+      try {
+        // Send location to the global variable for access when app is in foreground
+        if (global && (global as any).addBackgroundWaypoint) {
+          (global as any).addBackgroundWaypoint({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            timestamp: location.timestamp,
+            speed: location.coords.speed,
+            accuracy: location.coords.accuracy,
+          });
+        }
+      } catch (err) {
+        console.error('Error saving background location:', err);
+      }
+    }
+  }
+});
+
+interface RecordDrivingSheetProps {
+  isVisible: boolean;
+  onClose: () => void;
+  onCreateRoute?: (routeData: RecordedRouteData) => void;
+}
+
 // Simplified component with recording functionality
 export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
   const { isVisible, onClose, onCreateRoute } = props;
@@ -67,14 +104,90 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
 
   // Recording state
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [waypoints, setWaypoints] = useState<RecordedWaypoint[]>([]);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [distance, setDistance] = useState(0);
   const [averageSpeed, setAverageSpeed] = useState(0);
+  const [currentSpeed, setCurrentSpeed] = useState(0);
   const [locationSubscription, setLocationSubscription] = useState<Location.LocationSubscription | null>(null);
   const startTimeRef = useRef<number | null>(null);
+  const pausedTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [showSummary, setShowSummary] = useState(false);
+  const appState = useRef(AppState.currentState);
+  const waypointThrottleRef = useRef<number>(0);
+  const MIN_DISTANCE_FILTER = 20; // meters, increased from 10
+  const MIN_TIME_FILTER = 5000; // milliseconds, increased from 2000
+  
+  // Set up background waypoint collection
+  useEffect(() => {
+    // Create a global function to collect background waypoints
+    (global as any).addBackgroundWaypoint = (waypoint: RecordedWaypoint) => {
+      if (isRecording && !isPaused) {
+        setWaypoints(prev => {
+          // Only add waypoint if we have moved a significant distance
+          if (prev.length > 0) {
+            const lastWaypoint = prev[prev.length - 1];
+            const dist = calculateDistance(
+              lastWaypoint.latitude,
+              lastWaypoint.longitude,
+              waypoint.latitude,
+              waypoint.longitude
+            ) * 1000; // convert to meters
+            
+            // Skip if too close to last point
+            if (dist < MIN_DISTANCE_FILTER) {
+              return prev;
+            }
+          }
+          
+          // Add the new waypoint
+          const updatedWaypoints = [...prev, waypoint];
+          
+          // Update distance
+          if (prev.length > 0) {
+            const lastWaypoint = prev[prev.length - 1];
+            const segmentDistance = calculateDistance(
+              lastWaypoint.latitude,
+              lastWaypoint.longitude,
+              waypoint.latitude,
+              waypoint.longitude
+            );
+            setDistance(prevDistance => prevDistance + segmentDistance);
+          }
+          
+          // Update speed
+          if (waypoint.speed !== null) {
+            setCurrentSpeed(waypoint.speed * 3.6); // Convert m/s to km/h
+          }
+          
+          return updatedWaypoints;
+        });
+      }
+    };
+    
+    // Listen for app state changes
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription.remove();
+      delete (global as any).addBackgroundWaypoint;
+    };
+  }, [isRecording, isPaused]);
+  
+  // Handle app state changes
+  const handleAppStateChange = (nextAppState: AppStateStatus) => {
+    if (isRecording && !isPaused && appState.current === 'active' && nextAppState.match(/inactive|background/)) {
+      // App is going to background while recording
+      console.log('App going to background while recording');
+    } else if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+      // App is coming to foreground
+      console.log('App coming to foreground');
+    }
+    
+    appState.current = nextAppState;
+  };
   
   // Clean up on unmount
   useEffect(() => {
@@ -85,8 +198,39 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      stopBackgroundLocationTask();
     };
   }, [locationSubscription]);
+  
+  // Helper for starting background location task
+  const startBackgroundLocationTask = async () => {
+    const { status } = await Location.requestBackgroundPermissionsAsync();
+    if (status === 'granted') {
+      await Location.startLocationUpdatesAsync(LOCATION_TRACKING, {
+        accuracy: Location.Accuracy.BestForNavigation,
+        timeInterval: MIN_TIME_FILTER,
+        distanceInterval: MIN_DISTANCE_FILTER,
+        foregroundService: {
+          notificationTitle: "Recording Route",
+          notificationBody: "Your route is being recorded in the background",
+        },
+        // Make sure we get speed and accuracy
+        activityType: Location.ActivityType.AutomotiveNavigation,
+        showsBackgroundLocationIndicator: true,
+      });
+      console.log('Started background location tracking');
+    } else {
+      console.log('Background location permission denied');
+    }
+  };
+  
+  // Helper for stopping background location task
+  const stopBackgroundLocationTask = async () => {
+    if (await TaskManager.isTaskRegisteredAsync(LOCATION_TRACKING)) {
+      await Location.stopLocationUpdatesAsync(LOCATION_TRACKING);
+      console.log('Stopped background location tracking');
+    }
+  };
   
   if (!isVisible) return null;
   
@@ -113,7 +257,7 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
       // Request location permissions
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Error', 'Location permission is required for recording');
+        console.warn('Location permission not granted');
         return;
       }
 
@@ -122,65 +266,50 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
       setElapsedTime(0);
       setDistance(0);
       setAverageSpeed(0);
+      setCurrentSpeed(0);
       startTimeRef.current = Date.now();
+      pausedTimeRef.current = 0;
 
       // Start timer
       timerRef.current = setInterval(() => {
-        if (startTimeRef.current) {
-          const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        if (startTimeRef.current && !isPaused) {
+          const totalPausedTime = pausedTimeRef.current || 0;
+          const elapsed = Math.floor((Date.now() - startTimeRef.current - totalPausedTime) / 1000);
           setElapsedTime(elapsed);
-        }
-      }, 1000);
-
-      // Start location tracking
-      const subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.BestForNavigation,
-          timeInterval: 2000, // Update every 2 seconds
-          distanceInterval: 10, // Update every 10 meters
-        },
-        (location) => {
-          const newWaypoint: RecordedWaypoint = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            timestamp: location.timestamp,
-            speed: location.coords.speed,
-            accuracy: location.coords.accuracy,
-          };
-
-          setWaypoints(prevWaypoints => {
-            const updatedWaypoints = [...prevWaypoints, newWaypoint];
-            
-            // Calculate total distance
-            if (prevWaypoints.length > 0) {
-              const lastWaypoint = prevWaypoints[prevWaypoints.length - 1];
-              const segmentDistance = calculateDistance(
-                lastWaypoint.latitude,
-                lastWaypoint.longitude,
-                newWaypoint.latitude,
-                newWaypoint.longitude
-              );
-              setDistance(prevDistance => prevDistance + segmentDistance);
+          
+          // Recalculate average speed based on total time and distance
+          if (elapsed > 0) {
+            const timeHours = elapsed / 3600; // Convert seconds to hours
+            if (timeHours > 0) {
+              setAverageSpeed(distance / timeHours); // km/h
             }
-
-            // Calculate average speed
-            if (startTimeRef.current && updatedWaypoints.length > 1) {
-              const totalTimeHours = (Date.now() - startTimeRef.current) / 3600000;
-              if (totalTimeHours > 0) {
-                setAverageSpeed(distance / totalTimeHours); // km/h
-              }
-            }
-
-            return updatedWaypoints;
-          });
+          }
         }
-      );
+      }, 1000) as unknown as NodeJS.Timeout;
 
-      setLocationSubscription(subscription);
+      // Set recording state
       setIsRecording(true);
+      setIsPaused(false);
+      
+      // Start location tracking
+      await startLocationTracking();
     } catch (error) {
       console.error('Error starting location tracking:', error);
-      Alert.alert('Error', 'Failed to start recording');
+    }
+  };
+
+  // Pause recording
+  const pauseRecording = () => {
+    if (isRecording && !isPaused) {
+      setIsPaused(true);
+      pausedTimeRef.current = Date.now() - (startTimeRef.current || 0) - (pausedTimeRef.current || 0);
+    }
+  };
+
+  // Resume recording
+  const resumeRecording = () => {
+    if (isRecording && isPaused) {
+      setIsPaused(false);
     }
   };
 
@@ -196,9 +325,13 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
       timerRef.current = null;
     }
     
-    setIsRecording(false);
+    // Stop background location tracking
+    stopBackgroundLocationTask();
     
-    // Always show summary, skip validation for minimum waypoints
+    setIsRecording(false);
+    setIsPaused(false);
+    
+    // Always show summary regardless of waypoint count
     setShowSummary(true);
   };
 
@@ -212,7 +345,6 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
   // Navigate to route creation with recorded data
   const saveRecording = () => {
     console.log('RecordDrivingSheet: saveRecording called');
-    // Skip validation for minimum waypoints
     
     // Create route data object
     const routeData = {
@@ -241,7 +373,7 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
     }));
     
     const routeName = `Recorded Route ${new Date().toLocaleDateString()}`;
-    const routeDescription = `Recorded drive - Distance: ${routeData.distance} km, Duration: ${formatTime(routeData.duration)}`;
+    const routeDescription = `Recorded drive - Distance: ${routeData.distance} km, Duration: ${formatTime(routeData.duration)}, Speed: ${averageSpeed.toFixed(1)} km/h`;
     
     // Get coordinates for first waypoint for search input
     const firstWaypoint = waypoints[0];
@@ -280,79 +412,49 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
       description: routeDescription.substring(0, 50) + '...'
     });
 
-    // Show alert with options to dismiss or continue to route creation
-    Alert.alert(
-      'Route Recorded',
-      `Recorded ${routeData.waypoints.length} waypoints\nDistance: ${routeData.distance} km\nTime: ${formatTime(routeData.duration)}`,
-      [
-        {
-          text: 'Dismiss',
-          onPress: () => {
-            console.log('RecordDrivingSheet: User dismissed recording');
-            onClose();
-          },
-          style: 'cancel'
-        },
-        {
-          text: 'Create Route',
-          onPress: () => {
-            console.log('RecordDrivingSheet: User chose to create route');
-            // First close the modal
-            hideModal();
-            console.log('RecordDrivingSheet: Modal closed');
-            
-            // Call the callback if it exists
-            if (onCreateRoute) {
-              console.log('RecordDrivingSheet: onCreateRoute callback exists, scheduling call');
-              // Use setTimeout to ensure modal is fully closed before navigation
-              setTimeout(() => {
-                console.log('RecordDrivingSheet: Calling onCreateRoute in setTimeout');
-                onCreateRoute(recordedRouteData);
-              }, 300);
-            } else {
-              console.log('RecordDrivingSheet: ERROR! onCreateRoute callback is NOT defined!');
-            }
-          }
-        }
-      ]
-    );
-    console.log('RecordDrivingSheet: Alert shown to user');
+    // Save the recordedRouteData for the callback to use
+    const savedData = {...recordedRouteData};
+    
+    // First close the modal
+    hideModal();
+    console.log('RecordDrivingSheet: Modal closed');
+    
+    // Call the callback with a timeout to ensure modal is closed first
+    if (onCreateRoute) {
+      console.log('RecordDrivingSheet: Scheduling onCreateRoute call with timeout');
+      setTimeout(() => {
+        console.log('RecordDrivingSheet: Calling onCreateRoute after timeout');
+        onCreateRoute(savedData);
+      }, 100);
+    } else {
+      console.log('RecordDrivingSheet: ERROR! onCreateRoute callback is NOT defined!');
+    }
   };
   
   // Cancel recording session
   const cancelRecording = () => {
     if (isRecording) {
-      Alert.alert(
-        'Cancel Recording',
-        'Are you sure you want to cancel the current recording? All data will be lost.',
-        [
-          {
-            text: 'No',
-            style: 'cancel'
-          },
-          {
-            text: 'Yes',
-            onPress: () => {
-              if (locationSubscription) {
-                locationSubscription.remove();
-                setLocationSubscription(null);
-              }
-              
-              if (timerRef.current) {
-                clearInterval(timerRef.current);
-                timerRef.current = null;
-              }
-              
-              setIsRecording(false);
-              setShowSummary(false);
-              setWaypoints([]);
-              setElapsedTime(0);
-              setDistance(0);
-              setAverageSpeed(0);
-            }
-          }
-        ]
-      );
+      if (locationSubscription) {
+        locationSubscription.remove();
+        setLocationSubscription(null);
+      }
+      
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      // Stop background location tracking
+      stopBackgroundLocationTask();
+      
+      setIsRecording(false);
+      setIsPaused(false);
+      setShowSummary(false);
+      setWaypoints([]);
+      setElapsedTime(0);
+      setDistance(0);
+      setAverageSpeed(0);
+      setCurrentSpeed(0);
     } else {
       onClose();
     }
@@ -361,34 +463,123 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
   // Handler for clicking outside the sheet
   const handleOutsidePress = () => {
     if (isRecording) {
-      Alert.alert(
-        'Cancel Recording',
-        'Are you sure you want to exit? Your recording will be lost.',
-        [
-          {
-            text: 'No',
-            style: 'cancel'
-          },
-          {
-            text: 'Yes',
-            onPress: () => {
-              if (locationSubscription) {
-                locationSubscription.remove();
-                setLocationSubscription(null);
-              }
-              
-              if (timerRef.current) {
-                clearInterval(timerRef.current);
-                timerRef.current = null;
-              }
-              
-              onClose();
-            }
-          }
-        ]
-      );
+      // If recording, don't close on outside press
+      return;
     } else {
       onClose();
+    }
+  };
+  
+  // Continue recording after summary screen
+  const continueRecording = () => {
+    // Hide summary and restart recording
+    setShowSummary(false);
+    setIsRecording(true);
+    setIsPaused(false);
+    
+    // Resume timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    
+    timerRef.current = setInterval(() => {
+      if (startTimeRef.current && !isPaused) {
+        const totalPausedTime = pausedTimeRef.current || 0;
+        const elapsed = Math.floor((Date.now() - startTimeRef.current - totalPausedTime) / 1000);
+        setElapsedTime(elapsed);
+        
+        // Recalculate average speed based on total time and distance
+        if (elapsed > 0) {
+          const timeHours = elapsed / 3600; // Convert seconds to hours
+          if (timeHours > 0) {
+            setAverageSpeed(distance / timeHours); // km/h
+          }
+        }
+      }
+    }, 1000) as unknown as NodeJS.Timeout;
+    
+    // Restart location tracking
+    startLocationTracking();
+  };
+  
+  // Helper function to start location tracking
+  const startLocationTracking = async () => {
+    try {
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: MIN_TIME_FILTER,
+          distanceInterval: MIN_DISTANCE_FILTER,
+        },
+        (location) => {
+          // Skip waypoints based on time throttle to reduce frequency
+          const now = Date.now();
+          if (now - waypointThrottleRef.current < MIN_TIME_FILTER && waypointThrottleRef.current !== 0) {
+            return;
+          }
+          waypointThrottleRef.current = now;
+          
+          if (!isPaused) {
+            const newWaypoint: RecordedWaypoint = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              timestamp: location.timestamp,
+              speed: location.coords.speed,
+              accuracy: location.coords.accuracy,
+            };
+            
+            // Update current speed display
+            if (location.coords.speed !== null) {
+              setCurrentSpeed(location.coords.speed * 3.6); // Convert m/s to km/h
+            }
+
+            setWaypoints(prevWaypoints => {
+              // Only add waypoint if we've moved a significant distance
+              if (prevWaypoints.length > 0) {
+                const lastWaypoint = prevWaypoints[prevWaypoints.length - 1];
+                const dist = calculateDistance(
+                  lastWaypoint.latitude,
+                  lastWaypoint.longitude,
+                  newWaypoint.latitude,
+                  newWaypoint.longitude
+                ) * 1000; // Convert to meters
+                
+                // Skip if too close to last point
+                if (dist < MIN_DISTANCE_FILTER) {
+                  return prevWaypoints;
+                }
+              }
+              
+              const updatedWaypoints = [...prevWaypoints, newWaypoint];
+              
+              // Calculate total distance
+              if (prevWaypoints.length > 0) {
+                const lastWaypoint = prevWaypoints[prevWaypoints.length - 1];
+                const segmentDistance = calculateDistance(
+                  lastWaypoint.latitude,
+                  lastWaypoint.longitude,
+                  newWaypoint.latitude,
+                  newWaypoint.longitude
+                );
+                setDistance(prevDistance => prevDistance + segmentDistance);
+              }
+
+              return updatedWaypoints;
+            });
+          }
+        }
+      );
+
+      setLocationSubscription(subscription);
+      
+      // Try to restart background tracking
+      try {
+        await startBackgroundLocationTask();
+      } catch (err) {
+        console.warn('Failed to restart background tracking:', err);
+      }
+    } catch (error) {
+      console.error('Error starting location tracking:', error);
     }
   };
   
@@ -422,8 +613,12 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
               <Text color={DARK_THEME.text} fontSize={24} fontWeight="600">{distance.toFixed(2)} km</Text>
             </View>
             <View style={styles.statItem}>
-              <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>AVG SPEED</Text>
-              <Text color={DARK_THEME.text} fontSize={24} fontWeight="600">{averageSpeed.toFixed(1)} km/h</Text>
+              <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>SPEED</Text>
+              <XStack>
+                <Text color={DARK_THEME.text} fontSize={24} fontWeight="600">{averageSpeed.toFixed(1)}</Text>
+                <Text color={DARK_THEME.text} fontSize={16} opacity={0.7} marginTop={4}> km/h</Text>
+              </XStack>
+              <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>Current: {currentSpeed.toFixed(1)} km/h</Text>
             </View>
           </View>
           
@@ -431,21 +626,46 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
           {!showSummary ? (
             /* Record button */
             <View style={styles.recordButtonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.recordButton,
-                  { backgroundColor: isRecording ? 'red' : '#1A3D3D' },
-                ]}
-                onPress={isRecording ? stopRecording : startRecording}
-              >
-                {isRecording ? (
-                  <Feather name="square" size={32} color="white" />
-                ) : (
+              {isRecording ? (
+                <XStack gap={16} justifyContent="center">
+                  {isPaused ? (
+                    <TouchableOpacity
+                      style={[styles.controlButton, { backgroundColor: '#1A3D3D' }]}
+                      onPress={resumeRecording}
+                    >
+                      <Feather name="play" size={28} color="white" />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.controlButton, { backgroundColor: '#3D3D1A' }]}
+                      onPress={pauseRecording}
+                    >
+                      <Feather name="pause" size={28} color="white" />
+                    </TouchableOpacity>
+                  )}
+                  
+                  <TouchableOpacity
+                    style={[styles.controlButton, { backgroundColor: 'red' }]}
+                    onPress={stopRecording}
+                  >
+                    <Feather name="square" size={28} color="white" />
+                  </TouchableOpacity>
+                </XStack>
+              ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.recordButton,
+                    { backgroundColor: '#1A3D3D' },
+                  ]}
+                  onPress={startRecording}
+                >
                   <Feather name="play" size={32} color="white" />
-                )}
-              </TouchableOpacity>
+                </TouchableOpacity>
+              )}
               <Text color={DARK_THEME.text} marginTop={8}>
-                {isRecording ? 'Stop Recording' : 'Start Recording'}
+                {isRecording 
+                  ? (isPaused ? 'Recording Paused' : 'Recording...') 
+                  : 'Start Recording'}
               </Text>
             </View>
           ) : (
@@ -459,23 +679,40 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
                 Your route has been recorded successfully. You can now create a new route with these waypoints.
               </Text>
               
-              <XStack space={8} justifyContent="center">
-                <Button
-                  backgroundColor={DARK_THEME.borderColor}
-                  color="white"
-                  onPress={cancelRecording}
-                >
-                  <Text color="white">Dismiss</Text>
-                </Button>
-                
-                <Button
-                  backgroundColor="#1A3D3D"
-                  color="white"
-                  onPress={saveRecording}
-                >
-                  <Text color="white">Create Route</Text>
-                </Button>
-              </XStack>
+              <Button
+                backgroundColor="#1A3D3D"
+                color="white"
+                onPress={saveRecording}
+                size="$4"
+                height={50}
+                pressStyle={{ opacity: 0.8 }}
+              >
+                <XStack gap="$2" alignItems="center">
+                  <Feather name="check" size={24} color="white" />
+                  <Text color="white" fontWeight="600" fontSize={18}>Create Route</Text>
+                </XStack>
+              </Button>
+              
+              <Button
+                backgroundColor="#3D3D1A"
+                color="white"
+                onPress={continueRecording}
+                marginBottom={8}
+              >
+                <XStack gap="$2" alignItems="center">
+                  <Feather name="play" size={18} color="white" />
+                  <Text color="white">Continue Recording</Text>
+                </XStack>
+              </Button>
+              
+              <Button
+                backgroundColor={DARK_THEME.borderColor}
+                color="white"
+                onPress={cancelRecording}
+                variant="outlined"
+              >
+                <Text color={DARK_THEME.secondaryText}>Dismiss</Text>
+              </Button>
             </YStack>
           )}
           
@@ -502,27 +739,24 @@ export const RecordDrivingSheet = (props: RecordDrivingSheetProps) => {
 
 // Modal version for use with modal system
 export const RecordDrivingModal = () => {
-  const { hideModal } = useModal();
+  const { hideModal, showModal } = useModal();
   
-  // Get navigation from global state (set by MapScreen)
+  // Handle route creation by showing the CreateRouteModal
   const onCreateRoute = (routeData: RecordedRouteData) => {
-    // Store data in global state for MapScreen to access
     console.log('RecordDrivingModal: onCreateRoute called with data', {
       waypointsCount: routeData.waypoints.length,
       name: routeData.name,
       description: routeData.description
     });
     
-    if (global) {
-      console.log('RecordDrivingModal: Setting global.recordedRouteData');
-      (global as any).recordedRouteData = routeData;
-      
-      // Set a flag that MapScreen can check
-      console.log('RecordDrivingModal: Setting global.shouldOpenCreateRoute = true');
-      (global as any).shouldOpenCreateRoute = true;
-    } else {
-      console.log('RecordDrivingModal: global object is not available!');
-    }
+    // First close the current modal
+    hideModal();
+    
+    // Show the CreateRouteModal with a small delay to ensure the current modal is closed
+    setTimeout(() => {
+      console.log('RecordDrivingModal: Showing CreateRouteModal');
+      showModal(<CreateRouteModal routeData={routeData} />);
+    }, 300) as unknown as NodeJS.Timeout;
   };
   
   return (
@@ -589,6 +823,13 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  controlButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },

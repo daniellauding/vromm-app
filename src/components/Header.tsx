@@ -8,11 +8,28 @@ export interface HeaderProps {
   leftElement?: React.ReactNode;
   rightElement?: React.ReactNode;
   showBack?: boolean;
+  onBackPress?: () => void;
 }
 
-export function Header({ title, leftElement, rightElement, showBack = false }: HeaderProps) {
-  const navigation = useNavigation();
+export function Header({ title, leftElement, rightElement, showBack = false, onBackPress }: HeaderProps) {
+  let navigation;
+  try {
+    navigation = useNavigation();
+  } catch (error) {
+    navigation = null;
+  }
+  
   const iconColor = 'white';
+
+  const handleBackPress = () => {
+    if (onBackPress) {
+      onBackPress();
+    } else if (navigation) {
+      navigation.goBack();
+    } else {
+      console.warn('No navigation or onBackPress available in Header');
+    }
+  };
 
   return (
     <XStack
@@ -32,7 +49,7 @@ export function Header({ title, leftElement, rightElement, showBack = false }: H
             paddingHorizontal="$2"
             marginLeft={-12}
             alignSelf="flex-start"
-            onPress={() => navigation.goBack()}
+            onPress={handleBackPress}
             icon={<Feather name="arrow-left" size={24} color={iconColor} />}
           />
           <XStack alignItems="center" gap="$2" width="100%" flex={1}>

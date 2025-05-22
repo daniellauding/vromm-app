@@ -243,7 +243,8 @@ export function SearchScreen() {
   };
 
   const handleResultSelect = (result: SearchResult) => {
-    navigation.navigate('Map' as never, { selectedLocation: result } as never);
+    // @ts-ignore: Type issues with navigation
+    navigation.navigate('Map', { selectedLocation: result });
   };
 
   const handleClose = () => {
@@ -306,16 +307,17 @@ export function SearchScreen() {
       <>
         {/* Near Me Button */}
         <TouchableOpacity style={styles.nearMeButton} onPress={handleNearMe}>
-          <Feather name="navigation" size={20} color={DARK_THEME.iconColor} style={{ marginRight: 12 }} />
-          <Text style={styles.cityName}>
-            {t('search.nearMe') || 'Near Me'}
-          </Text>
+          <Feather
+            name="navigation"
+            size={20}
+            color={DARK_THEME.iconColor}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={styles.cityName}>{t('search.nearMe') || 'Near Me'}</Text>
         </TouchableOpacity>
 
         {/* Popular Cities Section */}
-        <Text style={styles.sectionTitle}>
-          {t('search.popularCities') || 'Popular Cities'}
-        </Text>
+        <Text style={styles.sectionTitle}>{t('search.popularCities') || 'Popular Cities'}</Text>
         
         {POPULAR_CITIES.map((city, index) => (
           <TouchableOpacity
@@ -323,14 +325,15 @@ export function SearchScreen() {
             style={styles.cityItem}
             onPress={() => handleCitySelect(city.name, city.country)}
           >
-            <Feather name="map-pin" size={16} color={DARK_THEME.iconColor} style={{ marginRight: 12 }} />
+            <Feather
+              name="map-pin"
+              size={16}
+              color={DARK_THEME.iconColor}
+              style={{ marginRight: 12 }}
+            />
             <YStack>
-              <Text style={styles.cityName}>
-                {city.name}
-              </Text>
-              <Text style={styles.cityCountry}>
-                {city.country}
-              </Text>
+              <Text style={styles.cityName}>{city.name}</Text>
+              <Text style={styles.cityCountry}>{city.country}</Text>
             </YStack>
           </TouchableOpacity>
         ))}
@@ -346,15 +349,16 @@ export function SearchScreen() {
         <View style={styles.handle} />
         <XStack width="100%" paddingHorizontal="$4" justifyContent="space-between">
           <View style={{ width: 60 }} />
-          <Text style={styles.headerTitle}>
-            {t('search.title') || 'Search'}
-          </Text>
+          <Text style={styles.headerTitle}>{t('search.title') || 'Search'}</Text>
           <TouchableOpacity onPress={handleClose}>
             <Feather name="x" size={24} color={DARK_THEME.iconColor} />
           </TouchableOpacity>
         </XStack>
       </View>
-      <View style={[styles.searchHeader, { borderBottomColor: DARK_THEME.borderColor, borderBottomWidth: 1 }]}>
+      <View style={[
+        styles.searchHeader,
+        { borderBottomColor: DARK_THEME.borderColor, borderBottomWidth: 1 }
+      ]}>
         <XStack alignItems="center" gap="$2">
           <Input
             ref={searchInputRef}
