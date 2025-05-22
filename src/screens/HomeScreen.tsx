@@ -26,6 +26,7 @@ import { Easing } from 'react-native';
 import { RouteType } from '../types/route';
 import { RouteCard } from '../components/RouteCard';
 import { SectionHeader } from '../components/SectionHeader';
+import { UsersList } from '../components/UsersList';
 
 type Todo = {
   id: string;
@@ -1176,7 +1177,7 @@ export function HomeScreen() {
             
             <Button
               size="sm"
-              variant="outlined"
+              variant="secondary"
               onPress={() => navigation.navigate('UsersScreen')}
               icon={<Feather name="users" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />}
             >
@@ -1542,6 +1543,18 @@ export function HomeScreen() {
                 ? renderHorizontalRouteList(drivenRoutes, getRouteImage)
                 : renderEmptyState('No Driven Routes', 'Complete routes to see them here')}
             </YStack>
+          </YStack>
+          
+          {/* Users Section */}
+          <YStack gap="$4" marginTop="$6" marginBottom="$6">
+            <SectionHeader
+              title="Users"
+              variant="chevron"
+              onAction={() => navigation.navigate('UsersScreen')}
+              actionLabel={t('common.seeAll')}
+            />
+            
+            <UsersList />
           </YStack>
         </YStack>
 

@@ -15,11 +15,9 @@ import { useFocusEffect } from '@react-navigation/native';
 type User = {
   id: string;
   full_name?: string;
-  email?: string;
   avatar_url?: string;
   location?: string;
   created_at: string;
-  last_sign_in_at?: string;
   role?: string;
 };
 
@@ -40,14 +38,12 @@ export function UsersScreen() {
         .select(`
           id,
           full_name,
-          email,
           avatar_url,
           location,
           created_at,
-          last_sign_in_at,
           role
         `)
-        .order('last_sign_in_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(50);
         
       if (error) throw error;
@@ -125,10 +121,6 @@ export function UsersScreen() {
               {user.full_name || 'Unnamed User'}
             </Text>
             
-            <Text color="$gray11" fontSize="$3">
-              {user.email || 'No email'}
-            </Text>
-            
             {user.location && (
               <XStack alignItems="center" gap="$1">
                 <Feather name="map-pin" size={14} color={iconColor} />
@@ -143,13 +135,6 @@ export function UsersScreen() {
                 <Feather name="clock" size={14} color={iconColor} />
                 <Text color="$gray11" fontSize="$3">
                   Joined: {formatDate(user.created_at)}
-                </Text>
-              </XStack>
-              
-              <XStack alignItems="center" gap="$1">
-                <Feather name="log-in" size={14} color={iconColor} />
-                <Text color="$gray11" fontSize="$3">
-                  Last login: {formatDate(user.last_sign_in_at)}
                 </Text>
               </XStack>
             </XStack>
