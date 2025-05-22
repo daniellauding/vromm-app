@@ -29,6 +29,7 @@ export type RootStackParamList = {
   TranslationDemo: undefined;
   LicensePlanScreen: undefined;
   RoleSelectionScreen: undefined;
+  PublicProfile: { userId: string };
   RouteList: {
     title: string;
     routes: Route[];
@@ -45,6 +46,7 @@ export type TabParamList = {
   };
   MapTab: undefined;
   ProfileTab: undefined;
+  ProfileScreen: undefined;
 };
 
 // Combined navigation type that works with both stack and tab navigation

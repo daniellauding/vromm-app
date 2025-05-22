@@ -188,7 +188,13 @@ export function RouteCard({ route }: RouteCardProps) {
           
           <XStack space="$2" alignItems="center">
             <Feather name="user" size={16} color={iconColor} />
-            <Text color="$gray11">{route.creator?.full_name || 'Unknown'}</Text>
+            <Text 
+              color="$gray11" 
+              onPress={() => navigation.navigate('PublicProfile', { userId: route.creator?.id })}
+              pressStyle={{ opacity: 0.7 }}
+            >
+              {route.creator?.full_name || 'Unknown'}
+            </Text>
           </XStack>
           
           <XStack space="$4">

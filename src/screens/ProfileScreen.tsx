@@ -272,7 +272,24 @@ export function ProfileScreen() {
       />
 
       <YStack f={1} gap={24}>
-        <Header title={t('profile.title')} />
+        <Header title={t('profile.title')} 
+          rightElement={
+            <Button 
+              onPress={() => {
+                if (profile?.id) {
+                  navigation.navigate('PublicProfile', { userId: profile.id });
+                }
+              }}
+              variant="outlined"
+              size="sm"
+            >
+              <XStack alignItems="center" gap="$2">
+                <Feather name="eye" size={16} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                <Text>View Profile</Text>
+              </XStack>
+            </Button>
+          }
+        />
         <YStack gap={24}>
           <YStack gap={24} paddingBottom={56}>
             <YStack alignItems="center" marginTop={24} marginBottom={8}>
