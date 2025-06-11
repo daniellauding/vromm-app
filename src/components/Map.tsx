@@ -299,10 +299,10 @@ export function Map({
           />
         )}
         
-        {clusters.map((cluster) => {
+        {clusters.map((cluster, index) => {
           return (
             <WaypointMarker
-              key={cluster.properties.cluster_id ?? cluster.properties.id ?? cluster.id}
+              key={cluster.properties.cluster_id ?? cluster.properties.id ?? cluster.id ?? index}
               cluster={cluster}
               onMarkerPress={onMarkerPress}
               customMarker={customMarker}

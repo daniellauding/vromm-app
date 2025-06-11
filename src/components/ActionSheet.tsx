@@ -8,7 +8,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
-import { Text, XStack, YStack, Button } from 'tamagui';
+import { Text, XStack, YStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
@@ -64,11 +64,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ActionSheet({
-  isVisible,
-  onClose,
-  onCreateRoute,
-}: ActionSheetProps) {
+export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetProps) {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
@@ -76,7 +72,7 @@ export function ActionSheet({
   const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
   const handleColor = colorScheme === 'dark' ? '#666' : '#CCC';
   const { showModal } = useModal();
-  
+
   // Animation values
   const translateY = useRef(new Animated.Value(screenHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -100,7 +96,7 @@ export function ActionSheet({
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
-        })
+        }),
       ]).start();
     } else {
       // Animate out
@@ -119,7 +115,7 @@ export function ActionSheet({
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
-        })
+        }),
       ]).start();
     }
   }, [isVisible, translateY, backdropOpacity]);
@@ -145,12 +141,9 @@ export function ActionSheet({
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      <Animated.View 
-        style={[
-          styles.backdrop, 
-          { opacity: backdropOpacity }
-        ]} 
-        pointerEvents={isVisible ? "auto" : "none"}
+      <Animated.View
+        style={[styles.backdrop, { opacity: backdropOpacity }]}
+        pointerEvents={isVisible ? 'auto' : 'none'}
         onTouchEnd={handleBackdropPress}
       />
       <Animated.View
@@ -173,7 +166,7 @@ export function ActionSheet({
         </View>
 
         <YStack>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.actionButton, { borderBottomColor: borderColor }]}
             onPress={handleCreateRoute}
           >
@@ -184,8 +177,8 @@ export function ActionSheet({
               </Text>
             </XStack>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.actionButton, { borderBottomColor: borderColor }]}
             onPress={handleRecordDriving}
           >
@@ -204,12 +197,6 @@ export function ActionSheet({
 
 export function ActionSheetModal({ onCreateRoute }: { onCreateRoute: () => void }) {
   const { hideModal } = useModal();
-  
-  return (
-    <ActionSheet 
-      isVisible={true}
-      onClose={hideModal}
-      onCreateRoute={onCreateRoute}
-    />
-  );
-} 
+
+  return <ActionSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} />;
+}
