@@ -64,6 +64,22 @@ export function ProfileScreen() {
       setLoading(true);
       setError(null);
       await updateProfile(formData);
+      
+      // Refresh the PublicProfile when navigating back
+      if (navigation.canGoBack()) {
+        // Force refresh by using replace instead of goBack
+        navigation.replace('PublicProfile', { 
+          userId: profile?.id,
+          refresh: Date.now() // Use timestamp to ensure refresh param is always different
+        });
+      } else {
+        // Navigate to the public profile view with refreshed data
+        navigation.navigate('PublicProfile', { 
+          userId: profile?.id,
+          refresh: Date.now() // Use timestamp to ensure refresh param is always different
+        });
+      }
+      
       Alert.alert('Success', 'Profile updated successfully');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile');
@@ -264,7 +280,7 @@ export function ProfileScreen() {
   };
 
   return (
-    <Screen scroll>
+    <Screen scroll contentContainerStyle={{ paddingBottom: 100 }}>
       <OnboardingModal
         visible={showOnboarding}
         onClose={() => setShowOnboarding(false)}
@@ -340,6 +356,7 @@ export function ProfileScreen() {
                 value={formData.full_name}
                 onChangeText={text => setFormData(prev => ({ ...prev, full_name: text }))}
                 placeholder={t('profile.fullNamePlaceholder')}
+                autoCapitalize="none"
               />
             </YStack>
 
@@ -351,6 +368,7 @@ export function ProfileScreen() {
                 value={formData.location}
                 onChangeText={text => setFormData(prev => ({ ...prev, location: text }))}
                 placeholder={t('profile.locationPlaceholder')}
+                autoCapitalize="none"
                 rightElement={
                   <Button
                     onPress={detectLocation}

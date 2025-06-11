@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { YStack, XStack, Text, Button, Card, ScrollView } from 'tamagui';
-import { Image, ImageSourcePropType, Dimensions, View, StyleSheet } from 'react-native';
+import { Image, ImageSourcePropType, Dimensions, View, StyleSheet, useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
@@ -61,6 +61,7 @@ export function HeroCarousel({
   const [activeIndex, setActiveIndex] = useState(0);
   const screenWidth = Dimensions.get('window').width;
   const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
 
   const handleScroll = (event: any) => {
     const contentOffset = event.nativeEvent.contentOffset.x;
@@ -214,6 +215,25 @@ export function HeroCarousel({
                   <Text size="lg" weight="bold" numberOfLines={1} ellipsizeMode="tail">
                     {item.name}
                   </Text>
+                  {item.creator && (
+                    <XStack space="$1" alignItems="center" marginTop="$1">
+                      <Feather name="user" size={14} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                      <Text 
+                        color="$gray11"
+                        size="xs"
+                        onPress={() => {
+                          if (item.creator?.id) {
+                            navigation.navigate('PublicProfile', { userId: item.creator.id });
+                          } else if (item.creator_id) {
+                            navigation.navigate('PublicProfile', { userId: item.creator_id });
+                          }
+                        }}
+                        pressStyle={{ opacity: 0.7 }}
+                      >
+                        {item.creator?.full_name || 'Unknown'}
+                      </Text>
+                    </XStack>
+                  )}
                   <Text size="md" color="$gray11">
                     {item.difficulty?.toUpperCase()}
                   </Text>

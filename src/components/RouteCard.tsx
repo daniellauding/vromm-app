@@ -8,6 +8,42 @@ import { Map } from './Map';
 import Carousel from 'react-native-reanimated-carousel';
 import { Route, WaypointData } from '@/src/types/route';
 
+type WaypointData = {
+  lat: number;
+  lng: number;
+  title?: string;
+  description?: string;
+};
+
+type MediaAttachment = {
+  url: string;
+  type: 'image' | 'video';
+  description?: string;
+};
+
+type Route = Database['public']['Tables']['routes']['Row'] & {
+  creator: {
+    id?: string;
+    full_name: string;
+  } | null;
+  creator_id?: string;
+  metadata: {
+    waypoints?: WaypointData[];
+  };
+  waypoint_details: WaypointData[];
+  media_attachments?: MediaAttachment[];
+  reviews?: { 
+    id: string;
+    rating: number;
+    content: string;
+    difficulty: string;
+    visited_at: string;
+    created_at: string;
+    images: { url: string; description?: string }[];
+    user: { id: string; full_name: string; };
+  }[];
+};
+
 interface RouteCardProps {
   route: Route;
 }
@@ -163,7 +199,18 @@ export function RouteCard({ route }: RouteCardProps) {
             <Feather name="user" size={16} color={iconColor} />
             <Text 
               color="$gray11" 
-              onPress={() => navigation.navigate('PublicProfile', { userId: route.creator?.id })}
+              onPress={() => {
+                console.log('RouteCard: Navigating to profile, creator:', route.creator);
+                if (route.creator?.id) {
+                  console.log('RouteCard: Using creator.id:', route.creator.id);
+                  navigation.navigate('PublicProfile', { userId: route.creator.id });
+                } else if (route.creator_id) {
+                  console.log('RouteCard: Using creator_id:', route.creator_id);
+                  navigation.navigate('PublicProfile', { userId: route.creator_id });
+                } else {
+                  console.log('RouteCard: No creator ID available');
+                }
+              }}
               pressStyle={{ opacity: 0.7 }}
             >
               {route.creator?.full_name || 'Unknown'}

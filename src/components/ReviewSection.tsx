@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { YStack, XStack, Card, Button, TextArea } from 'tamagui';
 import { Text } from './Text';
 import { Feather } from '@expo/vector-icons';
@@ -55,6 +55,30 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
     images: [] as ReviewImage[],
     visited_at: new Date().toISOString()
   });
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+          
+        if (!error && data && data.role === 'admin') {
+          setIsAdmin(true);
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err);
+      }
+    };
+    
+    checkAdminStatus();
+  }, [user]);
 
   const handlePickImages = async () => {
     try {
@@ -160,6 +184,42 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
     } finally {
       setLoading(false);
     }
+  };
+
+  // Add admin delete review function
+  const handleAdminDeleteReview = async (reviewId: string) => {
+    if (!isAdmin) return;
+    
+    Alert.alert(
+      'Admin: Delete Review',
+      'Are you sure you want to delete this review as an admin? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('route_reviews')
+                .delete()
+                .eq('id', reviewId);
+              
+              if (error) throw error;
+              
+              // Refresh reviews
+              onReviewAdded();
+              
+              // Show confirmation
+              Alert.alert('Success', 'Review deleted by admin');
+            } catch (err) {
+              console.error('Admin delete review error:', err);
+              Alert.alert('Error', 'Failed to delete review');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const renderStepContent = () => {
@@ -369,15 +429,28 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
               reviews.map(review => (
                 <Card key={review.id} bordered size="$4" padding="$4">
                   <YStack space="$2">
-                    <XStack space="$2" alignItems="center">
-                      <YStack>
-                        <Text weight="medium" color="$color">
-                          {review.user?.full_name || t('routeDetail.anonymous')}
-                        </Text>
-                        <Text size="sm" color="$gray11">
-                          {format(new Date(review.visited_at), 'MMM d, yyyy')}
-                        </Text>
-                      </YStack>
+                    <XStack space="$2" alignItems="center" justifyContent="space-between">
+                      <XStack space="$2" alignItems="center">
+                        <YStack>
+                          <Text weight="medium" color="$color">
+                            {review.user?.full_name || t('routeDetail.anonymous')}
+                          </Text>
+                          <Text size="sm" color="$gray11">
+                            {format(new Date(review.visited_at), 'MMM d, yyyy')}
+                          </Text>
+                        </YStack>
+                      </XStack>
+                      
+                      {isAdmin && (
+                        <Button
+                          size="$2"
+                          variant="outlined"
+                          backgroundColor="$red10"
+                          onPress={() => handleAdminDeleteReview(review.id)}
+                        >
+                          <Feather name="trash-2" size={16} color="white" />
+                        </Button>
+                      )}
                     </XStack>
                     <XStack space="$1">
                       {Array.from({ length: 5 }).map((_, i) => (

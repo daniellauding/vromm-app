@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Dimensions, Platform, BackHandler } from 'react-native';
+import { View, StyleSheet, Dimensions, Platform, BackHandler, Alert } from 'react-native';
 import { useModal } from '../contexts/ModalContext';
 import { CreateRouteScreen } from '../screens/CreateRouteScreen';
 import { RecordedRouteData } from './RecordDrivingSheet';
@@ -34,16 +34,47 @@ export function CreateRouteModal({ routeData }: CreateRouteModalProps) {
   // Handle back button press to close modal
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      hideModal();
+      handleClose();
       return true;
     });
     
     return () => backHandler.remove();
   }, [hideModal]);
   
-  // Function to handle modal close
+  // Function to handle modal close with confirmation if needed
   const handleClose = () => {
-    hideModal();
+    // Check if there are unsaved changes
+    // For simplicity, we're always confirming
+    Alert.alert(
+      'Close Route Creation?',
+      'Any unsaved changes will be lost. Are you sure you want to close?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Close',
+          style: 'destructive',
+          onPress: () => hideModal()
+        }
+      ]
+    );
+  };
+  
+  // Add error boundary to prevent crashes from propagating
+  const handleError = (error: Error) => {
+    console.error('Error in CreateRouteModal:', error);
+    Alert.alert(
+      'Error',
+      'Something went wrong. Please try again.',
+      [
+        {
+          text: 'Close',
+          onPress: hideModal
+        }
+      ]
+    );
   };
   
   return (

@@ -63,6 +63,7 @@ import { LicensePlanScreen } from './src/screens/LicensePlanScreen';
 import { RoleSelectionScreen } from './src/screens/RoleSelectionScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import { PublicProfileScreen } from './src/screens/PublicProfileScreen';
+import { UsersScreen } from './src/screens/UsersScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -283,6 +284,13 @@ function AppContent() {
             <Stack.Screen
               name="PublicProfile"
               component={PublicProfileScreen}
+              options={{
+                headerShown: false
+              }}
+            />
+            <Stack.Screen
+              name="UsersScreen"
+              component={UsersScreen}
               options={{
                 headerShown: false
               }}
