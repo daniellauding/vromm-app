@@ -187,15 +187,15 @@ export function FilterSheet({
   }, [isVisible, translateY, backdropOpacity]);
 
   // Reset filters
-  const handleReset = () => {
+  const handleReset = React.useCallback(() => {
     setFilters({});
-  };
+  }, []);
 
   // Apply filters and close sheet
-  const handleApply = () => {
+  const handleApply = React.useCallback(() => {
     onApplyFilters(filters);
     onClose();
-  };
+  }, [onApplyFilters, filters, onClose]);
 
   // Toggle array-based filter selection
   const toggleFilter = (type: keyof FilterOptions, value: string) => {
@@ -227,23 +227,26 @@ export function FilterSheet({
   };
 
   // Set single value filter
-  const setSingleFilter = (type: keyof FilterOptions, value: any) => {
+  const setSingleFilter = React.useCallback((type: keyof FilterOptions, value: any) => {
     setFilters((prev) => ({
       ...prev,
       [type]: value,
     }));
-  };
+  }, []);
 
   // Check if a filter chip is selected
-  const isSelected = (type: keyof FilterOptions, value: string) => {
-    const arrayProp = filters[type] as string[] | undefined;
-    return arrayProp?.includes(value) || false;
-  };
+  const isSelected = React.useCallback(
+    (type: keyof FilterOptions, value: string) => {
+      const arrayProp = filters[type] as string[] | undefined;
+      return arrayProp?.includes(value) || false;
+    },
+    [filters],
+  );
 
   // Handle backdrop press
-  const handleBackdropPress = () => {
+  const handleBackdropPress = React.useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   if (!isVisible && translateY._value === screenHeight) return null;
 
@@ -673,15 +676,18 @@ export function FilterSheetModal({
   const { hideModal } = useModal();
 
   // Handle closing the sheet
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     hideModal();
-  };
+  }, [hideModal]);
 
   // Handle apply filters and close
-  const handleApply = (filters: FilterOptions) => {
-    onApplyFilters(filters);
-    hideModal();
-  };
+  const handleApply = React.useCallback(
+    (filters: FilterOptions) => {
+      onApplyFilters(filters);
+      hideModal();
+    },
+    [onApplyFilters, hideModal],
+  );
 
   return (
     <FilterSheet

@@ -77,3 +77,5 @@ export function useRoutes() {
 
   return { fetchRoutes, loading, error };
 }
+
+export type { WaypointData, Route, RouteMetadata };

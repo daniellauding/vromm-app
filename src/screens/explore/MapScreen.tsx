@@ -2,12 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View,
   StyleSheet,
-  useColorScheme,
-  Animated,
   TouchableOpacity,
-  Dimensions,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
   Alert,
   ActivityIndicator,
   Modal,
@@ -15,27 +10,19 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Map, Waypoint } from '../../components/Map';
-import { supabase } from '../../lib/supabase';
+import { Map } from '../../components/Map';
+
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp, FilterCategory } from '../../types/navigation';
-import { Database } from '../../lib/database.types';
-import { YStack, XStack, Card, Input, Text, Sheet, Button } from 'tamagui';
+
+import { Text } from 'tamagui';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 import { Screen } from '../../components/Screen';
 import { useRoutes } from '../../hooks/useRoutes';
 import type { Route as RouteType, WaypointData } from '../../hooks/useRoutes';
-import { RoutePreviewCard } from '../../components/RoutePreviewCard';
 import { RoutesDrawer } from './RoutesDrawer';
-import {
-  PanGestureHandler,
-  State,
-  PanGestureHandlerGestureEvent,
-  PanGestureHandlerStateChangeEvent,
-} from 'react-native-gesture-handler';
 import MapView from 'react-native-maps';
-import { ScrollView } from 'react-native';
 import { AppHeader } from '../../components/AppHeader';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
@@ -65,6 +52,22 @@ const DARK_THEME = {
 };
 
 const BOTTOM_NAV_HEIGHT = 80; // Height of bottom navigation bar including safe area
+const deg2rad = (deg: number) => {
+  return deg * (Math.PI / 180);
+};
+
+// Helper function to calculate distance
+const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c; // Distance in km
+  return d;
+};
 
 export function MapScreen({ route }: { route: { params?: { selectedLocation?: any } } }) {
   const { t } = useTranslation();
@@ -623,7 +626,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
       setFilteredRoutes(filtered);
     },
-    [routes, region],
+    [routes, region, getDistanceFromLatLonInKm],
   );
 
   // Handle filter button press
@@ -654,23 +657,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     // Directly render instead of using React element
     showModal(<RecordDrivingModal />);
   }, [showModal]);
-
-  // Helper function to calculate distance
-  const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Radius of the earth in km
-    const dLat = deg2rad(lat2 - lat1);
-    const dLon = deg2rad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const d = R * c; // Distance in km
-    return d;
-  };
-
-  const deg2rad = (deg: number) => {
-    return deg * (Math.PI / 180);
-  };
 
   // Check for recorded route data when screen is focused
   useFocusEffect(
