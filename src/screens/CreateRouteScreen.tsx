@@ -7,7 +7,7 @@ import {
   useColorScheme,
   Dimensions,
   TouchableOpacity,
-  Platform
+  Platform,
 } from 'react-native';
 import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group, Heading } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,7 +44,7 @@ const CATEGORIES: Category[] = [
   'incline_start',
   'straight_driving',
   'reversing',
-  'highway_entry_exit'
+  'highway_entry_exit',
 ];
 
 type MapPressEvent = {
@@ -108,7 +108,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const [searchResults, setSearchResults] = useState<Location.LocationGeocodedAddress[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const { user } = useAuth();
-  
+
   // Use navigation conditionally
   const navigation = isModal ? undefined : useNavigation<NavigationProp>();
   const [loading, setLoading] = useState(false);
@@ -118,7 +118,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     latitude: 55.7047,
     longitude: 13.191,
     latitudeDelta: 0.1,
-    longitudeDelta: 0.1
+    longitudeDelta: 0.1,
   });
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -140,8 +140,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   }, [initialSearchCoordinates]);
 
   // Setup routePath for map if provided
-  const [routePath, setRoutePath] = useState<Array<{latitude: number, longitude: number}> | null>(
-    initialRoutePath || null
+  const [routePath, setRoutePath] = useState<Array<{ latitude: number; longitude: number }> | null>(
+    initialRoutePath || null,
   );
 
   useEffect(() => {
@@ -163,13 +163,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                 latitude,
                 longitude,
                 latitudeDelta: 0.02,
-                longitudeDelta: 0.02
+                longitudeDelta: 0.02,
               });
 
               // Get address from coordinates
               const [address] = await Location.reverseGeocodeAsync({
                 latitude,
-                longitude
+                longitude,
               });
 
               if (address) {
@@ -183,7 +183,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                   latitude,
                   longitude,
                   title,
-                  description: 'Current location'
+                  description: 'Current location',
                 };
                 setWaypoints([newWaypoint]);
 
@@ -199,30 +199,30 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             latitude: 55.7047,
             longitude: 13.191,
             latitudeDelta: 0.1,
-            longitudeDelta: 0.1
+            longitudeDelta: 0.1,
           });
         }
       })();
     }
-    
+
     // If we have initial waypoints, set up the region based on them
     if (initialWaypoints?.length) {
-      const latitudes = initialWaypoints.map(wp => wp.latitude);
-      const longitudes = initialWaypoints.map(wp => wp.longitude);
-      
+      const latitudes = initialWaypoints.map((wp) => wp.latitude);
+      const longitudes = initialWaypoints.map((wp) => wp.longitude);
+
       const minLat = Math.min(...latitudes);
       const maxLat = Math.max(...latitudes);
       const minLng = Math.min(...longitudes);
       const maxLng = Math.max(...longitudes);
-      
+
       // Create a region that contains all waypoints
       setRegion({
         latitude: (minLat + maxLat) / 2,
         longitude: (minLng + maxLng) / 2,
         latitudeDelta: Math.max((maxLat - minLat) * 1.2, 0.02),
-        longitudeDelta: Math.max((maxLng - minLng) * 1.2, 0.02)
+        longitudeDelta: Math.max((maxLng - minLng) * 1.2, 0.02),
       });
-      
+
       // Set active section to basic to allow naming the route
       setActiveSection('basic');
     }
@@ -246,7 +246,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     activity_level: 'moderate',
     spot_subtype: 'standard',
     transmission_type: 'both',
-    category: 'parking' as Category
+    category: 'parking' as Category,
   });
 
   const handleMapPress = (e: MapPressEvent) => {
@@ -255,7 +255,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     // Get address from coordinates
     Location.reverseGeocodeAsync({
       latitude,
-      longitude
+      longitude,
     })
       .then(([address]) => {
         const title = address
@@ -266,33 +266,33 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           latitude,
           longitude,
           title,
-          description: 'Tapped location'
+          description: 'Tapped location',
         };
 
-        setWaypoints(prev => [...prev, newWaypoint]);
+        setWaypoints((prev) => [...prev, newWaypoint]);
 
         // Update search query with location
         setSearchQuery(title);
 
         // Update region to center on new waypoint
-        setRegion(prev => ({
+        setRegion((prev) => ({
           ...prev,
           latitude,
           longitude,
           latitudeDelta: 0.01,
-          longitudeDelta: 0.01
+          longitudeDelta: 0.01,
         }));
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Error getting address:', err);
         // If reverse geocoding fails, still add waypoint with default title
         const newWaypoint: Waypoint = {
           latitude,
           longitude,
           title: `Waypoint ${waypoints.length + 1}`,
-          description: 'Tapped location'
+          description: 'Tapped location',
         };
-        setWaypoints(prev => [...prev, newWaypoint]);
+        setWaypoints((prev) => [...prev, newWaypoint]);
       });
   };
 
@@ -307,18 +307,18 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       const { latitude, longitude } = location.coords;
 
       // Update region
-      setRegion(prev => ({
+      setRegion((prev) => ({
         ...prev,
         latitude,
         longitude,
         latitudeDelta: 0.01,
-        longitudeDelta: 0.01
+        longitudeDelta: 0.01,
       }));
 
       // Get address from coordinates
       const [address] = await Location.reverseGeocodeAsync({
         latitude,
-        longitude
+        longitude,
       });
 
       // Create location title
@@ -331,9 +331,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         latitude,
         longitude,
         title,
-        description: t('createRoute.locateMe')
+        description: t('createRoute.locateMe'),
       };
-      setWaypoints(prev => [...prev, newWaypoint]);
+      setWaypoints((prev) => [...prev, newWaypoint]);
 
       // Update search input with location name
       setSearchQuery(title);
@@ -358,20 +358,20 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         title: newExercise.title,
         description: newExercise.description || '',
         duration: newExercise.duration,
-        repetitions: newExercise.repetitions
-      }
+        repetitions: newExercise.repetitions,
+      },
     ]);
     setNewExercise({});
   };
 
   const handleRemoveExercise = (id: string) => {
-    setExercises(exercises.filter(ex => ex.id !== id));
+    setExercises(exercises.filter((ex) => ex.id !== id));
   };
 
   const pickMedia = async (useCamera = false) => {
     try {
       let newMediaItems: mediaUtils.MediaItem[] | null = null;
-      
+
       if (useCamera) {
         // Take a photo with the camera
         const newMedia = await mediaUtils.takePhoto();
@@ -382,7 +382,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         // Pick media from library
         newMediaItems = await mediaUtils.pickMediaFromLibrary(true);
       }
-      
+
       if (newMediaItems && newMediaItems.length > 0) {
         setMedia([...media, ...newMediaItems]);
       }
@@ -431,31 +431,35 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       id: Date.now().toString(),
       type: newMedia.type,
       uri: newMedia.uri,
-      fileName: newMedia.uri.split('/').pop() || 'unknown'
+      fileName: newMedia.uri.split('/').pop() || 'unknown',
     };
     // Keep existing media and add new one
-    setMedia(prev => [...prev, newMediaItem]);
+    setMedia((prev) => [...prev, newMediaItem]);
   };
 
   const handleRemoveMedia = (index: number) => {
-    setMedia(prev => prev.filter((_, i) => i !== index));
+    setMedia((prev) => prev.filter((_, i) => i !== index));
   };
 
   const uploadMediaInBackground = async (media: mediaUtils.MediaItem[], routeId: string) => {
     try {
       // Only upload new media items (ones that don't start with http)
-      const newMediaItems = media.filter(m => !m.uri.startsWith('http'));
+      const newMediaItems = media.filter((m) => !m.uri.startsWith('http'));
       const uploadResults: { type: mediaUtils.MediaType; url: string; description?: string }[] = [];
 
       for (const item of newMediaItems) {
         try {
-          const publicUrl = await mediaUtils.uploadMediaToSupabase(item, 'media', `routes/${routeId}`);
-          
+          const publicUrl = await mediaUtils.uploadMediaToSupabase(
+            item,
+            'media',
+            `routes/${routeId}`,
+          );
+
           if (publicUrl) {
             uploadResults.push({
               type: item.type,
               url: publicUrl,
-              description: item.description || ''
+              description: item.description || '',
             });
           }
         } catch (itemError) {
@@ -475,10 +479,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         const currentAttachments = (currentRoute?.media_attachments || []) as mediaUtils.MediaUrl[];
 
         // Add new media to the array
-        const updatedAttachments = [
-          ...currentAttachments,
-          ...uploadResults
-        ];
+        const updatedAttachments = [...currentAttachments, ...uploadResults];
 
         // Update the route with the new media array
         const { error: updateError } = await supabase
@@ -512,7 +513,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         lat: wp.latitude,
         lng: wp.longitude,
         title: wp.title || `Waypoint ${index + 1}`,
-        description: wp.description
+        description: wp.description,
       }));
 
       // When editing, preserve existing media
@@ -528,27 +529,27 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         const existingMedia = (existingRoute?.media_attachments || []) as mediaUtils.MediaUrl[];
 
         // Keep existing media that hasn't been removed
-        const existingMediaUrls = existingMedia.map(m => m.url);
-        const currentMediaUrls = media.map(m => m.uri);
+        const existingMediaUrls = existingMedia.map((m) => m.url);
+        const currentMediaUrls = media.map((m) => m.uri);
 
         mediaToUpdate = [
           // Keep existing media that hasn't been removed
-          ...existingMedia.filter(m => currentMediaUrls.includes(m.url)),
+          ...existingMedia.filter((m) => currentMediaUrls.includes(m.url)),
           // Add new media (ones that don't exist in existingMediaUrls)
           ...media
-            .filter(m => !existingMediaUrls.includes(m.uri) && !m.uri.startsWith('http'))
-            .map(item => ({
+            .filter((m) => !existingMediaUrls.includes(m.uri) && !m.uri.startsWith('http'))
+            .map((item) => ({
               type: item.type as 'image' | 'video' | 'youtube',
               url: item.uri,
-              description: item.description
-            }))
+              description: item.description,
+            })),
         ];
       } else {
         // For new routes, use all media
-        mediaToUpdate = media.map(item => ({
+        mediaToUpdate = media.map((item) => ({
           type: item.type as 'image' | 'video' | 'youtube',
           url: item.uri,
-          description: item.description
+          description: item.description,
         }));
       }
 
@@ -575,13 +576,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           options: {
             reverse: false,
             closeLoop: false,
-            doubleBack: false
+            doubleBack: false,
           },
-          coordinates: []
+          coordinates: [],
         },
         suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises) : '',
         media_attachments: mediaToUpdate,
-        drawing_mode: 'waypoints'
+        drawing_mode: 'waypoints',
       };
 
       let route;
@@ -626,7 +627,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
       // Only upload new media items that aren't already in storage
       if (media.length > 0 && route?.id) {
-        const newMedia = media.filter(m => !m.uri.startsWith('http'));
+        const newMedia = media.filter((m) => !m.uri.startsWith('http'));
         if (newMedia.length > 0) {
           try {
             await uploadMediaInBackground(newMedia, route.id);
@@ -693,7 +694,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         activity_level: route.activity_level || 'moderate',
         spot_subtype: route.spot_subtype || 'standard',
         transmission_type: route.transmission_type || 'both',
-        category: route.category || 'parking'
+        category: route.category || 'parking',
       });
 
       if (route.waypoint_details) {
@@ -701,7 +702,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           latitude: wp.lat,
           longitude: wp.lng,
           title: wp.title,
-          description: wp.description
+          description: wp.description,
         }));
 
         setWaypoints(waypoints);
@@ -713,7 +714,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             latitude: firstWaypoint.latitude,
             longitude: firstWaypoint.longitude,
             latitudeDelta: 0.02,
-            longitudeDelta: 0.02
+            longitudeDelta: 0.02,
           });
 
           // Set search query to first waypoint title
@@ -735,7 +736,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           thumbnail:
             m.type === 'youtube'
               ? `https://img.youtube.com/vi/${extractYoutubeVideoId(m.url)}/hqdefault.jpg`
-              : undefined
+              : undefined,
         }));
         setMedia(mediaItems);
       }
@@ -751,7 +752,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     Alert.alert(t('common.delete'), t('createRoute.confirmDelete'), [
       {
         text: t('common.cancel'),
-        style: 'cancel'
+        style: 'cancel',
       },
       {
         text: t('common.delete'),
@@ -778,8 +779,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             Alert.alert(t('common.error'), 'Failed to delete route');
             setLoading(false);
           }
-        }
-      }
+        },
+      },
     ]);
   };
 
@@ -811,7 +812,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             `${query}, Gothenburg`,
             `${query}, Stockholm`,
             `${query}, Malmö`,
-            query // Original query as fallback
+            query, // Original query as fallback
           ];
 
           for (const term of searchTerms) {
@@ -822,19 +823,19 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
         if (results.length > 0) {
           const addresses = await Promise.all(
-            results.map(async result => {
+            results.map(async (result) => {
               const address = await Location.reverseGeocodeAsync({
                 latitude: result.latitude,
-                longitude: result.longitude
+                longitude: result.longitude,
               });
               return {
                 ...address[0],
                 coords: {
                   latitude: result.latitude,
-                  longitude: result.longitude
-                }
+                  longitude: result.longitude,
+                },
               };
-            })
+            }),
           );
 
           // Filter out duplicates and null values
@@ -844,10 +845,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
               addr.coords &&
               index ===
                 self.findIndex(
-                  a =>
+                  (a) =>
                     a.coords?.latitude === addr.coords?.latitude &&
-                    a.coords?.longitude === addr.coords?.longitude
-                )
+                    a.coords?.longitude === addr.coords?.longitude,
+                ),
           );
 
           setSearchResults(uniqueAddresses);
@@ -871,7 +872,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   }, [searchTimeout]);
 
   const handleLocationSelect = (
-    result: Location.LocationGeocodedAddress & { coords?: { latitude: number; longitude: number } }
+    result: Location.LocationGeocodedAddress & { coords?: { latitude: number; longitude: number } },
   ) => {
     if (result.coords) {
       const { latitude, longitude } = result.coords;
@@ -881,7 +882,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         latitude,
         longitude,
         latitudeDelta: 0.01,
-        longitudeDelta: 0.01
+        longitudeDelta: 0.01,
       });
 
       // Create location title
@@ -892,9 +893,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         latitude,
         longitude,
         title,
-        description: 'Searched location'
+        description: 'Searched location',
       };
-      setWaypoints(prev => [...prev, newWaypoint]);
+      setWaypoints((prev) => [...prev, newWaypoint]);
 
       // Update search UI
       setSearchQuery(title);
@@ -915,20 +916,20 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'OK',
-          onPress: text => {
-            const [lat, lng] = text?.split(',').map(n => parseFloat(n.trim())) || [];
+          onPress: (text) => {
+            const [lat, lng] = text?.split(',').map((n) => parseFloat(n.trim())) || [];
             if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
               setRegion({
                 latitude: lat,
                 longitude: lng,
                 latitudeDelta: 0.01,
-                longitudeDelta: 0.01
+                longitudeDelta: 0.01,
               });
 
               // Get address from coordinates
               Location.reverseGeocodeAsync({
                 latitude: lat,
-                longitude: lng
+                longitude: lng,
               })
                 .then(([address]) => {
                   if (address) {
@@ -937,7 +938,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       address.street,
                       address.city,
                       address.region,
-                      address.country
+                      address.country,
                     ]
                       .filter(Boolean)
                       .join(', ');
@@ -948,7 +949,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                     setSearchQuery(`${lat}, ${lng}`);
                   }
                 })
-                .catch(err => {
+                .catch((err) => {
                   console.error('Error getting address:', err);
                   // If reverse geocoding fails, show coordinates
                   setSearchQuery(`${lat}, ${lng}`);
@@ -956,14 +957,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             } else {
               Alert.alert(
                 'Invalid coordinates',
-                'Please enter valid latitude and longitude values'
+                'Please enter valid latitude and longitude values',
               );
             }
-          }
-        }
+          },
+        },
       ],
       'plain-text',
-      searchQuery
+      searchQuery,
     );
   };
 
@@ -983,15 +984,15 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                   {
                     type: 'map' as const,
                     waypoints: waypoints,
-                    region: region
-                  }
+                    region: region,
+                  },
                 ]
               : []),
-            ...media.map(m => ({
+            ...media.map((m) => ({
               type: m.type,
               uri: m.uri,
-              id: m.id
-            }))
+              id: m.id,
+            })),
           ]}
           onAddMedia={handleAddMedia}
           onRemoveMedia={handleRemoveMedia}
@@ -1055,31 +1056,33 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       </Text>
                       <FormField
                         value={formData.name}
-                        onChangeText={text => setFormData(prev => ({ ...prev, name: text }))}
+                        onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
                         placeholder={getTranslation(
                           t,
                           'createRoute.routeNamePlaceholder',
-                          'Enter route name'
+                          'Enter route name',
                         )}
                         accessibilityLabel={getTranslation(
                           t,
                           'createRoute.routeName',
-                          'Route Name'
+                          'Route Name',
                         )}
                         autoCapitalize="none"
                       />
                       <TextArea
                         value={formData.description}
-                        onChangeText={text => setFormData(prev => ({ ...prev, description: text }))}
+                        onChangeText={(text) =>
+                          setFormData((prev) => ({ ...prev, description: text }))
+                        }
                         placeholder={getTranslation(
                           t,
                           'createRoute.descriptionPlaceholder',
-                          'Enter description'
+                          'Enter description',
                         )}
                         accessibilityLabel={getTranslation(
                           t,
                           'createRoute.description',
-                          'Description'
+                          'Description',
                         )}
                         numberOfLines={4}
                         mt="$2"
@@ -1095,7 +1098,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         {getTranslation(
                           t,
                           'createRoute.locationCoordinates',
-                          'Location Coordinates'
+                          'Location Coordinates',
                         )}
                       </Heading>
                       <Text size="sm" color="$gray11">
@@ -1216,33 +1219,35 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                     <YStack gap="$4">
                       <FormField
                         value={newExercise.title || ''}
-                        onChangeText={text => setNewExercise(prev => ({ ...prev, title: text }))}
+                        onChangeText={(text) =>
+                          setNewExercise((prev) => ({ ...prev, title: text }))
+                        }
                         placeholder={getTranslation(
                           t,
                           'createRoute.exerciseTitlePlaceholder',
-                          'Enter exercise title'
+                          'Enter exercise title',
                         )}
                         accessibilityLabel={getTranslation(
                           t,
                           'createRoute.exerciseTitle',
-                          'Exercise Title'
+                          'Exercise Title',
                         )}
                       />
                       <TextArea
                         value={newExercise.description || ''}
-                        onChangeText={text =>
-                          setNewExercise(prev => ({ ...prev, description: text }))
+                        onChangeText={(text) =>
+                          setNewExercise((prev) => ({ ...prev, description: text }))
                         }
                         placeholder={getTranslation(
                           t,
                           'createRoute.exerciseDescriptionPlaceholder',
-                          'Enter exercise description'
+                          'Enter exercise description',
                         )}
                         numberOfLines={3}
                         accessibilityLabel={getTranslation(
                           t,
                           'createRoute.exerciseDescription',
-                          'Exercise Description'
+                          'Exercise Description',
                         )}
                         size="md"
                         backgroundColor="$backgroundHover"
@@ -1252,13 +1257,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         <FormField
                           flex={1}
                           value={newExercise.duration || ''}
-                          onChangeText={text =>
-                            setNewExercise(prev => ({ ...prev, duration: text }))
+                          onChangeText={(text) =>
+                            setNewExercise((prev) => ({ ...prev, duration: text }))
                           }
                           placeholder={getTranslation(
                             t,
                             'createRoute.durationPlaceholder',
-                            'Duration (e.g., 30 sec)'
+                            'Duration (e.g., 30 sec)',
                           )}
                           accessibilityLabel={getTranslation(t, 'createRoute.duration', 'Duration')}
                         />
@@ -1283,7 +1288,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
                     {exercises.length > 0 ? (
                       <YStack gap="$4">
-                        {exercises.map(exercise => (
+                        {exercises.map((exercise) => (
                           <Card key={exercise.id} bordered padding="$3">
                             <YStack gap="$2">
                               <XStack justifyContent="space-between" alignItems="center">
@@ -1423,7 +1428,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                     borderRadius: 8,
                                     backgroundColor: '#000',
                                     justifyContent: 'center',
-                                    alignItems: 'center'
+                                    alignItems: 'center',
                                   }}
                                 >
                                   <Feather name="video" size={24} color="white" />
@@ -1437,7 +1442,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                     borderRadius: 8,
                                     backgroundColor: '#FF0000',
                                     justifyContent: 'center',
-                                    alignItems: 'center'
+                                    alignItems: 'center',
                                   }}
                                 >
                                   <Feather name="youtube" size={24} color="white" />
@@ -1488,22 +1493,22 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         {getTranslation(t, 'createRoute.difficulty', 'Difficulty')}
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
-                        {['beginner', 'intermediate', 'advanced'].map(level => (
+                        {['beginner', 'intermediate', 'advanced'].map((level) => (
                           <Chip
                             key={level}
                             active={formData.difficulty === (level as DifficultyLevel)}
                             onPress={() =>
-                              setFormData(prev => ({
+                              setFormData((prev) => ({
                                 ...prev,
-                                difficulty: level as DifficultyLevel
+                                difficulty: level as DifficultyLevel,
                               }))
                             }
                           >
                             {level === 'beginner'
                               ? t('profile.experienceLevels.beginner')
                               : level === 'intermediate'
-                              ? t('profile.experienceLevels.intermediate')
-                              : t('profile.experienceLevels.advanced')}
+                                ? t('profile.experienceLevels.intermediate')
+                                : t('profile.experienceLevels.advanced')}
                           </Chip>
                         ))}
                       </XStack>
@@ -1515,19 +1520,19 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         {t('createRoute.spotType')}
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
-                        {['city', 'highway', 'rural', 'track', 'parking'].map(type => (
+                        {['city', 'highway', 'rural', 'track', 'parking'].map((type) => (
                           <Chip
                             key={type}
                             active={formData.spot_type === (type as SpotType)}
                             onPress={() =>
-                              setFormData(prev => ({ ...prev, spot_type: type as SpotType }))
+                              setFormData((prev) => ({ ...prev, spot_type: type as SpotType }))
                             }
                           >
                             {/* Try to use the spot type translation with fallback */}
                             {getTranslation(
                               t,
                               `createRoute.spotTypes.${type}`,
-                              type.charAt(0).toUpperCase() + type.slice(1)
+                              type.charAt(0).toUpperCase() + type.slice(1),
                             )}
                           </Chip>
                         ))}
@@ -1540,12 +1545,15 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         {t('createRoute.visibility')}
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
-                        {['public', 'private'].map(vis => (
+                        {['public', 'private'].map((vis) => (
                           <Chip
                             key={vis}
                             active={formData.visibility === (vis as SpotVisibility)}
                             onPress={() =>
-                              setFormData(prev => ({ ...prev, visibility: vis as SpotVisibility }))
+                              setFormData((prev) => ({
+                                ...prev,
+                                visibility: vis as SpotVisibility,
+                              }))
                             }
                           >
                             {vis === 'public'
@@ -1604,8 +1612,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
               {loading
                 ? getTranslation(t, 'createRoute.saving', 'Saving...')
                 : isEditing
-                ? getTranslation(t, 'createRoute.save', 'Save')
-                : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
+                  ? getTranslation(t, 'createRoute.save', 'Save')
+                  : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
             </Text>
           </XStack>
         </Button>

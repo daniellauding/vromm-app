@@ -32,7 +32,7 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
   };
   waypoint_details: WaypointData[];
   media_attachments?: MediaAttachment[];
-  reviews?: { 
+  reviews?: {
     id: string;
     rating: number;
     content: string;
@@ -40,7 +40,7 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
     visited_at: string;
     created_at: string;
     images: { url: string; description?: string }[];
-    user: { id: string; full_name: string; };
+    user: { id: string; full_name: string };
   }[];
 };
 
@@ -197,8 +197,8 @@ export function RouteCard({ route }: RouteCardProps) {
 
           <XStack space="$2" alignItems="center">
             <Feather name="user" size={16} color={iconColor} />
-            <Text 
-              color="$gray11" 
+            <Text
+              color="$gray11"
               onPress={() => {
                 console.log('RouteCard: Navigating to profile, creator:', route.creator);
                 if (route.creator?.id) {

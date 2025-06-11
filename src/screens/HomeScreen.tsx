@@ -13,7 +13,18 @@ import { Text } from '../components/Text';
 import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
 import type { Route, MediaAttachment } from '../hooks/useRoutes';
-import { Image, ImageSourcePropType, Platform, PermissionsAndroid, Animated, Pressable, Modal, View, TouchableOpacity, useColorScheme } from 'react-native';
+import {
+  Image,
+  ImageSourcePropType,
+  Platform,
+  PermissionsAndroid,
+  Animated,
+  Pressable,
+  Modal,
+  View,
+  TouchableOpacity,
+  useColorScheme,
+} from 'react-native';
 import { OnboardingModal } from '../components/OnboardingModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shouldShowOnboarding } from '../components/Onboarding';
@@ -108,8 +119,7 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   const dLon = deg2rad(lon2 - lon1);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // Distance in km
 };
@@ -146,7 +156,7 @@ export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { fetchRoutes } = useRoutes();
   const { t } = useTranslation();
-  
+
   // State declarations
   const [routes, setRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(false);
@@ -163,20 +173,20 @@ export function HomeScreen() {
   const [isCityMenuVisible, setIsCityMenuVisible] = useState(false);
   const [createdRoutes, setCreatedRoutes] = useState<Route[]>([]);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
-  
+
   // Refs
   const cityBackdropOpacity = useRef(new Animated.Value(0)).current;
   const citySheetTranslateY = useRef(new Animated.Value(300)).current;
 
   // Add progressSectionKey state
   const [progressSectionKey, setProgressSectionKey] = useState(Date.now());
-  
+
   // Reset progress section key when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log('HomeScreen: Screen focused, refreshing ProgressSection');
       setProgressSectionKey(Date.now());
-    }, [])
+    }, []),
   );
 
   // Location and route organization effects
@@ -201,7 +211,7 @@ export function HomeScreen() {
     if (routes.length > 0) {
       // Organize routes by city
       const cityMap: { [key: string]: Route[] } = {};
-      routes.forEach(route => {
+      routes.forEach((route) => {
         const city = getCityFromWaypoints(route);
         if (!cityMap[city]) {
           cityMap[city] = [];
@@ -213,14 +223,14 @@ export function HomeScreen() {
       // Extract filters
       const filterMap = new Map<string, FilterCategory>();
 
-      routes.forEach(route => {
+      routes.forEach((route) => {
         // Difficulty
         if (route.difficulty) {
           filterMap.set(`difficulty-${route.difficulty}`, {
             id: `difficulty-${route.difficulty}`,
             label: route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
             value: route.difficulty,
-            type: 'difficulty'
+            type: 'difficulty',
           });
         }
 
@@ -228,9 +238,10 @@ export function HomeScreen() {
         if (route.spot_type) {
           filterMap.set(`spot-${route.spot_type}`, {
             id: `spot-${route.spot_type}`,
-            label: route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
+            label:
+              route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
             value: route.spot_type,
-            type: 'spot_type'
+            type: 'spot_type',
           });
         }
 
@@ -238,9 +249,10 @@ export function HomeScreen() {
         if (route.category) {
           filterMap.set(`category-${route.category}`, {
             id: `category-${route.category}`,
-            label: route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
+            label:
+              route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
             value: route.category,
-            type: 'category'
+            type: 'category',
           });
         }
 
@@ -248,9 +260,11 @@ export function HomeScreen() {
         if (route.transmission_type) {
           filterMap.set(`transmission-${route.transmission_type}`, {
             id: `transmission-${route.transmission_type}`,
-            label: route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.transmission_type.slice(1),
+            label:
+              route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() +
+              route.transmission_type.slice(1),
             value: route.transmission_type,
-            type: 'transmission_type'
+            type: 'transmission_type',
           });
         }
 
@@ -258,9 +272,11 @@ export function HomeScreen() {
         if (route.activity_level) {
           filterMap.set(`activity-${route.activity_level}`, {
             id: `activity-${route.activity_level}`,
-            label: route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() + route.activity_level.slice(1),
+            label:
+              route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() +
+              route.activity_level.slice(1),
             value: route.activity_level,
-            type: 'activity_level'
+            type: 'activity_level',
           });
         }
 
@@ -268,20 +284,22 @@ export function HomeScreen() {
         if (route.best_season) {
           filterMap.set(`season-${route.best_season}`, {
             id: `season-${route.best_season}`,
-            label: route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() + route.best_season.slice(1),
+            label:
+              route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() +
+              route.best_season.slice(1),
             value: route.best_season,
-            type: 'best_season'
+            type: 'best_season',
           });
         }
 
         // Vehicle Types
         if (route.vehicle_types && Array.isArray(route.vehicle_types)) {
-          route.vehicle_types.forEach(type => {
+          route.vehicle_types.forEach((type) => {
             filterMap.set(`vehicle-${type}`, {
               id: `vehicle-${type}`,
               label: type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
               value: type,
-              type: 'vehicle_types'
+              type: 'vehicle_types',
             });
           });
         }
@@ -291,23 +309,23 @@ export function HomeScreen() {
 
       // Update nearby routes if we have location
       if (userLocation) {
-        const routesWithDistance = routes.map(route => {
+        const routesWithDistance = routes.map((route) => {
           if (!route.waypoint_details?.[0]) return { route, distance: Infinity };
-          
+
           const distance = calculateDistance(
             userLocation.coords.latitude,
             userLocation.coords.longitude,
             route.waypoint_details[0].lat,
-            route.waypoint_details[0].lng
+            route.waypoint_details[0].lng,
           );
-          
+
           return { route, distance };
         });
 
         const closest = routesWithDistance
           .sort((a, b) => a.distance - b.distance)
           .slice(0, 3)
-          .map(item => item.route);
+          .map((item) => item.route);
 
         setNearbyRoutes(closest);
       }
@@ -321,7 +339,7 @@ export function HomeScreen() {
       let closestCity = null;
       let shortestDistance = Infinity;
 
-      cities.forEach(city => {
+      cities.forEach((city) => {
         const cityRoutes = routesByCity[city];
         if (cityRoutes && cityRoutes.length > 0) {
           const route = cityRoutes[0];
@@ -331,7 +349,7 @@ export function HomeScreen() {
               userLocation.coords.latitude,
               userLocation.coords.longitude,
               waypoint.lat,
-              waypoint.lng
+              waypoint.lng,
             );
             if (distance < shortestDistance) {
               shortestDistance = distance;
@@ -355,13 +373,13 @@ export function HomeScreen() {
     Animated.timing(cityBackdropOpacity, {
       toValue: 1,
       duration: 200,
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
     Animated.timing(citySheetTranslateY, {
       toValue: 0,
       duration: 300,
       easing: Easing.out(Easing.ease),
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
   };
 
@@ -369,13 +387,13 @@ export function HomeScreen() {
     Animated.timing(cityBackdropOpacity, {
       toValue: 0,
       duration: 200,
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
     Animated.timing(citySheetTranslateY, {
       toValue: 300,
       duration: 300,
       easing: Easing.in(Easing.ease),
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start(() => {
       setIsCityMenuVisible(false);
     });
@@ -387,10 +405,10 @@ export function HomeScreen() {
   };
 
   const handleSeeAllPress = (type: RouteType) => {
-    navigation.navigate('RouteList', { 
+    navigation.navigate('RouteList', {
       type,
       title: type === 'created' ? t('home.createdRoutes') : t('home.nearbyRoutes'),
-      routes: type === 'created' ? createdRoutes : nearbyRoutes
+      routes: type === 'created' ? createdRoutes : nearbyRoutes,
     });
   };
 
@@ -436,11 +454,11 @@ export function HomeScreen() {
       if (error) throw error;
 
       // Transform the data to ensure is_completed is always boolean
-      const transformedTodos: Todo[] = (data as TodoFromDB[]).map(todo => ({
+      const transformedTodos: Todo[] = (data as TodoFromDB[]).map((todo) => ({
         id: todo.id,
         title: todo.title,
         is_completed: Boolean(todo.is_completed),
-        metadata: todo.metadata
+        metadata: todo.metadata,
       }));
 
       setTodos(transformedTodos);
@@ -480,8 +498,8 @@ export function HomeScreen() {
       if (savedError) throw savedError;
 
       const transformedRoutes = (savedData as SavedRouteFromDB[])
-        .filter(item => item.saved_at && item.routes && isValidRoute(item.routes))
-        .map(item => {
+        .filter((item) => item.saved_at && item.routes && isValidRoute(item.routes))
+        .map((item) => {
           // We know routes is not null from the filter
           const route = item.routes!;
           return {
@@ -497,7 +515,7 @@ export function HomeScreen() {
             waypoint_details: route.waypoint_details || [],
             creator_id: route.creator_id,
             created_at: route.created_at,
-            updated_at: route.updated_at
+            updated_at: route.updated_at,
           };
         }) as SavedRoute[];
 
@@ -520,8 +538,8 @@ export function HomeScreen() {
       if (drivenError) throw drivenError;
 
       const transformedRoutes = (drivenData as DrivenRouteFromDB[])
-        .filter(item => item.driven_at && item.routes && isValidRoute(item.routes))
-        .map(item => {
+        .filter((item) => item.driven_at && item.routes && isValidRoute(item.routes))
+        .map((item) => {
           // We know routes is not null from the filter
           const route = item.routes!;
           return {
@@ -537,7 +555,7 @@ export function HomeScreen() {
             waypoint_details: route.waypoint_details || [],
             creator_id: route.creator_id,
             created_at: route.created_at,
-            updated_at: route.updated_at
+            updated_at: route.updated_at,
           };
         }) as DrivenRoute[];
 
@@ -578,12 +596,12 @@ export function HomeScreen() {
           event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'driven_routes',
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
           // Reload driven routes when any change occurs
           loadDrivenRoutes();
-        }
+        },
       )
       .subscribe();
 
@@ -596,12 +614,12 @@ export function HomeScreen() {
           event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'saved_routes',
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
           // Reload saved routes when any change occurs
           loadSavedRoutes();
-        }
+        },
       )
       .subscribe();
 
@@ -649,13 +667,16 @@ export function HomeScreen() {
     return null;
   };
 
-  const renderHorizontalRouteList = (routes: Route[], imageGetter: (route: Route) => string | null) => {
+  const renderHorizontalRouteList = (
+    routes: Route[],
+    imageGetter: (route: Route) => string | null,
+  ) => {
     if (routes.length === 0) return null;
 
     return (
       <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
         <XStack gap="$3" paddingVertical="$2">
-          {routes.map(route => {
+          {routes.map((route) => {
             const imageUrl = imageGetter(route);
             return (
               <Card
@@ -675,7 +696,7 @@ export function HomeScreen() {
                         width: '100%',
                         height: 120,
                         borderTopLeftRadius: 12,
-                        borderTopRightRadius: 12
+                        borderTopRightRadius: 12,
                       }}
                       resizeMode="cover"
                     />
@@ -694,8 +715,12 @@ export function HomeScreen() {
                       {route.name}
                     </Text>
                     <XStack space="$1" alignItems="center" marginTop="$1">
-                      <Feather name="user" size={14} color={colorScheme === 'dark' ? 'white' : 'black'} />
-                      <Text 
+                      <Feather
+                        name="user"
+                        size={14}
+                        color={colorScheme === 'dark' ? 'white' : 'black'}
+                      />
+                      <Text
                         color="$gray11"
                         size="xs"
                         onPress={() => {
@@ -726,12 +751,15 @@ export function HomeScreen() {
     );
   };
 
-  const renderFullWidthRouteList = (routes: Route[], imageGetter: (route: Route) => string | null) => {
+  const renderFullWidthRouteList = (
+    routes: Route[],
+    imageGetter: (route: Route) => string | null,
+  ) => {
     if (routes.length === 0) return null;
 
     return (
       <YStack gap="$3" paddingHorizontal="$4">
-        {routes.map(route => {
+        {routes.map((route) => {
           const imageUrl = imageGetter(route);
           return (
             <Card
@@ -751,7 +779,7 @@ export function HomeScreen() {
                       width: '100%',
                       height: 180,
                       borderTopLeftRadius: 12,
-                      borderTopRightRadius: 12
+                      borderTopRightRadius: 12,
                     }}
                     resizeMode="cover"
                   />
@@ -772,8 +800,12 @@ export function HomeScreen() {
                         {route.name}
                       </Text>
                       <XStack space="$1" alignItems="center" marginTop="$1">
-                        <Feather name="user" size={14} color={colorScheme === 'dark' ? 'white' : 'black'} />
-                        <Text 
+                        <Feather
+                          name="user"
+                          size={14}
+                          color={colorScheme === 'dark' ? 'white' : 'black'}
+                        />
+                        <Text
                           color="$gray11"
                           size="xs"
                           onPress={() => {
@@ -815,8 +847,12 @@ export function HomeScreen() {
     <Card bordered elevate backgroundColor="$backgroundStrong" padding="$4">
       <YStack alignItems="center" gap="$2">
         <Feather name="info" size={24} color="$gray11" />
-        <Text size="lg" weight="bold">{title}</Text>
-        <Text size="sm" color="$gray11" textAlign="center">{message}</Text>
+        <Text size="lg" weight="bold">
+          {title}
+        </Text>
+        <Text size="sm" color="$gray11" textAlign="center">
+          {message}
+        </Text>
       </YStack>
     </Card>
   );
@@ -824,7 +860,7 @@ export function HomeScreen() {
   // Organize routes by city
   const organizeRoutesByCity = useCallback((routes: Route[]) => {
     const cityMap: { [key: string]: Route[] } = {};
-    routes.forEach(route => {
+    routes.forEach((route) => {
       const city = getCityFromWaypoints(route);
       if (!cityMap[city]) {
         cityMap[city] = [];
@@ -838,14 +874,14 @@ export function HomeScreen() {
   const extractAllFilters = useCallback((routes: Route[]) => {
     const filterMap = new Map<string, FilterCategory>();
 
-    routes.forEach(route => {
+    routes.forEach((route) => {
       // Difficulty
       if (route.difficulty) {
         filterMap.set(`difficulty-${route.difficulty}`, {
           id: `difficulty-${route.difficulty}`,
           label: route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
           value: route.difficulty,
-          type: 'difficulty'
+          type: 'difficulty',
         });
       }
 
@@ -853,9 +889,10 @@ export function HomeScreen() {
       if (route.spot_type) {
         filterMap.set(`spot-${route.spot_type}`, {
           id: `spot-${route.spot_type}`,
-          label: route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
+          label:
+            route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
           value: route.spot_type,
-          type: 'spot_type'
+          type: 'spot_type',
         });
       }
 
@@ -863,9 +900,10 @@ export function HomeScreen() {
       if (route.category) {
         filterMap.set(`category-${route.category}`, {
           id: `category-${route.category}`,
-          label: route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
+          label:
+            route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
           value: route.category,
-          type: 'category'
+          type: 'category',
         });
       }
 
@@ -873,9 +911,11 @@ export function HomeScreen() {
       if (route.transmission_type) {
         filterMap.set(`transmission-${route.transmission_type}`, {
           id: `transmission-${route.transmission_type}`,
-          label: route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.transmission_type.slice(1),
+          label:
+            route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() +
+            route.transmission_type.slice(1),
           value: route.transmission_type,
-          type: 'transmission_type'
+          type: 'transmission_type',
         });
       }
 
@@ -883,9 +923,11 @@ export function HomeScreen() {
       if (route.activity_level) {
         filterMap.set(`activity-${route.activity_level}`, {
           id: `activity-${route.activity_level}`,
-          label: route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() + route.activity_level.slice(1),
+          label:
+            route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() +
+            route.activity_level.slice(1),
           value: route.activity_level,
-          type: 'activity_level'
+          type: 'activity_level',
         });
       }
 
@@ -893,20 +935,22 @@ export function HomeScreen() {
       if (route.best_season) {
         filterMap.set(`season-${route.best_season}`, {
           id: `season-${route.best_season}`,
-          label: route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() + route.best_season.slice(1),
+          label:
+            route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() +
+            route.best_season.slice(1),
           value: route.best_season,
-          type: 'best_season'
+          type: 'best_season',
         });
       }
 
       // Vehicle Types
       if (route.vehicle_types && Array.isArray(route.vehicle_types)) {
-        route.vehicle_types.forEach(type => {
+        route.vehicle_types.forEach((type) => {
           filterMap.set(`vehicle-${type}`, {
             id: `vehicle-${type}`,
             label: type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
             value: type,
-            type: 'vehicle_types'
+            type: 'vehicle_types',
           });
         });
       }
@@ -918,7 +962,7 @@ export function HomeScreen() {
   const handleFilterPress = (filter: FilterCategory) => {
     navigation.navigate('RouteList', {
       title: `${filter.label} Routes`,
-      routes: routes.filter(route => {
+      routes: routes.filter((route) => {
         switch (filter.type) {
           case 'difficulty':
             return route.difficulty === filter.value;
@@ -939,7 +983,7 @@ export function HomeScreen() {
         }
       }),
       type: filter.type,
-      activeFilter: filter
+      activeFilter: filter,
     });
   };
 
@@ -977,87 +1021,92 @@ export function HomeScreen() {
           actionLabel={selectedCity || 'Select'}
         />
         <YStack gap="$3" px="$4">
-          {cityRoutes.length > 0 ? (
-            cityRoutes.slice(0, 3).map(route => (
-              <Card
-                key={route.id}
-                bordered
-                elevate
-                backgroundColor="$backgroundStrong"
-                width="100%"
-                height={280}
-                onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
-              >
-                <YStack f={1}>
-                  {getRouteImage(route) ? (
-                    <Image
-                      source={{ uri: getRouteImage(route) } as ImageSourcePropType}
-                      style={{
-                        width: '100%',
-                        height: 180,
-                        borderTopLeftRadius: 12,
-                        borderTopRightRadius: 12
-                      }}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <YStack
-                      height={180}
-                      backgroundColor="$gray5"
-                      alignItems="center"
-                      justifyContent="center"
-                    >
-                      <Feather name="image" size={32} color="$gray11" />
-                    </YStack>
-                  )}
-                  <YStack padding="$3" gap="$2">
-                    <XStack justifyContent="space-between" alignItems="center">
-                      <YStack>
-                        <Text size="lg" weight="bold" numberOfLines={1} ellipsizeMode="tail">
-                          {route.name}
-                        </Text>
-                        <XStack space="$1" alignItems="center" marginTop="$1">
-                          <Feather name="user" size={14} color={colorScheme === 'dark' ? 'white' : 'black'} />
-                          <Text 
-                            color="$gray11"
-                            size="xs"
-                            onPress={() => {
-                              if (route.creator?.id) {
-                                navigation.navigate('PublicProfile', { userId: route.creator.id });
-                              }
-                            }}
-                            pressStyle={{ opacity: 0.7 }}
-                          >
-                            {route.creator?.full_name || 'Unknown'}
-                          </Text>
-                        </XStack>
-                        <Text size="sm" color="$gray11">
-                          {route.difficulty?.toUpperCase()}
-                        </Text>
+          {cityRoutes.length > 0
+            ? cityRoutes.slice(0, 3).map((route) => (
+                <Card
+                  key={route.id}
+                  bordered
+                  elevate
+                  backgroundColor="$backgroundStrong"
+                  width="100%"
+                  height={280}
+                  onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
+                >
+                  <YStack f={1}>
+                    {getRouteImage(route) ? (
+                      <Image
+                        source={{ uri: getRouteImage(route) } as ImageSourcePropType}
+                        style={{
+                          width: '100%',
+                          height: 180,
+                          borderTopLeftRadius: 12,
+                          borderTopRightRadius: 12,
+                        }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <YStack
+                        height={180}
+                        backgroundColor="$gray5"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
+                        <Feather name="image" size={32} color="$gray11" />
                       </YStack>
-                      {userLocation && route.waypoint_details?.[0] && (
-                        <Text size="sm" color="$gray11">
-                          {calculateDistance(
-                            userLocation.coords.latitude,
-                            userLocation.coords.longitude,
-                            route.waypoint_details[0].lat,
-                            route.waypoint_details[0].lng
-                          ).toFixed(1)} km away
+                    )}
+                    <YStack padding="$3" gap="$2">
+                      <XStack justifyContent="space-between" alignItems="center">
+                        <YStack>
+                          <Text size="lg" weight="bold" numberOfLines={1} ellipsizeMode="tail">
+                            {route.name}
+                          </Text>
+                          <XStack space="$1" alignItems="center" marginTop="$1">
+                            <Feather
+                              name="user"
+                              size={14}
+                              color={colorScheme === 'dark' ? 'white' : 'black'}
+                            />
+                            <Text
+                              color="$gray11"
+                              size="xs"
+                              onPress={() => {
+                                if (route.creator?.id) {
+                                  navigation.navigate('PublicProfile', {
+                                    userId: route.creator.id,
+                                  });
+                                }
+                              }}
+                              pressStyle={{ opacity: 0.7 }}
+                            >
+                              {route.creator?.full_name || 'Unknown'}
+                            </Text>
+                          </XStack>
+                          <Text size="sm" color="$gray11">
+                            {route.difficulty?.toUpperCase()}
+                          </Text>
+                        </YStack>
+                        {userLocation && route.waypoint_details?.[0] && (
+                          <Text size="sm" color="$gray11">
+                            {calculateDistance(
+                              userLocation.coords.latitude,
+                              userLocation.coords.longitude,
+                              route.waypoint_details[0].lat,
+                              route.waypoint_details[0].lng,
+                            ).toFixed(1)}{' '}
+                            km away
+                          </Text>
+                        )}
+                      </XStack>
+                      {route.description && (
+                        <Text size="sm" color="$gray11" numberOfLines={2} ellipsizeMode="tail">
+                          {route.description}
                         </Text>
                       )}
-                    </XStack>
-                    {route.description && (
-                      <Text size="sm" color="$gray11" numberOfLines={2} ellipsizeMode="tail">
-                        {route.description}
-                      </Text>
-                    )}
+                    </YStack>
                   </YStack>
-                </YStack>
-              </Card>
-            ))
-          ) : (
-            renderEmptyState('No Routes', 'No routes available in this city yet')
-          )}
+                </Card>
+              ))
+            : renderEmptyState('No Routes', 'No routes available in this city yet')}
         </YStack>
       </YStack>
     );
@@ -1066,14 +1115,14 @@ export function HomeScreen() {
   // Fetch completed exercises
   useEffect(() => {
     if (!user) return;
-    
+
     const fetchCompletedExercises = async () => {
       try {
         const { data, error } = await supabase
           .from('learning_path_exercise_completions')
           .select('exercise_id')
           .eq('user_id', user.id);
-          
+
         if (!error && data) {
           setCompletedIds(data.map((c: any) => c.exercise_id));
         } else {
@@ -1084,9 +1133,9 @@ export function HomeScreen() {
         setCompletedIds([]);
       }
     };
-    
+
     fetchCompletedExercises();
-    
+
     // Set up subscription for real-time updates
     const subscription = supabase
       .channel('exercise-completions')
@@ -1096,20 +1145,20 @@ export function HomeScreen() {
           event: '*',
           schema: 'public',
           table: 'learning_path_exercise_completions',
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
           fetchCompletedExercises();
-        }
+        },
       )
       .subscribe();
-      
+
     return () => {
       supabase.removeChannel(subscription);
     };
   }, [user]);
 
-  // Add this helper function before the return statement in the HomeScreen component 
+  // Add this helper function before the return statement in the HomeScreen component
   const isAllOnboardingCompleted = () => {
     // Check if all onboarding cards are completed
     const hasLicensePlan = typedProfile?.license_plan_completed;
@@ -1117,8 +1166,10 @@ export function HomeScreen() {
     const hasCompletedExercise = completedIds?.length > 0;
     const hasSavedRoute = savedRoutes.length > 0;
     const hasRoleSelected = isRoleConfirmed();
-    
-    return hasLicensePlan && hasCreatedRoute && hasCompletedExercise && hasSavedRoute && hasRoleSelected;
+
+    return (
+      hasLicensePlan && hasCreatedRoute && hasCompletedExercise && hasSavedRoute && hasRoleSelected
+    );
   };
 
   // Check if user has confirmed their role
@@ -1127,7 +1178,7 @@ export function HomeScreen() {
   };
 
   // Type assertion helper for profile to handle new fields
-  const typedProfile = profile as (typeof profile & {
+  const typedProfile = profile as typeof profile & {
     license_plan_completed?: boolean;
     license_plan_data?: {
       target_date?: string;
@@ -1137,7 +1188,7 @@ export function HomeScreen() {
       specific_goals?: string;
     };
     role_confirmed?: boolean;
-  });
+  };
 
   // Add this near the top of the HomeScreen component, right after other hooks
   const colorScheme = useColorScheme();
@@ -1154,39 +1205,40 @@ export function HomeScreen() {
       <ScrollView contentContainerStyle={{ paddingTop: 72 }}>
         <YStack f={1}>
           {/* Header with Welcome and Users Button */}
-          <XStack 
-            justifyContent="space-between" 
-            alignItems="center" 
-            paddingHorizontal="$4" 
+          <XStack
+            justifyContent="space-between"
+            alignItems="center"
+            paddingHorizontal="$4"
             marginBottom="$2"
           >
-            <Text
-              fontSize="$6"
-              fontWeight="800"
-              fontStyle="italic"
-              color="$color"
-            >
+            <Text fontSize="$6" fontWeight="800" fontStyle="italic" color="$color">
               {/* Only show name if it's explicitly set and not an email or default value */}
-              {profile?.full_name && 
-              !profile.full_name.includes('@') && 
+              {profile?.full_name &&
+              !profile.full_name.includes('@') &&
               profile.full_name !== 'Unknown' &&
               !profile.full_name.startsWith('user_')
                 ? t('home.welcomeWithName').replace('{name}', profile.full_name)
                 : t('home.welcome')}
             </Text>
-            
+
             <Button
               size="sm"
               variant="secondary"
               onPress={() => navigation.navigate('UsersScreen')}
-              icon={<Feather name="users" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />}
+              icon={
+                <Feather
+                  name="users"
+                  size={18}
+                  color={colorScheme === 'dark' ? 'white' : 'black'}
+                />
+              }
             >
               Users
             </Button>
           </XStack>
 
           {/* Getting Started Section - Only show if not all items are completed */}
-          {(!isAllOnboardingCompleted()) && (
+          {!isAllOnboardingCompleted() && (
             <YStack space="$4" marginBottom="$6">
               <SectionHeader
                 title="Komma igång"
@@ -1194,7 +1246,7 @@ export function HomeScreen() {
                 onAction={() => {}}
                 actionLabel=""
               />
-              
+
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <XStack space="$4" paddingHorizontal="$4">
                   {/* 1. Din körkortsplan */}
@@ -1205,42 +1257,46 @@ export function HomeScreen() {
                     <YStack
                       width={180}
                       height={180}
-                      backgroundColor={typedProfile?.license_plan_completed ? "$green5" : "$blue5"}
+                      backgroundColor={typedProfile?.license_plan_completed ? '$green5' : '$blue5'}
                       borderRadius={16}
                       padding="$4"
                       justifyContent="space-between"
                     >
                       <XStack justifyContent="space-between" alignItems="center">
-                        <Feather 
-                          name="clipboard" 
-                          size={24} 
-                          color={typedProfile?.license_plan_completed ? "#00E6C3" : "#4B6BFF"} 
+                        <Feather
+                          name="clipboard"
+                          size={24}
+                          color={typedProfile?.license_plan_completed ? '#00E6C3' : '#4B6BFF'}
                         />
                         {typedProfile?.license_plan_completed ? (
-                          <View style={{
-                            backgroundColor: "#00E6C3",
-                            borderRadius: 12,
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                          }}>
+                          <View
+                            style={{
+                              backgroundColor: '#00E6C3',
+                              borderRadius: 12,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                            }}
+                          >
                             <Text fontSize={10} color="#000" fontWeight="bold">
                               100%
                             </Text>
                           </View>
                         ) : (
-                          <View style={{
-                            backgroundColor: "#4B6BFF",
-                            borderRadius: 12,
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                          }}>
+                          <View
+                            style={{
+                              backgroundColor: '#4B6BFF',
+                              borderRadius: 12,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                            }}
+                          >
                             <Text fontSize={10} color="#fff" fontWeight="bold">
                               0%
                             </Text>
                           </View>
                         )}
                       </XStack>
-                      
+
                       <YStack>
                         <Text fontSize={18} fontWeight="bold" color="$color">
                           Din körkortsplan
@@ -1251,7 +1307,7 @@ export function HomeScreen() {
                       </YStack>
                     </YStack>
                   </TouchableOpacity>
-                  
+
                   {/* 2. Lägg till din första rutt */}
                   <TouchableOpacity
                     onPress={() => navigation.navigate('CreateRoute', {})}
@@ -1260,31 +1316,33 @@ export function HomeScreen() {
                     <YStack
                       width={180}
                       height={180}
-                      backgroundColor={createdRoutes.length > 0 ? "$green5" : "$backgroundStrong"}
+                      backgroundColor={createdRoutes.length > 0 ? '$green5' : '$backgroundStrong'}
                       borderRadius={16}
                       padding="$4"
                       justifyContent="space-between"
                     >
                       <XStack justifyContent="space-between" alignItems="center">
-                        <Feather 
-                          name="map-pin" 
-                          size={24} 
-                          color={createdRoutes.length > 0 ? "#00E6C3" : "#FF9500"} 
+                        <Feather
+                          name="map-pin"
+                          size={24}
+                          color={createdRoutes.length > 0 ? '#00E6C3' : '#FF9500'}
                         />
                         {createdRoutes.length > 0 && (
-                          <View style={{
-                            backgroundColor: "#00E6C3",
-                            borderRadius: 12,
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                          }}>
+                          <View
+                            style={{
+                              backgroundColor: '#00E6C3',
+                              borderRadius: 12,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                            }}
+                          >
                             <Text fontSize={10} color="#000" fontWeight="bold">
                               KLART
                             </Text>
                           </View>
                         )}
                       </XStack>
-                      
+
                       <YStack>
                         <Text fontSize={18} fontWeight="bold" color="$color">
                           Lägg till din första rutt
@@ -1295,7 +1353,7 @@ export function HomeScreen() {
                       </YStack>
                     </YStack>
                   </TouchableOpacity>
-                  
+
                   {/* 3. Progress start step 1 */}
                   <TouchableOpacity
                     onPress={() => navigation.navigate('ProgressTab', { showDetail: false })}
@@ -1304,31 +1362,33 @@ export function HomeScreen() {
                     <YStack
                       width={180}
                       height={180}
-                      backgroundColor={completedIds?.length > 0 ? "$green5" : "$backgroundStrong"}
+                      backgroundColor={completedIds?.length > 0 ? '$green5' : '$backgroundStrong'}
                       borderRadius={16}
                       padding="$4"
                       justifyContent="space-between"
                     >
                       <XStack justifyContent="space-between" alignItems="center">
-                        <Feather 
-                          name="play-circle" 
-                          size={24} 
-                          color={completedIds?.length > 0 ? "#00E6C3" : "#4B6BFF"} 
+                        <Feather
+                          name="play-circle"
+                          size={24}
+                          color={completedIds?.length > 0 ? '#00E6C3' : '#4B6BFF'}
                         />
                         {completedIds?.length > 0 && (
-                          <View style={{
-                            backgroundColor: "#00E6C3",
-                            borderRadius: 12,
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                          }}>
+                          <View
+                            style={{
+                              backgroundColor: '#00E6C3',
+                              borderRadius: 12,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                            }}
+                          >
                             <Text fontSize={10} color="#000" fontWeight="bold">
                               KLART
                             </Text>
                           </View>
                         )}
                       </XStack>
-                      
+
                       <YStack>
                         <Text fontSize={18} fontWeight="bold" color="$color">
                           Börja på steg 1 av 16
@@ -1339,7 +1399,7 @@ export function HomeScreen() {
                       </YStack>
                     </YStack>
                   </TouchableOpacity>
-                  
+
                   {/* 4. Save a public route */}
                   <TouchableOpacity
                     onPress={() => navigation.navigate('MapTab')}
@@ -1348,31 +1408,33 @@ export function HomeScreen() {
                     <YStack
                       width={180}
                       height={180}
-                      backgroundColor={savedRoutes.length > 0 ? "$green5" : "$backgroundStrong"}
+                      backgroundColor={savedRoutes.length > 0 ? '$green5' : '$backgroundStrong'}
                       borderRadius={16}
                       padding="$4"
                       justifyContent="space-between"
                     >
                       <XStack justifyContent="space-between" alignItems="center">
-                        <Feather 
-                          name="bookmark" 
-                          size={24} 
-                          color={savedRoutes.length > 0 ? "#00E6C3" : "#FF9500"} 
+                        <Feather
+                          name="bookmark"
+                          size={24}
+                          color={savedRoutes.length > 0 ? '#00E6C3' : '#FF9500'}
                         />
                         {savedRoutes.length > 0 && (
-                          <View style={{
-                            backgroundColor: "#00E6C3",
-                            borderRadius: 12,
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                          }}>
+                          <View
+                            style={{
+                              backgroundColor: '#00E6C3',
+                              borderRadius: 12,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                            }}
+                          >
                             <Text fontSize={10} color="#000" fontWeight="bold">
                               KLART
                             </Text>
                           </View>
                         )}
                       </XStack>
-                      
+
                       <YStack>
                         <Text fontSize={18} fontWeight="bold" color="$color">
                           Spara en körrutt
@@ -1383,7 +1445,7 @@ export function HomeScreen() {
                       </YStack>
                     </YStack>
                   </TouchableOpacity>
-                  
+
                   {/* 5. Select your role */}
                   <TouchableOpacity
                     onPress={() => navigation.navigate('RoleSelectionScreen')}
@@ -1392,42 +1454,46 @@ export function HomeScreen() {
                     <YStack
                       width={180}
                       height={180}
-                      backgroundColor={isRoleConfirmed() ? "$green5" : "$backgroundStrong"}
+                      backgroundColor={isRoleConfirmed() ? '$green5' : '$backgroundStrong'}
                       borderRadius={16}
                       padding="$4"
                       justifyContent="space-between"
                     >
                       <XStack justifyContent="space-between" alignItems="center">
-                        <Feather 
-                          name="user" 
-                          size={24} 
-                          color={isRoleConfirmed() ? "#00E6C3" : "#4B6BFF"} 
+                        <Feather
+                          name="user"
+                          size={24}
+                          color={isRoleConfirmed() ? '#00E6C3' : '#4B6BFF'}
                         />
                         {isRoleConfirmed() ? (
-                          <View style={{
-                            backgroundColor: "#00E6C3",
-                            borderRadius: 12,
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                          }}>
+                          <View
+                            style={{
+                              backgroundColor: '#00E6C3',
+                              borderRadius: 12,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                            }}
+                          >
                             <Text fontSize={10} color="#000" fontWeight="bold">
                               100%
                             </Text>
                           </View>
                         ) : (
-                          <View style={{
-                            backgroundColor: "#4B6BFF",
-                            borderRadius: 12,
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                          }}>
+                          <View
+                            style={{
+                              backgroundColor: '#4B6BFF',
+                              borderRadius: 12,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                            }}
+                          >
                             <Text fontSize={10} color="#fff" fontWeight="bold">
                               0%
                             </Text>
                           </View>
                         )}
                       </XStack>
-                      
+
                       <YStack>
                         <Text fontSize={18} fontWeight="bold" color="$color">
                           Välj din roll
@@ -1456,7 +1522,7 @@ export function HomeScreen() {
                   navigation.navigate('RouteList', {
                     title: t('home.savedRoutes'),
                     routes: savedRoutes,
-                    type: 'saved'
+                    type: 'saved',
                   });
                 }}
                 actionLabel={t('common.seeAll')}
@@ -1501,7 +1567,7 @@ export function HomeScreen() {
               />
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <XStack space="$4" paddingHorizontal="$4">
-                  {createdRoutes.slice(0, 3).map(route => (
+                  {createdRoutes.slice(0, 3).map((route) => (
                     <RouteCard key={route.id} route={route} />
                   ))}
                 </XStack>
@@ -1518,7 +1584,7 @@ export function HomeScreen() {
               />
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <XStack space="$4" paddingHorizontal="$4">
-                  {nearbyRoutes.slice(0, 3).map(route => (
+                  {nearbyRoutes.slice(0, 3).map((route) => (
                     <RouteCard key={route.id} route={route} />
                   ))}
                 </XStack>
@@ -1534,7 +1600,7 @@ export function HomeScreen() {
                   navigation.navigate('RouteList', {
                     title: t('home.drivenRoutes'),
                     routes: drivenRoutes,
-                    type: 'driven'
+                    type: 'driven',
                   });
                 }}
                 actionLabel={t('common.seeAll')}
@@ -1544,7 +1610,7 @@ export function HomeScreen() {
                 : renderEmptyState('No Driven Routes', 'Complete routes to see them here')}
             </YStack>
           </YStack>
-          
+
           {/* Users Section */}
           <YStack gap="$4" marginTop="$6" marginBottom="$6">
             <SectionHeader
@@ -1553,7 +1619,7 @@ export function HomeScreen() {
               onAction={() => navigation.navigate('UsersScreen')}
               actionLabel={t('common.seeAll')}
             />
-            
+
             <UsersList />
           </YStack>
         </YStack>
@@ -1570,11 +1636,11 @@ export function HomeScreen() {
               style={[
                 {
                   flex: 1,
-                  backgroundColor: 'rgba(0,0,0,0.5)'
+                  backgroundColor: 'rgba(0,0,0,0.5)',
                 },
                 {
-                  opacity: cityBackdropOpacity
-                }
+                  opacity: cityBackdropOpacity,
+                },
               ]}
             >
               <Pressable style={{ flex: 1 }} onPress={hideCityModal} />
@@ -1588,11 +1654,11 @@ export function HomeScreen() {
                   right: 0,
                   backgroundColor: '#000',
                   borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16
+                  borderTopRightRadius: 16,
                 },
                 {
-                  transform: [{ translateY: citySheetTranslateY }]
-                }
+                  transform: [{ translateY: citySheetTranslateY }],
+                },
               ]}
             >
               <YStack
@@ -1610,7 +1676,7 @@ export function HomeScreen() {
                     borderRadius: 2,
                     backgroundColor: 'rgba(255, 255, 255, 0.3)',
                     alignSelf: 'center',
-                    marginBottom: 12
+                    marginBottom: 12,
                   }}
                 />
 
@@ -1620,7 +1686,7 @@ export function HomeScreen() {
 
                 <ScrollView style={{ maxHeight: '70%' }}>
                   <YStack gap="$2">
-                    {Object.keys(routesByCity).map(city => (
+                    {Object.keys(routesByCity).map((city) => (
                       <TouchableOpacity key={city} onPress={() => handleCitySelect(city)}>
                         <XStack
                           backgroundColor={

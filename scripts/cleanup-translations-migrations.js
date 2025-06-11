@@ -9,7 +9,7 @@ const migrationsDir = path.resolve(__dirname, '../supabase/migrations');
 const filesToCheck = [
   '20240601000000_create_translations_table.sql',
   '20240601000001_convert_content_to_translations.sql',
-  '20240601000002_default_auth_translations.sql'
+  '20240601000002_default_auth_translations.sql',
 ];
 
 try {

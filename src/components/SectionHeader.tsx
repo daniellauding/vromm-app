@@ -16,14 +16,14 @@ export function SectionHeader({
   variant = 'simple',
   onAction,
   actionLabel,
-  showChevron = true
+  showChevron = true,
 }: SectionHeaderProps) {
   return (
     <XStack px="$4" justifyContent="space-between" alignItems="center">
       <Text size="xl" weight="bold">
         {title}
       </Text>
-      
+
       {onAction && (
         <Button
           size="sm"
@@ -37,12 +37,10 @@ export function SectionHeader({
             {showChevron && variant === 'chevron' && (
               <Feather name="chevron-right" size={20} color="white" />
             )}
-            {variant === 'dropdown' && (
-              <Feather name="chevron-down" size={20} color="white" />
-            )}
+            {variant === 'dropdown' && <Feather name="chevron-down" size={20} color="white" />}
           </XStack>
         </Button>
       )}
     </XStack>
   );
-} 
+}

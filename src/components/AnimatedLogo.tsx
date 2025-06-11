@@ -7,7 +7,7 @@ import { Asset } from 'expo-asset';
 const symbolImage = require('../../assets/symbol.png');
 
 // Static flag to track if the animation has run during this app session
-let hasAnimationRunThisSession = false;
+const hasAnimationRunThisSession = false;
 
 interface AnimatedLogoProps {
   onAnimationComplete?: () => void;
@@ -23,7 +23,7 @@ const letterImages = {
   r: require('../../assets/r.png'),
   o: require('../../assets/o.png'),
   m1: require('../../assets/m1.png'),
-  m2: require('../../assets/m2.png')
+  m2: require('../../assets/m2.png'),
 };
 
 // Define positioning for each letter
@@ -32,7 +32,7 @@ const LETTER_POSITIONS = {
   r: 30,
   o: 60,
   m1: 90,
-  m2: 120
+  m2: 120,
 };
 
 export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoProps) {
@@ -47,24 +47,24 @@ export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoPr
   >({
     v: {
       opacity: new Animated.Value(0),
-      scale: new Animated.Value(0.2)
+      scale: new Animated.Value(0.2),
     },
     r: {
       opacity: new Animated.Value(0),
-      scale: new Animated.Value(0.2)
+      scale: new Animated.Value(0.2),
     },
     o: {
       opacity: new Animated.Value(0),
-      scale: new Animated.Value(0.2)
+      scale: new Animated.Value(0.2),
     },
     m1: {
       opacity: new Animated.Value(0),
-      scale: new Animated.Value(0.2)
+      scale: new Animated.Value(0.2),
     },
     m2: {
       opacity: new Animated.Value(0),
-      scale: new Animated.Value(0.2)
-    }
+      scale: new Animated.Value(0.2),
+    },
   }).current;
 
   // Load assets
@@ -74,7 +74,7 @@ export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoPr
         // Load symbol and letter images
         await Promise.all([
           Asset.fromModule(symbolImage).downloadAsync(),
-          ...Object.values(letterImages).map(module => Asset.fromModule(module).downloadAsync())
+          ...Object.values(letterImages).map((module) => Asset.fromModule(module).downloadAsync()),
         ]);
         setAssetsLoaded(true);
       } catch (error) {
@@ -104,28 +104,28 @@ export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoPr
         toValue: 1,
         duration: 400,
         easing: Easing.out(Easing.ease),
-        useNativeDriver: true
+        useNativeDriver: true,
       }),
       // Letters sequence with stagger
       Animated.stagger(
         100,
-        LETTERS.map(letter =>
+        LETTERS.map((letter) =>
           Animated.parallel([
             Animated.timing(letterAnimations[letter].opacity, {
               toValue: 1,
               duration: 300,
               easing: Easing.out(Easing.ease),
-              useNativeDriver: true
+              useNativeDriver: true,
             }),
             Animated.timing(letterAnimations[letter].scale, {
               toValue: 1,
               duration: 350,
               easing: Easing.out(Easing.ease),
-              useNativeDriver: true
-            })
-          ])
-        )
-      )
+              useNativeDriver: true,
+            }),
+          ]),
+        ),
+      ),
     ];
 
     // Run the sequence
@@ -136,7 +136,7 @@ export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoPr
         hasRunAnimation.current = true;
 
         // Ensure all letters end at exact values
-        LETTERS.forEach(letter => {
+        LETTERS.forEach((letter) => {
           letterAnimations[letter].scale.setValue(1);
           letterAnimations[letter].opacity.setValue(1);
         });
@@ -168,15 +168,15 @@ export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoPr
           style={[
             styles.symbol,
             {
-              opacity: symbolOpacity
-            }
+              opacity: symbolOpacity,
+            },
           ]}
           resizeMode="contain"
         />
 
         {/* Letters */}
         <View style={styles.lettersContainer}>
-          {LETTERS.map(letter => (
+          {LETTERS.map((letter) => (
             <Animated.Image
               key={letter}
               source={letterImages[letter]}
@@ -187,8 +187,8 @@ export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoPr
                 {
                   opacity: letterAnimations[letter].opacity,
                   transform: [{ scale: letterAnimations[letter].scale }],
-                  left: LETTER_POSITIONS[letter]
-                }
+                  left: LETTER_POSITIONS[letter],
+                },
               ]}
               resizeMode="contain"
             />
@@ -204,35 +204,35 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   symbol: {
     width: 100,
     height: 100,
-    position: 'absolute'
+    position: 'absolute',
   },
   lettersContainer: {
     flexDirection: 'row',
     position: 'absolute',
     bottom: 0,
     left: 10, // Adjusted for better centering
-    height: 40
+    height: 40,
   },
   letter: {
     width: 28, // Default letter width
     height: 36, // Default letter height
-    position: 'absolute'
+    position: 'absolute',
   },
   m1Letter: {
     width: 37,
     height: 47,
-    bottom: -2
+    bottom: -2,
   },
   m2Letter: {
     width: 37,
     height: 47,
     bottom: -2,
     marginLeft: 10,
-    transform: [{ scaleX: 1 }] // Ensure exact same width as m1
-  }
+    transform: [{ scaleX: 1 }], // Ensure exact same width as m1
+  },
 });

@@ -18,20 +18,20 @@ const StyledInput = styled(Input, {
 
   // Focus state
   hoverStyle: {
-    borderColor: '$borderColorHover'
+    borderColor: '$borderColorHover',
   },
   focusStyle: {
     borderColor: tokens.color.emerald400,
     borderWidth: 2,
-    bg: '$backgroundFocus'
-  }
+    bg: '$backgroundFocus',
+  },
 });
 
 const StyledLabel = styled(Label, {
   name: 'StyledLabel',
   color: '$color',
   fontSize: tokens.fontSize[2],
-  mb: tokens.space[1]
+  mb: tokens.space[1],
 });
 
 type FormFieldProps = React.ComponentProps<typeof Input> & {
@@ -56,5 +56,5 @@ export const FormField = forwardRef<any, FormFieldProps>(
         ) : null}
       </YStack>
     );
-  }
+  },
 );

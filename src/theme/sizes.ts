@@ -60,10 +60,10 @@ export const sizes = {
     xl: 16,
     full: 9999,
   },
-} as const
+} as const;
 
-export type FontSize = keyof typeof sizes.fontSize
-export type IconSize = keyof typeof sizes.icon
-export type ButtonSize = keyof typeof sizes.button
-export type SpaceSize = keyof typeof sizes.space
-export type RadiusSize = keyof typeof sizes.radius 
+export type FontSize = keyof typeof sizes.fontSize;
+export type IconSize = keyof typeof sizes.icon;
+export type ButtonSize = keyof typeof sizes.button;
+export type SpaceSize = keyof typeof sizes.space;
+export type RadiusSize = keyof typeof sizes.radius;

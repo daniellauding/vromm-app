@@ -35,7 +35,7 @@ type CarouselItem = MapItem | ImageItem;
 
 type RoutePreviewCardProps = {
   route: Route & {
-    reviews?: { 
+    reviews?: {
       id: string;
       rating: number;
       content: string;
@@ -43,7 +43,7 @@ type RoutePreviewCardProps = {
       visited_at: string;
       created_at: string;
       images: { url: string; description?: string }[];
-      user: { id: string; full_name: string; };
+      user: { id: string; full_name: string };
     }[];
     average_rating?: { rating: number }[];
   };
@@ -64,22 +64,24 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
   }, []);
 
   const getMapRegion = () => {
-    const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
+    const waypointsData = (route.waypoint_details ||
+      route.metadata?.waypoints ||
+      []) as WaypointData[];
     if (waypointsData && waypointsData.length > 0) {
-      const latitudes = waypointsData.map(wp => wp.lat);
-      const longitudes = waypointsData.map(wp => wp.lng);
-      
+      const latitudes = waypointsData.map((wp) => wp.lat);
+      const longitudes = waypointsData.map((wp) => wp.lng);
+
       const minLat = Math.min(...latitudes);
       const maxLat = Math.max(...latitudes);
       const minLng = Math.min(...longitudes);
       const maxLng = Math.max(...longitudes);
-      
+
       const latPadding = (maxLat - minLat) * 0.1;
       const lngPadding = (maxLng - minLng) * 0.1;
-      
+
       const minDelta = 0.01;
-      const latDelta = Math.max((maxLat - minLat) + latPadding, minDelta);
-      const lngDelta = Math.max((maxLng - minLng) + lngPadding, minDelta);
+      const latDelta = Math.max(maxLat - minLat + latPadding, minDelta);
+      const lngDelta = Math.max(maxLng - minLng + lngPadding, minDelta);
 
       return {
         latitude: (minLat + maxLat) / 2,
@@ -92,8 +94,10 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
   };
 
   const getAllWaypoints = () => {
-    const waypointsData = (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[];
-    return waypointsData.map(wp => ({
+    const waypointsData = (route.waypoint_details ||
+      route.metadata?.waypoints ||
+      []) as WaypointData[];
+    return waypointsData.map((wp) => ({
       latitude: wp.lat,
       longitude: wp.lng,
       title: wp.title,
@@ -115,24 +119,28 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
     }
 
     // Add route media attachments
-    const media = route.media_attachments?.filter(m => m.type === 'image').map(m => ({
-      type: 'image' as const,
-      data: {
-        url: m.url,
-        description: m.description
-      }
-    })) || [];
+    const media =
+      route.media_attachments
+        ?.filter((m) => m.type === 'image')
+        .map((m) => ({
+          type: 'image' as const,
+          data: {
+            url: m.url,
+            description: m.description,
+          },
+        })) || [];
 
     // Add review images
-    const reviewImages = route.reviews?.flatMap(review => 
-      (review.images || []).map(image => ({
-        type: 'image' as const,
-        data: {
-          url: image.url,
-          description: image.description
-        }
-      }))
-    ) || [];
+    const reviewImages =
+      route.reviews?.flatMap((review) =>
+        (review.images || []).map((image) => ({
+          type: 'image' as const,
+          data: {
+            url: image.url,
+            description: image.description,
+          },
+        })),
+      ) || [];
 
     return [...items, ...media, ...reviewImages];
   }, [route.media_attachments, route.reviews, showMap]);
@@ -159,7 +167,15 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
       <YStack>
         {/* Carousel */}
         {carouselItems.length > 0 && (
-          <View style={{ height: 220, width: '100%', borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: 'hidden' }}>
+          <View
+            style={{
+              height: 220,
+              width: '100%',
+              borderTopLeftRadius: 12,
+              borderTopRightRadius: 12,
+              overflow: 'hidden',
+            }}
+          >
             {carouselItems.length === 1 ? (
               <View style={{ flex: 1, width: '100%', height: '100%' }}>
                 {carouselItems[0].type === 'map' ? (
@@ -230,7 +246,8 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
               </Text>
             </XStack>
             <Text color="$gray11">
-              {route.reviews?.length || 0} {(route.reviews?.length || 0) === 1 ? 'review' : 'reviews'}
+              {route.reviews?.length || 0}{' '}
+              {(route.reviews?.length || 0) === 1 ? 'review' : 'reviews'}
             </Text>
           </XStack>
 
@@ -239,7 +256,7 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
               <Feather name="bar-chart" size={16} color={iconColor} />
               <Text>{route.difficulty}</Text>
             </XStack>
-            
+
             <XStack space="$1" alignItems="center">
               <Feather name="map-pin" size={16} color={iconColor} />
               <Text>{route.spot_type}</Text>
@@ -255,4 +272,4 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
       </YStack>
     </Card>
   );
-} 
+}

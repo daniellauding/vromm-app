@@ -24,7 +24,7 @@ export function OnboardingScreen() {
       if (navigation) {
         navigation.reset({
           index: 0,
-          routes: [{ name: 'MainTabs' }]
+          routes: [{ name: 'MainTabs' }],
         });
       } else {
         console.error('Navigation object is undefined in OnboardingScreen');
@@ -40,7 +40,7 @@ export function OnboardingScreen() {
       .then(() => {
         console.debug('Cleared translation cache for onboarding screen');
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('Failed to clear translation cache:', error);
       });
 

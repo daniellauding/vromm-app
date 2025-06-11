@@ -39,7 +39,7 @@ export async function fetchLegacyOnboardingSlides(): Promise<SupabaseOnboardingS
  */
 export function convertSlideToContent(slide: SupabaseOnboardingSlide): ContentItem {
   // Generate a key based on the title (or id if title is missing)
-  const key = slide.title_en 
+  const key = slide.title_en
     ? `onboarding_${slide.title_en.toLowerCase().replace(/\s+/g, '_')}`
     : `onboarding_slide_${slide.id}`;
 
@@ -67,7 +67,7 @@ export function convertSlideToContent(slide: SupabaseOnboardingSlide): ContentIt
       textColor: slide.text_color || '#000000',
       backgroundColor: slide.background_color || '#FFFFFF',
       textAlign: slide.text_align || 'center',
-    }
+    },
   };
 }
 
@@ -82,7 +82,7 @@ export async function migrateOnboardingSlides(): Promise<{
   try {
     // Fetch legacy slides
     const legacySlides = await fetchLegacyOnboardingSlides();
-    
+
     if (legacySlides.length === 0) {
       console.log('No legacy slides found to migrate');
       return { success: true, migratedCount: 0 };
@@ -93,23 +93,23 @@ export async function migrateOnboardingSlides(): Promise<{
       legacySlides.map(async (slide) => {
         const contentItem = convertSlideToContent(slide);
         return upsertContent(contentItem);
-      })
+      }),
     );
 
     // Count successful migrations
-    const migratedCount = results.filter(result => result.success).length;
+    const migratedCount = results.filter((result) => result.success).length;
 
     return {
       success: migratedCount > 0,
       migratedCount,
-      error: migratedCount < legacySlides.length ? 'Some slides failed to migrate' : undefined
+      error: migratedCount < legacySlides.length ? 'Some slides failed to migrate' : undefined,
     };
   } catch (error) {
     console.error('Error during onboarding slide migration:', error);
     return {
       success: false,
       migratedCount: 0,
-      error
+      error,
     };
   }
 }
@@ -152,36 +152,36 @@ export async function migrateContentIfNeeded(): Promise<{
   try {
     // First check if we already have onboarding content
     const hasContent = await hasOnboardingContent();
-    
+
     // If we already have content, no migration needed
     if (hasContent) {
       return { migrationNeeded: false, migrationPerformed: false };
     }
-    
+
     // Check if we have legacy slides
     const legacySlides = await fetchLegacyOnboardingSlides();
-    
+
     if (legacySlides.length === 0) {
       // No legacy slides and no new content - migration was needed but nothing to migrate
       return { migrationNeeded: true, migrationPerformed: false };
     }
-    
+
     // Perform migration
     const result = await migrateOnboardingSlides();
-    
+
     return {
       migrationNeeded: true,
       migrationPerformed: true,
       migrationSuccess: result.success,
       migratedCount: result.migratedCount,
-      error: result.error
+      error: result.error,
     };
   } catch (error) {
     console.error('Error in migrateContentIfNeeded:', error);
     return {
       migrationNeeded: true,
       migrationPerformed: false,
-      error
+      error,
     };
   }
-} 
+}

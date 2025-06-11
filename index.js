@@ -4,16 +4,14 @@ import { AppRegistry, NativeModules } from 'react-native';
 import { name as appName } from './app.json';
 
 // Only initialize Firebase if the native modules are available
-const firebaseModulesAvailable = 
-  NativeModules.RNFBAnalyticsModule && 
-  NativeModules.RNFBAppModule;
+const firebaseModulesAvailable = NativeModules.RNFBAnalyticsModule && NativeModules.RNFBAppModule;
 
 // Initialize Firebase only if native modules are available
 if (firebaseModulesAvailable) {
   try {
     require('@react-native-firebase/app');
     console.log('Firebase initialized successfully');
-    
+
     // Enable debug mode for development
     if (__DEV__) {
       globalThis.RNFBDebug = true;
@@ -26,4 +24,4 @@ if (firebaseModulesAvailable) {
 }
 
 // Register the app
-registerRootComponent(App); 
+registerRootComponent(App);

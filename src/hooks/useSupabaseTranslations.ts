@@ -20,44 +20,47 @@ export function useSupabaseTranslations() {
   const [error, setError] = useState<Error | null>(null);
 
   // Function to load translations from Supabase
-  const loadTranslations = useCallback(async (forceRefresh = false) => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const loadTranslations = useCallback(
+    async (forceRefresh = false) => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      console.log(`[TRANSLATIONS] Loading translations for ${language} (force: ${forceRefresh})`);
+        console.log(`[TRANSLATIONS] Loading translations for ${language} (force: ${forceRefresh})`);
 
-      // Get platform-specific translation filter
-      const currentPlatform = Platform.OS === 'web' ? 'web' : 'mobile';
+        // Get platform-specific translation filter
+        const currentPlatform = Platform.OS === 'web' ? 'web' : 'mobile';
 
-      // Query Supabase for translations
-      const { data, error } = await supabase
-        .from('translations')
-        .select('*')
-        .eq('language', language)
-        .or(`platform.is.null,platform.eq.${currentPlatform}`);
+        // Query Supabase for translations
+        const { data, error } = await supabase
+          .from('translations')
+          .select('*')
+          .eq('language', language)
+          .or(`platform.is.null,platform.eq.${currentPlatform}`);
 
-      if (error) {
-        throw new Error(`Failed to fetch translations: ${error.message}`);
+        if (error) {
+          throw new Error(`Failed to fetch translations: ${error.message}`);
+        }
+
+        // Process and store translations
+        const translations: Record<string, string> = {};
+        if (data) {
+          data.forEach((item: Translation) => {
+            translations[item.key] = item.value;
+          });
+        }
+
+        setTranslationMap(translations);
+        console.log(`[TRANSLATIONS] Loaded ${Object.keys(translations).length} translations`);
+      } catch (err) {
+        console.error('Error loading translations:', err);
+        setError(err instanceof Error ? err : new Error('Failed to load translations'));
+      } finally {
+        setIsLoading(false);
       }
-
-      // Process and store translations
-      const translations: Record<string, string> = {};
-      if (data) {
-        data.forEach((item: Translation) => {
-          translations[item.key] = item.value;
-        });
-      }
-
-      setTranslationMap(translations);
-      console.log(`[TRANSLATIONS] Loaded ${Object.keys(translations).length} translations`);
-    } catch (err) {
-      console.error('Error loading translations:', err);
-      setError(err instanceof Error ? err : new Error('Failed to load translations'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [language]);
+    },
+    [language],
+  );
 
   // Load translations initially and when language changes
   useEffect(() => {
@@ -73,7 +76,7 @@ export function useSupabaseTranslations() {
         {
           event: '*',
           schema: 'public',
-          table: 'translations'
+          table: 'translations',
         },
         (payload) => {
           console.log('[TRANSLATIONS] Translation update detected:', payload);
@@ -83,7 +86,7 @@ export function useSupabaseTranslations() {
             loadTranslations(true);
             refreshTranslations(); // Also refresh the global translations
           }
-        }
+        },
       )
       .subscribe();
 
@@ -96,6 +99,6 @@ export function useSupabaseTranslations() {
     translations: translationMap,
     isLoading,
     error,
-    refresh: () => loadTranslations(true)
+    refresh: () => loadTranslations(true),
   };
-} 
+}

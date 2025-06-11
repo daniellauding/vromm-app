@@ -298,7 +298,7 @@ export function Map({
             lineJoin="round"
           />
         )}
-        
+
         {clusters.map((cluster, index) => {
           return (
             <WaypointMarker

@@ -18,7 +18,7 @@ import {
   Dimensions,
   Modal,
   Easing,
-  Pressable
+  Pressable,
 } from 'react-native';
 import { Flag, HelpCircle, Check, GraduationCap, School } from '@tamagui/lucide-icons';
 import { FontAwesome } from '@expo/vector-icons';
@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
-    height: '100%'
+    height: '100%',
   },
   videoContainer: {
     position: 'absolute',
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: -1,
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
   },
   backgroundVideo: {
     position: 'absolute',
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    opacity: 0.5
+    opacity: 0.5,
   },
   overlay: {
     position: 'absolute',
@@ -55,47 +55,47 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    opacity: 0.75
+    opacity: 0.75,
   },
   content: {
     flex: 1,
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    height: '100%'
+    height: '100%',
   },
   topSection: {
     alignItems: 'center',
     width: '100%',
-    paddingTop: 60
+    paddingTop: 60,
   },
   middleSection: {
     alignItems: 'center',
-    width: '100%'
+    width: '100%',
   },
   bottomSection: {
     alignItems: 'center',
     width: '100%',
     marginTop: 'auto',
-    paddingBottom: 20
+    paddingBottom: 20,
   },
   surveyButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 8,
     padding: 16,
-    width: '100%'
+    width: '100%',
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end'
+    justifyContent: 'flex-end',
   },
   modalContent: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 20,
     paddingBottom: 40,
-    position: 'relative'
+    position: 'relative',
   },
   modalHandle: {
     width: 40,
@@ -103,20 +103,20 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     alignSelf: 'center',
-    marginBottom: 20
+    marginBottom: 20,
   },
   closeButton: {
     position: 'absolute',
     top: 16,
     right: 16,
     padding: 8,
-    zIndex: 1
+    zIndex: 1,
   },
   languageOption: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    marginVertical: 4
+    marginVertical: 4,
   },
   languageMenu: {
     backgroundColor: '$background',
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5
+    elevation: 5,
   },
   surveyOption: {
     flex: 1,
@@ -138,8 +138,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 8
-  }
+    marginHorizontal: 8,
+  },
 });
 
 export function SplashScreen() {
@@ -188,14 +188,14 @@ export function SplashScreen() {
             toValue: 1,
             duration: 30000, // 30 seconds for a slower, more subtle cycle
             easing: Easing.linear,
-            useNativeDriver: true
+            useNativeDriver: true,
           }),
           Animated.timing(videoAnimation, {
             toValue: 0,
             duration: 0,
-            useNativeDriver: true
-          })
-        ])
+            useNativeDriver: true,
+          }),
+        ]),
       ).start();
     };
 
@@ -211,28 +211,28 @@ export function SplashScreen() {
       {
         scale: videoAnimation.interpolate({
           inputRange: [0, 0.5, 1],
-          outputRange: [1.8, 1.9, 1.8] // Much more zoomed in
-        })
+          outputRange: [1.8, 1.9, 1.8], // Much more zoomed in
+        }),
       },
       {
         rotate: videoAnimation.interpolate({
           inputRange: [0, 1],
-          outputRange: ['-5deg', '5deg']
-        })
+          outputRange: ['-5deg', '5deg'],
+        }),
       },
       {
         translateX: videoAnimation.interpolate({
           inputRange: [0, 0.25, 0.75, 1],
-          outputRange: [0, -15, 15, 0]
-        })
+          outputRange: [0, -15, 15, 0],
+        }),
       },
       {
         translateY: videoAnimation.interpolate({
           inputRange: [0, 0.25, 0.75, 1],
-          outputRange: [0, 15, -15, 0]
-        })
-      }
-    ]
+          outputRange: [0, 15, -15, 0],
+        }),
+      },
+    ],
   };
 
   const handleLogin = () => {
@@ -248,7 +248,7 @@ export function SplashScreen() {
     Animated.timing(contentOpacity, {
       toValue: 1,
       duration: 500,
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
   };
 
@@ -263,8 +263,8 @@ export function SplashScreen() {
           ? 'https://daniellauding.typeform.com/to/j4YPu7TC'
           : 'https://daniellauding.typeform.com/to/RT1zq9Fc'
         : type === 'driver'
-        ? 'https://daniellauding.typeform.com/to/Uqt9t40t'
-        : 'https://daniellauding.typeform.com/to/nuABX2Qp';
+          ? 'https://daniellauding.typeform.com/to/Uqt9t40t'
+          : 'https://daniellauding.typeform.com/to/nuABX2Qp';
 
     Linking.openURL(surveyUrl);
     setSurveyModalVisible(false);
@@ -304,14 +304,14 @@ export function SplashScreen() {
     Animated.timing(surveyBackdropOpacity, {
       toValue: 1,
       duration: 200,
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
     // Slide up the sheet
     Animated.timing(surveySheetTranslateY, {
       toValue: 0,
       duration: 300,
       easing: Easing.out(Easing.ease),
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
   };
 
@@ -320,14 +320,14 @@ export function SplashScreen() {
     Animated.timing(surveyBackdropOpacity, {
       toValue: 0,
       duration: 200,
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
     // Slide down the sheet
     Animated.timing(surveySheetTranslateY, {
       toValue: 300,
       duration: 300,
       easing: Easing.in(Easing.ease),
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start(() => {
       setSurveyModalVisible(false);
     });
@@ -339,14 +339,14 @@ export function SplashScreen() {
     Animated.timing(languageBackdropOpacity, {
       toValue: 1,
       duration: 200,
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
     // Slide up the sheet
     Animated.timing(languageSheetTranslateY, {
       toValue: 0,
       duration: 300,
       easing: Easing.out(Easing.ease),
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
   };
 
@@ -355,14 +355,14 @@ export function SplashScreen() {
     Animated.timing(languageBackdropOpacity, {
       toValue: 0,
       duration: 200,
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
     // Slide down the sheet
     Animated.timing(languageSheetTranslateY, {
       toValue: 300,
       duration: 300,
       easing: Easing.in(Easing.ease),
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start(() => {
       setIsLanguageMenuVisible(false);
     });
@@ -386,7 +386,7 @@ export function SplashScreen() {
         <View
           style={[
             styles.overlay,
-            { backgroundColor: theme.splashVideoOverlay?.get() || '#397770' }
+            { backgroundColor: theme.splashVideoOverlay?.get() || '#397770' },
           ]}
         />
       </View>
@@ -400,7 +400,7 @@ export function SplashScreen() {
             position: 'absolute',
             top: insets.top || 40,
             left: 16,
-            zIndex: 100
+            zIndex: 100,
           }}
         >
           <TouchableOpacity
@@ -411,17 +411,17 @@ export function SplashScreen() {
               borderRadius: 18,
               backgroundColor: 'transparent',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
             }}
             activeOpacity={1}
-            onPressIn={e => {
+            onPressIn={(e) => {
               e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' }
+                style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
               });
             }}
-            onPressOut={e => {
+            onPressOut={(e) => {
               e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'transparent' }
+                style: { backgroundColor: 'transparent' },
               });
             }}
           >
@@ -436,7 +436,7 @@ export function SplashScreen() {
             position: 'absolute',
             top: insets.top || 40,
             right: 16,
-            zIndex: 100
+            zIndex: 100,
           }}
         >
           <TouchableOpacity
@@ -447,17 +447,17 @@ export function SplashScreen() {
               borderRadius: 18,
               backgroundColor: 'transparent',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
             }}
             activeOpacity={1}
-            onPressIn={e => {
+            onPressIn={(e) => {
               e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' }
+                style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
               });
             }}
-            onPressOut={e => {
+            onPressOut={(e) => {
               e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'transparent' }
+                style: { backgroundColor: 'transparent' },
               });
             }}
           >
@@ -479,7 +479,7 @@ export function SplashScreen() {
                   fontWeight: '800',
                   fontStyle: 'italic',
                   textAlign: 'center',
-                  color: 'white'
+                  color: 'white',
                 }}
               >
                 {t('auth.signIn.title')}
@@ -553,7 +553,7 @@ export function SplashScreen() {
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: surveyBackdropOpacity
+            opacity: surveyBackdropOpacity,
           }}
         >
           <Pressable style={{ flex: 1 }} onPress={hideSurveyModal}>
@@ -563,7 +563,7 @@ export function SplashScreen() {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                transform: [{ translateY: surveySheetTranslateY }]
+                transform: [{ translateY: surveySheetTranslateY }],
               }}
             >
               <YStack
@@ -581,7 +581,7 @@ export function SplashScreen() {
                     borderRadius: 2,
                     backgroundColor: 'rgba(255, 255, 255, 0.3)',
                     alignSelf: 'center',
-                    marginBottom: 12
+                    marginBottom: 12,
                   }}
                 />
 
@@ -607,7 +607,7 @@ export function SplashScreen() {
                           backgroundColor: 'rgba(255, 255, 255, 0)',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          marginBottom: 8
+                          marginBottom: 8,
                         }}
                       >
                         <GraduationCap size={40} color="white" />
@@ -631,7 +631,7 @@ export function SplashScreen() {
                           backgroundColor: 'rgba(255, 255, 255, 0)',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          marginBottom: 8
+                          marginBottom: 8,
                         }}
                       >
                         <School size={40} color="white" />
@@ -659,7 +659,7 @@ export function SplashScreen() {
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: languageBackdropOpacity
+            opacity: languageBackdropOpacity,
           }}
         >
           <Pressable style={{ flex: 1 }} onPress={hideLanguageModal}>
@@ -669,7 +669,7 @@ export function SplashScreen() {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                transform: [{ translateY: languageSheetTranslateY }]
+                transform: [{ translateY: languageSheetTranslateY }],
               }}
             >
               <YStack
@@ -687,7 +687,7 @@ export function SplashScreen() {
                     borderRadius: 2,
                     backgroundColor: 'rgba(255, 255, 255, 0.3)',
                     alignSelf: 'center',
-                    marginBottom: 12
+                    marginBottom: 12,
                   }}
                 />
 
@@ -699,7 +699,7 @@ export function SplashScreen() {
                   <TouchableOpacity
                     style={[
                       styles.languageOption,
-                      language === 'en' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+                      language === 'en' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
                     ]}
                     onPress={() => handleLanguageSelect('en')}
                   >
@@ -716,7 +716,7 @@ export function SplashScreen() {
                   <TouchableOpacity
                     style={[
                       styles.languageOption,
-                      language === 'sv' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+                      language === 'sv' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
                     ]}
                     onPress={() => handleLanguageSelect('sv')}
                   >

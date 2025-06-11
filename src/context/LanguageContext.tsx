@@ -78,7 +78,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             console.log(
               '[TRANSLATIONS] Using cached translations, cache age:',
               now - timestamp,
-              'ms'
+              'ms',
             );
             const parsedTranslations = JSON.parse(cachedTranslations);
             setDynamicTranslations(parsedTranslations);
@@ -108,7 +108,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       const translationsMap: Record<string, Record<string, string>> = {};
 
       if (data) {
-        (data as DbTranslation[]).forEach(item => {
+        (data as DbTranslation[]).forEach((item) => {
           if (!translationsMap[item.key]) {
             translationsMap[item.key] = {};
           }
@@ -167,22 +167,25 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         {
           event: '*',
           schema: 'public',
-          table: 'translations'
+          table: 'translations',
         },
-        payload => {
+        (payload) => {
           console.log('[TRANSLATIONS] Received real-time update:', payload);
           fetchTranslations(true);
-        }
+        },
       )
       .subscribe();
 
     console.log('[TRANSLATIONS] Set up real-time subscription');
 
     // Also set up a periodic refresh every 5 minutes
-    const refreshInterval = setInterval(() => {
-      console.log('[TRANSLATIONS] Checking for translation updates (periodic)');
-      fetchTranslations(true);
-    }, 5 * 60 * 1000); // 5 minutes
+    const refreshInterval = setInterval(
+      () => {
+        console.log('[TRANSLATIONS] Checking for translation updates (periodic)');
+        fetchTranslations(true);
+      },
+      5 * 60 * 1000,
+    ); // 5 minutes
 
     return () => {
       supabase.removeChannel(subscription);
@@ -220,7 +223,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
       return value;
     },
-    [language, dynamicTranslations]
+    [language, dynamicTranslations],
   );
 
   const refreshTranslations = useCallback(() => {

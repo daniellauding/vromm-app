@@ -32,7 +32,7 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
     <Screen>
       <YStack f={1} gap="$4">
         <Header title={title} showBack />
-        
+
         {/* Active Filter Chip */}
         {activeFilter && (
           <XStack px="$4">
@@ -41,7 +41,7 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
             </Button>
           </XStack>
         )}
-        
+
         <ScrollView>
           <YStack px="$4" pb="$4" gap="$4">
             {routes.map((route) => (
@@ -52,4 +52,4 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
       </YStack>
     </Screen>
   );
-} 
+}

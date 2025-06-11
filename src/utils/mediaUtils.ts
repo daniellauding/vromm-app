@@ -31,7 +31,7 @@ export const pickMediaFromLibrary = async (allowMultiple = true): Promise<MediaI
     if (status !== 'granted') {
       Alert.alert(
         'Permission needed',
-        'Media library permission is required to select photos/videos'
+        'Media library permission is required to select photos/videos',
       );
       return null;
     }
@@ -42,17 +42,17 @@ export const pickMediaFromLibrary = async (allowMultiple = true): Promise<MediaI
       allowsMultipleSelection: allowMultiple,
       quality: 0.5, // Lower quality to prevent memory issues
       allowsEditing: false,
-      base64: false // Don't request base64 for better performance
+      base64: false, // Don't request base64 for better performance
     });
 
     if (result.canceled) return null;
 
     // Process selected media
-    return result.assets.map(asset => ({
+    return result.assets.map((asset) => ({
       id: Date.now().toString() + Math.random(),
       type: asset.type === 'video' ? 'video' : 'image',
       uri: asset.uri,
-      fileName: asset.uri.split('/').pop() || 'file'
+      fileName: asset.uri.split('/').pop() || 'file',
     }));
   } catch (error) {
     console.error('Error picking media:', error);
@@ -78,7 +78,7 @@ export const takePhoto = async (): Promise<MediaItem | null> => {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.5,
       allowsEditing: false,
-      base64: false
+      base64: false,
     });
 
     if (result.canceled) return null;
@@ -89,7 +89,7 @@ export const takePhoto = async (): Promise<MediaItem | null> => {
       id: Date.now().toString() + Math.random(),
       type: 'image',
       uri: asset.uri,
-      fileName: asset.uri.split('/').pop() || 'photo.jpg'
+      fileName: asset.uri.split('/').pop() || 'photo.jpg',
     };
   } catch (error) {
     console.error('Error taking photo:', error);
@@ -116,7 +116,7 @@ export const recordVideo = async (): Promise<MediaItem | null> => {
       quality: 0.5,
       videoMaxDuration: 30, // 30 seconds max to prevent memory issues
       allowsEditing: false,
-      base64: false
+      base64: false,
     });
 
     if (result.canceled) return null;
@@ -127,7 +127,7 @@ export const recordVideo = async (): Promise<MediaItem | null> => {
       id: Date.now().toString() + Math.random(),
       type: 'video',
       uri: asset.uri,
-      fileName: asset.uri.split('/').pop() || 'video.mp4'
+      fileName: asset.uri.split('/').pop() || 'video.mp4',
     };
   } catch (error) {
     console.error('Error recording video:', error);
@@ -142,7 +142,7 @@ export const recordVideo = async (): Promise<MediaItem | null> => {
 export const uploadMediaToSupabase = async (
   media: MediaItem,
   bucketName: string,
-  folderPath: string
+  folderPath: string,
 ): Promise<string | null> => {
   try {
     if (media.type === 'youtube') {
@@ -156,26 +156,27 @@ export const uploadMediaToSupabase = async (
       return null;
     }
 
-    const fileExtension = media.fileName.split('.').pop() || (media.type === 'video' ? 'mp4' : 'jpg');
+    const fileExtension =
+      media.fileName.split('.').pop() || (media.type === 'video' ? 'mp4' : 'jpg');
     const filePath = `${folderPath}/${Date.now()}.${fileExtension}`;
-    
+
     // Read file as base64
     let base64;
     try {
       base64 = await FileSystem.readAsStringAsync(media.uri, {
-        encoding: FileSystem.EncodingType.Base64
+        encoding: FileSystem.EncodingType.Base64,
       });
     } catch (readError) {
       console.error('Error reading file:', readError);
       return null;
     }
-    
+
     // Upload to Supabase
     const { error: uploadError } = await supabase.storage
       .from(bucketName)
       .upload(filePath, decode(base64), {
         contentType: media.type === 'video' ? 'video/mp4' : 'image/jpeg',
-        upsert: true
+        upsert: true,
       });
 
     if (uploadError) {
@@ -198,7 +199,7 @@ export const uploadMediaToSupabase = async (
 export const extractYoutubeVideoId = (url: string): string | null => {
   const patterns = [
     /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i,
-    /^[a-zA-Z0-9_-]{11}$/
+    /^[a-zA-Z0-9_-]{11}$/,
   ];
 
   for (const pattern of patterns) {
@@ -215,12 +216,12 @@ export const extractYoutubeVideoId = (url: string): string | null => {
 export const createYoutubeMediaItem = (url: string): MediaItem | null => {
   const videoId = extractYoutubeVideoId(url);
   if (!videoId) return null;
-  
+
   return {
     id: Date.now().toString(),
     type: 'youtube',
     uri: `https://www.youtube.com/watch?v=${videoId}`,
     fileName: 'YouTube Video',
-    thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+    thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
   };
-}; 
+};

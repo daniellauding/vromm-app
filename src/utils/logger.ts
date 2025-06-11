@@ -10,7 +10,7 @@ export const logger = {
       console.log(`[INFO] ${message}`, ...args);
     }
   },
-  
+
   /**
    * Log a warning message
    */
@@ -19,14 +19,14 @@ export const logger = {
       console.warn(`[WARN] ${message}`, ...args);
     }
   },
-  
+
   /**
    * Log an error message
    */
   error: (message: string, ...args: any[]) => {
     console.error(`[ERROR] ${message}`, ...args);
   },
-  
+
   /**
    * Log a debug message (only in development)
    */
@@ -34,5 +34,5 @@ export const logger = {
     if (__DEV__) {
       console.log(`[DEBUG] ${message}`, ...args);
     }
-  }
-}; 
+  },
+};

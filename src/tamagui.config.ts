@@ -1,11 +1,11 @@
-import { createTamagui } from '@tamagui/core'
-import { createInterFont } from '@tamagui/font-inter'
-import { shorthands } from '@tamagui/shorthands'
-import { themes, tokens } from '@tamagui/themes'
-import { createMedia } from '@tamagui/react-native-media-driver'
+import { createTamagui } from '@tamagui/core';
+import { createInterFont } from '@tamagui/font-inter';
+import { shorthands } from '@tamagui/shorthands';
+import { themes, tokens } from '@tamagui/themes';
+import { createMedia } from '@tamagui/react-native-media-driver';
 
-const headingFont = createInterFont()
-const bodyFont = createInterFont()
+const headingFont = createInterFont();
+const bodyFont = createInterFont();
 
 const config = createTamagui({
   defaultTheme: 'light',
@@ -34,12 +34,12 @@ const config = createTamagui({
     hoverNone: { hover: 'none' },
     pointerCoarse: { pointer: 'coarse' },
   }),
-})
+});
 
-type Conf = typeof config
+type Conf = typeof config;
 
 declare module '@tamagui/core' {
   interface TamaguiCustomConfig extends Conf {}
 }
 
-export default config 
+export default config;

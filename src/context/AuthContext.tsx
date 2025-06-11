@@ -39,7 +39,7 @@ export const AuthContext = createContext<AuthContextData>({
   updateProfile: async () => {},
   resetPassword: async () => {},
   forgotPassword: async () => {},
-  refreshProfile: async () => {}
+  refreshProfile: async () => {},
 });
 
 // Custom hook to use auth context
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (user?.id) {
       db.profiles
         .get(user.id)
-        .then(data => setProfile(data))
+        .then((data) => setProfile(data))
         .catch(console.error);
     }
   }, [user?.id]);
@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const {
           data: { session },
-          error
+          error,
         } = await supabase.auth.getSession();
         if (error) {
           throw error;
@@ -93,7 +93,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Listen for auth changes
     const {
-      data: { subscription }
+      data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('Auth state changed:', { event: _event, session });
 
@@ -118,8 +118,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 role: metadata.role || 'student',
                 location: metadata.location || 'Unknown',
                 experience_level: metadata.experience_level || 'beginner',
-                private_profile: metadata.private_profile || false
-              }
+                private_profile: metadata.private_profile || false,
+              },
             ]);
 
             if (createError) {
@@ -151,15 +151,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role: 'student' as UserRole,
         location: 'Unknown',
         experience_level: 'beginner' as ExperienceLevel,
-        private_profile: false
+        private_profile: false,
       };
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: profileData
-        }
+          data: profileData,
+        },
       });
 
       console.log('Auth signup response:', { authData, authError });
@@ -171,7 +171,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Track signup event in the background
       try {
-        AppAnalytics.trackSignUp('email').catch(err => {
+        AppAnalytics.trackSignUp('email').catch((err) => {
           console.warn('Analytics tracking failed:', err);
         });
       } catch (analyticsError) {
@@ -191,7 +191,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               try {
                 const { error } = await supabase.auth.resend({
                   type: 'signup',
-                  email: email
+                  email: email,
                 });
                 if (error) throw error;
                 Alert.alert('Success', 'Confirmation email resent. Please check your inbox.');
@@ -199,16 +199,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 console.error('Error resending confirmation:', err);
                 Alert.alert('Error', 'Failed to resend confirmation email. Please try again.');
               }
-            }
+            },
           },
           {
             text: 'OK',
             onPress: () => {
               // Call the success callback if provided
               onSuccess?.();
-            }
-          }
-        ]
+            },
+          },
+        ],
       );
     } catch (error) {
       console.error('Signup process failed:', error);
@@ -234,7 +234,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               try {
                 const { error } = await supabase.auth.resend({
                   type: 'signup',
-                  email: email
+                  email: email,
                 });
                 if (error) throw error;
                 Alert.alert('Success', 'Confirmation email resent. Please check your inbox.');
@@ -242,9 +242,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 console.error('Error resending confirmation:', err);
                 Alert.alert('Error', 'Failed to resend confirmation email. Please try again.');
               }
-            }
+            },
           },
-          { text: 'OK' }
+          { text: 'OK' },
         ]);
         throw new Error('Please confirm your email before signing in');
       }
@@ -255,7 +255,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Only track signin event if successful
       if (data?.user) {
         try {
-          AppAnalytics.trackSignIn('email').catch(err => {
+          AppAnalytics.trackSignIn('email').catch((err) => {
             console.warn('Analytics tracking failed:', err);
           });
         } catch (analyticsError) {
@@ -309,11 +309,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
 
       if (error) throw error;
-      setProfile(prev => (prev ? { ...prev, ...updates } : null));
+      setProfile((prev) => (prev ? { ...prev, ...updates } : null));
 
       // Track profile update in the background
       try {
-        AppAnalytics.trackProfileUpdate().catch(err => {
+        AppAnalytics.trackProfileUpdate().catch((err) => {
           console.warn('Analytics tracking failed:', err);
         });
       } catch (analyticsError) {
@@ -327,7 +327,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'korvagen://reset-password'
+      redirectTo: 'korvagen://reset-password',
     });
     if (error) throw error;
   };
@@ -337,7 +337,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'vrommapp://reset-password'
+        redirectTo: 'vrommapp://reset-password',
       });
 
       if (error) {
@@ -346,7 +346,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       Alert.alert(
         'Password Reset Email Sent',
-        'Check your email for a link to reset your password.'
+        'Check your email for a link to reset your password.',
       );
     } catch (error: any) {
       Alert.alert('Error', error.message || 'An error occurred while sending the reset email');
@@ -364,7 +364,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .select('*')
         .eq('id', user.id)
         .single();
-        
+
       if (error) throw error;
       setProfile(data);
     } catch (err) {
@@ -385,7 +385,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     updateProfile,
     resetPassword,
     forgotPassword,
-    refreshProfile
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

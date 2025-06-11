@@ -47,16 +47,16 @@ export function AddReviewScreen({ route }: Props) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.8
+      quality: 0.8,
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImages(prev => [
+      setImages((prev) => [
         ...prev,
         {
           uri: result.assets[0].uri,
-          fileName: result.assets[0].uri.split('/').pop() || 'image.jpg'
-        }
+          fileName: result.assets[0].uri.split('/').pop() || 'image.jpg',
+        },
       ]);
     }
   };
@@ -71,16 +71,16 @@ export function AddReviewScreen({ route }: Props) {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.8
+      quality: 0.8,
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImages(prev => [
+      setImages((prev) => [
         ...prev,
         {
           uri: result.assets[0].uri,
-          fileName: result.assets[0].uri.split('/').pop() || 'image.jpg'
-        }
+          fileName: result.assets[0].uri.split('/').pop() || 'image.jpg',
+        },
       ]);
     }
   };
@@ -133,7 +133,7 @@ export function AddReviewScreen({ route }: Props) {
             .from('review-images')
             .upload(path, decode(base64), {
               contentType: `image/${ext}`,
-              upsert: true
+              upsert: true,
             });
 
           if (uploadError) {
@@ -143,12 +143,12 @@ export function AddReviewScreen({ route }: Props) {
 
           console.log('Image uploaded successfully');
           const {
-            data: { publicUrl }
+            data: { publicUrl },
           } = supabase.storage.from('review-images').getPublicUrl(path);
 
           uploadedImages.push({
             url: publicUrl,
-            description: ''
+            description: '',
           });
         } catch (imageError) {
           console.error('Error processing image:', imageError);
@@ -163,7 +163,7 @@ export function AddReviewScreen({ route }: Props) {
         content,
         difficulty,
         visited_at: visitDate,
-        images: uploadedImages
+        images: uploadedImages,
       };
 
       let result;
@@ -195,7 +195,7 @@ export function AddReviewScreen({ route }: Props) {
       const { error: drivenError } = await supabase.from('driven_routes').upsert({
         route_id: routeId,
         user_id: user.id,
-        driven_at: visitDate
+        driven_at: visitDate,
       });
 
       if (drivenError) {
@@ -208,7 +208,7 @@ export function AddReviewScreen({ route }: Props) {
       navigation.navigate('RouteDetail', {
         routeId,
         shouldRefreshReviews: true,
-        timestamp: Date.now() // Force refresh by changing params
+        timestamp: Date.now(), // Force refresh by changing params
       });
     } catch (err) {
       console.error('Submit review error:', err);
@@ -228,7 +228,7 @@ export function AddReviewScreen({ route }: Props) {
               {t('review.ratingStep')}
             </Text>
             <XStack gap="$2">
-              {[1, 2, 3, 4, 5].map(star => (
+              {[1, 2, 3, 4, 5].map((star) => (
                 <Button
                   key={star}
                   onPress={() => setRating(star)}
@@ -290,7 +290,7 @@ export function AddReviewScreen({ route }: Props) {
                     right={4}
                     size="sm"
                     backgroundColor="$red10"
-                    onPress={() => setImages(prev => prev.filter((_, i) => i !== index))}
+                    onPress={() => setImages((prev) => prev.filter((_, i) => i !== index))}
                   >
                     <Feather name="x" size={16} color="white" />
                   </Button>
@@ -346,7 +346,7 @@ export function AddReviewScreen({ route }: Props) {
                 {t('review.difficultyLevel')}
               </Text>
               <XStack gap="$2">
-                {(['beginner', 'intermediate', 'advanced'] as DifficultyLevel[]).map(level => (
+                {(['beginner', 'intermediate', 'advanced'] as DifficultyLevel[]).map((level) => (
                   <Button
                     key={level}
                     onPress={() => setDifficulty(level)}
@@ -362,8 +362,8 @@ export function AddReviewScreen({ route }: Props) {
                       {level === 'beginner'
                         ? t('profile.experienceLevels.beginner')
                         : level === 'intermediate'
-                        ? t('profile.experienceLevels.intermediate')
-                        : t('profile.experienceLevels.advanced')}
+                          ? t('profile.experienceLevels.intermediate')
+                          : t('profile.experienceLevels.advanced')}
                     </Text>
                   </Button>
                 ))}

@@ -20,8 +20,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    flexDirection: 'column'
-  }
+    flexDirection: 'column',
+  },
 });
 
 interface CreateRouteModalProps {
@@ -30,17 +30,17 @@ interface CreateRouteModalProps {
 
 export function CreateRouteModal({ routeData }: CreateRouteModalProps) {
   const { hideModal } = useModal();
-  
+
   // Handle back button press to close modal
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       handleClose();
       return true;
     });
-    
+
     return () => backHandler.remove();
   }, [hideModal]);
-  
+
   // Function to handle modal close with confirmation if needed
   const handleClose = () => {
     // Check if there are unsaved changes
@@ -51,40 +51,33 @@ export function CreateRouteModal({ routeData }: CreateRouteModalProps) {
       [
         {
           text: 'Cancel',
-          style: 'cancel'
+          style: 'cancel',
         },
         {
           text: 'Close',
           style: 'destructive',
-          onPress: () => hideModal()
-        }
-      ]
+          onPress: () => hideModal(),
+        },
+      ],
     );
   };
-  
+
   // Add error boundary to prevent crashes from propagating
   const handleError = (error: Error) => {
     console.error('Error in CreateRouteModal:', error);
-    Alert.alert(
-      'Error',
-      'Something went wrong. Please try again.',
-      [
-        {
-          text: 'Close',
-          onPress: hideModal
-        }
-      ]
-    );
+    Alert.alert('Error', 'Something went wrong. Please try again.', [
+      {
+        text: 'Close',
+        onPress: hideModal,
+      },
+    ]);
   };
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <ModalHeader 
-          title="Create Route" 
-          onClose={handleClose} 
-        />
-        <CreateRouteScreen 
+        <ModalHeader title="Create Route" onClose={handleClose} />
+        <CreateRouteScreen
           route={{
             params: {
               initialWaypoints: routeData.waypoints,
@@ -94,8 +87,8 @@ export function CreateRouteModal({ routeData }: CreateRouteModalProps) {
               initialRoutePath: routeData.routePath,
               initialStartPoint: routeData.startPoint,
               initialEndPoint: routeData.endPoint,
-              onClose: handleClose // Pass the handleClose function to CreateRouteScreen
-            }
+              onClose: handleClose, // Pass the handleClose function to CreateRouteScreen
+            },
           }}
           isModal={true} // Add this flag to indicate it's running in modal mode
           hideHeader={true} // Hide the default header
@@ -103,4 +96,4 @@ export function CreateRouteModal({ routeData }: CreateRouteModalProps) {
       </View>
     </View>
   );
-} 
+}

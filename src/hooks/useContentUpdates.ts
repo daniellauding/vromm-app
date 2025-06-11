@@ -1,16 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
-import { 
-  onContentChange, 
-  ContentType, 
+import {
+  onContentChange,
+  ContentType,
   fetchContentByType,
   fetchContentByKey,
   fetchContentByKeys,
-  ContentItem
+  ContentItem,
 } from '../services/contentService';
 
 /**
  * Hook that subscribes to content updates and automatically refreshes content when it changes
- * 
+ *
  * @param options Configuration options for the hook
  * @returns The content items and loading state
  */
@@ -22,7 +22,7 @@ export function useContentUpdates<T = ContentItem[]>(options: {
   enabled?: boolean;
 }) {
   const { contentType, key, keys, transform, enabled = true } = options;
-  
+
   const [content, setContent] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -30,13 +30,13 @@ export function useContentUpdates<T = ContentItem[]>(options: {
   // Function to fetch the content based on the provided options
   const fetchContent = useCallback(async () => {
     if (!enabled) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       let items: ContentItem[] = [];
-      
+
       // Determine which fetch method to use based on the provided options
       if (key) {
         const item = await fetchContentByKey(key);
@@ -48,7 +48,7 @@ export function useContentUpdates<T = ContentItem[]>(options: {
       } else {
         throw new Error('useContentUpdates requires either contentType, key, or keys.');
       }
-      
+
       // Transform the result if a transform function is provided
       const result = transform ? transform(items) : (items as unknown as T);
       setContent(result);
@@ -68,7 +68,7 @@ export function useContentUpdates<T = ContentItem[]>(options: {
   // Subscribe to content changes
   useEffect(() => {
     if (!enabled) return;
-    
+
     const unsubscribe = onContentChange((changedContentType) => {
       // If no contentType is specified or it matches the one we're watching
       if (!changedContentType || !contentType || changedContentType === contentType) {
@@ -76,7 +76,7 @@ export function useContentUpdates<T = ContentItem[]>(options: {
         fetchContent();
       }
     });
-    
+
     return () => {
       unsubscribe();
     };
@@ -93,19 +93,22 @@ export function useContentItem<T = ContentItem>(
   options: {
     transform?: (item: ContentItem | null) => T;
     enabled?: boolean;
-  } = {}
+  } = {},
 ) {
   const { transform, enabled = true } = options;
-  
-  const transformItem = useCallback((items: ContentItem[]) => {
-    const item = items.length > 0 ? items[0] : null;
-    return transform ? transform(item) : (item as unknown as T);
-  }, [transform]);
-  
+
+  const transformItem = useCallback(
+    (items: ContentItem[]) => {
+      const item = items.length > 0 ? items[0] : null;
+      return transform ? transform(item) : (item as unknown as T);
+    },
+    [transform],
+  );
+
   return useContentUpdates<T>({
     key,
     transform: transformItem,
-    enabled
+    enabled,
   });
 }
 
@@ -117,10 +120,10 @@ export function useContentByType<T = ContentItem[]>(
   options: {
     transform?: (items: ContentItem[]) => T;
     enabled?: boolean;
-  } = {}
+  } = {},
 ) {
   return useContentUpdates<T>({
     contentType,
-    ...options
+    ...options,
   });
-} 
+}

@@ -56,7 +56,7 @@ export function ProfileScreen() {
     private_profile: profile?.private_profile || false,
     location_lat: profile?.location_lat || null,
     location_lng: profile?.location_lng || null,
-    avatar_url: profile?.avatar_url || null
+    avatar_url: profile?.avatar_url || null,
   });
 
   const handleUpdate = async () => {
@@ -64,22 +64,22 @@ export function ProfileScreen() {
       setLoading(true);
       setError(null);
       await updateProfile(formData);
-      
+
       // Refresh the PublicProfile when navigating back
       if (navigation.canGoBack()) {
         // Force refresh by using replace instead of goBack
-        navigation.replace('PublicProfile', { 
+        navigation.replace('PublicProfile', {
           userId: profile?.id,
-          refresh: Date.now() // Use timestamp to ensure refresh param is always different
+          refresh: Date.now(), // Use timestamp to ensure refresh param is always different
         });
       } else {
         // Navigate to the public profile view with refreshed data
-        navigation.navigate('PublicProfile', { 
+        navigation.navigate('PublicProfile', {
           userId: profile?.id,
-          refresh: Date.now() // Use timestamp to ensure refresh param is always different
+          refresh: Date.now(), // Use timestamp to ensure refresh param is always different
         });
       }
-      
+
       Alert.alert('Success', 'Profile updated successfully');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile');
@@ -114,18 +114,18 @@ export function ProfileScreen() {
       // Get address from coordinates
       const [address] = await Location.reverseGeocodeAsync({
         latitude: location.coords.latitude,
-        longitude: location.coords.longitude
+        longitude: location.coords.longitude,
       });
 
       const locationString = [address.street, address.city, address.region, address.country]
         .filter(Boolean)
         .join(', ');
 
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         location: locationString,
         location_lat: location.coords.latitude,
-        location_lng: location.coords.longitude
+        location_lng: location.coords.longitude,
       }));
     } catch (err) {
       Alert.alert('Error', 'Failed to detect location');
@@ -164,35 +164,31 @@ export function ProfileScreen() {
       await debugTranslations();
 
       // Ask for confirmation
-      Alert.alert(
-        t('profile.refreshTranslations'),
-        t('profile.refreshConfirm'),
-        [
-          {
-            text: t('common.cancel'),
-            style: 'cancel'
-          },
-          {
-            text: t('common.save'),
-            onPress: async () => {
-              try {
-                // Force refresh all translations
-                await forceRefreshTranslations();
+      Alert.alert(t('profile.refreshTranslations'), t('profile.refreshConfirm'), [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('common.save'),
+          onPress: async () => {
+            try {
+              // Force refresh all translations
+              await forceRefreshTranslations();
 
-                // Debug the new translations cache
-                await debugTranslations();
+              // Debug the new translations cache
+              await debugTranslations();
 
-                Alert.alert('Success', t('profile.refreshSuccess'));
-              } catch (err) {
-                console.error('Error refreshing translations:', err);
-                Alert.alert(t('common.error'), 'Failed to refresh translations');
-              } finally {
-                setLoading(false);
-              }
+              Alert.alert('Success', t('profile.refreshSuccess'));
+            } catch (err) {
+              console.error('Error refreshing translations:', err);
+              Alert.alert(t('common.error'), 'Failed to refresh translations');
+            } finally {
+              setLoading(false);
             }
-          }
-        ]
-      );
+          },
+        },
+      ]);
     } catch (err) {
       console.error('Error in refreshTranslations:', err);
       Alert.alert(t('common.error'), 'Failed to handle translations');
@@ -217,7 +213,7 @@ export function ProfileScreen() {
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
           aspect: [1, 1],
-          quality: 0.8
+          quality: 0.8,
         });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -230,7 +226,7 @@ export function ProfileScreen() {
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
           aspect: [1, 1],
-          quality: 0.8
+          quality: 0.8,
         });
       }
       if (!result.canceled && result.assets[0]) {
@@ -249,13 +245,15 @@ export function ProfileScreen() {
           .from('avatars')
           .upload(fileName, decode(base64), {
             contentType: 'image/jpeg',
-            upsert: true
+            upsert: true,
           });
         if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('avatars').getPublicUrl(fileName);
         // Save avatar URL to profile
         await updateProfile({ ...formData, avatar_url: publicUrl });
-        setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
+        setFormData((prev) => ({ ...prev, avatar_url: publicUrl }));
         Alert.alert('Success', 'Avatar updated!');
       }
     } catch (err) {
@@ -270,7 +268,7 @@ export function ProfileScreen() {
     try {
       setAvatarUploading(true);
       await updateProfile({ ...formData, avatar_url: null });
-      setFormData(prev => ({ ...prev, avatar_url: null }));
+      setFormData((prev) => ({ ...prev, avatar_url: null }));
       Alert.alert('Success', 'Avatar removed!');
     } catch (err) {
       Alert.alert('Error', 'Failed to delete avatar');
@@ -288,9 +286,10 @@ export function ProfileScreen() {
       />
 
       <YStack f={1} gap={24}>
-        <Header title={t('profile.title')} 
+        <Header
+          title={t('profile.title')}
           rightElement={
-            <Button 
+            <Button
               onPress={() => {
                 if (profile?.id) {
                   navigation.navigate('PublicProfile', { userId: profile.id });
@@ -314,7 +313,13 @@ export function ProfileScreen() {
                   <View>
                     <Image
                       source={{ uri: formData.avatar_url }}
-                      style={{ width: 96, height: 96, borderRadius: 48, borderWidth: 2, borderColor: '#ccc' }}
+                      style={{
+                        width: 96,
+                        height: 96,
+                        borderRadius: 48,
+                        borderWidth: 2,
+                        borderColor: '#ccc',
+                      }}
                     />
                     <Button
                       size="sm"
@@ -330,18 +335,37 @@ export function ProfileScreen() {
                 ) : (
                   <Pressable
                     onPress={() => handlePickAvatar(false)}
-                    style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#ccc' }}
+                    style={{
+                      width: 96,
+                      height: 96,
+                      borderRadius: 48,
+                      backgroundColor: '#eee',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 2,
+                      borderColor: '#ccc',
+                    }}
                   >
                     <Feather name="user" size={48} color="#bbb" />
                   </Pressable>
                 )}
               </View>
               <XStack gap={8} marginTop={8}>
-                <Button size="sm" variant="secondary" onPress={() => handlePickAvatar(false)} disabled={avatarUploading}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => handlePickAvatar(false)}
+                  disabled={avatarUploading}
+                >
                   <Feather name="image" size={16} color="#4287f5" />
                   <Text ml={4}>Pick from Library</Text>
                 </Button>
-                <Button size="sm" variant="secondary" onPress={() => handlePickAvatar(true)} disabled={avatarUploading}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => handlePickAvatar(true)}
+                  disabled={avatarUploading}
+                >
                   <Feather name="camera" size={16} color="#4287f5" />
                   <Text ml={4}>Take Photo</Text>
                 </Button>
@@ -354,7 +378,7 @@ export function ProfileScreen() {
               </Text>
               <FormField
                 value={formData.full_name}
-                onChangeText={text => setFormData(prev => ({ ...prev, full_name: text }))}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, full_name: text }))}
                 placeholder={t('profile.fullNamePlaceholder')}
                 autoCapitalize="none"
               />
@@ -366,7 +390,7 @@ export function ProfileScreen() {
               </Text>
               <FormField
                 value={formData.location}
-                onChangeText={text => setFormData(prev => ({ ...prev, location: text }))}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, location: text }))}
                 placeholder={t('profile.locationPlaceholder')}
                 autoCapitalize="none"
                 rightElement={
@@ -390,11 +414,11 @@ export function ProfileScreen() {
 
             <Button onPress={() => setShowRoleModal(true)} variant="secondary" size="lg">
               <Text color="$color">
-                {formData.role === 'student' 
-                  ? t('profile.roles.student') 
+                {formData.role === 'student'
+                  ? t('profile.roles.student')
                   : formData.role === 'instructor'
-                  ? t('profile.roles.instructor')
-                  : t('profile.roles.school')}
+                    ? t('profile.roles.instructor')
+                    : t('profile.roles.school')}
               </Text>
             </Button>
 
@@ -403,35 +427,38 @@ export function ProfileScreen() {
                 {formData.experience_level === 'beginner'
                   ? t('profile.experienceLevels.beginner')
                   : formData.experience_level === 'intermediate'
-                  ? t('profile.experienceLevels.intermediate')
-                  : t('profile.experienceLevels.advanced')}
+                    ? t('profile.experienceLevels.intermediate')
+                    : t('profile.experienceLevels.advanced')}
               </Text>
             </Button>
 
             <Button onPress={() => setShowLanguageModal(true)} variant="secondary" size="lg">
-              <Text color="$color">
-                {LANGUAGE_LABELS[language]}
-              </Text>
+              <Text color="$color">{LANGUAGE_LABELS[language]}</Text>
             </Button>
 
             <Card bordered padding="$4" marginVertical="$2">
               <YStack gap="$2">
-                <Text size="lg" weight="bold" color="$color">Körkortsplan</Text>
+                <Text size="lg" weight="bold" color="$color">
+                  Körkortsplan
+                </Text>
                 <Text color="$gray11">
-                  {profile?.license_plan_completed 
-                    ? "Din körkortsplan är ifylld"
-                    : "Du har inte fyllt i din körkortsplan än"}
+                  {profile?.license_plan_completed
+                    ? 'Din körkortsplan är ifylld'
+                    : 'Du har inte fyllt i din körkortsplan än'}
                 </Text>
                 <XStack justifyContent="space-between" alignItems="center" marginTop="$2">
-                  <Text weight="bold" color={profile?.license_plan_completed ? "$green10" : "$blue10"}>
-                    {profile?.license_plan_completed ? "100% Klar" : "0% Klar"}
+                  <Text
+                    weight="bold"
+                    color={profile?.license_plan_completed ? '$green10' : '$blue10'}
+                  >
+                    {profile?.license_plan_completed ? '100% Klar' : '0% Klar'}
                   </Text>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="secondary"
                     onPress={() => navigation.navigate('LicensePlanScreen')}
                   >
-                    {profile?.license_plan_completed ? "Redigera" : "Fyll i"}
+                    {profile?.license_plan_completed ? 'Redigera' : 'Fyll i'}
                   </Button>
                 </XStack>
               </YStack>
@@ -444,10 +471,10 @@ export function ProfileScreen() {
               padding="$4"
               borderRadius="$4"
               pressStyle={{
-                scale: 0.98
+                scale: 0.98,
               }}
               onPress={() =>
-                setFormData(prev => ({ ...prev, private_profile: !prev.private_profile }))
+                setFormData((prev) => ({ ...prev, private_profile: !prev.private_profile }))
               }
             >
               <Text size="lg" color="$color">
@@ -456,30 +483,26 @@ export function ProfileScreen() {
               <Switch
                 size="$6"
                 checked={formData.private_profile}
-                onCheckedChange={checked =>
-                  setFormData(prev => ({ ...prev, private_profile: checked }))
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, private_profile: checked }))
                 }
                 backgroundColor={formData.private_profile ? '$blue8' : '$gray6'}
                 scale={1.2}
                 margin="$2"
                 pressStyle={{
-                  scale: 0.95
+                  scale: 0.95,
                 }}
               >
                 <Switch.Thumb
                   scale={1.2}
                   pressStyle={{
-                    scale: 0.95
+                    scale: 0.95,
                   }}
                 />
               </Switch>
             </XStack>
 
-            <Button
-              onPress={handleShowOnboarding}
-              variant="secondary"
-              size="lg"
-            >
+            <Button onPress={handleShowOnboarding} variant="secondary" size="lg">
               <XStack gap="$2" alignItems="center">
                 <Feather
                   name="help-circle"
@@ -490,11 +513,7 @@ export function ProfileScreen() {
               </XStack>
             </Button>
 
-            <Button
-              onPress={navigateToOnboardingDemo}
-              variant="secondary"
-              size="lg"
-            >
+            <Button onPress={navigateToOnboardingDemo} variant="secondary" size="lg">
               <XStack gap="$2" alignItems="center">
                 <Feather
                   name="refresh-cw"
@@ -505,11 +524,7 @@ export function ProfileScreen() {
               </XStack>
             </Button>
 
-            <Button
-              onPress={navigateToTranslationDemo}
-              variant="secondary"
-              size="lg"
-            >
+            <Button onPress={navigateToTranslationDemo} variant="secondary" size="lg">
               <XStack gap="$2" alignItems="center">
                 <Feather
                   name="globe"
@@ -577,7 +592,12 @@ export function ProfileScreen() {
                 >
                   {t('profile.resetOnboarding')}
                 </Button>
-                <Button variant="secondary" size="md" onPress={refreshTranslations} marginBottom="$2">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={refreshTranslations}
+                  marginBottom="$2"
+                >
                   {t('profile.refreshTranslations')}
                 </Button>
               </YStack>
@@ -611,26 +631,26 @@ export function ProfileScreen() {
               {t('profile.roles.title')}
             </Text>
             <YStack gap="$2">
-              {USER_ROLES.map(role => (
+              {USER_ROLES.map((role) => (
                 <Button
                   key={role}
                   onPress={() => {
-                    setFormData(prev => ({ ...prev, role: role as UserRole }));
+                    setFormData((prev) => ({ ...prev, role: role as UserRole }));
                     setShowRoleModal(false);
-                    updateProfile({ 
-                      role: role as UserRole, 
-                      role_confirmed: true 
+                    updateProfile({
+                      role: role as UserRole,
+                      role_confirmed: true,
                     });
                   }}
                   variant={formData.role === role ? 'primary' : 'secondary'}
                   backgroundColor={formData.role === role ? '$blue10' : undefined}
                   size="lg"
                 >
-                  {role === 'student' 
+                  {role === 'student'
                     ? t('profile.roles.student')
                     : role === 'instructor'
-                    ? t('profile.roles.instructor')
-                    : t('profile.roles.school')}
+                      ? t('profile.roles.instructor')
+                      : t('profile.roles.school')}
                 </Button>
               ))}
             </YStack>
@@ -671,11 +691,14 @@ export function ProfileScreen() {
               {t('profile.experienceLevels.title')}
             </Text>
             <YStack gap="$2">
-              {EXPERIENCE_LEVELS.map(level => (
+              {EXPERIENCE_LEVELS.map((level) => (
                 <Button
                   key={level}
                   onPress={() => {
-                    setFormData(prev => ({ ...prev, experience_level: level as ExperienceLevel }));
+                    setFormData((prev) => ({
+                      ...prev,
+                      experience_level: level as ExperienceLevel,
+                    }));
                     setShowExperienceModal(false);
                   }}
                   variant={formData.experience_level === level ? 'primary' : 'secondary'}
@@ -685,8 +708,8 @@ export function ProfileScreen() {
                   {level === 'beginner'
                     ? t('profile.experienceLevels.beginner')
                     : level === 'intermediate'
-                    ? t('profile.experienceLevels.intermediate')
-                    : t('profile.experienceLevels.advanced')}
+                      ? t('profile.experienceLevels.intermediate')
+                      : t('profile.experienceLevels.advanced')}
                 </Button>
               ))}
             </YStack>
@@ -727,7 +750,7 @@ export function ProfileScreen() {
               {t('settings.language.title')}
             </Text>
             <YStack gap="$2">
-              {LANGUAGES.map(lang => (
+              {LANGUAGES.map((lang) => (
                 <Button
                   key={lang}
                   onPress={async () => {

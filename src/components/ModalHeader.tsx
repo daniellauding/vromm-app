@@ -62,4 +62,4 @@ export function ModalHeader({ title, leftElement, rightElement, onClose }: Modal
       </XStack>
     </XStack>
   );
-} 
+}

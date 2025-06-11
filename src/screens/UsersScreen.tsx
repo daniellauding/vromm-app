@@ -32,22 +32,24 @@ export function UsersScreen() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      
+
       const { data, error } = await supabase
         .from('profiles')
-        .select(`
+        .select(
+          `
           id,
           full_name,
           avatar_url,
           location,
           created_at,
           role
-        `)
+        `,
+        )
         .order('created_at', { ascending: false })
         .limit(50);
-        
+
       if (error) throw error;
-      
+
       setUsers(data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -56,33 +58,33 @@ export function UsersScreen() {
       setRefreshing(false);
     }
   };
-  
+
   // Initial fetch
   useEffect(() => {
     fetchUsers();
   }, []);
-  
+
   // Refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchUsers();
-    }, [])
+    }, []),
   );
-  
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchUsers();
   };
-  
+
   const navigateToProfile = (userId: string) => {
     navigation.navigate('PublicProfile', { userId });
   };
-  
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
     return format(new Date(dateString), 'MMM d, yyyy');
   };
-  
+
   const renderUserItem = (user: User) => {
     return (
       <Card
@@ -101,26 +103,26 @@ export function UsersScreen() {
               style={{ width: 60, height: 60, borderRadius: 30 }}
             />
           ) : (
-            <View 
-              style={{ 
-                width: 60, 
-                height: 60, 
-                borderRadius: 30, 
-                backgroundColor: '#444', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
+            <View
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: 30,
+                backgroundColor: '#444',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               <Feather name="user" size={30} color="#ddd" />
             </View>
           )}
-          
+
           {/* User Info */}
           <YStack flex={1} gap="$1">
             <Text fontWeight="bold" fontSize="$5">
               {user.full_name || 'Unnamed User'}
             </Text>
-            
+
             {user.location && (
               <XStack alignItems="center" gap="$1">
                 <Feather name="map-pin" size={14} color={iconColor} />
@@ -129,7 +131,7 @@ export function UsersScreen() {
                 </Text>
               </XStack>
             )}
-            
+
             <XStack gap="$4">
               <XStack alignItems="center" gap="$1">
                 <Feather name="clock" size={14} color={iconColor} />
@@ -139,21 +141,27 @@ export function UsersScreen() {
               </XStack>
             </XStack>
           </YStack>
-          
+
           {/* Role badge */}
           {user.role && (
-            <Card 
+            <Card
               backgroundColor={
-                user.role === 'student' ? '$blue5' : 
-                user.role === 'instructor' ? '$green5' : '$purple5'
+                user.role === 'student'
+                  ? '$blue5'
+                  : user.role === 'instructor'
+                    ? '$green5'
+                    : '$purple5'
               }
               padding="$2"
               borderRadius="$4"
             >
               <Text
                 color={
-                  user.role === 'student' ? '$blue11' : 
-                  user.role === 'instructor' ? '$green11' : '$purple11'
+                  user.role === 'student'
+                    ? '$blue11'
+                    : user.role === 'instructor'
+                      ? '$green11'
+                      : '$purple11'
                 }
                 fontWeight="500"
                 fontSize="$2"
@@ -166,29 +174,22 @@ export function UsersScreen() {
       </Card>
     );
   };
-  
+
   return (
     <Screen>
       <YStack f={1}>
         <Header title="Users" showBack />
-        
+
         <ScrollView
           padding="$4"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-            />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           {loading && !refreshing ? (
             <YStack padding="$4" alignItems="center">
               <Text>Loading users...</Text>
             </YStack>
           ) : users.length > 0 ? (
-            <YStack>
-              {users.map(renderUserItem)}
-            </YStack>
+            <YStack>{users.map(renderUserItem)}</YStack>
           ) : (
             <YStack padding="$4" alignItems="center">
               <Text>No users found</Text>
@@ -198,4 +199,4 @@ export function UsersScreen() {
       </YStack>
     </Screen>
   );
-} 
+}

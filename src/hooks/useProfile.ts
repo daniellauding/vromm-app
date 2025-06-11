@@ -30,7 +30,7 @@ export function useProfile() {
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user?.id) return;
-    
+
     try {
       const updated = await db.profiles.update(user.id, updates);
       setProfile(updated);
@@ -41,4 +41,4 @@ export function useProfile() {
   };
 
   return { profile, loading, error, updateProfile };
-} 
+}

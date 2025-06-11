@@ -26,31 +26,27 @@ export function MediaCarousel({ media, onAddMedia, onRemoveMedia, height }: Prop
   const windowWidth = Dimensions.get('window').width;
 
   // Filter out invalid media items
-  const validMedia = media.filter(item => {
+  const validMedia = media.filter((item) => {
     if (item.type === 'map') return true;
     if (!item.uri && item.type !== 'map') return false;
     return ['image', 'video', 'youtube', 'map'].includes(item.type);
   });
 
   const showMediaOptions = () => {
-    Alert.alert(
-      'Add Media',
-      'Choose a method to add media',
-      [
-        {
-          text: 'Take Photo/Video',
-          onPress: takePhoto,
-        },
-        {
-          text: 'Choose from Library',
-          onPress: pickImage,
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+    Alert.alert('Add Media', 'Choose a method to add media', [
+      {
+        text: 'Take Photo/Video',
+        onPress: takePhoto,
+      },
+      {
+        text: 'Choose from Library',
+        onPress: pickImage,
+      },
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+    ]);
   };
 
   const pickImage = async () => {
@@ -104,13 +100,13 @@ export function MediaCarousel({ media, onAddMedia, onRemoveMedia, height }: Prop
   const renderItem = ({ item, index }: { item: CarouselMediaItem; index: number }) => {
     if (item.type === 'upload') {
       return (
-        <TouchableOpacity 
-          style={{ 
-            width: windowWidth, 
+        <TouchableOpacity
+          style={{
+            width: windowWidth,
             height,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: '#f5f5f5'
+            backgroundColor: '#f5f5f5',
           }}
           onPress={showMediaOptions}
         >
@@ -135,16 +131,16 @@ export function MediaCarousel({ media, onAddMedia, onRemoveMedia, height }: Prop
               rotateEnabled={false}
               style={{ width: '100%', height: '100%' }}
             />
-            <View 
-              style={{ 
-                position: 'absolute', 
-                top: 0, 
-                left: 0, 
-                right: 0, 
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
                 bottom: 0,
                 backgroundColor: 'transparent',
-                zIndex: 1
-              }} 
+                zIndex: 1,
+              }}
             />
           </View>
         </View>
@@ -183,13 +179,13 @@ export function MediaCarousel({ media, onAddMedia, onRemoveMedia, height }: Prop
   // If no valid media and no map, show only the add button
   if (validMedia.length === 0) {
     return (
-      <TouchableOpacity 
-        style={{ 
-          width: '100%', 
+      <TouchableOpacity
+        style={{
+          width: '100%',
           height,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: '#f5f5f5'
+          backgroundColor: '#f5f5f5',
         }}
         onPress={showMediaOptions}
       >
@@ -202,7 +198,8 @@ export function MediaCarousel({ media, onAddMedia, onRemoveMedia, height }: Prop
   }
 
   // Add the upload option only if we have space for more media
-  const carouselData = validMedia.length < 5 ? [...validMedia, { type: 'upload' as const }] : validMedia;
+  const carouselData =
+    validMedia.length < 5 ? [...validMedia, { type: 'upload' as const }] : validMedia;
 
   return (
     <View style={{ height, overflow: 'visible' }}>
@@ -223,4 +220,4 @@ export function MediaCarousel({ media, onAddMedia, onRemoveMedia, height }: Prop
       />
     </View>
   );
-} 
+}

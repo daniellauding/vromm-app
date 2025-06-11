@@ -1,5 +1,12 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, Animated, Dimensions, Platform, StatusBar } from 'react-native';
+import {
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  Dimensions,
+  Platform,
+  StatusBar,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { XStack, YStack, Input, Text, View, ScrollView } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -204,13 +211,13 @@ export function SearchScreen() {
     // Set the city name as search query and trigger search
     const query = `${city}, ${country}`;
     setSearchQuery(query);
-    
+
     // Manually trigger search with timeout to ensure UI updates first
     setTimeout(() => {
       if (searchTimeout.current) {
         clearTimeout(searchTimeout.current);
       }
-      
+
       setIsSearching(true);
       fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
@@ -318,7 +325,7 @@ export function SearchScreen() {
 
         {/* Popular Cities Section */}
         <Text style={styles.sectionTitle}>{t('search.popularCities') || 'Popular Cities'}</Text>
-        
+
         {POPULAR_CITIES.map((city, index) => (
           <TouchableOpacity
             key={index}
@@ -355,10 +362,12 @@ export function SearchScreen() {
           </TouchableOpacity>
         </XStack>
       </View>
-      <View style={[
-        styles.searchHeader,
-        { borderBottomColor: DARK_THEME.borderColor, borderBottomWidth: 1 }
-      ]}>
+      <View
+        style={[
+          styles.searchHeader,
+          { borderBottomColor: DARK_THEME.borderColor, borderBottomWidth: 1 },
+        ]}
+      >
         <XStack alignItems="center" gap="$2">
           <Input
             ref={searchInputRef}
@@ -376,10 +385,7 @@ export function SearchScreen() {
           )}
         </XStack>
       </View>
-      <ScrollView
-        style={styles.searchResultsList}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView style={styles.searchResultsList} keyboardShouldPersistTaps="handled">
         {renderContent()}
       </ScrollView>
     </SafeAreaView>

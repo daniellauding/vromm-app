@@ -11,14 +11,20 @@ export interface HeaderProps {
   onBackPress?: () => void;
 }
 
-export function Header({ title, leftElement, rightElement, showBack = false, onBackPress }: HeaderProps) {
+export function Header({
+  title,
+  leftElement,
+  rightElement,
+  showBack = false,
+  onBackPress,
+}: HeaderProps) {
   let navigation;
   try {
     navigation = useNavigation();
   } catch (error) {
     navigation = null;
   }
-  
+
   const iconColor = 'white';
 
   const handleBackPress = () => {

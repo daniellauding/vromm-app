@@ -4,7 +4,7 @@ import { Language } from '../services/translationService';
 /**
  * A simple hook for using translations in components.
  * @returns A translation function (t)
- * 
+ *
  * @example
  * ```tsx
  * const t = useT();
@@ -16,4 +16,4 @@ export const useT = () => {
   return t;
 };
 
-export default useT; 
+export default useT;

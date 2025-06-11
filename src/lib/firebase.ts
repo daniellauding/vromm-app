@@ -13,7 +13,7 @@ try {
       setAnalyticsCollectionEnabled: async () => true,
       setUserProperties: async () => {},
       logEvent: async () => {},
-      app: null
+      app: null,
     });
     console.log('Using mock analytics module');
   }
@@ -23,7 +23,7 @@ try {
     setAnalyticsCollectionEnabled: async () => true,
     setUserProperties: async () => {},
     logEvent: async () => {},
-    app: null
+    app: null,
   });
   console.log('Error importing analytics, using mock:', error);
 }
@@ -53,14 +53,16 @@ const initializeAnalytics = async () => {
 
     // Enable analytics collection
     await analytics().setAnalyticsCollectionEnabled(true);
-    
+
     // Set basic user properties
     await analytics().setUserProperties({
       platform: Platform.OS,
       app_version: Constants.expoConfig?.version || 'unknown',
-      build_number: (Constants.expoConfig?.ios?.buildNumber || 
-                    Constants.expoConfig?.android?.versionCode || 
-                    'unknown').toString()
+      build_number: (
+        Constants.expoConfig?.ios?.buildNumber ||
+        Constants.expoConfig?.android?.versionCode ||
+        'unknown'
+      ).toString(),
     });
 
     return true;
@@ -73,7 +75,7 @@ const initializeAnalytics = async () => {
 // Safe analytics wrapper
 const safeAnalytics = {
   isInitialized: false,
-  
+
   async logEvent(eventName: string, properties?: Record<string, any>) {
     try {
       if (!this.isInitialized) {
@@ -82,7 +84,7 @@ const safeAnalytics = {
       if (this.isInitialized && isFirebaseAvailable()) {
         await analytics().logEvent(eventName, {
           ...properties,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
     } catch (error) {
@@ -107,7 +109,7 @@ const safeAnalytics = {
         console.warn('Failed to set user properties:', error);
       }
     }
-  }
+  },
 };
 
-export { safeAnalytics as Analytics }; 
+export { safeAnalytics as Analytics };

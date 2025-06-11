@@ -17,18 +17,18 @@ export async function fetchAuthStrings(language: Language = 'en'): Promise<Recor
 
     // Fetch all auth content
     const authContent = await fetchContentByType(ContentType.AUTH);
-    
+
     // Build a cache with key -> multilingual content mapping
     const cache: Record<string, Record<string, string>> = {};
-    authContent.forEach(item => {
+    authContent.forEach((item) => {
       // Remove the 'auth_' prefix from keys for cleaner access
       const key = item.key.replace(/^auth_/, '');
-      
+
       // Store the title field (this is where the main text is)
       cache[key] = item.title;
-      
+
       // If there's body content, store it with a _body suffix
-      if (item.body && Object.keys(item.body).some(lang => item.body[lang])) {
+      if (item.body && Object.keys(item.body).some((lang) => item.body[lang])) {
         cache[`${key}_body`] = item.body;
       }
     });
@@ -49,25 +49,22 @@ export async function fetchAuthStrings(language: Language = 'en'): Promise<Recor
  * Map the cached multilingual content to simple key-value pairs for the specified language
  */
 function mapAuthStringsToKeys(
-  cache: Record<string, Record<string, string>>, 
-  language: Language
+  cache: Record<string, Record<string, string>>,
+  language: Language,
 ): Record<string, string> {
   const result: Record<string, string> = {};
-  
+
   Object.entries(cache).forEach(([key, translations]) => {
     result[key] = getTextInPreferredLanguage(translations, language);
   });
-  
+
   return result;
 }
 
 /**
  * Get a specific auth string by key
  */
-export async function getAuthString(
-  key: string, 
-  language: Language = 'en'
-): Promise<string> {
+export async function getAuthString(key: string, language: Language = 'en'): Promise<string> {
   // Try to get from cache first
   if (authStringsCache && lastLanguage === language) {
     const cleanKey = key.replace(/^auth_/, '');
@@ -76,7 +73,7 @@ export async function getAuthString(
       return getTextInPreferredLanguage(translations, language);
     }
   }
-  
+
   try {
     // If not in cache, fetch directly
     const content = await fetchContentByKey(`auth_${key}`);
@@ -111,12 +108,12 @@ function getFallbackAuthStrings(): Record<string, string> {
     for_schools: 'For Schools',
     help_driver_training: 'Help Us Improve Driver Training',
     signup_title: 'Create Account',
-    signup_email_label: 'Email', 
+    signup_email_label: 'Email',
     login_title: 'Sign In',
     forgot_password: 'Forgot Password?',
     reset_password_title: 'Reset Password',
     reset_password_button: 'Reset Password',
-    back_to_login: 'Back to Login'
+    back_to_login: 'Back to Login',
   };
 }
 
@@ -127,4 +124,4 @@ function getFallbackAuthString(key: string): string {
   const cleanKey = key.replace(/^auth_/, '');
   const fallbacks = getFallbackAuthStrings();
   return fallbacks[cleanKey] || cleanKey;
-} 
+}

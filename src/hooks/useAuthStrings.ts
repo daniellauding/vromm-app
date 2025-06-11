@@ -42,7 +42,7 @@ export function useAuthStrings() {
         loadStrings();
       }
     });
-    
+
     return () => {
       unsubscribe();
     };
@@ -58,16 +58,16 @@ export function useAuthStrings() {
       if (strings[cleanKey]) {
         return strings[cleanKey];
       }
-      
+
       // Return fallback if provided
       if (fallback !== undefined) {
         return fallback;
       }
-      
+
       // Return key as fallback
       return cleanKey;
     },
-    [strings]
+    [strings],
   );
 
   return {
@@ -75,6 +75,6 @@ export function useAuthStrings() {
     getString,
     loading,
     error,
-    refresh: loadStrings
+    refresh: loadStrings,
   };
-} 
+}

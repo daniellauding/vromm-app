@@ -7,7 +7,7 @@ import {
   ContentType,
   Language,
   Platform,
-  fetchContentByType
+  fetchContentByType,
 } from '../services/contentService';
 
 interface ContentListProps {
@@ -33,7 +33,7 @@ export function ContentList({
   title,
   onItemPress,
   filter,
-  limit
+  limit,
 }: ContentListProps) {
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,8 +98,8 @@ export function ContentList({
     (contentType === 'marketing'
       ? 'Marketing'
       : contentType === 'onboarding'
-      ? 'Onboarding'
-      : 'Content');
+        ? 'Onboarding'
+        : 'Content');
 
   return (
     <YStack>
@@ -113,7 +113,7 @@ export function ContentList({
 
       <FlatList
         data={content}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         horizontal={horizontal}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={horizontal ? styles.horizontalContainer : styles.verticalContainer}
@@ -135,16 +135,16 @@ export function ContentList({
 const styles = StyleSheet.create({
   horizontalContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 8
+    paddingVertical: 8,
   },
   verticalContainer: {
-    padding: 16
+    padding: 16,
   },
   horizontalItem: {
     width: 280,
-    marginRight: 16
+    marginRight: 16,
   },
   verticalItem: {
-    marginBottom: 16
-  }
+    marginBottom: 16,
+  },
 });

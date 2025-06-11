@@ -41,7 +41,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const { status } = await Location.requestForegroundPermissionsAsync();
       setLocationPermission(status === 'granted');
-      
+
       if (status === 'granted') {
         // Get initial location if permission is granted
         const location = await Location.getCurrentPositionAsync({});
@@ -98,4 +98,4 @@ export const useLocation = () => {
     throw new Error('useLocation must be used within a LocationProvider');
   }
   return context;
-}; 
+};

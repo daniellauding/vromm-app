@@ -21,7 +21,7 @@ export function ContentItem({
   onPress,
   variant = 'list',
   size = 'md',
-  imagePreview = false
+  imagePreview = false,
 }: ContentItemProps) {
   const { language } = useTranslation();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -66,8 +66,8 @@ export function ContentItem({
           {
             backgroundColor: tokens.color.blue4,
             borderRadius: tokens.radius.md,
-            padding: tokens.space.xs
-          }
+            padding: tokens.space.xs,
+          },
         ]}
       >
         <Feather name={iconName as any} size={iconSize} color={tokens.color.blue10} />
@@ -89,7 +89,7 @@ export function ContentItem({
         source={{ uri: imageUrl }}
         style={[
           styles.image,
-          size === 'sm' ? styles.imageSm : size === 'md' ? styles.imageMd : styles.imageLg
+          size === 'sm' ? styles.imageSm : size === 'md' ? styles.imageMd : styles.imageLg,
         ]}
         resizeMode="cover"
       />
@@ -102,7 +102,7 @@ export function ContentItem({
         onPress={handlePress}
         style={[
           styles.cardContainer,
-          size === 'sm' ? styles.cardSm : size === 'md' ? styles.cardMd : styles.cardLg
+          size === 'sm' ? styles.cardSm : size === 'md' ? styles.cardMd : styles.cardLg,
         ]}
       >
         <YStack space="$2">
@@ -180,46 +180,46 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: tokens.color.gray4
+    borderBottomColor: tokens.color.gray4,
   },
   cardContainer: {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: tokens.color.gray4,
     overflow: 'hidden',
-    marginRight: 12
+    marginRight: 12,
   },
   cardSm: {
-    width: 180
+    width: 180,
   },
   cardMd: {
-    width: 250
+    width: 250,
   },
   cardLg: {
-    width: 300
+    width: 300,
   },
   featureContainer: {
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: tokens.color.gray4,
-    marginBottom: 12
+    marginBottom: 12,
   },
   iconContainer: {
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   image: {
     width: '100%',
-    backgroundColor: tokens.color.gray3
+    backgroundColor: tokens.color.gray3,
   },
   imageSm: {
-    height: 100
+    height: 100,
   },
   imageMd: {
-    height: 140
+    height: 140,
   },
   imageLg: {
-    height: 180
-  }
+    height: 180,
+  },
 });

@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   Image,
   ImageSourcePropType,
-  Platform
+  Platform,
 } from 'react-native';
 import { YStack, XStack, useTheme, Stack } from 'tamagui';
 import { Text } from './Text';
@@ -52,7 +52,7 @@ export function Onboarding({
   slides,
   onDone,
   onSkip,
-  showAgainKey = 'show_onboarding'
+  showAgainKey = 'show_onboarding',
 }: OnboardingProps) {
   const { language, t } = useTranslation();
   const theme = useTheme();
@@ -88,7 +88,7 @@ export function Onboarding({
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
-      useNativeDriver: false
+      useNativeDriver: false,
     })(event);
   };
 
@@ -126,7 +126,7 @@ export function Onboarding({
       has_youtube: !!item.youtube_embed,
       has_iframe: !!item.iframe_embed,
       media_type: item.media_type,
-      youtube_embed: item.youtube_embed // Log the actual YouTube embed content
+      youtube_embed: item.youtube_embed, // Log the actual YouTube embed content
     });
 
     if (!item.media_enabled) {
@@ -141,7 +141,7 @@ export function Onboarding({
       console.log('Adding image for slide:', {
         id: item.id,
         image_url: item.image_url,
-        has_local_image: !!item.image
+        has_local_image: !!item.image,
       });
       mediaElements.push(
         <YStack
@@ -159,12 +159,12 @@ export function Onboarding({
             style={{
               width: '100%',
               height: '100%',
-              resizeMode: 'contain'
+              resizeMode: 'contain',
             }}
-            onError={error => console.error('Image loading error:', error.nativeEvent)}
+            onError={(error) => console.error('Image loading error:', error.nativeEvent)}
             onLoad={() => console.log('Image loaded successfully')}
           />
-        </YStack>
+        </YStack>,
       );
     }
 
@@ -182,7 +182,7 @@ export function Onboarding({
       } else {
         // Try to extract from regular YouTube URL
         const urlMatch = embedContent.match(
-          /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/
+          /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/,
         );
         if (urlMatch) {
           videoId = urlMatch[1];
@@ -254,7 +254,7 @@ export function Onboarding({
                 width: '100%',
                 height: '100%',
                 borderRadius: 10,
-                backgroundColor: 'black'
+                backgroundColor: 'black',
               }}
               source={{ html: embedHtml }}
               allowsFullscreenVideo
@@ -262,18 +262,18 @@ export function Onboarding({
               scrollEnabled={false}
               bounces={false}
               mediaPlaybackRequiresUserAction={Platform.OS === 'ios'}
-              onError={syntheticEvent => {
+              onError={(syntheticEvent) => {
                 const { nativeEvent } = syntheticEvent;
                 console.warn('WebView error:', nativeEvent);
               }}
-              onHttpError={syntheticEvent => {
+              onHttpError={(syntheticEvent) => {
                 const { nativeEvent } = syntheticEvent;
                 console.warn('WebView HTTP error:', nativeEvent);
               }}
               onLoadEnd={() => console.log('WebView loaded')}
-              onMessage={event => console.log('WebView message:', event.nativeEvent.data)}
+              onMessage={(event) => console.log('WebView message:', event.nativeEvent.data)}
             />
-          </YStack>
+          </YStack>,
         );
       }
     }
@@ -294,7 +294,7 @@ export function Onboarding({
           height={width * 0.6}
         >
           <SvgXml xml={item.iconSvg} width="100%" height="100%" />
-        </YStack>
+        </YStack>,
       );
     }
 
@@ -344,13 +344,13 @@ export function Onboarding({
           const opacity = scrollX.interpolate({
             inputRange: [(i - 1) * width, i * width, (i + 1) * width],
             outputRange: [0.3, 1, 0.3],
-            extrapolate: 'clamp'
+            extrapolate: 'clamp',
           });
 
           const dotWidth = scrollX.interpolate({
             inputRange: [(i - 1) * width, i * width, (i + 1) * width],
             outputRange: [10, 20, 10],
-            extrapolate: 'clamp'
+            extrapolate: 'clamp',
           });
 
           const isActive = currentIndex === i;
@@ -364,7 +364,7 @@ export function Onboarding({
                 borderRadius: 5,
                 backgroundColor: isActive ? '#00FFBC' : '#374151',
                 marginHorizontal: 4,
-                opacity
+                opacity,
               }}
             />
           );
@@ -384,7 +384,7 @@ export function Onboarding({
             position: 'absolute',
             top: insets.top || 40,
             left: 16,
-            zIndex: 100
+            zIndex: 100,
           }}
         >
           {t('onboarding.previous')}
@@ -399,7 +399,7 @@ export function Onboarding({
           position: 'absolute',
           top: insets.top || 40,
           right: 16,
-          zIndex: 100
+          zIndex: 100,
         }}
       >
         {t('onboarding.skip')}
@@ -408,7 +408,7 @@ export function Onboarding({
       <FlatList
         data={slides}
         renderItem={renderItem}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         horizontal
         showsHorizontalScrollIndicator={false}
         pagingEnabled

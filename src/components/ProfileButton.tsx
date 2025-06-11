@@ -32,16 +32,16 @@ export function ProfileButton({ userId, isCurrentUser, size = 'md' }: ProfileBut
     <Button
       onPress={handlePress}
       icon={
-        <Feather 
-          name={isCurrentUser ? "edit-2" : "user"} 
-          size={size === 'sm' ? 16 : 20} 
-          color={iconColor} 
+        <Feather
+          name={isCurrentUser ? 'edit-2' : 'user'}
+          size={size === 'sm' ? 16 : 20}
+          color={iconColor}
         />
       }
       variant="outlined"
       size={size}
     >
-      {isCurrentUser ? (t('profile.edit') || 'Edit') : (t('profile.view') || 'View')}
+      {isCurrentUser ? t('profile.edit') || 'Edit' : t('profile.view') || 'View'}
     </Button>
   );
-} 
+}
