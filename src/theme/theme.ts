@@ -1,5 +1,5 @@
-import { createTheme } from 'tamagui'
-import { tokens, darkColors } from './tokens'
+import { createTheme } from 'tamagui';
+import { tokens, darkColors } from './tokens';
 
 // Create themes using our tokens
 export const lightTheme = createTheme({
@@ -24,7 +24,7 @@ export const lightTheme = createTheme({
   error: tokens.color.error,
   success: tokens.color.success,
   warning: tokens.color.warning,
-})
+});
 
 export const darkTheme = createTheme({
   background: darkColors.background,
@@ -48,4 +48,4 @@ export const darkTheme = createTheme({
   error: darkColors.error,
   success: darkColors.success,
   warning: darkColors.warning,
-}) 
+});

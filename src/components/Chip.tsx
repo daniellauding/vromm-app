@@ -12,26 +12,20 @@ type ChipProps = {
 export function Chip({ active, icon, children, onPress }: ChipProps) {
   return (
     <Button
-      backgroundColor={active ? "$blue10" : "$backgroundHover"}
+      backgroundColor={active ? '$blue10' : '$backgroundHover'}
       borderRadius="$6"
       onPress={onPress}
     >
       <XStack gap="$2" alignItems="center">
-        {icon && (
-          <Feather 
-            name={icon} 
-            size={16} 
-            color={active ? "white" : "$gray11"} 
-          />
-        )}
-        <Text 
-          color={active ? "white" : "$gray11"} 
+        {icon && <Feather name={icon} size={16} color={active ? 'white' : '$gray11'} />}
+        <Text
+          color={active ? 'white' : '$gray11'}
           fontSize={16}
-          fontWeight={active ? "600" : "400"}
+          fontWeight={active ? '600' : '400'}
         >
           {children}
         </Text>
       </XStack>
     </Button>
   );
-} 
+}

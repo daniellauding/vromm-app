@@ -31,7 +31,12 @@ interface ProgressCircleProps {
 }
 
 // ProgressCircle component
-function ProgressCircle({ percent, size = 40, color = '#00E6C3', bg = '#222' }: ProgressCircleProps) {
+function ProgressCircle({
+  percent,
+  size = 40,
+  color = '#00E6C3',
+  bg = '#222',
+}: ProgressCircleProps) {
   const strokeWidth = 6;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -79,7 +84,7 @@ export function ProgressSection() {
       if (user) {
         fetchCompletions();
       }
-    }, [user])
+    }, [user]),
   );
 
   useEffect(() => {
@@ -89,7 +94,9 @@ export function ProgressSection() {
   useEffect(() => {
     // Fetch user from supabase auth
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setUser(user);
     };
     fetchUser();
@@ -100,7 +107,7 @@ export function ProgressSection() {
     if (!user) return;
 
     console.log('ProgressSection: Setting up real-time subscription', user.id);
-    
+
     // Fetch completions - extract as standalone function for reuse
     const fetchCompletions = async () => {
       try {
@@ -108,7 +115,7 @@ export function ProgressSection() {
           .from('learning_path_exercise_completions')
           .select('exercise_id')
           .eq('user_id', user.id);
-          
+
         if (!error && data) {
           // Use a function updater to ensure we're working with the latest state
           console.log(`ProgressSection: Fetched ${data.length} completions`);
@@ -122,37 +129,37 @@ export function ProgressSection() {
         setCompletedIds([]);
       }
     };
-    
+
     fetchCompletions();
 
     // Set up real-time subscription with a debounce mechanism
     let debounceTimer: ReturnType<typeof setTimeout>;
-    
+
     // Create a unique channel name that includes the component instance
     const channelName = `exercise-completions-home-${Date.now()}`;
     console.log(`ProgressSection: Creating channel ${channelName}`);
-    
+
     const subscription = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
         {
-          event: '*',  // Listen to all events (INSERT, UPDATE, DELETE)
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'learning_path_exercise_completions',
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
           // Log payload for debugging
           console.log('ProgressSection: Realtime update received:', payload.eventType);
-          
+
           // Debounce to handle batch updates (like Mark All)
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
             console.log('ProgressSection: Executing debounced fetch');
             fetchCompletions();
           }, 200); // Short delay to batch multiple rapid changes
-        }
+        },
       )
       .subscribe((status) => {
         console.log(`ProgressSection: Subscription status: ${status}`);
@@ -209,7 +216,7 @@ export function ProgressSection() {
     // Navigate to ProgressTab with the specific path details and showDetail flag
     navigation.navigate('ProgressTab', {
       selectedPathId: path.id,
-      showDetail: true
+      showDetail: true,
     });
   };
 
@@ -217,20 +224,20 @@ export function ProgressSection() {
   const getPathProgress = (pathId: string) => {
     const ids = exercisesByPath[pathId] || [];
     if (ids.length === 0) return 0;
-    const completed = ids.filter(id => completedIds.includes(id)).length;
+    const completed = ids.filter((id) => completedIds.includes(id)).length;
     return completed / ids.length;
   };
 
   // Make fetchCompletions available at component level
   const fetchCompletions = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('learning_path_exercise_completions')
         .select('exercise_id')
         .eq('user_id', user.id);
-        
+
       if (!error && data) {
         console.log(`ProgressSection: Fetched ${data.length} completions`);
         setCompletedIds(data.map((c: any) => c.exercise_id));
@@ -253,7 +260,9 @@ export function ProgressSection() {
       <SectionHeader
         title="Your Progress"
         variant="chevron"
-        onAction={() => navigation.navigate('ProgressTab', { selectedPathId: paths[0]?.id, showDetail: true })}
+        onAction={() =>
+          navigation.navigate('ProgressTab', { selectedPathId: paths[0]?.id, showDetail: true })
+        }
         actionLabel="See All"
       />
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -264,7 +273,11 @@ export function ProgressSection() {
             // Enable if first path, or previous path is 100% complete
             const isEnabled = idx === 0 || getPathProgress(paths[idx - 1]?.id) === 1;
             // Visual highlight for the next path that is now enabled
-            const isNextToUnlock = isEnabled && idx > 0 && getPathProgress(paths[idx - 1]?.id) === 1 && getPathProgress(path.id) < 1;
+            const isNextToUnlock =
+              isEnabled &&
+              idx > 0 &&
+              getPathProgress(paths[idx - 1]?.id) === 1 &&
+              getPathProgress(path.id) < 1;
             return (
               <TouchableOpacity
                 key={path.id}
@@ -284,7 +297,7 @@ export function ProgressSection() {
                 disabled={!isEnabled}
               >
                 <YStack
-                  backgroundColor={isActive ? "$blue5" : "$backgroundStrong"}
+                  backgroundColor={isActive ? '$blue5' : '$backgroundStrong'}
                   padding={12}
                   borderRadius={20}
                   width={100}
@@ -292,18 +305,44 @@ export function ProgressSection() {
                   justifyContent="space-between"
                   alignItems="center"
                 >
-                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isActive ? '#00E6C3' : '#222', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                    <ProgressCircle percent={percent} size={40} color="#fff" bg={isActive ? '#00E6C3' : '#222'} />
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: isActive ? '#00E6C3' : '#222',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
+                    }}
+                  >
+                    <ProgressCircle
+                      percent={percent}
+                      size={40}
+                      color="#fff"
+                      bg={isActive ? '#00E6C3' : '#222'}
+                    />
                     <Text
-                      style={{ position: 'absolute', top: 0, left: 0, width: 40, height: 40, textAlign: 'center', textAlignVertical: 'center', lineHeight: 40, fontSize: 14, fontWeight: 'bold' }}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: 40,
+                        height: 40,
+                        textAlign: 'center',
+                        textAlignVertical: 'center',
+                        lineHeight: 40,
+                        fontSize: 14,
+                        fontWeight: 'bold',
+                      }}
                       color={isActive ? '$color' : '$gray11'}
                     >
                       {Math.round(percent * 100)}%
-                      </Text>
+                    </Text>
                   </View>
-                  <Text 
+                  <Text
                     fontSize={14}
-                    fontWeight={isActive ? 'bold' : '600'} 
+                    fontWeight={isActive ? 'bold' : '600'}
                     color={isActive ? '$color' : '$gray11'}
                     numberOfLines={2}
                     textAlign="center"
@@ -318,4 +357,4 @@ export function ProgressSection() {
       </ScrollView>
     </YStack>
   );
-} 
+}

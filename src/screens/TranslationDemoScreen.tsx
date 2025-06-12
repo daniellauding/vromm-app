@@ -33,7 +33,7 @@ export const TranslationDemoScreen = () => {
     key: '',
     language: language,
     value: '',
-    platform: null
+    platform: null,
   });
 
   // Load all translations
@@ -86,8 +86,8 @@ export const TranslationDemoScreen = () => {
       }
 
       // Update local state
-      setTranslations(prev =>
-        prev.map(t => (t.id === translation.id ? { ...t, value: newValue } : t))
+      setTranslations((prev) =>
+        prev.map((t) => (t.id === translation.id ? { ...t, value: newValue } : t)),
       );
 
       setEditingTranslation(null);
@@ -139,7 +139,7 @@ export const TranslationDemoScreen = () => {
 
       // Add to local state
       if (data) {
-        setTranslations(prev => [...prev, data[0]]);
+        setTranslations((prev) => [...prev, data[0]]);
       }
 
       // Reset form
@@ -147,7 +147,7 @@ export const TranslationDemoScreen = () => {
         key: '',
         language: language,
         value: '',
-        platform: null
+        platform: null,
       });
 
       setShowAddNew(false);
@@ -188,16 +188,16 @@ export const TranslationDemoScreen = () => {
               }
 
               // Update local state
-              setTranslations(prev => prev.filter(t => t.id !== translation.id));
+              setTranslations((prev) => prev.filter((t) => t.id !== translation.id));
 
               // Force refresh app translations
               await refreshTranslations();
 
               Alert.alert('Success', 'Translation deleted');
               setSaving(false);
-            }
-          }
-        ]
+            },
+          },
+        ],
       );
     } catch (error) {
       console.error('Error deleting translation:', error);
@@ -208,9 +208,9 @@ export const TranslationDemoScreen = () => {
 
   // Filter translations by search query
   const filteredTranslations = translations.filter(
-    t =>
+    (t) =>
       t.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.value.toLowerCase().includes(searchQuery.toLowerCase())
+      t.value.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -269,7 +269,7 @@ export const TranslationDemoScreen = () => {
 
             <Select
               value={filterLanguage || ''}
-              onValueChange={val => setFilterLanguage(val || null)}
+              onValueChange={(val) => setFilterLanguage(val || null)}
               placeholder="All languages"
             >
               <Select.Trigger width={130}>
@@ -311,7 +311,7 @@ export const TranslationDemoScreen = () => {
                 <Input
                   placeholder="Translation key"
                   value={newTranslation.key}
-                  onChangeText={text => setNewTranslation(prev => ({ ...prev, key: text }))}
+                  onChangeText={(text) => setNewTranslation((prev) => ({ ...prev, key: text }))}
                 />
               </YStack>
 
@@ -319,7 +319,7 @@ export const TranslationDemoScreen = () => {
                 <Text>Language</Text>
                 <Select
                   value={newTranslation.language || 'en'}
-                  onValueChange={val => setNewTranslation(prev => ({ ...prev, language: val }))}
+                  onValueChange={(val) => setNewTranslation((prev) => ({ ...prev, language: val }))}
                 >
                   <Select.Trigger>
                     <Select.Value placeholder="Language" />
@@ -341,7 +341,7 @@ export const TranslationDemoScreen = () => {
                 <Input
                   placeholder="Translation value"
                   value={newTranslation.value}
-                  onChangeText={text => setNewTranslation(prev => ({ ...prev, value: text }))}
+                  onChangeText={(text) => setNewTranslation((prev) => ({ ...prev, value: text }))}
                   multiline
                   numberOfLines={3}
                 />
@@ -351,10 +351,10 @@ export const TranslationDemoScreen = () => {
                 <Text>Platform (optional)</Text>
                 <Select
                   value={newTranslation.platform || ''}
-                  onValueChange={val =>
-                    setNewTranslation(prev => ({
+                  onValueChange={(val) =>
+                    setNewTranslation((prev) => ({
                       ...prev,
-                      platform: val === '' ? null : val
+                      platform: val === '' ? null : val,
                     }))
                   }
                 >
@@ -401,7 +401,7 @@ export const TranslationDemoScreen = () => {
 
               <ScrollView style={{ flex: 1 }}>
                 <YStack space="$3">
-                  {filteredTranslations.map(translation => (
+                  {filteredTranslations.map((translation) => (
                     <YStack
                       key={translation.id}
                       backgroundColor="$backgroundHover"
@@ -493,19 +493,19 @@ export const TranslationDemoScreen = () => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1
+    flex: 1,
   },
   translationRow: {
     flexDirection: 'row',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee'
+    borderBottomColor: '#eee',
   },
   key: {
     flex: 0.4,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   value: {
-    flex: 0.6
-  }
+    flex: 0.6,
+  },
 });

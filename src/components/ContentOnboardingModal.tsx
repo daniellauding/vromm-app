@@ -22,7 +22,7 @@ const ONBOARDING_KEY = 'vromm_onboarding';
 export function ContentOnboardingModal({
   visible,
   onClose,
-  forceShow = false
+  forceShow = false,
 }: ContentOnboardingModalProps) {
   const [slides, setSlides] = useState<OnboardingSlide[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +63,7 @@ export function ContentOnboardingModal({
     if (!visible) return;
 
     // Set up subscription to content changes
-    const unsubscribe = onContentChange(contentType => {
+    const unsubscribe = onContentChange((contentType) => {
       // If no content type specified or it's onboarding content, reload
       if (!contentType || contentType === ContentType.ONBOARDING) {
         console.log('Onboarding content changed, reloading...');
@@ -194,13 +194,13 @@ export function ContentOnboardingModal({
 const styles = StyleSheet.create({
   centeredView: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)'
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalView: {
     flex: 1,
     backgroundColor: 'white',
     borderRadius: 20,
-    overflow: 'hidden'
+    overflow: 'hidden',
   },
   debugContainer: {
     position: 'absolute',
@@ -208,6 +208,6 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 100,
     width: 40,
-    height: 40
-  }
+    height: 40,
+  },
 });

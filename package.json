@@ -21,7 +21,9 @@
     "build:android": "eas build --platform android --profile development",
     "build:ios": "eas build --platform ios --profile development",
     "build:all": "eas build --platform all --profile development",
-    "patch-firebase": "node ./patch-firebase-analytics.js"
+    "build:preview": "eas build --platform all --profile preview",
+    "patch-firebase": "node ./patch-firebase-analytics.js",
+    "eslint-fix": "eslint --fix"
   },
   "jest": {
     "preset": "jest-expo"
@@ -72,7 +74,7 @@
     "expo-web-browser": "~14.1.6",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "react-native": "0.79.2",
+    "react-native": "0.79.3",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-maps": "1.20.1",
     "react-native-reanimated": "~3.17.4",

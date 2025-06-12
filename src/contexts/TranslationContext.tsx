@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { clearAllTranslationCaches } from '../services/translationService';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 // Types
 export type Language = 'en' | 'sv';
@@ -38,9 +39,9 @@ const TranslationContext = createContext<TranslationContextType>({
   isLoading: true,
   language: 'en',
   setLanguage: async () => {},
-  t: key => key,
+  t: (key) => key,
   clearCache: async () => {},
-  refreshTranslations: async () => {}
+  refreshTranslations: async () => {},
 });
 
 // Logger utility (simplified)
@@ -53,7 +54,7 @@ const logger = {
   },
   debug: (message: string, ...args: any[]) => {
     if (__DEV__) console.log(`[TRANSLATION DEBUG] ${message}`, ...args);
-  }
+  },
 };
 
 export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -94,7 +95,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         // Convert to record for easy lookup
         const fetchedTranslations: Record<string, string> = {};
-        data?.forEach(item => {
+        data?.forEach((item) => {
           fetchedTranslations[item.key] = item.value;
           logger.debug(`Translation: ${item.key} = ${item.value} (updated ${item.updated_at})`);
         });
@@ -111,7 +112,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setIsLoading(false);
       }
     },
-    [lastFetchTime]
+    [lastFetchTime],
   );
 
   // Set up real-time subscription for translation updates
@@ -125,9 +126,9 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         {
           event: '*',
           schema: 'public',
-          table: 'translations'
+          table: 'translations',
         },
-        payload => {
+        (payload) => {
           logger.info('Translation change detected:', payload);
 
           // If the change is for our current language, immediately refresh
@@ -138,9 +139,9 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
               fetchAndCacheTranslations(language, true);
             });
           }
-        }
+        },
       )
-      .subscribe(status => {
+      .subscribe((status) => {
         logger.info(`Real-time subscription status: ${status}`);
       });
 
@@ -187,7 +188,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
             const now = Date.now();
             const timestamp = parseInt(
               (await AsyncStorage.getItem(TRANSLATION_VERSION_KEY)) || '0',
-              10
+              10,
             );
             if (now - timestamp > CACHE_MAX_AGE) {
               logger.debug('Cache is older than max age, refreshing in background');
@@ -252,7 +253,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const keys = [
         `${TRANSLATION_CACHE_KEY}_en`,
         `${TRANSLATION_CACHE_KEY}_sv`,
-        TRANSLATION_VERSION_KEY
+        TRANSLATION_VERSION_KEY,
       ];
 
       await AsyncStorage.multiRemove(keys);
@@ -261,6 +262,11 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       logger.error('Error clearing cache:', error);
     }
   };
+
+  // Show loading screen if translations are loading
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <TranslationContext.Provider
@@ -271,7 +277,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setLanguage,
         t,
         clearCache,
-        refreshTranslations
+        refreshTranslations,
       }}
     >
       {children}
@@ -301,7 +307,7 @@ async function getCachedTranslations(language: Language): Promise<Record<string,
 
 async function cacheTranslations(
   language: Language,
-  translations: Record<string, string>
+  translations: Record<string, string>,
 ): Promise<void> {
   try {
     const cacheKey = `${TRANSLATION_CACHE_KEY}_${language}`;
@@ -351,8 +357,8 @@ async function checkTranslationsVersion(): Promise<boolean> {
       if (needsUpdate) {
         logger.debug(
           `Cache is outdated: ${new Date(storedVersion).toISOString()} vs ${new Date(
-            latestUpdateTime
-          ).toISOString()}`
+            latestUpdateTime,
+          ).toISOString()}`,
         );
       }
 

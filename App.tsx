@@ -28,7 +28,7 @@ try {
     analyticsModule = () => ({
       setAnalyticsCollectionEnabled: async () => true,
       logScreenView: async () => {},
-      app: null
+      app: null,
     });
     console.log('[Firebase] Using mock analytics in App.tsx');
   }
@@ -36,7 +36,7 @@ try {
   analyticsModule = () => ({
     setAnalyticsCollectionEnabled: async () => true,
     logScreenView: async () => {},
-    app: null
+    app: null,
   });
   console.log('[Firebase] Error initializing analytics in App.tsx:', error);
 }
@@ -80,7 +80,7 @@ function AppContent() {
           console.log('Firebase Analytics not available');
           return;
         }
-        
+
         // Make sure analytics collection is enabled
         await analytics().setAnalyticsCollectionEnabled(true);
         console.log('Firebase Analytics initialized');
@@ -137,15 +137,15 @@ function AppContent() {
 
   return (
     <NavigationContainer
-      onStateChange={state => {
+      onStateChange={(state) => {
         console.log('[DEBUG] Navigation state:', state);
-        
+
         // Track screen views for analytics - works on both iOS and Android
         if (state) {
           const route = state.routes[state.index];
           const screen_name = route.name;
           const screen_class = route.name;
-          
+
           try {
             // Using React Native Firebase analytics
             if (analytics().app) {
@@ -154,7 +154,7 @@ function AppContent() {
                   screen_name,
                   screen_class,
                 })
-                .catch(err => console.log('Analytics error:', err));
+                .catch((err) => console.log('Analytics error:', err));
             }
           } catch (error) {
             console.log('Analytics not available for screen view');
@@ -164,7 +164,7 @@ function AppContent() {
     >
       <Stack.Navigator
         screenOptions={{
-          headerShown: false
+          headerShown: false,
         }}
       >
         {!user ? (
@@ -174,28 +174,28 @@ function AppContent() {
               name="SplashScreen"
               component={SplashScreen}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="Login"
               component={LoginScreen}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="Signup"
               component={SignupScreen}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="ForgotPassword"
               component={ForgotPasswordScreen}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
           </>
@@ -206,14 +206,14 @@ function AppContent() {
               name="MainTabs"
               component={TabNavigator}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="Onboarding"
               component={OnboardingScreen}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
             <Stack.Screen
@@ -226,11 +226,7 @@ function AppContent() {
               component={CreateRouteScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen
-              name="Search"
-              component={SearchScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="AddReview"
               component={AddReviewScreen}
@@ -241,7 +237,7 @@ function AppContent() {
               component={OnboardingDemoScreen}
               options={{
                 headerShown: true,
-                title: 'Onboarding Content'
+                title: 'Onboarding Content',
               }}
             />
             <Stack.Screen
@@ -249,7 +245,7 @@ function AppContent() {
               component={TranslationDemoScreen}
               options={{
                 headerShown: true,
-                title: 'Translation Admin'
+                title: 'Translation Admin',
               }}
             />
             <Stack.Screen
@@ -257,42 +253,42 @@ function AppContent() {
               component={ContentDemoScreen}
               options={{
                 headerShown: true,
-                title: 'Content Demo'
+                title: 'Content Demo',
               }}
             />
             <Stack.Screen
               name="RouteList"
               component={RouteListScreen}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="LicensePlanScreen"
               component={LicensePlanScreen}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="RoleSelectionScreen"
               component={RoleSelectionScreen}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="PublicProfile"
               component={PublicProfileScreen}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="UsersScreen"
               component={UsersScreen}
               options={{
-                headerShown: false
+                headerShown: false,
               }}
             />
           </>
@@ -321,7 +317,7 @@ export default function App() {
           'Rubik-MediumItalic': require('./assets/fonts/Rubik/static/Rubik-MediumItalic.ttf'),
           'Rubik-BoldItalic': require('./assets/fonts/Rubik/static/Rubik-BoldItalic.ttf'),
           'Rubik-ExtraBoldItalic': require('./assets/fonts/Rubik/static/Rubik-ExtraBoldItalic.ttf'),
-          'Rubik-BlackItalic': require('./assets/fonts/Rubik/static/Rubik-BlackItalic.ttf')
+          'Rubik-BlackItalic': require('./assets/fonts/Rubik/static/Rubik-BlackItalic.ttf'),
         });
         console.log('Fonts loaded successfully');
         setFontsLoaded(true);

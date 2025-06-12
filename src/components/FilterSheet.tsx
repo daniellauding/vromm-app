@@ -23,7 +23,15 @@ export type FilterOptions = {
   bestSeason?: string[];
   vehicleTypes?: string[];
   maxDistance?: number;
-  sort?: 'best_match' | 'most_popular' | 'closest' | 'newly_added' | 'newest' | 'my_created' | 'best_review' | 'has_image';
+  sort?:
+    | 'best_match'
+    | 'most_popular'
+    | 'closest'
+    | 'newly_added'
+    | 'newest'
+    | 'my_created'
+    | 'best_review'
+    | 'has_image';
   experienceLevel?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
 };
 
@@ -130,7 +138,7 @@ export function FilterSheet({
   const handleColor = '#666';
 
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
-  
+
   // Animation values
   const translateY = useRef(new Animated.Value(screenHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -154,7 +162,7 @@ export function FilterSheet({
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
-        })
+        }),
       ]).start();
     } else {
       // Animate out
@@ -173,32 +181,41 @@ export function FilterSheet({
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
-        })
+        }),
       ]).start();
     }
   }, [isVisible, translateY, backdropOpacity]);
 
   // Reset filters
-  const handleReset = () => {
+  const handleReset = React.useCallback(() => {
     setFilters({});
-  };
+  }, []);
 
   // Apply filters and close sheet
-  const handleApply = () => {
+  const handleApply = React.useCallback(() => {
     onApplyFilters(filters);
     onClose();
-  };
+  }, [onApplyFilters, filters, onClose]);
 
   // Toggle array-based filter selection
   const toggleFilter = (type: keyof FilterOptions, value: string) => {
-    setFilters(prev => {
-      const arrayProp = type as keyof Pick<FilterOptions, 'difficulty' | 'spotType' | 'category' | 'transmissionType' | 'activityLevel' | 'bestSeason' | 'vehicleTypes'>;
-      const currentArray = prev[arrayProp] as string[] || [];
-      
+    setFilters((prev) => {
+      const arrayProp = type as keyof Pick<
+        FilterOptions,
+        | 'difficulty'
+        | 'spotType'
+        | 'category'
+        | 'transmissionType'
+        | 'activityLevel'
+        | 'bestSeason'
+        | 'vehicleTypes'
+      >;
+      const currentArray = (prev[arrayProp] as string[]) || [];
+
       if (currentArray.includes(value)) {
         return {
           ...prev,
-          [arrayProp]: currentArray.filter(v => v !== value),
+          [arrayProp]: currentArray.filter((v) => v !== value),
         };
       } else {
         return {
@@ -210,34 +227,34 @@ export function FilterSheet({
   };
 
   // Set single value filter
-  const setSingleFilter = (type: keyof FilterOptions, value: any) => {
-    setFilters(prev => ({
+  const setSingleFilter = React.useCallback((type: keyof FilterOptions, value: any) => {
+    setFilters((prev) => ({
       ...prev,
       [type]: value,
     }));
-  };
+  }, []);
 
   // Check if a filter chip is selected
-  const isSelected = (type: keyof FilterOptions, value: string) => {
-    const arrayProp = filters[type] as string[] | undefined;
-    return arrayProp?.includes(value) || false;
-  };
+  const isSelected = React.useCallback(
+    (type: keyof FilterOptions, value: string) => {
+      const arrayProp = filters[type] as string[] | undefined;
+      return arrayProp?.includes(value) || false;
+    },
+    [filters],
+  );
 
   // Handle backdrop press
-  const handleBackdropPress = () => {
+  const handleBackdropPress = React.useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   if (!isVisible && translateY._value === screenHeight) return null;
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      <Animated.View 
-        style={[
-          styles.backdrop, 
-          { opacity: backdropOpacity }
-        ]} 
-        pointerEvents={isVisible ? "auto" : "none"}
+      <Animated.View
+        style={[styles.backdrop, { opacity: backdropOpacity }]}
+        pointerEvents={isVisible ? 'auto' : 'none'}
         onTouchEnd={handleBackdropPress}
       />
       <Animated.View
@@ -274,7 +291,16 @@ export function FilterSheet({
               {t('filters.sortBy')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['best_match', 'most_popular', 'closest', 'newly_added', 'newest', 'my_created', 'best_review', 'has_image'].map(sort => (
+              {[
+                'best_match',
+                'most_popular',
+                'closest',
+                'newly_added',
+                'newest',
+                'my_created',
+                'best_review',
+                'has_image',
+              ].map((sort) => (
                 <TouchableOpacity
                   key={sort}
                   style={[
@@ -307,14 +333,16 @@ export function FilterSheet({
               {t('filters.difficulty')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['beginner', 'intermediate', 'advanced'].map(difficulty => (
+              {['beginner', 'intermediate', 'advanced'].map((difficulty) => (
                 <TouchableOpacity
                   key={difficulty}
                   style={[
                     styles.filterChip,
                     {
                       borderColor,
-                      backgroundColor: isSelected('difficulty', difficulty) ? '#1A3D3D' : 'transparent',
+                      backgroundColor: isSelected('difficulty', difficulty)
+                        ? '#1A3D3D'
+                        : 'transparent',
                     },
                   ]}
                   onPress={() => toggleFilter('difficulty', difficulty)}
@@ -340,7 +368,7 @@ export function FilterSheet({
               {t('filters.spotType')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['urban', 'highway', 'rural', 'parking'].map(spotType => (
+              {['urban', 'highway', 'rural', 'parking'].map((spotType) => (
                 <TouchableOpacity
                   key={spotType}
                   style={[
@@ -373,7 +401,7 @@ export function FilterSheet({
               {t('filters.category')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['parking', 'incline_start'].map(category => (
+              {['parking', 'incline_start'].map((category) => (
                 <TouchableOpacity
                   key={category}
                   style={[
@@ -406,14 +434,16 @@ export function FilterSheet({
               {t('filters.transmissionType')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['automatic', 'manual', 'both'].map(transmissionType => (
+              {['automatic', 'manual', 'both'].map((transmissionType) => (
                 <TouchableOpacity
                   key={transmissionType}
                   style={[
                     styles.filterChip,
                     {
                       borderColor,
-                      backgroundColor: isSelected('transmissionType', transmissionType) ? '#1A3D3D' : 'transparent',
+                      backgroundColor: isSelected('transmissionType', transmissionType)
+                        ? '#1A3D3D'
+                        : 'transparent',
                     },
                   ]}
                   onPress={() => toggleFilter('transmissionType', transmissionType)}
@@ -422,7 +452,9 @@ export function FilterSheet({
                     style={[
                       styles.chipText,
                       {
-                        color: isSelected('transmissionType', transmissionType) ? 'white' : textColor,
+                        color: isSelected('transmissionType', transmissionType)
+                          ? 'white'
+                          : textColor,
                       },
                     ]}
                   >
@@ -439,14 +471,16 @@ export function FilterSheet({
               {t('filters.activityLevel')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['moderate', 'high'].map(activityLevel => (
+              {['moderate', 'high'].map((activityLevel) => (
                 <TouchableOpacity
                   key={activityLevel}
                   style={[
                     styles.filterChip,
                     {
                       borderColor,
-                      backgroundColor: isSelected('activityLevel', activityLevel) ? '#1A3D3D' : 'transparent',
+                      backgroundColor: isSelected('activityLevel', activityLevel)
+                        ? '#1A3D3D'
+                        : 'transparent',
                     },
                   ]}
                   onPress={() => toggleFilter('activityLevel', activityLevel)}
@@ -472,14 +506,16 @@ export function FilterSheet({
               {t('filters.bestSeason')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['all', 'year-round', 'avoid-winter'].map(bestSeason => (
+              {['all', 'year-round', 'avoid-winter'].map((bestSeason) => (
                 <TouchableOpacity
                   key={bestSeason}
                   style={[
                     styles.filterChip,
                     {
                       borderColor,
-                      backgroundColor: isSelected('bestSeason', bestSeason) ? '#1A3D3D' : 'transparent',
+                      backgroundColor: isSelected('bestSeason', bestSeason)
+                        ? '#1A3D3D'
+                        : 'transparent',
                     },
                   ]}
                   onPress={() => toggleFilter('bestSeason', bestSeason)}
@@ -505,14 +541,16 @@ export function FilterSheet({
               {t('filters.vehicleTypes')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['passenger_car', 'rv'].map(vehicleType => (
+              {['passenger_car', 'rv'].map((vehicleType) => (
                 <TouchableOpacity
                   key={vehicleType}
                   style={[
                     styles.filterChip,
                     {
                       borderColor,
-                      backgroundColor: isSelected('vehicleTypes', vehicleType) ? '#1A3D3D' : 'transparent',
+                      backgroundColor: isSelected('vehicleTypes', vehicleType)
+                        ? '#1A3D3D'
+                        : 'transparent',
                     },
                   ]}
                   onPress={() => toggleFilter('vehicleTypes', vehicleType)}
@@ -538,14 +576,15 @@ export function FilterSheet({
               {t('filters.experienceLevel')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['beginner', 'intermediate', 'advanced', 'expert'].map(level => (
+              {['beginner', 'intermediate', 'advanced', 'expert'].map((level) => (
                 <TouchableOpacity
                   key={level}
                   style={[
                     styles.filterChip,
                     {
                       borderColor,
-                      backgroundColor: filters.experienceLevel === level ? '#1A3D3D' : 'transparent',
+                      backgroundColor:
+                        filters.experienceLevel === level ? '#1A3D3D' : 'transparent',
                     },
                   ]}
                   onPress={() => setSingleFilter('experienceLevel', level)}
@@ -586,14 +625,14 @@ export function FilterSheet({
                 <Slider.TrackActive />
               </Slider.Track>
               <Slider.Thumb circular index={0}>
-                <View 
-                  style={{ 
-                    width: 24, 
-                    height: 24, 
+                <View
+                  style={{
+                    width: 24,
+                    height: 24,
                     backgroundColor: '#1A3D3D',
                     borderRadius: 12,
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
                   }}
                 >
                   <Feather name="move" size={14} color="white" />
@@ -601,8 +640,12 @@ export function FilterSheet({
               </Slider.Thumb>
             </Slider>
             <XStack marginTop="$2" alignItems="center" justifyContent="space-between">
-              <Text color="$gray10" fontSize="$1">0 km</Text>
-              <Text color="$gray10" fontSize="$1">100 km</Text>
+              <Text color="$gray10" fontSize="$1">
+                0 km
+              </Text>
+              <Text color="$gray10" fontSize="$1">
+                100 km
+              </Text>
             </XStack>
           </YStack>
         </ScrollView>
@@ -616,12 +659,7 @@ export function FilterSheet({
             },
           ]}
         >
-          <Button
-            backgroundColor="#1A3D3D"
-            color="white"
-            size="$5"
-            onPress={handleApply}
-          >
+          <Button backgroundColor="#1A3D3D" color="white" size="$5" onPress={handleApply}>
             {t('filters.seeRoutes', { count: routeCount })}
           </Button>
         </View>
@@ -630,26 +668,29 @@ export function FilterSheet({
   );
 }
 
-export function FilterSheetModal({ 
-  onApplyFilters, 
-  routeCount, 
-  initialFilters = {} 
+export function FilterSheetModal({
+  onApplyFilters,
+  routeCount,
+  initialFilters = {},
 }: Omit<FilterSheetProps, 'isVisible' | 'onClose'>) {
   const { hideModal } = useModal();
-  
+
   // Handle closing the sheet
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     hideModal();
-  };
-  
+  }, [hideModal]);
+
   // Handle apply filters and close
-  const handleApply = (filters: FilterOptions) => {
-    onApplyFilters(filters);
-    hideModal();
-  };
+  const handleApply = React.useCallback(
+    (filters: FilterOptions) => {
+      onApplyFilters(filters);
+      hideModal();
+    },
+    [onApplyFilters, hideModal],
+  );
 
   return (
-    <FilterSheet 
+    <FilterSheet
       isVisible={true}
       onClose={handleClose}
       onApplyFilters={handleApply}
@@ -657,4 +698,4 @@ export function FilterSheetModal({
       initialFilters={initialFilters}
     />
   );
-} 
+}

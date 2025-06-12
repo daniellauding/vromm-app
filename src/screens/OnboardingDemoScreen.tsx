@@ -27,7 +27,7 @@ export function OnboardingDemoScreen() {
   };
 
   const toggleLanguage = () => {
-    setLanguage(prev => (prev === 'en' ? 'sv' : 'en'));
+    setLanguage((prev) => (prev === 'en' ? 'sv' : 'en'));
   };
 
   return (
@@ -94,8 +94,8 @@ export function OnboardingDemoScreen() {
               {loading
                 ? 'Loading...'
                 : error
-                ? `Error: ${error.message}`
-                : `${content?.length || 0} slides found`}
+                  ? `Error: ${error.message}`
+                  : `${content?.length || 0} slides found`}
             </Text>
           </YStack>
         </Card>
@@ -152,6 +152,6 @@ export function OnboardingDemoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5'
-  }
+    backgroundColor: '#f5f5f5',
+  },
 });

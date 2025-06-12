@@ -7,7 +7,7 @@ import {
   Platform,
   TouchableOpacity,
   Keyboard,
-  StatusBar
+  StatusBar,
 } from 'react-native';
 import type { Edge } from 'react-native-safe-area-context';
 
@@ -19,12 +19,12 @@ type ScreenProps = {
   hideStatusBar?: boolean;
 };
 
-export function Screen({ 
-  children, 
-  padding = true, 
-  scroll = true, 
-  edges = ['top'], 
-  hideStatusBar = false 
+export function Screen({
+  children,
+  padding = true,
+  scroll = true,
+  edges = ['top'],
+  hideStatusBar = false,
 }: ScreenProps) {
   return (
     <YStack f={1} backgroundColor="$background">

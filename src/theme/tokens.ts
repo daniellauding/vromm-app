@@ -1,4 +1,4 @@
-import { createTokens } from 'tamagui'
+import { createTokens } from 'tamagui';
 
 // Define our color palette
 const colors = {
@@ -7,13 +7,13 @@ const colors = {
   black: '#000000',
 
   splashVideoOverlay: '#397770',
-  
+
   // Your brand colors - replace with your own hex values
-  brandPrimary: '#00FFBC',       // Your main brand color
-  brandPrimaryLight: '#00FFBC',  // Lighter version for hover states
-  brandPrimaryDark: '#00FFBC',   // Darker version for press states
-  
-  brandSecondary: '#FF6B00',     // Secondary brand color
+  brandPrimary: '#00FFBC', // Your main brand color
+  brandPrimaryLight: '#00FFBC', // Lighter version for hover states
+  brandPrimaryDark: '#00FFBC', // Darker version for press states
+
+  brandSecondary: '#FF6B00', // Secondary brand color
   brandSecondaryLight: '#FF8533',
   brandSecondaryDark: '#CC5500',
 
@@ -21,7 +21,7 @@ const colors = {
   blue10: '#2563eb',
   blue9: '#3b82f6',
   blue8: '#60a5fa',
-  
+
   // Grays
   gray12: '#0f172a',
   gray11: '#64748b',
@@ -29,7 +29,7 @@ const colors = {
   gray5: '#f1f5f9',
   gray2: '#f8fafc',
   gray1: '#f9fafb',
-  
+
   // Gray scale
   gray50: '#F9FAFB',
   gray100: '#F3F4F6',
@@ -61,7 +61,7 @@ const colors = {
   amber400: '#FBBF24',
   amber500: '#F59E0B',
   amber600: '#D97706',
-}
+};
 
 export const tokens = createTokens({
   color: {
@@ -70,7 +70,7 @@ export const tokens = createTokens({
     text: colors.gray12,
     error: colors.red500,
   },
-  
+
   space: {
     true: 16, // Default spacing
     0: 0,
@@ -82,7 +82,7 @@ export const tokens = createTokens({
     6: 24,
     8: 32,
   },
-  
+
   size: {
     true: 16, // Default size
     0: 0,
@@ -123,26 +123,26 @@ export const tokens = createTokens({
 
   fontSize: {
     true: 16,
-    0: 12,    // xs
-    1: 14,    // sm
-    2: 16,    // base
-    3: 18,    // lg
-    4: 20,    // xl
-    5: 24,    // 2xl
-    6: 30,    // 3xl
-    7: 36,    // 4xl
-    8: 48,    // 5xl
-    9: 60,    // 6xl
+    0: 12, // xs
+    1: 14, // sm
+    2: 16, // base
+    3: 18, // lg
+    4: 20, // xl
+    5: 24, // 2xl
+    6: 30, // 3xl
+    7: 36, // 4xl
+    8: 48, // 5xl
+    9: 60, // 6xl
   },
 
   lineHeight: {
     true: 1.5,
-    0: 1,      // none
-    1: 1.25,   // tight
-    2: 1.375,  // snug
-    3: 1.5,    // normal
-    4: 1.625,  // relaxed
-    5: 2,      // loose
+    0: 1, // none
+    1: 1.25, // tight
+    2: 1.375, // snug
+    3: 1.5, // normal
+    4: 1.625, // relaxed
+    5: 2, // loose
   },
 });
 
@@ -170,4 +170,4 @@ export const darkColors = {
   success: colors.emerald400,
   warning: colors.amber400,
   shadowColor: colors.gray700,
-} 
+};

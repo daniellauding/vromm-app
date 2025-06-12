@@ -26,7 +26,7 @@ const TOTAL_HEIGHT = TAB_BAR_HEIGHT + BOTTOM_INSET;
 const CustomTabBarButton = (props: BottomTabBarButtonProps) => {
   const { accessibilityState, children, onPress, style } = props;
   const isSelected = accessibilityState?.selected;
-  
+
   return (
     <View style={style as ViewStyle}>
       <TouchableOpacity
@@ -43,8 +43,8 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps) => {
             gap: 4,
           },
           isSelected && {
-            backgroundColor: '#2D3130'
-          }
+            backgroundColor: '#2D3130',
+          },
         ]}
       >
         {children}
@@ -78,7 +78,7 @@ export function TabNavigator() {
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    zIndex: 100
+    zIndex: 100,
   } as const;
 
   return (
@@ -101,15 +101,15 @@ export function TabNavigator() {
           borderBottomWidth: 1,
           borderBottomColor: tokens.color.backgroundPress,
           elevation: 0,
-          shadowOpacity: 0
+          shadowOpacity: 0,
         },
         headerTitleStyle: {
           fontSize: 17,
           fontWeight: '600',
-          color: '#9DBCB7'
+          color: '#9DBCB7',
         },
         // Use custom tab bar button
-        tabBarButton: (props) => <CustomTabBarButton {...props} />
+        tabBarButton: (props) => <CustomTabBarButton {...props} />,
       }}
     >
       <Tab.Screen
@@ -118,12 +118,7 @@ export function TabNavigator() {
         options={{
           title: t('navigation.home'),
           headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <HomeIcon
-              color={color}
-              size={24}
-            />
-          )
+          tabBarIcon: ({ color, focused }) => <HomeIcon color={color} size={24} />,
         }}
       />
       <Tab.Screen
@@ -132,12 +127,7 @@ export function TabNavigator() {
         options={{
           title: t('navigation.progress'),
           headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <PractiseIcon
-              color={color}
-              size={24}
-            />
-          )
+          tabBarIcon: ({ color, focused }) => <PractiseIcon color={color} size={24} />,
         }}
       />
       <Tab.Screen
@@ -146,12 +136,7 @@ export function TabNavigator() {
         options={{
           title: t('navigation.map'),
           headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <MapIcon
-              color={color}
-              size={24}
-            />
-          )
+          tabBarIcon: ({ color, focused }) => <MapIcon color={color} size={24} />,
         }}
       />
       <Tab.Screen
@@ -159,33 +144,25 @@ export function TabNavigator() {
         options={{
           title: t('navigation.profile'),
           headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <ProfileIcon
-              color={color}
-              size={24}
-            />
-          )
+          tabBarIcon: ({ color, focused }) => <ProfileIcon color={color} size={24} />,
         }}
       >
         {() => {
           const { user } = useAuth();
-          
+
           if (!user?.id) {
             return <ProfileScreen />;
           }
-          
+
           // Create a nested stack navigator for profile-related screens
           return (
             <Stack.Navigator screenOptions={{ headerShown: false }}>
-              <Stack.Screen 
+              <Stack.Screen
                 name="PublicProfile"
                 component={PublicProfileScreen}
                 initialParams={{ userId: user.id }}
               />
-              <Stack.Screen 
-                name="ProfileScreen" 
-                component={ProfileScreen} 
-              />
+              <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
             </Stack.Navigator>
           );
         }}

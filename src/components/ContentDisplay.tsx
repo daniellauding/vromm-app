@@ -16,7 +16,7 @@ interface ContentDisplayProps {
 export function ContentDisplay({
   contentKey,
   showRefreshButton = false,
-  language = 'en'
+  language = 'en',
 }: ContentDisplayProps) {
   // Use the new hook that automatically updates when content changes
   const { content, loading, error, refresh } = useContentItem<ContentItem>(contentKey);
@@ -93,7 +93,7 @@ export function ContentDisplay({
       padding="$4"
       marginVertical="$2"
       style={{
-        backgroundColor: customStyles.backgroundColor || undefined
+        backgroundColor: customStyles.backgroundColor || undefined,
       }}
     >
       <YStack space="$2">
@@ -103,7 +103,7 @@ export function ContentDisplay({
             fontWeight="bold"
             style={{
               color: customStyles.textColor || undefined,
-              textAlign: (customStyles.textAlign as any) || 'left'
+              textAlign: (customStyles.textAlign as any) || 'left',
             }}
           >
             {title}
@@ -126,7 +126,7 @@ export function ContentDisplay({
         <Text
           style={{
             color: customStyles.textColor || undefined,
-            textAlign: (customStyles.textAlign as any) || 'left'
+            textAlign: (customStyles.textAlign as any) || 'left',
           }}
         >
           {body}
@@ -143,24 +143,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   cardImage: {
     width: '100%',
     height: 160,
-    resizeMode: 'cover'
+    resizeMode: 'cover',
   },
   fullImage: {
     width: '100%',
     height: 240,
     resizeMode: 'cover',
-    borderRadius: 8
+    borderRadius: 8,
   },
   smallImage: {
     width: '100%',
     height: 120,
     resizeMode: 'cover',
-    borderRadius: 8
+    borderRadius: 8,
   },
   iconContainer: {
     alignItems: 'center',
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     backgroundColor: '#F5F5F5',
-    marginBottom: 8
+    marginBottom: 8,
   },
   compactIcon: {
     alignItems: 'center',
@@ -177,6 +177,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F5F5F5'
-  }
+    backgroundColor: '#F5F5F5',
+  },
 });

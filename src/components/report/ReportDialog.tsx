@@ -17,23 +17,23 @@ const REPORT_TYPES: { value: ReportType; label: string; description: string }[] 
   {
     value: 'spam',
     label: 'Spam',
-    description: 'Repetitive, unwanted, or commercial content'
+    description: 'Repetitive, unwanted, or commercial content',
   },
   {
     value: 'harmful_content',
     label: 'Harmful Content',
-    description: 'Content that may be harmful, offensive, or inappropriate'
+    description: 'Content that may be harmful, offensive, or inappropriate',
   },
   {
     value: 'privacy_issue',
     label: 'Privacy Issue',
-    description: 'Content that violates privacy or shares personal information'
+    description: 'Content that violates privacy or shares personal information',
   },
   {
     value: 'other',
     label: 'Other',
-    description: 'Please provide details about your report'
-  }
+    description: 'Please provide details about your report',
+  },
 ];
 
 export function ReportDialog({ reportableId, reportableType, onClose }: ReportDialogProps) {
@@ -70,16 +70,14 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
       }
 
       // Submit the report
-      const { error: reportError } = await supabase
-        .from('reports')
-        .insert({
-          reportable_id: reportableId,
-          reportable_type: reportableType,
-          reporter_id: user.id,
-          report_type: reportType,
-          content: content.trim() || undefined,
-          status: 'pending'
-        });
+      const { error: reportError } = await supabase.from('reports').insert({
+        reportable_id: reportableId,
+        reportable_type: reportableType,
+        reporter_id: user.id,
+        report_type: reportType,
+        content: content.trim() || undefined,
+        status: 'pending',
+      });
 
       if (reportError) throw reportError;
 
@@ -93,39 +91,28 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
     }
   };
 
-  const selectedType = REPORT_TYPES.find(type => type.value === reportType);
+  const selectedType = REPORT_TYPES.find((type) => type.value === reportType);
 
   return (
-    <Modal
-      visible
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <YStack
-        flex={1}
-        backgroundColor="rgba(0,0,0,0.5)"
-        justifyContent="center"
-        padding="$4"
-      >
-        <Card
-          elevate
-          bordered
-          backgroundColor="$background"
-          padding="$4"
-        >
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <YStack flex={1} backgroundColor="rgba(0,0,0,0.5)" justifyContent="center" padding="$4">
+        <Card elevate bordered backgroundColor="$background" padding="$4">
           <YStack gap="$4">
-            <Text fontSize="$6" fontWeight="bold">Report Content</Text>
+            <Text fontSize="$6" fontWeight="bold">
+              Report Content
+            </Text>
 
             <YStack gap="$2">
-              <Text fontSize="$5" fontWeight="600">What's wrong with this content?</Text>
+              <Text fontSize="$5" fontWeight="600">
+                What's wrong with this content?
+              </Text>
               <XStack flexWrap="wrap" gap="$2">
-                {REPORT_TYPES.map(type => (
+                {REPORT_TYPES.map((type) => (
                   <Button
                     key={type.value}
                     size="sm"
                     variant="outlined"
-                    backgroundColor={reportType === type.value ? "$blue10" : undefined}
+                    backgroundColor={reportType === type.value ? '$blue10' : undefined}
                     onPress={() => setReportType(type.value)}
                   >
                     {type.label}
@@ -141,7 +128,9 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
 
             {(reportType === 'other' || content) && (
               <YStack gap="$2">
-                <Text fontSize="$5" fontWeight="600">Additional Details</Text>
+                <Text fontSize="$5" fontWeight="600">
+                  Additional Details
+                </Text>
                 <TextArea
                   size="$4"
                   placeholder="Please provide more information about your report..."
@@ -154,12 +143,7 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
             )}
 
             <XStack gap="$2">
-              <Button
-                flex={1}
-                variant="outlined"
-                onPress={onClose}
-                disabled={loading}
-              >
+              <Button flex={1} variant="outlined" onPress={onClose} disabled={loading}>
                 Cancel
               </Button>
               <Button
@@ -177,4 +161,4 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
       </YStack>
     </Modal>
   );
-} 
+}

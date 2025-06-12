@@ -9,7 +9,7 @@ export const translations = {
       settings: 'Inställningar',
       search: 'Sök',
       create: 'Skapa',
-      routes: 'Rutter'
+      routes: 'Rutter',
     },
     // Home screen
     home: {
@@ -18,7 +18,7 @@ export const translations = {
       drivenRoutes: 'Körda rutter',
       savedRoutes: 'Sparade rutter',
       myTodos: 'Mina uppgifter',
-      route: 'Rutt'
+      route: 'Rutt',
     },
     // Route detail screen
     routeDetail: {
@@ -88,7 +88,7 @@ export const translations = {
       details: 'Detaljer',
       reportType: 'Typ av rapport',
       reportDetailsPlaceholder: 'Vänligen ge detaljer om din rapport...',
-      submitReport: 'Skicka rapport'
+      submitReport: 'Skicka rapport',
     },
     // Create/Edit Route screen
     createRoute: {
@@ -137,7 +137,8 @@ export const translations = {
       enterCoordinates: 'Ange koordinater',
       permissionDenied: 'Behörighet krävs',
       cameraPermissionMsg: 'Kamerabehörighet krävs för att ta foton',
-      locationPermissionMsg: 'Det gick inte att hämta din aktuella plats. Kontrollera dina platsbehörigheter och försök igen.',
+      locationPermissionMsg:
+        'Det gick inte att hämta din aktuella plats. Kontrollera dina platsbehörigheter och försök igen.',
       invalidYoutubeLink: 'Ogiltig YouTube URL',
       routeCreated: 'Rutt skapad framgångsrikt',
       routeUpdated: 'Rutt uppdaterad framgångsrikt',
@@ -151,8 +152,8 @@ export const translations = {
         highway: 'Motorväg',
         rural: 'Landsbygd',
         track: 'Bana',
-        parking: 'Parkering'
-      }
+        parking: 'Parkering',
+      },
     },
     // Map screen
     map: {
@@ -171,14 +172,14 @@ export const translations = {
       difficulty: 'Svårighetsgrad',
       noResultsFound: 'Inga resultat hittades',
       searching: 'Söker...',
-      permissionDenied: 'Platsbehörighet nekad'
+      permissionDenied: 'Platsbehörighet nekad',
     },
     // Search screen
     search: {
       title: 'Sök',
       placeholder: 'Sök städer, adresser, rutter...',
       noResults: 'Inga resultat hittades',
-      searching: 'Söker...'
+      searching: 'Söker...',
     },
     // Add Review screen
     review: {
@@ -201,7 +202,7 @@ export const translations = {
       validationError: 'Vänligen ange ett betyg',
       processingError: 'Kunde inte behandla bild',
       uploadError: 'Kunde inte ladda upp recension',
-      invalidCredentials: 'Felaktig e-post eller lösenord'
+      invalidCredentials: 'Felaktig e-post eller lösenord',
     },
     // Profile screen
     profile: {
@@ -218,13 +219,13 @@ export const translations = {
         title: 'Välj erfarenhetsnivå',
         beginner: 'Nybörjare',
         intermediate: 'Mellan',
-        advanced: 'Avancerad'
+        advanced: 'Avancerad',
       },
       roles: {
         title: 'Välj roll',
         student: 'Elev',
         instructor: 'Instruktör',
-        school: 'Trafikskola'
+        school: 'Trafikskola',
       },
       developerOptions: 'Utvecklaralternativ',
       onboardingTour: 'Visa introduktionsguide',
@@ -232,15 +233,16 @@ export const translations = {
       translationDemo: 'Översättningssystemdemo',
       resetOnboarding: 'Återställ introduktionsguide',
       refreshTranslations: 'Uppdatera översättningar',
-      refreshConfirm: 'Detta kommer att rensa översättningscachen och hämta nya översättningar från servern. Fortsätta?',
-      refreshSuccess: 'Översättningar uppdaterades framgångsrikt'
+      refreshConfirm:
+        'Detta kommer att rensa översättningscachen och hämta nya översättningar från servern. Fortsätta?',
+      refreshSuccess: 'Översättningar uppdaterades framgångsrikt',
     },
     // Content components
     content: {
       noContent: 'Inget innehåll tillgängligt',
       untitled: 'Namnlös',
       loading: 'Laddar innehåll...',
-      loadError: 'Kunde inte ladda innehåll. Försök igen senare.'
+      loadError: 'Kunde inte ladda innehåll. Försök igen senare.',
     },
     // Auth screens
     auth: {
@@ -284,7 +286,7 @@ export const translations = {
       verifyEmailResend: 'Skicka verifieringsmail igen',
       verifyEmailResendSuccess: 'Verifieringsmail har skickats igen',
       verifyEmailResendError: 'Det gick inte att skicka verifieringsmail igen',
-      invalidCredentials: 'Felaktig e-post eller lösenord'
+      invalidCredentials: 'Felaktig e-post eller lösenord',
     },
     // Settings
     settings: {
@@ -302,7 +304,8 @@ export const translations = {
       version: 'Version',
       logout: 'Logga ut',
       deleteAccount: 'Ta bort konto',
-      deleteAccountConfirm: 'Är du säker på att du vill ta bort ditt konto? Denna åtgärd kan inte ångras.',
+      deleteAccountConfirm:
+        'Är du säker på att du vill ta bort ditt konto? Denna åtgärd kan inte ångras.',
       darkMode: 'Mörkt läge',
       lightMode: 'Ljust läge',
       systemMode: 'Systemläge',
@@ -310,8 +313,8 @@ export const translations = {
       disableNotifications: 'Inaktivera notiser',
       languages: {
         en: 'Engelska',
-        sv: 'Svenska'
-      }
+        sv: 'Svenska',
+      },
     },
     // Common
     common: {
@@ -338,7 +341,7 @@ export const translations = {
       noResults: 'Inga resultat hittades',
       noData: 'Ingen data tillgänglig',
       retry: 'Försök igen',
-      details: 'Detaljer'
+      details: 'Detaljer',
     },
     // Reviews component
     reviewSection: {
@@ -354,8 +357,8 @@ export const translations = {
       reviewSuccess: 'Recension skickad',
       reviewError: 'Det gick inte att skicka recensionen',
       mediaPermissionDenied: 'Tillåtelse att använda mediebiblioteket nekades',
-      processingError: 'Det gick inte att bearbeta bilderna'
-    }
+      processingError: 'Det gick inte att bearbeta bilderna',
+    },
   },
   en: {
     navigation: {
@@ -365,7 +368,7 @@ export const translations = {
       settings: 'Settings',
       search: 'Search',
       create: 'Create',
-      routes: 'Routes'
+      routes: 'Routes',
     },
     // Home screen
     home: {
@@ -374,7 +377,7 @@ export const translations = {
       drivenRoutes: 'Driven Routes',
       savedRoutes: 'Saved Routes',
       myTodos: 'My Todos',
-      route: 'Route'
+      route: 'Route',
     },
     // Route detail screen
     routeDetail: {
@@ -443,7 +446,7 @@ export const translations = {
       details: 'Details',
       reportType: 'Report Type',
       reportDetailsPlaceholder: 'Please provide details about your report...',
-      submitReport: 'Submit Report'
+      submitReport: 'Submit Report',
     },
     // Create/Edit Route screen
     createRoute: {
@@ -492,7 +495,8 @@ export const translations = {
       enterCoordinates: 'Enter Coordinates',
       permissionDenied: 'Permission needed',
       cameraPermissionMsg: 'Camera permission is required to take photos',
-      locationPermissionMsg: 'Failed to get your current location. Please check your location permissions and try again.',
+      locationPermissionMsg:
+        'Failed to get your current location. Please check your location permissions and try again.',
       invalidYoutubeLink: 'Invalid YouTube URL',
       routeCreated: 'Route created successfully',
       routeUpdated: 'Route updated successfully',
@@ -506,8 +510,8 @@ export const translations = {
         highway: 'Highway',
         rural: 'Rural',
         track: 'Track',
-        parking: 'Parking'
-      }
+        parking: 'Parking',
+      },
     },
     // Map screen
     map: {
@@ -526,14 +530,14 @@ export const translations = {
       difficulty: 'Difficulty',
       noResultsFound: 'No results found',
       searching: 'Searching...',
-      permissionDenied: 'Location permission denied'
+      permissionDenied: 'Location permission denied',
     },
     // Search screen
     search: {
       title: 'Search',
       placeholder: 'Search cities, addresses, routes...',
       noResults: 'No results found',
-      searching: 'Searching...'
+      searching: 'Searching...',
     },
     // Add Review screen
     review: {
@@ -556,7 +560,7 @@ export const translations = {
       validationError: 'Please provide a rating',
       processingError: 'Failed to process image',
       uploadError: 'Failed to submit review',
-      invalidCredentials: 'Invalid email or password'
+      invalidCredentials: 'Invalid email or password',
     },
     // Profile screen
     profile: {
@@ -573,13 +577,13 @@ export const translations = {
         title: 'Select Experience Level',
         beginner: 'Beginner',
         intermediate: 'Intermediate',
-        advanced: 'Advanced'
+        advanced: 'Advanced',
       },
       roles: {
         title: 'Select Role',
         student: 'Student',
         instructor: 'Instructor',
-        school: 'School'
+        school: 'School',
       },
       developerOptions: 'Developer Options',
       onboardingTour: 'Show Onboarding Tour',
@@ -587,15 +591,16 @@ export const translations = {
       translationDemo: 'Translation System Demo',
       resetOnboarding: 'Reset Onboarding',
       refreshTranslations: 'Refresh Translations',
-      refreshConfirm: 'This will clear the translation cache and fetch fresh translations from the server. Continue?',
-      refreshSuccess: 'Translations refreshed successfully'
+      refreshConfirm:
+        'This will clear the translation cache and fetch fresh translations from the server. Continue?',
+      refreshSuccess: 'Translations refreshed successfully',
     },
     // Content components
     content: {
       noContent: 'No content available',
       untitled: 'Untitled',
       loading: 'Loading content...',
-      loadError: 'Failed to load content. Please try again later.'
+      loadError: 'Failed to load content. Please try again later.',
     },
     // Auth screens
     auth: {
@@ -639,7 +644,7 @@ export const translations = {
       verifyEmailResend: 'Resend Verification Email',
       verifyEmailResendSuccess: 'Verification email resent successfully',
       verifyEmailResendError: 'Failed to resend verification email',
-      invalidCredentials: 'Invalid email or password'
+      invalidCredentials: 'Invalid email or password',
     },
     // Settings
     settings: {
@@ -657,7 +662,8 @@ export const translations = {
       version: 'Version',
       logout: 'Log Out',
       deleteAccount: 'Delete Account',
-      deleteAccountConfirm: 'Are you sure you want to delete your account? This action cannot be undone.',
+      deleteAccountConfirm:
+        'Are you sure you want to delete your account? This action cannot be undone.',
       darkMode: 'Dark Mode',
       lightMode: 'Light Mode',
       systemMode: 'System Mode',
@@ -665,8 +671,8 @@ export const translations = {
       disableNotifications: 'Disable Notifications',
       languages: {
         en: 'English',
-        sv: 'Swedish'
-      }
+        sv: 'Swedish',
+      },
     },
     // Common
     common: {
@@ -693,7 +699,7 @@ export const translations = {
       noResults: 'No results found',
       noData: 'No data available',
       retry: 'Retry',
-      details: 'Details'
+      details: 'Details',
     },
     // Reviews component
     reviewSection: {
@@ -709,7 +715,7 @@ export const translations = {
       reviewSuccess: 'Review submitted',
       reviewError: 'Failed to submit review',
       mediaPermissionDenied: 'Permission to access media library was denied',
-      processingError: 'Failed to process images'
-    }
-  }
-} as const; 
+      processingError: 'Failed to process images',
+    },
+  },
+} as const;

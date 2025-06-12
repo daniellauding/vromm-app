@@ -17,7 +17,7 @@ export function LicensePlanScreen() {
   const { user, profile, refreshProfile } = useAuth();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  
+
   // Form state
   const [targetDate, setTargetDate] = useState<Date | null>(() => {
     if (profile?.license_plan_data?.target_date) {
@@ -26,32 +26,32 @@ export function LicensePlanScreen() {
     return null;
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [hasTheory, setHasTheory] = useState<boolean>(() => 
-    profile?.license_plan_data?.has_theory || false
+  const [hasTheory, setHasTheory] = useState<boolean>(
+    () => profile?.license_plan_data?.has_theory || false,
   );
-  const [hasPractice, setHasPractice] = useState<boolean>(() => 
-    profile?.license_plan_data?.has_practice || false
+  const [hasPractice, setHasPractice] = useState<boolean>(
+    () => profile?.license_plan_data?.has_practice || false,
   );
-  const [previousExperience, setPreviousExperience] = useState<string>(() => 
-    profile?.license_plan_data?.previous_experience || ''
+  const [previousExperience, setPreviousExperience] = useState<string>(
+    () => profile?.license_plan_data?.previous_experience || '',
   );
-  const [specificGoals, setSpecificGoals] = useState<string>(() => 
-    profile?.license_plan_data?.specific_goals || ''
+  const [specificGoals, setSpecificGoals] = useState<string>(
+    () => profile?.license_plan_data?.specific_goals || '',
   );
-  
+
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setTargetDate(selectedDate);
     }
   };
-  
+
   const handleSubmit = async () => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Format the data to save
       const licenseData = {
         target_date: targetDate ? targetDate.toISOString() : null,
@@ -60,7 +60,7 @@ export function LicensePlanScreen() {
         previous_experience: previousExperience,
         specific_goals: specificGoals,
       };
-      
+
       // Update the profile
       const { error } = await supabase
         .from('profiles')
@@ -69,12 +69,12 @@ export function LicensePlanScreen() {
           license_plan_data: licenseData,
         })
         .eq('id', user.id);
-      
+
       if (error) throw error;
-      
+
       // Refresh the profile to get the updated data
       await refreshProfile();
-      
+
       // Navigate back
       navigation.goBack();
     } catch (err) {
@@ -83,7 +83,7 @@ export function LicensePlanScreen() {
       setLoading(false);
     }
   };
-  
+
   return (
     <Screen>
       <Header title="Din körkortsplan" showBack />
@@ -184,4 +184,4 @@ export function LicensePlanScreen() {
       </KeyboardAvoidingView>
     </Screen>
   );
-} 
+}

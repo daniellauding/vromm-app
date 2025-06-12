@@ -8,7 +8,7 @@ try {
   // Path to the SQL file
   const sqlPath = path.resolve(
     __dirname,
-    '../supabase/migrations/20240605000000_setup_translations.sql'
+    '../supabase/migrations/20240605000000_setup_translations.sql',
   );
 
   if (!fs.existsSync(sqlPath)) {

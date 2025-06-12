@@ -2,12 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View,
   StyleSheet,
-  useColorScheme,
-  Animated,
   TouchableOpacity,
-  Dimensions,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
   Alert,
   ActivityIndicator,
   Modal,
@@ -15,83 +10,28 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Map, Waypoint } from '../../components/Map';
-import { supabase } from '../../lib/supabase';
+import { Map } from '../../components/Map';
+
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp, FilterCategory } from '../../types/navigation';
-import { Database } from '../../lib/database.types';
-import { YStack, XStack, Card, Input, Text, Sheet, Button } from 'tamagui';
+
+import { Text } from 'tamagui';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 import { Screen } from '../../components/Screen';
 import { useRoutes } from '../../hooks/useRoutes';
 import type { Route as RouteType, WaypointData } from '../../hooks/useRoutes';
-import { RoutePreviewCard } from '../../components/RoutePreviewCard';
-import { Region } from 'react-native-maps';
-import { RouteList } from '../../components/RouteList';
-import {
-  PanGestureHandler,
-  State,
-  PanGestureHandlerGestureEvent,
-  PanGestureHandlerStateChangeEvent,
-} from 'react-native-gesture-handler';
+import { RoutesDrawer } from './RoutesDrawer';
 import MapView from 'react-native-maps';
-import { ScrollView } from 'react-native';
 import { AppHeader } from '../../components/AppHeader';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
 import { useModal } from '../../contexts/ModalContext';
 import { RecordDrivingModal } from '../../components/RecordDrivingSheet';
+import { SelectedRoute } from './SelectedRoute';
 
 const MAPBOX_ACCESS_TOKEN =
   'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
-
-type SnapPoints = {
-  collapsed: number;
-  mid: number;
-  expanded: number;
-};
-
-type GestureContext = {
-  startY: number;
-  offsetY: number;
-};
-
-type PinData = {
-  lat: number;
-  lng: number;
-  title?: string;
-  description?: string;
-};
-
-type RouteMetadata = {
-  waypoints?: WaypointData[];
-  pins?: PinData[];
-  options?: {
-    reverse: boolean;
-    closeLoop: boolean;
-    doubleBack: boolean;
-  };
-  coordinates?: any[];
-};
-
-type Route = Database['public']['Tables']['routes']['Row'] & {
-  creator: {
-    full_name: string;
-  } | null;
-  metadata: RouteMetadata;
-  waypoint_details: WaypointData[];
-  reviews?: {
-    id: string;
-    rating: number;
-    content: string;
-    difficulty: string;
-    visited_at: string;
-    created_at: string;
-    images: { url: string; description?: string }[];
-    user: { id: string; full_name: string };
-  }[];
-};
 
 type SearchResult = {
   id: string;
@@ -111,111 +51,23 @@ const DARK_THEME = {
   cardBackground: '#2D3130',
 };
 
-const styles = StyleSheet.create({
-  searchContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-    paddingTop: 8,
-  },
-  mapContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  previewContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'transparent',
-    paddingBottom: 0,
-  },
-  bottomSheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  handleContainer: {
-    paddingVertical: 8,
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-  },
-  routeListContainer: {
-    flex: 1,
-    overflow: 'hidden',
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  searchResultsContainer: {
-    position: 'absolute',
-    top: 60, // Below search bar
-    left: 0,
-    right: 0,
-    backgroundColor: '$background',
-    borderBottomWidth: 1,
-    borderBottomColor: '$borderColor',
-    maxHeight: '80%',
-  },
-  searchResultItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '$borderColor',
-  },
-  distanceText: {
-    fontSize: 14,
-    color: '$gray11',
-    marginLeft: 8,
-  },
-  searchOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    zIndex: 1,
-  },
-  searchView: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '$background',
-    zIndex: 2,
-    borderBottomWidth: 1,
-    borderBottomColor: '$borderColor',
-    paddingBottom: 8,
-  },
-  searchResultsList: {
-    maxHeight: '80%',
-    backgroundColor: '$background',
-  },
-  searchBackButton: {
-    padding: 8,
-  },
-});
-
 const BOTTOM_NAV_HEIGHT = 80; // Height of bottom navigation bar including safe area
+const deg2rad = (deg: number) => {
+  return deg * (Math.PI / 180);
+};
+
+// Helper function to calculate distance
+const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c; // Distance in km
+  return d;
+};
 
 export function MapScreen({ route }: { route: { params?: { selectedLocation?: any } } }) {
   const { t } = useTranslation();
@@ -247,21 +99,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   });
   const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
   const [showActionSheet, setShowActionSheet] = useState(false);
-
-  const { height: screenHeight } = Dimensions.get('window');
-  const snapPoints = useMemo(
-    () => ({
-      expanded: screenHeight * 0.2, // Fully expanded
-      mid: screenHeight * 0.4, // Show 60% of the screen
-      collapsed: screenHeight - BOTTOM_NAV_HEIGHT - 80, // Show more of the handle + title above nav bar
-    }),
-    [screenHeight],
-  );
-  const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.collapsed);
-  const translateY = useRef(new Animated.Value(snapPoints.collapsed)).current;
-  const lastGesture = useRef(snapPoints.collapsed);
-  const scrollOffset = useRef(0);
-  const isDragging = useRef(false);
 
   // Add selectedPin state
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
@@ -323,49 +160,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     setSelectedRoute(null);
     setSelectedPin(null);
   }, []);
-
-  /*
-  // Memoize getMapRegion to prevent recreation
-  const getMapRegion = useMemo(() => {
-    if (routes.length === 0) return null;
-
-    const allWaypoints = routes.flatMap(
-      route => (route.waypoint_details || route.metadata?.waypoints || []) as WaypointData[]
-    );
-
-    if (allWaypoints.length === 0) return null;
-
-    const latitudes = allWaypoints.map(wp => wp.lat);
-    const longitudes = allWaypoints.map(wp => wp.lng);
-
-    const minLat = Math.min(...latitudes);
-    const maxLat = Math.max(...latitudes);
-    const minLng = Math.min(...longitudes);
-    const maxLng = Math.max(...longitudes);
-
-    const latPadding = (maxLat - minLat) * 0.1;
-    const lngPadding = (maxLng - minLng) * 0.1;
-
-    const minDelta = 0.01;
-    const latDelta = Math.max(maxLat - minLat + latPadding, minDelta);
-    const lngDelta = Math.max(maxLng - minLng + lngPadding, minDelta);
-
-    return {
-      latitude: (minLat + maxLat) / 2,
-      longitude: (minLng + maxLng) / 2,
-      latitudeDelta: latDelta,
-      longitudeDelta: lngDelta
-    };
-  }, [routes]);
-
-  // Update region only when getMapRegion changes
-  useEffect(() => {
-    const newRegion = getMapRegion;
-    if (newRegion) {
-      setRegion(newRegion);
-    }
-  }, [getMapRegion]);
-  */
 
   // Optimize loadRoutes to prevent unnecessary re-renders
   const loadRoutes = useCallback(async () => {
@@ -472,99 +266,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     };
   }, [searchTimeout]);
 
-  const onGestureEvent = useCallback(
-    (event: PanGestureHandlerGestureEvent) => {
-      if (!isDragging.current) return;
-
-      const { translationY } = event.nativeEvent;
-      const newPosition = lastGesture.current + translationY;
-
-      // Add bounds checking
-      const maxTop = snapPoints.expanded; // Don't allow dragging above expanded position
-      const maxBottom = snapPoints.collapsed; // Don't allow dragging below collapsed position
-      const boundedPosition = Math.min(Math.max(newPosition, maxTop), maxBottom);
-
-      translateY.setValue(boundedPosition);
-    },
-    [snapPoints],
-  );
-
-  const snapTo = useCallback(
-    (point: number) => {
-      lastGesture.current = point;
-      setCurrentSnapPoint(point);
-
-      Animated.spring(translateY, {
-        toValue: point,
-        damping: 20,
-        mass: 1,
-        stiffness: 100,
-        overshootClamping: true,
-        restDisplacementThreshold: 0.01,
-        restSpeedThreshold: 0.01,
-        useNativeDriver: true,
-      }).start();
-    },
-    [translateY],
-  );
-
-  const onHandleStateChange = useCallback(
-    (event: PanGestureHandlerStateChangeEvent) => {
-      if (event.nativeEvent.state === State.BEGAN) {
-        isDragging.current = true;
-      } else if (event.nativeEvent.state === State.END) {
-        isDragging.current = false;
-        const { translationY, velocityY } = event.nativeEvent;
-        const currentPosition = lastGesture.current + translationY;
-
-        // Determine which snap point to go to based on position and velocity
-        let targetSnapPoint;
-        if (velocityY < -500) {
-          // Fast upward swipe - go to expanded
-          targetSnapPoint = snapPoints.expanded;
-        } else if (velocityY > 500) {
-          // Fast downward swipe - go to collapsed
-          targetSnapPoint = snapPoints.collapsed;
-        } else {
-          // Based on position
-          const positions = [snapPoints.expanded, snapPoints.mid, snapPoints.collapsed];
-          targetSnapPoint = positions.reduce((prev, curr) =>
-            Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
-          );
-        }
-
-        // Ensure the target point is within bounds
-        const boundedTarget = Math.min(
-          Math.max(targetSnapPoint, snapPoints.expanded),
-          snapPoints.collapsed,
-        );
-
-        snapTo(boundedTarget);
-      }
-    },
-    [snapPoints, snapTo],
-  );
-
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (isDragging.current) return;
-
-      const { contentOffset } = event.nativeEvent;
-      scrollOffset.current = contentOffset.y;
-
-      // If user is scrolling and sheet is not expanded, expand it
-      if (contentOffset.y > 0 && currentSnapPoint === snapPoints.collapsed) {
-        snapTo(snapPoints.mid);
-      }
-
-      // If user scrolls to top and sheet is expanded, collapse it
-      if (contentOffset.y === 0 && currentSnapPoint !== snapPoints.collapsed) {
-        snapTo(snapPoints.collapsed);
-      }
-    },
-    [currentSnapPoint, snapPoints, snapTo],
-  );
-
   // Update focus effect to reset both route and pin selection
   useFocusEffect(
     React.useCallback(() => {
@@ -661,7 +362,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         setFilteredRoutes(filteredByLocation);
 
         // Collapse bottom sheet to show more of the map
-        snapTo(snapPoints.collapsed);
+        // snapTo(snapPoints.collapsed);
       } catch (error: unknown) {
         console.error('Error in handleLocationSelect:', error);
         console.error('Error details:', {
@@ -671,7 +372,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         });
       }
     },
-    [routes, setRegion, snapPoints, calculateDistance, snapTo],
+    [routes, setRegion, calculateDistance],
   );
 
   // Update search results with distance
@@ -925,7 +626,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
       setFilteredRoutes(filtered);
     },
-    [routes, region],
+    [routes, region, getDistanceFromLatLonInKm],
   );
 
   // Handle filter button press
@@ -956,23 +657,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     // Directly render instead of using React element
     showModal(<RecordDrivingModal />);
   }, [showModal]);
-
-  // Helper function to calculate distance
-  const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Radius of the earth in km
-    const dLat = deg2rad(lat2 - lat1);
-    const dLon = deg2rad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const d = R * c; // Distance in km
-    return d;
-  };
-
-  const deg2rad = (deg: number) => {
-    return deg * (Math.PI / 180);
-  };
 
   // Check for recorded route data when screen is focused
   useFocusEffect(
@@ -1144,66 +828,17 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         </Pressable>
       </Modal>
 
-      {!selectedRoute && (
-        <PanGestureHandler
-          onGestureEvent={onGestureEvent}
-          onHandlerStateChange={onHandleStateChange}
-        >
-          <Animated.View
-            style={[
-              styles.bottomSheet,
-              {
-                height: screenHeight,
-                backgroundColor: DARK_THEME.bottomSheet,
-                transform: [{ translateY }],
-              },
-            ]}
-          >
-            <View style={styles.handleContainer}>
-              <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
-              <XStack alignItems="center" gap="$2">
-                <Feather name="map" size={16} color={DARK_THEME.iconColor} />
-                <Text fontSize="$4" fontWeight="600" color={DARK_THEME.text}>
-                  {filteredRoutes.length}{' '}
-                  {filteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
-                </Text>
-              </XStack>
-            </View>
-            <View style={styles.routeListContainer}>
-              <RouteList routes={filteredRoutes} onRefresh={loadRoutes} onScroll={handleScroll} />
-            </View>
-          </Animated.View>
-        </PanGestureHandler>
-      )}
+      <RoutesDrawer
+        selectedRoute={selectedRoute}
+        filteredRoutes={filteredRoutes}
+        loadRoutes={loadRoutes}
+      />
 
-      {selectedRoute && (
-        <View
-          style={{
-            position: 'absolute',
-            bottom: BOTTOM_NAV_HEIGHT,
-            left: 0,
-            right: 0,
-            backgroundColor: DARK_THEME.cardBackground,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            elevation: 5,
-          }}
-        >
-          <RoutePreviewCard
-            route={selectedRoute}
-            showMap={false}
-            onPress={() => {
-              navigation.navigate('RouteDetail', { routeId: selectedRoute.id });
-              setSelectedRoute(null);
-              setSelectedPin(null);
-            }}
-          />
-        </View>
-      )}
+      <SelectedRoute
+        selectedRoute={selectedRoute}
+        setSelectedRoute={setSelectedRoute}
+        setSelectedPin={setSelectedPin}
+      />
     </Screen>
   );
 }

@@ -1,42 +1,16 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Database } from '../lib/database.types';
+import { Route, RouteMetadata, WaypointData } from '@/src/types/route';
 
 type SpotType = Database['public']['Enums']['spot_type'];
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotVisibility = Database['public']['Enums']['spot_visibility'];
 
-export type WaypointData = {
-  lat: number;
-  lng: number;
-  title?: string;
-  description?: string;
-};
-
-export type RouteMetadata = {
-  waypoints?: WaypointData[];
-  pins?: any[];
-  options?: {
-    reverse: boolean;
-    closeLoop: boolean;
-    doubleBack: boolean;
-  };
-  coordinates?: any[];
-};
-
 export type MediaAttachment = {
   url: string;
   type: 'image' | 'video';
   description?: string;
-};
-
-export type Route = Database['public']['Tables']['routes']['Row'] & {
-  creator: {
-    full_name: string;
-  } | null;
-  metadata: RouteMetadata;
-  waypoint_details: WaypointData[];
-  media_attachments?: MediaAttachment[];
 };
 
 type RouteFilters = {
@@ -55,9 +29,7 @@ export function useRoutes() {
     setError(null);
 
     try {
-      let query = supabase
-        .from('routes')
-        .select(`
+      let query = supabase.from('routes').select(`
           *,
           creator:creator_id(full_name),
           reviews:route_reviews(count),
@@ -67,7 +39,7 @@ export function useRoutes() {
       if (filters?.difficulty) {
         query = query.eq('difficulty', filters.difficulty);
       }
-      
+
       if (filters?.spot_type) {
         query = query.eq('spot_type', filters.spot_type);
       }
@@ -81,20 +53,19 @@ export function useRoutes() {
       }
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
 
       // Transform the data to ensure proper typing
-      const transformedData = data?.map(route => ({
+      const transformedData = data?.map((route) => ({
         ...route,
-        metadata: route.metadata as RouteMetadata || {},
+        metadata: (route.metadata as RouteMetadata) || {},
         waypoint_details: (route.waypoint_details as WaypointData[]) || [],
         reviews: route.reviews || [],
-        average_rating: route.average_rating || []
+        average_rating: route.average_rating || [],
       })) as Route[];
 
       return transformedData;
-
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch routes';
       setError(message);
@@ -105,4 +76,6 @@ export function useRoutes() {
   }, []);
 
   return { fetchRoutes, loading, error };
-} 
+}
+
+export type { WaypointData, Route, RouteMetadata };

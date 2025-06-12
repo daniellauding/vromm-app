@@ -51,4 +51,4 @@ export const AppAnalytics = {
   trackSearch: async (searchTerm: string) => {
     await safeLogEvent('search', { search_term: searchTerm });
   },
-}; 
+};

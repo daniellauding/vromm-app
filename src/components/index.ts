@@ -4,4 +4,4 @@ export * from './Screen';
 export * from './Header';
 export * from './FormField';
 export * from './Map';
-export * from './Chip'; 
+export * from './Chip';

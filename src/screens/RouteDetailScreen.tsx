@@ -9,7 +9,7 @@ import {
   useColorScheme,
   Share,
   Linking,
-  Platform
+  Platform,
 } from 'react-native';
 import { YStack, XStack, Text, Card, Button, TextArea, Progress, Separator } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -150,7 +150,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     rating: 0,
     content: '',
     difficulty: 'beginner',
-    images: []
+    images: [],
   });
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
@@ -164,7 +164,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportData, setReportData] = useState({
     type: 'spam' as Database['public']['Enums']['report_type'],
-    content: ''
+    content: '',
   });
   const [carouselHeight, setCarouselHeight] = useState(300); // Height for the carousel
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -202,7 +202,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     // Listen for navigation focus events
     const unsubscribe = navigation.addListener('focus', () => {
       // Check if we need to refresh reviews
-      const params = navigation.getState().routes.find(r => r.name === 'RouteDetail')?.params;
+      const params = navigation.getState().routes.find((r) => r.name === 'RouteDetail')?.params;
       if (params && 'shouldRefreshReviews' in params) {
         loadReviews();
         // Clear the refresh flag
@@ -216,14 +216,14 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (!user) return;
-      
+
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single();
-          
+
         if (!error && data && data.role === 'admin') {
           setShowAdminControls(true);
         }
@@ -231,7 +231,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         console.error('Error checking admin status:', err);
       }
     };
-    
+
     checkAdminStatus();
   }, [user]);
 
@@ -252,7 +252,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           content
         ),
         average_rating:route_reviews(rating)
-        `
+        `,
       )
       .eq('id', routeId)
       .single();
@@ -264,20 +264,20 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
     // Parse JSON fields
     const waypoints = Array.isArray(routeResponse.waypoint_details)
-      ? routeResponse.waypoint_details.map(wp => ({
-          lat: typeof wp?.lat === 'string' ? parseFloat(wp.lat) : wp?.lat ?? 0,
-          lng: typeof wp?.lng === 'string' ? parseFloat(wp.lng) : wp?.lng ?? 0,
+      ? routeResponse.waypoint_details.map((wp) => ({
+          lat: typeof wp?.lat === 'string' ? parseFloat(wp.lat) : (wp?.lat ?? 0),
+          lng: typeof wp?.lng === 'string' ? parseFloat(wp.lng) : (wp?.lng ?? 0),
           title: String(wp?.title ?? ''),
           description: wp?.description ? String(wp.description) : undefined,
-          ...wp // Preserve other Json properties
+          ...wp, // Preserve other Json properties
         }))
       : [];
     const media = Array.isArray(routeResponse.media_attachments)
-      ? routeResponse.media_attachments.map(m => ({
+      ? routeResponse.media_attachments.map((m) => ({
           type: (m?.type as 'image' | 'video' | 'youtube') ?? 'image',
           url: String(m?.url ?? ''),
           description: m?.description ? String(m.description) : undefined,
-          ...m // Preserve other Json properties
+          ...m, // Preserve other Json properties
         }))
       : [];
 
@@ -288,7 +288,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       media_attachments: media as (MediaAttachment & Json)[],
       creator: routeResponse.creator || undefined,
       reviews: routeResponse.reviews || [],
-      average_rating: routeResponse.average_rating || []
+      average_rating: routeResponse.average_rating || [],
     };
 
     setRouteData(transformedData);
@@ -309,7 +309,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           user:profiles!user_id(
             full_name
           )
-        `
+        `,
         )
         .eq('route_id', routeId)
         .order('created_at', { ascending: false });
@@ -317,7 +317,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       if (error) throw error;
 
       const validReviews = (data as any[])?.map(
-        review =>
+        (review) =>
           ({
             id: review.id,
             user_id: review.user_id,
@@ -330,10 +330,10 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               : [],
             user: review.user
               ? {
-                  full_name: review.user.full_name
+                  full_name: review.user.full_name,
                 }
-              : undefined
-          } as Review)
+              : undefined,
+          }) as Review,
       );
 
       setReviews(validReviews || []);
@@ -387,7 +387,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         await supabase.from('saved_routes').insert({
           route_id: routeId,
           user_id: user.id,
-          saved_at: new Date().toISOString()
+          saved_at: new Date().toISOString(),
         });
       }
       setIsSaved(!isSaved);
@@ -410,28 +410,28 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           text: 'View My Review',
           onPress: () => {
             // Find the user's review in the reviews list
-            const userReview = reviews.find(review => review.user_id === user?.id);
+            const userReview = reviews.find((review) => review.user_id === user?.id);
             if (userReview) {
               Alert.alert(
                 'Your Review',
                 `Rating: ${userReview.rating}/5\n` +
                   `${userReview.content}\n` +
                   `Difficulty: ${userReview.difficulty}\n` +
-                  `Visited: ${new Date(userReview.visited_at || '').toLocaleDateString()}`
+                  `Visited: ${new Date(userReview.visited_at || '').toLocaleDateString()}`,
               );
             } else {
               Alert.alert(
                 'No Review Found',
-                "You have marked this route as driven but haven't left a review yet."
+                "You have marked this route as driven but haven't left a review yet.",
               );
             }
-          }
+          },
         },
         {
           text: 'Add New Review',
           onPress: () => {
             navigation.navigate('AddReview', { routeId: routeId });
-          }
+          },
         },
         {
           text: 'Unmark as Driven',
@@ -452,12 +452,12 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               console.error('Error unmarking route:', err);
               Alert.alert('Error', 'Failed to unmark route as driven');
             }
-          }
+          },
         },
         {
           text: 'Cancel',
-          style: 'cancel'
-        }
+          style: 'cancel',
+        },
       ]);
     } else {
       // First time marking as driven
@@ -478,7 +478,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         reporter_id: user.id,
         report_type: reportData.type,
         content: reportData.content,
-        status: 'pending'
+        status: 'pending',
       });
 
       setShowReportModal(false);
@@ -515,7 +515,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       await Share.share({
         message: routeData.description || `Check out this route: ${routeData.name}`,
         url: fullUrl, // iOS only
-        title: routeData.name
+        title: routeData.name,
       });
     } catch (error) {
       console.error('Error sharing:', error);
@@ -552,15 +552,15 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               console.error('Delete error:', err);
               Alert.alert('Error', 'Failed to delete route');
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
   const handleAdminDelete = async () => {
     if (!showAdminControls || !routeData) return;
-    
+
     Alert.alert(
       'Admin: Delete Route',
       'Are you sure you want to delete this route as an admin? This action cannot be undone.',
@@ -572,22 +572,22 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           onPress: async () => {
             try {
               const { error } = await supabase.from('routes').delete().eq('id', routeData.id);
-              
+
               if (error) throw error;
-              
+
               // Clear the route data before navigating
               setRouteData(null);
               navigation.goBack();
-              
+
               // Show confirmation
               Alert.alert('Success', 'Route deleted by admin');
             } catch (err) {
               console.error('Admin delete error:', err);
               Alert.alert('Error', 'Failed to delete route');
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
@@ -595,8 +595,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     if (!routeData?.waypoint_details?.length) return null;
 
     const waypoints = routeData.waypoint_details;
-    const latitudes = waypoints.map(wp => wp.lat);
-    const longitudes = waypoints.map(wp => wp.lng);
+    const latitudes = waypoints.map((wp) => wp.lat);
+    const longitudes = waypoints.map((wp) => wp.lng);
 
     const minLat = Math.min(...latitudes);
     const maxLat = Math.max(...latitudes);
@@ -614,7 +614,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       latitude: (minLat + maxLat) / 2,
       longitude: (minLng + maxLng) / 2,
       latitudeDelta: latDelta,
-      longitudeDelta: lngDelta
+      longitudeDelta: lngDelta,
     };
   }, [routeData?.waypoint_details]);
 
@@ -623,28 +623,28 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
     // Add map as first item if we have waypoints
     if (routeData?.waypoint_details?.length) {
-      const waypoints = routeData.waypoint_details.map(wp => ({
+      const waypoints = routeData.waypoint_details.map((wp) => ({
         latitude: wp.lat,
         longitude: wp.lng,
         title: wp.title,
-        description: wp.description
+        description: wp.description,
       }));
 
       // Calculate region from waypoints
-      const lats = waypoints.map(w => w.latitude);
-      const lngs = waypoints.map(w => w.longitude);
+      const lats = waypoints.map((w) => w.latitude);
+      const lngs = waypoints.map((w) => w.longitude);
       const region: Region = {
         latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
         longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
         latitudeDelta: Math.max(...lats) - Math.min(...lats) + 0.02,
-        longitudeDelta: Math.max(...lngs) - Math.min(...lngs) + 0.02
+        longitudeDelta: Math.max(...lngs) - Math.min(...lngs) + 0.02,
       };
 
       items.push({ type: 'map', waypoints, region });
     }
 
     // Add media attachments
-    routeData?.media_attachments?.forEach(attachment => {
+    routeData?.media_attachments?.forEach((attachment) => {
       items.push({ type: attachment.type, url: attachment.url });
     });
 
@@ -682,30 +682,30 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     const alertButtons: any[] = [
       {
         text: t('routeDetail.openInMaps'),
-        onPress: handleOpenInMaps
+        onPress: handleOpenInMaps,
       },
       {
         text: t('routeDetail.shareRoute'),
-        onPress: handleShare
+        onPress: handleShare,
       },
       user?.id === routeData?.creator_id
         ? {
             text: t('routeDetail.deleteRoute'),
             onPress: handleDelete,
-            style: 'destructive'
+            style: 'destructive',
           }
         : undefined,
       user?.id !== routeData?.creator_id
         ? {
             text: t('routeDetail.reportRoute'),
             onPress: () => setShowReportDialog(true),
-            style: 'destructive'
+            style: 'destructive',
           }
         : undefined,
       {
         text: t('common.cancel'),
-        style: 'cancel'
-      }
+        style: 'cancel',
+      },
     ].filter(Boolean);
 
     Alert.alert(t('routeDetail.routeOptions'), '', alertButtons);
@@ -726,7 +726,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     // Create waypoints string for intermediate points (skip first and last)
     const waypointsStr = waypoints
       .slice(1, -1)
-      .map(wp => `${wp.lat},${wp.lng}`)
+      .map((wp) => `${wp.lat},${wp.lng}`)
       .join('|');
 
     let url;
@@ -744,7 +744,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       }
     }
 
-    Linking.canOpenURL(url).then(supported => {
+    Linking.canOpenURL(url).then((supported) => {
       if (supported) {
         Linking.openURL(url);
       } else {
@@ -765,7 +765,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         user_id: user.id,
         route_id: routeId,
         started_at: new Date().toISOString(),
-        status: 'in_progress'
+        status: 'in_progress',
       });
 
       if (error) throw error;
@@ -846,7 +846,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       height: 8,
                       borderRadius: 4,
                       backgroundColor:
-                        index === activeMediaIndex ? 'white' : 'rgba(255,255,255,0.5)'
+                        index === activeMediaIndex ? 'white' : 'rgba(255,255,255,0.5)',
                     }}
                   />
                 ))}
@@ -939,7 +939,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       {getTranslation(
                         t,
                         `common.difficulty.${routeData.difficulty?.toLowerCase() || 'unknown'}`,
-                        routeData.difficulty?.toUpperCase() || ''
+                        routeData.difficulty?.toUpperCase() || '',
                       )}
                     </Text>
                     <Text fontSize="$4" color="$gray11">
@@ -949,7 +949,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       {getTranslation(
                         t,
                         `common.spotTypes.${routeData.spot_type?.toLowerCase() || 'unknown'}`,
-                        routeData.spot_type || ''
+                        routeData.spot_type || '',
                       )}
                     </Text>
                     <Text fontSize="$4" color="$gray11">
@@ -962,18 +962,18 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                             `common.categories.${routeData.category?.toLowerCase() || 'unknown'}`,
                             routeData.category
                               ?.split('_')
-                              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                              .join(' ')
+                              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                              .join(' '),
                           )
                         : ''}
                     </Text>
                   </XStack>
-                  
+
                   {/* Creator info with clickable name */}
                   {routeData.creator && (
                     <XStack alignItems="center" gap="$2" marginTop="$2">
-                      <Button 
-                        variant="secondary" 
+                      <Button
+                        variant="secondary"
                         icon={<Feather name="user" size={16} color={iconColor} />}
                         onPress={() => {
                           if (routeData?.creator?.id) {
@@ -987,7 +987,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       </Button>
                     </XStack>
                   )}
-                  
+
                   {routeData.description && (
                     <Text fontSize="$4" color="$gray11" marginTop="$2">
                       {routeData.description}
@@ -1005,18 +1005,18 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   <View style={{ height: 250, borderRadius: 12, overflow: 'hidden' }}>
                     <Map
                       waypoints={
-                        (routeData as RouteData)?.waypoint_details?.map(wp => ({
+                        (routeData as RouteData)?.waypoint_details?.map((wp) => ({
                           latitude: wp.lat,
                           longitude: wp.lng,
                           title: wp.title,
-                          description: wp.description
+                          description: wp.description,
                         })) || []
                       }
                       region={{
                         latitude: (routeData as RouteData)?.waypoint_details?.[0]?.lat || 0,
                         longitude: (routeData as RouteData)?.waypoint_details?.[0]?.lng || 0,
                         latitudeDelta: 0.02,
-                        longitudeDelta: 0.02
+                        longitudeDelta: 0.02,
                       }}
                     />
                   </View>
@@ -1070,17 +1070,17 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   {getTranslation(t, 'routeDetail.reportType', 'Report Type')}
                 </Text>
                 <XStack space="$2" flexWrap="wrap">
-                  {(['spam', 'harmful_content', 'privacy_issue', 'other'] as const).map(type => (
+                  {(['spam', 'harmful_content', 'privacy_issue', 'other'] as const).map((type) => (
                     <Button
                       key={type}
                       size="$2"
                       variant="outlined"
                       backgroundColor={reportData.type === type ? '$red10' : undefined}
-                      onPress={() => setReportData(prev => ({ ...prev, type }))}
+                      onPress={() => setReportData((prev) => ({ ...prev, type }))}
                     >
                       {type
                         .split('_')
-                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
                         .join(' ')}
                     </Button>
                   ))}
@@ -1094,11 +1094,11 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                 <TextArea
                   size="$4"
                   value={reportData.content}
-                  onChangeText={content => setReportData(prev => ({ ...prev, content }))}
+                  onChangeText={(content) => setReportData((prev) => ({ ...prev, content }))}
                   placeholder={getTranslation(
                     t,
                     'routeDetail.reportDetailsPlaceholder',
-                    'Please provide details about your report...'
+                    'Please provide details about your report...',
                   )}
                   numberOfLines={4}
                 />

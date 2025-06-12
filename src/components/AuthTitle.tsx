@@ -14,7 +14,7 @@ interface AuthTitleProps {
 export const AuthTitle: React.FC<AuthTitleProps> = ({
   titleKey,
   subtitleKey,
-  align = 'center'
+  align = 'center',
 }) => {
   const { t } = useT();
 

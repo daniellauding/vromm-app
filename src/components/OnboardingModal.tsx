@@ -4,7 +4,7 @@ import { YStack, Button } from 'tamagui';
 import { Onboarding, OnboardingSlide, completeOnboardingWithVersion } from './Onboarding';
 import {
   fetchOnboardingSlides,
-  resetOnboardingForCurrentUser
+  resetOnboardingForCurrentUser,
 } from '../services/onboardingService';
 import { useAuth } from '../context/AuthContext';
 import { Text } from './Text';
@@ -138,13 +138,13 @@ export function OnboardingModal({ visible, onClose, forceShow = false }: Onboard
 const styles = StyleSheet.create({
   centeredView: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)'
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalView: {
     flex: 1,
     backgroundColor: 'white',
     borderRadius: 20,
-    overflow: 'hidden'
+    overflow: 'hidden',
   },
   debugContainer: {
     position: 'absolute',
@@ -152,6 +152,6 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 100,
     width: 40,
-    height: 40
-  }
+    height: 40,
+  },
 });

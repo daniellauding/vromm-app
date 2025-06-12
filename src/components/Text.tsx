@@ -1,9 +1,9 @@
-import { styled, Text as TamaguiText, GetProps } from 'tamagui'
-import { sizes } from '../theme/sizes'
+import { styled, Text as TamaguiText, GetProps } from 'tamagui';
+import { sizes } from '../theme/sizes';
 
-export type TextSize = keyof typeof sizes.fontSize
-export type TextWeight = 'normal' | 'medium' | 'semibold' | 'bold'
-export type TextIntent = 'default' | 'muted' | 'success' | 'error' | 'warning'
+export type TextSize = keyof typeof sizes.fontSize;
+export type TextWeight = 'normal' | 'medium' | 'semibold' | 'bold';
+export type TextIntent = 'default' | 'muted' | 'success' | 'error' | 'warning';
 
 export const Text = styled(TamaguiText, {
   name: 'Text',
@@ -44,4 +44,4 @@ export const Text = styled(TamaguiText, {
     weight: 'normal',
     intent: 'default',
   },
-}) 
+});

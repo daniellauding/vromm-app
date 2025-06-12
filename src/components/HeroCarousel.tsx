@@ -1,6 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { YStack, XStack, Text, Button, Card, ScrollView } from 'tamagui';
-import { Image, ImageSourcePropType, Dimensions, View, StyleSheet, useColorScheme } from 'react-native';
+import {
+  Image,
+  ImageSourcePropType,
+  Dimensions,
+  View,
+  StyleSheet,
+  useColorScheme,
+} from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
@@ -44,7 +51,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#00ffbc',
     borderColor: '#145251',
     borderWidth: 2,
-  }
+  },
 });
 
 export function HeroCarousel({
@@ -85,22 +92,22 @@ export function HeroCarousel({
   };
 
   const getMapRegion = (item: Route) => {
-    const waypointsData = (item.waypoint_details || item.metadata?.waypoints || []);
+    const waypointsData = item.waypoint_details || item.metadata?.waypoints || [];
     if (waypointsData.length > 0) {
-      const latitudes = waypointsData.map(wp => Number(wp.lat));
-      const longitudes = waypointsData.map(wp => Number(wp.lng));
-      
+      const latitudes = waypointsData.map((wp) => Number(wp.lat));
+      const longitudes = waypointsData.map((wp) => Number(wp.lng));
+
       const minLat = Math.min(...latitudes);
       const maxLat = Math.max(...latitudes);
       const minLng = Math.min(...longitudes);
       const maxLng = Math.max(...longitudes);
-      
+
       const latPadding = (maxLat - minLat) * 0.1;
       const lngPadding = (maxLng - minLng) * 0.1;
-      
+
       const minDelta = 0.01;
-      const latDelta = Math.max((maxLat - minLat) + latPadding, minDelta);
-      const lngDelta = Math.max((maxLng - minLng) + lngPadding, minDelta);
+      const latDelta = Math.max(maxLat - minLat + latPadding, minDelta);
+      const lngDelta = Math.max(maxLng - minLng + lngPadding, minDelta);
 
       return {
         latitude: (minLat + maxLat) / 2,
@@ -113,8 +120,8 @@ export function HeroCarousel({
   };
 
   const getWaypoints = (item: Route) => {
-    const waypointsData = (item.waypoint_details || item.metadata?.waypoints || []);
-    return waypointsData.map(wp => ({
+    const waypointsData = item.waypoint_details || item.metadata?.waypoints || [];
+    return waypointsData.map((wp) => ({
       latitude: Number(wp.lat),
       longitude: Number(wp.lng),
       title: wp.title?.toString(),
@@ -122,9 +129,7 @@ export function HeroCarousel({
     }));
   };
 
-  const renderCustomMarker = () => (
-    <View style={styles.customMarker} />
-  );
+  const renderCustomMarker = () => <View style={styles.customMarker} />;
 
   if (items.length === 0) return null;
 
@@ -148,7 +153,7 @@ export function HeroCarousel({
           </XStack>
         </XStack>
       )}
-      
+
       <ScrollView
         ref={scrollViewRef}
         horizontal
@@ -163,7 +168,7 @@ export function HeroCarousel({
           const imageUrl = getImageUrl(item);
           const region = showMapPreview ? getMapRegion(item) : null;
           const waypoints = showMapPreview ? getWaypoints(item) : [];
-          
+
           return (
             <Card
               key={item.id}
@@ -217,8 +222,12 @@ export function HeroCarousel({
                   </Text>
                   {item.creator && (
                     <XStack space="$1" alignItems="center" marginTop="$1">
-                      <Feather name="user" size={14} color={colorScheme === 'dark' ? 'white' : 'black'} />
-                      <Text 
+                      <Feather
+                        name="user"
+                        size={14}
+                        color={colorScheme === 'dark' ? 'white' : 'black'}
+                      />
+                      <Text
                         color="$gray11"
                         size="xs"
                         onPress={() => {
@@ -238,12 +247,7 @@ export function HeroCarousel({
                     {item.difficulty?.toUpperCase()}
                   </Text>
                   {item.description && (
-                    <Text
-                      size="sm"
-                      color="$gray11"
-                      numberOfLines={2}
-                      ellipsizeMode="tail"
-                    >
+                    <Text size="sm" color="$gray11" numberOfLines={2} ellipsizeMode="tail">
                       {item.description}
                     </Text>
                   )}
@@ -253,7 +257,7 @@ export function HeroCarousel({
           );
         })}
       </ScrollView>
-      
+
       {!showTitle && (
         <XStack justifyContent="center" alignItems="center" py="$2">
           {items.map((_, index) => (
@@ -270,4 +274,4 @@ export function HeroCarousel({
       )}
     </YStack>
   );
-} 
+}

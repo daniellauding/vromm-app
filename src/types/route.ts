@@ -59,4 +59,40 @@ export type RouteData = Database['public']['Tables']['routes']['Row'] & {
   };
   exercises?: Exercise[];
   media?: MediaItem[];
-}; 
+};
+
+export type PinData = {
+  lat: number;
+  lng: number;
+  title?: string;
+  description?: string;
+};
+
+export type RouteMetadata = {
+  waypoints?: WaypointData[];
+  pins?: PinData[];
+  options?: {
+    reverse: boolean;
+    closeLoop: boolean;
+    doubleBack: boolean;
+  };
+  coordinates?: any[];
+};
+
+export type Route = Database['public']['Tables']['routes']['Row'] & {
+  creator: {
+    full_name: string;
+  } | null;
+  metadata: RouteMetadata;
+  waypoint_details: WaypointData[];
+  reviews?: {
+    id: string;
+    rating: number;
+    content: string;
+    difficulty: string;
+    visited_at: string;
+    created_at: string;
+    images: { url: string; description?: string }[];
+    user: { id: string; full_name: string };
+  }[];
+};

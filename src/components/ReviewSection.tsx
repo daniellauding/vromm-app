@@ -53,7 +53,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
     content: '',
     difficulty: 'beginner' as DifficultyLevel,
     images: [] as ReviewImage[],
-    visited_at: new Date().toISOString()
+    visited_at: new Date().toISOString(),
   });
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -61,14 +61,14 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (!user) return;
-      
+
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single();
-          
+
         if (!error && data && data.role === 'admin') {
           setIsAdmin(true);
         }
@@ -76,7 +76,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
         console.error('Error checking admin status:', err);
       }
     };
-    
+
     checkAdminStatus();
   }, [user]);
 
@@ -92,18 +92,18 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
         quality: 0.8,
-        base64: true
+        base64: true,
       });
 
       if (!result.canceled) {
-        const newImages: ReviewImage[] = result.assets.map(asset => ({
+        const newImages: ReviewImage[] = result.assets.map((asset) => ({
           id: Date.now().toString() + Math.random(),
           uri: asset.uri,
-          base64: asset.base64 || undefined
+          base64: asset.base64 || undefined,
         }));
-        setNewReview(prev => ({
+        setNewReview((prev) => ({
           ...prev,
-          images: [...prev.images, ...newImages]
+          images: [...prev.images, ...newImages],
         }));
       }
     } catch (err) {
@@ -123,7 +123,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
 
       // Upload images first
       const uploadedImages = await Promise.all(
-        newReview.images.map(async image => {
+        newReview.images.map(async (image) => {
           if (!image.base64) return null;
 
           const fileName = `${Date.now()}-${Math.random()}.jpg`;
@@ -133,20 +133,20 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
             .from('review-images')
             .upload(path, decode(image.base64), {
               contentType: 'image/jpeg',
-              upsert: true
+              upsert: true,
             });
 
           if (uploadError) throw uploadError;
 
           const {
-            data: { publicUrl }
+            data: { publicUrl },
           } = supabase.storage.from('review-images').getPublicUrl(path);
 
           return {
             url: publicUrl,
-            description: image.description
+            description: image.description,
           };
-        })
+        }),
       );
 
       // Create review
@@ -157,7 +157,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
         content: newReview.content,
         difficulty: newReview.difficulty,
         visited_at: newReview.visited_at,
-        images: uploadedImages.filter(Boolean)
+        images: uploadedImages.filter(Boolean),
       });
 
       if (reviewError) throw reviewError;
@@ -171,7 +171,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
         content: '',
         difficulty: 'beginner',
         images: [],
-        visited_at: new Date().toISOString()
+        visited_at: new Date().toISOString(),
       });
       setShowReviewForm(false);
       setStep(1);
@@ -189,7 +189,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
   // Add admin delete review function
   const handleAdminDeleteReview = async (reviewId: string) => {
     if (!isAdmin) return;
-    
+
     Alert.alert(
       'Admin: Delete Review',
       'Are you sure you want to delete this review as an admin? This action cannot be undone.',
@@ -200,25 +200,22 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('route_reviews')
-                .delete()
-                .eq('id', reviewId);
-              
+              const { error } = await supabase.from('route_reviews').delete().eq('id', reviewId);
+
               if (error) throw error;
-              
+
               // Refresh reviews
               onReviewAdded();
-              
+
               // Show confirmation
               Alert.alert('Success', 'Review deleted by admin');
             } catch (err) {
               console.error('Admin delete review error:', err);
               Alert.alert('Error', 'Failed to delete review');
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
@@ -231,13 +228,13 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
               {t('reviewSection.rate')}
             </Text>
             <XStack space="$2" justifyContent="center">
-              {[1, 2, 3, 4, 5].map(rating => (
+              {[1, 2, 3, 4, 5].map((rating) => (
                 <Button
                   key={rating}
                   size="$4"
                   variant="outlined"
                   backgroundColor={newReview.rating >= rating ? '$yellow10' : undefined}
-                  onPress={() => setNewReview(prev => ({ ...prev, rating }))}
+                  onPress={() => setNewReview((prev) => ({ ...prev, rating }))}
                 >
                   <Feather
                     name="star"
@@ -266,7 +263,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
             </Text>
             <TextArea
               value={newReview.content}
-              onChangeText={content => setNewReview(prev => ({ ...prev, content }))}
+              onChangeText={(content) => setNewReview((prev) => ({ ...prev, content }))}
               placeholder={t('review.reviewPlaceholder')}
               numberOfLines={4}
               size="$4"
@@ -281,7 +278,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
             </Button>
             {newReview.images.length > 0 && (
               <XStack flexWrap="wrap" gap="$2">
-                {newReview.images.map(image => (
+                {newReview.images.map((image) => (
                   <Card key={image.id} bordered elevate size="$2" padding="$2">
                     <Image
                       source={{ uri: image.uri }}
@@ -295,9 +292,9 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
                       variant="outlined"
                       backgroundColor="$red10"
                       onPress={() =>
-                        setNewReview(prev => ({
+                        setNewReview((prev) => ({
                           ...prev,
-                          images: prev.images.filter(img => img.id !== image.id)
+                          images: prev.images.filter((img) => img.id !== image.id),
                         }))
                       }
                     >
@@ -329,11 +326,11 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
                 {t('reviewSection.difficultyLevel')}
               </Text>
               <XStack flexWrap="wrap" gap="$2">
-                {['beginner', 'intermediate', 'advanced'].map(level => (
+                {['beginner', 'intermediate', 'advanced'].map((level) => (
                   <Button
                     key={level}
                     onPress={() =>
-                      setNewReview(prev => ({ ...prev, difficulty: level as DifficultyLevel }))
+                      setNewReview((prev) => ({ ...prev, difficulty: level as DifficultyLevel }))
                     }
                     variant="outlined"
                     backgroundColor={newReview.difficulty === level ? '$blue10' : undefined}
@@ -391,8 +388,8 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
                   {step === 1
                     ? t('reviewSection.stepRating')
                     : step === 2
-                    ? t('reviewSection.stepReview')
-                    : t('reviewSection.stepDetails')}
+                      ? t('reviewSection.stepReview')
+                      : t('reviewSection.stepDetails')}
                 </Text>
                 <Button
                   onPress={() => {
@@ -403,7 +400,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
                       content: '',
                       difficulty: 'beginner',
                       images: [],
-                      visited_at: new Date().toISOString()
+                      visited_at: new Date().toISOString(),
                     });
                   }}
                   variant="outlined"
@@ -426,7 +423,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
                 {t('routeDetail.noReviews')}
               </Text>
             ) : (
-              reviews.map(review => (
+              reviews.map((review) => (
                 <Card key={review.id} bordered size="$4" padding="$4">
                   <YStack space="$2">
                     <XStack space="$2" alignItems="center" justifyContent="space-between">
@@ -440,7 +437,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
                           </Text>
                         </YStack>
                       </XStack>
-                      
+
                       {isAdmin && (
                         <Button
                           size="$2"

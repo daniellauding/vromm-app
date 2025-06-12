@@ -21,20 +21,20 @@ export function UsersList() {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
-  
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
-        
+
         const { data, error } = await supabase
           .from('profiles')
           .select('id, full_name, avatar_url, role, location, created_at')
           .order('created_at', { ascending: false })
           .limit(10);
-          
+
         if (error) throw error;
-        
+
         setUsers(data || []);
       } catch (error) {
         console.error('Error fetching users:', error);
@@ -42,14 +42,14 @@ export function UsersList() {
         setLoading(false);
       }
     };
-    
+
     fetchUsers();
   }, []);
-  
+
   const navigateToProfile = (userId: string) => {
     navigation.navigate('PublicProfile', { userId });
   };
-  
+
   if (loading) {
     return (
       <XStack padding="$4" justifyContent="center">
@@ -57,7 +57,7 @@ export function UsersList() {
       </XStack>
     );
   }
-  
+
   if (users.length === 0) {
     return (
       <XStack padding="$4" justifyContent="center">
@@ -65,11 +65,11 @@ export function UsersList() {
       </XStack>
     );
   }
-  
+
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       <XStack space="$4" paddingHorizontal="$4">
-        {users.map(user => (
+        {users.map((user) => (
           <TouchableOpacity
             key={user.id}
             onPress={() => navigateToProfile(user.id)}
@@ -92,20 +92,20 @@ export function UsersList() {
                   style={{ width: 70, height: 70, borderRadius: 35 }}
                 />
               ) : (
-                <View 
-                  style={{ 
-                    width: 70, 
-                    height: 70, 
-                    borderRadius: 35, 
-                    backgroundColor: colorScheme === 'dark' ? '#444' : '#eee', 
-                    alignItems: 'center', 
-                    justifyContent: 'center' 
+                <View
+                  style={{
+                    width: 70,
+                    height: 70,
+                    borderRadius: 35,
+                    backgroundColor: colorScheme === 'dark' ? '#444' : '#eee',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
                   <Feather name="user" size={30} color={colorScheme === 'dark' ? '#ddd' : '#666'} />
                 </View>
               )}
-              
+
               {/* Name */}
               <Text
                 textAlign="center"
@@ -116,15 +116,17 @@ export function UsersList() {
               >
                 {user.full_name || 'Unknown'}
               </Text>
-              
+
               {/* Role badge */}
               {user.role && (
                 <View
                   style={{
-                    backgroundColor: 
-                      user.role === 'student' ? '#4B6BFF33' : 
-                      user.role === 'instructor' ? '#34C75933' : 
-                      '#AF52DE33',
+                    backgroundColor:
+                      user.role === 'student'
+                        ? '#4B6BFF33'
+                        : user.role === 'instructor'
+                          ? '#34C75933'
+                          : '#AF52DE33',
                     paddingHorizontal: 8,
                     paddingVertical: 4,
                     borderRadius: 12,
@@ -133,9 +135,11 @@ export function UsersList() {
                   <Text
                     fontSize="$2"
                     color={
-                      user.role === 'student' ? '#4B6BFF' : 
-                      user.role === 'instructor' ? '#34C759' : 
-                      '#AF52DE'
+                      user.role === 'student'
+                        ? '#4B6BFF'
+                        : user.role === 'instructor'
+                          ? '#34C759'
+                          : '#AF52DE'
                     }
                     fontWeight="bold"
                   >
@@ -143,11 +147,15 @@ export function UsersList() {
                   </Text>
                 </View>
               )}
-              
+
               {/* Location (if available) */}
               {user.location && (
                 <XStack alignItems="center" gap="$1">
-                  <Feather name="map-pin" size={10} color={colorScheme === 'dark' ? '#ddd' : '#666'} />
+                  <Feather
+                    name="map-pin"
+                    size={10}
+                    color={colorScheme === 'dark' ? '#ddd' : '#666'}
+                  />
                   <Text fontSize="$2" color="$gray11" numberOfLines={1} ellipsizeMode="tail">
                     {user.location}
                   </Text>
@@ -159,4 +167,4 @@ export function UsersList() {
       </XStack>
     </ScrollView>
   );
-} 
+}

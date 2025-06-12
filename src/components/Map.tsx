@@ -203,7 +203,6 @@ export function Map({
     async ({ region }: { region: Region | null }) => {
       if (!region || !waypoints.length) return [];
 
-      console.log('calculateClusters', waypoints.length);
       const bbox: GeoJSON.BBox = [
         region.longitude - region.longitudeDelta / 2, // west
         region.latitude - region.latitudeDelta / 2, // south
@@ -299,11 +298,11 @@ export function Map({
             lineJoin="round"
           />
         )}
-        
-        {clusters.map((cluster) => {
+
+        {clusters.map((cluster, index) => {
           return (
             <WaypointMarker
-              key={cluster.properties.cluster_id ?? cluster.properties.id ?? cluster.id}
+              key={cluster.properties.cluster_id ?? cluster.properties.id ?? cluster.id ?? index}
               cluster={cluster}
               onMarkerPress={onMarkerPress}
               customMarker={customMarker}

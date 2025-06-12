@@ -10,7 +10,14 @@ export type FilterCategory = {
   id: string;
   label: string;
   value: string;
-  type: 'difficulty' | 'spot_type' | 'category' | 'transmission_type' | 'activity_level' | 'best_season' | 'vehicle_types';
+  type:
+    | 'difficulty'
+    | 'spot_type'
+    | 'category'
+    | 'transmission_type'
+    | 'activity_level'
+    | 'best_season'
+    | 'vehicle_types';
 };
 
 export type RootStackParamList = {
@@ -34,7 +41,19 @@ export type RootStackParamList = {
   RouteList: {
     title: string;
     routes: Route[];
-    type: 'saved' | 'driven' | 'created' | 'nearby' | 'difficulty' | 'spot_type' | 'category' | 'city' | 'transmission_type' | 'activity_level' | 'best_season' | 'vehicle_types';
+    type:
+      | 'saved'
+      | 'driven'
+      | 'created'
+      | 'nearby'
+      | 'difficulty'
+      | 'spot_type'
+      | 'category'
+      | 'city'
+      | 'transmission_type'
+      | 'activity_level'
+      | 'best_season'
+      | 'vehicle_types';
     activeFilter?: FilterCategory;
   };
 };
@@ -63,4 +82,4 @@ export type RouteDetailRouteProp = RouteProp<RootStackParamList, 'RouteDetail'>;
 export interface RouteDetailProps {
   route: RouteDetailRouteProp;
   navigation: NativeStackNavigationProp<RootStackParamList, 'RouteDetail'>;
-} 
+}

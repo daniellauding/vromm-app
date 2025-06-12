@@ -27,24 +27,24 @@ export const AuthButton: React.FC<AuthButtonProps> = ({
       case 'primary':
         return {
           backgroundColor: '$blue10',
-          color: 'white'
+          color: 'white',
         };
       case 'secondary':
         return {
           backgroundColor: '$blue3',
-          color: '$blue10'
+          color: '$blue10',
         };
       case 'outline':
         return {
           backgroundColor: 'transparent',
           borderWidth: 1,
           borderColor: '$blue8',
-          color: '$blue10'
+          color: '$blue10',
         };
       case 'text':
         return {
           backgroundColor: 'transparent',
-          color: '$blue10'
+          color: '$blue10',
         };
       default:
         return {};

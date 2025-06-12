@@ -7,7 +7,7 @@ export const tokens = {
     backgroundHover: '#242424',
     backgroundPress: '#2A2A2A',
     backgroundFocus: '#242424',
-    
+
     // Gray scale
     gray50: '#f9fafb',
     gray100: '#f3f4f6',
@@ -19,7 +19,7 @@ export const tokens = {
     gray700: '#374151',
     gray800: '#1f2937',
     gray900: '#111827',
-    
+
     // Indigo scale
     indigo50: '#eef2ff',
     indigo100: '#e0e7ff',
@@ -43,7 +43,7 @@ export const tokens = {
     emerald700: '#047857',
     emerald800: '#065f46',
     emerald900: '#064e3b',
-    
+
     // Red scale
     red50: '#fef2f2',
     red100: '#fee2e2',
@@ -56,7 +56,7 @@ export const tokens = {
     red800: '#991b1b',
     red900: '#7f1d1d',
   },
-  
+
   // Font sizes
   fontSize: {
     1: 12,
@@ -71,7 +71,7 @@ export const tokens = {
     10: 60,
     true: 16,
   },
-  
+
   // Line heights
   lineHeight: {
     1: 16,
@@ -86,7 +86,7 @@ export const tokens = {
     10: 72,
     true: 24,
   },
-  
+
   // Spacing
   space: {
     1: 4,
@@ -101,7 +101,7 @@ export const tokens = {
     10: 64,
     true: 16,
   },
-  
+
   // Sizes
   size: {
     1: 4,
@@ -116,7 +116,7 @@ export const tokens = {
     10: 64,
     true: 16,
   },
-  
+
   // Border radius
   radius: {
     1: 2,
@@ -131,7 +131,7 @@ export const tokens = {
     10: 48,
     true: 8,
   },
-  
+
   // Z-index
   zIndex: {
     1: 100,
@@ -146,4 +146,4 @@ export const tokens = {
     10: 1000,
     true: 0,
   },
-} as const; 
+} as const;

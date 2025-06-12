@@ -36,7 +36,7 @@ export function ForgotPasswordScreen() {
       setMessage('');
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'com.vromm.app://reset-password'
+        redirectTo: 'com.vromm.app://reset-password',
       });
 
       if (error) {

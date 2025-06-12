@@ -10,9 +10,9 @@ export { useT } from '../hooks/useT';
 export { useTranslation } from '../contexts/TranslationContext';
 
 // Re-export translation service utilities
-export { 
+export {
   getCurrentLanguage,
   setCurrentLanguage,
   clearTranslationCache,
-  checkTranslationsVersion
-} from '../services/translationService'; 
+  checkTranslationsVersion,
+} from '../services/translationService';

@@ -47,7 +47,7 @@ export function ContentDemoScreen() {
     try {
       await clearContentCache();
       // Force refresh of all content components
-      setReloadKey(prev => prev + 1);
+      setReloadKey((prev) => prev + 1);
       alert('Content cache cleared successfully');
     } catch (error) {
       console.error('Error clearing cache:', error);
@@ -165,9 +165,9 @@ export function ContentDemoScreen() {
 
 const styles = StyleSheet.create({
   scrollView: {
-    flex: 1
+    flex: 1,
   },
   contentContainer: {
-    paddingBottom: 40
-  }
+    paddingBottom: 40,
+  },
 });

@@ -36,21 +36,23 @@ export const setupTranslationSubscription = (): void => {
         {
           event: '*',
           schema: 'public',
-          table: 'translations'
+          table: 'translations',
         },
         (payload) => {
           logger.info('[TRANSLATIONS] Real-time update received:', payload);
           console.log('[TRANSLATIONS] Translation changed, refreshing cache');
           // Force refresh translations when any change occurs
-          forceRefreshTranslations().catch(err => 
-            logger.error('[TRANSLATIONS] Error refreshing after real-time update:', err)
+          forceRefreshTranslations().catch((err) =>
+            logger.error('[TRANSLATIONS] Error refreshing after real-time update:', err),
           );
-        }
+        },
       )
       .subscribe((status) => {
         logger.info(`[TRANSLATIONS] Subscription status: ${status}`);
         subscriptionActive = status === 'SUBSCRIBED';
-        console.log(`[TRANSLATIONS] Real-time subscription ${subscriptionActive ? 'active' : 'failed'}`);
+        console.log(
+          `[TRANSLATIONS] Real-time subscription ${subscriptionActive ? 'active' : 'failed'}`,
+        );
       });
 
     // Cleanup function for when app is unmounted
@@ -76,11 +78,14 @@ setupTranslationSubscription();
 /**
  * Fetches translations from Supabase for a specific language
  */
-export const fetchTranslations = async (language: Language = 'en', forceRefresh = false): Promise<Record<string, string>> => {
+export const fetchTranslations = async (
+  language: Language = 'en',
+  forceRefresh = false,
+): Promise<Record<string, string>> => {
   try {
     // Always check if an update is needed
     const needsUpdate = await checkTranslationsVersion();
-    
+
     // First try to get cached translations (if not forcing refresh and no update is needed)
     if (!forceRefresh && !needsUpdate) {
       const cachedTranslations = await getCachedTranslations(language);
@@ -97,7 +102,7 @@ export const fetchTranslations = async (language: Language = 'en', forceRefresh 
     // If no cache, fetch from Supabase
     // Platform-specific queries
     const currentPlatform = Platform.OS === 'web' ? 'web' : 'mobile';
-    
+
     const { data, error } = await supabase
       .from('translations')
       .select('key, value, platform')
@@ -113,13 +118,13 @@ export const fetchTranslations = async (language: Language = 'en', forceRefresh 
 
     // Convert to record for easy lookup
     const translations: Record<string, string> = {};
-    data?.forEach(item => {
+    data?.forEach((item) => {
       translations[item.key] = item.value;
     });
 
     // Cache the translations
     await cacheTranslations(language, translations);
-    
+
     return translations;
   } catch (error) {
     logger.error('Error in fetchTranslations:', error);
@@ -130,15 +135,17 @@ export const fetchTranslations = async (language: Language = 'en', forceRefresh 
 /**
  * Gets cached translations for a specific language
  */
-export const getCachedTranslations = async (language: Language): Promise<Record<string, string> | null> => {
+export const getCachedTranslations = async (
+  language: Language,
+): Promise<Record<string, string> | null> => {
   try {
     const cacheKey = `${TRANSLATION_CACHE_KEY}_${language}`;
     const cachedData = await AsyncStorage.getItem(cacheKey);
-    
+
     if (cachedData) {
       return JSON.parse(cachedData);
     }
-    
+
     return null;
   } catch (error) {
     logger.error('Error getting cached translations:', error);
@@ -149,11 +156,14 @@ export const getCachedTranslations = async (language: Language): Promise<Record<
 /**
  * Caches translations for a specific language
  */
-export const cacheTranslations = async (language: Language, translations: Record<string, string>): Promise<void> => {
+export const cacheTranslations = async (
+  language: Language,
+  translations: Record<string, string>,
+): Promise<void> => {
   try {
     const cacheKey = `${TRANSLATION_CACHE_KEY}_${language}`;
     await AsyncStorage.setItem(cacheKey, JSON.stringify(translations));
-    
+
     // Also update the version timestamp
     await AsyncStorage.setItem(TRANSLATION_VERSION_KEY, Date.now().toString());
   } catch (error) {
@@ -169,9 +179,9 @@ export const clearTranslationCache = async (): Promise<void> => {
     const keys = [
       `${TRANSLATION_CACHE_KEY}_en`,
       `${TRANSLATION_CACHE_KEY}_sv`,
-      TRANSLATION_VERSION_KEY
+      TRANSLATION_VERSION_KEY,
     ];
-    
+
     await AsyncStorage.multiRemove(keys);
     logger.info('Translation cache cleared');
   } catch (error) {
@@ -190,25 +200,25 @@ export const checkTranslationsVersion = async (): Promise<boolean> => {
       .select('updated_at')
       .order('updated_at', { ascending: false })
       .limit(1);
-    
+
     if (error) {
       logger.error('Error checking translations version:', error);
       return false;
     }
-    
+
     // If we have data, check against our stored version
     if (data && data.length > 0) {
       const latestUpdateTime = new Date(data[0].updated_at).getTime();
       const storedVersionStr = await AsyncStorage.getItem(TRANSLATION_VERSION_KEY);
-      
+
       if (!storedVersionStr) {
         return true; // No stored version, need to refresh
       }
-      
+
       const storedVersion = parseInt(storedVersionStr, 10);
       return latestUpdateTime > storedVersion;
     }
-    
+
     return false;
   } catch (error) {
     logger.error('Error in checkTranslationsVersion:', error);
@@ -249,11 +259,11 @@ export const setCurrentLanguage = async (language: Language): Promise<void> => {
 export const getTranslation = async (key: string, language?: Language): Promise<string> => {
   try {
     // If language not provided, get the current language
-    const currentLanguage = language || await getCurrentLanguage();
-    
+    const currentLanguage = language || (await getCurrentLanguage());
+
     // Get translations for the language
     const translations = await fetchTranslations(currentLanguage);
-    
+
     // Return the translation or the key itself as fallback
     return translations[key] || key;
   } catch (error) {
@@ -265,30 +275,33 @@ export const getTranslation = async (key: string, language?: Language): Promise<
 /**
  * Gets multiple translations by keys
  */
-export const getTranslations = async (keys: string[], language?: Language): Promise<Record<string, string>> => {
+export const getTranslations = async (
+  keys: string[],
+  language?: Language,
+): Promise<Record<string, string>> => {
   try {
     // If language not provided, get the current language
-    const currentLanguage = language || await getCurrentLanguage();
-    
+    const currentLanguage = language || (await getCurrentLanguage());
+
     // Get translations for the language
     const translations = await fetchTranslations(currentLanguage);
-    
+
     // Filter to only the requested keys
     const result: Record<string, string> = {};
-    keys.forEach(key => {
+    keys.forEach((key) => {
       result[key] = translations[key] || key;
     });
-    
+
     return result;
   } catch (error) {
     logger.error('Error getting translations:', error);
-    
+
     // Return keys as values as fallback
     const result: Record<string, string> = {};
-    keys.forEach(key => {
+    keys.forEach((key) => {
       result[key] = key;
     });
-    
+
     return result;
   }
 };
@@ -301,10 +314,10 @@ export const getTranslations = async (keys: string[], language?: Language): Prom
 export const forceRefreshTranslations = async (language?: Language): Promise<void> => {
   try {
     console.log('[TRANSLATIONS] Force refreshing translations');
-    
+
     // Clear ALL translation caches (this service and LanguageContext)
     await clearAllTranslationCaches();
-    
+
     // If a specific language is provided, fetch only that language
     if (language) {
       await fetchTranslations(language);
@@ -330,22 +343,18 @@ export const clearAllTranslationCaches = async (): Promise<void> => {
       `${TRANSLATION_CACHE_KEY}_en`,
       `${TRANSLATION_CACHE_KEY}_sv`,
       TRANSLATION_VERSION_KEY,
-      CURRENT_LANGUAGE_KEY
+      CURRENT_LANGUAGE_KEY,
     ];
-    
+
     // Clear caches from LanguageContext
-    const languageContextKeys = [
-      '@translations_cache',
-      '@translations_timestamp',
-      '@language'
-    ];
-    
+    const languageContextKeys = ['@translations_cache', '@translations_timestamp', '@language'];
+
     // Combine all keys to clear
     const allKeys = [...serviceKeys, ...languageContextKeys];
-    
+
     // Remove all keys
     await AsyncStorage.multiRemove(allKeys);
-    
+
     logger.info('[TRANSLATIONS] ALL translation caches cleared');
     console.log('[TRANSLATIONS] Cleared all translation caches:', allKeys);
   } catch (error) {
@@ -361,21 +370,23 @@ export const debugTranslations = async (): Promise<void> => {
     const enCache = await getCachedTranslations('en');
     const svCache = await getCachedTranslations('sv');
     const versionStr = await AsyncStorage.getItem(TRANSLATION_VERSION_KEY);
-    
+
     console.log('=== TRANSLATION DEBUG ===');
     console.log('Cache version timestamp:', versionStr);
     console.log('EN cache entries:', enCache ? Object.keys(enCache).length : 0);
     console.log('SV cache entries:', svCache ? Object.keys(svCache).length : 0);
-    
+
     if (enCache) {
       console.log('Sample EN entries:');
-      Object.entries(enCache).slice(0, 5).forEach(([key, value]) => {
-        console.log(`  ${key}: ${value}`);
-      });
+      Object.entries(enCache)
+        .slice(0, 5)
+        .forEach(([key, value]) => {
+          console.log(`  ${key}: ${value}`);
+        });
     }
-    
+
     console.log('========================');
   } catch (error) {
     logger.error('Error debugging translations:', error);
   }
-}; 
+};

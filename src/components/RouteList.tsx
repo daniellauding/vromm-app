@@ -1,8 +1,9 @@
-import React from 'react';
-import { ScrollView, RefreshControl, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
-import { Route } from '../hooks/useRoutes';
+import React, { forwardRef } from 'react';
+import { RefreshControl, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { Route } from '@/src/types/route';
 import { RouteCard } from './RouteCard';
 import { YStack } from 'tamagui';
+import { ScrollView } from 'react-native-gesture-handler';
 
 interface RouteListProps {
   routes: Route[];
@@ -10,7 +11,10 @@ interface RouteListProps {
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
 
-export function RouteList({ routes, onRefresh, onScroll }: RouteListProps) {
+export const RouteList = forwardRef<ScrollView, RouteListProps>(function RouteList(
+  { routes, onRefresh, onScroll },
+  ref,
+) {
   const [refreshing, setRefreshing] = React.useState(false);
 
   const handleRefresh = async () => {
@@ -22,10 +26,9 @@ export function RouteList({ routes, onRefresh, onScroll }: RouteListProps) {
 
   return (
     <ScrollView
+      ref={ref}
       refreshControl={
-        onRefresh ? (
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        ) : undefined
+        onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} /> : undefined
       }
       onScroll={onScroll}
       scrollEventThrottle={16}
@@ -37,4 +40,4 @@ export function RouteList({ routes, onRefresh, onScroll }: RouteListProps) {
       </YStack>
     </ScrollView>
   );
-} 
+});
