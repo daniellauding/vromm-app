@@ -303,9 +303,9 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       console.error('Error formatting route path:', error);
       lastErrorRef.current = 'Path format error';
       return [];
-    }
+            }
   }, [waypoints]);
-
+          
   // Simplified waypoint markers - only 2 markers maximum
   const getWaypointMarkers = useCallback(() => {
     if (!waypoints || waypoints.length === 0) return [];
@@ -322,8 +322,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           title: "Start",
           description: "Start point"
         });
-      }
-      
+          }
+          
       // Add current position marker if different from start and valid
       if (waypoints.length > 1) {
         const current = waypoints[waypoints.length - 1];
@@ -343,7 +343,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       return [];
     }
   }, [waypoints]);
-
+  
   // Add these missing functions back as empty placeholders
   const startBackgroundLocationTask = async () => {
     // Empty implementation to prevent crashes
@@ -384,8 +384,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         const subscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced, // Lower accuracy for better performance
-            timeInterval: MIN_TIME_FILTER,
-            distanceInterval: MIN_DISTANCE_FILTER,
+        timeInterval: MIN_TIME_FILTER,
+        distanceInterval: MIN_DISTANCE_FILTER,
           },
           (location) => {
             try {
@@ -404,7 +404,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                 speed: location.coords.speed,
                 accuracy: location.coords.accuracy,
               };
-              
+  
               // Calculate distance from last waypoint if we have one
               let distanceFromLast = 0;
               let shouldAddWaypoint = true;
@@ -441,7 +441,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
               // Only log occasionally to reduce console spam
               if (now % 10000 < 100) { // Log every 10 seconds
                 console.log(`Recording: ${wayPointsRef.current.length} points, ${distance.toFixed(2)}km`);
-              }
+        }
               
               // Add waypoint if recording and not paused and significant movement
               if (!isPaused && shouldAddWaypoint) {
@@ -459,14 +459,14 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                     newWaypoint.longitude
                   );
                   setDistance(prevDistance => prevDistance + segmentDistance);
-                }
-                
+      }
+      
                 // Update debug message occasionally
                 if (now % 5000 < 100) {
                   setDebugMessage(`Last update: ${new Date().toLocaleTimeString()}`);
                 }
               }
-            } catch (error) {
+    } catch (error) {
               console.error('Error processing location update:', error);
               lastErrorRef.current = 'Location update error';
               // Continue tracking despite errors
@@ -513,25 +513,25 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           clearInterval(timerRef.current);
         }
         
-        timerRef.current = setInterval(() => {
+      timerRef.current = setInterval(() => {
           try {
-            if (startTimeRef.current && !isPaused) {
-              const totalPausedTime = pausedTimeRef.current || 0;
-              const elapsed = Math.floor((Date.now() - startTimeRef.current - totalPausedTime) / 1000);
-              setElapsedTime(elapsed);
-              
-              // Recalculate average speed based on total time and distance
-              if (elapsed > 0) {
-                const timeHours = elapsed / 3600; // Convert seconds to hours
-                if (timeHours > 0) {
-                  setAverageSpeed(distance / timeHours); // km/h
-                }
-              }
+        if (startTimeRef.current && !isPaused) {
+          const totalPausedTime = pausedTimeRef.current || 0;
+          const elapsed = Math.floor((Date.now() - startTimeRef.current - totalPausedTime) / 1000);
+          setElapsedTime(elapsed);
+          
+          // Recalculate average speed based on total time and distance
+          if (elapsed > 0) {
+            const timeHours = elapsed / 3600; // Convert seconds to hours
+            if (timeHours > 0) {
+              setAverageSpeed(distance / timeHours); // km/h
+            }
+          }
             }
           } catch (error) {
             console.error('Timer error:', error);
-          }
-        }, 1000) as unknown as NodeJS.Timeout;
+        }
+      }, 1000) as unknown as NodeJS.Timeout;
       } catch (err) {
         console.error('Error setting up timer:', err);
       }
@@ -567,32 +567,32 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const stopRecording = useCallback(() => {
     try {
       // Clean up location subscription
-      if (locationSubscription) {
-        locationSubscription.remove();
-        setLocationSubscription(null);
-      }
-      
+    if (locationSubscription) {
+      locationSubscription.remove();
+      setLocationSubscription(null);
+    }
+    
       // Clean up timer
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      
-      // Stop background location tracking
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    // Stop background location tracking
       try {
-        stopBackgroundLocationTask();
+    stopBackgroundLocationTask();
       } catch (err) {
         console.warn('Error stopping background task:', err);
       }
-      
+    
       // Update state
-      setIsRecording(false);
-      setIsPaused(false);
-      setShowSummary(true);
-      
+    setIsRecording(false);
+    setIsPaused(false);
+    setShowSummary(true);
+
       // Clean up motion sensors
       try {
-        cleanupMotionSensors();
+    cleanupMotionSensors();
       } catch (err) {
         console.warn('Error cleaning up sensors:', err);
       }
@@ -614,132 +614,132 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   // Navigate to route creation with recorded data - memoized
   const saveRecording = useCallback(() => {
     try {
-      console.log('RecordDrivingSheet: saveRecording called');
+    console.log('RecordDrivingSheet: saveRecording called');
       
       // Skip if no waypoints
       if (waypoints.length === 0) {
         Alert.alert("No data", "No movement was recorded. Please try again.");
         return;
       }
-      
-      // Create route data object
-      const routeData = {
-        waypoints: waypoints.map(wp => ({
-          latitude: wp.latitude,
-          longitude: wp.longitude,
-          timestamp: wp.timestamp,
-        })),
-        distance: distance.toFixed(2),
-        duration: elapsedTime,
-        avgSpeed: averageSpeed.toFixed(1),
-      };
-  
-      // Prepare waypoints data for CreateRouteScreen
-      const waypointsForRouteCreation = waypoints.map((wp, index) => ({
+    
+    // Create route data object
+    const routeData = {
+      waypoints: waypoints.map(wp => ({
         latitude: wp.latitude,
         longitude: wp.longitude,
-        title: `Waypoint ${index + 1}`,
-        description: `Recorded at ${new Date(wp.timestamp).toLocaleTimeString()}`
-      }));
-      
-      const routeName = `Recorded Route ${new Date().toLocaleDateString()}`;
-      const routeDescription = `Recorded drive - Distance: ${routeData.distance} km, Duration: ${formatTime(routeData.duration)}, Speed: ${averageSpeed.toFixed(1)} km/h`;
-      
-      // Get coordinates for first waypoint for search input
-      const firstWaypoint = waypoints[0];
-      const lastWaypoint = waypoints[waypoints.length - 1];
-      let searchCoordinates = "";
-      
-      if (firstWaypoint) {
-        searchCoordinates = `${firstWaypoint.latitude.toFixed(6)}, ${firstWaypoint.longitude.toFixed(6)}`;
-      }
-      
-      // Create route path for map display
-      const routePath = waypoints.map(wp => ({
-        latitude: wp.latitude,
-        longitude: wp.longitude
-      }));
-      
-      const recordedRouteData: RecordedRouteData = {
-        waypoints: waypointsForRouteCreation,
-        name: routeName,
-        description: routeDescription,
-        searchCoordinates: searchCoordinates,
-        routePath: routePath,
-        startPoint: firstWaypoint ? { 
-          latitude: firstWaypoint.latitude, 
-          longitude: firstWaypoint.longitude 
-        } : undefined,
-        endPoint: lastWaypoint ? { 
-          latitude: lastWaypoint.latitude, 
-          longitude: lastWaypoint.longitude 
-        } : undefined
-      };
-  
-      // Save the recordedRouteData for the callback to use
-      const savedData = {...recordedRouteData};
-      
-      // First close the modal
-      hideModal();
-      
-      // Call the callback with a timeout to ensure modal is closed first
-      if (onCreateRoute) {
-        setTimeout(() => {
-          onCreateRoute(savedData);
-        }, 100);
-      } else {
+        timestamp: wp.timestamp,
+      })),
+      distance: distance.toFixed(2),
+      duration: elapsedTime,
+      avgSpeed: averageSpeed.toFixed(1),
+    };
+
+    // Prepare waypoints data for CreateRouteScreen
+    const waypointsForRouteCreation = waypoints.map((wp, index) => ({
+      latitude: wp.latitude,
+      longitude: wp.longitude,
+      title: `Waypoint ${index + 1}`,
+      description: `Recorded at ${new Date(wp.timestamp).toLocaleTimeString()}`
+    }));
+    
+    const routeName = `Recorded Route ${new Date().toLocaleDateString()}`;
+    const routeDescription = `Recorded drive - Distance: ${routeData.distance} km, Duration: ${formatTime(routeData.duration)}, Speed: ${averageSpeed.toFixed(1)} km/h`;
+    
+    // Get coordinates for first waypoint for search input
+    const firstWaypoint = waypoints[0];
+    const lastWaypoint = waypoints[waypoints.length - 1];
+    let searchCoordinates = "";
+    
+    if (firstWaypoint) {
+      searchCoordinates = `${firstWaypoint.latitude.toFixed(6)}, ${firstWaypoint.longitude.toFixed(6)}`;
+    }
+    
+    // Create route path for map display
+    const routePath = waypoints.map(wp => ({
+      latitude: wp.latitude,
+      longitude: wp.longitude
+    }));
+    
+    const recordedRouteData: RecordedRouteData = {
+      waypoints: waypointsForRouteCreation,
+      name: routeName,
+      description: routeDescription,
+      searchCoordinates: searchCoordinates,
+      routePath: routePath,
+      startPoint: firstWaypoint ? { 
+        latitude: firstWaypoint.latitude, 
+        longitude: firstWaypoint.longitude 
+      } : undefined,
+      endPoint: lastWaypoint ? { 
+        latitude: lastWaypoint.latitude, 
+        longitude: lastWaypoint.longitude 
+      } : undefined
+    };
+
+    // Save the recordedRouteData for the callback to use
+    const savedData = {...recordedRouteData};
+    
+            // First close the modal
+            hideModal();
+            
+    // Call the callback with a timeout to ensure modal is closed first
+            if (onCreateRoute) {
+              setTimeout(() => {
+        onCreateRoute(savedData);
+      }, 100);
+            } else {
         console.error('RecordDrivingSheet: onCreateRoute callback is not defined!');
-      }
+            }
     } catch (error) {
       console.error('Error saving recording:', error);
       Alert.alert("Error", "Failed to save the recording. Please try again.");
     }
   }, [waypoints, distance, elapsedTime, averageSpeed, formatTime, hideModal, onCreateRoute]);
-
+  
   // Cancel recording session - memoized
   const cancelRecording = useCallback(() => {
     try {
-      if (isRecording) {
+    if (isRecording) {
         // Clean up location subscription
-        if (locationSubscription) {
-          locationSubscription.remove();
-          setLocationSubscription(null);
-        }
-        
+              if (locationSubscription) {
+                locationSubscription.remove();
+                setLocationSubscription(null);
+              }
+              
         // Clean up timer
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
-  
-        // Stop background location tracking
+              if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+              }
+      
+      // Stop background location tracking
         try {
-          stopBackgroundLocationTask();
+      stopBackgroundLocationTask();
         } catch (err) {
           console.warn('Error stopping background task:', err);
         }
-        
+              
         // Reset state
-        setIsRecording(false);
-        setIsPaused(false);
-        setShowSummary(false);
-        setWaypoints([]);
+              setIsRecording(false);
+      setIsPaused(false);
+              setShowSummary(false);
+              setWaypoints([]);
         wayPointsRef.current = [];
-        setElapsedTime(0);
-        setDistance(0);
-        setAverageSpeed(0);
-        setCurrentSpeed(0);
+              setElapsedTime(0);
+              setDistance(0);
+              setAverageSpeed(0);
+      setCurrentSpeed(0);
         setDebugMessage(null);
-      } else {
-        onClose();
-      }
+    } else {
+      onClose();
+    }
     } catch (error) {
       console.error('Error cancelling recording:', error);
       // Force close anyway
       onClose();
     }
   }, [isRecording, locationSubscription, onClose]);
-
+      
   // Optimize render to be more performant
   return (
     <View style={styles.container}>
@@ -827,7 +827,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             )}
           </View>
         )}
-
+        
         <YStack padding={16} space={16}>
           {/* Stats display */}
           <View style={styles.statsContainer}>
@@ -879,15 +879,15 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                   </TouchableOpacity>
                 </XStack>
               ) : (
-                <TouchableOpacity
-                  style={[
-                    styles.recordButton,
+              <TouchableOpacity
+                style={[
+                  styles.recordButton,
                     { backgroundColor: '#1A3D3D' },
-                  ]}
+                ]}
                   onPress={startRecording}
-                >
+              >
                   <Feather name="play" size={32} color="white" />
-                </TouchableOpacity>
+              </TouchableOpacity>
               )}
               <Text color={DARK_THEME.text} marginTop={8}>
                 {isRecording 
@@ -906,31 +906,31 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                 Your route has been recorded successfully. You can now create a new route with these waypoints.
               </Text>
               
-              <Button
+                <Button
                 backgroundColor="#1A3D3D"
-                color="white"
+                  color="white"
                 onPress={saveRecording}
                 size="$4"
                 height={50}
                 pressStyle={{ opacity: 0.8 }}
-              >
+                >
                 <XStack gap="$2" alignItems="center">
                   <Feather name="check" size={24} color="white" />
                   <Text color="white" fontWeight="600" fontSize={18}>Create Route</Text>
                 </XStack>
-              </Button>
-              
-              <Button
+                </Button>
+                
+                <Button
                 backgroundColor="#3D3D1A"
-                color="white"
+                  color="white"
                 onPress={cancelRecording}
                 marginBottom={8}
-              >
+                >
                 <Text color="white">Dismiss</Text>
               </Button>
             </YStack>
           )}
-        </YStack>
+            </YStack>
       </View>
     </View>
   );
