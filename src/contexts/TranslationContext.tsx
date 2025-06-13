@@ -220,19 +220,22 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   // Get a translation by key
-  const t = (key: string): string => {
-    // If the key exists in translations but is explicitly empty, return empty string
-    if (key in translations && translations[key] === '') {
-      return '';
-    }
-    // If the key doesn't exist in translations, return the key itself
-    if (!(key in translations)) {
-      logger.debug(`Missing translation for key: ${key}`);
-      return key;
-    }
-    // Otherwise return the translation
-    return translations[key];
-  };
+  const t = React.useCallback(
+    (key: string): string => {
+      // If the key exists in translations but is explicitly empty, return empty string
+      if (key in translations && translations[key] === '') {
+        return '';
+      }
+      // If the key doesn't exist in translations, return the key itself
+      if (!(key in translations)) {
+        logger.debug(`Missing translation for key: ${key}`);
+        return key;
+      }
+      // Otherwise return the translation
+      return translations[key];
+    },
+    [translations],
+  );
 
   // Force refresh translations
   const refreshTranslations = useCallback(async () => {
@@ -242,7 +245,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [language, fetchAndCacheTranslations]);
 
   // Clear the cache
-  const clearCache = async () => {
+  const clearCache = React.useCallback(async () => {
     try {
       logger.info('Clearing translation cache');
 
@@ -261,12 +264,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } catch (error) {
       logger.error('Error clearing cache:', error);
     }
-  };
-
-  // Show loading screen if translations are loading
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
+  }, []);
 
   return (
     <TranslationContext.Provider
