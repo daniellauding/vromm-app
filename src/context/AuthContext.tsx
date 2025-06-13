@@ -140,85 +140,88 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, onSuccess?: () => void) => {
-    console.log('Starting signup process for:', email);
+  const signUp = React.useCallback(
+    async (email: string, password: string, onSuccess?: () => void) => {
+      console.log('Starting signup process for:', email);
 
-    try {
-      setLoading(true);
-
-      const profileData = {
-        full_name: email.split('@')[0],
-        role: 'student' as UserRole,
-        location: 'Unknown',
-        experience_level: 'beginner' as ExperienceLevel,
-        private_profile: false,
-      };
-
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: profileData,
-        },
-      });
-
-      console.log('Auth signup response:', { authData, authError });
-
-      if (authError) throw authError;
-      if (!authData.user?.id) throw new Error('User creation failed');
-
-      // Remove profile creation from here since it will be handled on first sign in
-
-      // Track signup event in the background
       try {
-        AppAnalytics.trackSignUp('email').catch((err) => {
-          console.warn('Analytics tracking failed:', err);
+        setLoading(true);
+
+        const profileData = {
+          full_name: email.split('@')[0],
+          role: 'student' as UserRole,
+          location: 'Unknown',
+          experience_level: 'beginner' as ExperienceLevel,
+          private_profile: false,
+        };
+
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: profileData,
+          },
         });
-      } catch (analyticsError) {
-        console.warn('Analytics tracking failed:', analyticsError);
+
+        console.log('Auth signup response:', { authData, authError });
+
+        if (authError) throw authError;
+        if (!authData.user?.id) throw new Error('User creation failed');
+
+        // Remove profile creation from here since it will be handled on first sign in
+
+        // Track signup event in the background
+        try {
+          AppAnalytics.trackSignUp('email').catch((err) => {
+            console.warn('Analytics tracking failed:', err);
+          });
+        } catch (analyticsError) {
+          console.warn('Analytics tracking failed:', analyticsError);
+        }
+
+        console.log('Signup successful for user:', authData.user.id);
+
+        // Show confirmation alert
+        Alert.alert(
+          'Registration Successful',
+          'Please check your email to confirm your account. The confirmation email might take a few minutes to arrive.',
+          [
+            {
+              text: 'Resend Email',
+              onPress: async () => {
+                try {
+                  const { error } = await supabase.auth.resend({
+                    type: 'signup',
+                    email: email,
+                  });
+                  if (error) throw error;
+                  Alert.alert('Success', 'Confirmation email resent. Please check your inbox.');
+                } catch (err) {
+                  console.error('Error resending confirmation:', err);
+                  Alert.alert('Error', 'Failed to resend confirmation email. Please try again.');
+                }
+              },
+            },
+            {
+              text: 'OK',
+              onPress: () => {
+                // Call the success callback if provided
+                onSuccess?.();
+              },
+            },
+          ],
+        );
+      } catch (error) {
+        console.error('Signup process failed:', error);
+        throw error;
+      } finally {
+        setLoading(false);
       }
+    },
+    [],
+  );
 
-      console.log('Signup successful for user:', authData.user.id);
-
-      // Show confirmation alert
-      Alert.alert(
-        'Registration Successful',
-        'Please check your email to confirm your account. The confirmation email might take a few minutes to arrive.',
-        [
-          {
-            text: 'Resend Email',
-            onPress: async () => {
-              try {
-                const { error } = await supabase.auth.resend({
-                  type: 'signup',
-                  email: email,
-                });
-                if (error) throw error;
-                Alert.alert('Success', 'Confirmation email resent. Please check your inbox.');
-              } catch (err) {
-                console.error('Error resending confirmation:', err);
-                Alert.alert('Error', 'Failed to resend confirmation email. Please try again.');
-              }
-            },
-          },
-          {
-            text: 'OK',
-            onPress: () => {
-              // Call the success callback if provided
-              onSuccess?.();
-            },
-          },
-        ],
-      );
-    } catch (error) {
-      console.error('Signup process failed:', error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
+  const signIn = React.useCallback(async (email: string, password: string) => {
     try {
       setLoading(true);
 
@@ -268,9 +271,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = React.useCallback(async () => {
     try {
       setLoading(true);
 
@@ -301,38 +304,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user?.id) throw new Error('No user logged in');
-    try {
-      const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
-
-      if (error) throw error;
-      setProfile((prev) => (prev ? { ...prev, ...updates } : null));
-
-      // Track profile update in the background
+  const updateProfile = React.useCallback(
+    async (updates: Partial<Profile>) => {
+      if (!user?.id) throw new Error('No user logged in');
       try {
-        AppAnalytics.trackProfileUpdate().catch((err) => {
-          console.warn('Analytics tracking failed:', err);
-        });
-      } catch (analyticsError) {
-        console.warn('Analytics tracking failed:', analyticsError);
-      }
-    } catch (error) {
-      console.error('Profile update failed:', error);
-      throw error;
-    }
-  };
+        const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
 
-  const resetPassword = async (email: string) => {
+        if (error) throw error;
+        setProfile((prev) => (prev ? { ...prev, ...updates } : null));
+
+        // Track profile update in the background
+        try {
+          AppAnalytics.trackProfileUpdate().catch((err) => {
+            console.warn('Analytics tracking failed:', err);
+          });
+        } catch (analyticsError) {
+          console.warn('Analytics tracking failed:', analyticsError);
+        }
+      } catch (error) {
+        console.error('Profile update failed:', error);
+        throw error;
+      }
+    },
+    [user?.id],
+  );
+
+  const resetPassword = React.useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'korvagen://reset-password',
     });
     if (error) throw error;
-  };
+  }, []);
 
-  const forgotPassword = async (email: string) => {
+  const forgotPassword = React.useCallback(async (email: string) => {
     try {
       setLoading(true);
 
@@ -354,9 +360,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const refreshProfile = async () => {
+  const refreshProfile = React.useCallback(async () => {
     if (!user?.id) return;
     try {
       const { data, error } = await supabase
@@ -370,7 +376,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err) {
       console.error('Error refreshing profile:', err);
     }
-  };
+  }, [user?.id]);
 
   // Values for context provider
   const contextValue: AuthContextData = {
