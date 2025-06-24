@@ -202,11 +202,11 @@ export function ProfileScreen() {
     try {
       setAvatarUploading(true);
       let result;
+      
       if (useCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert('Permission needed', 'Camera permission is required to take a photo');
-          setAvatarUploading(false);
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -219,7 +219,6 @@ export function ProfileScreen() {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert('Permission needed', 'Media library permission is required');
-          setAvatarUploading(false);
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
@@ -229,35 +228,64 @@ export function ProfileScreen() {
           quality: 0.8,
         });
       }
-      if (!result.canceled && result.assets[0]) {
+
+      if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
+        
+        if (!asset.uri) {
+          throw new Error('No image URI found');
+        }
+
         const response = await fetch(asset.uri);
+        if (!response.ok) {
+          throw new Error('Failed to fetch image');
+        }
+        
         const blob = await response.blob();
         const reader = new FileReader();
-        const base64 = await new Promise((resolve, reject) => {
-          reader.onloadend = () => resolve(reader.result.split(',')[1]);
-          reader.onerror = reject;
+        
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => {
+            const result = reader.result;
+            if (typeof result === 'string' && result.includes(',')) {
+              resolve(result.split(',')[1]);
+            } else {
+              reject(new Error('Invalid base64 data'));
+            }
+          };
+          reader.onerror = () => reject(new Error('Failed to read file'));
           reader.readAsDataURL(blob);
         });
+
         const ext = asset.uri.split('.').pop() || 'jpg';
-        const fileName = `avatars/${profile.id || user?.id || 'user'}/${Date.now()}.${ext}`;
+        const userId = profile?.id || 'unknown-user';
+        const fileName = `avatars/${userId}/${Date.now()}.${ext}`;
+        
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(fileName, decode(base64), {
-            contentType: 'image/jpeg',
+          .upload(fileName, decode(base64 as string), {
+            contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
             upsert: true,
           });
-        if (uploadError) throw uploadError;
+          
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          throw uploadError;
+        }
+
         const {
           data: { publicUrl },
         } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        
         // Save avatar URL to profile
         await updateProfile({ ...formData, avatar_url: publicUrl });
         setFormData((prev) => ({ ...prev, avatar_url: publicUrl }));
         Alert.alert('Success', 'Avatar updated!');
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to upload avatar');
+      console.error('Avatar upload error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to upload avatar';
+      Alert.alert('Error', errorMessage);
     } finally {
       setAvatarUploading(false);
     }
