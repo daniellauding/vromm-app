@@ -130,13 +130,20 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [newExercise, setNewExercise] = useState<Partial<Exercise>>({});
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [activeSection, setActiveSection] = useState('basic'); // 'basic', 'exercises', 'media', 'details'
   const { getCurrentLocation, locationPermission, requestLocationPermission } = useLocation();
   const windowHeight = Dimensions.get('window').height;
   const windowWidth = Dimensions.get('window').width;
   const HERO_HEIGHT = windowHeight * 0.6;
   const [youtubeLink, setYoutubeLink] = useState('');
+
+  // Drawing modes system
+  const [drawingMode, setDrawingMode] = useState<'pin' | 'waypoint' | 'pen' | 'record'>('waypoint');
+  const [snapToRoads, setSnapToRoads] = useState(false);
+  const [undoneWaypoints, setUndoneWaypoints] = useState<Waypoint[]>([]);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [penPath, setPenPath] = useState<Array<{ latitude: number; longitude: number }>>([]);
 
   // Initialize search query with coordinates if provided
   useEffect(() => {
@@ -256,56 +263,169 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     category: 'parking' as Category,
   });
 
+  // Enhanced map press handler with drawing modes
   const handleMapPress = (e: MapPressEvent) => {
     const { latitude, longitude } = e.nativeEvent.coordinate;
 
-    // Get address from coordinates
-    Location.reverseGeocodeAsync({
-      latitude,
-      longitude,
-    })
-      .then(([address]) => {
-        const title = address
-          ? [address.street, address.city, address.country].filter(Boolean).join(', ')
-          : `Waypoint ${waypoints.length + 1}`;
-
-        const newWaypoint: Waypoint = {
-          latitude,
-          longitude,
-          title,
-          description: 'Tapped location',
-        };
-
-        setWaypoints((prev) => [...prev, newWaypoint]);
-
-        // Update search query with location
-        setSearchQuery(title);
-
-        // Update region to center on new waypoint
-        setRegion((prev) => ({
-          ...prev,
-          latitude,
-          longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }));
-      })
-      .catch((err) => {
-        console.error('Error getting address:', err);
-        // If reverse geocoding fails, still add waypoint with default title
-        const newWaypoint: Waypoint = {
-          latitude,
-          longitude,
-          title: `Waypoint ${waypoints.length + 1}`,
-          description: 'Tapped location',
-        };
-        setWaypoints((prev) => [...prev, newWaypoint]);
-      });
+    if (drawingMode === 'pin') {
+      // Pin mode: Replace existing pin with new one
+      handlePinMode(latitude, longitude);
+    } else if (drawingMode === 'waypoint') {
+      // Waypoint mode: Add new waypoint to sequence
+      handleWaypointMode(latitude, longitude);
+    } else if (drawingMode === 'pen') {
+      // Pen mode: Add to continuous path
+      handlePenMode(latitude, longitude);
+    }
+    // Record mode is handled by RecordDrivingSheet
   };
 
-  const handleMapPressWrapper = () => {
-    // This function is required by the Map component's type,
-    // but we'll handle the actual press event in the native map component
+  const handlePinMode = async (latitude: number, longitude: number) => {
+    console.log(`Pin mode: Dropping pin at ${latitude}, ${longitude}`);
+    
+    // Create basic title with coordinates
+    const basicTitle = `Pin (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+    
+    // Create waypoint immediately to prevent crashes
+    const newWaypoint: Waypoint = {
+      latitude,
+      longitude,
+      title: basicTitle,
+      description: 'Pin location',
+    };
+
+    // Set waypoint first
+    setWaypoints([newWaypoint]);
+    setSearchQuery(basicTitle);
+    console.log('Pin waypoint set successfully');
+
+    // Try to get address in background with rate limiting protection
+    try {
+      // Add delay to prevent rate limiting
+      setTimeout(async () => {
+        try {
+          const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
+          if (address) {
+            const title = [address.street, address.city, address.country].filter(Boolean).join(', ');
+            
+            // Update with real address
+            setWaypoints([{
+              latitude,
+              longitude,
+              title,
+              description: 'Pin location',
+            }]);
+            setSearchQuery(title);
+            console.log(`Pin address resolved: ${title}`);
+          }
+        } catch (err) {
+          console.log('Address lookup failed, keeping coordinate title');
+        }
+      }, 1000); // 1 second delay to prevent rate limiting
+    } catch (err) {
+      console.error('Error setting up address lookup:', err);
+    }
+
+    // Update region to center on pin
+    setRegion((prev) => ({
+      ...prev,
+      latitude,
+      longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    }));
+  };
+
+  const handleWaypointMode = async (latitude: number, longitude: number) => {
+    console.log(`Waypoint mode: Adding waypoint at ${latitude}, ${longitude}`);
+    
+    // Create basic title with waypoint number and coordinates
+    const waypointNumber = waypoints.length + 1;
+    const basicTitle = `Waypoint ${waypointNumber} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+    
+    const newWaypoint: Waypoint = {
+      latitude,
+      longitude,
+      title: basicTitle,
+      description: 'Route waypoint',
+    };
+
+    // Add to waypoint sequence immediately
+    setWaypoints((prev) => [...prev, newWaypoint]);
+    setUndoneWaypoints([]);
+    setSearchQuery(basicTitle);
+    console.log(`Waypoint ${waypointNumber} added successfully`);
+
+    // Try to get address in background with rate limiting protection
+    try {
+      // Add delay to prevent rate limiting
+      setTimeout(async () => {
+        try {
+          const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
+          if (address) {
+            const addressTitle = [address.street, address.city, address.country]
+              .filter(Boolean)
+              .join(', ');
+            
+            // Update the specific waypoint with real address
+            setWaypoints((prev) => 
+              prev.map((wp, index) => 
+                index === prev.length - 1 
+                  ? { ...wp, title: addressTitle }
+                  : wp
+              )
+            );
+            console.log(`Waypoint ${waypointNumber} address resolved: ${addressTitle}`);
+          }
+        } catch (err) {
+          console.log(`Address lookup failed for waypoint ${waypointNumber}, keeping coordinate title`);
+        }
+      }, 500 * waypointNumber); // Staggered delays to prevent rate limiting
+    } catch (err) {
+      console.error('Error setting up address lookup:', err);
+    }
+
+    // Update region to center on new waypoint
+    setRegion((prev) => ({
+      ...prev,
+      latitude,
+      longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    }));
+  };
+
+  const handlePenMode = (latitude: number, longitude: number) => {
+    console.log(`Pen mode: ${isDrawing ? 'Adding to' : 'Starting'} pen path at ${latitude}, ${longitude}`);
+    
+    if (isDrawing) {
+      // Add to pen path
+      const newPath = [...penPath, { latitude, longitude }];
+      setPenPath(newPath);
+      console.log(`Pen path now has ${newPath.length} points`);
+    } else {
+      // Start new pen path
+      setIsDrawing(true);
+      const newPath = [{ latitude, longitude }];
+      setPenPath(newPath);
+      console.log(`Started pen drawing with first point`);
+    }
+  };
+
+  const handleMapPressWrapper = (event?: any) => {
+    // Handle map press for drawing modes
+    console.log('Map press event:', event);
+    if (event && event.nativeEvent && event.nativeEvent.coordinate) {
+      const { latitude, longitude } = event.nativeEvent.coordinate;
+      console.log(`Map pressed at: ${latitude}, ${longitude} - Mode: ${drawingMode}`);
+      
+      // Add immediate visual feedback
+      if (drawingMode === 'pen') {
+        console.log(`Pen drawing mode - isDrawing: ${isDrawing}, penPath length: ${penPath.length}`);
+      }
+      
+      handleMapPress(event);
+    }
   };
 
   const handleLocateMe = async () => {
@@ -333,14 +453,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         [address?.street, address?.city, address?.country].filter(Boolean).join(', ') ||
         t('createRoute.locateMe');
 
-      // Add waypoint
-      const newWaypoint = {
-        latitude,
-        longitude,
-        title,
-        description: t('createRoute.locateMe'),
-      };
-      setWaypoints((prev) => [...prev, newWaypoint]);
+      // Add waypoint based on current drawing mode
+      if (drawingMode === 'pin') {
+        setWaypoints([{ latitude, longitude, title, description: t('createRoute.locateMe') }]);
+      } else {
+        setWaypoints((prev) => [...prev, { latitude, longitude, title, description: t('createRoute.locateMe') }]);
+      }
 
       // Update search input with location name
       setSearchQuery(title);
@@ -353,6 +471,48 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       console.error('Error getting location:', err);
       Alert.alert(t('common.error'), t('createRoute.locationPermissionMsg'));
     }
+  };
+
+  // Undo/Redo system
+  const handleUndo = () => {
+    if (waypoints.length > 0) {
+      const lastWaypoint = waypoints[waypoints.length - 1];
+      setUndoneWaypoints([lastWaypoint, ...undoneWaypoints]);
+      setWaypoints(waypoints.slice(0, -1));
+    }
+  };
+
+  const handleRedo = () => {
+    if (undoneWaypoints.length > 0) {
+      const lastUndone = undoneWaypoints[0];
+      setWaypoints([...waypoints, lastUndone]);
+      setUndoneWaypoints(undoneWaypoints.slice(1));
+    }
+  };
+
+  // Finish pen drawing
+  const finishPenDrawing = () => {
+    if (penPath.length > 0) {
+      // Convert pen path to waypoints
+      const newWaypoints = penPath.map((point, index) => ({
+        latitude: point.latitude,
+        longitude: point.longitude,
+        title: `Pen Point ${index + 1}`,
+        description: 'Pen drawing point',
+      }));
+      
+      setWaypoints((prev) => [...prev, ...newWaypoints]);
+      setPenPath([]);
+      setIsDrawing(false);
+    }
+  };
+
+  // Clear all waypoints
+  const clearAllWaypoints = () => {
+    setUndoneWaypoints([]);
+    setWaypoints([]);
+    setPenPath([]);
+    setIsDrawing(false);
   };
 
   const handleAddExercise = () => {
@@ -512,6 +672,22 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       return;
     }
 
+    // Validate waypoints based on drawing mode
+    if (drawingMode === 'pin' && waypoints.length === 0) {
+      Alert.alert('Error', 'Please drop a pin on the map');
+      return;
+    }
+    
+    if (drawingMode === 'waypoint' && waypoints.length < 2) {
+      Alert.alert('Error', 'Waypoint mode requires at least 2 waypoints');
+      return;
+    }
+    
+    if (drawingMode === 'pen' && waypoints.length === 0) {
+      Alert.alert('Error', 'Please draw a route on the map');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -589,7 +765,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         },
         suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises) : '',
         media_attachments: mediaToUpdate,
-        drawing_mode: 'waypoint',
+        drawing_mode: drawingMode,
       };
 
       let route;
@@ -1122,6 +1298,102 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       />
                     </YStack>
 
+                    {/* Drawing Mode Controls */}
+                    <YStack gap="$4">
+                      <Heading>Drawing Mode</Heading>
+                      <Text size="sm" color="$gray11">
+                        Choose how to create your route
+                      </Text>
+
+                      <XStack gap="$2" flexWrap="wrap">
+                        <Button
+                          variant={drawingMode === 'pin' ? 'secondary' : 'tertiary'}
+                          onPress={() => setDrawingMode('pin')}
+                          size="md"
+                          flex={1}
+                          backgroundColor={drawingMode === 'pin' ? '$blue10' : '$backgroundHover'}
+                        >
+                          <XStack gap="$2" alignItems="center">
+                            <Feather
+                              name="map-pin"
+                              size={16}
+                              color={drawingMode === 'pin' ? 'white' : iconColor}
+                            />
+                            <Text color={drawingMode === 'pin' ? 'white' : '$color'}>Pin</Text>
+                          </XStack>
+                        </Button>
+
+                        <Button
+                          variant={drawingMode === 'waypoint' ? 'secondary' : 'tertiary'}
+                          onPress={() => setDrawingMode('waypoint')}
+                          size="md"
+                          flex={1}
+                          backgroundColor={
+                            drawingMode === 'waypoint' ? '$blue10' : '$backgroundHover'
+                          }
+                        >
+                          <XStack gap="$2" alignItems="center">
+                            <Feather
+                              name="navigation"
+                              size={16}
+                              color={drawingMode === 'waypoint' ? 'white' : iconColor}
+                            />
+                            <Text color={drawingMode === 'waypoint' ? 'white' : '$color'}>
+                              Waypoints
+                            </Text>
+                          </XStack>
+                        </Button>
+
+                        <Button
+                          variant={drawingMode === 'pen' ? 'secondary' : 'tertiary'}
+                          onPress={() => setDrawingMode('pen')}
+                          size="md"
+                          flex={1}
+                          backgroundColor={drawingMode === 'pen' ? '$blue10' : '$backgroundHover'}
+                        >
+                          <XStack gap="$2" alignItems="center">
+                            <Feather
+                              name="edit-3"
+                              size={16}
+                              color={drawingMode === 'pen' ? 'white' : iconColor}
+                            />
+                            <Text color={drawingMode === 'pen' ? 'white' : '$color'}>Draw</Text>
+                          </XStack>
+                        </Button>
+
+                        <Button
+                          variant={drawingMode === 'record' ? 'secondary' : 'tertiary'}
+                          onPress={() => setDrawingMode('record')}
+                          size="md"
+                          flex={1}
+                          backgroundColor={
+                            drawingMode === 'record' ? '$blue10' : '$backgroundHover'
+                          }
+                        >
+                          <XStack gap="$2" alignItems="center">
+                            <Feather
+                              name="circle"
+                              size={16}
+                              color={drawingMode === 'record' ? 'white' : iconColor}
+                            />
+                            <Text color={drawingMode === 'record' ? 'white' : '$color'}>
+                              Record
+                            </Text>
+                          </XStack>
+                        </Button>
+                      </XStack>
+
+                      {/* Mode descriptions */}
+                      <Text size="sm" color="$gray10">
+                        {drawingMode === 'pin' && 'Drop a single location marker'}
+                        {drawingMode === 'waypoint' &&
+                          'Create discrete waypoints connected by lines (minimum 2 required)'}
+                        {drawingMode === 'pen' && 'Free drawing by clicking and dragging'}
+                        {drawingMode === 'record' &&
+                          'GPS-based live route recording with real-time stats'}
+                      </Text>
+                    </YStack>
+
                     {/* Route Location */}
                     <YStack gap="$4">
                       <Heading>
@@ -1196,13 +1468,96 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
                       <View style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}>
                         <Map
-                          waypoints={waypoints}
+                          waypoints={waypoints.map((wp, index) => ({
+                            ...wp,
+                            id: `waypoint-${index}`,
+                          }))}
                           region={region}
                           onPress={handleMapPressWrapper}
                           style={{ flex: 1 }}
-                          routePath={routePath || undefined}
-                          routePathColor="#1A73E8"
+                          routePath={
+                            drawingMode === 'pen' && penPath.length > 0 
+                              ? penPath 
+                              : drawingMode === 'waypoint' && waypoints.length > 1
+                                ? waypoints
+                                : routePath || undefined
+                          }
+                          routePathColor={drawingMode === 'pen' ? '#FF6B35' : '#1A73E8'}
+                          routePathWidth={drawingMode === 'pen' ? 2 : 3}
+                          drawingMode={drawingMode}
+                          showStartEndMarkers={
+                            (drawingMode === 'waypoint' && waypoints.length > 1) ||
+                            (drawingMode === 'pen' && penPath.length > 1)
+                          }
+                          scrollEnabled={drawingMode !== 'pen'}
+                          zoomEnabled={drawingMode !== 'pen'}
+                          pitchEnabled={drawingMode !== 'pen'}
+                          rotateEnabled={drawingMode !== 'pen'}
+                          onMarkerPress={(waypointId) => {
+                            console.log(`Waypoint pressed: ${waypointId}`);
+                            const index = parseInt(waypointId.split('-')[1]);
+                            if (!isNaN(index) && waypoints[index]) {
+                              console.log(`Selected waypoint ${index}:`, waypoints[index]);
+                            }
+                          }}
                         />
+
+                                                {/* Map Controls - Top Right */}
+                        <XStack position="absolute" top={16} right={16} gap="$2">
+                          <Button
+                            onPress={handleUndo}
+                            disabled={waypoints.length === 0}
+                            variant="secondary"
+                            backgroundColor="rgba(0,0,0,0.7)"
+                            size="sm"
+                          >
+                            <Feather name="corner-up-left" size={16} color="white" />
+                          </Button>
+                          
+                          <Button
+                            onPress={handleRedo}
+                            disabled={undoneWaypoints.length === 0}
+                            variant="secondary"
+                            backgroundColor="rgba(0,0,0,0.7)"
+                            size="sm"
+                          >
+                            <Feather name="corner-up-right" size={16} color="white" />
+                          </Button>
+                        </XStack>
+
+                        {/* Zoom Controls - Top Left */}
+                        <YStack position="absolute" top={16} left={16} gap="$2">
+                          <Button
+                            onPress={() => {
+                              setRegion(prev => ({
+                                ...prev,
+                                latitudeDelta: prev.latitudeDelta * 0.5,
+                                longitudeDelta: prev.longitudeDelta * 0.5,
+                              }));
+                            }}
+                            variant="secondary"
+                            backgroundColor="rgba(0,0,0,0.7)"
+                            size="sm"
+                          >
+                            <Feather name="plus" size={16} color="white" />
+                          </Button>
+                          
+                          <Button
+                            onPress={() => {
+                              setRegion(prev => ({
+                                ...prev,
+                                latitudeDelta: prev.latitudeDelta * 2,
+                                longitudeDelta: prev.longitudeDelta * 2,
+                              }));
+                            }}
+                            variant="secondary"
+                            backgroundColor="rgba(0,0,0,0.7)"
+                            size="sm"
+                          >
+                            <Feather name="minus" size={16} color="white" />
+                          </Button>
+                        </YStack>
+
                         <Button
                           position="absolute"
                           bottom={16}
@@ -1219,22 +1574,211 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                             <Text color="white">Locate Me</Text>
                           </XStack>
                         </Button>
+
+                        {/* Drawing Mode Indicator */}
+                        <View
+                          style={{
+                            position: 'absolute',
+                            top: 16,
+                            left: '50%',
+                            transform: [{ translateX: -50 }],
+                            backgroundColor: drawingMode === 'pen' ? 'rgba(255,107,53,0.9)' : 'rgba(0,0,0,0.8)',
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 16,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <Feather
+                            name={
+                              drawingMode === 'pin'
+                                ? 'map-pin'
+                                : drawingMode === 'waypoint'
+                                  ? 'navigation'
+                                  : drawingMode === 'pen'
+                                    ? 'edit-3'
+                                    : 'circle'
+                            }
+                            size={14}
+                            color="white"
+                          />
+                          <Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>
+                            {drawingMode === 'pin' && 'Tap to drop pin'}
+                            {drawingMode === 'waypoint' && 'Tap to add waypoints'}
+                            {drawingMode === 'pen' && (isDrawing 
+                              ? `Drawing... (${penPath.length} points)` 
+                              : 'MAP LOCKED - Tap to draw')}
+                            {drawingMode === 'record' && 'Use Record button below'}
+                          </Text>
+                        </View>
+
+                        {/* Pen Drawing Controls */}
+                        {drawingMode === 'pen' && isDrawing && (
+                          <Button
+                            position="absolute"
+                            bottom={16}
+                            right={16}
+                            onPress={finishPenDrawing}
+                            variant="secondary"
+                            backgroundColor="$green10"
+                            size="md"
+                            opacity={0.9}
+                          >
+                            <XStack gap="$2" alignItems="center">
+                              <Feather name="check" size={20} color="white" />
+                              <Text color="white">Finish</Text>
+                            </XStack>
+                          </Button>
+                        )}
                       </View>
 
-                      <Button
-                        onPress={() => setWaypoints(waypoints.slice(0, -1))}
-                        disabled={waypoints.length === 0}
-                        variant="secondary"
-                        backgroundColor="$red10"
-                        size="lg"
+                      {/* Waypoint Management Controls */}
+                      <XStack gap="$2" flexWrap="wrap">
+                        <Button
+                          onPress={handleUndo}
+                          disabled={waypoints.length === 0}
+                          variant="secondary"
+                          backgroundColor="$orange10"
+                          size="lg"
+                          flex={1}
+                        >
+                          <XStack gap="$2" alignItems="center">
+                            <Feather name="corner-up-left" size={18} color="white" />
+                            <Text color="white">Undo</Text>
+                          </XStack>
+                        </Button>
+
+                        <Button
+                          onPress={clearAllWaypoints}
+                          disabled={waypoints.length === 0}
+                          variant="secondary"
+                          backgroundColor="$red10"
+                          size="lg"
+                          flex={1}
+                        >
+                          <XStack gap="$2" alignItems="center">
+                            <Feather name="trash-2" size={18} color="white" />
+                            <Text color="white">Clear All</Text>
+                          </XStack>
+                        </Button>
+                      </XStack>
+
+                      {/* Current waypoint count and mode info */}
+                      <XStack
+                        justifyContent="space-between"
+                        alignItems="center"
+                        paddingHorizontal="$2"
                       >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="trash-2" size={18} color="white" />
-                          <Text color="white">
-                            {getTranslation(t, 'createRoute.deleteWaypoint', 'Remove Last Pin')}
+                        <Text size="sm" color="$gray11">
+                          {waypoints.length} waypoint{waypoints.length !== 1 ? 's' : ''} •{' '}
+                          {drawingMode} mode
+                        </Text>
+                        {drawingMode === 'waypoint' && waypoints.length === 1 && (
+                          <Text size="sm" color="$orange10">
+                            Need 1 more waypoint minimum
                           </Text>
-                        </XStack>
-                      </Button>
+                        )}
+                        {drawingMode === 'pen' && isDrawing && (
+                          <Text size="sm" color="$blue10">
+                            Drawing... ({penPath.length} points)
+                          </Text>
+                        )}
+                      </XStack>
+
+                      {/* Waypoint Management */}
+                      {waypoints.length > 0 && (
+                        <YStack gap="$3" marginTop="$4">
+                          <Text size="lg" weight="bold">Waypoints</Text>
+                          {waypoints.map((waypoint, index) => (
+                            <Card key={index} bordered padding="$3">
+                              <XStack justifyContent="space-between" alignItems="flex-start" gap="$3">
+                                <YStack flex={1} gap="$2">
+                                  <XStack alignItems="center" gap="$2">
+                                    <View
+                                      style={{
+                                        width: 24,
+                                        height: 24,
+                                        borderRadius: 12,
+                                        backgroundColor: index === 0 ? '#22C55E' : index === waypoints.length - 1 && waypoints.length > 1 ? '#EF4444' : '#3B82F6',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                      }}
+                                    >
+                                      <Text size="xs" color="white" weight="bold">
+                                        {index + 1}
+                                      </Text>
+                                    </View>
+                                    <Text size="sm" weight="medium" flex={1} numberOfLines={1}>
+                                      {waypoint.title}
+                                    </Text>
+                                  </XStack>
+                                  <Text size="xs" color="$gray11">
+                                    Lat: {waypoint.latitude.toFixed(6)}, Lng: {waypoint.longitude.toFixed(6)}
+                                  </Text>
+                                  {waypoint.description && (
+                                    <Text size="xs" color="$gray10">
+                                      {waypoint.description}
+                                    </Text>
+                                  )}
+                                </YStack>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onPress={() => {
+                                    const newWaypoints = waypoints.filter((_, i) => i !== index);
+                                    setWaypoints(newWaypoints);
+                                  }}
+                                  backgroundColor="$red5"
+                                >
+                                  <Feather name="trash-2" size={14} color="$red10" />
+                                </Button>
+                              </XStack>
+                            </Card>
+                          ))}
+                        </YStack>
+                      )}
+
+                      {/* Pen Path Info */}
+                      {drawingMode === 'pen' && penPath.length > 0 && (
+                        <YStack gap="$2" marginTop="$4">
+                                                     <Text size="lg" weight="bold">Pen Drawing</Text>
+                          <Card bordered padding="$3">
+                            <XStack justifyContent="space-between" alignItems="center">
+                              <Text size="sm" color="$gray11">
+                                {penPath.length} drawing points
+                              </Text>
+                              <XStack gap="$2">
+                                {isDrawing && (
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onPress={finishPenDrawing}
+                                    backgroundColor="$green10"
+                                  >
+                                    <XStack gap="$1" alignItems="center">
+                                      <Feather name="check" size={14} color="white" />
+                                      <Text size="sm" color="white">Finish</Text>
+                                    </XStack>
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onPress={() => {
+                                    setPenPath([]);
+                                    setIsDrawing(false);
+                                  }}
+                                  backgroundColor="$red5"
+                                >
+                                  <Feather name="trash-2" size={14} color="$red10" />
+                                </Button>
+                              </XStack>
+                            </XStack>
+                          </Card>
+                        </YStack>
+                      )}
                     </YStack>
                   </YStack>
                 )}

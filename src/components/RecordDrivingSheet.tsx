@@ -18,6 +18,29 @@ import * as TaskManager from 'expo-task-manager';
 import { CreateRouteModal } from './CreateRouteModal';
 import { Map } from './Map';
 
+// Enhanced Haversine formula for accurate distance calculation
+const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371000; // Earth's radius in meters
+
+  // Convert degrees to radians
+  const lat1Rad = (lat1 * Math.PI) / 180;
+  const lat2Rad = (lat2 * Math.PI) / 180;
+  const deltaLatRad = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLngRad = ((lng2 - lng1) * Math.PI) / 180;
+
+  // Haversine formula
+  const a =
+    Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
+    Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLngRad / 2) * Math.sin(deltaLngRad / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distanceMeters = R * c;
+  const distanceKm = distanceMeters / 1000;
+
+  // Filter GPS noise - only count movements > 1 meter
+  return distanceMeters > 1 ? distanceKm : 0;
+};
+
 // Optional imports with fallbacks
 let Device: any = {
   brand: 'Unknown',
@@ -192,10 +215,10 @@ interface RecordDrivingSheetProps {
   onCreateRoute?: (routeData: RecordedRouteData) => void;
 }
 
-// Optimize sensitivity settings for better performance
-const MIN_DISTANCE_FILTER = 3; // Increased from 0.5 to reduce updates
-const MIN_TIME_FILTER = 1000; // Increased from 500 to reduce update frequency
-const MIN_SPEED_THRESHOLD = 0.1; // Minimum speed to consider
+// Enhanced sensitivity settings for accurate recording
+const MIN_DISTANCE_FILTER = 5; // 5 meters - filters GPS noise effectively
+const MIN_TIME_FILTER = 1000; // 1 second - balanced update frequency
+const MIN_SPEED_THRESHOLD = 0.5; // 0.5 km/h - minimum speed for waypoint creation
 
 // Update speed display to handle very low speeds better
 const formatSpeed = (speed: number): string => {
@@ -251,14 +274,24 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const { t } = useTranslation();
   const { hideModal } = useModal();
 
-  // Core recording state - only the essential pieces
+  // Enhanced recording state with better time tracking
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [waypoints, setWaypoints] = useState<RecordedWaypoint[]>([]);
-  const [elapsedTime, setElapsedTime] = useState(0);
+  
+  // Time tracking - separate total time from driving time
+  const [totalElapsedTime, setTotalElapsedTime] = useState(0); // Total duration including pauses
+  const [drivingTime, setDrivingTime] = useState(0); // Active driving time (excluding pauses)
+  const [recordingStartTime, setRecordingStartTime] = useState<Date | null>(null);
+  const [pausedTime, setPausedTime] = useState(0); // Total time spent paused
+  const [lastPauseTime, setLastPauseTime] = useState<Date | null>(null);
+  
+  // Enhanced speed and distance tracking
   const [distance, setDistance] = useState(0);
-  const [averageSpeed, setAverageSpeed] = useState(0);
   const [currentSpeed, setCurrentSpeed] = useState(0);
+  const [maxSpeed, setMaxSpeed] = useState(0);
+  const [averageSpeed, setAverageSpeed] = useState(0);
+  
   const [locationSubscription, setLocationSubscription] =
     useState<Location.LocationSubscription | null>(null);
   const [showSummary, setShowSummary] = useState(false);
@@ -438,12 +471,33 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                 }
               }
 
-              // Update current speed display - handle null speeds better
-              let currentSpeedKmh = 0;
-              if (location.coords.speed !== null) {
-                currentSpeedKmh = Math.max(0, location.coords.speed * 3.6); // Convert m/s to km/h and ensure non-negative
-                setCurrentSpeed(currentSpeedKmh);
+              // Enhanced speed calculation with GPS fallback
+              const gpsSpeed = location.coords.speed !== null && location.coords.speed >= 0
+                ? location.coords.speed * 3.6  // Convert m/s to km/h
+                : null;
+
+              // Calculated speed from distance/time if we have previous waypoint
+              let calculatedSpeed = 0;
+              if (wayPointsRef.current.length > 0) {
+                const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 1];
+                const timeDiff = (newWaypoint.timestamp - lastWaypoint.timestamp) / 1000; // seconds
+                if (timeDiff > 0 && distanceFromLast > 0) {
+                  calculatedSpeed = (distanceFromLast / 1000) / (timeDiff / 3600); // km/h
+                }
               }
+
+              // Use most reliable speed source
+              const finalSpeed = gpsSpeed !== null && gpsSpeed < 200 ? gpsSpeed : calculatedSpeed;
+              
+              // Update speed tracking
+              setCurrentSpeed(Math.max(0, finalSpeed));
+              setMaxSpeed(prev => Math.max(prev, finalSpeed));
+
+              // Enhanced waypoint filtering - only add if significant movement and speed
+              const minimumWaypointDistance = 5; // 5 meters
+              const minimumSpeed = 0.5; // 0.5 km/h
+              shouldAddWaypoint = shouldAddWaypoint && 
+                (distanceFromLast >= minimumWaypointDistance || finalSpeed > minimumSpeed);
 
               // Throttle waypoint updates to reduce memory pressure
               if (
@@ -518,12 +572,15 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       // Reset state
       setWaypoints([]);
       wayPointsRef.current = [];
-      setElapsedTime(0);
+      setTotalElapsedTime(0);
+      setDrivingTime(0);
       setDistance(0);
-      setAverageSpeed(0);
       setCurrentSpeed(0);
-      startTimeRef.current = Date.now();
-      pausedTimeRef.current = 0;
+      setMaxSpeed(0);
+      setAverageSpeed(0);
+      setRecordingStartTime(new Date());
+      setPausedTime(0);
+      setLastPauseTime(null);
       setDebugMessage(null);
       lastErrorRef.current = null;
 
@@ -535,16 +592,17 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
 
         timerRef.current = setInterval(() => {
           try {
-            if (startTimeRef.current && !isPaused) {
-              const totalPausedTime = pausedTimeRef.current || 0;
-              const elapsed = Math.floor(
-                (Date.now() - startTimeRef.current - totalPausedTime) / 1000,
-              );
-              setElapsedTime(elapsed);
+            if (recordingStartTime && !isPaused) {
+              const now = Date.now();
+              const totalElapsed = Math.floor((now - recordingStartTime.getTime()) / 1000);
+              const activeDriving = Math.floor((now - recordingStartTime.getTime() - pausedTime) / 1000);
+              
+              setTotalElapsedTime(totalElapsed);
+              setDrivingTime(activeDriving);
 
-              // Recalculate average speed based on total time and distance
-              if (elapsed > 0) {
-                const timeHours = elapsed / 3600; // Convert seconds to hours
+              // Recalculate average speed based on driving time and distance
+              if (activeDriving > 0) {
+                const timeHours = activeDriving / 3600; // Convert seconds to hours
                 if (timeHours > 0) {
                   setAverageSpeed(distance / timeHours); // km/h
                 }
@@ -574,17 +632,19 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const pauseRecording = useCallback(() => {
     if (isRecording && !isPaused) {
       setIsPaused(true);
-      pausedTimeRef.current =
-        Date.now() - (startTimeRef.current || 0) - (pausedTimeRef.current || 0);
+      setLastPauseTime(new Date());
     }
   }, [isRecording, isPaused]);
 
   // Resume recording - memoized
   const resumeRecording = useCallback(() => {
-    if (isRecording && isPaused) {
+    if (isRecording && isPaused && lastPauseTime) {
       setIsPaused(false);
+      const pauseDuration = Date.now() - lastPauseTime.getTime();
+      setPausedTime(prev => prev + pauseDuration);
+      setLastPauseTime(null);
     }
-  }, [isRecording, isPaused]);
+  }, [isRecording, isPaused, lastPauseTime]);
 
   // Stop recording with better cleanup
   const stopRecording = useCallback(() => {
@@ -653,8 +713,10 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           timestamp: wp.timestamp,
         })),
         distance: distance.toFixed(2),
-        duration: elapsedTime,
+        duration: drivingTime,
+        totalDuration: totalElapsedTime,
         avgSpeed: averageSpeed.toFixed(1),
+        maxSpeed: maxSpeed.toFixed(1),
       };
 
       // Prepare waypoints data for CreateRouteScreen
@@ -666,7 +728,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       }));
 
       const routeName = `Recorded Route ${new Date().toLocaleDateString()}`;
-      const routeDescription = `Recorded drive - Distance: ${routeData.distance} km, Duration: ${formatTime(routeData.duration)}, Speed: ${averageSpeed.toFixed(1)} km/h`;
+      const routeDescription = `Recorded drive - Distance: ${routeData.distance} km, Duration: ${formatTime(routeData.totalDuration)}, Driving Time: ${formatTime(routeData.duration)}, Max Speed: ${routeData.maxSpeed} km/h, Avg Speed: ${routeData.avgSpeed} km/h`;
 
       // Get coordinates for first waypoint for search input
       const firstWaypoint = waypoints[0];
@@ -721,7 +783,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       console.error('Error saving recording:', error);
       Alert.alert('Error', 'Failed to save the recording. Please try again.');
     }
-  }, [waypoints, distance, elapsedTime, averageSpeed, formatTime, hideModal, onCreateRoute]);
+  }, [waypoints, distance, drivingTime, totalElapsedTime, averageSpeed, maxSpeed, formatTime, hideModal, onCreateRoute]);
 
   // Cancel recording session - memoized
   const cancelRecording = useCallback(() => {
@@ -752,10 +814,12 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         setShowSummary(false);
         setWaypoints([]);
         wayPointsRef.current = [];
-        setElapsedTime(0);
+        setTotalElapsedTime(0);
+        setDrivingTime(0);
         setDistance(0);
-        setAverageSpeed(0);
         setCurrentSpeed(0);
+        setMaxSpeed(0);
+        setAverageSpeed(0);
         setDebugMessage(null);
       } else {
         onClose();
@@ -786,35 +850,42 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           </TouchableOpacity>
         </View>
 
-        {/* Map Toggle Button - Only show if recording */}
-        {isRecording && (
+        {/* Map Toggle Button - Show during recording or if we have waypoints to preview */}
+        {(isRecording || waypoints.length > 0) && (
           <XStack justifyContent="center" marginBottom={8}>
             <TouchableOpacity
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                backgroundColor: showMap ? '#00E6C3' : '#FF9500',
+                backgroundColor: showMap ? '#69e3c4' : 'rgba(255,255,255,0.2)',
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 16,
+                borderWidth: 1,
+                borderColor: showMap ? '#69e3c4' : 'rgba(255,255,255,0.3)',
               }}
               onPress={() => setShowMap(!showMap)}
             >
-              <Feather name={showMap ? 'eye' : 'eye-off'} size={16} color="white" />
+              <Feather name={showMap ? 'eye-off' : 'map'} size={16} color="white" />
               <Text color="white" marginLeft={4} fontWeight="500">
-                {showMap ? 'Hide Map' : 'Show Map'}
+                {showMap ? 'Hide Preview' : 'Show Route Preview'}
               </Text>
             </TouchableOpacity>
           </XStack>
         )}
 
-        {/* Map (only shown if explicitly enabled) */}
-        {showMap && isRecording && (
+        {/* Enhanced Map Preview with Live Updates */}
+        {showMap && (
           <View style={styles.mapContainer}>
             <Map
               waypoints={getWaypointMarkers()}
               region={
-                initialRegion || {
+                waypoints.length > 0 ? {
+                  latitude: waypoints[waypoints.length - 1].latitude,
+                  longitude: waypoints[waypoints.length - 1].longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                } : {
                   latitude: 37.7749,
                   longitude: -122.4194,
                   latitudeDelta: 0.1,
@@ -823,17 +894,33 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
               }
               style={styles.map}
               routePath={getRoutePath()}
-              routePathColor={isPaused ? '#FF9500' : '#00E6C3'}
-              routePathWidth={4}
+              routePathColor={isPaused ? '#FF9500' : '#69e3c4'}
+              routePathWidth={3}
+              showStartEndMarkers={waypoints.length > 1}
+              drawingMode="record"
             />
 
-            {/* Recording indicator */}
-            <View style={styles.recordingIndicator}>
-              <View style={[styles.recordingDot, isPaused ? styles.pausedDot : styles.activeDot]} />
-              <Text color="white" fontSize={12} marginLeft={4}>
-                {isPaused ? 'PAUSED' : 'RECORDING'}
-              </Text>
-            </View>
+            {/* Enhanced Recording Indicator */}
+            {isRecording && (
+              <View style={styles.recordingIndicator}>
+                <View style={[styles.recordingDot, isPaused ? styles.pausedDot : styles.activeDot]} />
+                <Text style={styles.recordingText}>
+                  {isPaused ? 'PAUSED' : 'LIVE RECORDING'}
+                </Text>
+                <Text style={styles.recordingSubtext}>
+                  {waypoints.length} points • {distance.toFixed(2)}km
+                </Text>
+              </View>
+            )}
+
+            {/* Map Stats Overlay */}
+            {!isRecording && waypoints.length > 0 && (
+              <View style={styles.mapStatsOverlay}>
+                <Text style={styles.mapStatsText}>
+                  Route Preview • {waypoints.length} waypoints
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -863,39 +950,42 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         )}
 
         <YStack padding={16} space={16}>
-          {/* Stats display */}
+          {/* Enhanced Stats display */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-                TIME
+                DURATION
               </Text>
-              <Text color={DARK_THEME.text} fontSize={24} fontWeight="600">
-                {formatTime(elapsedTime)}
+              <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
+                {formatTime(totalElapsedTime)}
+              </Text>
+              <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
+                Driving: {formatTime(drivingTime)}
               </Text>
             </View>
             <View style={styles.statItem}>
               <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
                 DISTANCE
               </Text>
-              <Text color={DARK_THEME.text} fontSize={24} fontWeight="600">
+              <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
                 {distance.toFixed(2)} km
+              </Text>
+              <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
+                {waypoints.length} waypoints
               </Text>
             </View>
             <View style={styles.statItem}>
               <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
                 SPEED
               </Text>
-              <XStack>
-                <Text color={DARK_THEME.text} fontSize={24} fontWeight="600">
-                  {formatSpeed(averageSpeed)}
-                </Text>
-                <Text color={DARK_THEME.text} fontSize={16} opacity={0.7} marginTop={4}>
-                  {' '}
-                  km/h
-                </Text>
-              </XStack>
-              <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-                Current: {formatSpeed(currentSpeed)} km/h
+              <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
+                {formatSpeed(currentSpeed)} km/h
+              </Text>
+              <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
+                Max: {formatSpeed(maxSpeed)} km/h
+              </Text>
+              <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
+                Avg: {formatSpeed(averageSpeed)} km/h
               </Text>
             </View>
           </View>
@@ -1149,5 +1239,32 @@ const styles = StyleSheet.create({
   recordingStatusInner: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  recordingText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  recordingSubtext: {
+    color: 'white',
+    fontSize: 10,
+    opacity: 0.8,
+    marginTop: 2,
+  },
+  mapStatsOverlay: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 10,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 8,
+    borderRadius: 6,
+  },
+  mapStatsText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

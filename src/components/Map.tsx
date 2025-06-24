@@ -60,6 +60,9 @@ const WaypointMarker = React.memo(
     customMarker,
     selectedPin,
     handleClusterPress,
+    drawingMode,
+    waypointIndex,
+    totalWaypoints,
   }: {
     cluster:
       | Supercluster.PointFeature<Supercluster.AnyProps>
@@ -73,6 +76,9 @@ const WaypointMarker = React.memo(
         | Supercluster.PointFeature<Supercluster.AnyProps>
         | Supercluster.ClusterFeature<Supercluster.AnyProps>,
     ) => void;
+    drawingMode?: string;
+    waypointIndex?: number;
+    totalWaypoints?: number;
   }) => {
     if (cluster.properties.cluster === true) {
       // Show cluster marker
@@ -95,10 +101,29 @@ const WaypointMarker = React.memo(
       );
     }
 
+    // Custom marker for different drawing modes
+    const getMarkerColor = () => {
+      if (drawingMode === 'pin') return '#3B82F6'; // Blue for pins
+      if (drawingMode === 'waypoint') {
+        if (waypointIndex === 0) return '#22C55E'; // Green for start
+        if (waypointIndex === (totalWaypoints || 1) - 1 && (totalWaypoints || 0) > 1) return '#EF4444'; // Red for end
+        return '#3B82F6'; // Blue for middle waypoints
+      }
+      if (drawingMode === 'pen') return '#FF6B35'; // Orange for pen points
+      return selectedPin === cluster.properties.id ? 'red' : 'coral';
+    };
+
+    const getMarkerSize = () => {
+      if (drawingMode === 'pin') return 16;
+      if (drawingMode === 'waypoint') return 14;
+      if (drawingMode === 'pen') return 8;
+      return 10;
+    };
+
     return (
       <Marker
         coordinate={toLocation(cluster.geometry.coordinates)}
-        anchor={{ x: 0, y: 0 }}
+        anchor={{ x: 0.5, y: 0.5 }}
         onPress={(e) => {
           e.stopPropagation();
           onMarkerPress?.(cluster.properties.id);
@@ -107,17 +132,27 @@ const WaypointMarker = React.memo(
         {customMarker || (
           <View
             style={{
-              width: 10,
-              height: 10,
-              backgroundColor: selectedPin === cluster.properties.id ? 'red' : 'coral',
-              borderRadius: 5,
+              width: getMarkerSize(),
+              height: getMarkerSize(),
+              backgroundColor: getMarkerColor(),
+              borderRadius: getMarkerSize() / 2,
+              borderWidth: 2,
+              borderColor: 'white',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.3,
+              shadowRadius: 2,
+              elevation: 3,
             }}
           />
         )}
       </Marker>
     );
   },
-  (prevProps, nextProps) => prevProps.cluster.id === nextProps.cluster.id,
+  (prevProps, nextProps) => 
+    prevProps.cluster.id === nextProps.cluster.id && 
+    prevProps.drawingMode === nextProps.drawingMode &&
+    prevProps.waypointIndex === nextProps.waypointIndex,
 );
 
 function getClusterExpansionRegion(supercluster: Supercluster, clusterId: number) {
@@ -177,7 +212,7 @@ export function Map({
   zoomEnabled?: boolean;
   pitchEnabled?: boolean;
   rotateEnabled?: boolean;
-  onPress?: () => void;
+  onPress?: (event: any) => void;
   selectedPin?: string | null;
   onMarkerPress?: (waypointId: string) => boolean | void;
   customMarker?: React.ReactNode;
@@ -202,10 +237,28 @@ export function Map({
   // Forward the ref
   React.useImperativeHandle(ref, () => mapRef.current!, []);
 
-  // Calculate clusters
+  // Calculate clusters (but skip clustering in drawing modes)
   const calculateClusters = useCallback(
     async ({ region }: { region: Region | null }) => {
       if (!region || !waypoints.length) return [];
+
+      // Skip clustering in drawing modes - show individual waypoints
+      if (drawingMode === 'pin' || drawingMode === 'waypoint' || drawingMode === 'pen') {
+        const individualPoints = waypoints.map((point, index) => ({
+          type: 'Feature' as const,
+          properties: {
+            id: point.id || `waypoint-${index}`,
+            title: point.title,
+            cluster: false,
+          },
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [point.longitude, point.latitude],
+          },
+        }));
+        setClusters(individualPoints);
+        return;
+      }
 
       const bbox: GeoJSON.BBox = [
         region.longitude - region.longitudeDelta / 2, // west
@@ -224,7 +277,7 @@ export function Map({
 
       setClusters(clusters ?? []);
     },
-    [waypoints],
+    [waypoints, drawingMode],
   );
 
   useEffect(() => {
@@ -347,6 +400,12 @@ export function Map({
         )}
 
         {clusters.map((cluster, index) => {
+          // Find waypoint index for proper coloring
+          const waypointIndex = waypoints.findIndex(wp => 
+            wp.id === cluster.properties.id || 
+            `waypoint-${waypoints.indexOf(wp)}` === cluster.properties.id
+          );
+          
           return (
             <WaypointMarker
               key={cluster.properties.cluster_id ?? cluster.properties.id ?? cluster.id ?? index}
@@ -355,6 +414,9 @@ export function Map({
               customMarker={customMarker}
               selectedPin={selectedPin}
               handleClusterPress={handleClusterPress}
+              drawingMode={drawingMode}
+              waypointIndex={waypointIndex >= 0 ? waypointIndex : index}
+              totalWaypoints={waypoints.length}
             />
           );
         })}
