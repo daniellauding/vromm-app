@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
-import { logger } from '../utils/logger';
+import { logInfo, logError } from '../utils/logger';
 import { Platform } from 'react-native';
 
 // Types
@@ -24,7 +24,7 @@ let subscriptionActive = false;
  */
 export const setupTranslationSubscription = (): void => {
   if (subscriptionActive) {
-    logger.info('[TRANSLATIONS] Real-time subscription already active');
+    logInfo('[TRANSLATIONS] Real-time subscription already active');
     return;
   }
 
@@ -39,16 +39,16 @@ export const setupTranslationSubscription = (): void => {
           table: 'translations',
         },
         (payload) => {
-          logger.info('[TRANSLATIONS] Real-time update received:', payload);
+          logInfo('[TRANSLATIONS] Real-time update received:', payload);
           console.log('[TRANSLATIONS] Translation changed, refreshing cache');
           // Force refresh translations when any change occurs
           forceRefreshTranslations().catch((err) =>
-            logger.error('[TRANSLATIONS] Error refreshing after real-time update:', err),
+            logError('[TRANSLATIONS] Error refreshing after real-time update:', err),
           );
         },
       )
       .subscribe((status) => {
-        logger.info(`[TRANSLATIONS] Subscription status: ${status}`);
+        logInfo(`[TRANSLATIONS] Subscription status: ${status}`);
         subscriptionActive = status === 'SUBSCRIBED';
         console.log(
           `[TRANSLATIONS] Real-time subscription ${subscriptionActive ? 'active' : 'failed'}`,
@@ -60,14 +60,14 @@ export const setupTranslationSubscription = (): void => {
       if (subscription) {
         supabase.removeChannel(subscription);
         subscriptionActive = false;
-        logger.info('[TRANSLATIONS] Removed real-time subscription');
+        logInfo('[TRANSLATIONS] Removed real-time subscription');
       }
     };
 
     // Return cleanup function (can be used if needed)
     return cleanup;
   } catch (error) {
-    logger.error('[TRANSLATIONS] Error setting up real-time subscription:', error);
+    logError('[TRANSLATIONS] Error setting up real-time subscription:', error);
     subscriptionActive = false;
   }
 };
@@ -110,7 +110,7 @@ export const fetchTranslations = async (
       .or(`platform.is.null,platform.eq.${currentPlatform}`);
 
     if (error) {
-      logger.error('Error fetching translations:', error);
+      logError('Error fetching translations:', error);
       return {};
     }
 
@@ -127,7 +127,7 @@ export const fetchTranslations = async (
 
     return translations;
   } catch (error) {
-    logger.error('Error in fetchTranslations:', error);
+    logError('Error in fetchTranslations:', error);
     return {};
   }
 };
@@ -148,7 +148,7 @@ export const getCachedTranslations = async (
 
     return null;
   } catch (error) {
-    logger.error('Error getting cached translations:', error);
+    logError('Error getting cached translations:', error);
     return null;
   }
 };
@@ -167,7 +167,7 @@ export const cacheTranslations = async (
     // Also update the version timestamp
     await AsyncStorage.setItem(TRANSLATION_VERSION_KEY, Date.now().toString());
   } catch (error) {
-    logger.error('Error caching translations:', error);
+    logError('Error caching translations:', error);
   }
 };
 
@@ -183,9 +183,9 @@ export const clearTranslationCache = async (): Promise<void> => {
     ];
 
     await AsyncStorage.multiRemove(keys);
-    logger.info('Translation cache cleared');
+    logInfo('Translation cache cleared');
   } catch (error) {
-    logger.error('Error clearing translation cache:', error);
+    logError('Error clearing translation cache:', error);
   }
 };
 
@@ -202,7 +202,7 @@ export const checkTranslationsVersion = async (): Promise<boolean> => {
       .limit(1);
 
     if (error) {
-      logger.error('Error checking translations version:', error);
+      logError('Error checking translations version:', error);
       return false;
     }
 
@@ -221,7 +221,7 @@ export const checkTranslationsVersion = async (): Promise<boolean> => {
 
     return false;
   } catch (error) {
-    logger.error('Error in checkTranslationsVersion:', error);
+    logError('Error in checkTranslationsVersion:', error);
     return false;
   }
 };
@@ -237,7 +237,7 @@ export const getCurrentLanguage = async (): Promise<Language> => {
     const language = await AsyncStorage.getItem(CURRENT_LANGUAGE_KEY);
     return (language as Language) || 'en';
   } catch (error) {
-    logger.error('Error getting current language:', error);
+    logError('Error getting current language:', error);
     return 'en';
   }
 };
@@ -249,7 +249,7 @@ export const setCurrentLanguage = async (language: Language): Promise<void> => {
   try {
     await AsyncStorage.setItem(CURRENT_LANGUAGE_KEY, language);
   } catch (error) {
-    logger.error('Error setting current language:', error);
+    logError('Error setting current language:', error);
   }
 };
 
@@ -267,7 +267,7 @@ export const getTranslation = async (key: string, language?: Language): Promise<
     // Return the translation or the key itself as fallback
     return translations[key] || key;
   } catch (error) {
-    logger.error('Error getting translation:', error);
+    logError('Error getting translation:', error);
     return key;
   }
 };
@@ -294,7 +294,7 @@ export const getTranslations = async (
 
     return result;
   } catch (error) {
-    logger.error('Error getting translations:', error);
+    logError('Error getting translations:', error);
 
     // Return keys as values as fallback
     const result: Record<string, string> = {};
@@ -329,7 +329,7 @@ export const forceRefreshTranslations = async (language?: Language): Promise<voi
       console.log('[TRANSLATIONS] Force refreshed all translations');
     }
   } catch (error) {
-    logger.error('Error force refreshing translations:', error);
+    logError('Error force refreshing translations:', error);
   }
 };
 
@@ -355,10 +355,10 @@ export const clearAllTranslationCaches = async (): Promise<void> => {
     // Remove all keys
     await AsyncStorage.multiRemove(allKeys);
 
-    logger.info('[TRANSLATIONS] ALL translation caches cleared');
+    logInfo('[TRANSLATIONS] ALL translation caches cleared');
     console.log('[TRANSLATIONS] Cleared all translation caches:', allKeys);
   } catch (error) {
-    logger.error('Error clearing all translation caches:', error);
+    logError('Error clearing all translation caches:', error);
   }
 };
 
@@ -387,6 +387,6 @@ export const debugTranslations = async (): Promise<void> => {
 
     console.log('========================');
   } catch (error) {
-    logger.error('Error debugging translations:', error);
+    logError('Error debugging translations:', error);
   }
 };

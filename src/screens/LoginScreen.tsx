@@ -21,10 +21,7 @@ export function LoginScreen() {
   const { t, clearCache } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
 
-  useEffect(() => {
-    clearCache();
-    console.log('[LOGIN] Forcing translation refresh');
-  }, []);
+  // Note: Removed clearCache() call that was causing logger errors
 
   const handleLogin = async () => {
     console.log('[LOGIN_DEBUG] Starting login process...');

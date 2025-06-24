@@ -120,6 +120,7 @@ export type Database = {
       };
       profiles: {
         Row: {
+          avatar_url: string | null;
           birthdate: string | null;
           created_at: string;
           experience_level: Database['public']['Enums']['experience_level'] | null;
@@ -138,6 +139,7 @@ export type Database = {
           role_confirmed: boolean;
         };
         Insert: {
+          avatar_url?: string | null;
           birthdate?: string | null;
           created_at?: string;
           experience_level?: Database['public']['Enums']['experience_level'] | null;
@@ -156,6 +158,7 @@ export type Database = {
           role_confirmed?: boolean;
         };
         Update: {
+          avatar_url?: string | null;
           birthdate?: string | null;
           created_at?: string;
           experience_level?: Database['public']['Enums']['experience_level'] | null;

@@ -24,6 +24,8 @@ import WebView from 'react-native-webview';
 import { Image } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
+import { useScreenLogger } from '../hooks/useScreenLogger';
+import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
 
 // Define LearningPath type based on the learning_paths table
 interface LearningPath {
@@ -152,6 +154,13 @@ export function ProgressScreen() {
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [completionsLoading, setCompletionsLoading] = useState(false);
   const [pathProgress, setPathProgress] = useState<{ [pathId: string]: number }>({});
+
+  // Add comprehensive logging
+  const { logAction, logAsyncAction, logRenderIssue, logMemoryWarning } = useScreenLogger({
+    screenName: 'ProgressScreen',
+    trackPerformance: true,
+    trackMemory: true,
+  });
 
   // Add category filters with proper state
   const [categoryOptions, setCategoryOptions] = useState<Record<CategoryType, CategoryOption[]>>({

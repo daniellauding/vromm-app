@@ -26,9 +26,10 @@ const styles = StyleSheet.create({
 
 interface CreateRouteModalProps {
   routeData: RecordedRouteData;
+  onRouteCreated?: (routeId: string) => void;
 }
 
-export function CreateRouteModal({ routeData }: CreateRouteModalProps) {
+export function CreateRouteModal({ routeData, onRouteCreated }: CreateRouteModalProps) {
   const { hideModal } = useModal();
 
   // Handle back button press to close modal
@@ -62,6 +63,14 @@ export function CreateRouteModal({ routeData }: CreateRouteModalProps) {
     );
   };
 
+  // Handle successful route creation
+  const handleRouteCreated = (routeId: string) => {
+    hideModal();
+    if (onRouteCreated) {
+      onRouteCreated(routeId);
+    }
+  };
+
   // Add error boundary to prevent crashes from propagating
   const handleError = (error: Error) => {
     console.error('Error in CreateRouteModal:', error);
@@ -87,11 +96,12 @@ export function CreateRouteModal({ routeData }: CreateRouteModalProps) {
               initialRoutePath: routeData.routePath,
               initialStartPoint: routeData.startPoint,
               initialEndPoint: routeData.endPoint,
-              onClose: handleClose, // Pass the handleClose function to CreateRouteScreen
+              onClose: handleClose,
+              onRouteCreated: handleRouteCreated,
             },
           }}
-          isModal={true} // Add this flag to indicate it's running in modal mode
-          hideHeader={true} // Hide the default header
+          isModal={true}
+          hideHeader={true}
         />
       </View>
     </View>

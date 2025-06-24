@@ -27,7 +27,7 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
-  RouteDetail: { routeId: string };
+  RouteDetail: { routeId: string; shouldRefresh?: boolean; shouldRefreshReviews?: boolean };
   CreateRoute: { routeId?: string };
   Map: { selectedLocation?: SearchResult };
   Search: undefined;

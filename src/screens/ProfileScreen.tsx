@@ -20,8 +20,18 @@ import { forceRefreshTranslations, debugTranslations } from '../services/transla
 import { useTranslation } from '../contexts/TranslationContext';
 import { Language } from '../contexts/TranslationContext';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
+import { useScreenLogger } from '../hooks/useScreenLogger';
+import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
+import {
+  monitorDatabaseCall,
+  monitorNetworkCall,
+  checkMemoryUsage,
+  checkForPotentialIssues,
+  getPerformanceSummary,
+} from '../utils/performanceMonitor';
 
 type ExperienceLevel = Database['public']['Enums']['experience_level'];
 type UserRole = Database['public']['Enums']['user_role'];
@@ -48,6 +58,13 @@ export function ProfileScreen() {
   const navigation = useNavigation<RootStackNavigationProp>();
   const [avatarUploading, setAvatarUploading] = useState(false);
 
+  // Add comprehensive logging
+  const { logAction, logAsyncAction, logRenderIssue, logMemoryWarning } = useScreenLogger({
+    screenName: 'ProfileScreen',
+    trackPerformance: true,
+    trackMemory: true,
+  });
+
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
     location: profile?.location || '',
@@ -63,25 +80,31 @@ export function ProfileScreen() {
     try {
       setLoading(true);
       setError(null);
-      await updateProfile(formData);
+      
+      // Monitor the database call with expected fields
+      await monitorDatabaseCall(
+        () => updateProfile(formData),
+        'profiles',
+        'update',
+        ['id', 'full_name', 'location', 'role', 'experience_level', 'private_profile', 'avatar_url', 'updated_at']
+      );
+
+      checkMemoryUsage('ProfileScreen.handleUpdate');
+      logInfo('Profile updated successfully', { formData });
 
       // Refresh the PublicProfile when navigating back
       if (navigation.canGoBack()) {
-        // Force refresh by using replace instead of goBack
-        navigation.replace('PublicProfile', {
-          userId: profile?.id,
-          refresh: Date.now(), // Use timestamp to ensure refresh param is always different
-        });
+        navigation.goBack();
       } else {
-        // Navigate to the public profile view with refreshed data
+        // Navigate to the public profile view
         navigation.navigate('PublicProfile', {
-          userId: profile?.id,
-          refresh: Date.now(), // Use timestamp to ensure refresh param is always different
+          userId: profile?.id || '',
         });
       }
 
-      Alert.alert('Success', 'Profile updated successfully');
+      // Alert.alert('Success', 'Profile updated successfully');
     } catch (err) {
+      logError('Profile update failed', err as Error);
       setError(err instanceof Error ? err.message : 'Failed to update profile');
     } finally {
       setLoading(false);
@@ -202,7 +225,7 @@ export function ProfileScreen() {
     try {
       setAvatarUploading(true);
       let result;
-      
+
       if (useCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
@@ -231,56 +254,59 @@ export function ProfileScreen() {
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
-        
+
         if (!asset.uri) {
           throw new Error('No image URI found');
         }
 
-        const response = await fetch(asset.uri);
-        if (!response.ok) {
-          throw new Error('Failed to fetch image');
+        // Get file info to determine file extension
+        const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+        if (!fileInfo.exists) {
+          throw new Error('File does not exist');
         }
-        
-        const blob = await response.blob();
-        const reader = new FileReader();
-        
-        const base64 = await new Promise<string>((resolve, reject) => {
-          reader.onloadend = () => {
-            const result = reader.result;
-            if (typeof result === 'string' && result.includes(',')) {
-              resolve(result.split(',')[1]);
-            } else {
-              reject(new Error('Invalid base64 data'));
-            }
-          };
-          reader.onerror = () => reject(new Error('Failed to read file'));
-          reader.readAsDataURL(blob);
+
+        // Read file as base64
+        const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+          encoding: FileSystem.EncodingType.Base64,
         });
 
-        const ext = asset.uri.split('.').pop() || 'jpg';
+        // Determine file extension
+        const ext = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
         const userId = profile?.id || 'unknown-user';
         const fileName = `avatars/${userId}/${Date.now()}.${ext}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, decode(base64 as string), {
-            contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-            upsert: true,
-          });
-          
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          throw uploadError;
+
+        // Upload to Supabase storage with monitoring
+        const uploadResult = await monitorNetworkCall(
+          () => supabase.storage
+            .from('avatars')
+            .upload(fileName, decode(base64), {
+              contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+              upsert: true,
+            }),
+          `storage/avatars/${fileName}`,
+          'POST'
+        );
+
+        if (uploadResult.error) {
+          logError('Avatar upload failed', uploadResult.error);
+          throw uploadResult.error;
         }
 
         const {
           data: { publicUrl },
         } = supabase.storage.from('avatars').getPublicUrl(fileName);
-        
-        // Save avatar URL to profile
-        await updateProfile({ ...formData, avatar_url: publicUrl });
+
+        // Save avatar URL to profile with monitoring
+        await monitorDatabaseCall(
+          () => updateProfile({ ...formData, avatar_url: publicUrl }),
+          'profiles',
+          'update',
+          ['avatar_url', 'updated_at']
+        );
+
+        checkMemoryUsage('ProfileScreen.avatarUpload');
         setFormData((prev) => ({ ...prev, avatar_url: publicUrl }));
-        Alert.alert('Success', 'Avatar updated!');
+        // Alert.alert('Success', 'Avatar updated!');
       }
     } catch (err) {
       console.error('Avatar upload error:', err);
@@ -306,7 +332,7 @@ export function ProfileScreen() {
   };
 
   return (
-    <Screen scroll contentContainerStyle={{ paddingBottom: 100 }}>
+    <Screen scroll padding>
       <OnboardingModal
         visible={showOnboarding}
         onClose={() => setShowOnboarding(false)}
@@ -323,7 +349,7 @@ export function ProfileScreen() {
                   navigation.navigate('PublicProfile', { userId: profile.id });
                 }
               }}
-              variant="outlined"
+              variant="secondary"
               size="sm"
             >
               <XStack alignItems="center" gap="$2">
@@ -627,6 +653,130 @@ export function ProfileScreen() {
                   marginBottom="$2"
                 >
                   {t('profile.refreshTranslations')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      const { getStoredCrashReports, clearOldCrashReports } = await import(
+                        '../components/ErrorBoundary'
+                      );
+                      const { getCrashReport } = await import('../utils/logger');
+                      const currentLogs = getCrashReport();
+                      const storedCrashes = await getStoredCrashReports();
+                      const perfSummary = getPerformanceSummary();
+
+                      checkMemoryUsage('ProfileScreen.debugExport');
+                      checkForPotentialIssues('ProfileScreen.debugExport');
+
+                      logInfo('Debug logs exported', {
+                        currentLogsLength: currentLogs.length,
+                        storedCrashCount: storedCrashes.length,
+                        performance: perfSummary,
+                      });
+
+                      Alert.alert(
+                        'Debug & Performance Report',
+                        `Session Runtime: ${perfSummary.totalRuntime}s
+Memory Allocations: ${perfSummary.memoryAllocations}
+Database Calls: ${perfSummary.databaseCalls}
+Network Calls: ${perfSummary.networkCalls}
+Warnings: ${perfSummary.warnings}
+Errors: ${perfSummary.errors}
+Avg Calls/Min: ${perfSummary.avgCallsPerMinute}
+
+Current Logs: ${currentLogs.length} chars
+Stored Crashes: ${storedCrashes.length}
+
+Recent Errors:
+${perfSummary.recentErrors.join('\n')}`,
+                        [
+                          { text: 'OK' },
+                          {
+                            text: 'Clear All Data',
+                            style: 'destructive',
+                            onPress: async () => {
+                              await clearOldCrashReports(0); // Clear all
+                              Alert.alert('Success', 'All debug data cleared');
+                            },
+                          },
+                        ]
+                      );
+                    } catch (error) {
+                      logError('Failed to export debug logs', error as Error);
+                    }
+                  }}
+                  marginBottom="$2"
+                >
+                  Performance & Debug Report
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      checkMemoryUsage('ProfileScreen.memoryCheck');
+                      checkForPotentialIssues('ProfileScreen.manualCheck');
+
+                      // Test database connection
+                      const dbStart = Date.now();
+                      await monitorDatabaseCall(
+                        async () => {
+                          const { data, error } = await supabase
+                            .from('profiles')
+                            .select('id')
+                            .limit(1);
+                          if (error) throw error;
+                          return data;
+                        },
+                        'profiles',
+                        'select',
+                        ['id']
+                      );
+                      const dbTime = Date.now() - dbStart;
+
+                      // Test network connection
+                      const netStart = Date.now();
+                      try {
+                        await monitorNetworkCall(
+                          () => fetch('https://httpbin.org/delay/0'),
+                          'https://httpbin.org/delay/0',
+                          'GET'
+                        );
+                      } catch (e) {
+                        // Network test failed - that's ok
+                      }
+                      const netTime = Date.now() - netStart;
+
+                      const perfSummary = getPerformanceSummary();
+
+                      Alert.alert(
+                        'System Health Check',
+                        `Database Response: ${dbTime}ms ${dbTime > 1000 ? '⚠️' : '✅'}
+Network Response: ${netTime}ms ${netTime > 2000 ? '⚠️' : '✅'}
+Memory Allocations: ${perfSummary.memoryAllocations}
+Total Runtime: ${perfSummary.totalRuntime}s
+Recent Issues: ${perfSummary.recentErrors.length}
+
+${
+  dbTime > 2000
+    ? '⚠️ Database is slow'
+    : netTime > 3000
+      ? '⚠️ Network is slow'
+      : perfSummary.memoryAllocations > 1000
+        ? '⚠️ High memory usage'
+        : '✅ All systems normal'
+}`
+                      );
+                    } catch (error) {
+                      logError('Health check failed', error as Error);
+                      Alert.alert('Health Check Failed', 'See logs for details');
+                    }
+                  }}
+                  marginBottom="$2"
+                >
+                  System Health Check
                 </Button>
               </YStack>
             </Card>

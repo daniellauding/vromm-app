@@ -167,6 +167,8 @@ export function Map({
   routePath,
   routePathColor = '#1A73E8',
   routePathWidth = 3,
+  showStartEndMarkers = false,
+  drawingMode,
 }: {
   waypoints: Waypoint[];
   region: Region;
@@ -183,6 +185,8 @@ export function Map({
   routePath?: RoutePathPoint[];
   routePathColor?: string;
   routePathWidth?: number;
+  showStartEndMarkers?: boolean;
+  drawingMode?: string;
 }) {
   const mapRef = React.useRef<MapView>(null);
   const currentRegion = React.useRef<Region | null>(null);
@@ -297,6 +301,49 @@ export function Map({
             strokeColor={routePathColor}
             lineJoin="round"
           />
+        )}
+
+        {/* Display start and end markers for recorded routes */}
+        {showStartEndMarkers && routePath && routePath.length > 1 && (
+          <>
+            {/* Start marker (green) */}
+            <Marker coordinate={routePath[0]} anchor={{ x: 0.5, y: 1 }}>
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  backgroundColor: '#22C55E',
+                  borderRadius: 10,
+                  borderWidth: 2,
+                  borderColor: 'white',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                  elevation: 5,
+                }}
+              />
+            </Marker>
+            
+            {/* End marker (red) */}
+            <Marker coordinate={routePath[routePath.length - 1]} anchor={{ x: 0.5, y: 1 }}>
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  backgroundColor: '#EF4444',
+                  borderRadius: 10,
+                  borderWidth: 2,
+                  borderColor: 'white',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                  elevation: 5,
+                }}
+              />
+            </Marker>
+          </>
         )}
 
         {clusters.map((cluster, index) => {

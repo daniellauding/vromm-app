@@ -25,6 +25,8 @@ import {
   TouchableOpacity,
   useColorScheme,
 } from 'react-native';
+import { useScreenLogger } from '../hooks/useScreenLogger';
+import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
 import { OnboardingModal } from '../components/OnboardingModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shouldShowOnboarding } from '../components/Onboarding';
@@ -156,6 +158,13 @@ export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { fetchRoutes } = useRoutes();
   const { t } = useTranslation();
+  
+  // Add comprehensive logging
+  const { logAction, logAsyncAction, logRenderIssue, logMemoryWarning } = useScreenLogger({
+    screenName: 'HomeScreen',
+    trackPerformance: true,
+    trackMemory: true,
+  });
 
   // State declarations
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -181,11 +190,29 @@ export function HomeScreen() {
   // Add progressSectionKey state
   const [progressSectionKey, setProgressSectionKey] = useState(Date.now());
 
-  // Reset progress section key when screen comes into focus
+  // Reset progress section key when screen comes into focus (less frequently)
   useFocusEffect(
     useCallback(() => {
       console.log('HomeScreen: Screen focused, refreshing ProgressSection');
       setProgressSectionKey(Date.now());
+      
+      // Only refresh data if it's been more than 5 minutes since last load
+      const checkAndRefresh = async () => {
+        try {
+          const now = Date.now();
+          const lastRefresh = await AsyncStorage.getItem('lastHomeRefresh');
+          if (!lastRefresh || now - parseInt(lastRefresh) > 300000) { // 5 minutes
+            loadRoutes();
+            loadTodos();
+            loadCreatedRoutes();
+            await AsyncStorage.setItem('lastHomeRefresh', now.toString());
+          }
+        } catch (error) {
+          console.warn('Error checking refresh time:', error);
+        }
+      };
+      
+      checkAndRefresh();
     }, []),
   );
 
@@ -444,7 +471,8 @@ export function HomeScreen() {
 
   const loadTodos = async () => {
     if (!user) return;
-    try {
+    
+    return logAsyncAction('loadTodos', async () => {
       const { data, error } = await supabase
         .from('todos')
         .select('*')
@@ -462,9 +490,8 @@ export function HomeScreen() {
       }));
 
       setTodos(transformedTodos);
-    } catch (err) {
-      console.error('Error loading todos:', err);
-    }
+      logInfo(`Loaded ${transformedTodos.length} todos`, null, 'HomeScreen');
+    }, { userId: user?.id });
   };
 
   const handleToggleTodo = async (todoId: string, currentStatus: boolean) => {
@@ -482,9 +509,12 @@ export function HomeScreen() {
   };
 
   const loadRoutes = useCallback(async () => {
-    const data = await fetchRoutes();
-    setRoutes(data);
-  }, [fetchRoutes]);
+    return logAsyncAction('loadRoutes', async () => {
+      const data = await fetchRoutes();
+      setRoutes(data);
+      logInfo(`Loaded ${data.length} routes`, null, 'HomeScreen');
+    });
+  }, []); // Remove dependencies to prevent infinite loops
 
   const loadSavedRoutes = async () => {
     if (!user) return;
@@ -634,12 +664,12 @@ export function HomeScreen() {
     };
   }, [user]);
 
-  // Update useEffect to include loadCreatedRoutes
+  // Load data only once when component mounts
   useEffect(() => {
     loadRoutes();
     loadTodos();
     loadCreatedRoutes();
-  }, [loadRoutes]);
+  }, []); // Remove loadRoutes dependency to prevent infinite loops
 
   // Update handleRefresh to include loadCreatedRoutes
   const handleRefresh = async () => {

@@ -11,6 +11,7 @@ import {
   Image,
   ImageSourcePropType,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { YStack, XStack, useTheme, Stack } from 'tamagui';
 import { Text } from './Text';
@@ -72,11 +73,13 @@ export function Onboarding({
     }
   };
 
-  const viewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems[0]) {
-      setCurrentIndex(viewableItems[0].index);
-    }
-  }).current;
+  const viewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
+      if (viewableItems[0] && viewableItems[0].index !== null) {
+        setCurrentIndex(viewableItems[0].index);
+      }
+    },
+  ).current;
 
   const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
@@ -308,32 +311,48 @@ export function Onboarding({
 
   const renderItem = ({ item }: { item: OnboardingSlide }) => {
     return (
-      <YStack
-        flex={1}
-        width={width}
-        paddingHorizontal="$6"
-        paddingTop="$6"
-        alignItems="center"
-        justifyContent="center"
+      <ScrollView
+        style={{ width, flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingTop: 24,
+          paddingBottom: 120, // Space for bottom buttons
+        }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        <YStack flex={2} justifyContent="center" alignItems="center" marginBottom="$6">
-          {renderMedia(item)}
-        </YStack>
-        <YStack flex={1} alignItems="center" gap="$4">
-          <Text
-            size="3xl"
-            weight="bold"
-            fontStyle="italic"
-            textAlign="center"
-            fontFamily="$heading"
+        <YStack
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          minHeight={height - 200} // Ensure minimum height but allow scrolling
+        >
+          <YStack
+            flex={2}
+            justifyContent="center"
+            alignItems="center"
+            marginBottom="$6"
+            minHeight={300}
           >
-            {getTitle(item)}
-          </Text>
-          <Text size="lg" intent="muted" textAlign="center">
-            {getText(item)}
-          </Text>
+            {renderMedia(item)}
+          </YStack>
+          <YStack flex={1} alignItems="center" gap="$4" minHeight={150}>
+            <Text
+              size="3xl"
+              weight="bold"
+              fontStyle="italic"
+              textAlign="center"
+              fontFamily="$heading"
+            >
+              {getTitle(item)}
+            </Text>
+            <Text size="lg" intent="muted" textAlign="center">
+              {getText(item)}
+            </Text>
+          </YStack>
         </YStack>
-      </YStack>
+      </ScrollView>
     );
   };
 

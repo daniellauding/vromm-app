@@ -133,6 +133,16 @@ export const tokens = createTokens({
     7: 36, // 4xl
     8: 48, // 5xl
     9: 60, // 6xl
+    xs: 12, // Add explicit xs token
+    sm: 14, // Add explicit sm token
+    md: 16, // Add explicit md token
+    lg: 18, // Add explicit lg token
+    xl: 20, // Add explicit xl token
+    '2xl': 24, // Add explicit 2xl token
+    '3xl': 30, // Add explicit 3xl token
+    '4xl': 36, // Add explicit 4xl token
+    '5xl': 48, // Add explicit 5xl token
+    '6xl': 60, // Add explicit 6xl token
   },
 
   lineHeight: {

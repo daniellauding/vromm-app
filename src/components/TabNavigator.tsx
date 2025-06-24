@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { tokens } from '../tokens';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -6,6 +7,9 @@ import { Platform, useColorScheme, TouchableOpacity, ViewStyle, View } from 'rea
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTheme } from 'tamagui';
+import { logNavigation, logInfo, logError } from '../utils/logger';
+import { useNavigationState } from '@react-navigation/native';
 
 // Import screens
 import { HomeScreen } from '../screens/HomeScreen';
@@ -43,7 +47,7 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps) => {
             gap: 4,
           },
           isSelected && {
-            backgroundColor: '#2D3130',
+            backgroundColor: 'rgba(255,255,255,0.8)',
           },
         ]}
       >
@@ -56,7 +60,38 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps) => {
 export function TabNavigator() {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const theme = useTheme();
+
+  // Track navigation state changes
+  const navigationState = useNavigationState(state => state);
+  const prevRouteRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (navigationState) {
+      const currentRoute = navigationState.routes[navigationState.index]?.name;
+      
+      if (currentRoute && prevRouteRef.current && currentRoute !== prevRouteRef.current) {
+        // Log navigation between tabs
+        logNavigation(prevRouteRef.current, currentRoute);
+        logInfo(`Tab navigation: ${prevRouteRef.current} → ${currentRoute}`, {
+          fromTab: prevRouteRef.current,
+          toTab: currentRoute,
+          timestamp: Date.now(),
+        });
+      }
+      
+      prevRouteRef.current = currentRoute;
+    }
+  }, [navigationState]);
+
+  // Log tab navigator mount
+  useEffect(() => {
+    logInfo('TabNavigator mounted', { colorScheme });
+    
+    return () => {
+      logInfo('TabNavigator unmounted');
+    };
+  }, [colorScheme]);
 
   const tabBarStyle = {
     position: 'absolute',
@@ -68,9 +103,9 @@ export function TabNavigator() {
     paddingBottom: BOTTOM_INSET,
     paddingLeft: 20,
     paddingRight: 20,
-    backgroundColor: '#1F1F1F',
+    backgroundColor: colorScheme === 'dark' ? theme.background?.val || '#1A1A1A' : '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: tokens.color.backgroundPress,
+    borderTopColor: colorScheme === 'dark' ? theme.borderColor?.val || '#333333' : '#E5E5E5',
     borderTopRightRadius: 16,
     borderTopLeftRadius: 16,
     elevation: 8,
@@ -81,44 +116,44 @@ export function TabNavigator() {
     zIndex: 100,
   } as const;
 
+  const screenOptions = {
+    headerShown: false,
+    tabBarStyle,
+    tabBarLabelStyle: {
+      fontSize: 10,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      fontWeight: '500',
+    },
+    tabBarActiveTintColor: '#69e3c4',
+    tabBarInactiveTintColor: '#8E8E93',
+    headerStyle: {
+      backgroundColor: tokens.color.background,
+      borderBottomWidth: 1,
+      borderBottomColor: tokens.color.backgroundPress,
+      elevation: 0,
+      shadowOpacity: 0,
+    },
+    headerTitleStyle: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: theme.primary?.val || '#007AFF',
+    },
+    tabBarButton: (props) => <CustomTabBarButton {...props} />,
+  };
+
   return (
-    <Tab.Navigator
-      screenOptions={{
-        // Tab bar style
-        tabBarStyle,
-        // Label style
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-          fontWeight: '500',
-        },
-        // Active/Inactive colors
-        tabBarActiveTintColor: '#9DBCB7',
-        tabBarInactiveTintColor: '#A5A5A5',
-        // Header style
-        headerStyle: {
-          backgroundColor: tokens.color.background,
-          borderBottomWidth: 1,
-          borderBottomColor: tokens.color.backgroundPress,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        headerTitleStyle: {
-          fontSize: 17,
-          fontWeight: '600',
-          color: '#9DBCB7',
-        },
-        // Use custom tab bar button
-        tabBarButton: (props) => <CustomTabBarButton {...props} />,
-      }}
-    >
+    <Tab.Navigator screenOptions={screenOptions}>
       <Tab.Screen
         name="HomeTab"
         component={HomeScreen}
         options={{
           title: t('navigation.home'),
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => <HomeIcon color={color} size={24} />,
+          tabBarIcon: ({ focused, color, size }) => <HomeIcon focused={focused} color={color} size={size} />,
+        }}
+        listeners={{
+          tabPress: () => {
+            logInfo('Home tab pressed');
+          },
         }}
       />
       <Tab.Screen
@@ -126,8 +161,12 @@ export function TabNavigator() {
         component={ProgressScreen}
         options={{
           title: t('navigation.progress'),
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => <PractiseIcon color={color} size={24} />,
+          tabBarIcon: ({ focused, color, size }) => <PractiseIcon focused={focused} color={color} size={size} />,
+        }}
+        listeners={{
+          tabPress: () => {
+            logInfo('Progress tab pressed');
+          },
         }}
       />
       <Tab.Screen
@@ -135,16 +174,24 @@ export function TabNavigator() {
         component={MapScreen}
         options={{
           title: t('navigation.map'),
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => <MapIcon color={color} size={24} />,
+          tabBarIcon: ({ focused, color, size }) => <MapIcon focused={focused} color={color} size={size} />,
+        }}
+        listeners={{
+          tabPress: () => {
+            logInfo('Map tab pressed');
+          },
         }}
       />
       <Tab.Screen
         name="ProfileTab"
         options={{
           title: t('navigation.profile'),
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => <ProfileIcon color={color} size={24} />,
+          tabBarIcon: ({ focused, color, size }) => <ProfileIcon focused={focused} color={color} size={size} />,
+        }}
+        listeners={{
+          tabPress: () => {
+            logInfo('Profile tab pressed');
+          },
         }}
       >
         {() => {

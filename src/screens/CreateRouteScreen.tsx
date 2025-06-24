@@ -30,6 +30,11 @@ import { MediaItem, Exercise, WaypointData, MediaUrl, RouteData } from '../types
 import { useTranslation } from '../contexts/TranslationContext';
 import * as mediaUtils from '../utils/mediaUtils';
 
+// Helper function to extract YouTube video ID
+const extractYoutubeVideoId = (url: string): string | null => {
+  return mediaUtils.extractYoutubeVideoId(url);
+};
+
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotType = Database['public']['Enums']['spot_type'];
 type SpotVisibility = Database['public']['Enums']['spot_visibility'];
@@ -77,6 +82,7 @@ type Props = {
         longitude: number;
       };
       onClose?: () => void;
+      onRouteCreated?: (routeId: string) => void;
     };
   };
   isModal?: boolean;
@@ -100,6 +106,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const initialStartPoint = route?.params?.initialStartPoint;
   const initialEndPoint = route?.params?.initialEndPoint;
   const onCloseModal = route?.params?.onClose;
+  const onRouteCreated = route?.params?.onRouteCreated;
   const isEditing = !!routeId;
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
@@ -109,8 +116,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const { user } = useAuth();
 
-  // Use navigation conditionally
-  const navigation = isModal ? undefined : useNavigation<NavigationProp>();
+  // Always call useNavigation hook (required by React)
+  const navigation = useNavigation<NavigationProp>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>(initialWaypoints || []);
@@ -582,7 +589,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         },
         suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises) : '',
         media_attachments: mediaToUpdate,
-        drawing_mode: 'waypoints',
+        drawing_mode: 'waypoint',
       };
 
       let route;
@@ -603,7 +610,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
         // Show success message only in non-modal mode
         if (!isModal) {
-          Alert.alert(t('common.success'), t('createRoute.routeUpdated'));
+          // Alert.alert(t('common.success'), t('createRoute.routeUpdated'));
         }
       } else {
         // Create new route
@@ -621,7 +628,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
         // Show success message only in non-modal mode
         if (!isModal) {
-          Alert.alert(t('common.success'), t('createRoute.routeCreated'));
+          // Alert.alert(t('common.success'), t('createRoute.routeCreated'));
         }
       }
 
@@ -645,26 +652,49 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       if (isModal && onCloseModal) {
         // If in modal mode, call the onClose callback
         onCloseModal();
+
+        // Call onRouteCreated callback if provided
+        if (onRouteCreated && route?.id) {
+          onRouteCreated(route.id);
+        }
       } else if (navigation) {
         // Regular navigation back
         if (isEditing) {
-          navigation.goBack();
-          // Optionally refresh the route detail screen
-          const previousScreen =
-            navigation.getState().routes[navigation.getState().routes.length - 2];
-          if (previousScreen.name === 'RouteDetail') {
-            // @ts-ignore - params exist on the route
-            previousScreen.params = { ...previousScreen.params, shouldRefresh: true };
-          }
+          // For editing, go back and trigger refresh of RouteDetailScreen
+          navigation.navigate('RouteDetail', {
+            routeId: routeId,
+            shouldRefresh: true,
+          });
         } else {
-          navigation.goBack();
+          // For new routes, navigate to the newly created route
+          if (route?.id) {
+            navigation.navigate('RouteDetail', {
+              routeId: route.id,
+              shouldRefresh: true,
+            });
+          } else {
+            navigation.goBack();
+          }
         }
       } else {
         console.warn('No navigation or onClose callback available');
       }
     } catch (err) {
       console.error('Route operation error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save route. Please try again.');
+
+      // Handle specific database constraint errors
+      let errorMessage = 'Failed to save route. Please try again.';
+      if (err instanceof Error) {
+        if (err.message.includes('routes_drawing_mode_check')) {
+          errorMessage = 'Invalid route drawing mode. Please try again.';
+        } else if (err.message.includes('constraint')) {
+          errorMessage = 'Route data validation failed. Please check your inputs and try again.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      setError(errorMessage);
       setLoading(false);
     }
   };

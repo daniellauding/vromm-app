@@ -112,9 +112,19 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
     const region = getMapRegion();
     const waypoints = getAllWaypoints();
     if (showMap && region && waypoints.length > 0) {
+      // Create route path for recorded routes (more than just waypoints)
+      const routePath = waypoints.length > 2 ? waypoints : undefined;
+      const showStartEndMarkers = waypoints.length > 2 && (route.drawing_mode === 'waypoint' || route.drawing_mode === 'record');
+
       items.push({
         type: 'map' as const,
-        data: { region, waypoints },
+        data: { 
+          region, 
+          waypoints, 
+          routePath,
+          showStartEndMarkers,
+          drawingMode: route.drawing_mode 
+        },
       });
     }
 
@@ -143,7 +153,7 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
       ) || [];
 
     return [...items, ...media, ...reviewImages];
-  }, [route.media_attachments, route.reviews, showMap]);
+  }, [route.media_attachments, route.reviews, showMap, route.drawing_mode]);
 
   const handlePress = () => {
     if (onPress) {
@@ -187,6 +197,9 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
                     pitchEnabled={false}
                     rotateEnabled={false}
                     style={{ width: '100%', height: '100%' }}
+                    routePath={carouselItems[0].data.routePath}
+                    showStartEndMarkers={carouselItems[0].data.showStartEndMarkers}
+                    drawingMode={carouselItems[0].data.drawingMode}
                   />
                 ) : (
                   <Image
@@ -217,6 +230,9 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
                         pitchEnabled={false}
                         rotateEnabled={false}
                         style={{ width: '100%', height: '100%' }}
+                        routePath={item.data.routePath}
+                        showStartEndMarkers={item.data.showStartEndMarkers}
+                        drawingMode={item.data.drawingMode}
                       />
                     ) : (
                       <Image

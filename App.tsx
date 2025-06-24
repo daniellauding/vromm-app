@@ -9,13 +9,15 @@ import { TranslationProvider } from './src/contexts/TranslationContext';
 import { RootStackParamList } from './src/types/navigation';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useColorScheme, Platform, NativeModules, View } from 'react-native';
+import { useColorScheme, Platform, NativeModules, View, AppState } from 'react-native';
 import * as Font from 'expo-font';
 import { useEffect, useState } from 'react';
 import { supabase } from './src/lib/supabase';
 import { StatusBar } from 'expo-status-bar';
 import { setupTranslationSubscription } from './src/services/translationService';
 import { ModalProvider } from './src/contexts/ModalContext';
+import { ErrorBoundary, clearOldCrashReports } from './src/components/ErrorBoundary';
+import { logInfo, logWarn, logError, logNavigation } from './src/utils/logger';
 
 // Disable reanimated warnings about reading values during render
 
@@ -71,21 +73,57 @@ function AppContent() {
   const { user, loading: authLoading, initialized } = useAuth();
   const colorScheme = useColorScheme();
 
+  // Add app-level logging and crash monitoring
+  useEffect(() => {
+    logInfo('App started', {
+      platform: Platform.OS,
+      platformVersion: Platform.Version,
+      colorScheme,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Clear old crash reports
+    clearOldCrashReports().catch((error) => {
+      logError('Failed to clear old crash reports', error);
+    });
+
+    // Monitor app state changes
+    const handleAppStateChange = (nextAppState: string) => {
+      logInfo(`App state changed to: ${nextAppState}`, { 
+        previousState: AppState.currentState,
+        nextState: nextAppState 
+      });
+
+      if (nextAppState === 'background') {
+        logWarn('App went to background - potential memory pressure point');
+      } else if (nextAppState === 'active') {
+        logInfo('App became active');
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+      logInfo('App cleanup completed');
+    };
+  }, [colorScheme]);
+
   // Enable analytics collection when the app starts
   useEffect(() => {
     const initializeAnalytics = async () => {
       try {
         // Check if the analytics module is available
         if (!analytics().app) {
-          console.log('Firebase Analytics not available');
+          logWarn('Firebase Analytics not available');
           return;
         }
 
         // Make sure analytics collection is enabled
         await analytics().setAnalyticsCollectionEnabled(true);
-        console.log('Firebase Analytics initialized');
+        logInfo('Firebase Analytics initialized');
       } catch (error) {
-        console.error('Failed to initialize analytics:', error);
+        logError('Failed to initialize analytics', error);
       }
     };
 
@@ -139,17 +177,32 @@ function AppContent() {
   // Only return null during initial app startup, not during login attempts
   // This prevents navigation stack from being destroyed during authentication
   if (authLoading && !initialized) {
-    console.log('[APP_DEBUG] Initial auth check in progress, returning null');
-    return null;
+    logInfo('Initial auth check in progress');
+    // Import LoadingScreen dynamically to avoid circular imports
+    const LoadingScreen = require('./src/components/LoadingScreen').LoadingScreen;
+    return (
+      <LoadingScreen 
+        message="Starting app..."
+        showAfterMs={1000}
+        timeout={15000}
+        onTimeout={() => {
+          logWarn('App startup timeout - forcing navigation');
+          // Could force navigation or show error here
+        }}
+      />
+    );
   }
 
   return (
     <NavigationContainer
       onStateChange={(state) => {
-        console.log('[NAV_DEBUG] Navigation state changed:', {
-          currentRoute: state?.routes[state?.index || 0]?.name,
+        const currentRoute = state?.routes[state?.index || 0]?.name;
+        
+        logInfo('Navigation state changed', {
+          currentRoute,
           routeCount: state?.routes?.length,
-          stackIndex: state?.index
+          stackIndex: state?.index,
+          timestamp: Date.now(),
         });
 
         // Track screen views for analytics - works on both iOS and Android
@@ -166,10 +219,10 @@ function AppContent() {
                   screen_name,
                   screen_class,
                 })
-                .catch((err) => console.log('Analytics error:', err));
+                .catch((err) => logWarn('Analytics error', err));
             }
           } catch (error) {
-            console.log('Analytics not available for screen view');
+            logWarn('Analytics not available for screen view', error);
           }
         }
       }}
@@ -341,36 +394,54 @@ export default function App() {
   }, []);
 
   if (!fontsLoaded) {
-    return null; // Or a loading screen
+    const LoadingScreen = require('./src/components/LoadingScreen').LoadingScreen;
+    return (
+      <LoadingScreen 
+        message="Loading fonts..."
+        showAfterMs={500}
+        timeout={10000}
+        onTimeout={() => {
+          logWarn('Font loading timeout - continuing without custom fonts');
+          setFontsLoaded(true); // Force continue
+        }}
+      />
+    );
   }
 
   console.log('[DEBUG] App rendering');
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <TamaguiProvider config={config} defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}>
-          <Theme>
-            <TranslationProvider>
-              <AuthProvider>
-                <LocationProvider>
-                  <ModalProvider>
-                    <AppContent />
-                  </ModalProvider>
-                </LocationProvider>
-              </AuthProvider>
-            </TranslationProvider>
-          </Theme>
-        </TamaguiProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <TamaguiProvider config={config} defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}>
+            <Theme>
+              <TranslationProvider>
+                <AuthProvider>
+                  <LocationProvider>
+                    <ModalProvider>
+                      <AppContent />
+                    </ModalProvider>
+                  </LocationProvider>
+                </AuthProvider>
+              </TranslationProvider>
+            </Theme>
+          </TamaguiProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
 
-// Suppress Reanimated warnings in dev mode
+// Suppress development warnings
 if (__DEV__) {
   const originalWarn = console.warn;
+  const warningCounts = new Map<string, number>();
+  const MAX_WARNINGS_PER_TYPE = 3;
+
   console.warn = (...args) => {
+    const message = args.join(' ');
+    
     // Silence Reanimated warnings about reading values during render
     if (
       typeof args[0] === 'string' &&
@@ -378,6 +449,26 @@ if (__DEV__) {
     ) {
       return;
     }
+    
+    // Suppress repetitive font size warnings
+    if (message.includes('No font size found') && message.includes('in size tokens')) {
+      const warningKey = 'font-size-warning';
+      const count = warningCounts.get(warningKey) || 0;
+      
+      if (count < MAX_WARNINGS_PER_TYPE) {
+        warningCounts.set(warningKey, count + 1);
+        originalWarn(...args);
+        
+        if (count === MAX_WARNINGS_PER_TYPE - 1) {
+          originalWarn(
+            '[SUPPRESSED] Further font size warnings will be suppressed. ' +
+            'This is a known issue with Tamagui token configuration.'
+          );
+        }
+      }
+      return;
+    }
+    
     originalWarn(...args);
   };
 }

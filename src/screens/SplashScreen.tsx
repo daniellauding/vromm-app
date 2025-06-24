@@ -1,4 +1,5 @@
 import { YStack, XStack, useTheme, Heading } from 'tamagui';
+import { tokens } from '../tokens';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { Screen } from '../components/Screen';
@@ -19,6 +20,7 @@ import {
   Modal,
   Easing,
   Pressable,
+  ScrollView,
 } from 'react-native';
 import { Flag, HelpCircle, Check, GraduationCap, School } from '@tamagui/lucide-icons';
 import { FontAwesome } from '@expo/vector-icons';
@@ -174,10 +176,7 @@ export function SplashScreen() {
     }
   }, []);
 
-  // Force clear translation cache when the screen loads
-  useEffect(() => {
-    clearCache(); // Force refresh translations on splash screen
-  }, []);
+  // Note: Removed clearCache() call that was causing logger errors
 
   // Create animation loop
   useEffect(() => {
@@ -386,161 +385,168 @@ export function SplashScreen() {
         <View
           style={[
             styles.overlay,
-            { backgroundColor: theme.splashVideoOverlay?.get() || '#397770' },
+            { backgroundColor: tokens.color.splashVideoOverlay || '#397770' },
           ]}
         />
       </View>
 
       {/* Content */}
-      <View style={[styles.content, { minHeight: screenHeight }]}>
-        {/* Help Icon */}
-        <Animated.View
-          style={{
-            opacity: contentOpacity,
-            position: 'absolute',
-            top: insets.top || 40,
-            left: 16,
-            zIndex: 100,
-          }}
-        >
-          <TouchableOpacity
-            onPress={handleOpenWebsite}
+      <ScrollView 
+        style={{ flex: 1 }} 
+        contentContainerStyle={{ minHeight: screenHeight }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <View style={[styles.content, { minHeight: screenHeight }]}>
+          {/* Help Icon */}
+          <Animated.View
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            activeOpacity={1}
-            onPressIn={(e) => {
-              e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
-              });
-            }}
-            onPressOut={(e) => {
-              e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'transparent' },
-              });
+              opacity: contentOpacity,
+              position: 'absolute',
+              top: insets.top || 40,
+              left: 16,
+              zIndex: 100,
             }}
           >
-            <HelpCircle size={20} color="white" />
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Language Selector */}
-        <Animated.View
-          style={{
-            opacity: contentOpacity,
-            position: 'absolute',
-            top: insets.top || 40,
-            right: 16,
-            zIndex: 100,
-          }}
-        >
-          <TouchableOpacity
-            onPress={showLanguageModal}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            activeOpacity={1}
-            onPressIn={(e) => {
-              e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
-              });
-            }}
-            onPressOut={(e) => {
-              e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'transparent' },
-              });
-            }}
-          >
-            <Flag size={20} color="white" />
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Top Section - Logo */}
-        <View style={styles.topSection}>
-          <AnimatedLogo size={180} onAnimationComplete={handleLogoAnimationComplete} />
-        </View>
-
-        {/* Middle Section - Title, Slogan, Buttons */}
-        <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
-          <View style={styles.middleSection}>
-            <YStack gap={12} alignItems="center" marginBottom={56}>
-              <Heading
-                style={{
-                  fontWeight: '800',
-                  fontStyle: 'italic',
-                  textAlign: 'center',
-                  color: 'white',
-                }}
-              >
-                {t('auth.signIn.title')}
-              </Heading>
-              <Text size="md" color="white" textAlign="center">
-                {t('auth.signIn.slogan')}
-              </Text>
-            </YStack>
-
-            <YStack gap={16} width="100%" paddingHorizontal="$4" marginTop="$4">
-              <Button variant="primary" size="lg" onPress={handleSignup}>
-                {t('auth.signUp.signUpButton')}
-              </Button>
-
-              <Button variant="secondary" size="lg" onPress={handleLogin}>
-                {t('auth.signIn.signInButton')}
-              </Button>
-            </YStack>
-          </View>
-        </Animated.View>
-
-        {/* Bottom Section - Survey Box and Social Media */}
-        <Animated.View style={{ opacity: contentOpacity, width: '100%' }}>
-          <View style={styles.bottomSection}>
-            {/* Survey Section as clickable area */}
             <TouchableOpacity
-              style={styles.surveyButton}
-              onPress={showSurveyModal}
-              activeOpacity={0.7}
+              onPress={handleOpenWebsite}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: 'transparent',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              activeOpacity={1}
+              onPressIn={(e) => {
+                e.currentTarget.setNativeProps({
+                  style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+                });
+              }}
+              onPressOut={(e) => {
+                e.currentTarget.setNativeProps({
+                  style: { backgroundColor: 'transparent' },
+                });
+              }}
             >
-              <Text size="sm" color="white" textAlign="center">
-                {t('auth.signIn.helpImprove')}
-              </Text>
-              <Text size="sm" color="#00FFBC" textAlign="center" marginTop={6}>
-                {t('auth.signIn.helpImprove.cta')}
-              </Text>
+              <HelpCircle size={20} color="white" />
             </TouchableOpacity>
+          </Animated.View>
 
-            {/* Social Media Links */}
-            <XStack
-              gap={24}
-              justifyContent="center"
-              marginTop="$4"
-              paddingBottom={insets.bottom || 20}
+          {/* Language Selector */}
+          <Animated.View
+            style={{
+              opacity: contentOpacity,
+              position: 'absolute',
+              top: insets.top || 40,
+              right: 16,
+              zIndex: 100,
+            }}
+          >
+            <TouchableOpacity
+              onPress={showLanguageModal}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: 'transparent',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              activeOpacity={1}
+              onPressIn={(e) => {
+                e.currentTarget.setNativeProps({
+                  style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+                });
+              }}
+              onPressOut={(e) => {
+                e.currentTarget.setNativeProps({
+                  style: { backgroundColor: 'transparent' },
+                });
+              }}
             >
-              <TouchableOpacity onPress={() => handleOpenSocialMedia('facebook')}>
-                <FontAwesome name="facebook-square" size={28} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleOpenSocialMedia('instagram')}>
-                <FontAwesome name="instagram" size={28} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleOpenSocialMedia('linkedin')}>
-                <FontAwesome name="linkedin-square" size={28} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleOpenSocialMedia('mail')}>
-                <FontAwesome name="envelope" size={28} color="white" />
-              </TouchableOpacity>
-            </XStack>
+              <Flag size={20} color="white" />
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Top Section - Logo */}
+          <View style={styles.topSection}>
+            <AnimatedLogo size={180} onAnimationComplete={handleLogoAnimationComplete} />
           </View>
-        </Animated.View>
-      </View>
+
+          {/* Middle Section - Title, Slogan, Buttons */}
+          <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
+            <View style={styles.middleSection}>
+              <YStack gap={12} alignItems="center" marginBottom={56}>
+                <Heading
+                  style={{
+                    fontWeight: '800',
+                    fontStyle: 'italic',
+                    textAlign: 'center',
+                    color: 'white',
+                  }}
+                >
+                  {t('auth.signIn.title')}
+                </Heading>
+                <Text size="md" color="white" textAlign="center">
+                  {t('auth.signIn.slogan')}
+                </Text>
+              </YStack>
+
+              <YStack gap={16} width="100%" paddingHorizontal="$4" marginTop="$4">
+                <Button variant="primary" size="lg" onPress={handleSignup}>
+                  {t('auth.signUp.signUpButton')}
+                </Button>
+
+                <Button variant="secondary" size="lg" onPress={handleLogin}>
+                  {t('auth.signIn.signInButton')}
+                </Button>
+              </YStack>
+            </View>
+          </Animated.View>
+
+          {/* Bottom Section - Survey Box and Social Media */}
+          <Animated.View style={{ opacity: contentOpacity, width: '100%' }}>
+            <View style={styles.bottomSection}>
+              {/* Survey Section as clickable area */}
+              <TouchableOpacity
+                style={styles.surveyButton}
+                onPress={showSurveyModal}
+                activeOpacity={0.7}
+              >
+                <Text size="sm" color="white" textAlign="center">
+                  {t('auth.signIn.helpImprove')}
+                </Text>
+                <Text size="sm" color="#00FFBC" textAlign="center" marginTop={6}>
+                  {t('auth.signIn.helpImprove.cta')}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Social Media Links */}
+              <XStack
+                gap={24}
+                justifyContent="center"
+                marginTop="$4"
+                paddingBottom={insets.bottom || 20}
+              >
+                <TouchableOpacity onPress={() => handleOpenSocialMedia('facebook')}>
+                  <FontAwesome name="facebook-square" size={28} color="white" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleOpenSocialMedia('instagram')}>
+                  <FontAwesome name="instagram" size={28} color="white" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleOpenSocialMedia('linkedin')}>
+                  <FontAwesome name="linkedin-square" size={28} color="white" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleOpenSocialMedia('mail')}>
+                  <FontAwesome name="envelope" size={28} color="white" />
+                </TouchableOpacity>
+              </XStack>
+            </View>
+          </Animated.View>
+        </View>
+      </ScrollView>
 
       {/* Survey Modal */}
       <Modal

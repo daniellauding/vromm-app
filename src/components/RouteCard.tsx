@@ -6,7 +6,7 @@ import { NavigationProp } from '../types/navigation';
 import { Feather } from '@expo/vector-icons';
 import { Map } from './Map';
 import Carousel from 'react-native-reanimated-carousel';
-import { Route, WaypointData } from '@/src/types/route';
+import { Database } from '../lib/database.types';
 
 type WaypointData = {
   lat: number;
@@ -105,9 +105,19 @@ export function RouteCard({ route }: RouteCardProps) {
 
     // Add map if waypoints exist
     if (region && waypoints.length > 0) {
+      // Create route path for recorded routes (more than just waypoints)
+      const routePath = waypoints.length > 2 ? waypoints : undefined;
+      const showStartEndMarkers = waypoints.length > 2 && (route.drawing_mode === 'waypoint' || route.drawing_mode === 'record');
+
       items.push({
         type: 'map' as const,
-        data: { region, waypoints },
+        data: { 
+          region, 
+          waypoints, 
+          routePath,
+          showStartEndMarkers,
+          drawingMode: route.drawing_mode 
+        },
       });
     }
 
@@ -124,7 +134,7 @@ export function RouteCard({ route }: RouteCardProps) {
         })) || [];
 
     return [...items, ...media];
-  }, [route.media_attachments, region, waypoints]);
+  }, [route.media_attachments, region, waypoints, route.drawing_mode]);
 
   return (
     <Card
@@ -146,6 +156,9 @@ export function RouteCard({ route }: RouteCardProps) {
                     pitchEnabled={false}
                     rotateEnabled={false}
                     style={{ width: '100%', height: '100%' }}
+                    routePath={carouselItems[0].data.routePath}
+                    showStartEndMarkers={carouselItems[0].data.showStartEndMarkers}
+                    drawingMode={carouselItems[0].data.drawingMode}
                   />
                 ) : (
                   <Image
@@ -175,6 +188,9 @@ export function RouteCard({ route }: RouteCardProps) {
                         pitchEnabled={false}
                         rotateEnabled={false}
                         style={{ width: '100%', height: '100%' }}
+                        routePath={item.data.routePath}
+                        showStartEndMarkers={item.data.showStartEndMarkers}
+                        drawingMode={item.data.drawingMode}
                       />
                     ) : (
                       <Image

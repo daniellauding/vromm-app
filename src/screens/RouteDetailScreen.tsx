@@ -201,12 +201,24 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
     // Listen for navigation focus events
     const unsubscribe = navigation.addListener('focus', () => {
-      // Check if we need to refresh reviews
+      // Check if we need to refresh data
       const params = navigation.getState().routes.find((r) => r.name === 'RouteDetail')?.params;
-      if (params && 'shouldRefreshReviews' in params) {
-        loadReviews();
-        // Clear the refresh flag
-        navigation.setParams({ shouldRefreshReviews: undefined });
+      if (params && ('shouldRefreshReviews' in params || 'shouldRefresh' in params)) {
+        // Refresh all route data if shouldRefresh is true
+        if ('shouldRefresh' in params && params.shouldRefresh) {
+          loadRouteData();
+          checkSavedStatus();
+          checkDrivenStatus();
+          loadReviews();
+          // Clear the refresh flag
+          navigation.setParams({ shouldRefresh: undefined });
+        }
+        // Refresh only reviews if shouldRefreshReviews is true
+        if ('shouldRefreshReviews' in params && params.shouldRefreshReviews) {
+          loadReviews();
+          // Clear the refresh flag
+          navigation.setParams({ shouldRefreshReviews: undefined });
+        }
       }
     });
 
@@ -640,7 +652,18 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         longitudeDelta: Math.max(...lngs) - Math.min(...lngs) + 0.02,
       };
 
-      items.push({ type: 'map', waypoints, region });
+      // Create route path for recorded routes (more than just waypoints)
+      const routePath = waypoints.length > 2 ? waypoints : undefined;
+      const showStartEndMarkers = waypoints.length > 2 && (routeData.drawing_mode === 'waypoint' || routeData.drawing_mode === 'record');
+
+      items.push({ 
+        type: 'map', 
+        waypoints, 
+        region, 
+        routePath,
+        showStartEndMarkers,
+        drawingMode: routeData.drawing_mode 
+      });
     }
 
     // Add media attachments
@@ -660,6 +683,9 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           style={{ width: windowWidth, height: HERO_HEIGHT }}
           zoomEnabled={true}
           scrollEnabled={false}
+          routePath={item.routePath}
+          showStartEndMarkers={item.showStartEndMarkers}
+          drawingMode={item.drawingMode}
         />
       );
     } else if (item.type === 'image') {
@@ -723,9 +749,18 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       waypoints[waypoints.length - 1].lng
     }`;
 
-    // Create waypoints string for intermediate points (skip first and last)
-    const waypointsStr = waypoints
-      .slice(1, -1)
+    // For recorded routes with many waypoints, limit intermediate waypoints to avoid URL length issues
+    const maxIntermediateWaypoints = 8;
+    const intermediateWaypoints = waypoints.slice(1, -1);
+    
+    // If too many waypoints, sample them evenly
+    let selectedWaypoints = intermediateWaypoints;
+    if (intermediateWaypoints.length > maxIntermediateWaypoints) {
+      const step = Math.floor(intermediateWaypoints.length / maxIntermediateWaypoints);
+      selectedWaypoints = intermediateWaypoints.filter((_, index) => index % step === 0).slice(0, maxIntermediateWaypoints);
+    }
+
+    const waypointsStr = selectedWaypoints
       .map((wp) => `${wp.lat},${wp.lng}`)
       .join('|');
 
@@ -1022,12 +1057,25 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                           description: wp.description,
                         })) || []
                       }
-                      region={{
+                      region={getMapRegion() || {
                         latitude: (routeData as RouteData)?.waypoint_details?.[0]?.lat || 0,
                         longitude: (routeData as RouteData)?.waypoint_details?.[0]?.lng || 0,
                         latitudeDelta: 0.02,
                         longitudeDelta: 0.02,
                       }}
+                      routePath={
+                        (routeData as RouteData)?.waypoint_details?.length > 2
+                          ? (routeData as RouteData)?.waypoint_details?.map((wp) => ({
+                              latitude: wp.lat,
+                              longitude: wp.lng,
+                            }))
+                          : undefined
+                      }
+                      showStartEndMarkers={
+                        (routeData as RouteData)?.waypoint_details?.length > 2 && 
+                        ((routeData as RouteData)?.drawing_mode === 'waypoint' || (routeData as RouteData)?.drawing_mode === 'record')
+                      }
+                      drawingMode={(routeData as RouteData)?.drawing_mode}
                     />
                   </View>
                 </YStack>
