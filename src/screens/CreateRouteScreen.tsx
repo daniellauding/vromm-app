@@ -21,7 +21,7 @@ import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
-import { Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, Region } from 'react-native-maps';
 import { decode } from 'base64-arraybuffer';
 import { useLocation } from '../context/LocationContext';
 import { AppAnalytics } from '../utils/analytics';
@@ -418,6 +418,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     if (event && event.nativeEvent && event.nativeEvent.coordinate) {
       const { latitude, longitude } = event.nativeEvent.coordinate;
       console.log(`Map pressed at: ${latitude}, ${longitude} - Mode: ${drawingMode}`);
+      console.log(`Current waypoints before press:`, waypoints.length, waypoints);
       
       // Add immediate visual feedback
       if (drawingMode === 'pen') {
@@ -425,6 +426,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       }
       
       handleMapPress(event);
+      
+      // Log waypoints after press (with slight delay to see state update)
+      setTimeout(() => {
+        console.log(`Waypoints after press:`, waypoints.length, waypoints);
+      }, 100);
     }
   };
 
@@ -762,10 +768,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             doubleBack: false,
           },
           coordinates: [],
+          actualDrawingMode: drawingMode, // Store the actual drawing mode used in UI
         },
         suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises) : '',
         media_attachments: mediaToUpdate,
-        drawing_mode: drawingMode,
+        drawing_mode: 'waypoint', // Map all drawing modes to 'waypoint' for database compatibility
       };
 
       let route;
@@ -1467,40 +1474,89 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       </YStack>
 
                       <View style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}>
-                        <Map
-                          waypoints={waypoints.map((wp, index) => ({
-                            ...wp,
-                            id: `waypoint-${index}`,
-                          }))}
+                        <MapView
+                          style={{ flex: 1 }}
                           region={region}
                           onPress={handleMapPressWrapper}
-                          style={{ flex: 1 }}
-                          routePath={
-                            drawingMode === 'pen' && penPath.length > 0 
-                              ? penPath 
-                              : drawingMode === 'waypoint' && waypoints.length > 1
-                                ? waypoints
-                                : routePath || undefined
-                          }
-                          routePathColor={drawingMode === 'pen' ? '#FF6B35' : '#1A73E8'}
-                          routePathWidth={drawingMode === 'pen' ? 2 : 3}
-                          drawingMode={drawingMode}
-                          showStartEndMarkers={
-                            (drawingMode === 'waypoint' && waypoints.length > 1) ||
-                            (drawingMode === 'pen' && penPath.length > 1)
-                          }
                           scrollEnabled={drawingMode !== 'pen'}
                           zoomEnabled={drawingMode !== 'pen'}
                           pitchEnabled={drawingMode !== 'pen'}
                           rotateEnabled={drawingMode !== 'pen'}
-                          onMarkerPress={(waypointId) => {
-                            console.log(`Waypoint pressed: ${waypointId}`);
-                            const index = parseInt(waypointId.split('-')[1]);
-                            if (!isNaN(index) && waypoints[index]) {
-                              console.log(`Selected waypoint ${index}:`, waypoints[index]);
-                            }
-                          }}
-                        />
+                          showsUserLocation={true}
+                          userInterfaceStyle="dark"
+                        >
+                          {/* Render waypoints as individual markers */}
+                          {waypoints.map((waypoint, index) => {
+                            const isFirst = index === 0;
+                            const isLast = index === waypoints.length - 1 && waypoints.length > 1;
+                            const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
+                            
+                            return (
+                              <Marker
+                                key={`waypoint-${index}`}
+                                coordinate={{
+                                  latitude: waypoint.latitude,
+                                  longitude: waypoint.longitude,
+                                }}
+                                title={waypoint.title}
+                                description={waypoint.description}
+                                pinColor={markerColor}
+                              />
+                            );
+                          })}
+
+                          {/* Render pen path */}
+                          {drawingMode === 'pen' && penPath.map((point, index) => (
+                            <Marker
+                              key={`pen-${index}`}
+                              coordinate={point}
+                            >
+                              <View
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  backgroundColor: '#FF6B35',
+                                  borderRadius: 4,
+                                  borderWidth: 1,
+                                  borderColor: 'white',
+                                }}
+                              />
+                            </Marker>
+                          ))}
+
+                          {/* Render connecting lines for waypoints */}
+                          {drawingMode === 'waypoint' && waypoints.length > 1 && (
+                            <Polyline
+                              coordinates={waypoints.map(wp => ({
+                                latitude: wp.latitude,
+                                longitude: wp.longitude,
+                              }))}
+                              strokeWidth={3}
+                              strokeColor="#1A73E8"
+                              lineJoin="round"
+                            />
+                          )}
+
+                          {/* Render pen drawing line */}
+                          {drawingMode === 'pen' && penPath.length > 1 && (
+                            <Polyline
+                              coordinates={penPath}
+                              strokeWidth={2}
+                              strokeColor="#FF6B35"
+                              lineJoin="round"
+                            />
+                          )}
+
+                          {/* Render route path if provided */}
+                          {routePath && routePath.length > 1 && (
+                            <Polyline
+                              coordinates={routePath}
+                              strokeWidth={3}
+                              strokeColor="#1A73E8"
+                              lineJoin="round"
+                            />
+                          )}
+                        </MapView>
 
                                                 {/* Map Controls - Top Right */}
                         <XStack position="absolute" top={16} right={16} gap="$2">

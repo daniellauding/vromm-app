@@ -281,22 +281,27 @@ export function Map({
   );
 
   useEffect(() => {
+    console.log('Map: waypoints changed', waypoints.length, waypoints);
     if (waypoints.length > 0) {
       const geoPoints = waypoints.map((point: Waypoint) => ({
-        type: 'Feature',
+        type: 'Feature' as const,
         properties: {
-          id: point.id,
-          title: point.title,
+          id: point.id || `waypoint-${waypoints.indexOf(point)}`,
+          title: point.title || 'Waypoint',
         },
         geometry: {
-          type: 'Point',
+          type: 'Point' as const,
           coordinates: [point.longitude, point.latitude],
         },
       }));
+      console.log('Map: created geoPoints', geoPoints);
       supercluster.current?.load(geoPoints);
-      calculateClusters({ region: currentRegion.current });
+      calculateClusters({ region: currentRegion.current || region });
+    } else {
+      // Clear clusters when no waypoints
+      setClusters([]);
     }
-  }, [waypoints, calculateClusters]);
+  }, [waypoints, calculateClusters, region]);
 
   // Handle region changes
   const handleRegionChange = useCallback(
@@ -410,9 +415,10 @@ export function Map({
             <WaypointMarker
               key={cluster.properties.cluster_id ?? cluster.properties.id ?? cluster.id ?? index}
               cluster={cluster}
-              onMarkerPress={onMarkerPress}
+              expandedCluster={null}
+              onMarkerPress={onMarkerPress || (() => {})}
               customMarker={customMarker}
-              selectedPin={selectedPin}
+              selectedPin={selectedPin || null}
               handleClusterPress={handleClusterPress}
               drawingMode={drawingMode}
               waypointIndex={waypointIndex >= 0 ? waypointIndex : index}
