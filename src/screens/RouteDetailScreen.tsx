@@ -855,7 +855,13 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           </View>
         )}
 
-        <ScrollView>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
+          keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
           <YStack gap="$4" padding="$4">
             {/* Header */}
             <Header
@@ -909,6 +915,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   backgroundColor={isDriven ? '$gray10' : '$blue10'}
                   icon={<Feather name="check-circle" size={20} color="white" />}
                   size="$5"
+                  delayPressIn={50}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text color="white" fontSize="$3">
                     {isDriven
@@ -922,6 +930,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   backgroundColor={isSaved ? '$gray10' : '$blue10'}
                   icon={<Feather name="bookmark" size={20} color="white" />}
                   size="$5"
+                  delayPressIn={50}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text color="white" fontSize="$3">
                     {isSaved

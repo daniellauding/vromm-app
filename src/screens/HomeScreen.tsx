@@ -1202,7 +1202,13 @@ export function HomeScreen() {
         forceShow={isFirstLogin}
       />
 
-      <ScrollView contentContainerStyle={{ paddingTop: 72 }}>
+      <ScrollView 
+        contentContainerStyle={{ paddingTop: 72 }}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
+      >
         <YStack f={1}>
           {/* Header with Welcome and Users Button */}
           <XStack
@@ -1253,6 +1259,8 @@ export function HomeScreen() {
                   <TouchableOpacity
                     onPress={() => navigation.navigate('LicensePlanScreen')}
                     activeOpacity={0.8}
+                    delayPressIn={50}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <YStack
                       width={180}
@@ -1312,6 +1320,8 @@ export function HomeScreen() {
                   <TouchableOpacity
                     onPress={() => navigation.navigate('CreateRoute', {})}
                     activeOpacity={0.8}
+                    delayPressIn={50}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <YStack
                       width={180}
@@ -1358,6 +1368,8 @@ export function HomeScreen() {
                   <TouchableOpacity
                     onPress={() => navigation.navigate('ProgressTab', { showDetail: false })}
                     activeOpacity={0.8}
+                    delayPressIn={50}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <YStack
                       width={180}
@@ -1404,6 +1416,8 @@ export function HomeScreen() {
                   <TouchableOpacity
                     onPress={() => navigation.navigate('MapTab')}
                     activeOpacity={0.8}
+                    delayPressIn={50}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <YStack
                       width={180}
@@ -1450,6 +1464,8 @@ export function HomeScreen() {
                   <TouchableOpacity
                     onPress={() => navigation.navigate('RoleSelectionScreen')}
                     activeOpacity={0.8}
+                    delayPressIn={50}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <YStack
                       width={180}

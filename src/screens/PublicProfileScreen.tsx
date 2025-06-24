@@ -363,7 +363,10 @@ export function PublicProfileScreen() {
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
       >
         <YStack padding="$4" gap="$4">
           {/* Profile header with avatar */}
@@ -557,6 +560,8 @@ export function PublicProfileScreen() {
                     bordered
                     pressStyle={{ scale: 0.98 }}
                     onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
+                    delayPressIn={50}
+                    hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
                   >
                     <YStack gap="$1">
                       <Text fontSize="$4" fontWeight="500">
@@ -590,7 +595,12 @@ export function PublicProfileScreen() {
                 </Text>
 
                 {recentReviews.map((review) => (
-                  <Card key={review.id} padding="$3" bordered>
+                  <Card 
+                    key={review.id} 
+                    padding="$3" 
+                    bordered
+                    hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                  >
                     <YStack gap="$2">
                       <XStack justifyContent="space-between" alignItems="center">
                         <Text fontSize="$4" fontWeight="500">
