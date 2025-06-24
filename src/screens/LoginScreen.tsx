@@ -27,40 +27,61 @@ export function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
+    console.log('[LOGIN_DEBUG] Starting login process...');
+    console.log('[LOGIN_DEBUG] Email:', email);
+    console.log('[LOGIN_DEBUG] Password length:', password.length);
+    
     let hasError = false;
     setEmailError('');
     setPasswordError('');
     setError('');
+    
+    // Client-side validation
     if (!email) {
-      setEmailError(t('auth.invalidEmail'));
-      console.log('LoginScreen: Email is empty, setting email error');
+      setEmailError(t('auth.invalidEmail') || 'Please enter an email address');
+      console.log('[LOGIN_DEBUG] Email validation failed: empty email');
       hasError = true;
     }
     if (!password) {
-      setPasswordError(t('auth.invalidPassword'));
-      console.log('LoginScreen: Password is empty, setting password error');
+      setPasswordError(t('auth.invalidPassword') || 'Please enter a password');
+      console.log('[LOGIN_DEBUG] Password validation failed: empty password');
       hasError = true;
     }
+    
     if (hasError) {
-      console.log('LoginScreen: Validation error, not attempting sign in');
+      console.log('[LOGIN_DEBUG] Client validation failed, stopping login attempt');
       return;
     }
+
+    console.log('[LOGIN_DEBUG] Client validation passed, attempting sign in...');
+    
     try {
       setLoading(true);
       setError('');
       setPasswordError('');
+      
+      console.log('[LOGIN_DEBUG] Calling signIn function...');
       await signIn(email, password);
+      console.log('[LOGIN_DEBUG] signIn completed successfully');
+      
     } catch (err) {
       const error = err as Error;
+      console.log('[LOGIN_DEBUG] signIn failed with error:', error.message);
+      
+      // Check for specific error types
       if (error.message && error.message.toLowerCase().includes('invalid login credentials')) {
-        setPasswordError(t('auth.invalidCredentials'));
-        console.log('LoginScreen: Invalid credentials, setting password error');
+        setPasswordError(t('auth.invalidCredentials') || 'Invalid email or password');
+        console.log('[LOGIN_DEBUG] Setting password error for invalid credentials');
+      } else if (error.message && error.message.toLowerCase().includes('email not confirmed')) {
+        setError(error.message);
+        console.log('[LOGIN_DEBUG] Setting general error for unconfirmed email');
       } else {
         setError(error.message);
-        console.log('LoginScreen: Other error:', error.message);
+        console.log('[LOGIN_DEBUG] Setting general error:', error.message);
       }
     } finally {
       setLoading(false);
+      console.log('[LOGIN_DEBUG] Login process completed, loading set to false');
     }
   };
 

@@ -95,10 +95,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('Auth state changed:', { event: _event, session });
+      console.log('[AUTH_STATE_DEBUG] Auth state changed:', { 
+        event: _event, 
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+        userEmail: session?.user?.email
+      });
 
       // If user just signed in, ensure they have a profile
       if (_event === 'SIGNED_IN' && session?.user) {
+        console.log('[AUTH_STATE_DEBUG] User signed in, checking profile...');
         try {
           // Check if profile exists
           const { data: profile, error: fetchError } = await supabase
@@ -108,6 +115,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .single();
 
           if (fetchError && fetchError.code === 'PGRST116') {
+            console.log('[AUTH_STATE_DEBUG] No profile found, creating new profile...');
             // No profile found
             // Create profile with user metadata
             const metadata = session.user.user_metadata;
@@ -123,18 +131,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             ]);
 
             if (createError) {
-              console.error('Error creating profile on sign in:', createError);
+              console.error('[AUTH_STATE_DEBUG] Error creating profile on sign in:', createError);
+            } else {
+              console.log('[AUTH_STATE_DEBUG] Profile created successfully');
             }
+          } else {
+            console.log('[AUTH_STATE_DEBUG] Profile already exists');
           }
         } catch (err) {
-          console.error('Error handling profile creation:', err);
+          console.error('[AUTH_STATE_DEBUG] Error handling profile creation:', err);
         }
       }
 
+      console.log('[AUTH_STATE_DEBUG] Updating state - session:', !!session, 'user:', !!session?.user);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
       setInitialized(true);
+      console.log('[AUTH_STATE_DEBUG] State updated successfully');
     });
 
     return () => subscription.unsubscribe();
@@ -222,14 +236,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 
   const signIn = React.useCallback(async (email: string, password: string) => {
+    console.log('[AUTH_DEBUG] signIn called with email:', email);
+    
     try {
+      console.log('[AUTH_DEBUG] Setting loading to true');
       setLoading(true);
 
+      console.log('[AUTH_DEBUG] Attempting Supabase auth...');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      
+      console.log('[AUTH_DEBUG] Supabase response:', { 
+        hasUser: !!data?.user, 
+        hasSession: !!data?.session,
+        errorMessage: error?.message 
+      });
+      
+      if (error) {
+        console.log('[AUTH_DEBUG] Supabase auth error:', error);
+        throw error;
+      }
 
       // Check if email is confirmed
       if (data?.user && !data.user.email_confirmed_at) {
+        console.log('[AUTH_DEBUG] Email not confirmed for user:', data.user.id);
         Alert.alert('Email Not Confirmed', 'Please confirm your email address before signing in.', [
           {
             text: 'Resend Confirmation',
@@ -252,11 +281,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error('Please confirm your email before signing in');
       }
 
+      console.log('[AUTH_DEBUG] Authentication successful, clearing content cache...');
       // Clear content cache to ensure fresh data
       await clearContentCache();
 
       // Only track signin event if successful
       if (data?.user) {
+        console.log('[AUTH_DEBUG] Tracking sign-in analytics...');
         try {
           AppAnalytics.trackSignIn('email').catch((err) => {
             console.warn('Analytics tracking failed:', err);
@@ -265,10 +296,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.warn('Analytics tracking failed:', analyticsError);
         }
       }
+      
+      console.log('[AUTH_DEBUG] signIn process completed successfully');
     } catch (error) {
-      // console.error('Sign in failed:', error);
+      console.log('[AUTH_DEBUG] signIn failed, throwing error:', error);
       throw error;
     } finally {
+      console.log('[AUTH_DEBUG] Setting loading to false');
       setLoading(false);
     }
   }, []);

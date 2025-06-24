@@ -68,7 +68,7 @@ import { UsersScreen } from './src/screens/UsersScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppContent() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, initialized } = useAuth();
   const colorScheme = useColorScheme();
 
   // Enable analytics collection when the app starts
@@ -127,18 +127,30 @@ function AppContent() {
     checkDatabaseTables();
   }, []);
 
-  console.log('[DEBUG] AppContent rendering');
-  console.log('[DEBUG] Auth state:', { isAuthenticated: !!user });
+  console.log('[APP_DEBUG] AppContent rendering');
+  console.log('[APP_DEBUG] Auth state:', { 
+    isAuthenticated: !!user, 
+    authLoading, 
+    initialized,
+    userId: user?.id,
+    userEmail: user?.email
+  });
 
-  // Don't render anything while auth is loading to prevent flash of wrong screens
-  if (authLoading) {
+  // Only return null during initial app startup, not during login attempts
+  // This prevents navigation stack from being destroyed during authentication
+  if (authLoading && !initialized) {
+    console.log('[APP_DEBUG] Initial auth check in progress, returning null');
     return null;
   }
 
   return (
     <NavigationContainer
       onStateChange={(state) => {
-        console.log('[DEBUG] Navigation state:', state);
+        console.log('[NAV_DEBUG] Navigation state changed:', {
+          currentRoute: state?.routes[state?.index || 0]?.name,
+          routeCount: state?.routes?.length,
+          stackIndex: state?.index
+        });
 
         // Track screen views for analytics - works on both iOS and Android
         if (state) {
