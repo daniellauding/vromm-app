@@ -204,11 +204,9 @@ export function AddReviewScreen({ route }: Props) {
       }
 
       // Navigate back and ensure reviews are refreshed immediately
-      // @ts-ignore - We know these params are valid for RouteDetail
       navigation.navigate('RouteDetail', {
         routeId,
         shouldRefreshReviews: true,
-        timestamp: Date.now(), // Force refresh by changing params
       });
     } catch (err) {
       console.error('Submit review error:', err);

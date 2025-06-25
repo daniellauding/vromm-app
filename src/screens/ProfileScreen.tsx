@@ -259,15 +259,17 @@ export function ProfileScreen() {
           throw new Error('No image URI found');
         }
 
-        // Get file info to determine file extension
-        const fileInfo = await FileSystem.getInfoAsync(asset.uri);
-        if (!fileInfo.exists) {
-          throw new Error('File does not exist');
-        }
-
-        // Read file as base64
-        const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-          encoding: FileSystem.EncodingType.Base64,
+        // Use the same stable method as AddReviewScreen
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => {
+            const base64data = reader.result as string;
+            resolve(base64data.split(',')[1]); // Remove data URL prefix
+          };
+          reader.onerror = () => reject(new Error('Failed to process image'));
+          reader.readAsDataURL(blob);
         });
 
         // Determine file extension
@@ -277,14 +279,13 @@ export function ProfileScreen() {
 
         // Upload to Supabase storage with monitoring
         const uploadResult = await monitorNetworkCall(
-          () => supabase.storage
-            .from('avatars')
-            .upload(fileName, decode(base64), {
+          () =>
+            supabase.storage.from('avatars').upload(fileName, decode(base64), {
               contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
               upsert: true,
             }),
           `storage/avatars/${fileName}`,
-          'POST'
+          'POST',
         );
 
         if (uploadResult.error) {
@@ -301,7 +302,7 @@ export function ProfileScreen() {
           () => updateProfile({ ...formData, avatar_url: publicUrl }),
           'profiles',
           'update',
-          ['avatar_url', 'updated_at']
+          ['avatar_url', 'updated_at'],
         );
 
         checkMemoryUsage('ProfileScreen.avatarUpload');

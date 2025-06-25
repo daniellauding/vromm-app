@@ -92,14 +92,15 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
         quality: 0.8,
-        base64: true,
+        allowsEditing: true,
+        base64: false,
       });
 
       if (!result.canceled) {
         const newImages: ReviewImage[] = result.assets.map((asset) => ({
           id: Date.now().toString() + Math.random(),
           uri: asset.uri,
-          base64: asset.base64 || undefined,
+          base64: undefined,
         }));
         setNewReview((prev) => ({
           ...prev,
@@ -107,6 +108,7 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
         }));
       }
     } catch (err) {
+      console.error('Error picking images:', err);
       setError(t('review.processingError'));
     }
   };
@@ -121,31 +123,47 @@ export function ReviewSection({ routeId, reviews, onReviewAdded }: ReviewSection
       setLoading(true);
       setError(null);
 
-      // Upload images first
+      // Upload images using the same stable method as AddReviewScreen
       const uploadedImages = await Promise.all(
         newReview.images.map(async (image) => {
-          if (!image.base64) return null;
-
-          const fileName = `${Date.now()}-${Math.random()}.jpg`;
-          const path = `review-images/${routeId}/${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-            .from('review-images')
-            .upload(path, decode(image.base64), {
-              contentType: 'image/jpeg',
-              upsert: true,
+          try {
+            // Use the same stable method as AddReviewScreen
+            const response = await fetch(image.uri);
+            const blob = await response.blob();
+            const reader = new FileReader();
+            const base64 = await new Promise<string>((resolve, reject) => {
+              reader.onloadend = () => {
+                const base64data = reader.result as string;
+                resolve(base64data.split(',')[1]); // Remove data URL prefix
+              };
+              reader.onerror = () => reject(new Error('Failed to process image'));
+              reader.readAsDataURL(blob);
             });
 
-          if (uploadError) throw uploadError;
+            const fileName = `${Date.now()}-${Math.random()}.jpg`;
+            const path = `review-images/${routeId}/${fileName}`;
 
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from('review-images').getPublicUrl(path);
+            const { error: uploadError } = await supabase.storage
+              .from('review-images')
+              .upload(path, decode(base64), {
+                contentType: 'image/jpeg',
+                upsert: true,
+              });
 
-          return {
-            url: publicUrl,
-            description: image.description,
-          };
+            if (uploadError) throw uploadError;
+
+            const {
+              data: { publicUrl },
+            } = supabase.storage.from('review-images').getPublicUrl(path);
+
+            return {
+              url: publicUrl,
+              description: image.description,
+            };
+          } catch (imageError) {
+            console.error('Error processing image:', imageError);
+            return null; // Skip failed images
+          }
         }),
       );
 

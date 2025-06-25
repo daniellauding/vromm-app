@@ -51,16 +51,23 @@ export function MediaCarousel({ media, onAddMedia, onRemoveMedia, height }: Prop
 
   const pickImage = async () => {
     try {
+      // Request permission first
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Media library permission is required');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, // Only images for stability
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 1,
+        quality: 0.8, // Stable quality setting
       });
 
       if (!result.canceled && result.assets[0]) {
         onAddMedia({
-          type: result.assets[0].type === 'video' ? 'video' : 'image',
+          type: 'image', // Only images for stability
           uri: result.assets[0].uri,
         });
       }
@@ -79,15 +86,15 @@ export function MediaCarousel({ media, onAddMedia, onRemoveMedia, height }: Prop
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 1,
+        quality: 0.8, // Stable quality setting
       });
 
       if (!result.canceled && result.assets[0]) {
         onAddMedia({
-          type: result.assets[0].type === 'video' ? 'video' : 'image',
+          type: 'image', // Only images for stability
           uri: result.assets[0].uri,
         });
       }
