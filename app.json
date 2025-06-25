@@ -45,7 +45,12 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDOtXSGBNx6ZNdQoGpdLuQUjguyRm8bke4"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
@@ -74,12 +79,6 @@
         {
           "photosPermission": "The app accesses your photos to let you share them with your routes and reviews.",
           "cameraPermission": "The app accesses your camera to let you take photos for your routes and reviews."
-        }
-      ],
-      [
-        "react-native-maps",
-        {
-          "googleMapsApiKey": "AIzaSyDOtXSGBNx6ZNdQoGpdLuQUjguyRm8bke4"
         }
       ],
       "expo-font",
