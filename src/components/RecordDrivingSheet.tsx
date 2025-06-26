@@ -12,10 +12,11 @@ import {
 import { Text, YStack, Button, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useModal } from '../contexts/ModalContext';
+import { useNavigation } from '@react-navigation/native';
+import { NavigationProp } from '../types/navigation';
 import { useTranslation } from '../contexts/TranslationContext';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { CreateRouteModal } from './CreateRouteModal';
 import { Map } from './Map';
 
 // Enhanced Haversine formula for accurate distance calculation
@@ -698,6 +699,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const saveRecording = useCallback(() => {
     try {
       console.log('RecordDrivingSheet: saveRecording called');
+      console.log('Raw waypoints count:', waypoints.length);
 
       // Skip if no waypoints
       if (waypoints.length === 0) {
@@ -705,9 +707,45 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         return;
       }
 
-      // Create route data object
+      // Validate and filter waypoints to prevent crashes
+      const validWaypoints = waypoints.filter((wp) => {
+        // Check if waypoint has valid coordinates
+        if (!wp || typeof wp.latitude !== 'number' || typeof wp.longitude !== 'number') {
+          console.warn('Invalid waypoint found:', wp);
+          return false;
+        }
+        
+        // Check for NaN or invalid coordinates
+        if (isNaN(wp.latitude) || isNaN(wp.longitude)) {
+          console.warn('NaN coordinates found:', wp);
+          return false;
+        }
+        
+        // Check for reasonable coordinate ranges
+        if (wp.latitude < -90 || wp.latitude > 90 || wp.longitude < -180 || wp.longitude > 180) {
+          console.warn('Out of range coordinates found:', wp);
+          return false;
+        }
+        
+        return true;
+      });
+
+      console.log('Valid waypoints count:', validWaypoints.length);
+
+      if (validWaypoints.length === 0) {
+        Alert.alert('Invalid data', 'No valid waypoints found. Please try recording again.');
+        return;
+      }
+
+      // Limit waypoints to prevent memory issues (max 100 waypoints)
+      const limitedWaypoints = validWaypoints.slice(0, 100);
+      if (limitedWaypoints.length < validWaypoints.length) {
+        console.warn(`Limited waypoints from ${validWaypoints.length} to ${limitedWaypoints.length} for performance`);
+      }
+
+      // Create route data object using validated waypoints
       const routeData = {
-        waypoints: waypoints.map((wp) => ({
+        waypoints: limitedWaypoints.map((wp) => ({
           latitude: wp.latitude,
           longitude: wp.longitude,
           timestamp: wp.timestamp,
@@ -719,8 +757,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         maxSpeed: maxSpeed.toFixed(1),
       };
 
-      // Prepare waypoints data for CreateRouteScreen
-      const waypointsForRouteCreation = waypoints.map((wp, index) => ({
+      // Prepare waypoints data for CreateRouteScreen using validated waypoints
+      const waypointsForRouteCreation = limitedWaypoints.map((wp, index) => ({
         latitude: wp.latitude,
         longitude: wp.longitude,
         title: `Waypoint ${index + 1}`,
@@ -730,17 +768,17 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       const routeName = `Recorded Route ${new Date().toLocaleDateString()}`;
       const routeDescription = `Recorded drive - Distance: ${routeData.distance} km, Duration: ${formatTime(routeData.totalDuration)}, Driving Time: ${formatTime(routeData.duration)}, Max Speed: ${routeData.maxSpeed} km/h, Avg Speed: ${routeData.avgSpeed} km/h`;
 
-      // Get coordinates for first waypoint for search input
-      const firstWaypoint = waypoints[0];
-      const lastWaypoint = waypoints[waypoints.length - 1];
+      // Get coordinates for first waypoint for search input using validated waypoints
+      const firstWaypoint = limitedWaypoints[0];
+      const lastWaypoint = limitedWaypoints[limitedWaypoints.length - 1];
       let searchCoordinates = '';
 
       if (firstWaypoint) {
         searchCoordinates = `${firstWaypoint.latitude.toFixed(6)}, ${firstWaypoint.longitude.toFixed(6)}`;
       }
 
-      // Create route path for map display
-      const routePath = waypoints.map((wp) => ({
+      // Create route path for map display using validated waypoints
+      const routePath = limitedWaypoints.map((wp) => ({
         latitude: wp.latitude,
         longitude: wp.longitude,
       }));
@@ -768,13 +806,31 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       // Save the recordedRouteData for the callback to use
       const savedData = { ...recordedRouteData };
 
-      // First close the modal
-      hideModal();
+      console.log('Final route data:', {
+        waypointsCount: savedData.waypoints.length,
+        routePathCount: savedData.routePath.length,
+        hasStartPoint: !!savedData.startPoint,
+        hasEndPoint: !!savedData.endPoint,
+        name: savedData.name,
+      });
+
+      // First close the modal with error handling
+      try {
+        hideModal();
+      } catch (error) {
+        console.error('Error closing modal:', error);
+      }
 
       // Call the callback with a timeout to ensure modal is closed first
       if (onCreateRoute) {
         setTimeout(() => {
-          onCreateRoute(savedData);
+          try {
+            console.log('Calling onCreateRoute with validated data');
+            onCreateRoute(savedData);
+          } catch (error) {
+            console.error('Error in onCreateRoute callback:', error);
+            Alert.alert('Error', 'Failed to open route creation. Please try again.');
+          }
         }, 100);
       } else {
         console.error('RecordDrivingSheet: onCreateRoute callback is not defined!');
@@ -1076,25 +1132,58 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
 });
 
 // Modal version for use with modal system
-export const RecordDrivingModal = () => {
-  const { hideModal, showModal } = useModal();
+export const RecordDrivingModal = ({ 
+  onNavigateToCreateRoute 
+}: { 
+  onNavigateToCreateRoute?: (routeData: RecordedRouteData) => void 
+}) => {
+  const { hideModal } = useModal();
 
-  // Handle route creation by showing the CreateRouteModal
+  // Handle route creation by calling back to parent component for navigation
   const onCreateRoute = (routeData: RecordedRouteData) => {
-    console.log('RecordDrivingModal: onCreateRoute called with data', {
-      waypointsCount: routeData.waypoints.length,
-      name: routeData.name,
-      description: routeData.description,
-    });
+    try {
+      console.log('RecordDrivingModal: onCreateRoute called with data', {
+        waypointsCount: routeData?.waypoints?.length || 0,
+        name: routeData?.name,
+        description: routeData?.description,
+      });
 
-    // First close the current modal
-    hideModal();
+      // Validate route data before proceeding
+      if (!routeData) {
+        console.error('RecordDrivingModal: No route data provided');
+        Alert.alert('Error', 'No route data received');
+        return;
+      }
 
-    // Show the CreateRouteModal with a small delay to ensure the current modal is closed
-    setTimeout(() => {
-      console.log('RecordDrivingModal: Showing CreateRouteModal');
-      showModal(<CreateRouteModal routeData={routeData} />);
-    }, 300) as unknown as NodeJS.Timeout;
+      if (!routeData.waypoints || routeData.waypoints.length === 0) {
+        console.error('RecordDrivingModal: No waypoints in route data');
+        Alert.alert('Error', 'No waypoints found');
+        return;
+      }
+
+      // Close the modal first
+      hideModal();
+
+      // Call the navigation callback if provided
+      setTimeout(() => {
+        try {
+          console.log('RecordDrivingModal: Calling navigation callback');
+          
+          if (onNavigateToCreateRoute) {
+            onNavigateToCreateRoute(routeData);
+          } else {
+            console.warn('No navigation callback provided');
+            Alert.alert('Info', 'Route recorded successfully. Please navigate to Create Route manually.');
+          }
+        } catch (error) {
+          console.error('RecordDrivingModal: Error calling navigation callback:', error);
+          Alert.alert('Error', 'Failed to open route creation screen');
+        }
+      }, 300);
+    } catch (error) {
+      console.error('RecordDrivingModal: Error in onCreateRoute:', error);
+      Alert.alert('Error', 'Failed to process route data');
+    }
   };
 
   return <RecordDrivingSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} />;

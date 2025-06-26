@@ -8,6 +8,7 @@ import {
   Dimensions,
   TouchableOpacity,
   Platform,
+  PanResponder,
 } from 'react-native';
 import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group, Heading } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +29,8 @@ import { AppAnalytics } from '../utils/analytics';
 import { MediaCarousel } from '../components/MediaCarousel';
 import { MediaItem, Exercise, WaypointData, MediaUrl, RouteData } from '../types/route';
 import { useTranslation } from '../contexts/TranslationContext';
+import { useModal } from '../contexts/ModalContext';
+import { RecordDrivingModal, RecordedRouteData } from '../components/RecordDrivingSheet';
 import * as mediaUtils from '../utils/mediaUtils';
 
 // Helper function to extract YouTube video ID
@@ -97,6 +100,7 @@ function getTranslation(t: (key: string) => string, key: string, fallback: strin
 
 export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const { t } = useTranslation();
+  const { showModal } = useModal();
   const routeId = route?.params?.routeId;
   const initialWaypoints = route?.params?.initialWaypoints;
   const initialName = route?.params?.initialName;
@@ -138,12 +142,18 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const HERO_HEIGHT = windowHeight * 0.6;
   const [youtubeLink, setYoutubeLink] = useState('');
 
-  // Drawing modes system
-  const [drawingMode, setDrawingMode] = useState<'pin' | 'waypoint' | 'pen' | 'record'>('waypoint');
+  // Drawing modes system - set to 'record' if coming from recorded route
+  const [drawingMode, setDrawingMode] = useState<'pin' | 'waypoint' | 'pen' | 'record'>(
+    initialWaypoints?.length ? 'record' : 'pin',
+  );
   const [snapToRoads, setSnapToRoads] = useState(false);
   const [undoneWaypoints, setUndoneWaypoints] = useState<Waypoint[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [penPath, setPenPath] = useState<Array<{ latitude: number; longitude: number }>>([]);
+
+  // Drawing state refs for continuous drawing
+  const drawingRef = useRef(false);
+  const lastDrawPointRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
   // Initialize search query with coordinates if provided
   useEffect(() => {
@@ -180,30 +190,34 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                 longitudeDelta: 0.02,
               });
 
-              // Get address from coordinates
-              const [address] = await Location.reverseGeocodeAsync({
-                latitude,
-                longitude,
-              });
-
-              if (address) {
-                // Create location title
-                const title = [address.street, address.city, address.country]
-                  .filter(Boolean)
-                  .join(', ');
-
-                // Add waypoint for current location
-                const newWaypoint = {
+              // Only add automatic waypoint in pin mode
+              if (drawingMode === 'pin') {
+                // Get address from coordinates
+                const [address] = await Location.reverseGeocodeAsync({
                   latitude,
                   longitude,
-                  title,
-                  description: 'Current location',
-                };
-                setWaypoints([newWaypoint]);
+                });
 
-                // Update search input with location name
-                setSearchQuery(title);
+                if (address) {
+                  // Create location title
+                  const title = [address.street, address.city, address.country]
+                    .filter(Boolean)
+                    .join(', ');
+
+                  // Add pin for current location
+                  const newWaypoint = {
+                    latitude,
+                    longitude,
+                    title,
+                    description: 'Current location',
+                  };
+                  setWaypoints([newWaypoint]);
+
+                  // Update search input with location name
+                  setSearchQuery(title);
+                }
               }
+              // Waypoint, pen, and record modes start completely empty
             }
           }
         } catch (err) {
@@ -326,90 +340,165 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       console.error('Error setting up address lookup:', err);
     }
 
-    // Update region to center on pin
-    setRegion((prev) => ({
-      ...prev,
-      latitude,
-      longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    }));
+    // Don't move the map in pin mode - just drop the pin where user tapped
   };
 
   const handleWaypointMode = async (latitude: number, longitude: number) => {
-    console.log(`Waypoint mode: Adding waypoint at ${latitude}, ${longitude}`);
-    
-    // Create basic title with waypoint number and coordinates
-    const waypointNumber = waypoints.length + 1;
-    const basicTitle = `Waypoint ${waypointNumber} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-    
-    const newWaypoint: Waypoint = {
-      latitude,
-      longitude,
-      title: basicTitle,
-      description: 'Route waypoint',
-    };
-
-    // Add to waypoint sequence immediately
-    setWaypoints((prev) => [...prev, newWaypoint]);
-    setUndoneWaypoints([]);
-    setSearchQuery(basicTitle);
-    console.log(`Waypoint ${waypointNumber} added successfully`);
-
-    // Try to get address in background with rate limiting protection
     try {
-      // Add delay to prevent rate limiting
-      setTimeout(async () => {
-        try {
-          const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
-          if (address) {
-            const addressTitle = [address.street, address.city, address.country]
-              .filter(Boolean)
-              .join(', ');
-            
-            // Update the specific waypoint with real address
-            setWaypoints((prev) => 
-              prev.map((wp, index) => 
-                index === prev.length - 1 
-                  ? { ...wp, title: addressTitle }
-                  : wp
-              )
-            );
-            console.log(`Waypoint ${waypointNumber} address resolved: ${addressTitle}`);
-          }
-        } catch (err) {
-          console.log(`Address lookup failed for waypoint ${waypointNumber}, keeping coordinate title`);
-        }
-      }, 500 * waypointNumber); // Staggered delays to prevent rate limiting
-    } catch (err) {
-      console.error('Error setting up address lookup:', err);
-    }
+      console.log(`Waypoint mode: Adding waypoint at ${latitude}, ${longitude}`);
+      
+      // Create basic title with waypoint number and coordinates
+      const waypointNumber = waypoints.length + 1;
+      const basicTitle = `Waypoint ${waypointNumber} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+      
+      const newWaypoint: Waypoint = {
+        latitude,
+        longitude,
+        title: basicTitle,
+        description: 'Route waypoint',
+      };
 
-    // Update region to center on new waypoint
-    setRegion((prev) => ({
-      ...prev,
-      latitude,
-      longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    }));
+      // Add to waypoint sequence immediately
+      console.log('About to add waypoint to state...');
+      setWaypoints((prev) => {
+        console.log('Previous waypoints:', prev.length);
+        const newList = [...prev, newWaypoint];
+        console.log('New waypoints list:', newList.length);
+        return newList;
+      });
+      setUndoneWaypoints([]);
+      setSearchQuery(basicTitle);
+      console.log(`Waypoint ${waypointNumber} added successfully`);
+      console.log(`Current waypoints after adding: ${waypoints.length + 1}`);
+      
+      // Performance protection for Expo Go
+      if (waypointNumber > 5) {
+        console.warn(`Performance: ${waypointNumber} waypoints may cause crashes in Expo Go`);
+        if (waypointNumber > 8) {
+          Alert.alert(
+            'Too Many Waypoints', 
+            'Maximum 8 waypoints allowed in development mode. Please use fewer waypoints or test on device.',
+            [{ text: 'OK' }]
+          );
+          return; // Stop adding more waypoints
+        }
+      }
+
+      // Try to get address in background with rate limiting protection
+      try {
+        // Add delay to prevent rate limiting
+        setTimeout(async () => {
+          try {
+            const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
+            if (address) {
+              const addressTitle = [address.street, address.city, address.country]
+                .filter(Boolean)
+                .join(', ');
+              
+              // Update the specific waypoint with real address
+              setWaypoints((prev) => 
+                prev.map((wp, index) => 
+                  index === prev.length - 1 
+                    ? { ...wp, title: addressTitle }
+                    : wp
+                )
+              );
+              console.log(`Waypoint ${waypointNumber} address resolved: ${addressTitle}`);
+            }
+          } catch (err) {
+            console.log(`Address lookup failed for waypoint ${waypointNumber}, keeping coordinate title`);
+          }
+        }, Math.min(500 * waypointNumber, 5000)); // Staggered delays to prevent rate limiting, max 5s
+      } catch (err) {
+        console.error('Error setting up address lookup:', err);
+      }
+
+      // Don't move the map in waypoint mode - just drop the waypoint where user tapped
+    } catch (error) {
+      console.error('Error in handleWaypointMode:', error);
+      // Still try to add the waypoint even if address lookup fails
+      const waypointNumber = waypoints.length + 1;
+      const basicTitle = `Waypoint ${waypointNumber} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+      
+      setWaypoints((prev) => [...prev, {
+        latitude,
+        longitude,
+        title: basicTitle,
+        description: 'Route waypoint',
+      }]);
+    }
   };
 
   const handlePenMode = (latitude: number, longitude: number) => {
     console.log(`Pen mode: ${isDrawing ? 'Adding to' : 'Starting'} pen path at ${latitude}, ${longitude}`);
     
     if (isDrawing) {
-      // Add to pen path
+      // Add to pen path for continuous drawing
       const newPath = [...penPath, { latitude, longitude }];
       setPenPath(newPath);
-      console.log(`Pen path now has ${newPath.length} points`);
+      console.log(`Drawing: ${newPath.length} points`);
     } else {
-      // Start new pen path
+      // Start new pen drawing
       setIsDrawing(true);
       const newPath = [{ latitude, longitude }];
       setPenPath(newPath);
-      console.log(`Started pen drawing with first point`);
+      console.log(`Started drawing at: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
     }
+  };
+
+  // Convert screen coordinates to map coordinates for continuous drawing
+  const convertScreenToMapCoords = (screenX: number, screenY: number, mapRef: any) => {
+    // This is a simplified conversion - in reality you'd need the map's current bounds
+    // For now, we'll use the tap-based approach but this sets up for future enhancement
+    return null;
+  };
+
+  // Continuous drawing functions
+  const startContinuousDrawing = (latitude: number, longitude: number) => {
+    console.log(`🎨 STARTING CONTINUOUS DRAWING at: ${latitude}, ${longitude}`);
+    drawingRef.current = true;
+    setIsDrawing(true);
+    
+    const initialPath = [{ latitude, longitude }];
+    setPenPath(initialPath);
+    lastDrawPointRef.current = { latitude, longitude };
+    console.log(`🎨 Initial pen path set with 1 point:`, initialPath);
+  };
+
+  const addContinuousDrawingPoint = (latitude: number, longitude: number) => {
+    if (!drawingRef.current) {
+      console.log(`🎨 NOT ADDING POINT - drawingRef.current is false`);
+      return;
+    }
+    
+    // Add some distance filtering to avoid too many points
+    const lastPoint = lastDrawPointRef.current;
+    if (lastPoint) {
+      const distance = Math.sqrt(
+        Math.pow(latitude - lastPoint.latitude, 2) + 
+        Math.pow(longitude - lastPoint.longitude, 2)
+      );
+      
+      // Only add point if it's far enough from the last one (rough filter)
+      if (distance < 0.00001) {
+        console.log(`🎨 NOT ADDING POINT - too close to last point (${distance})`);
+        return; // Even smaller threshold for smoother drawing
+      }
+    }
+    
+    console.log(`🎨 ADDING DRAWING POINT: ${latitude}, ${longitude}`);
+    setPenPath(prev => {
+      const newPath = [...prev, { latitude, longitude }];
+      console.log(`🎨 New pen path length: ${newPath.length}`, newPath);
+      return newPath;
+    });
+    lastDrawPointRef.current = { latitude, longitude };
+  };
+
+  const stopContinuousDrawing = () => {
+    console.log(`Stopping continuous drawing. Total points: ${penPath.length}`);
+    drawingRef.current = false;
+    // Keep isDrawing true so user can continue or finish
   };
 
   const handleMapPressWrapper = (event?: any) => {
@@ -420,12 +509,22 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       console.log(`Map pressed at: ${latitude}, ${longitude} - Mode: ${drawingMode}`);
       console.log(`Current waypoints before press:`, waypoints.length, waypoints);
       
-      // Add immediate visual feedback
+      // For pen mode, handle continuous drawing
       if (drawingMode === 'pen') {
-        console.log(`Pen drawing mode - isDrawing: ${isDrawing}, penPath length: ${penPath.length}`);
+        console.log(`🎨 PEN MODE TAP - isDrawing: ${isDrawing}, penPath length: ${penPath.length}`);
+        if (!isDrawing) {
+          // Start drawing on first tap
+          console.log(`🎨 FIRST TAP - Starting drawing`);
+          startContinuousDrawing(latitude, longitude);
+        } else {
+          // Add point if already drawing
+          console.log(`🎨 ADDITIONAL TAP - Adding point to existing drawing`);
+          addContinuousDrawingPoint(latitude, longitude);
+        }
+      } else {
+        // Handle other modes normally
+        handleMapPress(event);
       }
-      
-      handleMapPress(event);
       
       // Log waypoints after press (with slight delay to see state update)
       setTimeout(() => {
@@ -433,6 +532,68 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       }, 100);
     }
   };
+
+  // Map ref for coordinate conversion
+  const mapRef = useRef<any>(null);
+  const containerRef = useRef<any>(null);
+
+  // Create PanResponder for continuous drawing (mouse/touch drag)
+  const drawingPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: (evt) => {
+      // Only capture single touch in pen mode, allow multi-touch for map interaction
+      return drawingMode === 'pen' && evt.nativeEvent.touches.length === 1;
+    },
+    onMoveShouldSetPanResponder: (evt) => {
+      // Only capture single touch in pen mode
+      return drawingMode === 'pen' && evt.nativeEvent.touches.length === 1;
+    },
+    onShouldBlockNativeResponder: (evt) => {
+      // Allow multi-touch gestures (zoom/pan) by not blocking when multiple touches
+      return drawingMode === 'pen' && evt.nativeEvent.touches.length === 1;
+    },
+    onPanResponderGrant: (evt) => {
+      if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
+        console.log('🎨 PAN RESPONDER GRANTED - Starting drag drawing');
+        const { locationX, locationY } = evt.nativeEvent;
+        
+        // Convert screen coordinates to map coordinates
+        if (mapRef.current && containerRef.current) {
+          mapRef.current.coordinateForPoint({ x: locationX, y: locationY })
+            .then((coordinate: { latitude: number; longitude: number }) => {
+              console.log('🎨 DRAG START at:', coordinate);
+              // Always start drawing when user starts dragging
+              startContinuousDrawing(coordinate.latitude, coordinate.longitude);
+            })
+            .catch((error: any) => {
+              console.log('🎨 Error converting start coordinates:', error);
+            });
+        }
+      }
+    },
+    onPanResponderMove: (evt) => {
+      if (drawingMode === 'pen' && drawingRef.current && mapRef.current && evt.nativeEvent.touches.length === 1) {
+        const { locationX, locationY } = evt.nativeEvent;
+        
+        // Throttle the coordinate conversion to avoid too many calls
+        mapRef.current.coordinateForPoint({ x: locationX, y: locationY })
+          .then((coordinate: { latitude: number; longitude: number }) => {
+            console.log('🎨 DRAG MOVE to:', coordinate);
+            addContinuousDrawingPoint(coordinate.latitude, coordinate.longitude);
+          })
+          .catch((error: any) => {
+            console.log('🎨 Error converting move coordinates:', error);
+          });
+      }
+    },
+    onPanResponderRelease: () => {
+      if (drawingMode === 'pen') {
+        console.log('🎨 PAN RESPONDER RELEASED - Pausing drawing (can continue)');
+        // Don't stop drawing completely - just pause. User can continue by dragging again
+        drawingRef.current = false;
+        // Keep isDrawing true so user can continue
+      }
+    },
+  });
 
   const handleLocateMe = async () => {
     try {
@@ -462,12 +623,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       // Add waypoint based on current drawing mode
       if (drawingMode === 'pin') {
         setWaypoints([{ latitude, longitude, title, description: t('createRoute.locateMe') }]);
-      } else {
-        setWaypoints((prev) => [...prev, { latitude, longitude, title, description: t('createRoute.locateMe') }]);
+        // Update search input with location name
+        setSearchQuery(title);
       }
-
-      // Update search input with location name
-      setSearchQuery(title);
+      // In waypoint/pen/record modes, just center the map without adding waypoints
+      // This allows waypoint mode to start completely empty
 
       // Clear keyboard focus
       if (searchInputRef.current) {
@@ -499,17 +659,51 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   // Finish pen drawing
   const finishPenDrawing = () => {
     if (penPath.length > 0) {
-      // Convert pen path to waypoints
+      // Convert pen path to waypoints with proper start/end labeling
       const newWaypoints = penPath.map((point, index) => ({
         latitude: point.latitude,
         longitude: point.longitude,
-        title: `Pen Point ${index + 1}`,
-        description: 'Pen drawing point',
+        title: index === 0 
+          ? 'Drawing Start' 
+          : index === penPath.length - 1 
+            ? 'Drawing End' 
+            : `Drawing Point ${index + 1}`,
+        description: index === 0 
+          ? 'Start of drawn route' 
+          : index === penPath.length - 1 
+            ? 'End of drawn route' 
+            : 'Drawing waypoint',
       }));
       
       setWaypoints((prev) => [...prev, ...newWaypoints]);
       setPenPath([]);
       setIsDrawing(false);
+      drawingRef.current = false;
+      lastDrawPointRef.current = null;
+      console.log(`✅ Finished pen drawing: ${newWaypoints.length} connected waypoints created`);
+    }
+  };
+
+  // Handle record button click
+  const handleRecordRoute = () => {
+    try {
+      const navigateToCreateRoute = (routeData: RecordedRouteData) => {
+        // Navigate to CreateRouteScreen with recorded data
+        navigation.navigate('CreateRoute', {
+          initialWaypoints: routeData.waypoints,
+          initialName: routeData.name,
+          initialDescription: routeData.description,
+          initialSearchCoordinates: routeData.searchCoordinates,
+          initialRoutePath: routeData.routePath,
+          initialStartPoint: routeData.startPoint,
+          initialEndPoint: routeData.endPoint,
+        });
+      };
+
+      showModal(<RecordDrivingModal onNavigateToCreateRoute={navigateToCreateRoute} />);
+    } catch (error) {
+      console.error('Error opening record modal:', error);
+      Alert.alert('Error', 'Failed to open recording screen');
     }
   };
 
@@ -519,6 +713,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     setWaypoints([]);
     setPenPath([]);
     setIsDrawing(false);
+    drawingRef.current = false;
+    lastDrawPointRef.current = null;
   };
 
   const handleAddExercise = () => {
@@ -689,8 +885,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       return;
     }
     
-    if (drawingMode === 'pen' && waypoints.length === 0) {
+    if (drawingMode === 'pen' && waypoints.length === 0 && penPath.length === 0) {
       Alert.alert('Error', 'Please draw a route on the map');
+      return;
+    }
+
+    // For record mode, we should have waypoints from recording
+    if (drawingMode === 'record' && waypoints.length === 0) {
+      Alert.alert('Error', 'No recorded waypoints found. Please record a route first.');
       return;
     }
 
@@ -702,8 +904,22 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         lat: wp.latitude,
         lng: wp.longitude,
         title: wp.title || `Waypoint ${index + 1}`,
-        description: wp.description,
+        description: wp.description || '',
       }));
+
+      // Sanitize spot_type to ensure it matches database enum
+      const validSpotTypes = ['urban', 'rural', 'highway', 'residential'];
+      const sanitizedSpotType = validSpotTypes.includes(formData.spot_type) 
+        ? formData.spot_type 
+        : 'urban';
+
+      // Ensure waypoint data is valid
+      const validWaypoints = waypointDetails.filter(wp => 
+        wp.lat && wp.lng && 
+        !isNaN(wp.lat) && !isNaN(wp.lng) &&
+        wp.lat >= -90 && wp.lat <= 90 &&
+        wp.lng >= -180 && wp.lng <= 180
+      );
 
       // When editing, preserve existing media
       let mediaToUpdate: mediaUtils.MediaUrl[] = [];
@@ -746,7 +962,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         name: formData.name,
         description: formData.description || '',
         difficulty: formData.difficulty,
-        spot_type: formData.spot_type,
+        spot_type: sanitizedSpotType,
         visibility: formData.visibility,
         best_season: formData.best_season,
         best_times: formData.best_times,
@@ -758,9 +974,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         creator_id: user.id,
         updated_at: new Date().toISOString(),
         is_public: formData.visibility === 'public',
-        waypoint_details: waypointDetails,
+        waypoint_details: validWaypoints,
         metadata: {
-          waypoints: waypointDetails,
+          waypoints: validWaypoints,
           pins: [],
           options: {
             reverse: false,
@@ -797,13 +1013,28 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         }
       } else {
         // Create new route
+        console.log('Creating new route with data:', {
+          name: formData.name,
+          waypoints: validWaypoints.length,
+          spotType: sanitizedSpotType,
+          drawingMode: drawingMode,
+        });
+
         const { data: newRoute, error: createError } = await supabase
           .from('routes')
           .insert({ ...baseRouteData, created_at: new Date().toISOString() })
           .select()
           .single();
 
-        if (createError) throw createError;
+        if (createError) {
+          console.error('Database error details:', {
+            message: createError.message,
+            code: createError.code,
+            details: createError.details,
+            hint: createError.hint,
+          });
+          throw createError;
+        }
         route = newRoute;
 
         // Track route creation
@@ -1188,7 +1419,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
-      <ScrollView style={{ flex: 1 }}>
+      <ScrollView 
+        style={{ flex: 1 }}
+        scrollEnabled={drawingMode !== 'pen'}
+        showsVerticalScrollIndicator={drawingMode !== 'pen'}
+      >
         {/* Hero Section with MediaCarousel */}
         <MediaCarousel
           media={[
@@ -1258,7 +1493,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
           {/* Section Content */}
           <YStack f={1} backgroundColor="$background">
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
+            <ScrollView 
+              style={{ flex: 1 }} 
+              contentContainerStyle={{ paddingBottom: 100 }}
+              scrollEnabled={drawingMode !== 'pen'}
+              showsVerticalScrollIndicator={drawingMode !== 'pen'}
+            >
               <YStack padding="$4" gap="$4">
                 {activeSection === 'basic' && (
                   <YStack gap="$4">
@@ -1370,7 +1610,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
                         <Button
                           variant={drawingMode === 'record' ? 'secondary' : 'tertiary'}
-                          onPress={() => setDrawingMode('record')}
+                          onPress={() => {
+                            setDrawingMode('record');
+                            handleRecordRoute();
+                          }}
                           size="md"
                           flex={1}
                           backgroundColor={
@@ -1395,10 +1638,27 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         {drawingMode === 'pin' && 'Drop a single location marker'}
                         {drawingMode === 'waypoint' &&
                           'Create discrete waypoints connected by lines (minimum 2 required)'}
-                        {drawingMode === 'pen' && 'Free drawing by clicking and dragging'}
-                        {drawingMode === 'record' &&
-                          'GPS-based live route recording with real-time stats'}
+                        {drawingMode === 'pen' && 'Freehand drawing: click and drag to draw continuous lines'}
+                        {drawingMode === 'record' && initialWaypoints?.length
+                          ? 'Recorded route loaded • Click Record Again to start new recording'
+                          : 'GPS-based live route recording with real-time stats'}
                       </Text>
+
+                      {/* Record Again Button when in record mode with existing route */}
+                      {drawingMode === 'record' && initialWaypoints?.length && (
+                        <Button
+                          onPress={handleRecordRoute}
+                          variant="secondary"
+                          backgroundColor="$green10"
+                          size="lg"
+                          marginTop="$2"
+                        >
+                          <XStack gap="$2" alignItems="center">
+                            <Feather name="circle" size={20} color="white" />
+                            <Text color="white" weight="bold">Record Again</Text>
+                          </XStack>
+                        </Button>
+                      )}
                     </YStack>
 
                     {/* Route Location */}
@@ -1473,15 +1733,21 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         )}
                       </YStack>
 
-                      <View style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}>
+                      <View 
+                        ref={containerRef}
+                        style={{ height: 300, borderRadius: 12, overflow: 'hidden' }} 
+                        {...(drawingMode === 'pen' ? drawingPanResponder.panHandlers : {})}
+                      >
                         <MapView
+                          ref={mapRef}
                           style={{ flex: 1 }}
                           region={region}
                           onPress={handleMapPressWrapper}
-                          scrollEnabled={drawingMode !== 'pen'}
-                          zoomEnabled={drawingMode !== 'pen'}
-                          pitchEnabled={drawingMode !== 'pen'}
-                          rotateEnabled={drawingMode !== 'pen'}
+                          scrollEnabled={true}
+                          zoomEnabled={true}
+                          pitchEnabled={true}
+                          rotateEnabled={true}
+                          moveOnMarkerPress={false}
                           showsUserLocation={true}
                           userInterfaceStyle="dark"
                         >
@@ -1505,44 +1771,29 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                             );
                           })}
 
-                          {/* Render pen path */}
-                          {drawingMode === 'pen' && penPath.map((point, index) => (
-                            <Marker
-                              key={`pen-${index}`}
-                              coordinate={point}
-                            >
-                              <View
-                                style={{
-                                  width: 8,
-                                  height: 8,
-                                  backgroundColor: '#FF6B35',
-                                  borderRadius: 4,
-                                  borderWidth: 1,
-                                  borderColor: 'white',
-                                }}
-                              />
-                            </Marker>
-                          ))}
+                          {/* Render pen drawing as smooth continuous line */}
+                          {drawingMode === 'pen' && penPath.length > 1 && (
+                            <Polyline
+                              coordinates={penPath}
+                              strokeWidth={6}
+                              strokeColor="#FF6B35"
+                              lineJoin="round"
+                              lineCap="round"
+                            />
+                          )}
+
+                          {/* Orange dots removed - only showing continuous orange lines */}
 
                           {/* Render connecting lines for waypoints */}
-                          {drawingMode === 'waypoint' && waypoints.length > 1 && (
+                          {((drawingMode === 'waypoint' && waypoints.length > 1) || 
+                            (drawingMode === 'pen' && waypoints.length > 1)) && (
                             <Polyline
                               coordinates={waypoints.map(wp => ({
                                 latitude: wp.latitude,
                                 longitude: wp.longitude,
                               }))}
                               strokeWidth={3}
-                              strokeColor="#1A73E8"
-                              lineJoin="round"
-                            />
-                          )}
-
-                          {/* Render pen drawing line */}
-                          {drawingMode === 'pen' && penPath.length > 1 && (
-                            <Polyline
-                              coordinates={penPath}
-                              strokeWidth={2}
-                              strokeColor="#FF6B35"
+                              strokeColor={drawingMode === 'pen' ? "#FF6B35" : "#1A73E8"}
                               lineJoin="round"
                             />
                           )}
@@ -1551,9 +1802,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           {routePath && routePath.length > 1 && (
                             <Polyline
                               coordinates={routePath}
-                              strokeWidth={3}
-                              strokeColor="#1A73E8"
+                              strokeWidth={drawingMode === 'record' ? 5 : 3}
+                              strokeColor={drawingMode === 'record' ? "#22C55E" : "#1A73E8"}
                               lineJoin="round"
+                              lineCap="round"
                             />
                           )}
                         </MapView>
@@ -1664,9 +1916,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                             {drawingMode === 'pin' && 'Tap to drop pin'}
                             {drawingMode === 'waypoint' && 'Tap to add waypoints'}
                             {drawingMode === 'pen' && (isDrawing 
-                              ? `Drawing... (${penPath.length} points)` 
-                              : 'MAP LOCKED - Tap to draw')}
-                            {drawingMode === 'record' && 'Use Record button below'}
+                              ? `Drawing (${penPath.length} points) • Pinch to zoom • Drag to continue` 
+                              : 'Drag to draw • Two fingers to zoom/pan')}
+                            {drawingMode === 'record' && (initialWaypoints?.length 
+                              ? `Recorded route (${waypoints.length} waypoints) • Tap Record Again below`
+                              : 'Use Record button below')}
                           </Text>
                         </View>
 
@@ -1708,7 +1962,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
                         <Button
                           onPress={clearAllWaypoints}
-                          disabled={waypoints.length === 0}
+                          disabled={waypoints.length === 0 && penPath.length === 0}
                           variant="secondary"
                           backgroundColor="$red10"
                           size="lg"
@@ -1736,9 +1990,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                             Need 1 more waypoint minimum
                           </Text>
                         )}
-                        {drawingMode === 'pen' && isDrawing && (
-                          <Text size="sm" color="$blue10">
-                            Drawing... ({penPath.length} points)
+                        {drawingMode === 'pen' && (
+                          <Text size="sm" color={isDrawing ? "$orange10" : "$blue10"}>
+                            {isDrawing ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom` : `Drawing mode (${penPath.length} points drawn) • Drag to draw, two fingers to zoom`}
+                          </Text>
+                        )}
+                        {drawingMode === 'record' && initialWaypoints?.length && (
+                          <Text size="sm" color="$green10">
+                            Recorded route loaded • {routePath?.length || 0} GPS points • Click Record Again to start new recording
                           </Text>
                         )}
                       </XStack>
@@ -1796,14 +2055,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         </YStack>
                       )}
 
-                      {/* Pen Path Info */}
+                                            {/* Drawing Info */}
                       {drawingMode === 'pen' && penPath.length > 0 && (
                         <YStack gap="$2" marginTop="$4">
-                                                     <Text size="lg" weight="bold">Pen Drawing</Text>
+                          <Text size="lg" weight="bold">Drawing</Text>
                           <Card bordered padding="$3">
                             <XStack justifyContent="space-between" alignItems="center">
                               <Text size="sm" color="$gray11">
-                                {penPath.length} drawing points
+                                {isDrawing ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom/pan` : `Drawing paused (${penPath.length} points) • Drag to continue drawing`}
                               </Text>
                               <XStack gap="$2">
                                 {isDrawing && (
@@ -1825,6 +2084,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                   onPress={() => {
                                     setPenPath([]);
                                     setIsDrawing(false);
+                                    drawingRef.current = false;
+                                    lastDrawPointRef.current = null;
                                   }}
                                   backgroundColor="$red5"
                                 >

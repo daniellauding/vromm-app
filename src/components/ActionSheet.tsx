@@ -18,6 +18,7 @@ interface ActionSheetProps {
   isVisible: boolean;
   onClose: () => void;
   onCreateRoute: () => void;
+  onRecordDriving?: () => void;
 }
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
@@ -64,7 +65,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetProps) {
+export function ActionSheet({ isVisible, onClose, onCreateRoute, onRecordDriving }: ActionSheetProps) {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
@@ -134,7 +135,12 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetPr
   // Handle "Record Driving" option
   const handleRecordDriving = () => {
     onClose();
-    showModal(<RecordDrivingModal />);
+    if (onRecordDriving) {
+      onRecordDriving();
+    } else {
+      // Fallback to old behavior if no callback provided
+      showModal(<RecordDrivingModal />);
+    }
   };
 
   if (!isVisible && translateY._value === screenHeight) return null;
@@ -195,8 +201,21 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetPr
   );
 }
 
-export function ActionSheetModal({ onCreateRoute }: { onCreateRoute: () => void }) {
+export function ActionSheetModal({ 
+  onCreateRoute, 
+  onRecordDriving 
+}: { 
+  onCreateRoute: () => void;
+  onRecordDriving?: () => void;
+}) {
   const { hideModal } = useModal();
 
-  return <ActionSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} />;
+  return (
+    <ActionSheet 
+      isVisible={true} 
+      onClose={hideModal} 
+      onCreateRoute={onCreateRoute}
+      onRecordDriving={onRecordDriving}
+    />
+  );
 }

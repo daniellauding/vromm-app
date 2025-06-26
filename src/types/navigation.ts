@@ -28,7 +28,32 @@ export type RootStackParamList = {
   Signup: undefined;
   ForgotPassword: undefined;
   RouteDetail: { routeId: string; shouldRefresh?: boolean; shouldRefreshReviews?: boolean };
-  CreateRoute: { routeId?: string };
+  CreateRoute: { 
+    routeId?: string;
+    initialWaypoints?: Array<{
+      latitude: number;
+      longitude: number;
+      title: string;
+      description: string;
+    }>;
+    initialName?: string;
+    initialDescription?: string;
+    initialSearchCoordinates?: string;
+    initialRoutePath?: Array<{
+      latitude: number;
+      longitude: number;
+    }>;
+    initialStartPoint?: {
+      latitude: number;
+      longitude: number;
+    };
+    initialEndPoint?: {
+      latitude: number;
+      longitude: number;
+    };
+    onClose?: () => void;
+    onRouteCreated?: (routeId: string) => void;
+  };
   Map: { selectedLocation?: SearchResult };
   Search: undefined;
   AddReview: { routeId: string };

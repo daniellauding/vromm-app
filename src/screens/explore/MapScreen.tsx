@@ -27,7 +27,7 @@ import { AppHeader } from '../../components/AppHeader';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
 import { useModal } from '../../contexts/ModalContext';
-import { RecordDrivingModal } from '../../components/RecordDrivingSheet';
+import { RecordDrivingModal, RecordedRouteData } from '../../components/RecordDrivingSheet';
 import { SelectedRoute } from './SelectedRoute';
 
 const MAPBOX_ACCESS_TOKEN =
@@ -654,9 +654,22 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   // Handle Record Driving option
   const handleRecordDriving = useCallback(() => {
     setShowActionSheet(false);
-    // Directly render instead of using React element
-    showModal(<RecordDrivingModal />);
-  }, [showModal]);
+    
+    // Create navigation callback for RecordDrivingModal
+    const navigateToCreateRoute = (routeData: RecordedRouteData) => {
+      navigation.navigate('CreateRoute', {
+        initialWaypoints: routeData.waypoints,
+        initialName: routeData.name,
+        initialDescription: routeData.description,
+        initialSearchCoordinates: routeData.searchCoordinates,
+        initialRoutePath: routeData.routePath,
+        initialStartPoint: routeData.startPoint,
+        initialEndPoint: routeData.endPoint,
+      });
+    };
+    
+    showModal(<RecordDrivingModal onNavigateToCreateRoute={navigateToCreateRoute} />);
+  }, [showModal, navigation]);
 
   // Check for recorded route data when screen is focused
   useFocusEffect(
