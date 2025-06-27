@@ -12,12 +12,11 @@ import {
 import { Text, YStack, Button, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useModal } from '../contexts/ModalContext';
-import { useNavigation } from '@react-navigation/native';
-import { NavigationProp } from '../types/navigation';
 import { useTranslation } from '../contexts/TranslationContext';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { Map } from './Map';
+import { CreateRouteModal } from './CreateRouteModal';
+import MapView, { Polyline, Marker } from 'react-native-maps';
 
 // Enhanced Haversine formula for accurate distance calculation
 const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -273,11 +272,12 @@ const defaultDeviceData = {
 export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) => {
   const { isVisible, onClose, onCreateRoute } = props;
   const { t } = useTranslation();
-  const { hideModal } = useModal();
+  const { hideModal, setModalPointerEvents } = useModal();
 
   // Enhanced recording state with better time tracking
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [waypoints, setWaypoints] = useState<RecordedWaypoint[]>([]);
   
   // Time tracking - separate total time from driving time
@@ -314,11 +314,14 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const startTimeRef = useRef<number | null>(null);
   const pausedTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isPausedRef = useRef<boolean>(false); // Track pause state in ref to avoid closure issues
+  const lastPauseTimeRef = useRef<number | null>(null);
   const appState = useRef(AppState.currentState);
   const waypointThrottleRef = useRef<number>(0);
   const motionSubscriptionsRef = useRef<any>({});
   const wayPointsRef = useRef<RecordedWaypoint[]>([]); // Store waypoints in ref for calculations
   const lastErrorRef = useRef<string | null>(null);
+  const lastStateUpdateRef = useRef<number>(0); // Throttle state updates
   const deviceDataRef = useRef(defaultDeviceData);
 
   // Format waypoints for map display with safety checks - memoized for performance
@@ -351,43 +354,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     }
   }, [waypoints]);
 
-  // Simplified waypoint markers - only 2 markers maximum
-  const getWaypointMarkers = useCallback(() => {
-    if (!waypoints || waypoints.length === 0) return [];
 
-    try {
-      const markers = [];
-
-      // Add start marker if valid
-      const startPoint = waypoints[0];
-      if (startPoint && !isNaN(startPoint.latitude) && !isNaN(startPoint.longitude)) {
-        markers.push({
-          latitude: startPoint.latitude,
-          longitude: startPoint.longitude,
-          title: 'Start',
-          description: 'Start point',
-        });
-      }
-
-      // Add current position marker if different from start and valid
-      if (waypoints.length > 1) {
-        const current = waypoints[waypoints.length - 1];
-        if (current && !isNaN(current.latitude) && !isNaN(current.longitude)) {
-          markers.push({
-            latitude: current.latitude,
-            longitude: current.longitude,
-            title: 'Current',
-            description: 'Current position',
-          });
-        }
-      }
-
-      return markers;
-    } catch (error) {
-      console.error('Error creating markers:', error);
-      return [];
-    }
-  }, [waypoints]);
 
   // Add these missing functions back as empty placeholders
   const startBackgroundLocationTask = async () => {
@@ -494,11 +461,21 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
               setCurrentSpeed(Math.max(0, finalSpeed));
               setMaxSpeed(prev => Math.max(prev, finalSpeed));
 
-              // Enhanced waypoint filtering - only add if significant movement and speed
-              const minimumWaypointDistance = 5; // 5 meters
-              const minimumSpeed = 0.5; // 0.5 km/h
-              shouldAddWaypoint = shouldAddWaypoint && 
-                (distanceFromLast >= minimumWaypointDistance || finalSpeed > minimumSpeed);
+                    // Enhanced waypoint filtering - DISABLED FOR TESTING
+      const minimumWaypointDistance = 0; // 0 meters - TESTING MODE
+      const minimumSpeed = 0; // 0 km/h - TESTING MODE
+      shouldAddWaypoint = shouldAddWaypoint && 
+        (distanceFromLast >= minimumWaypointDistance || finalSpeed >= minimumSpeed);
+      
+      console.log('🚗 WAYPOINT FILTER DEBUG:', {
+        distanceFromLast,
+        finalSpeed,
+        minimumWaypointDistance,
+        minimumSpeed,
+        shouldAddWaypoint,
+        isPaused,
+        totalWaypoints: wayPointsRef.current.length
+      });
 
               // Throttle waypoint updates to reduce memory pressure
               if (
@@ -520,9 +497,18 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
 
               // Add waypoint if recording and not paused and significant movement
               if (!isPaused && shouldAddWaypoint) {
-                // Update waypoints in both state and ref
+                // Update waypoints ref immediately for calculations
                 wayPointsRef.current = [...wayPointsRef.current, newWaypoint];
-                setWaypoints(wayPointsRef.current);
+                
+                // Throttle state updates to reduce re-renders (update every 5 waypoints or 2 seconds)
+                const shouldUpdateState = 
+                  wayPointsRef.current.length % 5 === 0 || 
+                  now - lastStateUpdateRef.current > 2000;
+                
+                if (shouldUpdateState) {
+                  setWaypoints([...wayPointsRef.current]);
+                  lastStateUpdateRef.current = now;
+                }
 
                 // Calculate total distance
                 if (wayPointsRef.current.length > 1) {
@@ -567,89 +553,198 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     }
   }, [isPaused]);
 
-  // Start recording - optimized
+  // Start recording - optimized with user location centering
   const startRecording = useCallback(async () => {
     try {
-      // Reset state
+      console.log('🎬 STARTING RECORDING - Full Debug');
+      console.log('🎬 Initial State:', {
+        isRecording,
+        isPaused,
+        waypoints: waypoints.length,
+        totalElapsedTime,
+        drivingTime,
+        distance
+      });
+      
+      // Reset all state and refs for clean start
       setWaypoints([]);
       wayPointsRef.current = [];
+      lastStateUpdateRef.current = 0;
       setTotalElapsedTime(0);
       setDrivingTime(0);
       setDistance(0);
       setCurrentSpeed(0);
       setMaxSpeed(0);
       setAverageSpeed(0);
-      setRecordingStartTime(new Date());
+      const startTime = new Date();
+      setRecordingStartTime(startTime);
       setPausedTime(0);
       setLastPauseTime(null);
       setDebugMessage(null);
       lastErrorRef.current = null;
+      
+      // Reset all timer refs
+      isPausedRef.current = false;
+      lastPauseTimeRef.current = null;
+      pausedTimeRef.current = 0;
+      
+      console.log('🎬 State Reset Complete:', {
+        recordingStartTime: startTime.toISOString(),
+        timestamp: Date.now()
+      });
 
-      // Start timer with defensive error handling
+      // Get user's current location to center map
+      try {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (location) {
+          // Show map and center on user location
+          setShowMap(true);
+        }
+      } catch (error) {
+        console.warn('Could not get current location for centering:', error);
+      }
+
+      // Start timer with refs to avoid closure issues
       try {
         if (timerRef.current) {
           clearInterval(timerRef.current);
         }
 
+        // Reset refs for clean start
+        startTimeRef.current = startTime.getTime();
+        pausedTimeRef.current = 0;
+        isPausedRef.current = false;
+        lastPauseTimeRef.current = null;
+
+        console.log('🎬 Starting fixed timer with refs...');
         timerRef.current = setInterval(() => {
           try {
-            if (recordingStartTime && !isPaused) {
-              const now = Date.now();
-              const totalElapsed = Math.floor((now - recordingStartTime.getTime()) / 1000);
-              const activeDriving = Math.floor((now - recordingStartTime.getTime() - pausedTime) / 1000);
-              
-              setTotalElapsedTime(totalElapsed);
-              setDrivingTime(activeDriving);
-
-              // Recalculate average speed based on driving time and distance
-              if (activeDriving > 0) {
-                const timeHours = activeDriving / 3600; // Convert seconds to hours
-                if (timeHours > 0) {
-                  setAverageSpeed(distance / timeHours); // km/h
-                }
-              }
+            const now = Date.now();
+            const startTimeMs = startTimeRef.current!;
+            const currentPausedTime = pausedTimeRef.current;
+            const isCurrentlyPaused = isPausedRef.current;
+            
+            // Always update total elapsed time (includes pauses)
+            const totalElapsed = Math.floor((now - startTimeMs) / 1000);
+            setTotalElapsedTime(totalElapsed);
+            
+            // Update driving time (excludes pauses)
+            const activeDriving = Math.floor((now - startTimeMs - currentPausedTime) / 1000);
+            setDrivingTime(Math.max(0, activeDriving)); // Ensure non-negative
+            
+            // Only recalculate average speed when actually driving
+            if (!isCurrentlyPaused && activeDriving > 0 && distance > 0) {
+              const timeHours = activeDriving / 3600;
+              setAverageSpeed(distance / timeHours);
+            }
+            
+            // Debug log every 5 seconds to verify timer is working
+            if (totalElapsed % 5 === 0 && totalElapsed > 0) {
+              console.log('⏱️ TIMER TICK (FIXED):', {
+                totalElapsed,
+                totalFormatted: formatTime(totalElapsed),
+                activeDriving,
+                drivingFormatted: formatTime(activeDriving),
+                isCurrentlyPaused,
+                currentPausedTime,
+                distance: distance.toFixed(2),
+                startTime: new Date(startTimeMs).toISOString()
+              });
             }
           } catch (error) {
-            console.error('Timer error:', error);
+            console.error('❌ Timer error:', error);
           }
         }, 1000) as unknown as NodeJS.Timeout;
+        
+        console.log('🎬 Fixed timer started - using refs to avoid closure issues');
       } catch (err) {
         console.error('Error setting up timer:', err);
       }
 
-      // Set recording state
+      // Set recording state (refs already set above)
+      console.log('🎬 Setting recording state: isRecording=true, isPaused=false');
       setIsRecording(true);
       setIsPaused(false);
+      
+      console.log('🎬 Final ref state check:', {
+        isPausedRef: isPausedRef.current,
+        pausedTimeRef: pausedTimeRef.current,
+        startTimeRef: startTimeRef.current
+      });
 
+      console.log('🎬 Starting location tracking...');
       // Start location tracking
       await startLocationTracking();
+      console.log('🎬 ✅ Recording fully started');
     } catch (error) {
       console.error('Error starting recording:', error);
       setDebugMessage('Failed to start recording');
     }
   }, [isPaused, distance, startLocationTracking]);
 
-  // Pause recording - memoized
+  // Pause recording - fixed with refs
   const pauseRecording = useCallback(() => {
-    if (isRecording && !isPaused) {
+    console.log('⏸️ PAUSE RECORDING CALLED:', {
+      isRecording,
+      isPaused,
+      isPausedRef: isPausedRef.current
+    });
+    
+    if (isRecording && !isPaused && !isPausedRef.current) {
+      const pauseTime = Date.now();
+      
+      // Update both state and ref
       setIsPaused(true);
-      setLastPauseTime(new Date());
+      isPausedRef.current = true;
+      lastPauseTimeRef.current = pauseTime;
+      setLastPauseTime(new Date(pauseTime));
+      
+      console.log('⏸️ Recording PAUSED:', {
+        pauseTime: new Date(pauseTime).toISOString(),
+        currentTotalTime: totalElapsedTime,
+        currentDrivingTime: drivingTime
+      });
     }
-  }, [isRecording, isPaused]);
+  }, [isRecording, isPaused, totalElapsedTime, drivingTime]);
 
-  // Resume recording - memoized
+  // Resume recording - fixed with refs
   const resumeRecording = useCallback(() => {
-    if (isRecording && isPaused && lastPauseTime) {
+    console.log('▶️ RESUME RECORDING CALLED:', {
+      isRecording,
+      isPaused,
+      isPausedRef: isPausedRef.current,
+      lastPauseTimeRef: lastPauseTimeRef.current
+    });
+    
+    if (isRecording && isPaused && isPausedRef.current && lastPauseTimeRef.current) {
+      const resumeTime = Date.now();
+      const pauseDuration = resumeTime - lastPauseTimeRef.current;
+      
+      // Update refs first
+      isPausedRef.current = false;
+      pausedTimeRef.current = pausedTimeRef.current + pauseDuration;
+      lastPauseTimeRef.current = null;
+      
+      // Update state
       setIsPaused(false);
-      const pauseDuration = Date.now() - lastPauseTime.getTime();
       setPausedTime(prev => prev + pauseDuration);
       setLastPauseTime(null);
+      
+      console.log('▶️ Recording RESUMED:', {
+        pauseDuration: Math.floor(pauseDuration / 1000) + 's',
+        totalPausedTime: Math.floor(pausedTimeRef.current / 1000) + 's',
+        resumeTime: new Date(resumeTime).toISOString()
+      });
     }
-  }, [isRecording, isPaused, lastPauseTime]);
+  }, [isRecording, isPaused]);
 
   // Stop recording with better cleanup
   const stopRecording = useCallback(() => {
     try {
+      console.log('🛑 STOP RECORDING CALLED');
+      
       // Clean up location subscription
       if (locationSubscription) {
         locationSubscription.remove();
@@ -662,6 +757,10 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         timerRef.current = null;
       }
 
+      // Reset refs
+      isPausedRef.current = false;
+      lastPauseTimeRef.current = null;
+
       // Stop background location tracking
       try {
         stopBackgroundLocationTask();
@@ -669,10 +768,15 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         console.warn('Error stopping background task:', err);
       }
 
-      // Update state
+      // Update state and sync final waypoints
       setIsRecording(false);
       setIsPaused(false);
       setShowSummary(true);
+      
+      // Ensure final waypoint state is synchronized
+      if (wayPointsRef.current.length > 0) {
+        setWaypoints([...wayPointsRef.current]);
+      }
 
       // Clean up motion sensors
       try {
@@ -680,26 +784,61 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       } catch (err) {
         console.warn('Error cleaning up sensors:', err);
       }
+      
+      console.log('🛑 Recording STOPPED - Final stats:', {
+        totalTime: formatTime(totalElapsedTime),
+        drivingTime: formatTime(drivingTime),
+        distance: distance.toFixed(2) + 'km',
+        waypoints: wayPointsRef.current.length
+      });
     } catch (error) {
       console.error('Error stopping recording:', error);
       // Try to ensure we still show summary even if errors
       setIsRecording(false);
       setShowSummary(true);
     }
-  }, [locationSubscription, stopBackgroundLocationTask, cleanupMotionSensors]);
+  }, [locationSubscription, stopBackgroundLocationTask, cleanupMotionSensors, totalElapsedTime, drivingTime, distance]);
 
-  // Format time display - memoized
+  // Format time display with HH:MM:SS format - memoized
   const formatTime = useCallback((seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }, []);
+    
+    // Debug log for timer formatting (only log occasionally to avoid spam)
+    if (seconds % 10 === 0 && seconds > 0) {
+      console.log('⏰ formatTime called:', { 
+        inputSeconds: seconds, 
+        hours, 
+        mins, 
+        secs,
+        isRecording,
+        isPaused 
+      });
+    }
+    
+    // Always show at least MM:SS, add hours if recording goes over 1 hour
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+  }, [isRecording, isPaused]);
 
   // Navigate to route creation with recorded data - memoized
   const saveRecording = useCallback(() => {
     try {
-      console.log('RecordDrivingSheet: saveRecording called');
-      console.log('Raw waypoints count:', waypoints.length);
+      console.log('💾 ==================== SAVE RECORDING START ====================');
+      console.log('💾 saveRecording called');
+      console.log('💾 Recording Stats:', {
+        totalWaypoints: waypoints.length,
+        waypointsRef: wayPointsRef.current.length,
+        distance: distance.toFixed(2),
+        drivingTime,
+        totalElapsedTime,
+        averageSpeed: averageSpeed.toFixed(1),
+        maxSpeed: maxSpeed.toFixed(1)
+      });
 
       // Skip if no waypoints
       if (waypoints.length === 0) {
@@ -806,34 +945,62 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       // Save the recordedRouteData for the callback to use
       const savedData = { ...recordedRouteData };
 
-      console.log('Final route data:', {
+      console.log('💾 ==================== FINAL ROUTE DATA ====================');
+      console.log('💾 Complete Route Object:', JSON.stringify(savedData, null, 2));
+      console.log('💾 Route Data Summary:', {
         waypointsCount: savedData.waypoints.length,
         routePathCount: savedData.routePath.length,
         hasStartPoint: !!savedData.startPoint,
         hasEndPoint: !!savedData.endPoint,
         name: savedData.name,
+        description: savedData.description.substring(0, 100) + '...',
+        searchCoordinates: savedData.searchCoordinates,
+        firstWaypoint: savedData.waypoints[0],
+        lastWaypoint: savedData.waypoints[savedData.waypoints.length - 1]
       });
 
-      // First close the modal with error handling
-      try {
-        hideModal();
-      } catch (error) {
-        console.error('Error closing modal:', error);
-      }
-
-      // Call the callback with a timeout to ensure modal is closed first
+      // Call the callback immediately to pass data to CreateRouteScreen
+      console.log('💾 ==================== CALLBACK PROCESS ====================');
+      console.log('💾 onCreateRoute callback exists:', !!onCreateRoute);
+      
       if (onCreateRoute) {
-        setTimeout(() => {
+        try {
+          console.log('💾 CALLING onCreateRoute with data...');
+          console.log('💾 Data being sent:', {
+            dataType: typeof savedData,
+            hasWaypoints: !!savedData.waypoints,
+            waypointCount: savedData.waypoints?.length,
+            hasName: !!savedData.name,
+            hasDescription: !!savedData.description
+          });
+          
+          onCreateRoute(savedData);
+          console.log('💾 ✅ onCreateRoute callback completed successfully');
+          
+          // Close the modal after successful callback
           try {
-            console.log('Calling onCreateRoute with validated data');
-            onCreateRoute(savedData);
+            console.log('💾 Closing modal...');
+            hideModal();
+            console.log('💾 ✅ Modal closed successfully');
           } catch (error) {
-            console.error('Error in onCreateRoute callback:', error);
-            Alert.alert('Error', 'Failed to open route creation. Please try again.');
+            console.error('💾 ❌ Error closing modal:', error);
           }
-        }, 100);
+        } catch (error) {
+          console.error('💾 ❌ Error in onCreateRoute callback:', error);
+          console.error('💾 Error details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : 'No stack'
+          });
+          Alert.alert('Error', 'Failed to open route creation. Please try again.');
+        }
       } else {
-        console.error('RecordDrivingSheet: onCreateRoute callback is not defined!');
+        console.error('💾 ❌ RecordDrivingSheet: onCreateRoute callback is not defined!');
+        // Close modal anyway if no callback
+        try {
+          hideModal();
+        } catch (error) {
+          console.error('💾 ❌ Error closing modal:', error);
+        }
       }
     } catch (error) {
       console.error('Error saving recording:', error);
@@ -887,23 +1054,118 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     }
   }, [isRecording, locationSubscription, onClose]);
 
+  // Minimize/Maximize handlers
+  const handleMinimize = () => {
+    setIsMinimized(true);
+    // Allow touches to pass through when minimized
+    setModalPointerEvents('box-none');
+  };
+
+  const handleMaximize = () => {
+    setIsMinimized(false);
+    // Block touches when maximized (normal modal behavior)
+    setModalPointerEvents('auto');
+  };
+
+  // Render floating widget as direct positioned element when minimized
+  const renderFloatingWidget = () => {
+    if (!isMinimized || !isRecording) return null;
+    
+    return (
+      <View style={styles.floatingWidgetContainer} pointerEvents="box-none">
+        <TouchableOpacity
+          style={[styles.floatingWidgetExpanded, { backgroundColor: isPaused ? 'rgba(255, 149, 0, 0.95)' : 'rgba(255, 59, 48, 0.95)' }]}
+          onPress={() => {
+            console.log('🎬 MAXIMIZE BUTTON PRESSED');
+            handleMaximize();
+          }}
+          activeOpacity={0.8}
+        >
+          {/* Header row with REC/PAUSED and time */}
+          <View style={styles.floatingHeader}>
+            <View style={styles.floatingHeaderLeft}>
+              <View style={[styles.recordingDot, isPaused ? styles.pausedDot : styles.activeDot]} />
+              <Text style={styles.floatingStatusText}>
+                {isPaused ? 'PAUSED' : 'REC'}
+              </Text>
+              <Text style={styles.floatingTimeText}>
+                {formatTime(totalElapsedTime)}
+              </Text>
+            </View>
+            
+            {/* Controls in header */}
+            <View style={styles.floatingControls} pointerEvents="auto">
+              <TouchableOpacity
+                style={[styles.floatingControlButton, { backgroundColor: 'rgba(0,0,0,0.3)' }]}
+                onPress={isPaused ? resumeRecording : pauseRecording}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name={isPaused ? "play" : "pause"} size={14} color="white" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.floatingControlButton, { backgroundColor: 'rgba(0,0,0,0.3)' }]}
+                onPress={() => {
+                  console.log('🎬 STOP BUTTON PRESSED IN MINIMIZED MODE - Maximizing first');
+                  handleMaximize();
+                  setTimeout(() => stopRecording(), 100);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="square" size={14} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {/* Stats row */}
+          <View style={styles.floatingStats}>
+            <Text style={styles.floatingStatsText}>
+              📍 {distance.toFixed(2)} km • 🚗 {formatSpeed(currentSpeed)} km/h
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   // Optimize render to be more performant
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.backdrop}
-        activeOpacity={1}
-        onPress={isRecording ? undefined : onClose}
-      />
-      <View style={[styles.sheet, { backgroundColor: DARK_THEME.background }]}>
+    <>
+      {/* Main sheet - always render but hide when minimized */}
+      {!isMinimized && (
+        <View style={styles.container}>
+          <TouchableOpacity
+            style={styles.backdrop}
+            activeOpacity={1}
+            onPress={isRecording ? undefined : onClose}
+          />
+          <View style={[styles.sheet, { backgroundColor: DARK_THEME.background }]}>
         <View style={styles.handleContainer}>
           <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
           <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
             {t('map.recordDriving') || 'Record Route'}
           </Text>
-          <TouchableOpacity onPress={cancelRecording} disabled={false}>
-            <Feather name="x" size={24} color={DARK_THEME.text} />
-          </TouchableOpacity>
+          <XStack gap={8} alignItems="center">
+            {/* Always show minimize button when recording - Debug added */}
+            {isRecording && (
+              <TouchableOpacity 
+                onPress={() => {
+                  console.log('🎬 MINIMIZE BUTTON PRESSED');
+                  handleMinimize();
+                }}
+                style={{
+                  padding: 4, // Add padding for easier tapping
+                  backgroundColor: 'rgba(255,255,255,0.1)', // Add background for visibility
+                  borderRadius: 4
+                }}
+              >
+                <Feather name="minus" size={24} color={DARK_THEME.text} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={cancelRecording} disabled={false}>
+              <Feather name="x" size={24} color={DARK_THEME.text} />
+            </TouchableOpacity>
+          </XStack>
         </View>
 
         {/* Map Toggle Button - Show during recording or if we have waypoints to preview */}
@@ -933,8 +1195,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         {/* Enhanced Map Preview with Live Updates */}
         {showMap && (
           <View style={styles.mapContainer}>
-            <Map
-              waypoints={getWaypointMarkers()}
+            <MapView
+              style={styles.map}
               region={
                 waypoints.length > 0 ? {
                   latitude: waypoints[waypoints.length - 1].latitude,
@@ -948,13 +1210,45 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                   longitudeDelta: 0.1,
                 }
               }
-              style={styles.map}
-              routePath={getRoutePath()}
-              routePathColor={isPaused ? '#FF9500' : '#69e3c4'}
-              routePathWidth={3}
-              showStartEndMarkers={waypoints.length > 1}
-              drawingMode="record"
-            />
+              showsUserLocation={true}
+              userInterfaceStyle="dark"
+            >
+              {/* Route Path */}
+              {getRoutePath().length > 1 && (
+                <Polyline
+                  coordinates={getRoutePath()}
+                  strokeWidth={3}
+                  strokeColor={isPaused ? '#FF9500' : '#69e3c4'}
+                  lineJoin="round"
+                  lineCap="round"
+                />
+              )}
+              
+              {/* Start and End Markers */}
+              {waypoints.length > 0 && (
+                <Marker
+                  coordinate={{
+                    latitude: waypoints[0].latitude,
+                    longitude: waypoints[0].longitude,
+                  }}
+                  title="Start"
+                  description="Recording started here"
+                  pinColor="green"
+                />
+              )}
+              
+              {waypoints.length > 1 && (
+                <Marker
+                  coordinate={{
+                    latitude: waypoints[waypoints.length - 1].latitude,
+                    longitude: waypoints[waypoints.length - 1].longitude,
+                  }}
+                  title="Current Position"
+                  description="Live recording position"
+                  pinColor="red"
+                />
+              )}
+            </MapView>
 
             {/* Enhanced Recording Indicator */}
             {isRecording && (
@@ -1095,28 +1389,68 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
               </Text>
 
               <Text color={DARK_THEME.text} textAlign="center">
-                Your route has been recorded successfully. You can now create a new route with these
-                waypoints.
+                {waypoints.length > 0 
+                  ? `Your route has been recorded successfully with ${waypoints.length} waypoints. You can now create a route, continue recording, or start over.`
+                  : 'No movement was recorded. You can try recording again.'
+                }
               </Text>
 
-              <Button
-                backgroundColor="#1A3D3D"
-                color="white"
-                onPress={saveRecording}
-                size="$4"
-                height={50}
-                pressStyle={{ opacity: 0.8 }}
-              >
-                <XStack gap="$2" alignItems="center">
-                  <Feather name="check" size={24} color="white" />
-                  <Text color="white" fontWeight="600" fontSize={18}>
-                    Create Route
-                  </Text>
-                </XStack>
-              </Button>
+              {waypoints.length > 0 && (
+                <Button
+                  backgroundColor="#1A3D3D"
+                  color="white"
+                  onPress={saveRecording}
+                  size="$4"
+                  height={50}
+                  pressStyle={{ opacity: 0.8 }}
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="check" size={24} color="white" />
+                    <Text color="white" fontWeight="600" fontSize={18}>
+                      Create Route
+                    </Text>
+                  </XStack>
+                </Button>
+              )}
+
+              <XStack gap={12} justifyContent="center">
+                <Button
+                  backgroundColor="#3D3D1A"
+                  color="white"
+                  onPress={() => {
+                    console.log('🔄 CONTINUE RECORDING');
+                    setShowSummary(false);
+                    setIsRecording(true);
+                    setIsPaused(false);
+                    startLocationTracking();
+                  }}
+                  flex={1}
+                >
+                  <XStack gap="$1" alignItems="center">
+                    <Feather name="play" size={18} color="white" />
+                    <Text color="white">Continue</Text>
+                  </XStack>
+                </Button>
+
+                <Button
+                  backgroundColor="#CC4400"
+                  color="white"
+                  onPress={() => {
+                    console.log('🔄 RESTART RECORDING');
+                    setShowSummary(false);
+                    startRecording();
+                  }}
+                  flex={1}
+                >
+                  <XStack gap="$1" alignItems="center">
+                    <Feather name="refresh-cw" size={18} color="white" />
+                    <Text color="white">Start Over</Text>
+                  </XStack>
+                </Button>
+              </XStack>
 
               <Button
-                backgroundColor="#3D3D1A"
+                backgroundColor="rgba(255,255,255,0.1)"
                 color="white"
                 onPress={cancelRecording}
                 marginBottom={8}
@@ -1126,21 +1460,26 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             </YStack>
           )}
         </YStack>
-      </View>
-    </View>
+          </View>
+        </View>
+      )}
+      
+      {/* Floating widget overlay - always render when minimized */}
+      {renderFloatingWidget()}
+    </>
   );
 });
 
-// Modal version for use with modal system
-export const RecordDrivingModal = ({ 
-  onNavigateToCreateRoute 
-}: { 
-  onNavigateToCreateRoute?: (routeData: RecordedRouteData) => void 
-}) => {
+// Modal version for use with modal system that handles navigation properly
+interface RecordDrivingModalProps {
+  onCreateRoute?: (routeData: RecordedRouteData) => void;
+}
+
+export const RecordDrivingModal = ({ onCreateRoute }: RecordDrivingModalProps = {}) => {
   const { hideModal } = useModal();
 
-  // Handle route creation by calling back to parent component for navigation
-  const onCreateRoute = (routeData: RecordedRouteData) => {
+  // Handle route creation by passing data to parent navigation handler
+  const handleCreateRoute = (routeData: RecordedRouteData) => {
     try {
       console.log('RecordDrivingModal: onCreateRoute called with data', {
         waypointsCount: routeData?.waypoints?.length || 0,
@@ -1161,32 +1500,20 @@ export const RecordDrivingModal = ({
         return;
       }
 
-      // Close the modal first
-      hideModal();
-
-      // Call the navigation callback if provided
-      setTimeout(() => {
-        try {
-          console.log('RecordDrivingModal: Calling navigation callback');
-          
-          if (onNavigateToCreateRoute) {
-            onNavigateToCreateRoute(routeData);
-          } else {
-            console.warn('No navigation callback provided');
-            Alert.alert('Info', 'Route recorded successfully. Please navigate to Create Route manually.');
-          }
-        } catch (error) {
-          console.error('RecordDrivingModal: Error calling navigation callback:', error);
-          Alert.alert('Error', 'Failed to open route creation screen');
-        }
-      }, 300);
+      // Call the parent's navigation handler instead of showing another modal
+      if (onCreateRoute) {
+        console.log('RecordDrivingModal: Calling parent onCreateRoute');
+        onCreateRoute(routeData);
+      } else {
+        console.warn('RecordDrivingModal: No onCreateRoute callback provided');
+      }
     } catch (error) {
       console.error('RecordDrivingModal: Error in onCreateRoute:', error);
       Alert.alert('Error', 'Failed to process route data');
     }
   };
 
-  return <RecordDrivingSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} />;
+  return <RecordDrivingSheet isVisible={true} onClose={hideModal} onCreateRoute={handleCreateRoute} />;
 };
 
 const styles = StyleSheet.create({
@@ -1355,5 +1682,91 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '500',
+  },
+  floatingWidgetContainer: {
+    position: 'absolute',
+    top: 100,
+    right: 16,
+    alignItems: 'flex-end',
+  },
+  floatingButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
+  },
+  floatingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  floatingText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  floatingControlButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 4,
+  },
+  // New enhanced floating widget styles
+  floatingWidgetExpanded: {
+    backgroundColor: 'rgba(255, 59, 48, 0.95)',
+    borderRadius: 12,
+    padding: 12,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 12,
+  },
+  floatingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  floatingHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  floatingStatusText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
+  floatingTimeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  floatingControls: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  floatingStats: {
+    marginTop: 4,
+  },
+  floatingStatsText: {
+    color: 'white',
+    fontSize: 11,
+    opacity: 0.9,
+    textAlign: 'center',
   },
 });

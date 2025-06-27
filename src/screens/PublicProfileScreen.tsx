@@ -15,6 +15,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { ReportDialog } from '../components/report/ReportDialog';
 import { ProfileButton } from '../components/ProfileButton';
 import { useFocusEffect } from '@react-navigation/native';
+import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   routes_created: number;
@@ -22,6 +23,9 @@ type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   routes_saved: number;
   reviews_given: number;
   average_rating: number;
+  total_distance_driven: number; // in km
+  total_duration_driven: number; // in seconds
+  recorded_routes_created: number; // routes created using recording
   school: {
     name: string;
     id: string;
@@ -62,10 +66,19 @@ export function PublicProfileScreen() {
     currentTitle: '',
   });
   const [showAdminControls, setShowAdminControls] = useState(false);
+  
+  // Follow/Unfollow system state
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     loadProfile();
-  }, [userId, route.params?.refresh]);
+    if (userId && user?.id && userId !== user.id) {
+      loadFollowData();
+    }
+  }, [userId, route.params?.refresh, user?.id]);
 
   // Check if this is the current user's profile
   useEffect(() => {
@@ -175,7 +188,7 @@ export function PublicProfileScreen() {
       if (error) throw error;
       if (!data) throw new Error('Profile not found');
 
-      // Get counts
+      // Get counts and driving statistics
       const counts = await Promise.all([
         // Count routes created
         supabase.from('routes').select('id', { count: 'exact' }).eq('creator_id', userId),
@@ -207,6 +220,18 @@ export function PublicProfileScreen() {
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(3),
+
+        // Get all routes created by user for driving stats calculation
+        supabase
+          .from('routes')
+          .select('description, metadata')
+          .eq('creator_id', userId),
+
+        // Get all routes driven by user (via driven_routes table)
+        supabase
+          .from('driven_routes')
+          .select('route:route_id(description, metadata)')
+          .eq('user_id', userId),
       ]);
 
       const reviewsWithRating = counts[4].data || [];
@@ -216,7 +241,100 @@ export function PublicProfileScreen() {
             reviewsWithRating.length
           : 0;
 
-      // Create complete profile object
+      // Calculate driving statistics from both created and driven routes
+      const createdRoutes = counts[7].data || [];
+      const drivenRoutesData = counts[8].data || [];
+      
+      // Extract actual route data from driven_routes (which has nested route data)
+      const drivenRoutes = drivenRoutesData
+        .map((dr: any) => dr.route)
+        .filter((route: any) => route !== null);
+      
+      // Combine all routes (avoid duplicates by checking route content)
+      const allRoutesMap = new Map();
+      
+      // Add created routes
+      createdRoutes.forEach((route: any) => {
+        if (route.description) {
+          allRoutesMap.set(route.description, route);
+        }
+      });
+      
+      // Add driven routes (may include duplicates if user created and drove same route)
+      drivenRoutes.forEach((route: any) => {
+        if (route && route.description) {
+          allRoutesMap.set(route.description, route);
+        }
+      });
+      
+      const allUniqueRoutes = Array.from(allRoutesMap.values());
+      
+      let totalDistanceDriven = 0; // in km
+      let totalDurationDriven = 0; // in seconds
+      let recordedRoutesCount = 0;
+
+      console.log('🚗 Processing routes for driving stats:', {
+        userId,
+        createdRoutesCount: createdRoutes.length,
+        drivenRoutesCount: drivenRoutes.length,
+        uniqueRoutesCount: allUniqueRoutes.length,
+      });
+
+      allUniqueRoutes.forEach((route: any, index: number) => {
+        console.log(`🚗 Processing route ${index + 1}:`, {
+          hasDescription: !!route.description,
+          description: route.description?.substring(0, 100) + '...',
+          isRecorded: isRecordedRoute(route)
+        });
+        
+        // Check if this is a recorded route
+        if (isRecordedRoute(route)) {
+          recordedRoutesCount++;
+          
+          // Parse recording stats from description
+          const recordingStats = parseRecordingStats(route.description || '');
+          console.log(`🚗 Route ${index + 1} recording stats:`, recordingStats);
+          
+          if (recordingStats) {
+            // Parse distance (format: "X.XX km")
+            const distanceMatch = recordingStats.distance.match(/([0-9.]+)/);
+            if (distanceMatch) {
+              const distance = parseFloat(distanceMatch[1]);
+              totalDistanceDriven += distance;
+              console.log(`🚗 Added distance: ${distance} km`);
+            }
+            
+            // Parse duration (format: "HH:MM" or "MM:SS")
+            const durationParts = recordingStats.drivingTime.split(':');
+            if (durationParts.length === 2) {
+              const minutes = parseInt(durationParts[0]);
+              const seconds = parseInt(durationParts[1]);
+              const duration = (minutes * 60) + seconds;
+              totalDurationDriven += duration;
+              console.log(`🚗 Added duration: ${duration} seconds (${minutes}m ${seconds}s)`);
+            } else if (durationParts.length === 3) {
+              const hours = parseInt(durationParts[0]);
+              const minutes = parseInt(durationParts[1]);
+              const seconds = parseInt(durationParts[2]);
+              const duration = (hours * 3600) + (minutes * 60) + seconds;
+              totalDurationDriven += duration;
+              console.log(`🚗 Added duration: ${duration} seconds (${hours}h ${minutes}m ${seconds}s)`);
+            }
+          }
+        }
+      });
+
+      console.log('🚗 Final driving stats calculated:', {
+        userId,
+        totalDistanceDriven: totalDistanceDriven.toFixed(2) + ' km',
+        totalDurationDriven: Math.floor(totalDurationDriven / 60) + ' minutes',
+        recordedRoutesCount,
+        createdRoutesProcessed: createdRoutes.length,
+        drivenRoutesProcessed: drivenRoutes.length,
+        uniqueRoutesProcessed: allUniqueRoutes.length
+      });
+
+      // Create complete profile object with driving stats
       const profileWithCounts = {
         ...data,
         routes_created: counts[0].count || 0,
@@ -224,6 +342,9 @@ export function PublicProfileScreen() {
         routes_saved: counts[2].count || 0,
         reviews_given: counts[3].count || 0,
         average_rating: averageRating,
+        total_distance_driven: totalDistanceDriven,
+        total_duration_driven: totalDurationDriven,
+        recorded_routes_created: recordedRoutesCount,
       };
 
       setProfile(profileWithCounts);
@@ -253,6 +374,89 @@ export function PublicProfileScreen() {
 
   const handleReport = () => {
     setShowReportDialog(true);
+  };
+
+  // ==================== FOLLOW/UNFOLLOW SYSTEM ====================
+
+  const loadFollowData = async () => {
+    try {
+      if (!user?.id || !userId) return;
+
+      // Check if current user is following this profile
+      const { data: followData } = await supabase
+        .from('user_follows')
+        .select('id')
+        .eq('follower_id', user.id)
+        .eq('following_id', userId)
+        .single();
+
+      setIsFollowing(!!followData);
+
+      // Get followers count for this profile
+      const { count: followersCount } = await supabase
+        .from('user_follows')
+        .select('id', { count: 'exact' })
+        .eq('following_id', userId);
+
+      // Get following count for this profile
+      const { count: followingCount } = await supabase
+        .from('user_follows')
+        .select('id', { count: 'exact' })
+        .eq('follower_id', userId);
+
+      setFollowersCount(followersCount || 0);
+      setFollowingCount(followingCount || 0);
+
+      console.log('📊 Follow data loaded:', {
+        isFollowing: !!followData,
+        followersCount: followersCount || 0,
+        followingCount: followingCount || 0,
+      });
+    } catch (error) {
+      console.error('Error loading follow data:', error);
+    }
+  };
+
+  const handleFollow = async () => {
+    try {
+      if (!user?.id || !userId || followLoading) return;
+      
+      setFollowLoading(true);
+
+      if (isFollowing) {
+        // Unfollow
+        const { error } = await supabase
+          .from('user_follows')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('following_id', userId);
+
+        if (error) throw error;
+
+        setIsFollowing(false);
+        setFollowersCount(prev => prev - 1);
+        console.log('👤 User unfollowed');
+      } else {
+        // Follow
+        const { error } = await supabase
+          .from('user_follows')
+          .insert([{
+            follower_id: user.id,
+            following_id: userId,
+          }]);
+
+        if (error) throw error;
+
+        setIsFollowing(true);
+        setFollowersCount(prev => prev + 1);
+        console.log('👤 User followed');
+      }
+    } catch (error) {
+      console.error('Error following/unfollowing user:', error);
+      Alert.alert('Error', 'Failed to update follow status. Please try again.');
+    } finally {
+      setFollowLoading(false);
+    }
   };
 
   // Add admin delete function
@@ -329,6 +533,15 @@ export function PublicProfileScreen() {
     );
   }
 
+              // Helper function to format driving time
+  const formatDrivingTime = (seconds: number): string => {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  };
+
   return (
     <Screen>
       <Header
@@ -340,7 +553,7 @@ export function PublicProfileScreen() {
               <Button
                 onPress={handleAdminDeleteUser}
                 icon={<Feather name="trash-2" size={20} color="red" />}
-                variant="outlined"
+                variant="secondary"
                 marginRight="$2"
               >
                 {t('profile.adminDelete') || 'Delete User'}
@@ -349,13 +562,45 @@ export function PublicProfileScreen() {
             {isCurrentUser ? (
               <ProfileButton userId={profile.id} isCurrentUser={true} size="sm" />
             ) : (
-              <Button
-                onPress={handleReport}
-                icon={<Feather name="flag" size={20} color={iconColor} />}
-                variant="outlined"
-              >
-                {t('profile.report') || 'Report'}
-              </Button>
+              <XStack gap="$2">
+                {/* Follow/Unfollow Button */}
+                <Button
+                  onPress={handleFollow}
+                  disabled={followLoading}
+                  variant={isFollowing ? "secondary" : "primary"}
+                  backgroundColor={isFollowing ? "$red5" : "$blue10"}
+                  size="sm"
+                >
+                  <XStack gap="$1" alignItems="center">
+                    {followLoading ? (
+                      <Text color={isFollowing ? "$red11" : "white"} fontSize="$3">
+                        {t('profile.loading') || '...'}
+                      </Text>
+                    ) : (
+                      <>
+                        <Feather 
+                          name={isFollowing ? "user-minus" : "user-plus"} 
+                          size={16} 
+                          color={isFollowing ? "#EF4444" : "white"} 
+                        />
+                        <Text color={isFollowing ? "$red11" : "white"} fontSize="$3" fontWeight="500">
+                          {isFollowing ? (t('profile.unfollow') || 'Unfollow') : (t('profile.follow') || 'Follow')}
+                        </Text>
+                      </>
+                    )}
+                  </XStack>
+                </Button>
+                
+                {/* Report Button */}
+                <Button
+                  onPress={handleReport}
+                  icon={<Feather name="flag" size={16} color={iconColor} />}
+                  variant="secondary"
+                  size="sm"
+                >
+                  {t('profile.report') || 'Report'}
+                </Button>
+              </XStack>
             )}
           </>
         }
@@ -415,37 +660,148 @@ export function PublicProfileScreen() {
             )}
           </YStack>
 
-          {/* Stats row */}
+          {/* Stats Grid - 2x3 layout with driving stats */}
           <Card padding="$4" bordered>
-            <XStack justifyContent="space-between">
-              <YStack alignItems="center">
-                <Text fontSize="$6" fontWeight="bold">
-                  {profile.routes_created}
-                </Text>
-                <Text fontSize="$3" color="$gray11">
-                  {t('profile.routesCreated') || 'Routes Created'}
-                </Text>
-              </YStack>
+            <YStack gap="$4">
+              {/* First row */}
+              <XStack justifyContent="space-between">
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$6" fontWeight="bold">
+                    {profile.routes_created}
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.routesCreated') || 'Routes Created'}
+                  </Text>
+                </YStack>
 
-              <YStack alignItems="center">
-                <Text fontSize="$6" fontWeight="bold">
-                  {profile.routes_driven}
-                </Text>
-                <Text fontSize="$3" color="$gray11">
-                  {t('profile.routesDriven') || 'Routes Driven'}
-                </Text>
-              </YStack>
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$6" fontWeight="bold">
+                    {profile.routes_driven}
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.routesDriven') || 'Routes Driven'}
+                  </Text>
+                </YStack>
 
-              <YStack alignItems="center">
-                <Text fontSize="$6" fontWeight="bold">
-                  {profile.reviews_given}
-                </Text>
-                <Text fontSize="$3" color="$gray11">
-                  {t('profile.reviewsGiven') || 'Reviews'}
-                </Text>
-              </YStack>
-            </XStack>
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$6" fontWeight="bold">
+                    {profile.routes_saved}
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.routesSaved') || 'Routes Saved'}
+                  </Text>
+                </YStack>
+              </XStack>
+
+              {/* Second row */}
+              <XStack justifyContent="space-around">
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$6" fontWeight="bold">
+                    {profile.reviews_given}
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.reviewsGiven') || 'Reviews Given'}
+                  </Text>
+                </YStack>
+
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$6" fontWeight="bold">
+                    {profile.average_rating.toFixed(1)}
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.avgRating') || 'Avg Rating'}
+                  </Text>
+                </YStack>
+
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$6" fontWeight="bold" color="$green10">
+                    {profile.total_distance_driven.toFixed(1)}
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.kmDriven') || 'km Driven'}
+                  </Text>
+                </YStack>
+              </XStack>
+
+              {/* Third row - Follow Stats */}
+              <XStack justifyContent="space-around">
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$6" fontWeight="bold" color="$blue10">
+                    {followersCount}
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.followers') || 'Followers'}
+                  </Text>
+                </YStack>
+
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$6" fontWeight="bold" color="$blue10">
+                    {followingCount}
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.following') || 'Following'}
+                  </Text>
+                </YStack>
+
+                {/* Empty space for alignment */}
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$6" fontWeight="bold" opacity={0}>
+                    -
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center" opacity={0}>
+                    -
+                  </Text>
+                </YStack>
+              </XStack>
+            </YStack>
           </Card>
+
+          {/* Driving Statistics Card - Additional detailed stats */}
+          {(profile.recorded_routes_created > 0 || profile.total_distance_driven > 0) && (
+            <Card padding="$4" bordered backgroundColor="$green1">
+              <YStack gap="$3">
+                <XStack alignItems="center" gap="$2">
+                  <Feather name="activity" size={20} color="#22C55E" />
+                  <Text fontSize="$5" fontWeight="bold" color="$green11">
+                    {t('profile.drivingStats') || 'Driving Statistics'}
+                  </Text>
+                </XStack>
+                
+                <XStack justifyContent="space-around">
+                  <YStack alignItems="center" flex={1}>
+                    <Text fontSize="$5" fontWeight="bold" color="$green11">
+                      {profile.recorded_routes_created}
+                    </Text>
+                    <Text fontSize="$3" color="$gray11" textAlign="center">
+                      {t('profile.recordedRoutes') || 'Recorded Routes'}
+                    </Text>
+                  </YStack>
+
+                  <YStack alignItems="center" flex={1}>
+                    <Text fontSize="$5" fontWeight="bold" color="$green11">
+                      {profile.total_distance_driven.toFixed(1)} km
+                    </Text>
+                    <Text fontSize="$3" color="$gray11" textAlign="center">
+                      {t('profile.totalDistance') || 'Total Distance'}
+                    </Text>
+                  </YStack>
+
+                  <YStack alignItems="center" flex={1}>
+                    <Text fontSize="$5" fontWeight="bold" color="$green11">
+                      {formatDrivingTime(profile.total_duration_driven)}
+                    </Text>
+                    <Text fontSize="$3" color="$gray11" textAlign="center">
+                      {t('profile.drivingTime') || 'Driving Time'}
+                    </Text>
+                  </YStack>
+                </XStack>
+
+                <Text fontSize="$2" color="$gray9" textAlign="center" fontStyle="italic">
+                  {t('profile.fromRecordedRoutes') || 'Based on GPS-recorded routes only'}
+                </Text>
+              </YStack>
+            </Card>
+          )}
 
           {/* Learning path progress */}
           {profile.role === 'student' && (

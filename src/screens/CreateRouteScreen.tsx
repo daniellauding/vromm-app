@@ -9,13 +9,16 @@ import {
   TouchableOpacity,
   Platform,
   PanResponder,
+  BackHandler,
+  Modal,
+  Animated,
 } from 'react-native';
 import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group, Heading } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { Map, Waypoint, Screen, Button, Text, Header, FormField, Chip } from '../components';
 import * as Location from 'expo-location';
@@ -30,7 +33,9 @@ import { MediaCarousel } from '../components/MediaCarousel';
 import { MediaItem, Exercise, WaypointData, MediaUrl, RouteData } from '../types/route';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
-import { RecordDrivingModal, RecordedRouteData } from '../components/RecordDrivingSheet';
+import { useToast } from '../contexts/ToastContext';
+import { useCreateRoute } from '../contexts/CreateRouteContext';
+import { RecordDrivingModal } from '../components/RecordDrivingSheet';
 import * as mediaUtils from '../utils/mediaUtils';
 
 // Helper function to extract YouTube video ID
@@ -99,8 +104,43 @@ function getTranslation(t: (key: string) => string, key: string, fallback: strin
 }
 
 export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
+  console.log('🏗️ ==================== CREATE ROUTE SCREEN INIT ====================');
+  console.log('🏗️ CreateRouteScreen initialized with props:', {
+    isModal,
+    hideHeader,
+    hasRoute: !!route,
+    hasParams: !!route?.params
+  });
+  
+  if (route?.params) {
+    console.log('🏗️ Route params received:', {
+      routeId: route.params.routeId,
+      hasInitialWaypoints: !!route.params.initialWaypoints,
+      waypointCount: route.params.initialWaypoints?.length || 0,
+      initialName: route.params.initialName,
+      hasInitialDescription: !!route.params.initialDescription,
+      hasInitialSearchCoordinates: !!route.params.initialSearchCoordinates,
+      hasInitialRoutePath: !!route.params.initialRoutePath,
+      routePathLength: route.params.initialRoutePath?.length || 0,
+      hasInitialStartPoint: !!route.params.initialStartPoint,
+      hasInitialEndPoint: !!route.params.initialEndPoint,
+      hasOnClose: !!route.params.onClose,
+      hasOnRouteCreated: !!route.params.onRouteCreated
+    });
+    
+    if (route.params.initialWaypoints) {
+      console.log('🏗️ Initial waypoints details:', {
+        count: route.params.initialWaypoints.length,
+        firstWaypoint: route.params.initialWaypoints[0],
+        lastWaypoint: route.params.initialWaypoints[route.params.initialWaypoints.length - 1]
+      });
+    }
+  }
+
   const { t } = useTranslation();
   const { showModal } = useModal();
+  const { showRouteCreatedToast } = useToast();
+  const createRouteContext = useCreateRoute();
   const routeId = route?.params?.routeId;
   const initialWaypoints = route?.params?.initialWaypoints;
   const initialName = route?.params?.initialName;
@@ -112,6 +152,15 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const onCloseModal = route?.params?.onClose;
   const onRouteCreated = route?.params?.onRouteCreated;
   const isEditing = !!routeId;
+  
+  console.log('🏗️ Extracted params:', {
+    routeId,
+    initialWaypointsCount: initialWaypoints?.length || 0,
+    initialName,
+    isEditing,
+    hasOnCloseModal: !!onCloseModal,
+    hasOnRouteCreated: !!onRouteCreated
+  });
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const searchInputRef = useRef<any>(null);
@@ -124,7 +173,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const navigation = useNavigation<NavigationProp>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [waypoints, setWaypoints] = useState<Waypoint[]>(initialWaypoints || []);
+  const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
+    console.log('🏗️ Initializing waypoints state:', {
+      hasInitialWaypoints: !!initialWaypoints,
+      count: initialWaypoints?.length || 0,
+      waypoints: initialWaypoints
+    });
+    return initialWaypoints || [];
+  });
   const [region, setRegion] = useState({
     latitude: 55.7047,
     longitude: 13.191,
@@ -153,15 +209,24 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   // Drawing state refs for continuous drawing
   const drawingRef = useRef(false);
-  const lastDrawPointRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const lastDrawPointRef = useRef<{ latitude: number; longitude: number; timestamp?: number } | null>(null);
 
   // Initialize search query with coordinates if provided
   useEffect(() => {
+    console.log('🏗️ ==================== USE EFFECT - SEARCH COORDINATES ====================');
+    console.log('🏗️ Search coordinates effect triggered:', {
+      hasInitialSearchCoordinates: !!initialSearchCoordinates,
+      initialSearchCoordinates,
+      currentSearchQuery: searchQuery,
+      shouldSet: initialSearchCoordinates && searchQuery === ''
+    });
+    
     if (initialSearchCoordinates && searchQuery === '') {
-      console.log('Setting initial search coordinates:', initialSearchCoordinates);
+      console.log('🏗️ Setting initial search coordinates:', initialSearchCoordinates);
       setSearchQuery(initialSearchCoordinates);
+      console.log('🏗️ ✅ Search coordinates set successfully');
     }
-  }, [initialSearchCoordinates]);
+  }, [initialSearchCoordinates, searchQuery]);
 
   // Setup routePath for map if provided
   const [routePath, setRoutePath] = useState<Array<{ latitude: number; longitude: number }> | null>(
@@ -234,7 +299,16 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     }
 
     // If we have initial waypoints, set up the region based on them
+    console.log('🏗️ ==================== USE EFFECT - INITIAL WAYPOINTS ====================');
+    console.log('🏗️ Checking initial waypoints:', {
+      hasInitialWaypoints: !!initialWaypoints?.length,
+      count: initialWaypoints?.length || 0,
+      waypoints: initialWaypoints
+    });
+    
     if (initialWaypoints?.length) {
+      console.log('🏗️ Setting up region from initial waypoints...');
+      
       const latitudes = initialWaypoints.map((wp) => wp.latitude);
       const longitudes = initialWaypoints.map((wp) => wp.longitude);
 
@@ -243,16 +317,22 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       const minLng = Math.min(...longitudes);
       const maxLng = Math.max(...longitudes);
 
-      // Create a region that contains all waypoints
-      setRegion({
+      const newRegion = {
         latitude: (minLat + maxLat) / 2,
         longitude: (minLng + maxLng) / 2,
         latitudeDelta: Math.max((maxLat - minLat) * 1.2, 0.02),
         longitudeDelta: Math.max((maxLng - minLng) * 1.2, 0.02),
-      });
+      };
+
+      console.log('🏗️ Calculated region:', newRegion);
+      
+      // Create a region that contains all waypoints
+      setRegion(newRegion);
 
       // Set active section to basic to allow naming the route
       setActiveSection('basic');
+      
+      console.log('🏗️ ✅ Region and active section set for recorded route');
     }
   }, [isEditing, locationPermission, initialWaypoints]);
 
@@ -276,6 +356,189 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     transmission_type: 'both',
     category: 'parking' as Category,
   });
+
+  // ==================== UNSAVED CHANGES DETECTION ====================
+  
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showExitConfirmation, setShowExitConfirmation] = useState(false);
+  const [initialStateSnapshot, setInitialStateSnapshot] = useState<any>(null);
+
+  // Create initial snapshot for comparison (after all state is initialized)
+  useEffect(() => {
+    // Wait a bit for all state to be initialized
+    setTimeout(() => {
+      const snapshot = {
+        formData,
+        waypoints,
+        exercises,
+        media,
+        youtubeLink,
+      };
+      setInitialStateSnapshot(snapshot);
+    }, 1000);
+  }, []); // Only run once on mount
+
+  // Check for unsaved changes whenever state changes
+  useEffect(() => {
+    if (!initialStateSnapshot) return;
+
+    const currentState = {
+      formData,
+      waypoints,
+      exercises,
+      media,
+      youtubeLink,
+    };
+
+    const hasChanges = JSON.stringify(currentState) !== JSON.stringify(initialStateSnapshot);
+    setHasUnsavedChanges(hasChanges);
+  }, [formData, waypoints, exercises, media, youtubeLink, initialStateSnapshot]);
+
+  // Handle back button press
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        if (hasUnsavedChanges) {
+          setShowExitConfirmation(true);
+          return true; // Prevent default back behavior
+        }
+        return false; // Allow default back behavior
+      };
+
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove();
+    }, [hasUnsavedChanges])
+  );
+
+  // ==================== CONTEXT STATE INTEGRATION ====================
+  
+  // Check if we should restore state from context (coming back from recording)
+  useEffect(() => {
+    console.log('🔄 ==================== CHECKING FOR STATE RESTORATION ====================');
+    
+    const shouldRestore = createRouteContext.isFromRecording() && createRouteContext.persistedState;
+    console.log('🔄 Should restore state:', {
+      isFromRecording: createRouteContext.isFromRecording(),
+      hasPersistedState: !!createRouteContext.persistedState,
+      shouldRestore,
+    });
+
+    if (shouldRestore && createRouteContext.persistedState) {
+      const restoredState = createRouteContext.persistedState;
+      console.log('🔄 Restoring state from context:', {
+        waypointsCount: restoredState.waypoints.length,
+        formName: restoredState.formData.name,
+        drawingMode: restoredState.drawingMode,
+      });
+
+      // Restore all state
+      setWaypoints(restoredState.waypoints);
+      setFormData(restoredState.formData);
+      setExercises(restoredState.exercises);
+      setMedia(restoredState.media);
+      setDrawingMode(restoredState.drawingMode);
+      setSnapToRoads(restoredState.snapToRoads);
+      setPenPath(restoredState.penPath);
+      setRoutePath(restoredState.routePath);
+      setRegion(restoredState.region);
+      setActiveSection(restoredState.activeSection);
+      setSearchQuery(restoredState.searchQuery);
+      setYoutubeLink(restoredState.youtubeLink);
+
+      // Clear the recording flag after restoration
+      createRouteContext.clearRecordingFlag();
+
+      console.log('🔄 ✅ State restoration completed');
+    }
+  }, []); // Run only once on mount
+
+  // Save state to context when user starts recording
+  const saveCurrentStateToContext = () => {
+    console.log('🔄 Saving current state to context before recording');
+    
+    const currentState = {
+      formData,
+      waypoints,
+      exercises,
+      media,
+      drawingMode,
+      snapToRoads,
+      penPath,
+      routePath,
+      region,
+      activeSection,
+      searchQuery,
+      youtubeLink,
+      isFromRecording: false,
+      originalRouteId: routeId,
+    };
+
+    createRouteContext.saveState(currentState);
+    console.log('🔄 ✅ State saved to context');
+  };
+
+  // ==================== DRAFT FUNCTIONALITY ====================
+
+  const saveAsDraft = async () => {
+    try {
+      console.log('💾 Saving route as draft...');
+      
+      if (!user?.id) {
+        Alert.alert('Error', 'You must be logged in to save drafts');
+        return;
+      }
+
+      // Create draft data
+      const draftData = {
+        user_id: user.id,
+        draft_name: formData.name || `Draft - ${new Date().toLocaleDateString()}`,
+        form_data: formData,
+        waypoints,
+        exercises,
+        media,
+        drawing_mode: drawingMode,
+        snap_to_roads: snapToRoads,
+        pen_path: penPath,
+        route_path: routePath,
+        region,
+        active_section: activeSection,
+        search_query: searchQuery,
+        youtube_link: youtubeLink,
+        created_at: new Date().toISOString(),
+      };
+
+      // Save to Supabase drafts table (you'll need to create this table)
+      const { error } = await supabase
+        .from('route_drafts')
+        .insert([draftData]);
+
+      if (error) throw error;
+
+      console.log('💾 ✅ Draft saved successfully');
+      Alert.alert('Success', 'Route saved as draft! You can continue editing it later.');
+      
+      // Reset unsaved changes flag
+      setHasUnsavedChanges(false);
+      setShowExitConfirmation(false);
+      
+      // Navigate back
+      navigation.goBack();
+    } catch (error) {
+      console.error('💾 ❌ Error saving draft:', error);
+      Alert.alert('Error', 'Failed to save draft. Please try again.');
+    }
+  };
+
+  const handleExitWithoutSaving = () => {
+    console.log('🚪 Exiting without saving changes');
+    setHasUnsavedChanges(false);
+    setShowExitConfirmation(false);
+    navigation.goBack();
+  };
+
+  const handleContinueEditing = () => {
+    setShowExitConfirmation(false);
+  };
 
   // Enhanced map press handler with drawing modes
   const handleMapPress = (e: MapPressEvent) => {
@@ -537,58 +800,101 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const mapRef = useRef<any>(null);
   const containerRef = useRef<any>(null);
 
-  // Create PanResponder for continuous drawing (mouse/touch drag)
+  // Create PanResponder for continuous drawing with Android compatibility
   const drawingPanResponder = PanResponder.create({
-    onStartShouldSetPanResponder: (evt) => {
-      // Only capture single touch in pen mode, allow multi-touch for map interaction
-      return drawingMode === 'pen' && evt.nativeEvent.touches.length === 1;
-    },
-    onMoveShouldSetPanResponder: (evt) => {
+    onStartShouldSetPanResponder: (evt, gestureState) => {
+      // Android: More aggressive capture for pen mode
       // Only capture single touch in pen mode
-      return drawingMode === 'pen' && evt.nativeEvent.touches.length === 1;
-    },
-    onShouldBlockNativeResponder: (evt) => {
-      // Allow multi-touch gestures (zoom/pan) by not blocking when multiple touches
-      return drawingMode === 'pen' && evt.nativeEvent.touches.length === 1;
-    },
-    onPanResponderGrant: (evt) => {
       if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
-        console.log('🎨 PAN RESPONDER GRANTED - Starting drag drawing');
-        const { locationX, locationY } = evt.nativeEvent;
+        console.log('🎨 ANDROID: Should set pan responder - YES');
+        return true;
+      }
+      return false;
+    },
+    onMoveShouldSetPanResponder: (evt, gestureState) => {
+      // Android: Capture pen drawing movement more aggressively
+      if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
+        // Only capture if user has moved enough (avoid accidental captures)
+        const hasMovedEnough = Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2;
+        console.log('🎨 ANDROID: Should set pan responder for movement:', hasMovedEnough);
+        return hasMovedEnough;
+      }
+      return false;
+    },
+    onPanResponderTerminationRequest: () => {
+      // Android: Don't allow termination during pen drawing
+      if (drawingMode === 'pen' && drawingRef.current) {
+        console.log('🎨 ANDROID: Rejecting termination request during drawing');
+        return false;
+      }
+      return true;
+    },
+    onShouldBlockNativeResponder: () => {
+      // Android: Always block native responder in pen mode to prevent map movement
+      if (drawingMode === 'pen') {
+        console.log('🎨 ANDROID: Blocking native responder in pen mode');
+        return true;
+      }
+      return false;
+    },
+    onPanResponderGrant: (evt, gestureState) => {
+      if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
+        console.log('🎨 ANDROID: PAN RESPONDER GRANTED - Starting drag drawing');
+        const { pageX, pageY } = evt.nativeEvent;
         
-        // Convert screen coordinates to map coordinates
-        if (mapRef.current && containerRef.current) {
-          mapRef.current.coordinateForPoint({ x: locationX, y: locationY })
-            .then((coordinate: { latitude: number; longitude: number }) => {
-              console.log('🎨 DRAG START at:', coordinate);
-              // Always start drawing when user starts dragging
-              startContinuousDrawing(coordinate.latitude, coordinate.longitude);
-            })
-            .catch((error: any) => {
-              console.log('🎨 Error converting start coordinates:', error);
-            });
+        // Use pageX/pageY for better Android compatibility
+        if (mapRef.current) {
+          try {
+            // Convert screen coordinates to map coordinates
+            mapRef.current.coordinateForPoint({ x: pageX, y: pageY })
+              .then((coordinate: { latitude: number; longitude: number }) => {
+                console.log('🎨 ANDROID: DRAG START at:', coordinate);
+                startContinuousDrawing(coordinate.latitude, coordinate.longitude);
+              })
+              .catch((error: any) => {
+                console.log('🎨 ANDROID: Error converting start coordinates:', error);
+                // Fallback: Use region center if coordinate conversion fails
+                const { latitude, longitude } = region;
+                startContinuousDrawing(latitude, longitude);
+              });
+          } catch (error) {
+            console.log('🎨 ANDROID: Coordinate conversion not available, using region center');
+            const { latitude, longitude } = region;
+            startContinuousDrawing(latitude, longitude);
+          }
         }
       }
     },
-    onPanResponderMove: (evt) => {
-      if (drawingMode === 'pen' && drawingRef.current && mapRef.current && evt.nativeEvent.touches.length === 1) {
-        const { locationX, locationY } = evt.nativeEvent;
+    onPanResponderMove: (evt, gestureState) => {
+      if (drawingMode === 'pen' && drawingRef.current && evt.nativeEvent.touches.length === 1) {
+        const { pageX, pageY } = evt.nativeEvent;
         
-        // Throttle the coordinate conversion to avoid too many calls
-        mapRef.current.coordinateForPoint({ x: locationX, y: locationY })
-          .then((coordinate: { latitude: number; longitude: number }) => {
-            console.log('🎨 DRAG MOVE to:', coordinate);
-            addContinuousDrawingPoint(coordinate.latitude, coordinate.longitude);
-          })
-          .catch((error: any) => {
-            console.log('🎨 Error converting move coordinates:', error);
-          });
+        // Android: Throttle updates more aggressively to prevent lag
+        const now = Date.now();
+        if (now - (lastDrawPointRef.current?.timestamp || 0) < 50) { // 50ms throttle
+          return;
+        }
+        
+        if (mapRef.current) {
+          try {
+            mapRef.current.coordinateForPoint({ x: pageX, y: pageY })
+              .then((coordinate: { latitude: number; longitude: number }) => {
+                console.log('🎨 ANDROID: DRAG MOVE to:', coordinate);
+                addContinuousDrawingPoint(coordinate.latitude, coordinate.longitude);
+                lastDrawPointRef.current = { ...coordinate, timestamp: now };
+              })
+              .catch((error: any) => {
+                console.log('🎨 ANDROID: Error converting move coordinates:', error);
+              });
+          } catch (error) {
+            console.log('🎨 ANDROID: Move coordinate conversion failed');
+          }
+        }
       }
     },
-    onPanResponderRelease: () => {
+    onPanResponderRelease: (evt, gestureState) => {
       if (drawingMode === 'pen') {
-        console.log('🎨 PAN RESPONDER RELEASED - Pausing drawing (can continue)');
-        // Don't stop drawing completely - just pause. User can continue by dragging again
+        console.log('🎨 ANDROID: PAN RESPONDER RELEASED - Pausing drawing');
         drawingRef.current = false;
         // Keep isDrawing true so user can continue
       }
@@ -687,20 +993,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   // Handle record button click
   const handleRecordRoute = () => {
     try {
-      const navigateToCreateRoute = (routeData: RecordedRouteData) => {
-        // Navigate to CreateRouteScreen with recorded data
-        navigation.navigate('CreateRoute', {
-          initialWaypoints: routeData.waypoints,
-          initialName: routeData.name,
-          initialDescription: routeData.description,
-          initialSearchCoordinates: routeData.searchCoordinates,
-          initialRoutePath: routeData.routePath,
-          initialStartPoint: routeData.startPoint,
-          initialEndPoint: routeData.endPoint,
-        });
-      };
-
-      showModal(<RecordDrivingModal onNavigateToCreateRoute={navigateToCreateRoute} />);
+      // Save current state before starting recording
+      saveCurrentStateToContext();
+      
+      // Mark that recording was started from CreateRoute
+      createRouteContext.setRecordingContext(routeId);
+      
+      showModal(<RecordDrivingModal />);
     } catch (error) {
       console.error('Error opening record modal:', error);
       Alert.alert('Error', 'Failed to open recording screen');
@@ -1062,6 +1361,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       // Set loading to false before navigation
       setLoading(false);
 
+      // Show toast notification and navigate to home
+      if (route?.id && route?.name) {
+        showRouteCreatedToast(route.id, route.name, isEditing);
+      }
+
       // Different navigation behavior based on whether we're in modal mode
       if (isModal && onCloseModal) {
         // If in modal mode, call the onClose callback
@@ -1072,26 +1376,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           onRouteCreated(route.id);
         }
       } else if (navigation) {
-        // Regular navigation back
-        if (isEditing) {
-          // For editing, go back and trigger refresh of RouteDetailScreen
-          navigation.navigate('RouteDetail', {
-            routeId: routeId,
-            shouldRefresh: true,
-          });
-        } else {
-          // For new routes, navigate to the newly created route
-          if (route?.id) {
-            navigation.navigate('RouteDetail', {
-              routeId: route.id,
-              shouldRefresh: true,
-            });
-          } else {
-            navigation.goBack();
-          }
-        }
+        // Navigate to home screen instead of route detail
+        navigation.navigate('MainTabs');
       } else {
-        console.warn('No navigation or onClose callback available');
+        console.warn('No navigation available');
       }
     } catch (err) {
       console.error('Route operation error:', err);
@@ -1743,13 +2031,15 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           style={{ flex: 1 }}
                           region={region}
                           onPress={handleMapPressWrapper}
-                          scrollEnabled={true}
-                          zoomEnabled={true}
-                          pitchEnabled={true}
-                          rotateEnabled={true}
+                          scrollEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
+                          zoomEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
+                          pitchEnabled={!(drawingMode === 'pen' && isDrawing)}
+                          rotateEnabled={!(drawingMode === 'pen' && isDrawing)}
                           moveOnMarkerPress={false}
                           showsUserLocation={true}
                           userInterfaceStyle="dark"
+                          zoomTapEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
+                          scrollDuringRotateOrZoomEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
                         >
                           {/* Render waypoints as individual markers */}
                           {waypoints.map((waypoint, index) => {
@@ -2509,6 +2799,97 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           </XStack>
         </Button>
       </YStack>
+
+      {/* Exit Confirmation Bottom Sheet */}
+      <Modal
+        visible={showExitConfirmation}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowExitConfirmation(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'flex-end'
+        }}>
+          <Animated.View style={{
+            backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingHorizontal: 20,
+            paddingTop: 20,
+            paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+            maxHeight: '60%',
+          }}>
+            {/* Handle bar */}
+            <View style={{
+              width: 40,
+              height: 4,
+              backgroundColor: colorScheme === 'dark' ? '#333' : '#DDD',
+              borderRadius: 2,
+              alignSelf: 'center',
+              marginBottom: 20,
+            }} />
+
+            <YStack gap="$4">
+              <YStack gap="$2">
+                <Text fontSize="$6" fontWeight="bold" textAlign="center">
+                  {t('createRoute.unsavedChanges') || 'Unsaved Changes'}
+                </Text>
+                <Text fontSize="$4" color="$gray11" textAlign="center">
+                  {t('createRoute.unsavedChangesMessage') || 'You have unsaved changes. What would you like to do?'}
+                </Text>
+              </YStack>
+
+              <YStack gap="$3">
+                {/* Save as Draft Button */}
+                <Button
+                  onPress={saveAsDraft}
+                  variant="secondary"
+                  size="lg"
+                  backgroundColor="$blue5"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="save" size={20} color="$blue11" />
+                    <Text color="$blue11" fontSize="$4" fontWeight="500">
+                      {t('createRoute.saveAsDraft') || 'Save as Draft'}
+                    </Text>
+                  </XStack>
+                </Button>
+
+                {/* Continue Editing Button */}
+                <Button
+                  onPress={handleContinueEditing}
+                  variant="primary"
+                  size="lg"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="edit-3" size={20} color="white" />
+                    <Text color="white" fontSize="$4" fontWeight="500">
+                      {t('createRoute.continueEditing') || 'Continue Editing'}
+                    </Text>
+                  </XStack>
+                </Button>
+
+                {/* Exit Without Saving Button */}
+                <Button
+                  onPress={handleExitWithoutSaving}
+                  variant="secondary"
+                  size="lg"
+                  backgroundColor="$red5"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="x" size={20} color="#EF4444" />
+                    <Text color="#EF4444" fontSize="$4" fontWeight="500">
+                      {t('createRoute.exitWithoutSaving') || 'Exit Without Saving'}
+                    </Text>
+                  </XStack>
+                </Button>
+              </YStack>
+            </YStack>
+          </Animated.View>
+        </View>
+      </Modal>
     </Screen>
   );
 }

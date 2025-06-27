@@ -12,13 +12,12 @@ import { Text, XStack, YStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
-import { RecordDrivingModal } from './RecordDrivingSheet';
+import { RecordDrivingModal, RecordedRouteData } from './RecordDrivingSheet';
 
 interface ActionSheetProps {
   isVisible: boolean;
   onClose: () => void;
-  onCreateRoute: () => void;
-  onRecordDriving?: () => void;
+  onCreateRoute: (routeData?: RecordedRouteData) => void;
 }
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
@@ -65,7 +64,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ActionSheet({ isVisible, onClose, onCreateRoute, onRecordDriving }: ActionSheetProps) {
+export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetProps) {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
@@ -128,22 +127,29 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onRecordDriving
 
   // Handle "Create Route" option
   const handleCreateRoute = () => {
+    console.log('🎭 ==================== ACTION SHEET - CREATE ROUTE ====================');
+    console.log('🎭 ActionSheet Create Route pressed');
+    console.log('🎭 About to close ActionSheet and call onCreateRoute...');
+    
     onClose();
+    console.log('🎭 ActionSheet closed, calling onCreateRoute callback...');
     onCreateRoute();
+    console.log('🎭 ✅ onCreateRoute callback completed');
   };
 
   // Handle "Record Driving" option
   const handleRecordDriving = () => {
+    console.log('🎭 ==================== ACTION SHEET - RECORD DRIVING ====================');
+    console.log('🎭 ActionSheet Record Driving pressed');
+    console.log('🎭 About to close ActionSheet and show RecordDrivingModal...');
+    
     onClose();
-    if (onRecordDriving) {
-      onRecordDriving();
-    } else {
-      // Fallback to old behavior if no callback provided
-      showModal(<RecordDrivingModal />);
-    }
+    console.log('🎭 ActionSheet closed, showing RecordDrivingModal...');
+    showModal(<RecordDrivingModal onCreateRoute={onCreateRoute} />);
+    console.log('🎭 ✅ RecordDrivingModal shown');
   };
 
-  if (!isVisible && translateY._value === screenHeight) return null;
+  if (!isVisible) return null;
 
   return (
     <View style={styles.container} pointerEvents="box-none">
@@ -201,21 +207,12 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onRecordDriving
   );
 }
 
-export function ActionSheetModal({ 
-  onCreateRoute, 
-  onRecordDriving 
-}: { 
-  onCreateRoute: () => void;
-  onRecordDriving?: () => void;
+export function ActionSheetModal({
+  onCreateRoute,
+}: {
+  onCreateRoute: (routeData?: RecordedRouteData) => void;
 }) {
   const { hideModal } = useModal();
 
-  return (
-    <ActionSheet 
-      isVisible={true} 
-      onClose={hideModal} 
-      onCreateRoute={onCreateRoute}
-      onRecordDriving={onRecordDriving}
-    />
-  );
+  return <ActionSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} />;
 }

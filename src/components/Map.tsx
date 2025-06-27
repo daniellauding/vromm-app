@@ -281,7 +281,15 @@ export function Map({
   );
 
   useEffect(() => {
-    console.log('Map: waypoints changed', waypoints.length, waypoints);
+    console.log('🗺️ Map: waypoints changed', {
+      count: waypoints.length,
+      drawingMode,
+      hasWaypoints: waypoints.length > 0,
+      waypointIds: waypoints.map(wp => wp.id || 'no-id').slice(0, 5), // Only first 5 IDs
+      regionProvided: !!region,
+      timestamp: Date.now()
+    });
+    
     if (waypoints.length > 0) {
       const geoPoints = waypoints.map((point: Waypoint) => ({
         type: 'Feature' as const,
@@ -294,11 +302,13 @@ export function Map({
           coordinates: [point.longitude, point.latitude],
         },
       }));
-      console.log('Map: created geoPoints', geoPoints);
+      
+      console.log('🗺️ Map: created geoPoints', geoPoints.length, 'features');
       supercluster.current?.load(geoPoints);
       calculateClusters({ region: currentRegion.current || region });
     } else {
       // Clear clusters when no waypoints
+      console.log('🗺️ Map: clearing clusters (no waypoints)');
       setClusters([]);
     }
   }, [waypoints, calculateClusters, region]);

@@ -7,6 +7,7 @@ import { Feather } from '@expo/vector-icons';
 import { Map } from './Map';
 import Carousel from 'react-native-reanimated-carousel';
 import { Database } from '../lib/database.types';
+import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 
 type WaypointData = {
   lat: number;
@@ -257,7 +258,22 @@ export function RouteCard({ route }: RouteCardProps) {
             </Text>
           </XStack>
 
-          {route.description && (
+          {/* Recording Stats - Only show for recorded routes */}
+          {isRecordedRoute(route) && (() => {
+            const recordingStats = parseRecordingStats(route.description || '');
+            if (!recordingStats) return null;
+            
+            return (
+              <XStack gap="$3" alignItems="center" marginTop="$2">
+                <Feather name="activity" size={14} color="$green10" />
+                <Text fontSize="$3" color="$green10" fontWeight="600">
+                  📍 {recordingStats.distance} • ⏱️ {recordingStats.duration} • 🚗 {recordingStats.maxSpeed}
+                </Text>
+              </XStack>
+            );
+          })()}
+
+          {route.description && !isRecordedRoute(route) && (
             <Text numberOfLines={2} color="$gray11">
               {route.description}
             </Text>

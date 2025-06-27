@@ -33,8 +33,8 @@ export type RootStackParamList = {
     initialWaypoints?: Array<{
       latitude: number;
       longitude: number;
-      title: string;
-      description: string;
+      title?: string;
+      description?: string;
     }>;
     initialName?: string;
     initialDescription?: string;
@@ -51,8 +51,6 @@ export type RootStackParamList = {
       latitude: number;
       longitude: number;
     };
-    onClose?: () => void;
-    onRouteCreated?: (routeId: string) => void;
   };
   Map: { selectedLocation?: SearchResult };
   Search: undefined;

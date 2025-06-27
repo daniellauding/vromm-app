@@ -8,5 +8,53 @@
     "createdRoutes": "Created Routes",
     "nearbyRoutes": "Nearby Routes",
     "createNewRoute": "Create New Route"
+  },
+  "map": {
+    "recordDriving": "Record Driving",
+    "actions": "Actions"
+  },
+  "routeDetail": {
+    "recordingStats": "Recording Stats"
+  },
+  "profile": {
+    "routesCreated": "Routes Created",
+    "routesDriven": "Routes Driven", 
+    "routesSaved": "Routes Saved",
+    "reviewsGiven": "Reviews Given",
+    "avgRating": "Avg Rating",
+    "kmDriven": "km Driven",
+    "drivingStats": "Driving Statistics",
+    "recordedRoutes": "Recorded Routes",
+    "totalDistance": "Total Distance",
+    "drivingTime": "Driving Time",
+    "fromRecordedRoutes": "Based on GPS-recorded routes only",
+    "follow": "Follow",
+    "unfollow": "Unfollow",
+    "followers": "Followers",
+    "following": "Following",
+    "loading": "Loading..."
+  },
+  "toast": {
+    "routeCreated": "Route Created!",
+    "routeUpdated": "Route Updated!",
+    "routeCreatedMessage": "has been created successfully",
+    "routeUpdatedMessage": "has been updated successfully",
+    "viewButton": "View"
+  },
+  "drawer": {
+    "menu": "Menu",
+    "settings": "Settings",
+    "help": "Help & Support",
+    "rateApp": "Rate App",
+    "shareApp": "Share App",
+    "about": "About",
+    "logout": "Logout"
+  },
+  "createRoute": {
+    "unsavedChanges": "Unsaved Changes",
+    "unsavedChangesMessage": "You have unsaved changes. What would you like to do?",
+    "saveAsDraft": "Save as Draft",
+    "continueEditing": "Continue Editing",
+    "exitWithoutSaving": "Exit Without Saving"
   }
 } 

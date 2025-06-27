@@ -31,6 +31,7 @@ import { MediaCarousel, CarouselMediaItem } from '../components/MediaCarousel';
 import { Region } from 'react-native-maps';
 import { ReportDialog } from '../components/report/ReportDialog';
 import { useTranslation } from '../contexts/TranslationContext';
+import { parseRecordingStats, isRecordedRoute, formatRecordingStatsDisplay } from '../utils/routeUtils';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type RouteRow = Database['public']['Tables']['routes']['Row'];
@@ -1040,6 +1041,47 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   )}
                 </YStack>
               </Card>
+
+              {/* Recording Stats Card - Only show for recorded routes */}
+              {isRecordedRoute(routeData) && (() => {
+                const recordingStats = parseRecordingStats(routeData.description || '');
+                if (!recordingStats) return null;
+                
+                const formattedStats = formatRecordingStatsDisplay(recordingStats);
+                
+                return (
+                  <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+                    <YStack gap="$3">
+                                             <XStack alignItems="center" gap="$2">
+                         <Feather name="activity" size={20} color={iconColor} />
+                         <Text fontSize="$6" fontWeight="600" color="$color">
+                           {getTranslation(t, 'routeDetail.recordingStats', 'Recording Stats')}
+                         </Text>
+                       </XStack>
+                      
+                      <YStack gap="$3">
+                        {formattedStats.map((stat, index) => (
+                          <XStack key={index} justifyContent="space-between" alignItems="center">
+                            <XStack alignItems="center" gap="$2">
+                              <Feather name={stat.icon as any} size={16} color="$gray11" />
+                              <Text fontSize="$4" color="$gray11">
+                                {stat.label}
+                              </Text>
+                            </XStack>
+                            <Text fontSize="$4" fontWeight="600" color="$color">
+                              {stat.value}
+                            </Text>
+                          </XStack>
+                        ))}
+                      </YStack>
+                      
+                      <Text fontSize="$3" color="$gray9" fontStyle="italic">
+                        Recorded with live GPS tracking
+                      </Text>
+                    </YStack>
+                  </Card>
+                );
+              })()}
 
               {/* Map Card */}
               <Card backgroundColor="$backgroundStrong" bordered padding="$4">

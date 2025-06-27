@@ -2,12 +2,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View,
   StyleSheet,
-  TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Modal,
-  Pressable,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map } from '../../components/Map';
@@ -27,7 +23,6 @@ import { AppHeader } from '../../components/AppHeader';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
 import { useModal } from '../../contexts/ModalContext';
-import { RecordDrivingModal, RecordedRouteData } from '../../components/RecordDrivingSheet';
 import { SelectedRoute } from './SelectedRoute';
 
 const MAPBOX_ACCESS_TOKEN =
@@ -98,7 +93,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     longitudeDelta: 0.1,
   });
   const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
-  const [showActionSheet, setShowActionSheet] = useState(false);
 
   // Add selectedPin state
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
@@ -640,78 +634,9 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     );
   }, [showModal, handleApplyFilters, filteredRoutes.length, appliedFilters]);
 
-  // Handle + button to show action sheet
-  const handleAddButtonPress = useCallback(() => {
-    setShowActionSheet(true);
-  }, []);
 
-  // Handle Create Route option
-  const handleCreateRoute = useCallback(() => {
-    setShowActionSheet(false);
-    navigation.navigate('CreateRoute', {});
-  }, [navigation]);
 
-  // Handle Record Driving option
-  const handleRecordDriving = useCallback(() => {
-    setShowActionSheet(false);
-    
-    // Create navigation callback for RecordDrivingModal
-    const navigateToCreateRoute = (routeData: RecordedRouteData) => {
-      navigation.navigate('CreateRoute', {
-        initialWaypoints: routeData.waypoints,
-        initialName: routeData.name,
-        initialDescription: routeData.description,
-        initialSearchCoordinates: routeData.searchCoordinates,
-        initialRoutePath: routeData.routePath,
-        initialStartPoint: routeData.startPoint,
-        initialEndPoint: routeData.endPoint,
-      });
-    };
-    
-    showModal(<RecordDrivingModal onNavigateToCreateRoute={navigateToCreateRoute} />);
-  }, [showModal, navigation]);
 
-  // Check for recorded route data when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      console.log('MapScreen: useFocusEffect triggered');
-
-      // Check if we have recorded route data from RecordDrivingSheet
-      if (global && (global as any).shouldOpenCreateRoute) {
-        console.log('MapScreen: global.shouldOpenCreateRoute is true');
-        const routeData = (global as any).recordedRouteData;
-
-        if (routeData) {
-          console.log('MapScreen: Found route data', {
-            waypointsCount: routeData.waypoints?.length || 0,
-            name: routeData.name,
-            description: routeData.description,
-          });
-
-          // Reset the flag
-          (global as any).shouldOpenCreateRoute = false;
-          console.log('MapScreen: Reset shouldOpenCreateRoute to false');
-
-          // Navigate to create route screen with the recorded data
-          console.log('MapScreen: Attempting navigation to CreateRouteScreen');
-          (navigation.navigate as any)('CreateRoute', {
-            initialWaypoints: routeData.waypoints,
-            initialName: routeData.name,
-            initialDescription: routeData.description,
-            initialSearchCoordinates: routeData.searchCoordinates,
-            initialRoutePath: routeData.routePath,
-            initialStartPoint: routeData.startPoint,
-            initialEndPoint: routeData.endPoint,
-          });
-          console.log('MapScreen: Navigation attempted');
-        } else {
-          console.log('MapScreen: routeData is null or undefined');
-        }
-      } else {
-        console.log('MapScreen: No recorded route data to process');
-      }
-    }, [navigation]),
-  );
 
   if (!isMapReady) {
     return (
@@ -744,102 +669,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         ref={mapRef}
       />
 
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          right: 20,
-          bottom: BOTTOM_NAV_HEIGHT + 20, // Position above tab bar
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: '#1A3D3D', // Match the app's primary color
-          justifyContent: 'center',
-          alignItems: 'center',
-          elevation: 6,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: 0.27,
-          shadowRadius: 4.65,
-          zIndex: 10,
-        }}
-        onPress={handleAddButtonPress}
-        accessibilityLabel="Add route or record driving"
-      >
-        <Feather name="plus" size={24} color="white" />
-      </TouchableOpacity>
 
-      <Modal
-        visible={showActionSheet}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowActionSheet(false)}
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'flex-end',
-          }}
-          onPress={() => setShowActionSheet(false)}
-        >
-          <View
-            style={{
-              backgroundColor: DARK_THEME.bottomSheet,
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              padding: 16,
-              paddingBottom: Platform.OS === 'ios' ? 34 + 16 : 16, // Account for bottom safe area
-            }}
-          >
-            <View style={{ alignItems: 'center', marginBottom: 16 }}>
-              <View
-                style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: DARK_THEME.handleColor,
-                  marginBottom: 8,
-                }}
-              />
-              <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
-                {t('map.actions') || 'Actions'}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                padding: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: DARK_THEME.borderColor,
-              }}
-              onPress={handleCreateRoute}
-            >
-              <Feather name="map-pin" size={24} color={DARK_THEME.iconColor} />
-              <Text fontWeight="500" fontSize={18} color={DARK_THEME.text} marginLeft={12}>
-                {'Create Route'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                padding: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: DARK_THEME.borderColor,
-              }}
-              onPress={handleRecordDriving}
-            >
-              <Feather name="video" size={24} color={DARK_THEME.iconColor} />
-              <Text fontWeight="500" fontSize={18} color={DARK_THEME.text} marginLeft={12}>
-                {'Record Driving'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Pressable>
-      </Modal>
 
       <RoutesDrawer
         selectedRoute={selectedRoute}
