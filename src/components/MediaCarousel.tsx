@@ -13,6 +13,7 @@ export type CarouselMediaItem = {
   waypoints?: any[];
   region?: Region;
   id?: string;
+  penDrawingCoordinates?: Array<{ latitude: number; longitude: number }>;
 };
 
 type Props = {
@@ -137,6 +138,7 @@ export function MediaCarousel({ media, onAddMedia, onRemoveMedia, height }: Prop
               pitchEnabled={false}
               rotateEnabled={false}
               style={{ width: '100%', height: '100%' }}
+              penDrawingCoordinates={item.penDrawingCoordinates || []}
             />
             <View
               style={{

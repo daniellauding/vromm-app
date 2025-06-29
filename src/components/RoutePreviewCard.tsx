@@ -117,6 +117,9 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
       const routePath = waypoints.length > 2 ? waypoints : undefined;
       const showStartEndMarkers = waypoints.length > 2 && (route.drawing_mode === 'waypoint' || route.drawing_mode === 'record');
 
+      // Extract pen drawing coordinates from metadata
+      const penDrawingCoordinates = route.metadata?.coordinates || [];
+      
       items.push({
         type: 'map' as const,
         data: { 
@@ -124,7 +127,8 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
           waypoints, 
           routePath,
           showStartEndMarkers,
-          drawingMode: route.drawing_mode 
+          drawingMode: route.drawing_mode,
+          penDrawingCoordinates
         },
       });
     }
@@ -201,6 +205,7 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
                     routePath={carouselItems[0].data.routePath}
                     showStartEndMarkers={carouselItems[0].data.showStartEndMarkers}
                     drawingMode={carouselItems[0].data.drawingMode}
+                    penDrawingCoordinates={carouselItems[0].data.penDrawingCoordinates}
                   />
                 ) : (
                   <Image
@@ -234,6 +239,7 @@ export function RoutePreviewCard({ route, showMap = true, onPress }: RoutePrevie
                         routePath={item.data.routePath}
                         showStartEndMarkers={item.data.showStartEndMarkers}
                         drawingMode={item.data.drawingMode}
+                        penDrawingCoordinates={item.data.penDrawingCoordinates}
                       />
                     ) : (
                       <Image

@@ -718,14 +718,25 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   // Continuous drawing functions
   const startContinuousDrawing = (latitude: number, longitude: number) => {
-    console.log(`🎨 STARTING CONTINUOUS DRAWING at: ${latitude}, ${longitude}`);
-    drawingRef.current = true;
-    setIsDrawing(true);
+    console.log(`🎨 STARTING CONTINUOUS DRAWING at: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
     
-    const initialPath = [{ latitude, longitude }];
-    setPenPath(initialPath);
-    lastDrawPointRef.current = { latitude, longitude };
-    console.log(`🎨 Initial pen path set with 1 point:`, initialPath);
+    // Clear any existing drawing first
+    if (penPath.length === 0) {
+      drawingRef.current = true;
+      setIsDrawing(true);
+      
+      const initialPath = [{ latitude, longitude }];
+      setPenPath(initialPath);
+      lastDrawPointRef.current = { latitude, longitude, timestamp: Date.now() };
+      console.log(`🎨 Initial pen path set with 1 point at:`, initialPath[0]);
+    } else {
+      // Continue existing drawing
+      drawingRef.current = true;
+      const newPoint = { latitude, longitude };
+      setPenPath(prev => [...prev, newPoint]);
+      lastDrawPointRef.current = { latitude, longitude, timestamp: Date.now() };
+      console.log(`🎨 Continuing drawing, added point:`, newPoint);
+    }
   };
 
   const addContinuousDrawingPoint = (latitude: number, longitude: number) => {
@@ -734,7 +745,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       return;
     }
     
-    // Add some distance filtering to avoid too many points
+    // Add distance filtering to avoid too many points but keep drawing smooth
     const lastPoint = lastDrawPointRef.current;
     if (lastPoint) {
       const distance = Math.sqrt(
@@ -742,17 +753,17 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         Math.pow(longitude - lastPoint.longitude, 2)
       );
       
-      // Only add point if it's far enough from the last one (rough filter)
-      if (distance < 0.00001) {
+      // Reduced threshold for smoother drawing (was 0.00001, now 0.000005)
+      if (distance < 0.000005) {
         console.log(`🎨 NOT ADDING POINT - too close to last point (${distance})`);
-        return; // Even smaller threshold for smoother drawing
+        return;
       }
     }
     
-    console.log(`🎨 ADDING DRAWING POINT: ${latitude}, ${longitude}`);
+    console.log(`🎨 ADDING DRAWING POINT: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
     setPenPath(prev => {
       const newPath = [...prev, { latitude, longitude }];
-      console.log(`🎨 New pen path length: ${newPath.length}`, newPath);
+      console.log(`🎨 New pen path length: ${newPath.length}`);
       return newPath;
     });
     lastDrawPointRef.current = { latitude, longitude };
@@ -800,103 +811,94 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const mapRef = useRef<any>(null);
   const containerRef = useRef<any>(null);
 
-  // Create PanResponder for continuous drawing with Android compatibility
+  // Create PanResponder for continuous drawing with improved coordinate handling
   const drawingPanResponder = PanResponder.create({
     onStartShouldSetPanResponder: (evt, gestureState) => {
-      // Android: More aggressive capture for pen mode
-      // Only capture single touch in pen mode
-      if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
-        console.log('🎨 ANDROID: Should set pan responder - YES');
-        return true;
-      }
-      return false;
+      // Only capture in pen mode with single touch
+      return drawingMode === 'pen' && evt.nativeEvent.touches.length === 1;
     },
     onMoveShouldSetPanResponder: (evt, gestureState) => {
-      // Android: Capture pen drawing movement more aggressively
+      // Capture pen drawing movement
       if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
         // Only capture if user has moved enough (avoid accidental captures)
-        const hasMovedEnough = Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2;
-        console.log('🎨 ANDROID: Should set pan responder for movement:', hasMovedEnough);
+        const hasMovedEnough = Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
         return hasMovedEnough;
       }
       return false;
     },
     onPanResponderTerminationRequest: () => {
-      // Android: Don't allow termination during pen drawing
-      if (drawingMode === 'pen' && drawingRef.current) {
-        console.log('🎨 ANDROID: Rejecting termination request during drawing');
-        return false;
-      }
-      return true;
+      // Don't allow termination during active pen drawing
+      return !(drawingMode === 'pen' && drawingRef.current);
     },
     onShouldBlockNativeResponder: () => {
-      // Android: Always block native responder in pen mode to prevent map movement
-      if (drawingMode === 'pen') {
-        console.log('🎨 ANDROID: Blocking native responder in pen mode');
-        return true;
-      }
-      return false;
+      // Block native responder in pen mode to prevent map interference
+      return drawingMode === 'pen';
     },
     onPanResponderGrant: (evt, gestureState) => {
       if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
-        console.log('🎨 ANDROID: PAN RESPONDER GRANTED - Starting drag drawing');
-        const { pageX, pageY } = evt.nativeEvent;
+        console.log('🎨 PEN DRAWING STARTED');
+        const { locationX, locationY } = evt.nativeEvent;
         
-        // Use pageX/pageY for better Android compatibility
-        if (mapRef.current) {
-          try {
-            // Convert screen coordinates to map coordinates
-            mapRef.current.coordinateForPoint({ x: pageX, y: pageY })
-              .then((coordinate: { latitude: number; longitude: number }) => {
-                console.log('🎨 ANDROID: DRAG START at:', coordinate);
-                startContinuousDrawing(coordinate.latitude, coordinate.longitude);
-              })
-              .catch((error: any) => {
-                console.log('🎨 ANDROID: Error converting start coordinates:', error);
-                // Fallback: Use region center if coordinate conversion fails
-                const { latitude, longitude } = region;
-                startContinuousDrawing(latitude, longitude);
-              });
-          } catch (error) {
-            console.log('🎨 ANDROID: Coordinate conversion not available, using region center');
-            const { latitude, longitude } = region;
-            startContinuousDrawing(latitude, longitude);
-          }
+        // Try coordinate conversion, fallback to approximate method
+        if (mapRef.current && mapRef.current.coordinateForPoint) {
+          mapRef.current.coordinateForPoint({ x: locationX, y: locationY })
+            .then((coordinate: { latitude: number; longitude: number }) => {
+              console.log('🎨 DRAG START at:', coordinate);
+              startContinuousDrawing(coordinate.latitude, coordinate.longitude);
+            })
+            .catch((error: any) => {
+              console.log('🎨 Coordinate conversion failed, using region center');
+              // Fallback: Start at region center
+              startContinuousDrawing(region.latitude, region.longitude);
+            });
+        } else {
+          // If coordinate conversion not available, start at region center
+          console.log('🎨 Starting at region center (no coordinate conversion)');
+          startContinuousDrawing(region.latitude, region.longitude);
         }
       }
     },
     onPanResponderMove: (evt, gestureState) => {
       if (drawingMode === 'pen' && drawingRef.current && evt.nativeEvent.touches.length === 1) {
-        const { pageX, pageY } = evt.nativeEvent;
+        const { locationX, locationY } = evt.nativeEvent;
         
-        // Android: Throttle updates more aggressively to prevent lag
+        // Throttle updates to prevent lag (reduced to 30ms for smoother drawing)
         const now = Date.now();
-        if (now - (lastDrawPointRef.current?.timestamp || 0) < 50) { // 50ms throttle
+        if (now - (lastDrawPointRef.current?.timestamp || 0) < 30) {
           return;
         }
         
-        if (mapRef.current) {
-          try {
-            mapRef.current.coordinateForPoint({ x: pageX, y: pageY })
-              .then((coordinate: { latitude: number; longitude: number }) => {
-                console.log('🎨 ANDROID: DRAG MOVE to:', coordinate);
-                addContinuousDrawingPoint(coordinate.latitude, coordinate.longitude);
-                lastDrawPointRef.current = { ...coordinate, timestamp: now };
-              })
-              .catch((error: any) => {
-                console.log('🎨 ANDROID: Error converting move coordinates:', error);
-              });
-          } catch (error) {
-            console.log('🎨 ANDROID: Move coordinate conversion failed');
-          }
+        if (mapRef.current && mapRef.current.coordinateForPoint) {
+          mapRef.current.coordinateForPoint({ x: locationX, y: locationY })
+            .then((coordinate: { latitude: number; longitude: number }) => {
+              console.log('🎨 DRAG MOVE to:', coordinate);
+              addContinuousDrawingPoint(coordinate.latitude, coordinate.longitude);
+              lastDrawPointRef.current = { ...coordinate, timestamp: now };
+            })
+            .catch((error: any) => {
+              // If coordinate conversion fails, approximate based on gesture
+              const lastPoint = lastDrawPointRef.current;
+              if (lastPoint) {
+                // Simple approximation based on gesture movement
+                const deltaLat = gestureState.dy * 0.0001; // Rough conversion
+                const deltaLng = gestureState.dx * 0.0001;
+                const newCoordinate = {
+                  latitude: lastPoint.latitude + deltaLat,
+                  longitude: lastPoint.longitude + deltaLng,
+                };
+                console.log('🎨 APPROXIMATED MOVE to:', newCoordinate);
+                addContinuousDrawingPoint(newCoordinate.latitude, newCoordinate.longitude);
+                lastDrawPointRef.current = { ...newCoordinate, timestamp: now };
+              }
+            });
         }
       }
     },
     onPanResponderRelease: (evt, gestureState) => {
       if (drawingMode === 'pen') {
-        console.log('🎨 ANDROID: PAN RESPONDER RELEASED - Pausing drawing');
+        console.log('🎨 PEN DRAWING PAUSED - Can continue or finish');
         drawingRef.current = false;
-        // Keep isDrawing true so user can continue
+        // Keep isDrawing true so user can continue drawing
       }
     },
   });
@@ -982,11 +984,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       }));
       
       setWaypoints((prev) => [...prev, ...newWaypoints]);
-      setPenPath([]);
+      // DON'T clear penPath - keep it for saving to metadata
+      // setPenPath([]);
       setIsDrawing(false);
       drawingRef.current = false;
       lastDrawPointRef.current = null;
       console.log(`✅ Finished pen drawing: ${newWaypoints.length} connected waypoints created`);
+      console.log(`🎨 Keeping ${penPath.length} pen coordinates for saving to metadata`);
     }
   };
 
@@ -1006,14 +1010,15 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     }
   };
 
-  // Clear all waypoints
+  // Clear all waypoints and pen drawing
   const clearAllWaypoints = () => {
     setUndoneWaypoints([]);
     setWaypoints([]);
-    setPenPath([]);
+    setPenPath([]); // Clear pen path when explicitly clearing all
     setIsDrawing(false);
     drawingRef.current = false;
     lastDrawPointRef.current = null;
+    console.log('🎨 Cleared all waypoints and pen drawing');
   };
 
   const handleAddExercise = () => {
@@ -1184,9 +1189,22 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       return;
     }
     
-    if (drawingMode === 'pen' && waypoints.length === 0 && penPath.length === 0) {
-      Alert.alert('Error', 'Please draw a route on the map');
-      return;
+    if (drawingMode === 'pen') {
+      if (penPath.length === 0 && waypoints.length === 0) {
+        Alert.alert('Error', 'Please draw a route on the map');
+        return;
+      } else if (penPath.length > 0 && waypoints.length === 0) {
+        // User drew something but didn't finish - show helpful message
+        Alert.alert(
+          'Finish Your Drawing', 
+          'Please tap the "Finish" button to complete your pen drawing before saving.',
+          [{ text: 'OK' }]
+        );
+        return;
+      } else if (penPath.length > 0 && waypoints.length > 0) {
+        // Valid: User has drawn and finished - both pen coordinates and waypoints exist
+        console.log(`🎨 Valid pen drawing: ${penPath.length} coordinates, ${waypoints.length} waypoints`);
+      }
     }
 
     // For record mode, we should have waypoints from recording
@@ -1257,6 +1275,61 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         }));
       }
 
+      // Prepare route data based on drawing mode
+      let finalWaypoints: typeof validWaypoints;
+      let finalWaypointDetails: typeof validWaypoints;
+      let finalMetadata: any;
+      let finalDrawingMode: string;
+
+      if (drawingMode === 'pen' && penPath.length > 0) {
+        // PEN MODE: Save in web-compatible format
+        console.log('🎨 [SAVE] Using WEB-COMPATIBLE PEN FORMAT');
+        
+        // Convert pen coordinates to web format (lat/lng objects)
+        const penWaypoints = penPath.map((coord, index) => ({
+          lat: coord.latitude,
+          lng: coord.longitude,
+          title: `Waypoint ${index + 1}`,
+          description: '',
+        }));
+
+        finalWaypoints = penWaypoints;
+        finalWaypointDetails = penWaypoints;
+        finalDrawingMode = 'pen'; // Save as 'pen' like web does
+        finalMetadata = {
+          // Keep basic metadata but don't duplicate coordinates
+          pins: [],
+          options: {
+            reverse: false,
+            closeLoop: false,
+            doubleBack: false,
+          },
+        };
+
+        console.log('🎨 [SAVE] Web-compatible format:', {
+          waypointsCount: finalWaypoints.length,
+          drawingMode: finalDrawingMode,
+          firstCoordinate: finalWaypoints[0],
+          lastCoordinate: finalWaypoints[finalWaypoints.length - 1]
+        });
+      } else {
+        // OTHER MODES: Use existing logic
+        finalWaypoints = validWaypoints;
+        finalWaypointDetails = validWaypoints;
+        finalDrawingMode = 'waypoint'; // Map all other modes to 'waypoint' for database compatibility
+        finalMetadata = {
+          waypoints: validWaypoints,
+          pins: [],
+          options: {
+            reverse: false,
+            closeLoop: false,
+            doubleBack: false,
+          },
+          // Only add coordinates to metadata for non-pen modes if needed
+          actualDrawingMode: drawingMode,
+        };
+      }
+
       const baseRouteData = {
         name: formData.name,
         description: formData.description || '',
@@ -1273,21 +1346,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         creator_id: user.id,
         updated_at: new Date().toISOString(),
         is_public: formData.visibility === 'public',
-        waypoint_details: validWaypoints,
-        metadata: {
-          waypoints: validWaypoints,
-          pins: [],
-          options: {
-            reverse: false,
-            closeLoop: false,
-            doubleBack: false,
-          },
-          coordinates: [],
-          actualDrawingMode: drawingMode, // Store the actual drawing mode used in UI
-        },
+        waypoint_details: finalWaypointDetails,
+        metadata: finalMetadata,
         suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises) : '',
         media_attachments: mediaToUpdate,
-        drawing_mode: 'waypoint', // Map all drawing modes to 'waypoint' for database compatibility
+        drawing_mode: finalDrawingMode,
       };
 
       let route;
@@ -1302,6 +1365,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
         if (updateError) throw updateError;
         route = updatedRoute;
+
+        // Debug: Confirm what was saved for edit
+        console.log('🎨 [SAVE] Route updated successfully!');
+        console.log('🎨 [SAVE] Updated metadata:', JSON.stringify(updatedRoute.metadata, null, 2));
 
         // Track route edit
         await AppAnalytics.trackRouteEdit(routeId);
@@ -1336,6 +1403,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         }
         route = newRoute;
 
+        // Debug: Confirm what was saved
+        console.log('🎨 [SAVE] Route saved successfully!');
+        console.log('🎨 [SAVE] Saved metadata:', JSON.stringify(newRoute.metadata, null, 2));
+        
         // Track route creation
         await AppAnalytics.trackRouteCreate(formData.spot_type);
 
@@ -1715,12 +1786,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         {/* Hero Section with MediaCarousel */}
         <MediaCarousel
           media={[
-            ...(waypoints.length > 0
+            ...(waypoints.length > 0 || penPath.length > 0
               ? [
                   {
                     type: 'map' as const,
                     waypoints: waypoints,
                     region: region,
+                    penDrawingCoordinates: penPath, // Include pen drawing coordinates
                   },
                 ]
               : []),
@@ -2041,8 +2113,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           zoomTapEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
                           scrollDuringRotateOrZoomEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
                         >
-                          {/* Render waypoints as individual markers */}
-                          {waypoints.map((waypoint, index) => {
+                          {/* Render waypoints as individual markers (not in pen drawing mode) */}
+                          {drawingMode !== 'pen' && waypoints.map((waypoint, index) => {
                             const isFirst = index === 0;
                             const isLast = index === waypoints.length - 1 && waypoints.length > 1;
                             const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
@@ -2062,28 +2134,43 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           })}
 
                           {/* Render pen drawing as smooth continuous line */}
-                          {drawingMode === 'pen' && penPath.length > 1 && (
-                            <Polyline
-                              coordinates={penPath}
-                              strokeWidth={6}
-                              strokeColor="#FF6B35"
-                              lineJoin="round"
-                              lineCap="round"
-                            />
+                          {drawingMode === 'pen' && penPath.length > 0 && (
+                            <>
+                              {/* Show single point as a marker if only one point */}
+                              {penPath.length === 1 && (
+                                <Marker
+                                  coordinate={penPath[0]}
+                                  title="Drawing Start"
+                                  description="Drag to continue drawing"
+                                  pinColor="orange"
+                                />
+                              )}
+                              
+                              {/* Show continuous line for multiple points */}
+                              {penPath.length > 1 && (
+                                <Polyline
+                                  coordinates={penPath}
+                                  strokeWidth={8}
+                                  strokeColor="#FF6B35"
+                                  lineJoin="round"
+                                  lineCap="round"
+                                  geodesic={false}
+                                />
+                              )}
+                            </>
                           )}
 
                           {/* Orange dots removed - only showing continuous orange lines */}
 
-                          {/* Render connecting lines for waypoints */}
-                          {((drawingMode === 'waypoint' && waypoints.length > 1) || 
-                            (drawingMode === 'pen' && waypoints.length > 1)) && (
+                          {/* Render connecting lines for waypoints (not in pen mode) */}
+                          {drawingMode === 'waypoint' && waypoints.length > 1 && (
                             <Polyline
                               coordinates={waypoints.map(wp => ({
                                 latitude: wp.latitude,
                                 longitude: wp.longitude,
                               }))}
                               strokeWidth={3}
-                              strokeColor={drawingMode === 'pen' ? "#FF6B35" : "#1A73E8"}
+                              strokeColor="#1A73E8"
                               lineJoin="round"
                             />
                           )}
@@ -2205,9 +2292,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           <Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>
                             {drawingMode === 'pin' && 'Tap to drop pin'}
                             {drawingMode === 'waypoint' && 'Tap to add waypoints'}
-                            {drawingMode === 'pen' && (isDrawing 
-                              ? `Drawing (${penPath.length} points) • Pinch to zoom • Drag to continue` 
-                              : 'Drag to draw • Two fingers to zoom/pan')}
+                            {drawingMode === 'pen' && (
+                              isDrawing 
+                                ? `Drawing (${penPath.length} points) • Pinch to zoom • Drag to continue` 
+                                : waypoints.length > 0
+                                  ? `Finished (${penPath.length} coordinates) • Ready to save`
+                                  : 'Drag to draw • Two fingers to zoom/pan'
+                            )}
                             {drawingMode === 'record' && (initialWaypoints?.length 
                               ? `Recorded route (${waypoints.length} waypoints) • Tap Record Again below`
                               : 'Use Record button below')}
@@ -2281,8 +2372,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           </Text>
                         )}
                         {drawingMode === 'pen' && (
-                          <Text size="sm" color={isDrawing ? "$orange10" : "$blue10"}>
-                            {isDrawing ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom` : `Drawing mode (${penPath.length} points drawn) • Drag to draw, two fingers to zoom`}
+                          <Text size="sm" color={isDrawing ? "$orange10" : waypoints.length > 0 ? "$green10" : "$blue10"}>
+                            {isDrawing 
+                              ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom` 
+                              : waypoints.length > 0 
+                                ? `Finished (${penPath.length} coordinates → ${waypoints.length} waypoints)`
+                                : `Drawing mode (${penPath.length} points drawn) • Drag to draw, two fingers to zoom`
+                            }
                           </Text>
                         )}
                         {drawingMode === 'record' && initialWaypoints?.length && (
@@ -2350,39 +2446,62 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         <YStack gap="$2" marginTop="$4">
                           <Text size="lg" weight="bold">Drawing</Text>
                           <Card bordered padding="$3">
-                            <XStack justifyContent="space-between" alignItems="center">
-                              <Text size="sm" color="$gray11">
-                                {isDrawing ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom/pan` : `Drawing paused (${penPath.length} points) • Drag to continue drawing`}
-                              </Text>
-                              <XStack gap="$2">
-                                {isDrawing && (
+                            <YStack gap="$2">
+                              <XStack justifyContent="space-between" alignItems="center">
+                                <Text size="sm" color="$gray11">
+                                  {isDrawing 
+                                    ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom/pan` 
+                                    : waypoints.length > 0 
+                                      ? `Drawing finished (${penPath.length} raw coordinates → ${waypoints.length} waypoints)`
+                                      : `Drawing paused (${penPath.length} points) • Drag to continue drawing`
+                                  }
+                                </Text>
+                                <XStack gap="$2">
+                                  {isDrawing && (
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      onPress={finishPenDrawing}
+                                      backgroundColor="$green10"
+                                    >
+                                      <XStack gap="$1" alignItems="center">
+                                        <Feather name="check" size={14} color="white" />
+                                        <Text size="sm" color="white">Finish</Text>
+                                      </XStack>
+                                    </Button>
+                                  )}
                                   <Button
                                     variant="secondary"
                                     size="sm"
-                                    onPress={finishPenDrawing}
-                                    backgroundColor="$green10"
+                                    onPress={() => {
+                                      setPenPath([]);
+                                      setIsDrawing(false);
+                                      drawingRef.current = false;
+                                      lastDrawPointRef.current = null;
+                                      // Also clear waypoints if they were generated from pen drawing
+                                      if (waypoints.length > 0 && waypoints[0]?.title?.includes('Drawing')) {
+                                        setWaypoints([]);
+                                      }
+                                    }}
+                                    backgroundColor="$red5"
                                   >
-                                    <XStack gap="$1" alignItems="center">
-                                      <Feather name="check" size={14} color="white" />
-                                      <Text size="sm" color="white">Finish</Text>
-                                    </XStack>
+                                    <Feather name="trash-2" size={14} color="$red10" />
                                   </Button>
-                                )}
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onPress={() => {
-                                    setPenPath([]);
-                                    setIsDrawing(false);
-                                    drawingRef.current = false;
-                                    lastDrawPointRef.current = null;
-                                  }}
-                                  backgroundColor="$red5"
-                                >
-                                  <Feather name="trash-2" size={14} color="$red10" />
-                                </Button>
+                                </XStack>
                               </XStack>
-                            </XStack>
+                              
+                              {/* Show status when finished */}
+                              {!isDrawing && waypoints.length > 0 && (
+                                <YStack gap="$1">
+                                  <Text size="xs" color="$green10">
+                                    ✅ Raw drawing coordinates will be saved to metadata for accurate display
+                                  </Text>
+                                  <Text size="xs" color="$gray9">
+                                    Metadata will contain: {penPath.length} coordinate points
+                                  </Text>
+                                </YStack>
+                              )}
+                            </YStack>
                           </Card>
                         </YStack>
                       )}

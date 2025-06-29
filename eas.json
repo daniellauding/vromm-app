@@ -10,7 +10,8 @@
       "channel": "development",
       "env": {
         "USE_HERMES": "0",
-        "RCT_NEW_ARCH_ENABLED": "0"
+        "RCT_NEW_ARCH_ENABLED": "0",
+        "EXPO_NO_CAPABILITY_SYNC": "1"
       },
       "ios": {
         "resourceClass": "m-medium"
@@ -30,7 +31,8 @@
       "channel": "preview",
       "env": {
         "USE_HERMES": "0",
-        "RCT_NEW_ARCH_ENABLED": "0"
+        "RCT_NEW_ARCH_ENABLED": "0",
+        "EXPO_NO_CAPABILITY_SYNC": "1"
       },
       "ios": {
         "resourceClass": "m-medium",
@@ -48,7 +50,8 @@
       "channel": "ios-preview",
       "env": {
         "USE_HERMES": "0",
-        "RCT_NEW_ARCH_ENABLED": "0"
+        "RCT_NEW_ARCH_ENABLED": "0",
+        "EXPO_NO_CAPABILITY_SYNC": "1"
       },
       "cache": {
         "disabled": true
@@ -65,7 +68,8 @@
       "channel": "production",
       "env": {
         "USE_HERMES": "0",
-        "RCT_NEW_ARCH_ENABLED": "0"
+        "RCT_NEW_ARCH_ENABLED": "0",
+        "EXPO_NO_CAPABILITY_SYNC": "1"
       },
       "ios": {
         "resourceClass": "m-medium",
@@ -81,7 +85,8 @@
       "channel": "production",
       "env": {
         "USE_HERMES": "0",
-        "RCT_NEW_ARCH_ENABLED": "0"
+        "RCT_NEW_ARCH_ENABLED": "0",
+        "EXPO_NO_CAPABILITY_SYNC": "1"
       },
       "ios": {
         "resourceClass": "m-medium",

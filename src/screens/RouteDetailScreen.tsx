@@ -505,29 +505,13 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   const handleShare = async () => {
     if (!routeData) return;
 
-    const baseUrl = 'https://app.korvagen.se';
-    const shareUrl = `${baseUrl}/routes/${routeData.id}`;
-
-    // Add parameters
-    const params = new URLSearchParams();
-    const metadata = routeData.metadata as {
-      location?: string;
-      coordinates?: { lat: number; lng: number }[];
-    };
-    if (metadata?.location) params.append('city', metadata.location);
-    if (routeData.difficulty) params.append('difficulty', routeData.difficulty);
-    if (routeData.category) params.append('category', routeData.category);
-    if (metadata?.coordinates?.[0]) {
-      params.append('lat', metadata.coordinates[0].lat.toString());
-      params.append('lng', metadata.coordinates[0].lng.toString());
-    }
-
-    const fullUrl = `${shareUrl}?${params.toString()}`;
+    const baseUrl = 'https://routes.vromm.se';
+    const shareUrl = `${baseUrl}/?route=${routeData.id}`;
 
     try {
       await Share.share({
         message: routeData.description || `Check out this route: ${routeData.name}`,
-        url: fullUrl, // iOS only
+        url: shareUrl, // iOS only
         title: routeData.name,
       });
     } catch (error) {
@@ -656,6 +640,34 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       // Create route path for recorded routes (more than just waypoints)
       const routePath = waypoints.length > 2 ? waypoints : undefined;
       const showStartEndMarkers = waypoints.length > 2 && (routeData.drawing_mode === 'waypoint' || routeData.drawing_mode === 'record');
+      
+      // Handle both web and iOS pen drawing formats
+      let penDrawingCoordinates: any[] = [];
+      let actualDrawingMode = routeData.drawing_mode;
+
+      if (routeData.drawing_mode === 'pen') {
+        // WEB FORMAT: Pen coordinates are stored as the main waypoints
+        console.log('🎨 [RouteDetail] WEB FORMAT - Pen coordinates from waypoints');
+        penDrawingCoordinates = waypoints.map(wp => ({
+          latitude: wp.latitude,
+          longitude: wp.longitude,
+        }));
+        actualDrawingMode = 'pen';
+      } else if (routeData.metadata?.coordinates?.length > 0) {
+        // iOS FORMAT: Pen coordinates are in metadata
+        console.log('🎨 [RouteDetail] iOS FORMAT - Pen coordinates from metadata');
+        penDrawingCoordinates = routeData.metadata.coordinates;
+        actualDrawingMode = routeData.metadata.actualDrawingMode || routeData.drawing_mode;
+      }
+
+      console.log('🎨 [RouteDetail] Final pen drawing setup:', {
+        format: routeData.drawing_mode === 'pen' ? 'WEB' : 'iOS',
+        originalDrawingMode: routeData.drawing_mode,
+        actualDrawingMode,
+        penCoordinatesLength: penDrawingCoordinates.length,
+        waypointsLength: waypoints.length,
+        penSample: penDrawingCoordinates.slice(0, 2)
+      });
 
       items.push({ 
         type: 'map', 
@@ -663,7 +675,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         region, 
         routePath,
         showStartEndMarkers,
-        drawingMode: routeData.drawing_mode 
+        drawingMode: actualDrawingMode,
+        penDrawingCoordinates
       });
     }
 
@@ -677,6 +690,14 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
   const renderCarouselItem = ({ item }: { item: any }) => {
     if (item.type === 'map') {
+      console.log('🎨 [RouteDetail] Rendering map carousel item with:', {
+        waypointsLength: item.waypoints?.length || 0,
+        penCoordinatesLength: item.penDrawingCoordinates?.length || 0,
+        drawingMode: item.drawingMode,
+        hasPenCoordinates: !!item.penDrawingCoordinates,
+        penSample: item.penDrawingCoordinates?.slice(0, 2)
+      });
+      
       return (
         <Map
           waypoints={item.waypoints}
@@ -687,6 +708,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           routePath={item.routePath}
           showStartEndMarkers={item.showStartEndMarkers}
           drawingMode={item.drawingMode}
+          penDrawingCoordinates={item.penDrawingCoordinates}
         />
       );
     } else if (item.type === 'image') {
@@ -758,35 +780,57 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     let selectedWaypoints = intermediateWaypoints;
     if (intermediateWaypoints.length > maxIntermediateWaypoints) {
       const step = Math.floor(intermediateWaypoints.length / maxIntermediateWaypoints);
-      selectedWaypoints = intermediateWaypoints.filter((_, index) => index % step === 0).slice(0, maxIntermediateWaypoints);
+      selectedWaypoints = intermediateWaypoints
+        .filter((_, index) => index % step === 0)
+        .slice(0, maxIntermediateWaypoints);
     }
 
     const waypointsStr = selectedWaypoints
       .map((wp) => `${wp.lat},${wp.lng}`)
       .join('|');
 
-    let url;
+    // Create URL options for different map apps
+    const mapOptions = [
+      {
+        title: 'Google Maps',
+        url: `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypointsStr ? `&waypoints=${waypointsStr}` : ''}`,
+      },
+    ];
+
+    // Add Apple Maps option on iOS
     if (Platform.OS === 'ios') {
-      // Apple Maps URL scheme
-      url = `maps://?saddr=${origin}&daddr=${destination}`;
-      if (waypointsStr) {
-        url += `&via=${waypointsStr}`;
-      }
-    } else {
-      // Google Maps URL scheme
-      url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
-      if (waypointsStr) {
-        url += `&waypoints=${waypointsStr}`;
-      }
+      mapOptions.unshift({
+        title: 'Apple Maps',
+        url: `maps://?saddr=${origin}&daddr=${destination}${waypointsStr ? `&via=${waypointsStr}` : ''}`,
+      });
     }
 
-    Linking.canOpenURL(url).then((supported) => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
-        Alert.alert('Error', 'Could not open maps application');
-      }
+    // Add Waze option
+    mapOptions.push({
+      title: 'Waze',
+      url: `https://waze.com/ul?ll=${waypoints[waypoints.length - 1].lat},${waypoints[waypoints.length - 1].lng}&navigate=yes`,
     });
+
+    // Show selection dialog
+    const alertButtons = mapOptions.map((option) => ({
+      text: option.title,
+      onPress: () => {
+        Linking.canOpenURL(option.url).then((supported) => {
+          if (supported) {
+            Linking.openURL(option.url);
+          } else {
+            Alert.alert('Error', `Could not open ${option.title}. Please make sure the app is installed.`);
+          }
+        });
+      },
+    }));
+
+    alertButtons.push({
+      text: 'Cancel',
+      style: 'cancel' as const,
+    });
+
+    Alert.alert('Open in Maps', 'Choose which map app to use:', alertButtons);
   };
 
   const startRoute = async () => {
@@ -1090,35 +1134,73 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                     {getTranslation(t, 'routeDetail.location', 'Location')}
                   </Text>
                   <View style={{ height: 250, borderRadius: 12, overflow: 'hidden' }}>
-                    <Map
-                      waypoints={
-                        (routeData as RouteData)?.waypoint_details?.map((wp) => ({
+                    {(() => {
+                      // Handle both web and iOS pen drawing formats
+                      let penCoords: any[] = [];
+                      let actualDrawingMode = (routeData as RouteData)?.drawing_mode;
+
+                      if ((routeData as RouteData)?.drawing_mode === 'pen') {
+                        // WEB FORMAT: Pen coordinates are stored as the main waypoints
+                        console.log('🎨 [RouteDetail] Map Card - WEB FORMAT detected');
+                        const waypoints = (routeData as RouteData)?.waypoint_details?.map((wp) => ({
                           latitude: wp.lat,
                           longitude: wp.lng,
                           title: wp.title,
                           description: wp.description,
-                        })) || []
+                        })) || [];
+                        penCoords = waypoints.map(wp => ({
+                          latitude: wp.latitude,
+                          longitude: wp.longitude,
+                        }));
+                        actualDrawingMode = 'pen';
+                      } else if ((routeData as RouteData)?.metadata?.coordinates?.length > 0) {
+                        // iOS FORMAT: Pen coordinates are in metadata
+                        console.log('🎨 [RouteDetail] Map Card - iOS FORMAT detected');
+                        penCoords = (routeData as RouteData)?.metadata?.coordinates || [];
+                        actualDrawingMode = (routeData as RouteData)?.metadata?.actualDrawingMode || (routeData as RouteData)?.drawing_mode;
                       }
-                      region={getMapRegion() || {
-                        latitude: (routeData as RouteData)?.waypoint_details?.[0]?.lat || 0,
-                        longitude: (routeData as RouteData)?.waypoint_details?.[0]?.lng || 0,
-                        latitudeDelta: 0.02,
-                        longitudeDelta: 0.02,
-                      }}
-                      routePath={
-                        (routeData as RouteData)?.waypoint_details?.length > 2
-                          ? (routeData as RouteData)?.waypoint_details?.map((wp) => ({
+
+                      console.log('🎨 [RouteDetail] Map Card - Final setup:', {
+                        format: (routeData as RouteData)?.drawing_mode === 'pen' ? 'WEB' : 'iOS',
+                        originalDrawingMode: (routeData as RouteData)?.drawing_mode,
+                        actualDrawingMode,
+                        penCoordsLength: penCoords.length,
+                        sample: penCoords.slice(0, 2)
+                      });
+
+                      return (
+                        <Map
+                          waypoints={
+                            (routeData as RouteData)?.waypoint_details?.map((wp) => ({
                               latitude: wp.lat,
                               longitude: wp.lng,
-                            }))
-                          : undefined
-                      }
-                      showStartEndMarkers={
-                        (routeData as RouteData)?.waypoint_details?.length > 2 && 
-                        ((routeData as RouteData)?.drawing_mode === 'waypoint' || (routeData as RouteData)?.drawing_mode === 'record')
-                      }
-                      drawingMode={(routeData as RouteData)?.drawing_mode}
-                    />
+                              title: wp.title,
+                              description: wp.description,
+                            })) || []
+                          }
+                          region={getMapRegion() || {
+                            latitude: (routeData as RouteData)?.waypoint_details?.[0]?.lat || 0,
+                            longitude: (routeData as RouteData)?.waypoint_details?.[0]?.lng || 0,
+                            latitudeDelta: 0.02,
+                            longitudeDelta: 0.02,
+                          }}
+                          routePath={
+                            (routeData as RouteData)?.waypoint_details?.length > 2
+                              ? (routeData as RouteData)?.waypoint_details?.map((wp) => ({
+                                  latitude: wp.lat,
+                                  longitude: wp.lng,
+                                }))
+                              : undefined
+                          }
+                          showStartEndMarkers={
+                            (routeData as RouteData)?.waypoint_details?.length > 2 && 
+                            (actualDrawingMode === 'waypoint' || actualDrawingMode === 'record')
+                          }
+                          drawingMode={actualDrawingMode}
+                          penDrawingCoordinates={penCoords}
+                        />
+                      );
+                    })()}
                   </View>
                 </YStack>
               </Card>

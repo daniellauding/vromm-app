@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Image, Alert, StyleSheet, useColorScheme, Dimensions } from 'react-native';
+import { View, Image, Alert, StyleSheet, useColorScheme, Dimensions, Share } from 'react-native';
 import { YStack, XStack, Card, ScrollView, Separator } from 'tamagui';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
@@ -376,6 +376,24 @@ export function PublicProfileScreen() {
     setShowReportDialog(true);
   };
 
+  const handleShare = async () => {
+    if (!profile) return;
+
+    const baseUrl = 'https://routes.vromm.se';
+    const shareUrl = `${baseUrl}/?publicProfile=${profile.id}`;
+
+    try {
+      await Share.share({
+        message: `Check out ${profile.full_name}'s profile on Vromm`,
+        url: shareUrl, // iOS only
+        title: profile.full_name || 'User Profile',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+      Alert.alert('Error', 'Failed to share profile');
+    }
+  };
+
   // ==================== FOLLOW/UNFOLLOW SYSTEM ====================
 
   const loadFollowData = async () => {
@@ -544,7 +562,8 @@ export function PublicProfileScreen() {
 
   return (
     <Screen>
-      <Header
+      <YStack flex={1}>
+        <Header
         title={profile.full_name || t('profile.user') || 'User'}
         showBack
         rightElement={
@@ -562,7 +581,7 @@ export function PublicProfileScreen() {
             {isCurrentUser ? (
               <ProfileButton userId={profile.id} isCurrentUser={true} size="sm" />
             ) : (
-              <XStack gap="$2">
+              <XStack gap="$1" flexWrap="wrap" maxWidth={windowWidth * 0.6}>
                 {/* Follow/Unfollow Button */}
                 <Button
                   onPress={handleFollow}
@@ -570,6 +589,7 @@ export function PublicProfileScreen() {
                   variant={isFollowing ? "secondary" : "primary"}
                   backgroundColor={isFollowing ? "$red5" : "$blue10"}
                   size="sm"
+                  flexShrink={1}
                 >
                   <XStack gap="$1" alignItems="center">
                     {followLoading ? (
@@ -580,10 +600,10 @@ export function PublicProfileScreen() {
                       <>
                         <Feather 
                           name={isFollowing ? "user-minus" : "user-plus"} 
-                          size={16} 
+                          size={14} 
                           color={isFollowing ? "#EF4444" : "white"} 
                         />
-                        <Text color={isFollowing ? "$red11" : "white"} fontSize="$3" fontWeight="500">
+                        <Text color={isFollowing ? "$red11" : "white"} fontSize="$2" fontWeight="500">
                           {isFollowing ? (t('profile.unfollow') || 'Unfollow') : (t('profile.follow') || 'Follow')}
                         </Text>
                       </>
@@ -591,15 +611,23 @@ export function PublicProfileScreen() {
                   </XStack>
                 </Button>
                 
+                {/* Share Button */}
+                <Button
+                  onPress={handleShare}
+                  icon={<Feather name="share" size={14} color={iconColor} />}
+                  variant="secondary"
+                  size="sm"
+                  flexShrink={1}
+                />
+                
                 {/* Report Button */}
                 <Button
                   onPress={handleReport}
-                  icon={<Feather name="flag" size={16} color={iconColor} />}
+                  icon={<Feather name="flag" size={14} color={iconColor} />}
                   variant="secondary"
                   size="sm"
-                >
-                  {t('profile.report') || 'Report'}
-                </Button>
+                  flexShrink={1}
+                />
               </XStack>
             )}
           </>
@@ -607,11 +635,14 @@ export function PublicProfileScreen() {
       />
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={true}
+        scrollEnabled={true}
         nestedScrollEnabled={true}
         keyboardShouldPersistTaps="handled"
         scrollEventThrottle={16}
+        bounces={true}
       >
         <YStack padding="$4" gap="$4">
           {/* Profile header with avatar */}
@@ -983,14 +1014,15 @@ export function PublicProfileScreen() {
         </YStack>
       </ScrollView>
 
-      {/* Report dialog */}
-      {showReportDialog && (
-        <ReportDialog
-          reportableId={userId}
-          reportableType="user"
-          onClose={() => setShowReportDialog(false)}
-        />
-      )}
+        {/* Report dialog */}
+        {showReportDialog && (
+          <ReportDialog
+            reportableId={userId}
+            reportableType="user"
+            onClose={() => setShowReportDialog(false)}
+          />
+        )}
+      </YStack>
     </Screen>
   );
 }

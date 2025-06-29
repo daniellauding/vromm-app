@@ -204,6 +204,7 @@ export function Map({
   routePathWidth = 3,
   showStartEndMarkers = false,
   drawingMode,
+  penDrawingCoordinates = [],
 }: {
   waypoints: Waypoint[];
   region: Region;
@@ -222,6 +223,7 @@ export function Map({
   routePathWidth?: number;
   showStartEndMarkers?: boolean;
   drawingMode?: string;
+  penDrawingCoordinates?: Array<{ latitude: number; longitude: number }>;
 }) {
   const mapRef = React.useRef<MapView>(null);
   const currentRegion = React.useRef<Region | null>(null);
@@ -369,6 +371,34 @@ export function Map({
             strokeColor={routePathColor}
             lineJoin="round"
           />
+        )}
+
+        {/* Display pen drawing coordinates if provided */}
+        {penDrawingCoordinates && penDrawingCoordinates.length > 1 && (
+          <>
+            {console.log('🎨 [Map] Rendering pen drawing with', penDrawingCoordinates.length, 'coordinates')}
+            <Polyline
+              coordinates={penDrawingCoordinates}
+              strokeWidth={8}
+              strokeColor="#FF6B35"
+              lineJoin="round"
+              lineCap="round"
+              geodesic={false}
+            />
+          </>
+        )}
+        
+        {/* Show single pen drawing point as marker if only one point */}
+        {penDrawingCoordinates && penDrawingCoordinates.length === 1 && (
+          <>
+            {console.log('🎨 [Map] Rendering single pen drawing point:', penDrawingCoordinates[0])}
+            <Marker
+              coordinate={penDrawingCoordinates[0]}
+              title="Pen Drawing"
+              description="Single drawn point"
+              pinColor="orange"
+            />
+          </>
         )}
 
         {/* Display start and end markers for recorded routes */}
