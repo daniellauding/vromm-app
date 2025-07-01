@@ -188,6 +188,12 @@ export function ProgressScreen() {
   const [unlockedPaths, setUnlockedPaths] = useState<string[]>([]);
   const [unlockedExercises, setUnlockedExercises] = useState<string[]>([]);
   const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
+  
+  // Add state for database-persisted unlocks
+  const [persistedUnlocks, setPersistedUnlocks] = useState<{
+    paths: string[];
+    exercises: string[];
+  }>({ paths: [], exercises: [] });
 
   // Load categories from Supabase
   useEffect(() => {
@@ -332,6 +338,81 @@ export function ProgressScreen() {
     }
   };
 
+  // Check if content is already unlocked in database
+  const checkExistingUnlock = async (contentId: string, contentType: 'learning_path' | 'exercise'): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { data, error } = await supabase
+        .from('user_unlocked_content')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('content_id', contentId)
+        .eq('content_type', contentType)
+        .single();
+
+      return !error && !!data;
+    } catch (error) {
+      console.log('ProgressScreen: Error checking existing unlock:', error);
+      return false;
+    }
+  };
+
+  // Store successful unlock in database
+  const storeUnlock = async (contentId: string, contentType: 'learning_path' | 'exercise') => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_unlocked_content')
+        .insert({
+          user_id: user.id,
+          content_id: contentId,
+          content_type: contentType
+        });
+
+      if (error && error.code !== '23505') { // Ignore duplicate key errors
+        console.log('ProgressScreen: Error storing unlock:', error);
+      } else {
+        console.log(`ProgressScreen: Successfully stored unlock for ${contentType}: ${contentId}`);
+        // Update local persisted unlocks state
+        setPersistedUnlocks(prev => ({
+          ...prev,
+          [contentType === 'learning_path' ? 'paths' : 'exercises']: [
+            ...prev[contentType === 'learning_path' ? 'paths' : 'exercises'],
+            contentId
+          ]
+        }));
+      }
+    } catch (error) {
+      console.log('ProgressScreen: Error storing unlock:', error);
+    }
+  };
+
+  // Load existing unlocks from database
+  const loadExistingUnlocks = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('user_unlocked_content')
+        .select('content_id, content_type')
+        .eq('user_id', user.id);
+
+      if (!error && data) {
+        const paths = data.filter(item => item.content_type === 'learning_path').map(item => item.content_id);
+        const exercises = data.filter(item => item.content_type === 'exercise').map(item => item.content_id);
+        
+        setPersistedUnlocks({ paths, exercises });
+        console.log(`ProgressScreen: Loaded ${paths.length} path unlocks and ${exercises.length} exercise unlocks from database`);
+      } else {
+        console.log('ProgressScreen: No existing unlocks found or error:', error);
+      }
+    } catch (error) {
+      console.log('ProgressScreen: Error loading existing unlocks:', error);
+    }
+  };
+
   // Toggle completion for virtual repeat exercises (save to new table)
   const toggleVirtualRepeatCompletion = async (virtualId: string) => {
     if (!user) return;
@@ -342,10 +423,10 @@ export function ProgressScreen() {
       console.error('Invalid virtual ID format:', virtualId);
       return;
     }
-    
+
     const exerciseId = parts[0];
     const repeatNumber = parseInt(parts[1]);
-    
+
     if (isNaN(repeatNumber)) {
       console.error('Invalid repeat number in virtual ID:', virtualId);
       return;
@@ -390,8 +471,8 @@ export function ProgressScreen() {
       try {
         const { error } = await supabase
           .from('virtual_repeat_completions')
-          .insert([{ 
-            user_id: user.id, 
+          .insert([{
+            user_id: user.id,
             exercise_id: exerciseId,
             repeat_number: repeatNumber
           }]);
@@ -524,9 +605,10 @@ export function ProgressScreen() {
     setCompletionsLoading(false);
   };
 
-  // Fetch completions for the current user
+  // Fetch completions and existing unlocks for the current user
   useEffect(() => {
     fetchCompletions();
+    loadExistingUnlocks();
 
     // Set up real-time subscription for completions
     if (user) {
@@ -1012,10 +1094,12 @@ export function ProgressScreen() {
     return unlockedExercises.includes(exercise.id);
   };
 
-  // Enhanced isPathPasswordLocked function to check for locked status
+  // Enhanced isPathPasswordLocked function to check for locked status (includes database unlocks)
   const isPathPasswordLocked = (path: LearningPath): boolean => {
     // Use !! to convert undefined to false, ensuring boolean return
-    return !!path.is_locked && !unlockedPaths.includes(path.id);
+    return !!path.is_locked && 
+           !unlockedPaths.includes(path.id) && 
+           !persistedUnlocks.paths.includes(path.id);
   };
 
   // Separate function to check if a path specifically has a password
@@ -1023,33 +1107,55 @@ export function ProgressScreen() {
     return !!path.is_locked && !!path.lock_password;
   };
 
-  // Function to check if an exercise is locked with password
+  // Function to check if an exercise is locked with password (includes database unlocks)
   const isExercisePasswordLocked = (exercise: PathExercise): boolean => {
     // Use !! to convert undefined to false, ensuring boolean return
     return (
-      !!exercise.is_locked && !!exercise.lock_password && !unlockedExercises.includes(exercise.id)
+      !!exercise.is_locked && !!exercise.lock_password && 
+      !unlockedExercises.includes(exercise.id) &&
+      !persistedUnlocks.exercises.includes(exercise.id)
     );
   };
 
-  // Function to unlock a path with password
-  const unlockPath = () => {
+  // Function to unlock a path with password (now with persistence)
+  const unlockPath = async () => {
     if (!detailPath || !detailPath.lock_password) return;
+
+    // Check if already unlocked in database first
+    const isAlreadyUnlocked = await checkExistingUnlock(detailPath.id, 'learning_path');
+    if (isAlreadyUnlocked) {
+      setUnlockedPaths((prev) => [...prev, detailPath.id]);
+      setPathPasswordInput('');
+      return;
+    }
 
     if (pathPasswordInput === detailPath.lock_password) {
       setUnlockedPaths((prev) => [...prev, detailPath.id]);
       setPathPasswordInput('');
+      // Store successful unlock in database
+      await storeUnlock(detailPath.id, 'learning_path');
     } else {
       Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
     }
   };
 
-  // Function to unlock an exercise with password
-  const unlockExercise = () => {
+  // Function to unlock an exercise with password (now with persistence)
+  const unlockExercise = async () => {
     if (!selectedExercise || !selectedExercise.lock_password) return;
+
+    // Check if already unlocked in database first
+    const isAlreadyUnlocked = await checkExistingUnlock(selectedExercise.id, 'exercise');
+    if (isAlreadyUnlocked) {
+      setUnlockedExercises((prev) => [...prev, selectedExercise.id]);
+      setExercisePasswordInput('');
+      return;
+    }
 
     if (exercisePasswordInput === selectedExercise.lock_password) {
       setUnlockedExercises((prev) => [...prev, selectedExercise.id]);
       setExercisePasswordInput('');
+      // Store successful unlock in database
+      await storeUnlock(selectedExercise.id, 'exercise');
     } else {
       Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
     }

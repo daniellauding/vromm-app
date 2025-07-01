@@ -806,6 +806,73 @@ export type Database = {
         };
         Relationships: [];
       };
+      virtual_repeat_completions: {
+        Row: {
+          id: number;
+          user_id: string;
+          exercise_id: string;
+          repeat_number: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          user_id: string;
+          exercise_id: string;
+          repeat_number: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          user_id?: string;
+          exercise_id?: string;
+          repeat_number?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'virtual_repeat_completions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      user_unlocked_content: {
+        Row: {
+          id: number;
+          user_id: string;
+          content_id: string;
+          content_type: 'learning_path' | 'exercise';
+          unlocked_at: string;
+        };
+        Insert: {
+          id?: number;
+          user_id: string;
+          content_id: string;
+          content_type: 'learning_path' | 'exercise';
+          unlocked_at?: string;
+        };
+        Update: {
+          id?: number;
+          user_id?: string;
+          content_id?: string;
+          content_type?: 'learning_path' | 'exercise';
+          unlocked_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_unlocked_content_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       school_admin_memberships: {
