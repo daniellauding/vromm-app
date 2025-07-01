@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { YStack, XStack, Switch, useTheme, Card } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 import * as Location from 'expo-location';
-import { Alert, Modal, View, Pressable, Image } from 'react-native';
+import { Alert, Modal, View, Pressable, Image, ScrollView } from 'react-native';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
 import { Button } from '../components/Button';
@@ -57,6 +57,14 @@ export function ProfileScreen() {
   const colorScheme = useColorScheme();
   const navigation = useNavigation<RootStackNavigationProp>();
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [supervisors, setSupervisors] = useState<Array<{supervisor_id: string; supervisor_name: string; supervisor_email: string}>>([]);
+  const [schools, setSchools] = useState<Array<{school_id: string; school_name: string; school_location: string}>>([]);
+  const [relationshipsLoading, setRelationshipsLoading] = useState(false);
+  const [showSupervisorModal, setShowSupervisorModal] = useState(false);
+  const [showSchoolModal, setShowSchoolModal] = useState(false);
+  const [availableSupervisors, setAvailableSupervisors] = useState<Array<{id: string; full_name: string; email: string}>>([]);
+  const [availableSchools, setAvailableSchools] = useState<Array<{id: string; name: string; location: string}>>([]);
+  const [selectedSupervisorIds, setSelectedSupervisorIds] = useState<string[]>([]);
 
   // Add comprehensive logging
   const { logAction, logAsyncAction, logRenderIssue, logMemoryWarning } = useScreenLogger({
@@ -332,6 +340,261 @@ export function ProfileScreen() {
     }
   };
 
+  // Get user's complete profile with relationships
+  const getUserProfileWithRelationships = useCallback(async (userId: string) => {
+    try {
+      setRelationshipsLoading(true);
+
+      // Get supervisors 
+      const { data: supervisorsData, error: supervisorsError } = await supabase
+        .rpc('get_user_supervisor_details', { target_user_id: userId });
+
+      // Get schools
+      const { data: schoolsData, error: schoolsError } = await supabase
+        .rpc('get_user_school_details', { target_user_id: userId });
+
+      if (supervisorsError) {
+        console.error('Error fetching supervisors:', supervisorsError);
+      } else {
+        setSupervisors(supervisorsData || []);
+      }
+
+      if (schoolsError) {
+        console.error('Error fetching schools:', schoolsError);
+      } else {
+        setSchools(schoolsData || []);
+      }
+
+      logInfo('Relationships loaded', { 
+        supervisorCount: supervisorsData?.length || 0, 
+        schoolCount: schoolsData?.length || 0 
+      });
+
+    } catch (error) {
+      logError('Error fetching user relationships', error as Error);
+    } finally {
+      setRelationshipsLoading(false);
+    }
+  }, [logInfo, logError]);
+
+  // Allow user to leave supervisor
+  const leaveSupervisor = async (supervisorId: string) => {
+    try {
+      const { data: success, error } = await supabase
+        .rpc('leave_supervisor', { supervisor_id_to_leave: supervisorId });
+      
+      if (error) throw error;
+      
+      if (success && profile?.id) {
+        Alert.alert('Success', 'You have left your supervisor');
+        // Refresh the relationships
+        await getUserProfileWithRelationships(profile.id);
+      }
+      
+      return success;
+    } catch (error) {
+      logError('Error leaving supervisor', error as Error);
+      Alert.alert('Error', 'Failed to leave supervisor');
+      return false;
+    }
+  };
+
+  // Allow user to leave school
+  const leaveSchool = async (schoolId: string) => {
+    try {
+      const { data: success, error } = await supabase
+        .rpc('leave_school', { school_id_to_leave: schoolId });
+      
+      if (error) throw error;
+      
+      if (success && profile?.id) {
+        Alert.alert('Success', 'You have left the school');
+        // Refresh the relationships
+        await getUserProfileWithRelationships(profile.id);
+      }
+      
+      return success;
+    } catch (error) {
+      logError('Error leaving school', error as Error);
+      Alert.alert('Error', 'Failed to leave school');
+      return false;
+    }
+  };
+
+  // Fetch available supervisors from database
+  const fetchAvailableSupervisors = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .order('full_name');
+
+      if (error) throw error;
+      setAvailableSupervisors(data || []);
+    } catch (error) {
+      logError('Error fetching supervisors', error as Error);
+    }
+  }, [logError]);
+
+  // Fetch available schools from database
+  const fetchAvailableSchools = useCallback(async () => {
+    try {
+      console.log('🏫 Fetching available schools...');
+      console.log('🏫 Supabase client:', supabase);
+      
+      // First try to query with minimal selection
+      console.log('🏫 Testing basic schools query...');
+      const basicQuery = await supabase
+        .from('schools')
+        .select('*')
+        .limit(10);
+      
+      console.log('🏫 Basic query result:', basicQuery);
+      
+      // Now try the full query
+      console.log('🏫 Running full schools query...');
+      const { data, error, count } = await supabase
+        .from('schools')
+        .select('id, name, location, is_active', { count: 'exact' })
+        .order('name');
+
+      console.log('🏫 Full query result:', { data, error, count });
+      console.log('🏫 Raw data length:', data?.length);
+      console.log('🏫 Individual schools:', JSON.stringify(data, null, 2));
+      
+      if (error) {
+        console.error('🏫 Schools query error:', error);
+        Alert.alert('Error', `Failed to fetch schools: ${error.message}`);
+        return;
+      }
+      
+      if (!data || data.length === 0) {
+        console.warn('🏫 No schools found in database!');
+        Alert.alert('Debug Info', 'No schools found in database. Check console for details.');
+        return;
+      }
+      
+      console.log(`🏫 SUCCESS: Found ${data.length} schools`);
+      setAvailableSchools(data);
+    } catch (error) {
+      console.error('🏫 Error in fetchAvailableSchools:', error);
+      Alert.alert('Error', `Exception in fetchAvailableSchools: ${error}`);
+      logError('Error fetching schools', error as Error);
+    }
+  }, [logError]);
+
+  // Join supervisors - Using proper student_supervisor_relationships table
+  const joinSupervisors = async () => {
+    try {
+      if (!profile?.id || selectedSupervisorIds.length === 0) return;
+
+      // Check for existing relationships and filter out duplicates
+      const { data: existingRelationships } = await supabase
+        .from('student_supervisor_relationships')
+        .select('supervisor_id')
+        .eq('student_id', profile.id)
+        .in('supervisor_id', selectedSupervisorIds);
+
+      const existingSupervisorIds = existingRelationships?.map(r => r.supervisor_id) || [];
+      const newSupervisorIds = selectedSupervisorIds.filter(id => !existingSupervisorIds.includes(id));
+
+      if (newSupervisorIds.length === 0) {
+        Alert.alert('Info', 'All selected supervisors are already assigned to you');
+        setShowSupervisorModal(false);
+        setSelectedSupervisorIds([]);
+        return;
+      }
+
+      // Insert only new supervisor relationships
+      const insertData = newSupervisorIds.map(supervisorId => ({
+        student_id: profile.id,
+        supervisor_id: supervisorId
+      }));
+
+      const { error } = await supabase
+        .from('student_supervisor_relationships')
+        .insert(insertData);
+
+      if (error) throw error;
+
+      const addedCount = newSupervisorIds.length;
+      const skippedCount = selectedSupervisorIds.length - addedCount;
+      
+      let message = `${addedCount} supervisor${addedCount !== 1 ? 's' : ''} added successfully`;
+      if (skippedCount > 0) {
+        message += `. ${skippedCount} already assigned.`;
+      }
+      
+      Alert.alert('Success', message);
+      
+      // Refresh relationships and close modal
+      await getUserProfileWithRelationships(profile.id);
+      setShowSupervisorModal(false);
+      setSelectedSupervisorIds([]);
+    } catch (error) {
+      logError('Error joining supervisors', error as Error);
+      Alert.alert('Error', 'Failed to add supervisors');
+    }
+  };
+
+  // Join school
+  const joinSchool = async (schoolId: string) => {
+    try {
+      if (!profile?.id) return;
+
+      // First check if user is already a member
+      const { data: existingMembership } = await supabase
+        .from('school_memberships')
+        .select('id')
+        .eq('user_id', profile.id)
+        .eq('school_id', schoolId)
+        .single();
+
+      if (existingMembership) {
+        Alert.alert('Info', 'You are already a member of this school');
+        setShowSchoolModal(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('school_memberships')
+        .insert([{
+          user_id: profile.id,
+          school_id: schoolId,
+          role: 'student'
+        }]);
+
+      if (error) {
+        if (error.code === '23505') {
+          Alert.alert('Info', 'You are already a member of this school');
+        } else {
+          throw error;
+        }
+        setShowSchoolModal(false);
+        return;
+      }
+
+      Alert.alert('Success', 'School joined successfully');
+      
+      // Refresh relationships and close modal
+      await getUserProfileWithRelationships(profile.id);
+      setShowSchoolModal(false);
+    } catch (error) {
+      logError('Error joining school', error as Error);
+      Alert.alert('Error', 'Failed to join school');
+    }
+  };
+
+  // Load relationships when profile is available
+  useEffect(() => {
+    if (profile?.id) {
+      getUserProfileWithRelationships(profile.id);
+      // Also pre-load available options
+      fetchAvailableSupervisors();
+      fetchAvailableSchools();
+    }
+  }, [profile?.id, getUserProfileWithRelationships, fetchAvailableSupervisors, fetchAvailableSchools]);
+
   return (
     <Screen scroll padding>
       <OnboardingModal
@@ -490,6 +753,156 @@ export function ProfileScreen() {
             <Button onPress={() => setShowLanguageModal(true)} variant="secondary" size="lg">
               <Text color="$color">{LANGUAGE_LABELS[language]}</Text>
             </Button>
+
+            {/* Supervisors Section - ALWAYS SHOW */}
+            <Card bordered padding="$4" marginVertical="$2">
+              <YStack gap="$2">
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text size="lg" weight="bold" color="$color">
+                    {t('profile.supervisors') || 'Supervisors'}
+                  </Text>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    backgroundColor="$blue9"
+                    onPress={() => {
+                      fetchAvailableSupervisors();
+                      setShowSupervisorModal(true);
+                    }}
+                    disabled={relationshipsLoading}
+                  >
+                    <Text color="white">
+                      {supervisors.length > 0 ? 'Change' : 'Add Supervisors'}
+                    </Text>
+                  </Button>
+                </XStack>
+                
+                {supervisors.length === 0 ? (
+                  <Text color="$gray11" size="sm">
+                    No supervisors assigned yet. Click "Add Supervisors" to get started.
+                  </Text>
+                ) : (
+                  supervisors.map((supervisor) => (
+                    <XStack 
+                      key={supervisor.supervisor_id}
+                      justifyContent="space-between" 
+                      alignItems="center"
+                      backgroundColor="$backgroundHover"
+                      padding="$3"
+                      borderRadius="$3"
+                    >
+                      <YStack flex={1}>
+                        <Text weight="bold" color="$color">
+                          {supervisor.supervisor_name || 'Unknown Supervisor'}
+                        </Text>
+                        {supervisor.supervisor_email && (
+                          <Text color="$gray11" size="sm">
+                            {supervisor.supervisor_email}
+                          </Text>
+                        )}
+                      </YStack>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$red9"
+                        onPress={() => {
+                          Alert.alert(
+                            'Leave Supervisor',
+                            `Are you sure you want to leave ${supervisor.supervisor_name}?`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { 
+                                text: 'Leave', 
+                                style: 'destructive',
+                                onPress: () => leaveSupervisor(supervisor.supervisor_id)
+                              }
+                            ]
+                          );
+                        }}
+                        disabled={relationshipsLoading}
+                      >
+                        <Text color="white">Leave</Text>
+                      </Button>
+                    </XStack>
+                  ))
+                )}
+              </YStack>
+            </Card>
+
+            {/* Schools Section - ALWAYS SHOW */}
+            <Card bordered padding="$4" marginVertical="$2">
+              <YStack gap="$2">
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text size="lg" weight="bold" color="$color">
+                    {t('profile.schools') || 'Schools'}
+                  </Text>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    backgroundColor="$blue9"
+                    onPress={() => {
+                      fetchAvailableSchools();
+                      setShowSchoolModal(true);
+                    }}
+                    disabled={relationshipsLoading}
+                  >
+                    <Text color="white">
+                      {schools.length > 0 ? 'Change School' : 'Join School'}
+                    </Text>
+                  </Button>
+                </XStack>
+                
+                {schools.length === 0 ? (
+                  <Text color="$gray11" size="sm">
+                    Not a member of any school yet. Click "Join School" to see all available schools.
+                  </Text>
+                ) : (
+                  schools.map((school) => (
+                    <XStack 
+                      key={school.school_id}
+                      justifyContent="space-between" 
+                      alignItems="center"
+                      backgroundColor="$backgroundHover"
+                      padding="$3"
+                      borderRadius="$3"
+                    >
+                      <YStack flex={1}>
+                        <Text weight="bold" color="$color">
+                          {school.school_name || 'Unknown School'}
+                        </Text>
+                        {school.school_location && (
+                          <Text color="$gray11" size="sm">
+                            {school.school_location}
+                          </Text>
+                        )}
+                      </YStack>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$red9"
+                        onPress={() => {
+                          Alert.alert(
+                            'Leave School',
+                            `Are you sure you want to leave ${school.school_name}?`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { 
+                                text: 'Leave', 
+                                style: 'destructive',
+                                onPress: () => leaveSchool(school.school_id)
+                              }
+                            ]
+                          );
+                        }}
+                        disabled={relationshipsLoading}
+                      >
+                        <Text color="white">Leave</Text>
+                      </Button>
+                    </XStack>
+                  ))
+                )}
+              </YStack>
+            </Card>
 
             <Card bordered padding="$4" marginVertical="$2">
               <YStack gap="$2">
@@ -951,6 +1364,177 @@ ${
               backgroundColor="$backgroundHover"
             >
               {t('common.cancel')}
+            </Button>
+          </YStack>
+        </Pressable>
+      </Modal>
+
+      {/* Supervisor Selection Modal */}
+      <Modal
+        visible={showSupervisorModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSupervisorModal(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowSupervisorModal(false)}
+        >
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
+            maxHeight="80%"
+          >
+            <Text size="xl" weight="bold" color="$color">
+              {t('profile.selectSupervisors') || 'Select Supervisors'}
+            </Text>
+            
+            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={true}>
+              <YStack gap="$2">
+                {availableSupervisors.map((supervisor) => {
+                  const isSelected = selectedSupervisorIds.includes(supervisor.id);
+                  return (
+                    <Button
+                      key={supervisor.id}
+                      onPress={() => {
+                        setSelectedSupervisorIds(prev => 
+                          isSelected 
+                            ? prev.filter(id => id !== supervisor.id)
+                            : [...prev, supervisor.id]
+                        );
+                      }}
+                      variant={isSelected ? 'primary' : 'secondary'}
+                      backgroundColor={isSelected ? '$blue10' : undefined}
+                      size="lg"
+                    >
+                      <YStack alignItems="flex-start" width="100%">
+                        <Text color={isSelected ? 'white' : '$color'} fontWeight="bold">
+                          {supervisor.full_name}
+                        </Text>
+                        {supervisor.email && (
+                          <Text color={isSelected ? 'white' : '$gray11'} fontSize="$3">
+                            {supervisor.email}
+                          </Text>
+                        )}
+                      </YStack>
+                    </Button>
+                  );
+                })}
+              </YStack>
+            </ScrollView>
+
+            <XStack gap="$2">
+              <Button
+                flex={1}
+                onPress={() => setShowSupervisorModal(false)}
+                variant="secondary"
+                backgroundColor="$backgroundHover"
+              >
+                {t('common.cancel') || 'Cancel'}
+              </Button>
+              <Button
+                flex={1}
+                onPress={joinSupervisors}
+                variant="primary"
+                backgroundColor="$blue10"
+                disabled={selectedSupervisorIds.length === 0}
+              >
+                {t('profile.addSelected') || 'Add Selected'}
+              </Button>
+            </XStack>
+          </YStack>
+        </Pressable>
+      </Modal>
+
+      {/* School Selection Modal */}
+      <Modal
+        visible={showSchoolModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSchoolModal(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowSchoolModal(false)}
+        >
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
+            maxHeight="80%"
+          >
+            <Text size="xl" weight="bold" color="$color">
+              {t('profile.selectSchool') || 'Select School'}
+            </Text>
+            
+            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={true}>
+              <YStack gap="$2">
+                {availableSchools.length === 0 ? (
+                  <YStack padding="$4" alignItems="center">
+                    <Text color="$gray11" textAlign="center">
+                      🏫 No schools available
+                    </Text>
+                    <Text color="$gray11" fontSize="$3" textAlign="center" marginTop="$2">
+                      Check console for debugging info
+                    </Text>
+                    <Button 
+                      size="sm" 
+                      variant="secondary" 
+                      marginTop="$2"
+                      onPress={() => {
+                        console.log('🏫 Manual refresh triggered');
+                        fetchAvailableSchools();
+                      }}
+                    >
+                      Refresh Schools
+                    </Button>
+                  </YStack>
+                ) : (
+                  availableSchools.map((school) => {
+                    console.log('🏫 Rendering school:', school);
+                    return (
+                      <Button
+                        key={school.id}
+                        onPress={() => joinSchool(school.id)}
+                        variant="secondary"
+                        size="lg"
+                      >
+                        <YStack alignItems="flex-start" width="100%">
+                          <Text color="$color" fontWeight="bold">
+                            {school.name}
+                          </Text>
+                          {school.location && (
+                            <Text color="$gray11" fontSize="$3">
+                              {school.location}
+                            </Text>
+                          )}
+                        </YStack>
+                      </Button>
+                    );
+                  })
+                )}
+              </YStack>
+            </ScrollView>
+
+            <Button
+              onPress={() => setShowSchoolModal(false)}
+              variant="secondary"
+              backgroundColor="$backgroundHover"
+            >
+              {t('common.cancel') || 'Cancel'}
             </Button>
           </YStack>
         </Pressable>

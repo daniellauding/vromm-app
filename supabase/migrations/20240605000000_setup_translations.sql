@@ -50,6 +50,16 @@ BEGIN
             ADD CONSTRAINT translations_key_language_unique 
             UNIQUE (key, language);
         END IF;
+
+        -- Add platform column if it doesn't exist
+        IF NOT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'translations'
+            AND column_name = 'platform'
+        ) THEN
+            ALTER TABLE public.translations ADD COLUMN platform TEXT;
+        END IF;
     END IF;
 END $$;
 

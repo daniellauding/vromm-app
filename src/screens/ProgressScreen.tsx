@@ -332,13 +332,82 @@ export function ProgressScreen() {
     }
   };
 
-  // Toggle completion for virtual repeat exercises (local state only)
-  const toggleVirtualRepeatCompletion = (virtualId: string) => {
+  // Toggle completion for virtual repeat exercises (save to new table)
+  const toggleVirtualRepeatCompletion = async (virtualId: string) => {
+    if (!user) return;
+
+    // Parse virtualId: "exerciseId-virtual-2" -> exerciseId="exerciseId", repeatNumber=2
+    const parts = virtualId.split('-virtual-');
+    if (parts.length !== 2) {
+      console.error('Invalid virtual ID format:', virtualId);
+      return;
+    }
+    
+    const exerciseId = parts[0];
+    const repeatNumber = parseInt(parts[1]);
+    
+    if (isNaN(repeatNumber)) {
+      console.error('Invalid repeat number in virtual ID:', virtualId);
+      return;
+    }
+
     const isDone = virtualRepeatCompletions.includes(virtualId);
+    console.log(
+      `ProgressScreen: Toggling virtual repeat ${virtualId} (exercise: ${exerciseId}, repeat: ${repeatNumber}) from ${isDone ? 'done' : 'not done'} to ${isDone ? 'not done' : 'done'}`,
+    );
+
+    // Update UI immediately for better user experience
     if (isDone) {
+      // Mark as not done - update UI first
       setVirtualRepeatCompletions((prev) => prev.filter((id) => id !== virtualId));
+
+      // Then update database using separate table
+      try {
+        const { error } = await supabase
+          .from('virtual_repeat_completions')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('exercise_id', exerciseId)
+          .eq('repeat_number', repeatNumber);
+
+        if (error) {
+          console.error('ProgressScreen: Error removing virtual repeat completion', error);
+          // Rollback UI change on error
+          setVirtualRepeatCompletions((prev) => [...prev, virtualId]);
+        } else {
+          console.log('ProgressScreen: Successfully removed virtual repeat completion');
+        }
+      } catch (err) {
+        console.error('ProgressScreen: Exception in toggleVirtualRepeatCompletion (remove)', err);
+        // Rollback UI change on error
+        setVirtualRepeatCompletions((prev) => [...prev, virtualId]);
+      }
     } else {
+      // Mark as done - update UI first
       setVirtualRepeatCompletions((prev) => [...prev, virtualId]);
+
+      // Then update database using separate table
+      try {
+        const { error } = await supabase
+          .from('virtual_repeat_completions')
+          .insert([{ 
+            user_id: user.id, 
+            exercise_id: exerciseId,
+            repeat_number: repeatNumber
+          }]);
+
+        if (error) {
+          console.error('ProgressScreen: Error adding virtual repeat completion', error);
+          // Rollback UI change on error
+          setVirtualRepeatCompletions((prev) => prev.filter((id) => id !== virtualId));
+        } else {
+          console.log('ProgressScreen: Successfully added virtual repeat completion');
+        }
+      } catch (err) {
+        console.error('ProgressScreen: Exception in toggleVirtualRepeatCompletion (add)', err);
+        // Rollback UI change on error
+        setVirtualRepeatCompletions((prev) => prev.filter((id) => id !== virtualId));
+      }
     }
   };
 
@@ -422,15 +491,36 @@ export function ProgressScreen() {
   const fetchCompletions = async () => {
     if (!user) return;
     setCompletionsLoading(true);
-    const { data, error } = await supabase
+    
+    // Fetch regular exercise completions
+    const { data: regularData, error: regularError } = await supabase
       .from('learning_path_exercise_completions')
       .select('exercise_id')
       .eq('user_id', user.id);
-    if (!error && data) {
-      setCompletedIds(data.map((c: any) => c.exercise_id));
+    
+    // Fetch virtual repeat completions
+    const { data: virtualData, error: virtualError } = await supabase
+      .from('virtual_repeat_completions')
+      .select('exercise_id, repeat_number')
+      .eq('user_id', user.id);
+    
+    if (!regularError && regularData) {
+      setCompletedIds(regularData.map((c: { exercise_id: string }) => c.exercise_id));
     } else {
       setCompletedIds([]);
     }
+    
+    if (!virtualError && virtualData) {
+      // Convert virtual completions back to virtualId format: "exerciseId-virtual-2"
+      const virtualCompletions = virtualData.map((c: { exercise_id: string; repeat_number: number }) => 
+        `${c.exercise_id}-virtual-${c.repeat_number}`
+      );
+      setVirtualRepeatCompletions(virtualCompletions);
+    } else {
+      setVirtualRepeatCompletions([]);
+    }
+    
+    console.log(`ProgressScreen: Loaded ${regularData?.length || 0} regular completions and ${virtualData?.length || 0} virtual repeat completions`);
     setCompletionsLoading(false);
   };
 
@@ -1804,7 +1894,7 @@ export function ProgressScreen() {
                 Exercises
               </Text>
 
-{exercises.length === 0 ? (
+              {exercises.length === 0 ? (
                 <Text color="$gray11">No exercises for this learning path.</Text>
               ) : (
                 (() => {
@@ -1826,87 +1916,87 @@ export function ProgressScreen() {
                        exercises.slice(0, mainOriginalIndex)
                          .every((prevEx) => completedIds.includes(prevEx.id));
 
-                    return (
+                  return (
                       <YStack key={main.id} marginBottom={16}>
                         {/* Main Exercise */}
                         <TouchableOpacity onPress={() => setSelectedExercise(main)}>
                           <XStack alignItems="center" gap={12}>
-                            <TouchableOpacity
-                              onPress={(e) => {
-                                e.stopPropagation();
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
                                 if (!mainIsPasswordLocked && mainPrevExercisesComplete) {
                                   toggleCompletion(main.id);
-                                }
-                              }}
-                              style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: 6,
-                                borderWidth: 2,
+                            }
+                          }}
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            borderWidth: 2,
                                 borderColor: mainIsDone ? '#00E6C3' : '#888',
                                 backgroundColor: mainIsDone ? '#00E6C3' : 'transparent',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                marginRight: 8,
-                              }}
-                            >
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginRight: 8,
+                          }}
+                        >
                               {mainIsDone && <Feather name="check" size={20} color="#fff" />}
-                            </TouchableOpacity>
-                                                         <Card
-                               padding={16}
-                               borderRadius={16}
-                               backgroundColor="$backgroundStrong"
-                               flex={1}
-                             >
-                               <XStack justifyContent="space-between" alignItems="center">
-                                 <XStack alignItems="center" gap={8} flex={1}>
-                                   <Text
-                                     fontSize={18}
-                                     fontWeight="bold"
-                                     color="$color"
-                                     numberOfLines={1}
-                                   >
+                        </TouchableOpacity>
+                        <Card
+                          padding={16}
+                          borderRadius={16}
+                          backgroundColor="$backgroundStrong"
+                          flex={1}
+                        >
+                          <XStack justifyContent="space-between" alignItems="center">
+                            <XStack alignItems="center" gap={8} flex={1}>
+                              <Text
+                                fontSize={18}
+                                fontWeight="bold"
+                                color="$color"
+                                numberOfLines={1}
+                              >
                                      {displayIndex}. {main.title?.[lang] || main.title?.en || 'Untitled'}
-                                   </Text>
+                              </Text>
 
                                    {/* Show repeat count if it has repeats */}
                                    {main.repeat_count && main.repeat_count > 1 && (
-                                     <XStack
-                                       backgroundColor="#4B6BFF"
-                                       paddingHorizontal={8}
-                                       paddingVertical={4}
-                                       borderRadius={12}
-                                       alignItems="center"
-                                       gap={4}
-                                     >
-                                       <Feather name="repeat" size={14} color="white" />
-                                       <Text fontSize={12} color="white" fontWeight="bold">
+                                <XStack
+                                  backgroundColor="#4B6BFF"
+                                  paddingHorizontal={8}
+                                  paddingVertical={4}
+                                  borderRadius={12}
+                                  alignItems="center"
+                                  gap={4}
+                                >
+                                  <Feather name="repeat" size={14} color="white" />
+                                  <Text fontSize={12} color="white" fontWeight="bold">
                                          {main.repeat_count}x
-                                       </Text>
-                                     </XStack>
-                                   )}
-                                 </XStack>
+                                  </Text>
+                                </XStack>
+                              )}
+                            </XStack>
 
-                                 {/* Show appropriate icon based on state - LOCK gets priority */}
+                            {/* Show appropriate icon based on state - LOCK gets priority */}
                                  {mainIsPasswordLocked ? (
-                                   <MaterialIcons name="lock" size={20} color="#FF9500" />
+                              <MaterialIcons name="lock" size={20} color="#FF9500" />
                                  ) : !mainPrevExercisesComplete ? (
-                                   <MaterialIcons name="hourglass-empty" size={20} color="#FF9500" />
+                              <MaterialIcons name="hourglass-empty" size={20} color="#FF9500" />
                                  ) : mainIsDone ? (
-                                   <Feather name="check-circle" size={20} color="#00E6C3" />
-                                 ) : null}
-                               </XStack>
+                              <Feather name="check-circle" size={20} color="#00E6C3" />
+                            ) : null}
+                          </XStack>
 
                                {main.description?.[lang] && (
-                                 <Text color="$gray11" marginTop={4}>
+                            <Text color="$gray11" marginTop={4}>
                                    {main.description[lang]}
-                                 </Text>
-                               )}
-                             </Card>
-                                                     </XStack>
-                         </TouchableOpacity>
+                            </Text>
+                          )}
+                        </Card>
+                      </XStack>
+                    </TouchableOpacity>
                        </YStack>
-                    );
+                  );
                   });
                 })()
               )}
