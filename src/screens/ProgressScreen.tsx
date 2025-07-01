@@ -187,6 +187,7 @@ export function ProgressScreen() {
   const [exercisePasswordInput, setExercisePasswordInput] = useState('');
   const [unlockedPaths, setUnlockedPaths] = useState<string[]>([]);
   const [unlockedExercises, setUnlockedExercises] = useState<string[]>([]);
+  const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
 
   // Load categories from Supabase
   useEffect(() => {
@@ -328,6 +329,16 @@ export function ProgressScreen() {
       } catch (err) {
         console.error('ProgressScreen: Exception in toggleCompletion (add)', err);
       }
+    }
+  };
+
+  // Toggle completion for virtual repeat exercises (local state only)
+  const toggleVirtualRepeatCompletion = (virtualId: string) => {
+    const isDone = virtualRepeatCompletions.includes(virtualId);
+    if (isDone) {
+      setVirtualRepeatCompletions((prev) => prev.filter((id) => id !== virtualId));
+    } else {
+      setVirtualRepeatCompletions((prev) => [...prev, virtualId]);
     }
   };
 
@@ -555,38 +566,9 @@ export function ProgressScreen() {
           .eq('learning_path_id', detailPath.id)
           .order('order_index', { ascending: true });
         if (!error && data) {
-          // Process exercises to handle repeats
-          const processedExercises: PathExercise[] = [];
-
-          // For each exercise, add it multiple times based on repeat_count
-          data.forEach((exercise: PathExercise) => {
-            // Add the original exercise
-            processedExercises.push(exercise);
-
-            // If it has a repeat_count > 1, add duplicates
-            if (exercise.repeat_count && exercise.repeat_count > 1) {
-              for (let i = 1; i < exercise.repeat_count; i++) {
-                // Create a duplicate with a unique ID (original ID + repeat number)
-                const repeatExercise: PathExercise = {
-                  ...exercise,
-                  id: `${exercise.id}-repeat-${i}`, // Add a suffix to make ID unique
-                  title: {
-                    en: `${exercise.title.en} (Repeat ${i + 1}/${exercise.repeat_count})`,
-                    sv: exercise.title.sv
-                      ? `${exercise.title.sv} (Repetition ${i + 1}/${exercise.repeat_count})`
-                      : '',
-                  },
-                  // Mark this as a repeat for special handling
-                  isRepeat: true,
-                  originalId: exercise.id,
-                  repeatNumber: i + 1,
-                };
-                processedExercises.push(repeatExercise);
-              }
-            }
-          });
-
-          setExercises(processedExercises);
+          // Just use the exercises as they come from the database
+          // Don't create fake repeat exercises - only work with real database entries
+          setExercises(data || []);
         } else {
           setExercises([]);
         }
@@ -1352,12 +1334,21 @@ export function ProgressScreen() {
                         padding: 12,
                         borderRadius: 8,
                         borderLeftWidth: 4,
-                        borderLeftColor: '#4B6BFF',
+                        borderLeftColor: completedIds.includes(selectedExercise.id) ? '#00E6C3' : '#4B6BFF',
+                      }}
+                      onPress={() => {
+                        // Toggle the main exercise completion
+                        toggleCompletion(selectedExercise.id);
                       }}
                     >
                       <XStack justifyContent="space-between" alignItems="center">
                         <XStack gap={8} alignItems="center" flex={1}>
-                          <View
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              // Toggle main exercise completion
+                              toggleCompletion(selectedExercise.id);
+                            }}
                             style={{
                               width: 24,
                               height: 24,
@@ -1367,12 +1358,14 @@ export function ProgressScreen() {
                                 : '#333',
                               alignItems: 'center',
                               justifyContent: 'center',
+                              borderWidth: 2,
+                              borderColor: completedIds.includes(selectedExercise.id) ? '#00E6C3' : '#888',
                             }}
                           >
                             {completedIds.includes(selectedExercise.id) && (
                               <Feather name="check" size={16} color="#fff" />
                             )}
-                          </View>
+                          </TouchableOpacity>
                           <Text
                             fontSize={16}
                             color="$color"
@@ -1388,6 +1381,9 @@ export function ProgressScreen() {
                         <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
                           1/{selectedExercise.repeat_count}
                         </Text>
+                        {completedIds.includes(selectedExercise.id) && (
+                          <Feather name="check-circle" size={18} color="#00E6C3" />
+                        )}
                       </XStack>
                     </TouchableOpacity>
 
@@ -1404,10 +1400,13 @@ export function ProgressScreen() {
                         selectedExercise.repeat_count &&
                         selectedExercise.repeat_count > 1
                       ) {
-                        // Just show placeholders
+                        // Show interactive virtual repeats
                         return Array.from({ length: selectedExercise.repeat_count - 1 }).map(
                           (_, i) => {
                             const repeatNumber = i + 2; // Start from 2 since 1 is the original
+                            const virtualId = `${selectedExercise.id}-virtual-${repeatNumber}`;
+                            // For virtual repeats, track completion individually
+                            const isDone = virtualRepeatCompletions.includes(virtualId);
 
                             return (
                               <TouchableOpacity
@@ -1416,25 +1415,38 @@ export function ProgressScreen() {
                                   backgroundColor: '#222',
                                   padding: 12,
                                   borderRadius: 8,
-                                  opacity: 0.7,
+                                  borderLeftWidth: 4,
+                                  borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
                                 }}
-                                disabled={true}
+                                onPress={() => {
+                                  // For virtual repeats, toggle individual completion
+                                  toggleVirtualRepeatCompletion(virtualId);
+                                }}
                               >
                                 <XStack justifyContent="space-between" alignItems="center">
                                   <XStack gap={8} alignItems="center" flex={1}>
-                                    <View
+                                    <TouchableOpacity
+                                      onPress={(e) => {
+                                        e.stopPropagation();
+                                        // Toggle individual virtual repeat completion
+                                        toggleVirtualRepeatCompletion(virtualId);
+                                      }}
                                       style={{
                                         width: 24,
                                         height: 24,
                                         borderRadius: 12,
-                                        backgroundColor: '#333',
+                                        backgroundColor: isDone ? '#00E6C3' : '#333',
                                         alignItems: 'center',
                                         justifyContent: 'center',
+                                        borderWidth: 2,
+                                        borderColor: isDone ? '#00E6C3' : '#888',
                                       }}
-                                    />
+                                    >
+                                      {isDone && <Feather name="check" size={16} color="#fff" />}
+                                    </TouchableOpacity>
                                     <Text
                                       fontSize={16}
-                                      color="$gray11"
+                                      color="$color"
                                       fontWeight="600"
                                       numberOfLines={1}
                                       flex={1}
@@ -1445,6 +1457,7 @@ export function ProgressScreen() {
                                   <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
                                     {repeatNumber}/{selectedExercise.repeat_count}
                                   </Text>
+                                  {isDone && <Feather name="check-circle" size={18} color="#00E6C3" />}
                                 </XStack>
                               </TouchableOpacity>
                             );
@@ -1454,49 +1467,44 @@ export function ProgressScreen() {
 
                       return repeats.map((repeat) => {
                         const isDone = completedIds.includes(repeat.id);
-                        const isLocked = isExercisePasswordLocked(repeat);
+                        // Remove locking for repeats - only main exercise can be locked
 
                         return (
                           <TouchableOpacity
                             key={repeat.id}
                             style={{
-                              backgroundColor: isLocked ? 'rgba(255, 147, 0, 0.2)' : '#222',
+                              backgroundColor: '#222',
                               padding: 12,
                               borderRadius: 8,
                               borderLeftWidth: 4,
-                              borderLeftColor: isLocked
-                                ? '#FF9500'
-                                : isDone
-                                  ? '#00E6C3'
-                                  : '#4B6BFF',
+                              borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
                             }}
                             onPress={() => setSelectedExercise(repeat)}
                           >
                             <XStack justifyContent="space-between" alignItems="center">
                               <XStack gap={8} alignItems="center" flex={1}>
-                                <View
+                                <TouchableOpacity
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    // Repeats can be completed in any order
+                                    toggleCompletion(repeat.id);
+                                  }}
                                   style={{
                                     width: 24,
                                     height: 24,
                                     borderRadius: 12,
-                                    backgroundColor: isDone
-                                      ? '#00E6C3'
-                                      : isLocked
-                                        ? '#FF9500'
-                                        : '#333',
+                                    backgroundColor: isDone ? '#00E6C3' : '#333',
                                     alignItems: 'center',
                                     justifyContent: 'center',
+                                    borderWidth: 2,
+                                    borderColor: isDone ? '#00E6C3' : '#888',
                                   }}
                                 >
-                                  {isDone ? (
-                                    <Feather name="check" size={16} color="#fff" />
-                                  ) : isLocked ? (
-                                    <MaterialIcons name="lock" size={14} color="#fff" />
-                                  ) : null}
-                                </View>
+                                  {isDone && <Feather name="check" size={16} color="#fff" />}
+                                </TouchableOpacity>
                                 <Text
                                   fontSize={16}
-                                  color={isLocked ? '#FF9500' : '$color'}
+                                  color="$color"
                                   fontWeight="600"
                                   numberOfLines={1}
                                   flex={1}
@@ -1508,11 +1516,14 @@ export function ProgressScreen() {
                               </XStack>
                               <Text
                                 fontSize={14}
-                                color={isLocked ? '#FF9500' : '#4B6BFF'}
+                                color="#4B6BFF"
                                 fontWeight="bold"
                               >
                                 {repeat.repeatNumber}/{repeat.repeat_count}
                               </Text>
+                              {isDone && (
+                                <Feather name="check-circle" size={18} color="#00E6C3" />
+                              )}
                             </XStack>
                           </TouchableOpacity>
                         );
@@ -1523,7 +1534,28 @@ export function ProgressScreen() {
 
               {/* Toggle done/not done button */}
               <TouchableOpacity
-                onPress={() => toggleCompletion(selectedExercise.id)}
+                onPress={() => {
+                  // Toggle main exercise
+                  toggleCompletion(selectedExercise.id);
+                  
+                  // Also toggle all virtual repeats if this exercise has repeats
+                  if (selectedExercise.repeat_count && selectedExercise.repeat_count > 1) {
+                    const shouldMarkDone = !isDone; // If main is becoming done, mark all virtual repeats as done
+                    
+                    // Generate all virtual repeat IDs
+                    for (let i = 2; i <= selectedExercise.repeat_count; i++) {
+                      const virtualId = `${selectedExercise.id}-virtual-${i}`;
+                      const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
+                      
+                      // Only toggle if virtual repeat state doesn't match desired state
+                      if (shouldMarkDone && !isVirtualDone) {
+                        toggleVirtualRepeatCompletion(virtualId);
+                      } else if (!shouldMarkDone && isVirtualDone) {
+                        toggleVirtualRepeatCompletion(virtualId);
+                      }
+                    }
+                  }
+                }}
                 style={{
                   marginTop: 24,
                   backgroundColor: isDone ? '#00E6C3' : '#222',
@@ -1533,7 +1565,7 @@ export function ProgressScreen() {
                 }}
               >
                 <Text color={isDone ? '$background' : '$color'} fontWeight="bold">
-                  {isDone ? 'Mark as Not Done' : 'Mark as Done'}
+                  {isDone ? 'Mark All as Not Done' : 'Mark All as Done'}
                 </Text>
               </TouchableOpacity>
 
@@ -1772,127 +1804,111 @@ export function ProgressScreen() {
                 Exercises
               </Text>
 
-              {exercises.length === 0 ? (
+{exercises.length === 0 ? (
                 <Text color="$gray11">No exercises for this learning path.</Text>
               ) : (
-                exercises.map((ex, idx) => {
-                  const isDone = completedIds.includes(ex.id);
-                  const isPasswordLocked = isExercisePasswordLocked(ex);
+                (() => {
+                  // Process exercises: show all exercises and create virtual repeats for UI
+                  let displayIndex = 0;
 
-                  // For repeated exercises, check if previous repeats are complete
-                  let previousRepeatsComplete = true;
-                  if (ex.isRepeat && ex.originalId) {
-                    // Find all previous repeats of this exercise
-                    const previousRepeats = exercises.filter(
-                      (e) =>
-                        (e.id === ex.originalId ||
-                          (e.isRepeat && e.originalId === ex.originalId)) &&
-                        (e.repeatNumber === undefined || e.repeatNumber < (ex.repeatNumber || 0)),
+                                     return exercises.map((exercise) => {
+                     displayIndex++;
+                     
+                     const main = exercise;
+
+                     // Main exercise logic
+                     const mainIsDone = completedIds.includes(main.id);
+                     const mainIsPasswordLocked = isExercisePasswordLocked(main);
+
+                     // Calculate if main exercise is available
+                     const mainOriginalIndex = exercises.findIndex((e) => e.id === main.id);
+                     const mainPrevExercisesComplete = mainOriginalIndex <= 0 || 
+                       exercises.slice(0, mainOriginalIndex)
+                         .every((prevEx) => completedIds.includes(prevEx.id));
+
+                    return (
+                      <YStack key={main.id} marginBottom={16}>
+                        {/* Main Exercise */}
+                        <TouchableOpacity onPress={() => setSelectedExercise(main)}>
+                          <XStack alignItems="center" gap={12}>
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                if (!mainIsPasswordLocked && mainPrevExercisesComplete) {
+                                  toggleCompletion(main.id);
+                                }
+                              }}
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 6,
+                                borderWidth: 2,
+                                borderColor: mainIsDone ? '#00E6C3' : '#888',
+                                backgroundColor: mainIsDone ? '#00E6C3' : 'transparent',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginRight: 8,
+                              }}
+                            >
+                              {mainIsDone && <Feather name="check" size={20} color="#fff" />}
+                            </TouchableOpacity>
+                                                         <Card
+                               padding={16}
+                               borderRadius={16}
+                               backgroundColor="$backgroundStrong"
+                               flex={1}
+                             >
+                               <XStack justifyContent="space-between" alignItems="center">
+                                 <XStack alignItems="center" gap={8} flex={1}>
+                                   <Text
+                                     fontSize={18}
+                                     fontWeight="bold"
+                                     color="$color"
+                                     numberOfLines={1}
+                                   >
+                                     {displayIndex}. {main.title?.[lang] || main.title?.en || 'Untitled'}
+                                   </Text>
+
+                                   {/* Show repeat count if it has repeats */}
+                                   {main.repeat_count && main.repeat_count > 1 && (
+                                     <XStack
+                                       backgroundColor="#4B6BFF"
+                                       paddingHorizontal={8}
+                                       paddingVertical={4}
+                                       borderRadius={12}
+                                       alignItems="center"
+                                       gap={4}
+                                     >
+                                       <Feather name="repeat" size={14} color="white" />
+                                       <Text fontSize={12} color="white" fontWeight="bold">
+                                         {main.repeat_count}x
+                                       </Text>
+                                     </XStack>
+                                   )}
+                                 </XStack>
+
+                                 {/* Show appropriate icon based on state - LOCK gets priority */}
+                                 {mainIsPasswordLocked ? (
+                                   <MaterialIcons name="lock" size={20} color="#FF9500" />
+                                 ) : !mainPrevExercisesComplete ? (
+                                   <MaterialIcons name="hourglass-empty" size={20} color="#FF9500" />
+                                 ) : mainIsDone ? (
+                                   <Feather name="check-circle" size={20} color="#00E6C3" />
+                                 ) : null}
+                               </XStack>
+
+                               {main.description?.[lang] && (
+                                 <Text color="$gray11" marginTop={4}>
+                                   {main.description[lang]}
+                                 </Text>
+                               )}
+                             </Card>
+                                                     </XStack>
+                         </TouchableOpacity>
+                       </YStack>
                     );
-
-                    // Check if all previous repeats are complete
-                    previousRepeatsComplete = previousRepeats.every((prevEx) =>
-                      completedIds.includes(prevEx.id),
-                    );
-                  }
-
-                  // Determine if exercise should be available based on previous exercises
-                  // For repeated exercises, we need all previous repeats to be complete
-                  const originalIndex = exercises.findIndex(
-                    (e) => !e.isRepeat && e.id === (ex.isRepeat ? ex.originalId : ex.id),
-                  );
-                  const prevExercisesComplete =
-                    // If it's the first exercise or a repeat of the first exercise, it's always available
-                    originalIndex <= 0 ||
-                    // Otherwise, check if all previous non-repeat exercises are complete AND
-                    // for a repeat, check if all previous repeats of the same exercise are complete
-                    (exercises
-                      .slice(0, idx)
-                      .filter((e) => !e.isRepeat || e.originalId !== ex.originalId) // Exclude other repeats of this exercise
-                      .every((prevEx) => completedIds.includes(prevEx.id)) &&
-                      previousRepeatsComplete);
-
-                  // Render the exercise with repeat indication if it's a repeat
-                  return (
-                    <TouchableOpacity key={ex.id} onPress={() => setSelectedExercise(ex)}>
-                      <XStack alignItems="center" gap={12} marginBottom={16}>
-                        <TouchableOpacity
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            // Only allow toggling if exercise is not locked and previous exercises are done
-                            if (!isPasswordLocked && prevExercisesComplete) {
-                              toggleCompletion(ex.id);
-                            }
-                          }}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 6,
-                            borderWidth: 2,
-                            borderColor: isDone ? '#00E6C3' : '#888',
-                            backgroundColor: isDone ? '#00E6C3' : 'transparent',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginRight: 8,
-                          }}
-                        >
-                          {isDone && <Feather name="check" size={20} color="#fff" />}
-                        </TouchableOpacity>
-                        <Card
-                          padding={16}
-                          borderRadius={16}
-                          backgroundColor="$backgroundStrong"
-                          flex={1}
-                        >
-                          <XStack justifyContent="space-between" alignItems="center">
-                            <XStack alignItems="center" gap={8} flex={1}>
-                              <Text
-                                fontSize={18}
-                                fontWeight="bold"
-                                color="$color"
-                                numberOfLines={1}
-                              >
-                                {idx + 1}. {ex.title?.[lang] || ex.title?.en || 'Untitled'}
-                              </Text>
-
-                              {/* Show repeat indicator if it's a repeat */}
-                              {ex.isRepeat && (
-                                <XStack
-                                  backgroundColor="#4B6BFF"
-                                  paddingHorizontal={8}
-                                  paddingVertical={4}
-                                  borderRadius={12}
-                                  alignItems="center"
-                                  gap={4}
-                                >
-                                  <Feather name="repeat" size={14} color="white" />
-                                  <Text fontSize={12} color="white" fontWeight="bold">
-                                    {ex.repeatNumber}/{ex.repeat_count}
-                                  </Text>
-                                </XStack>
-                              )}
-                            </XStack>
-
-                            {/* Show appropriate icon based on state - LOCK gets priority */}
-                            {isPasswordLocked ? (
-                              <MaterialIcons name="lock" size={20} color="#FF9500" />
-                            ) : !prevExercisesComplete ? (
-                              <MaterialIcons name="hourglass-empty" size={20} color="#FF9500" />
-                            ) : isDone ? (
-                              <Feather name="check-circle" size={20} color="#00E6C3" />
-                            ) : null}
-                          </XStack>
-
-                          {ex.description?.[lang] && (
-                            <Text color="$gray11" marginTop={4}>
-                              {ex.description[lang]}
-                            </Text>
-                          )}
-                        </Card>
-                      </XStack>
-                    </TouchableOpacity>
-                  );
-                })
+                  });
+                })()
               )}
             </>
           )}
