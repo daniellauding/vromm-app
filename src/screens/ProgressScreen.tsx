@@ -11,6 +11,7 @@ import {
   Pressable,
   TextInput,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { YStack, XStack, Text, Card, Select, Image as TamaguiImage, Button } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
@@ -194,6 +195,7 @@ export function ProgressScreen() {
     paths: string[];
     exercises: string[];
   }>({ paths: [], exercises: [] });
+  const [refreshing, setRefreshing] = useState(false);
 
   // Load categories from Supabase
   useEffect(() => {
@@ -285,6 +287,81 @@ export function ProgressScreen() {
   const handleFilterSelect = (filterType: CategoryType, value: string) => {
     setCategoryFilters((prev) => ({ ...prev, [filterType]: value }));
     setActiveFilterType(null);
+  };
+
+  // Refresh function for pull-to-refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchLearningPaths(),
+        fetchCompletions(),
+        loadExistingUnlocks(),
+      ]);
+    } catch (error) {
+      console.error('Error refreshing progress data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Calculate repeat progress for an exercise
+  const getRepeatProgress = (exercise: PathExercise): { completed: number; total: number; percent: number } => {
+    if (!exercise.repeat_count || exercise.repeat_count <= 1) {
+      return { completed: 0, total: 0, percent: 0 };
+    }
+
+    const total = exercise.repeat_count;
+    let completed = 0;
+
+    // Check main exercise (repeat 1)
+    if (completedIds.includes(exercise.id)) {
+      completed++;
+    }
+
+    // Check virtual repeats (repeat 2+)
+    for (let i = 2; i <= total; i++) {
+      const virtualId = `${exercise.id}-virtual-${i}`;
+      if (virtualRepeatCompletions.includes(virtualId)) {
+        completed++;
+      }
+    }
+
+    const percent = total > 0 ? completed / total : 0;
+    return { completed, total, percent };
+  };
+
+  // Small progress bar component for repeats
+  const RepeatProgressBar = ({ exercise }: { exercise: PathExercise }) => {
+    const { completed, total, percent } = getRepeatProgress(exercise);
+    
+    if (total <= 1) return null;
+
+    return (
+      <XStack alignItems="center" gap={4} marginTop={4}>
+        <View
+          style={{
+            width: 60,
+            height: 4,
+            backgroundColor: '#333',
+            borderRadius: 2,
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              width: `${percent * 100}%`,
+              height: '100%',
+              backgroundColor: '#00E6C3',
+              borderRadius: 2,
+            }}
+          />
+        </View>
+        <Text fontSize={10} color="$gray11">
+          {completed}/{total}
+        </Text>
+      </XStack>
+    );
   };
 
   // Toggle completion for an exercise
@@ -1326,7 +1403,19 @@ export function ProgressScreen() {
 
     return (
       <YStack flex={1} backgroundColor="$background">
-        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
+        <ScrollView 
+          contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#00E6C3"
+              colors={["#00E6C3"]}
+              backgroundColor="rgba(0, 0, 0, 0.1)"
+              progressBackgroundColor="#1a1a1a"
+            />
+          }
+        >
           {/* Header with back button and repetition indicators */}
           <XStack justifyContent="space-between" alignItems="center" marginBottom={24}>
             <TouchableOpacity onPress={() => setSelectedExercise(null)}>
@@ -1516,12 +1605,15 @@ export function ProgressScreen() {
                 selectedExercise.repeat_count &&
                 selectedExercise.repeat_count > 1 && (
                   <YStack marginTop={16} marginBottom={16} gap={12}>
-                    <XStack alignItems="center" gap={8}>
+                    <XStack alignItems="center" gap={8} marginBottom={8}>
                       <Feather name="list" size={20} color="#4B6BFF" />
                       <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
                         All Repetitions
                       </Text>
                     </XStack>
+
+                    {/* Progress bar for all repetitions */}
+                    <RepeatProgressBar exercise={selectedExercise} />
 
                     {/* Show the original exercise first */}
                     <TouchableOpacity
@@ -1848,7 +1940,19 @@ export function ProgressScreen() {
 
     return (
       <YStack flex={1} backgroundColor="$background">
-        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
+        <ScrollView 
+          contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#00E6C3"
+              colors={["#00E6C3"]}
+              backgroundColor="rgba(0, 0, 0, 0.1)"
+              progressBackgroundColor="#1a1a1a"
+            />
+          }
+        >
           <TouchableOpacity onPress={() => setShowDetailView(false)} style={{ marginBottom: 24 }}>
             <Feather name="arrow-left" size={28} color="#fff" />
           </TouchableOpacity>
@@ -2098,6 +2202,7 @@ export function ProgressScreen() {
                                    {main.description[lang]}
                             </Text>
                           )}
+                          <RepeatProgressBar exercise={main} />
                         </Card>
                       </XStack>
                     </TouchableOpacity>
@@ -2115,7 +2220,19 @@ export function ProgressScreen() {
 
   return (
     <YStack flex={1} backgroundColor="$background" padding={0}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
+      <ScrollView 
+        contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#00E6C3"
+            colors={["#00E6C3"]}
+            backgroundColor="rgba(0, 0, 0, 0.1)"
+            progressBackgroundColor="#1a1a1a"
+          />
+        }
+      >
         {/* Category filters */}
         <YStack
           space={12}

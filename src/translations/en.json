@@ -1,6 +1,10 @@
 {
   "common": {
-    "seeAll": "See All"
+    "seeAll": "See All",
+    "cancel": "Cancel",
+    "save": "Save",
+    "error": "Error",
+    "goBack": "Go Back"
   },
   "home": {
     "savedRoutes": "Saved Routes",
@@ -17,6 +21,42 @@
     "recordingStats": "Recording Stats"
   },
   "profile": {
+    "title": "Profile",
+    "selectSchool": "Select School",
+    "selectSupervisors": "Select Supervisors",
+    "addSelected": "Add Selected",
+    "supervisors": "Supervisors",
+    "schools": "Schools",
+    "connections": "Connections",
+    "enrolledAt": "Enrolled at",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "Enter your full name",
+    "location": "Location",
+    "locationPlaceholder": "Enter your location",
+    "privateProfile": "Private Profile",
+    "onboardingTour": "Take Onboarding Tour",
+    "contentUpdatesDemo": "Content Updates Demo",
+    "translationDemo": "Translation Demo",
+    "updating": "Updating...",
+    "updateProfile": "Update Profile",
+    "signOut": "Sign Out",
+    "developerOptions": "Developer Options",
+    "resetOnboarding": "Reset Onboarding",
+    "refreshTranslations": "Refresh Translations",
+    "refreshConfirm": "Are you sure you want to refresh all translations?",
+    "refreshSuccess": "Translations refreshed successfully",
+    "roles": {
+      "title": "Select Role",
+      "student": "Student",
+      "instructor": "Instructor",
+      "school": "School"
+    },
+    "experienceLevels": {
+      "title": "Experience Level",
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
     "routesCreated": "Routes Created",
     "routesDriven": "Routes Driven", 
     "routesSaved": "Routes Saved",
@@ -56,5 +96,10 @@
     "saveAsDraft": "Save as Draft",
     "continueEditing": "Continue Editing",
     "exitWithoutSaving": "Exit Without Saving"
+  },
+  "settings": {
+    "language": {
+      "title": "Language"
+    }
   }
 } 

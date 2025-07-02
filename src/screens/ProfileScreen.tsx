@@ -3,7 +3,7 @@ import { YStack, XStack, Switch, useTheme, Card } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 import * as Location from 'expo-location';
-import { Alert, Modal, View, Pressable, Image, ScrollView } from 'react-native';
+import { Alert, Modal, View, Pressable, Image, ScrollView, RefreshControl } from 'react-native';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
 import { Button } from '../components/Button';
@@ -65,6 +65,7 @@ export function ProfileScreen() {
   const [availableSupervisors, setAvailableSupervisors] = useState<Array<{id: string; full_name: string; email: string}>>([]);
   const [availableSchools, setAvailableSchools] = useState<Array<{id: string; name: string; location: string}>>([]);
   const [selectedSupervisorIds, setSelectedSupervisorIds] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Add comprehensive logging
   const { logAction, logAsyncAction, logRenderIssue, logMemoryWarning } = useScreenLogger({
@@ -345,13 +346,22 @@ export function ProfileScreen() {
     try {
       setRelationshipsLoading(true);
 
-      // Get supervisors 
+      // Get supervisors using the RPC function
       const { data: supervisorsData, error: supervisorsError } = await supabase
         .rpc('get_user_supervisor_details', { target_user_id: userId });
 
-      // Get schools
+      // Get schools using direct table query since the function doesn't exist
       const { data: schoolsData, error: schoolsError } = await supabase
-        .rpc('get_user_school_details', { target_user_id: userId });
+        .from('school_memberships')
+        .select(`
+          school_id,
+          schools!inner(
+            id,
+            name,
+            location
+          )
+        `)
+        .eq('user_id', userId);
 
       if (supervisorsError) {
         console.error('Error fetching supervisors:', supervisorsError);
@@ -359,15 +369,22 @@ export function ProfileScreen() {
         setSupervisors(supervisorsData || []);
       }
 
+      // Transform school data to match expected format
+      const transformedSchools = schoolsError ? [] : schoolsData?.map(membership => ({
+        school_id: membership.school_id,
+        school_name: membership.schools.name,
+        school_location: membership.schools.location
+      })) || [];
+
       if (schoolsError) {
         console.error('Error fetching schools:', schoolsError);
       } else {
-        setSchools(schoolsData || []);
+        setSchools(transformedSchools);
       }
 
       logInfo('Relationships loaded', { 
         supervisorCount: supervisorsData?.length || 0, 
-        schoolCount: schoolsData?.length || 0 
+        schoolCount: transformedSchools.length 
       });
 
     } catch (error) {
@@ -585,6 +602,24 @@ export function ProfileScreen() {
     }
   };
 
+  // Refresh function for pull-to-refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (profile?.id) {
+        await Promise.all([
+          getUserProfileWithRelationships(profile.id),
+          fetchAvailableSupervisors(),
+          fetchAvailableSchools(),
+        ]);
+      }
+    } catch (error) {
+      console.error('Error refreshing profile data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   // Load relationships when profile is available
   useEffect(() => {
     if (profile?.id) {
@@ -596,7 +631,20 @@ export function ProfileScreen() {
   }, [profile?.id, getUserProfileWithRelationships, fetchAvailableSupervisors, fetchAvailableSchools]);
 
   return (
-    <Screen scroll padding>
+    <Screen 
+      scroll 
+      padding
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor="#00E6C3"
+          colors={["#00E6C3"]}
+          backgroundColor="rgba(0, 0, 0, 0.1)"
+          progressBackgroundColor="#1a1a1a"
+        />
+      }
+    >
       <OnboardingModal
         visible={showOnboarding}
         onClose={() => setShowOnboarding(false)}

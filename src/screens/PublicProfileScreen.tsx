@@ -72,11 +72,18 @@ export function PublicProfileScreen() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
+  
+  // Relationship data
+  const [supervisors, setSupervisors] = useState<Array<{supervisor_id: string; supervisor_name: string; supervisor_email: string}>>([]);
+  const [schools, setSchools] = useState<Array<{school_id: string; school_name: string; school_location: string}>>([]);
 
   useEffect(() => {
     loadProfile();
     if (userId && user?.id && userId !== user.id) {
       loadFollowData();
+    }
+    if (userId) {
+      loadUserRelationships();
     }
   }, [userId, route.params?.refresh, user?.id]);
 
@@ -394,6 +401,57 @@ export function PublicProfileScreen() {
     }
   };
 
+  // ==================== USER RELATIONSHIPS ====================
+
+  const loadUserRelationships = async () => {
+    try {
+      if (!userId) return;
+
+      // Get supervisors using the RPC function
+      const { data: supervisorsData, error: supervisorsError } = await supabase
+        .rpc('get_user_supervisor_details', { target_user_id: userId });
+
+      // Get schools using direct table query since the function doesn't exist
+      const { data: schoolsData, error: schoolsError } = await supabase
+        .from('school_memberships')
+        .select(`
+          school_id,
+          schools!inner(
+            id,
+            name,
+            location
+          )
+        `)
+        .eq('user_id', userId);
+
+      if (supervisorsError) {
+        console.error('Error fetching user supervisors:', supervisorsError);
+      } else {
+        setSupervisors(supervisorsData || []);
+      }
+
+      // Transform school data to match expected format
+      const transformedSchools = schoolsError ? [] : schoolsData?.map(membership => ({
+        school_id: membership.school_id,
+        school_name: membership.schools.name,
+        school_location: membership.schools.location
+      })) || [];
+
+      if (schoolsError) {
+        console.error('Error fetching user schools:', schoolsError);
+      } else {
+        setSchools(transformedSchools);
+      }
+
+      console.log('📊 User relationships loaded:', {
+        supervisorCount: supervisorsData?.length || 0,
+        schoolCount: transformedSchools.length,
+      });
+    } catch (error) {
+      console.error('Error loading user relationships:', error);
+    }
+  };
+
   // ==================== FOLLOW/UNFOLLOW SYSTEM ====================
 
   const loadFollowData = async () => {
@@ -561,9 +619,8 @@ export function PublicProfileScreen() {
   };
 
   return (
-    <Screen>
-      <YStack flex={1}>
-        <Header
+    <Screen scroll padding={false}>
+      <Header
         title={profile.full_name || t('profile.user') || 'User'}
         showBack
         rightElement={
@@ -634,17 +691,7 @@ export function PublicProfileScreen() {
         }
       />
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={true}
-        scrollEnabled={true}
-        nestedScrollEnabled={true}
-        keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16}
-        bounces={true}
-      >
-        <YStack padding="$4" gap="$4">
+      <YStack padding="$4" gap="$4" paddingBottom="$8">
           {/* Profile header with avatar */}
           <YStack alignItems="center" gap="$2">
             {profile.avatar_url ? (
@@ -910,18 +957,56 @@ export function PublicProfileScreen() {
           )}
 
           {/* Connections */}
-          {profile.school && (
+          {(schools.length > 0 || supervisors.length > 0) && (
             <Card padding="$4" bordered>
               <YStack gap="$3">
                 <Text fontSize="$5" fontWeight="bold">
                   {t('profile.connections') || 'Connections'}
                 </Text>
 
-                <XStack alignItems="center" gap="$2">
-                  <Feather name="home" size={16} color={iconColor} />
-                  <Text>{t('profile.enrolledAt') || 'Enrolled at'}: </Text>
-                  <Text fontWeight="500">{profile.school.name}</Text>
-                </XStack>
+                {/* Schools */}
+                {schools.length > 0 && (
+                  <YStack gap="$2">
+                    <XStack alignItems="center" gap="$2">
+                      <Feather name="home" size={16} color={iconColor} />
+                      <Text fontWeight="500">
+                        {schools.length === 1 ? 'School:' : 'Schools:'}
+                      </Text>
+                    </XStack>
+                    {schools.map((school) => (
+                      <XStack key={school.school_id} alignItems="center" gap="$2" paddingLeft="$6">
+                        <Text>• {school.school_name}</Text>
+                        {school.school_location && (
+                          <Text color="$gray11" fontSize="$3">
+                            ({school.school_location})
+                          </Text>
+                        )}
+                      </XStack>
+                    ))}
+                  </YStack>
+                )}
+
+                {/* Supervisors */}
+                {supervisors.length > 0 && (
+                  <YStack gap="$2">
+                    <XStack alignItems="center" gap="$2">
+                      <Feather name="user-check" size={16} color={iconColor} />
+                      <Text fontWeight="500">
+                        {supervisors.length === 1 ? 'Supervisor:' : 'Supervisors:'}
+                      </Text>
+                    </XStack>
+                    {supervisors.map((supervisor) => (
+                      <XStack key={supervisor.supervisor_id} alignItems="center" gap="$2" paddingLeft="$6">
+                        <Text>• {supervisor.supervisor_name}</Text>
+                        {supervisor.supervisor_email && (
+                          <Text color="$gray11" fontSize="$3">
+                            ({supervisor.supervisor_email})
+                          </Text>
+                        )}
+                      </XStack>
+                    ))}
+                  </YStack>
+                )}
               </YStack>
             </Card>
           )}
@@ -1012,7 +1097,6 @@ export function PublicProfileScreen() {
             </Card>
           )}
         </YStack>
-      </ScrollView>
 
         {/* Report dialog */}
         {showReportDialog && (
@@ -1022,7 +1106,6 @@ export function PublicProfileScreen() {
             onClose={() => setShowReportDialog(false)}
           />
         )}
-      </YStack>
     </Screen>
   );
 }

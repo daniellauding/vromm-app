@@ -24,6 +24,7 @@ import {
   View,
   TouchableOpacity,
   useColorScheme,
+  RefreshControl,
 } from 'react-native';
 import { useScreenLogger } from '../hooks/useScreenLogger';
 import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
@@ -182,6 +183,7 @@ export function HomeScreen() {
   const [isCityMenuVisible, setIsCityMenuVisible] = useState(false);
   const [createdRoutes, setCreatedRoutes] = useState<Route[]>([]);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Refs
   const cityBackdropOpacity = useRef(new Animated.Value(0)).current;
@@ -673,7 +675,16 @@ export function HomeScreen() {
 
   // Update handleRefresh to include loadCreatedRoutes
   const handleRefresh = async () => {
-    await Promise.all([loadRoutes(), loadTodos(), loadCreatedRoutes()]);
+    setRefreshing(true);
+    try {
+      await Promise.all([loadRoutes(), loadTodos(), loadCreatedRoutes()]);
+      // Also refresh progress section
+      setProgressSectionKey(Date.now());
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const getRouteImage: (route: Route) => string | null = (route) => {
@@ -1238,6 +1249,16 @@ export function HomeScreen() {
         nestedScrollEnabled={true}
         keyboardShouldPersistTaps="handled"
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#00E6C3"
+            colors={["#00E6C3"]}
+            backgroundColor="rgba(0, 0, 0, 0.1)"
+            progressBackgroundColor="#1a1a1a"
+          />
+        }
       >
         <YStack f={1}>
           {/* Header with Welcome and Users Button */}

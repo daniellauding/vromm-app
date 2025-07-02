@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Keyboard,
   StatusBar,
+  RefreshControl,
 } from 'react-native';
 import type { Edge } from 'react-native-safe-area-context';
 
@@ -17,6 +18,7 @@ type ScreenProps = {
   scroll?: boolean;
   edges?: Edge[];
   hideStatusBar?: boolean;
+  refreshControl?: React.ReactElement<typeof RefreshControl>;
 };
 
 export function Screen({
@@ -25,6 +27,7 @@ export function Screen({
   scroll = true,
   edges = ['top'],
   hideStatusBar = false,
+  refreshControl,
 }: ScreenProps) {
   return (
     <YStack f={1} backgroundColor="$background">
@@ -40,6 +43,7 @@ export function Screen({
                 style={{ flex: 1 }}
                 contentContainerStyle={{ flexGrow: 1 }}
                 keyboardShouldPersistTaps="handled"
+                refreshControl={refreshControl}
               >
                 <YStack f={1} px={padding ? '$6' : undefined} py={padding ? '$4' : undefined}>
                   {children}
