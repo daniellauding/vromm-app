@@ -677,7 +677,7 @@ export function HomeScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadRoutes(), loadTodos(), loadCreatedRoutes()]);
+    await Promise.all([loadRoutes(), loadTodos(), loadCreatedRoutes()]);
       // Also refresh progress section
       setProgressSectionKey(Date.now());
     } catch (error) {

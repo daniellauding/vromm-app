@@ -72,7 +72,7 @@ export function PublicProfileScreen() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
-  
+
   // Relationship data
   const [supervisors, setSupervisors] = useState<Array<{supervisor_id: string; supervisor_name: string; supervisor_email: string}>>([]);
   const [schools, setSchools] = useState<Array<{school_id: string; school_name: string; school_location: string}>>([]);
@@ -620,7 +620,7 @@ export function PublicProfileScreen() {
 
   return (
     <Screen scroll padding={false}>
-      <Header
+        <Header
         title={profile.full_name || t('profile.user') || 'User'}
         showBack
         rightElement={
@@ -967,12 +967,12 @@ export function PublicProfileScreen() {
                 {/* Schools */}
                 {schools.length > 0 && (
                   <YStack gap="$2">
-                    <XStack alignItems="center" gap="$2">
-                      <Feather name="home" size={16} color={iconColor} />
+                <XStack alignItems="center" gap="$2">
+                  <Feather name="home" size={16} color={iconColor} />
                       <Text fontWeight="500">
                         {schools.length === 1 ? 'School:' : 'Schools:'}
                       </Text>
-                    </XStack>
+                </XStack>
                     {schools.map((school) => (
                       <XStack key={school.school_id} alignItems="center" gap="$2" paddingLeft="$6">
                         <Text>• {school.school_name}</Text>

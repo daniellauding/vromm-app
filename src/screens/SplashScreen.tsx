@@ -26,6 +26,7 @@ import { Flag, HelpCircle, Check, GraduationCap, School } from '@tamagui/lucide-
 import { FontAwesome } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Title, Text as DesignText } from '@daniellauding/vromm-design-system';
 
 // Define styles outside of the component
 const styles = StyleSheet.create({
@@ -479,19 +480,12 @@ export function SplashScreen() {
           <Animated.View style={{ opacity: contentOpacity, width: '100%', alignItems: 'center' }}>
             <View style={styles.middleSection}>
               <YStack gap={12} alignItems="center" marginBottom={56}>
-                <Heading
-                  style={{
-                    fontWeight: '800',
-                    fontStyle: 'italic',
-                    textAlign: 'center',
-                    color: 'white',
-                  }}
-                >
+                <Title size="2xl" weight="bold" align="center" style={{ color: 'white' }}>
                   {t('auth.signIn.title')}
-                </Heading>
-                <Text size="md" color="white" textAlign="center">
-                  {t('auth.signIn.slogan')}
-                </Text>
+                </Title>
+                <DesignText size="lg" variant="weak" align="center" style={{ color: '#9CA3AF' }}>
+                  {t('auth.signIn.slogan')} {/* Using @daniellauding/vromm-design-system! */}
+                </DesignText>
               </YStack>
 
               <YStack gap={16} width="100%" paddingHorizontal="$4" marginTop="$4">
