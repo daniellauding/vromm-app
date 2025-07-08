@@ -6,6 +6,7 @@ import { Header } from '../components/Header';
 import { RouteCard } from '../components/RouteCard';
 import { Button } from '../components/Button';
 import type { Route } from '../hooks/useRoutes';
+import { useAuth } from '../context/AuthContext';
 
 type FilterCategory = {
   id: string;
@@ -26,7 +27,24 @@ type RouteListScreenProps = {
 };
 
 export function RouteListScreen({ route }: RouteListScreenProps) {
-  const { title, routes, type, activeFilter } = route.params;
+  const { title, routes: paramRoutes = [], type, activeFilter } = route.params;
+  const { user } = useAuth();
+  const [routes, setRoutes] = React.useState<Route[]>(paramRoutes);
+
+  React.useEffect(() => {
+    if (!user && paramRoutes.length > 0) return;
+    if (type === 'driven') {
+      const loadDrivenRoutes = async () => {
+        const { data, error } = await supabase
+          .from('driven_routes')
+          .select('*')
+          .eq('user_id', user.id);
+
+        setRoutes(data as Route[]);
+      };
+      loadDrivenRoutes();
+    }
+  }, [paramRoutes, type, user]);
 
   return (
     <Screen>

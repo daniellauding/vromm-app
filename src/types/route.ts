@@ -96,3 +96,15 @@ export type Route = Database['public']['Tables']['routes']['Row'] & {
     user: { id: string; full_name: string };
   }[];
 };
+
+export type SavedRouteFromDB = {
+  id: string;
+  route_id: string | null;
+  user_id: string | null;
+  saved_at: string | null;
+  routes: Route | null;
+};
+
+export type SavedRoute = Route & {
+  saved_at: string;
+};

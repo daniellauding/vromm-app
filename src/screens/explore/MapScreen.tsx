@@ -1,19 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map } from '../../components/Map';
 
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp, FilterCategory } from '../../types/navigation';
 
-import { Text } from 'tamagui';
 import * as Location from 'expo-location';
-import { Feather } from '@expo/vector-icons';
 import { Screen } from '../../components/Screen';
 import { useRoutes } from '../../hooks/useRoutes';
 import type { Route as RouteType, WaypointData } from '../../hooks/useRoutes';
@@ -24,9 +17,8 @@ import { useTranslation } from '../../contexts/TranslationContext';
 import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
 import { useModal } from '../../contexts/ModalContext';
 import { SelectedRoute } from './SelectedRoute';
-
-const MAPBOX_ACCESS_TOKEN =
-  'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
+import { useActiveRoutes, useRoutesFilters, useWaypoints } from './hooks';
+import { calculateDistance, getDistanceFromLatLonInKm } from './utils';
 
 type SearchResult = {
   id: string;
@@ -46,44 +38,14 @@ const DARK_THEME = {
   cardBackground: '#2D3130',
 };
 
-const BOTTOM_NAV_HEIGHT = 80; // Height of bottom navigation bar including safe area
-const deg2rad = (deg: number) => {
-  return deg * (Math.PI / 180);
-};
-
-// Helper function to calculate distance
-const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371; // Radius of the earth in km
-  const dLat = deg2rad(lat2 - lat1);
-  const dLon = deg2rad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const d = R * c; // Distance in km
-  return d;
-};
-
 export function MapScreen({ route }: { route: { params?: { selectedLocation?: any } } }) {
   const { t } = useTranslation();
-  const navigation = useNavigation<NavigationProp>();
   const [routes, setRoutes] = useState<RouteType[]>([]);
   const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
   const { fetchRoutes } = useRoutes();
-  const backgroundColor = DARK_THEME.background;
-  const handleColor = DARK_THEME.handleColor;
-  const iconColor = DARK_THEME.iconColor;
-  const textColor = DARK_THEME.text;
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
+
   const [isMapReady, setIsMapReady] = useState(false);
-  const [allFilters, setAllFilters] = useState<FilterCategory[]>([]);
-  const [activeFilter, setActiveFilter] = useState<FilterCategory | null>(null);
   const { showModal } = useModal();
   const mapRef = useRef<MapView>(null);
   const [region, setRegion] = useState({
@@ -108,25 +70,9 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     );
   }, [routes]);
 
-  const getAllWaypoints = useMemo(() => {
-    return filteredRoutes
-      .map((route) => {
-        const waypointsData = (route.waypoint_details ||
-          route.metadata?.waypoints ||
-          []) as WaypointData[];
-        const firstWaypoint = waypointsData[0];
-        if (!firstWaypoint) return null;
-
-        return {
-          latitude: Number(firstWaypoint.lat),
-          longitude: Number(firstWaypoint.lng),
-          title: route.name,
-          description: route.description || undefined,
-          id: route.id,
-        };
-      })
-      .filter((wp): wp is NonNullable<typeof wp> => wp !== null);
-  }, [filteredRoutes]);
+  const availableFilters = useRoutesFilters(routes);
+  const { activeRoutes, filters, setFilters, setActiveRoutes } = useActiveRoutes(routes);
+  const activeWaypoints = useWaypoints(activeRoutes);
 
   const handleMarkerPress = useCallback(
     (waypointId: string) => {
@@ -183,108 +129,12 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     })();
   }, []);
 
-  const handleSearch = useCallback(
-    (text: string) => {
-      console.log('Search input:', text);
-      setSearchQuery(text);
-
-      // Clear any existing timeout
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-      }
-
-      // Set a new timeout for search
-      const timeout = setTimeout(async () => {
-        if (text.length > 0) {
-          setIsSearching(true);
-          try {
-            console.log('Fetching search results for:', text);
-            // Use Mapbox Geocoding API for better place suggestions
-            const response = await fetch(
-              `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-                text,
-              )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality,address,country,region&language=en`,
-            );
-
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('Search response:', {
-              status: response.status,
-              resultCount: data.features?.length || 0,
-            });
-
-            setSearchResults(data.features || []);
-            setShowSearchResults(true);
-          } catch (error) {
-            console.error('Search error:', error);
-            setSearchResults([]);
-          } finally {
-            setIsSearching(false);
-          }
-        } else {
-          setSearchResults([]);
-          setShowSearchResults(false);
-        }
-
-        // Filter routes based on search text
-        const searchLower = text.toLowerCase();
-        const filtered = routes.filter((route) => {
-          return (
-            route.name.toLowerCase().includes(searchLower) ||
-            route.description?.toLowerCase().includes(searchLower) ||
-            route.creator?.full_name.toLowerCase().includes(searchLower)
-          );
-        });
-        setFilteredRoutes(filtered);
-      }, 300);
-
-      setSearchTimeout(timeout as unknown as NodeJS.Timeout);
-    },
-    [routes],
-  );
-
-  // Reset filtered routes when routes change
-  useEffect(() => {
-    setFilteredRoutes(routes);
-  }, [routes]);
-
-  // Clean up timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-      }
-    };
-  }, [searchTimeout]);
-
   // Update focus effect to reset both route and pin selection
   useFocusEffect(
     React.useCallback(() => {
       setSelectedRoute(null);
       setSelectedPin(null);
     }, []),
-  );
-
-  // Add distance calculation
-  const calculateDistance = useCallback(
-    (lat1: number, lon1: number, lat2: number, lon2: number) => {
-      const R = 6371; // Earth's radius in km
-      const dLat = ((lat2 - lat1) * Math.PI) / 180;
-      const dLon = ((lon2 - lon1) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((lat1 * Math.PI) / 180) *
-          Math.cos((lat2 * Math.PI) / 180) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distance = R * c;
-      return distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`;
-    },
-    [],
   );
 
   const handleLocationSelect = useCallback(
@@ -366,163 +216,20 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         });
       }
     },
-    [routes, setRegion, calculateDistance],
+    [routes, setRegion],
   );
-
-  // Update search results with distance
-  const searchResultsWithDistance = useMemo(() => {
-    if (!region || !searchResults.length) return [];
-    return searchResults.map((result) => ({
-      ...result,
-      distance: calculateDistance(
-        region.latitude,
-        region.longitude,
-        result.center[1],
-        result.center[0],
-      ),
-    }));
-  }, [searchResults, region, calculateDistance]);
-
-  // Handle location selection from search screen
-  useEffect(() => {
-    if (route.params?.selectedLocation) {
-      const result = route.params.selectedLocation;
-      handleLocationSelect(result);
-    }
-  }, [route.params?.selectedLocation, handleLocationSelect]);
-
-  // Extract filters from routes
-  const extractFilters = useCallback((routes: RouteType[]) => {
-    const filterMap: Record<string, FilterCategory> = {};
-
-    routes.forEach((route) => {
-      // Difficulty
-      if (route.difficulty) {
-        filterMap[`difficulty-${route.difficulty}`] = {
-          id: `difficulty-${route.difficulty}`,
-          label: route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
-          value: route.difficulty,
-          type: 'difficulty',
-        };
-      }
-
-      // Spot Type
-      if (route.spot_type) {
-        filterMap[`spot-${route.spot_type}`] = {
-          id: `spot-${route.spot_type}`,
-          label:
-            route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
-          value: route.spot_type,
-          type: 'spot_type',
-        };
-      }
-
-      // Category
-      if (route.category) {
-        filterMap[`category-${route.category}`] = {
-          id: `category-${route.category}`,
-          label:
-            route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
-          value: route.category,
-          type: 'category',
-        };
-      }
-
-      // Transmission Type
-      if (route.transmission_type) {
-        filterMap[`transmission-${route.transmission_type}`] = {
-          id: `transmission-${route.transmission_type}`,
-          label:
-            route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() +
-            route.transmission_type.slice(1),
-          value: route.transmission_type,
-          type: 'transmission_type',
-        };
-      }
-
-      // Activity Level
-      if (route.activity_level) {
-        filterMap[`activity-${route.activity_level}`] = {
-          id: `activity-${route.activity_level}`,
-          label:
-            route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() +
-            route.activity_level.slice(1),
-          value: route.activity_level,
-          type: 'activity_level',
-        };
-      }
-
-      // Best Season
-      if (route.best_season) {
-        filterMap[`season-${route.best_season}`] = {
-          id: `season-${route.best_season}`,
-          label:
-            route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() +
-            route.best_season.slice(1),
-          value: route.best_season,
-          type: 'best_season',
-        };
-      }
-
-      // Vehicle Types
-      if (route.vehicle_types && Array.isArray(route.vehicle_types)) {
-        route.vehicle_types.forEach((type) => {
-          filterMap[`vehicle-${type}`] = {
-            id: `vehicle-${type}`,
-            label: type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
-            value: type,
-            type: 'vehicle_types',
-          };
-        });
-      }
-    });
-
-    setAllFilters(Object.values(filterMap));
-  }, []);
 
   // Handle filter selection
   const handleFilterPress = useCallback(
     (filter: FilterCategory) => {
-      if (activeFilter?.id === filter.id) {
-        setActiveFilter(null);
-        setFilteredRoutes(routes);
+      if (filters?.id === filter.id) {
+        setFilters(null);
       } else {
-        setActiveFilter(filter);
-        const filtered = routes.filter((route) => {
-          // console.log('route', route);
-          switch (filter.type) {
-            case 'difficulty':
-              return route.difficulty === filter.value;
-            case 'spot_type':
-              console.log('spot_type', route.spot_type, filter.value);
-              return route.spot_type === filter.value;
-            case 'category':
-              console.log('category', route.category, filter.value);
-              return route.category === filter.value;
-            case 'transmission_type':
-              return route.transmission_type === filter.value;
-            case 'activity_level':
-              return route.activity_level === filter.value;
-            case 'best_season':
-              return route.best_season === filter.value;
-            case 'vehicle_types':
-              return route.vehicle_types?.includes(filter.value);
-            default:
-              return false;
-          }
-        });
-        setFilteredRoutes(filtered);
+        // setFilters(filter);
       }
     },
-    [activeFilter, routes],
+    [filters, setFilters],
   );
-
-  // Update filters when routes change
-  useEffect(() => {
-    if (routes.length > 0) {
-      extractFilters(routes);
-    }
-  }, [routes, extractFilters]);
 
   const handleLocateMe = useCallback(async () => {
     try {
@@ -550,77 +257,9 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   // Apply filters from the filter sheet
   const handleApplyFilters = useCallback(
     (filters: FilterOptions) => {
-      setAppliedFilters(filters);
-
-      let filtered = [...routes];
-
-      // Apply difficulty filter
-      if (filters.difficulty?.length) {
-        filtered = filtered.filter((route) => filters.difficulty?.includes(route.difficulty || ''));
-      }
-
-      // Apply spot type filter
-      if (filters.spotType?.length) {
-        filtered = filtered.filter((route) => filters.spotType?.includes(route.spot_type || ''));
-      }
-
-      // Apply category filter
-      if (filters.category?.length) {
-        filtered = filtered.filter((route) => filters.category?.includes(route.category || ''));
-      }
-
-      // Apply transmission type filter
-      if (filters.transmissionType?.length) {
-        filtered = filtered.filter((route) =>
-          filters.transmissionType?.includes(route.transmission_type || ''),
-        );
-      }
-
-      // Apply activity level filter
-      if (filters.activityLevel?.length) {
-        filtered = filtered.filter((route) =>
-          filters.activityLevel?.includes(route.activity_level || ''),
-        );
-      }
-
-      // Apply best season filter
-      if (filters.bestSeason?.length) {
-        filtered = filtered.filter((route) =>
-          filters.bestSeason?.includes(route.best_season || ''),
-        );
-      }
-
-      // Apply vehicle types filter
-      if (filters.vehicleTypes?.length) {
-        filtered = filtered.filter((route) =>
-          route.vehicle_types?.some((type) => filters.vehicleTypes?.includes(type)),
-        );
-      }
-
-      // Apply max distance filter (would need current location)
-      if (filters.maxDistance && region.latitude && region.longitude) {
-        filtered = filtered.filter((route) => {
-          const firstWaypoint = route.waypoint_details?.[0] || route.metadata?.waypoints?.[0];
-          if (!firstWaypoint) return false;
-
-          const routeLat = Number(firstWaypoint.lat);
-          const routeLng = Number(firstWaypoint.lng);
-
-          // Calculate distance
-          const distanceKm = getDistanceFromLatLonInKm(
-            region.latitude,
-            region.longitude,
-            routeLat,
-            routeLng,
-          );
-
-          return distanceKm <= (filters.maxDistance || 100);
-        });
-      }
-
-      setFilteredRoutes(filtered);
+      setFilters(filters);
     },
-    [routes, region, getDistanceFromLatLonInKm],
+    [setFilters],
   );
 
   // Handle filter button press
@@ -633,10 +272,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       />,
     );
   }, [showModal, handleApplyFilters, filteredRoutes.length, appliedFilters]);
-
-
-
-
 
   if (!isMapReady) {
     return (
@@ -653,14 +288,13 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       <SafeAreaView edges={['top']} style={{ zIndex: 1000 }}>
         <AppHeader
           onLocateMe={handleLocateMe}
-          filters={allFilters}
+          filters={availableFilters}
           onFilterPress={handleFilterPress}
           onFilterButtonPress={handleFilterButtonPress}
         />
       </SafeAreaView>
       <Map
-        key={`map-${routes.length}`}
-        waypoints={getAllWaypoints}
+        waypoints={activeWaypoints}
         region={region}
         onPress={handleMapPress}
         style={StyleSheet.absoluteFillObject}
@@ -669,19 +303,17 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         ref={mapRef}
       />
 
-
-
-      <RoutesDrawer
+      {/* <RoutesDrawer
         selectedRoute={selectedRoute}
         filteredRoutes={filteredRoutes}
         loadRoutes={loadRoutes}
-      />
+      /> */}
 
-      <SelectedRoute
+      {/*<SelectedRoute
         selectedRoute={selectedRoute}
         setSelectedRoute={setSelectedRoute}
         setSelectedPin={setSelectedPin}
-      />
+      />*/}
     </Screen>
   );
 }

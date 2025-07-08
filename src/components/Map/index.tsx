@@ -4,6 +4,7 @@ import MapView, { Marker, Region, Polyline } from 'react-native-maps';
 import { StyleSheet } from 'react-native';
 import { Text, Circle } from 'tamagui';
 import Supercluster from 'supercluster';
+import RouterDrawing from './RouterDrawing';
 
 export type Waypoint = {
   latitude: number;
@@ -106,7 +107,8 @@ const WaypointMarker = React.memo(
       if (drawingMode === 'pin') return '#3B82F6'; // Blue for pins
       if (drawingMode === 'waypoint') {
         if (waypointIndex === 0) return '#22C55E'; // Green for start
-        if (waypointIndex === (totalWaypoints || 1) - 1 && (totalWaypoints || 0) > 1) return '#EF4444'; // Red for end
+        if (waypointIndex === (totalWaypoints || 1) - 1 && (totalWaypoints || 0) > 1)
+          return '#EF4444'; // Red for end
         return '#3B82F6'; // Blue for middle waypoints
       }
       if (drawingMode === 'pen') return '#FF6B35'; // Orange for pen points
@@ -149,8 +151,8 @@ const WaypointMarker = React.memo(
       </Marker>
     );
   },
-  (prevProps, nextProps) => 
-    prevProps.cluster.id === nextProps.cluster.id && 
+  (prevProps, nextProps) =>
+    prevProps.cluster.id === nextProps.cluster.id &&
     prevProps.drawingMode === nextProps.drawingMode &&
     prevProps.waypointIndex === nextProps.waypointIndex,
 );
@@ -287,11 +289,10 @@ export function Map({
       count: waypoints.length,
       drawingMode,
       hasWaypoints: waypoints.length > 0,
-      waypointIds: waypoints.map(wp => wp.id || 'no-id').slice(0, 5), // Only first 5 IDs
-      regionProvided: !!region,
-      timestamp: Date.now()
+      waypointIds: waypoints.map((wp) => wp.id || 'no-id').slice(0, 5), // Only first 5 IDs
+      timestamp: Date.now(),
     });
-    
+
     if (waypoints.length > 0) {
       const geoPoints = waypoints.map((point: Waypoint) => ({
         type: 'Feature' as const,
@@ -304,16 +305,16 @@ export function Map({
           coordinates: [point.longitude, point.latitude],
         },
       }));
-      
+
       console.log('🗺️ Map: created geoPoints', geoPoints.length, 'features');
       supercluster.current?.load(geoPoints);
-      calculateClusters({ region: currentRegion.current || region });
+      calculateClusters({ region: currentRegion.current });
     } else {
       // Clear clusters when no waypoints
       console.log('🗺️ Map: clearing clusters (no waypoints)');
       setClusters([]);
     }
-  }, [waypoints, calculateClusters, region]);
+  }, [waypoints, calculateClusters, drawingMode]);
 
   // Handle region changes
   const handleRegionChange = useCallback(
@@ -347,7 +348,12 @@ export function Map({
   );
 
   if (!region) return null;
+  if (drawingMode) {
+    console.trace();
+    return null;
+  }
 
+  console.log('🗺️ Map: region', region);
   return (
     <View style={[styles.container, style]}>
       <MapView
@@ -363,94 +369,24 @@ export function Map({
         onRegionChangeComplete={handleRegionChange}
         userInterfaceStyle="dark"
       >
-        {/* Display route path if provided */}
-        {routePath && routePath.length > 1 && (
-          <Polyline
-            coordinates={routePath}
-            strokeWidth={routePathWidth}
-            strokeColor={routePathColor}
-            lineJoin="round"
-          />
-        )}
-
-        {/* Display pen drawing coordinates if provided */}
-        {penDrawingCoordinates && penDrawingCoordinates.length > 1 && (
-          <>
-            {console.log('🎨 [Map] Rendering pen drawing with', penDrawingCoordinates.length, 'coordinates')}
-            <Polyline
-              coordinates={penDrawingCoordinates}
-              strokeWidth={8}
-              strokeColor="#FF6B35"
-              lineJoin="round"
-              lineCap="round"
-              geodesic={false}
-            />
-          </>
-        )}
-        
-        {/* Show single pen drawing point as marker if only one point */}
-        {penDrawingCoordinates && penDrawingCoordinates.length === 1 && (
-          <>
-            {console.log('🎨 [Map] Rendering single pen drawing point:', penDrawingCoordinates[0])}
-            <Marker
-              coordinate={penDrawingCoordinates[0]}
-              title="Pen Drawing"
-              description="Single drawn point"
-              pinColor="orange"
-            />
-          </>
-        )}
-
-        {/* Display start and end markers for recorded routes */}
-        {showStartEndMarkers && routePath && routePath.length > 1 && (
-          <>
-            {/* Start marker (green) */}
-            <Marker coordinate={routePath[0]} anchor={{ x: 0.5, y: 1 }}>
-              <View
-                style={{
-                  width: 20,
-                  height: 20,
-                  backgroundColor: '#22C55E',
-                  borderRadius: 10,
-                  borderWidth: 2,
-                  borderColor: 'white',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 3.84,
-                  elevation: 5,
-                }}
-              />
-            </Marker>
-            
-            {/* End marker (red) */}
-            <Marker coordinate={routePath[routePath.length - 1]} anchor={{ x: 0.5, y: 1 }}>
-              <View
-                style={{
-                  width: 20,
-                  height: 20,
-                  backgroundColor: '#EF4444',
-                  borderRadius: 10,
-                  borderWidth: 2,
-                  borderColor: 'white',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 3.84,
-                  elevation: 5,
-                }}
-              />
-            </Marker>
-          </>
-        )}
-
+        <RouterDrawing
+          routePath={routePath}
+          penDrawingCoordinates={penDrawingCoordinates}
+          drawingMode={drawingMode}
+          routePathColor={routePathColor}
+          routePathWidth={routePathWidth}
+          showStartEndMarkers={showStartEndMarkers}
+        />
         {clusters.map((cluster, index) => {
           // Find waypoint index for proper coloring
-          const waypointIndex = waypoints.findIndex(wp => 
-            wp.id === cluster.properties.id || 
-            `waypoint-${waypoints.indexOf(wp)}` === cluster.properties.id
+          const waypointIndex = waypoints.findIndex(
+            (wp) =>
+              wp.id === cluster.properties.id ||
+              `waypoint-${waypoints.indexOf(wp)}` === cluster.properties.id,
           );
-          
+
+          console.log('🗺️ Map: cluster', cluster);
+
           return (
             <WaypointMarker
               key={cluster.properties.cluster_id ?? cluster.properties.id ?? cluster.id ?? index}
