@@ -302,18 +302,16 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         onMarkerPress={handleMarkerPress}
         ref={mapRef}
       />
-
-      {/* <RoutesDrawer
+      <RoutesDrawer
         selectedRoute={selectedRoute}
-        filteredRoutes={filteredRoutes}
+        filteredRoutes={activeRoutes}
         loadRoutes={loadRoutes}
-      /> */}
-
-      {/*<SelectedRoute
+      />
+      <SelectedRoute
         selectedRoute={selectedRoute}
         setSelectedRoute={setSelectedRoute}
         setSelectedPin={setSelectedPin}
-      />*/}
+      />
     </Screen>
   );
 }

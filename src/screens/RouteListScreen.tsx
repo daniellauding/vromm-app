@@ -1,12 +1,12 @@
 import React from 'react';
-import { ScrollView } from 'react-native';
 import { YStack, XStack } from 'tamagui';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
-import { RouteCard } from '../components/RouteCard';
+import { RouteList } from '../components/RouteList';
 import { Button } from '../components/Button';
 import type { Route } from '../hooks/useRoutes';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 type FilterCategory = {
   id: string;
@@ -33,7 +33,7 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
 
   React.useEffect(() => {
     if (!user && paramRoutes.length > 0) return;
-    if (type === 'driven') {
+    if (type === 'driven' && user) {
       const loadDrivenRoutes = async () => {
         const { data, error } = await supabase
           .from('driven_routes')
@@ -60,13 +60,7 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
           </XStack>
         )}
 
-        <ScrollView>
-          <YStack px="$4" pb="$4" gap="$4">
-            {routes.map((route) => (
-              <RouteCard key={route.id} route={route} />
-            ))}
-          </YStack>
-        </ScrollView>
+        <RouteList routes={routes} />
       </YStack>
     </Screen>
   );

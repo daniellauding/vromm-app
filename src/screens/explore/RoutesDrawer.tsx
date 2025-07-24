@@ -8,15 +8,9 @@ import {
   NativeSyntheticEvent,
   StyleSheet,
   View,
-  ScrollView,
 } from 'react-native';
 import { useTranslation } from '@/src/contexts/TranslationContext';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  runOnJS,
-} from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Text, XStack } from 'tamagui';
 
