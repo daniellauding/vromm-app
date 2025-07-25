@@ -28,30 +28,43 @@ import { useCallback } from 'react';
 import { useScreenLogger } from '../hooks/useScreenLogger';
 import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
 
-// Define LearningPath type based on the learning_paths table
+// Define LearningPath type based on the learning_paths table with all fields
 interface LearningPath {
   id: string;
   title: { en: string; sv: string };
   description: { en: string; sv: string };
   icon: string | null;
   image: string | null;
+  youtube_url?: string;
+  embed_code?: string;
   order_index: number;
   active: boolean;
+  bypass_order: boolean; // NEW: Skip order requirements
   created_at: string;
   updated_at: string;
-  // Category fields
+  
+  // Access Control & Business Logic
+  is_locked?: boolean;
+  lock_password?: string | null;
+  language_specific_media?: boolean;
+  
+  // Monetization (Paywall) - NEW
+  paywall_enabled?: boolean;
+  price_usd?: number;
+  price_sek?: number;
+  
+  // Enhanced Categorization - EXTENDED
+  platform?: string; // web/mobile/both
+  type?: string; // learning/assessment/etc
   vehicle_type?: string;
   transmission_type?: string;
   license_type?: string;
   experience_level?: string;
   purpose?: string;
   user_profile?: string;
-  // Lock fields
-  is_locked?: boolean;
-  lock_password?: string | null;
 }
 
-// Add Exercise type for learning_path_exercises
+// Enhanced Exercise type with all fields
 interface PathExercise {
   id: string;
   learning_path_id: string;
@@ -61,17 +74,83 @@ interface PathExercise {
   youtube_url?: string;
   icon?: string;
   image?: string;
+  embed_code?: string;
   created_at?: string;
   updated_at?: string;
   language_specific_media?: boolean;
-  embed_code?: string;
-  // Lock fields
+  
+  // Access Control - EXTENDED
   is_locked?: boolean;
   lock_password?: string | null;
+  bypass_order?: boolean; // NEW: Skip order requirements for this exercise
+  
+  // Monetization - NEW
+  paywall_enabled?: boolean;
+  price_usd?: number;
+  price_sek?: number;
+  
+  // Repeat functionality (existing)
   repeat_count?: number;
   isRepeat?: boolean;
   originalId?: string;
   repeatNumber?: number;
+  
+  // Quiz System - NEW
+  has_quiz?: boolean;
+  quiz_required?: boolean;
+  quiz_pass_score?: number;
+}
+
+// NEW: Quiz-related interfaces
+interface QuizQuestion {
+  id: string;
+  exercise_id: string;
+  question_text: { en: string; sv: string };
+  question_type: 'single_choice' | 'multiple_choice' | 'true_false';
+  image?: string;
+  youtube_url?: string;
+  embed_code?: string;
+  order_index: number;
+  required: boolean;
+  points: number;
+  explanation_text?: { en: string; sv: string };
+}
+
+interface QuizAnswer {
+  id: string;
+  question_id: string;
+  answer_text: { en: string; sv: string };
+  is_correct: boolean;
+  image?: string;
+  youtube_url?: string;
+  embed_code?: string;
+  order_index: number;
+}
+
+interface UserQuizSubmission {
+  id: string;
+  user_id: string;
+  question_id: string;
+  selected_answers: string[];
+  is_correct: boolean;
+  points_earned: number;
+  time_spent: number;
+  created_at: string;
+}
+
+// NEW: Payment-related interface
+interface UserPayment {
+  id: string;
+  user_id: string;
+  learning_path_id?: string;
+  exercise_id?: string;
+  amount: number;
+  currency: string;
+  status: 'completed' | 'pending' | 'failed';
+  payment_method: string;
+  transaction_id: string;
+  expires_at?: string;
+  created_at: string;
 }
 
 // For demo, English only. Replace with language context if needed.
@@ -84,6 +163,7 @@ interface ProgressCircleProps {
   color?: string;
   bg?: string;
 }
+
 function ProgressCircle({
   percent,
   size = 56,
@@ -121,14 +201,16 @@ function ProgressCircle({
   );
 }
 
-// Define category types based on the learning_path_categories table
+// Define category types based on the learning_path_categories table with new ones
 type CategoryType =
   | 'vehicle_type'
   | 'transmission_type'
   | 'license_type'
   | 'experience_level'
   | 'purpose'
-  | 'user_profile';
+  | 'user_profile'
+  | 'platform' // NEW
+  | 'type'; // NEW
 
 interface CategoryOption {
   id: string;
@@ -163,7 +245,7 @@ export function ProgressScreen() {
     trackMemory: true,
   });
 
-  // Add category filters with proper state
+  // Add category filters with proper state - EXTENDED with new categories
   const [categoryOptions, setCategoryOptions] = useState<Record<CategoryType, CategoryOption[]>>({
     vehicle_type: [],
     transmission_type: [],
@@ -171,9 +253,11 @@ export function ProgressScreen() {
     experience_level: [],
     purpose: [],
     user_profile: [],
+    platform: [], // NEW
+    type: [], // NEW
   });
 
-  // State for which categories are selected
+  // State for which categories are selected - EXTENDED
   const [categoryFilters, setCategoryFilters] = useState<Record<CategoryType, string>>({
     vehicle_type: '',
     transmission_type: '',
@@ -181,6 +265,8 @@ export function ProgressScreen() {
     experience_level: '',
     purpose: '',
     user_profile: '',
+    platform: '', // NEW
+    type: '', // NEW
   });
 
   // Add state for password inputs and unlocked items
@@ -189,13 +275,18 @@ export function ProgressScreen() {
   const [unlockedPaths, setUnlockedPaths] = useState<string[]>([]);
   const [unlockedExercises, setUnlockedExercises] = useState<string[]>([]);
   const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
-  
+
   // Add state for database-persisted unlocks
   const [persistedUnlocks, setPersistedUnlocks] = useState<{
     paths: string[];
     exercises: string[];
   }>({ paths: [], exercises: [] });
   const [refreshing, setRefreshing] = useState(false);
+
+  // NEW: Payment and access control state
+  const [userPayments, setUserPayments] = useState<UserPayment[]>([]);
+  const [accessiblePaths, setAccessiblePaths] = useState<string[]>([]);
+  const [accessibleExercises, setAccessibleExercises] = useState<string[]>([]);
 
   // Load categories from Supabase
   useEffect(() => {
@@ -211,7 +302,7 @@ export function ProgressScreen() {
           return;
         }
 
-        // Group by category type
+        // Group by category type - EXTENDED with new categories
         const groupedCategories: Record<CategoryType, CategoryOption[]> = {
           vehicle_type: [],
           transmission_type: [],
@@ -219,6 +310,8 @@ export function ProgressScreen() {
           experience_level: [],
           purpose: [],
           user_profile: [],
+          platform: [],
+          type: [],
         };
 
         // Add an "All" option for each category
@@ -251,6 +344,8 @@ export function ProgressScreen() {
           experience_level: 'all',
           purpose: 'all',
           user_profile: 'all',
+          platform: 'all',
+          type: 'all',
         };
 
         Object.keys(groupedCategories).forEach((key) => {
@@ -273,7 +368,7 @@ export function ProgressScreen() {
   // Modal state for category filter selection
   const [activeFilterType, setActiveFilterType] = useState<CategoryType | null>(null);
 
-  // Category labels for display
+  // Category labels for display - EXTENDED
   const categoryLabels: Record<CategoryType, string> = {
     vehicle_type: 'Vehicle Type',
     transmission_type: 'Transmission',
@@ -281,12 +376,54 @@ export function ProgressScreen() {
     experience_level: 'Experience Level',
     purpose: 'Purpose',
     user_profile: 'User Profile',
+    platform: 'Platform', // NEW
+    type: 'Content Type', // NEW
   };
 
   // Filter option selection handler
   const handleFilterSelect = (filterType: CategoryType, value: string) => {
     setCategoryFilters((prev) => ({ ...prev, [filterType]: value }));
     setActiveFilterType(null);
+  };
+
+  // NEW: Load user payments and access control
+  const loadUserAccess = async () => {
+    if (!user) return;
+
+    try {
+      // Load user payments
+      const { data: payments, error: paymentsError } = await supabase
+        .from('user_payments')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'completed');
+
+      if (!paymentsError && payments) {
+        setUserPayments(payments);
+      }
+
+      // Load accessible paths using helper function
+      const { data: pathsData, error: pathsError } = await supabase.rpc(
+        'user_can_access_paths_bulk',
+        { user_uuid: user.id },
+      );
+
+      if (!pathsError && pathsData) {
+        setAccessiblePaths(pathsData);
+      }
+
+      // Load accessible exercises using helper function
+      const { data: exercisesData, error: exercisesError } = await supabase.rpc(
+        'user_can_access_exercises_bulk',
+        { user_uuid: user.id },
+      );
+
+      if (!exercisesError && exercisesData) {
+        setAccessibleExercises(exercisesData);
+      }
+    } catch (error) {
+      console.error('Error loading user access:', error);
+    }
   };
 
   // Refresh function for pull-to-refresh
@@ -297,6 +434,7 @@ export function ProgressScreen() {
         fetchLearningPaths(),
         fetchCompletions(),
         loadExistingUnlocks(),
+        loadUserAccess(), // NEW
       ]);
     } catch (error) {
       console.error('Error refreshing progress data:', error);
@@ -306,7 +444,9 @@ export function ProgressScreen() {
   };
 
   // Calculate repeat progress for an exercise
-  const getRepeatProgress = (exercise: PathExercise): { completed: number; total: number; percent: number } => {
+  const getRepeatProgress = (
+    exercise: PathExercise,
+  ): { completed: number; total: number; percent: number } => {
     if (!exercise.repeat_count || exercise.repeat_count <= 1) {
       return { completed: 0, total: 0, percent: 0 };
     }
@@ -334,7 +474,7 @@ export function ProgressScreen() {
   // Small progress bar component for repeats
   const RepeatProgressBar = ({ exercise }: { exercise: PathExercise }) => {
     const { completed, total, percent } = getRepeatProgress(exercise);
-    
+
     if (total <= 1) return null;
 
     return (
@@ -415,8 +555,68 @@ export function ProgressScreen() {
     }
   };
 
+  // NEW: Enhanced access control using Supabase helper functions
+  const checkPathAccess = async (pathId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { data, error } = await supabase.rpc('user_can_access_path', {
+        user_uuid: user.id,
+        path_id: pathId,
+      });
+
+      return !error && data === true;
+    } catch (error) {
+      console.log('ProgressScreen: Error checking path access:', error);
+      return false;
+    }
+  };
+
+  const checkExerciseAccess = async (exerciseId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { data, error } = await supabase.rpc('user_can_access_exercise', {
+        user_uuid: user.id,
+        exercise_id: exerciseId,
+      });
+
+      return !error && data === true;
+    } catch (error) {
+      console.log('ProgressScreen: Error checking exercise access:', error);
+      return false;
+    }
+  };
+
+  // NEW: Check payment status
+  const checkPaymentStatus = async (
+    contentId: string,
+    contentType: 'path' | 'exercise',
+  ): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const functionName =
+        contentType === 'path' ? 'user_has_paid_for_path' : 'user_has_paid_for_exercise';
+      const paramName = contentType === 'path' ? 'path_id' : 'exercise_id';
+
+      const { data, error } = await supabase.rpc(functionName, {
+        user_uuid: user.id,
+        [paramName]: contentId,
+      });
+
+      return !error && data === true;
+    } catch (error) {
+      console.log('ProgressScreen: Error checking payment status:', error);
+      return false;
+    }
+  };
+
   // Check if content is already unlocked in database
-  const checkExistingUnlock = async (contentId: string, contentType: 'learning_path' | 'exercise'): Promise<boolean> => {
+  const checkExistingUnlock = async (
+    contentId: string,
+    contentType: 'learning_path' | 'exercise',
+  ): Promise<boolean> => {
     if (!user) return false;
 
     try {
@@ -440,25 +640,26 @@ export function ProgressScreen() {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('user_unlocked_content')
-        .insert({
-          user_id: user.id,
-          content_id: contentId,
-          content_type: contentType
-        });
+      const { error } = await supabase.from('user_unlocked_content').insert({
+        user_id: user.id,
+        content_id: contentId,
+        content_type: contentType,
+      });
 
-      if (error && error.code !== '23505') { // Ignore duplicate key errors
+      if (error && error.code !== '23505') {
+        // Ignore duplicate key errors
         console.log('ProgressScreen: Error storing unlock:', error);
       } else {
-        console.log(`ProgressScreen: Successfully stored unlock for ${contentType}: ${contentId}`);
+        console.log(
+          `ProgressScreen: Successfully stored unlock for ${contentType}: ${contentId}`,
+        );
         // Update local persisted unlocks state
-        setPersistedUnlocks(prev => ({
+        setPersistedUnlocks((prev) => ({
           ...prev,
           [contentType === 'learning_path' ? 'paths' : 'exercises']: [
             ...prev[contentType === 'learning_path' ? 'paths' : 'exercises'],
-            contentId
-          ]
+            contentId,
+          ],
         }));
       }
     } catch (error) {
@@ -477,11 +678,17 @@ export function ProgressScreen() {
         .eq('user_id', user.id);
 
       if (!error && data) {
-        const paths = data.filter(item => item.content_type === 'learning_path').map(item => item.content_id);
-        const exercises = data.filter(item => item.content_type === 'exercise').map(item => item.content_id);
-        
+        const paths = data
+          .filter((item) => item.content_type === 'learning_path')
+          .map((item) => item.content_id);
+        const exercises = data
+          .filter((item) => item.content_type === 'exercise')
+          .map((item) => item.content_id);
+
         setPersistedUnlocks({ paths, exercises });
-        console.log(`ProgressScreen: Loaded ${paths.length} path unlocks and ${exercises.length} exercise unlocks from database`);
+        console.log(
+          `ProgressScreen: Loaded ${paths.length} path unlocks and ${exercises.length} exercise unlocks from database`,
+        );
       } else {
         console.log('ProgressScreen: No existing unlocks found or error:', error);
       }
@@ -546,13 +753,13 @@ export function ProgressScreen() {
 
       // Then update database using separate table
       try {
-        const { error } = await supabase
-          .from('virtual_repeat_completions')
-          .insert([{
+        const { error } = await supabase.from('virtual_repeat_completions').insert([
+          {
             user_id: user.id,
             exercise_id: exerciseId,
-            repeat_number: repeatNumber
-          }]);
+            repeat_number: repeatNumber,
+          },
+        ]);
 
         if (error) {
           console.error('ProgressScreen: Error adding virtual repeat completion', error);
@@ -649,36 +856,39 @@ export function ProgressScreen() {
   const fetchCompletions = async () => {
     if (!user) return;
     setCompletionsLoading(true);
-    
+
     // Fetch regular exercise completions
     const { data: regularData, error: regularError } = await supabase
       .from('learning_path_exercise_completions')
       .select('exercise_id')
       .eq('user_id', user.id);
-    
+
     // Fetch virtual repeat completions
     const { data: virtualData, error: virtualError } = await supabase
       .from('virtual_repeat_completions')
       .select('exercise_id, repeat_number')
       .eq('user_id', user.id);
-    
+
     if (!regularError && regularData) {
       setCompletedIds(regularData.map((c: { exercise_id: string }) => c.exercise_id));
     } else {
       setCompletedIds([]);
     }
-    
+
     if (!virtualError && virtualData) {
       // Convert virtual completions back to virtualId format: "exerciseId-virtual-2"
-      const virtualCompletions = virtualData.map((c: { exercise_id: string; repeat_number: number }) => 
-        `${c.exercise_id}-virtual-${c.repeat_number}`
+      const virtualCompletions = virtualData.map(
+        (c: { exercise_id: string; repeat_number: number }) =>
+          `${c.exercise_id}-virtual-${c.repeat_number}`,
       );
       setVirtualRepeatCompletions(virtualCompletions);
     } else {
       setVirtualRepeatCompletions([]);
     }
-    
-    console.log(`ProgressScreen: Loaded ${regularData?.length || 0} regular completions and ${virtualData?.length || 0} virtual repeat completions`);
+
+    console.log(
+      `ProgressScreen: Loaded ${regularData?.length || 0} regular completions and ${virtualData?.length || 0} virtual repeat completions`,
+    );
     setCompletionsLoading(false);
   };
 
@@ -751,7 +961,7 @@ export function ProgressScreen() {
     return 0;
   };
 
-  // Filter paths based on selected categories
+  // Filter paths based on selected categories - EXTENDED with new filters
   const filteredPaths = useMemo(() => {
     return paths.filter((path) => {
       // Skip filtering for "all" values or if path doesn't have the property
@@ -779,6 +989,14 @@ export function ProgressScreen() {
         categoryFilters.user_profile === 'all' ||
         !path.user_profile ||
         path.user_profile === categoryFilters.user_profile;
+      // NEW: Platform filtering
+      const matchesPlatform =
+        categoryFilters.platform === 'all' ||
+        !path.platform ||
+        path.platform === categoryFilters.platform;
+      // NEW: Type filtering
+      const matchesType =
+        categoryFilters.type === 'all' || !path.type || path.type === categoryFilters.type;
 
       return (
         matchesVehicleType &&
@@ -786,7 +1004,9 @@ export function ProgressScreen() {
         matchesLicense &&
         matchesExperience &&
         matchesPurpose &&
-        matchesUserProfile
+        matchesUserProfile &&
+        matchesPlatform &&
+        matchesType
       );
     });
   }, [paths, categoryFilters]);
@@ -850,25 +1070,72 @@ export function ProgressScreen() {
     }
   };
 
-  // Function to check if a path should be enabled (available to click)
-  const shouldPathBeEnabled = (path: LearningPath, index: number): boolean => {
+  // NEW: Enhanced order enforcement using bypass_order and helper functions
+  const shouldPathBeEnabled = async (path: LearningPath, index: number): Promise<boolean> => {
+    // Always check if path bypasses order requirements first
+    if (path.bypass_order) {
+      console.log(`Path ${path.title.en} bypasses order requirements`);
+      return true;
+    }
+
     // First path is always enabled
     if (index === 0) return true;
 
-    // If we can't determine the previous path, don't enable
-    if (index < 0 || index >= filteredPaths.length || !filteredPaths[index - 1]) {
-      return false;
+    // Check if user can access this path using Supabase helper function
+    try {
+      const canAccess = await checkPathAccess(path.id);
+      if (canAccess) {
+        console.log(`Path ${path.title.en} is accessible via helper function`);
+        return true;
+      }
+
+      // Fallback to manual order checking
+      if (index < 0 || index >= filteredPaths.length || !filteredPaths[index - 1]) {
+        return false;
+      }
+
+      const previousPath = filteredPaths[index - 1];
+      if (!previousPath || !previousPath.id) {
+        return false;
+      }
+
+      // Check if previous path is completed
+      const previousPathProgress = getPathProgress(previousPath.id);
+      return previousPathProgress === 1;
+    } catch (error) {
+      console.error('Error checking path access:', error);
+      // Fallback to old logic
+      return index === 0;
+    }
+  };
+
+  // NEW: Enhanced exercise access control
+  const shouldExerciseBeEnabled = async (exercise: PathExercise, exerciseIndex: number): Promise<boolean> => {
+    // Always check if exercise bypasses order requirements first
+    if (exercise.bypass_order) {
+      console.log(`Exercise ${exercise.title.en} bypasses order requirements`);
+      return true;
     }
 
-    // Get previous path ID safely
-    const previousPath = filteredPaths[index - 1];
-    if (!previousPath || !previousPath.id) {
-      return false;
-    }
+    // First exercise in path is always enabled
+    if (exerciseIndex === 0) return true;
 
-    // Check if previous path is completed
-    const previousPathProgress = getPathProgress(previousPath.id);
-    return previousPathProgress === 1;
+    // Check if user can access this exercise using Supabase helper function
+    try {
+      const canAccess = await checkExerciseAccess(exercise.id);
+      if (canAccess) {
+        console.log(`Exercise ${exercise.title.en} is accessible via helper function`);
+        return true;
+      }
+
+      // Fallback to manual order checking
+      const previousExercises = exercises.slice(0, exerciseIndex);
+      return previousExercises.every((prevEx) => completedIds.includes(prevEx.id));
+    } catch (error) {
+      console.error('Error checking exercise access:', error);
+      // Fallback to old logic
+      return exerciseIndex === 0;
+    }
   };
 
   // Modified handlePathPress to allow clicking on future paths
@@ -1174,9 +1441,23 @@ export function ProgressScreen() {
   // Enhanced isPathPasswordLocked function to check for locked status (includes database unlocks)
   const isPathPasswordLocked = (path: LearningPath): boolean => {
     // Use !! to convert undefined to false, ensuring boolean return
-    return !!path.is_locked && 
-           !unlockedPaths.includes(path.id) && 
-           !persistedUnlocks.paths.includes(path.id);
+    return (
+      !!path.is_locked &&
+      !unlockedPaths.includes(path.id) &&
+      !persistedUnlocks.paths.includes(path.id)
+    );
+  };
+
+  // NEW: Check if path is behind paywall
+  const isPathPaywallLocked = (path: LearningPath): boolean => {
+    if (!path.paywall_enabled) return false;
+    
+    // Check if user has paid for this path
+    const hasPaid = userPayments.some(
+      (payment) => payment.learning_path_id === path.id && payment.status === 'completed'
+    );
+    
+    return !hasPaid;
   };
 
   // Separate function to check if a path specifically has a password
@@ -1188,10 +1469,23 @@ export function ProgressScreen() {
   const isExercisePasswordLocked = (exercise: PathExercise): boolean => {
     // Use !! to convert undefined to false, ensuring boolean return
     return (
-      !!exercise.is_locked && !!exercise.lock_password && 
+      !!exercise.is_locked &&
+      !!exercise.lock_password &&
       !unlockedExercises.includes(exercise.id) &&
       !persistedUnlocks.exercises.includes(exercise.id)
     );
+  };
+
+  // NEW: Check if exercise is behind paywall
+  const isExercisePaywallLocked = (exercise: PathExercise): boolean => {
+    if (!exercise.paywall_enabled) return false;
+    
+    // Check if user has paid for this exercise
+    const hasPaid = userPayments.some(
+      (payment) => payment.exercise_id === exercise.id && payment.status === 'completed'
+    );
+    
+    return !hasPaid;
   };
 
   // Function to unlock a path with password (now with persistence)
@@ -1403,15 +1697,14 @@ export function ProgressScreen() {
 
     return (
       <YStack flex={1} backgroundColor="$background">
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
               tintColor="#00E6C3"
-              colors={["#00E6C3"]}
-              backgroundColor="rgba(0, 0, 0, 0.1)"
+              colors={['#00E6C3']}
               progressBackgroundColor="#1a1a1a"
             />
           }
@@ -1940,15 +2233,14 @@ export function ProgressScreen() {
 
     return (
       <YStack flex={1} backgroundColor="$background">
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
               tintColor="#00E6C3"
-              colors={["#00E6C3"]}
-              backgroundColor="rgba(0, 0, 0, 0.1)"
+              colors={['#00E6C3']}
               progressBackgroundColor="#1a1a1a"
             />
           }
@@ -2220,15 +2512,14 @@ export function ProgressScreen() {
 
   return (
     <YStack flex={1} backgroundColor="$background" padding={0}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
             tintColor="#00E6C3"
-            colors={["#00E6C3"]}
-            backgroundColor="rgba(0, 0, 0, 0.1)"
+            colors={['#00E6C3']}
             progressBackgroundColor="#1a1a1a"
           />
         }
