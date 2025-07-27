@@ -42,17 +42,17 @@ interface LearningPath {
   bypass_order: boolean; // NEW: Skip order requirements
   created_at: string;
   updated_at: string;
-  
+
   // Access Control & Business Logic
   is_locked?: boolean;
   lock_password?: string | null;
   language_specific_media?: boolean;
-  
+
   // Monetization (Paywall) - NEW
   paywall_enabled?: boolean;
   price_usd?: number;
   price_sek?: number;
-  
+
   // Enhanced Categorization - EXTENDED
   platform?: string; // web/mobile/both
   type?: string; // learning/assessment/etc
@@ -78,23 +78,23 @@ interface PathExercise {
   created_at?: string;
   updated_at?: string;
   language_specific_media?: boolean;
-  
+
   // Access Control - EXTENDED
   is_locked?: boolean;
   lock_password?: string | null;
   bypass_order?: boolean; // NEW: Skip order requirements for this exercise
-  
+
   // Monetization - NEW
   paywall_enabled?: boolean;
   price_usd?: number;
   price_sek?: number;
-  
+
   // Repeat functionality (existing)
   repeat_count?: number;
   isRepeat?: boolean;
   originalId?: string;
   repeatNumber?: number;
-  
+
   // Quiz System - NEW
   has_quiz?: boolean;
   quiz_required?: boolean;
@@ -114,6 +114,7 @@ interface QuizQuestion {
   required: boolean;
   points: number;
   explanation_text?: { en: string; sv: string };
+  answers: QuizAnswer[];
 }
 
 interface QuizAnswer {
@@ -136,6 +137,41 @@ interface UserQuizSubmission {
   points_earned: number;
   time_spent: number;
   created_at: string;
+}
+
+// NEW: Quiz Attempt and Statistics interfaces
+interface QuizAttempt {
+  id: string;
+  user_id: string;
+  exercise_id: string;
+  attempt_number: number;
+  started_at: string;
+  completed_at?: string;
+  total_questions: number;
+  correct_answers: number;
+  score_percentage: number;
+  time_spent_seconds: number;
+  is_completed: boolean;
+  passed: boolean;
+  pass_threshold: number;
+}
+
+interface QuizStatistics {
+  id: string;
+  user_id: string;
+  exercise_id: string;
+  total_attempts: number;
+  total_completions: number;
+  best_score_percentage: number;
+  latest_score_percentage: number;
+  total_time_spent_seconds: number;
+  first_attempt_at?: string;
+  latest_attempt_at?: string;
+  first_passed_at?: string;
+  times_passed: number;
+  times_failed: number;
+  current_streak: number;
+  best_streak: number;
 }
 
 // NEW: Payment-related interface
@@ -288,6 +324,22 @@ export function ProgressScreen() {
   const [accessiblePaths, setAccessiblePaths] = useState<string[]>([]);
   const [accessibleExercises, setAccessibleExercises] = useState<string[]>([]);
 
+  // NEW: Quiz system state
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [quizAnswers, setQuizAnswers] = useState<{ [key: number]: string[] }>({});
+  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [quizScore, setQuizScore] = useState({ correct: 0, total: 0 });
+  const [showAnswerFeedback, setShowAnswerFeedback] = useState<{
+    [key: number]: { isCorrect: boolean; correctAnswerId: string };
+  }>({});
+  const [currentQuizAttempt, setCurrentQuizAttempt] = useState<QuizAttempt | null>(null);
+  const [quizStatistics, setQuizStatistics] = useState<QuizStatistics | null>(null);
+  const [quizHistory, setQuizHistory] = useState<QuizAttempt[]>([]);
+  const [quizStartTime, setQuizStartTime] = useState<number>(0);
+  const [hasQuizQuestions, setHasQuizQuestions] = useState<{ [exerciseId: string]: boolean }>({});
+
   // Load categories from Supabase
   useEffect(() => {
     const fetchCategories = async () => {
@@ -425,6 +477,324 @@ export function ProgressScreen() {
       console.error('Error loading user access:', error);
     }
   };
+
+  // NEW: Quiz-related functions
+  const fetchQuizQuestions = async (exerciseId: string): Promise<QuizQuestion[]> => {
+    try {
+      const { data: questions, error } = await supabase
+        .from('exercise_quiz_questions')
+        .select(
+          `
+          *,
+          answers:exercise_quiz_answers(*)
+        `,
+        )
+        .eq('exercise_id', exerciseId)
+        .order('order_index', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching quiz questions:', error);
+        return [];
+      }
+
+      // Check if exercise has quiz questions
+      setHasQuizQuestions((prev) => ({
+        ...prev,
+        [exerciseId]: questions && questions.length > 0,
+      }));
+
+      return (questions || []).map((q) => ({
+        ...q,
+        answers: (q.answers || []).sort(
+          (a: { order_index: number }, b: { order_index: number }) => a.order_index - b.order_index,
+        ),
+      }));
+    } catch (error) {
+      console.error('Error in fetchQuizQuestions:', error);
+      return [];
+    }
+  };
+
+  const startQuizAttempt = async (exerciseId: string): Promise<string | null> => {
+    if (!user) return null;
+
+    try {
+      // Get next attempt number
+      const { data: existingAttempts } = await supabase
+        .from('quiz_attempts')
+        .select('attempt_number')
+        .eq('user_id', user.id)
+        .eq('exercise_id', exerciseId)
+        .order('attempt_number', { ascending: false })
+        .limit(1);
+
+      const attemptNumber = (existingAttempts?.[0]?.attempt_number || 0) + 1;
+
+      // Create new attempt
+      const { data: newAttempt, error } = await supabase
+        .from('quiz_attempts')
+        .insert({
+          user_id: user.id,
+          exercise_id: exerciseId,
+          attempt_number: attemptNumber,
+          total_questions: quizQuestions.length,
+          started_at: new Date().toISOString(),
+          pass_threshold: selectedExercise?.quiz_pass_score || 70,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating quiz attempt:', error);
+        return null;
+      }
+
+      setCurrentQuizAttempt(newAttempt);
+      return newAttempt.id;
+    } catch (error) {
+      console.error('Error in startQuizAttempt:', error);
+      return null;
+    }
+  };
+
+  const saveQuizQuestionAttempt = async (
+    questionId: string,
+    selectedAnswerIds: string[],
+    isCorrect: boolean,
+    pointsEarned: number,
+    timeSpent: number,
+  ) => {
+    if (!currentQuizAttempt) return;
+
+    try {
+      await supabase.from('quiz_question_attempts').insert({
+        quiz_attempt_id: currentQuizAttempt.id,
+        question_id: questionId,
+        selected_answer_ids: selectedAnswerIds,
+        is_correct: isCorrect,
+        points_earned: pointsEarned,
+        time_spent_seconds: timeSpent,
+      });
+    } catch (error) {
+      console.error('Error saving quiz question attempt:', error);
+    }
+  };
+
+  const completeQuizAttempt = async (attemptId: string, finalScore: { correct: number; total: number }) => {
+    if (!selectedExercise) return;
+
+    const scorePercentage = (finalScore.correct / finalScore.total) * 100;
+    const timeSpent = Math.floor((Date.now() - quizStartTime) / 1000);
+    const passThreshold = selectedExercise.quiz_pass_score || 70;
+    const passed = scorePercentage >= passThreshold;
+
+    try {
+      await supabase
+        .from('quiz_attempts')
+        .update({
+          completed_at: new Date().toISOString(),
+          correct_answers: finalScore.correct,
+          score_percentage: scorePercentage,
+          time_spent_seconds: timeSpent,
+          is_completed: true,
+          passed: passed,
+        })
+        .eq('id', attemptId);
+
+      // Statistics are automatically updated via trigger
+      await loadQuizStatistics(selectedExercise.id);
+      await loadQuizHistory(selectedExercise.id);
+    } catch (error) {
+      console.error('Error completing quiz attempt:', error);
+    }
+  };
+
+  const loadQuizStatistics = async (exerciseId: string) => {
+    if (!user) return;
+
+    try {
+      const { data: stats, error } = await supabase
+        .from('user_quiz_statistics')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('exercise_id', exerciseId)
+        .single();
+
+      if (!error && stats) {
+        setQuizStatistics(stats);
+      }
+    } catch (error) {
+      console.error('Error loading quiz statistics:', error);
+    }
+  };
+
+  const loadQuizHistory = async (exerciseId: string) => {
+    if (!user) return;
+
+    try {
+      const { data: history, error } = await supabase
+        .from('quiz_attempts')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('exercise_id', exerciseId)
+        .eq('is_completed', true)
+        .order('completed_at', { ascending: false })
+        .limit(10);
+
+      if (!error && history) {
+        setQuizHistory(history);
+      }
+    } catch (error) {
+      console.error('Error loading quiz history:', error);
+    }
+  };
+
+  const navigateToQuiz = async (exercise: PathExercise) => {
+    console.log('Starting quiz for exercise:', exercise.title.en);
+    setQuizStartTime(Date.now());
+    
+    // 1. Fetch quiz questions
+    const questions = await fetchQuizQuestions(exercise.id);
+    if (questions.length === 0) {
+      Alert.alert('No Quiz Available', 'This exercise does not have any quiz questions.');
+      return;
+    }
+
+    // 2. Load user statistics and history
+    await Promise.all([
+      loadQuizStatistics(exercise.id),
+      loadQuizHistory(exercise.id),
+    ]);
+
+    // 3. Initialize quiz state
+    setQuizQuestions(questions);
+    setCurrentQuestionIndex(0);
+    setQuizAnswers({});
+    setQuizCompleted(false);
+    setQuizScore({ correct: 0, total: 0 });
+    setShowAnswerFeedback({});
+
+    // 4. Start new quiz attempt
+    await startQuizAttempt(exercise.id);
+
+    // 5. Show quiz
+    setShowQuiz(true);
+  };
+
+  const handleAnswerSelect = async (answerIds: string[]) => {
+    const currentQuestion = quizQuestions[currentQuestionIndex];
+    if (!currentQuestion) return;
+
+    // Find the selected answers
+    const selectedAnswers = currentQuestion.answers.filter((answer) => answerIds.includes(answer.id));
+    
+    // Determine if the answer is correct
+    let isCorrect = false;
+    if (currentQuestion.question_type === 'single_choice' || currentQuestion.question_type === 'true_false') {
+      isCorrect = selectedAnswers.length === 1 && selectedAnswers[0].is_correct;
+    } else if (currentQuestion.question_type === 'multiple_choice') {
+      const correctAnswers = currentQuestion.answers.filter(answer => answer.is_correct);
+      isCorrect = selectedAnswers.length === correctAnswers.length && 
+                  selectedAnswers.every(answer => answer.is_correct);
+    }
+
+    // Find the correct answer for feedback
+    const correctAnswer = currentQuestion.answers.find((answer) => answer.is_correct);
+
+    // Update UI feedback
+    setShowAnswerFeedback((prev) => ({
+      ...prev,
+      [currentQuestionIndex]: { 
+        isCorrect, 
+        correctAnswerId: correctAnswer?.id || '' 
+      },
+    }));
+
+    // Store the answer
+    setQuizAnswers((prev) => ({
+      ...prev,
+      [currentQuestionIndex]: answerIds,
+    }));
+
+    // Update score
+    setQuizScore((prev) => ({
+      correct: prev.correct + (isCorrect ? 1 : 0),
+      total: prev.total + 1,
+    }));
+
+    // Save to database
+    const timeSpent = 30; // You can track actual time spent per question
+    const pointsEarned = isCorrect ? currentQuestion.points : 0;
+    await saveQuizQuestionAttempt(
+      currentQuestion.id,
+      answerIds,
+      isCorrect,
+      pointsEarned,
+      timeSpent,
+    );
+  };
+
+  const handleQuizNext = async () => {
+    if (currentQuestionIndex < quizQuestions.length - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+    } else {
+      // Complete quiz
+      if (currentQuizAttempt) {
+        await completeQuizAttempt(currentQuizAttempt.id, quizScore);
+      }
+      setQuizCompleted(true);
+    }
+  };
+
+  const handleQuizPrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex((prev) => prev - 1);
+    }
+  };
+
+  const resetQuiz = () => {
+    setCurrentQuestionIndex(0);
+    setQuizAnswers({});
+    setQuizCompleted(false);
+    setQuizScore({ correct: 0, total: 0 });
+    setShowAnswerFeedback({});
+    setCurrentQuizAttempt(null);
+    setQuizStartTime(Date.now());
+    
+    if (selectedExercise) {
+      startQuizAttempt(selectedExercise.id);
+    }
+  };
+
+  const closeQuiz = () => {
+    console.log('Closing quiz and resetting state');
+    setShowQuiz(false);
+    setQuizQuestions([]);
+    setCurrentQuestionIndex(0);
+    setQuizAnswers({});
+    setQuizCompleted(false);
+    setQuizScore({ correct: 0, total: 0 });
+    setShowAnswerFeedback({});
+    setCurrentQuizAttempt(null);
+    setQuizStartTime(0);
+    
+    // Reload quiz statistics after closing
+    if (selectedExercise) {
+      loadQuizStatistics(selectedExercise.id);
+    }
+  };
+
+  // Load quiz questions info for exercises when they change
+  useEffect(() => {
+    const loadQuizInfo = async () => {
+      if (exercises.length > 0) {
+        for (const exercise of exercises) {
+          await fetchQuizQuestions(exercise.id);
+        }
+      }
+    };
+    loadQuizInfo();
+  }, [exercises]);
 
   // Refresh function for pull-to-refresh
   const handleRefresh = async () => {
@@ -650,9 +1020,7 @@ export function ProgressScreen() {
         // Ignore duplicate key errors
         console.log('ProgressScreen: Error storing unlock:', error);
       } else {
-        console.log(
-          `ProgressScreen: Successfully stored unlock for ${contentType}: ${contentId}`,
-        );
+        console.log(`ProgressScreen: Successfully stored unlock for ${contentType}: ${contentId}`);
         // Update local persisted unlocks state
         setPersistedUnlocks((prev) => ({
           ...prev,
@@ -1070,7 +1438,7 @@ export function ProgressScreen() {
     }
   };
 
-  // NEW: Enhanced order enforcement using bypass_order and helper functions
+  // NEW: More permissive path access - allow users to explore paths
   const shouldPathBeEnabled = async (path: LearningPath, index: number): Promise<boolean> => {
     // Always check if path bypasses order requirements first
     if (path.bypass_order) {
@@ -1081,6 +1449,11 @@ export function ProgressScreen() {
     // First path is always enabled
     if (index === 0) return true;
 
+    // Make paths more accessible - only block if specifically locked
+    if (path.is_locked && !unlockedPaths.includes(path.id) && !persistedUnlocks.paths.includes(path.id)) {
+      return false;
+    }
+
     // Check if user can access this path using Supabase helper function
     try {
       const canAccess = await checkPathAccess(path.id);
@@ -1088,29 +1461,20 @@ export function ProgressScreen() {
         console.log(`Path ${path.title.en} is accessible via helper function`);
         return true;
       }
-
-      // Fallback to manual order checking
-      if (index < 0 || index >= filteredPaths.length || !filteredPaths[index - 1]) {
-        return false;
-      }
-
-      const previousPath = filteredPaths[index - 1];
-      if (!previousPath || !previousPath.id) {
-        return false;
-      }
-
-      // Check if previous path is completed
-      const previousPathProgress = getPathProgress(previousPath.id);
-      return previousPathProgress === 1;
     } catch (error) {
       console.error('Error checking path access:', error);
-      // Fallback to old logic
-      return index === 0;
     }
+
+    // Default to allowing access - let users explore learning paths
+    console.log(`Path ${path.title.en} is accessible (permissive mode)`);
+    return true;
   };
 
-  // NEW: Enhanced exercise access control
-  const shouldExerciseBeEnabled = async (exercise: PathExercise, exerciseIndex: number): Promise<boolean> => {
+  // NEW: More permissive exercise access - allow users to explore exercises
+  const shouldExerciseBeEnabled = async (
+    exercise: PathExercise,
+    exerciseIndex: number,
+  ): Promise<boolean> => {
     // Always check if exercise bypasses order requirements first
     if (exercise.bypass_order) {
       console.log(`Exercise ${exercise.title.en} bypasses order requirements`);
@@ -1120,6 +1484,11 @@ export function ProgressScreen() {
     // First exercise in path is always enabled
     if (exerciseIndex === 0) return true;
 
+    // Make exercises more accessible - only block if specifically locked
+    if (exercise.is_locked && !unlockedExercises.includes(exercise.id) && !persistedUnlocks.exercises.includes(exercise.id)) {
+      return false;
+    }
+
     // Check if user can access this exercise using Supabase helper function
     try {
       const canAccess = await checkExerciseAccess(exercise.id);
@@ -1127,15 +1496,13 @@ export function ProgressScreen() {
         console.log(`Exercise ${exercise.title.en} is accessible via helper function`);
         return true;
       }
-
-      // Fallback to manual order checking
-      const previousExercises = exercises.slice(0, exerciseIndex);
-      return previousExercises.every((prevEx) => completedIds.includes(prevEx.id));
     } catch (error) {
       console.error('Error checking exercise access:', error);
-      // Fallback to old logic
-      return exerciseIndex === 0;
     }
+
+    // Default to allowing access - let users explore exercises
+    console.log(`Exercise ${exercise.title.en} is accessible (permissive mode)`);
+    return true;
   };
 
   // Modified handlePathPress to allow clicking on future paths
@@ -1561,32 +1928,373 @@ export function ProgressScreen() {
     );
   };
 
-  // Add the UnavailableExerciseView component for exercises that aren't ready yet
-  const UnavailableExerciseView = () => {
+  // Removed UnavailableExerciseView - exercises are now freely accessible
+
+  // NEW: Quiz UI Components
+  const QuizStatisticsDisplay = ({ stats }: { stats: QuizStatistics | null }) => {
+    if (!stats) return null;
+
     return (
-      <YStack gap={16} padding={24} alignItems="center">
-        <MaterialIcons name="hourglass-empty" size={48} color="#FF9500" />
-        <Text fontSize={20} fontWeight="bold" color="$color" textAlign="center">
-          This Exercise is Not Available Yet
-        </Text>
-        <Text color="$gray11" textAlign="center">
-          You need to complete the previous exercises before accessing this one.
-        </Text>
-        <TouchableOpacity
-          onPress={() => setSelectedExercise(null)}
-          style={{
-            marginTop: 16,
-            backgroundColor: '#333',
-            padding: 16,
-            borderRadius: 12,
-            alignItems: 'center',
-          }}
-        >
-          <Text color="$color" fontWeight="bold">
-            Go Back
+      <YStack
+        backgroundColor="rgba(0, 230, 195, 0.1)"
+        padding={16}
+        borderRadius={12}
+        marginBottom={16}
+      >
+        <XStack alignItems="center" gap={8} marginBottom={8}>
+          <MaterialIcons name="quiz" size={20} color="#00E6C3" />
+          <Text fontSize={16} fontWeight="bold" color="#00E6C3">
+            Quiz Performance
           </Text>
-        </TouchableOpacity>
+        </XStack>
+        
+        <XStack justifyContent="space-between" marginBottom={8}>
+          <YStack alignItems="center">
+            <Text fontSize={24} fontWeight="bold" color="$color">
+              {stats.best_score_percentage.toFixed(0)}%
+            </Text>
+            <Text fontSize={12} color="$gray11">Best Score</Text>
+          </YStack>
+          
+          <YStack alignItems="center">
+            <Text fontSize={24} fontWeight="bold" color="$color">
+              {stats.times_passed}
+            </Text>
+            <Text fontSize={12} color="$gray11">Times Passed</Text>
+          </YStack>
+          
+          <YStack alignItems="center">
+            <Text fontSize={24} fontWeight="bold" color="$color">
+              {stats.current_streak}
+            </Text>
+            <Text fontSize={12} color="$gray11">Current Streak</Text>
+          </YStack>
+          
+          <YStack alignItems="center">
+            <Text fontSize={24} fontWeight="bold" color="$color">
+              {stats.total_attempts}
+            </Text>
+            <Text fontSize={12} color="$gray11">Total Attempts</Text>
+          </YStack>
+        </XStack>
       </YStack>
+    );
+  };
+
+  const QuizInterface = () => {
+    // Only show quiz modal when explicitly requested and questions are loaded
+    if (!showQuiz || quizQuestions.length === 0) return null;
+    
+    console.log('Rendering QuizInterface', { showQuiz, questionsCount: quizQuestions.length, completed: quizCompleted });
+
+    const currentQuestion = quizQuestions[currentQuestionIndex];
+    const progress = ((currentQuestionIndex + 1) / quizQuestions.length) * 100;
+    const selectedAnswers = quizAnswers[currentQuestionIndex] || [];
+    const feedback = showAnswerFeedback[currentQuestionIndex];
+    const hasAnswer = selectedAnswers.length > 0;
+
+    if (quizCompleted) {
+      const scorePercentage = (quizScore.correct / quizScore.total) * 100;
+      const passed = scorePercentage >= (selectedExercise?.quiz_pass_score || 70);
+
+      return (
+        <RNModal
+          visible={showQuiz}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={closeQuiz}
+        >
+          <YStack flex={1} backgroundColor="$background" padding={24}>
+            <XStack justifyContent="space-between" alignItems="center" marginBottom={24}>
+              <Text fontSize={24} fontWeight="bold" color="$color">
+                Quiz Completed!
+              </Text>
+              <TouchableOpacity onPress={closeQuiz}>
+                <Feather name="x" size={28} color="#fff" />
+              </TouchableOpacity>
+            </XStack>
+
+            <YStack alignItems="center" marginBottom={32}>
+              <YStack alignItems="center" marginBottom={16}>
+                <Text fontSize={48} fontWeight="bold" color={passed ? '#00E6C3' : '#EF4444'}>
+                  {scorePercentage.toFixed(0)}%
+                </Text>
+                <Text fontSize={18} fontWeight="bold" color={passed ? '#00E6C3' : '#EF4444'}>
+                  {passed ? 'PASSED' : 'FAILED'}
+                </Text>
+              </YStack>
+
+              <Text fontSize={16} color="$color" marginBottom={8}>
+                {quizScore.correct} Correct | {quizScore.total - quizScore.correct} Incorrect
+              </Text>
+            </YStack>
+
+            <QuizStatisticsDisplay stats={quizStatistics} />
+
+            {quizHistory.length > 0 && (
+              <YStack marginBottom={24}>
+                <Text fontSize={18} fontWeight="bold" color="$color" marginBottom={12}>
+                  Recent Attempts
+                </Text>
+                {quizHistory.slice(0, 5).map((attempt) => (
+                  <XStack
+                    key={attempt.id}
+                    justifyContent="space-between"
+                    alignItems="center"
+                    padding={12}
+                    backgroundColor="$backgroundStrong"
+                    borderRadius={8}
+                    marginBottom={8}
+                  >
+                    <Text color="$color">
+                      #{attempt.attempt_number} - {attempt.score_percentage.toFixed(0)}%
+                    </Text>
+                    <Text
+                      fontSize={12}
+                      color={attempt.passed ? '#00E6C3' : '#EF4444'}
+                      fontWeight="bold"
+                    >
+                      {attempt.passed ? 'PASSED' : 'FAILED'}
+                    </Text>
+                  </XStack>
+                ))}
+              </YStack>
+            )}
+
+            <XStack gap={12}>
+              <Button
+                flex={1}
+                backgroundColor="#333"
+                onPress={closeQuiz}
+                borderRadius={12}
+              >
+                Back to Exercise
+              </Button>
+              <Button
+                flex={1}
+                backgroundColor="#00E6C3"
+                color="#000"
+                onPress={() => {
+                  setQuizCompleted(false);
+                  resetQuiz();
+                }}
+                borderRadius={12}
+              >
+                Start Over
+              </Button>
+            </XStack>
+          </YStack>
+        </RNModal>
+      );
+    }
+
+    return (
+      <RNModal
+        visible={showQuiz}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={closeQuiz}
+      >
+        <YStack flex={1} backgroundColor="$background">
+          {/* Quiz Header */}
+          <XStack
+            justifyContent="space-between"
+            alignItems="center"
+            padding={16}
+            borderBottomWidth={1}
+            borderBottomColor="rgba(255, 255, 255, 0.2)"
+          >
+            <TouchableOpacity onPress={closeQuiz}>
+              <Feather name="arrow-left" size={28} color="#fff" />
+            </TouchableOpacity>
+            
+            <YStack alignItems="center">
+              <Text fontSize={16} fontWeight="bold" color="$color">
+                Quiz: {selectedExercise?.title.en}
+              </Text>
+              <Text fontSize={14} color="$gray11">
+                Question {currentQuestionIndex + 1} of {quizQuestions.length} |{' '}
+                Score: {quizScore.correct}/{quizScore.total}
+              </Text>
+            </YStack>
+
+            <TouchableOpacity onPress={resetQuiz}>
+              <Text fontSize={14} color="#00E6C3">
+                Start Over
+              </Text>
+            </TouchableOpacity>
+          </XStack>
+
+          {/* Progress Bar */}
+          <View style={{ padding: 16 }}>
+            <View
+              style={{
+                width: '100%',
+                height: 4,
+                backgroundColor: '#333',
+                borderRadius: 2,
+                overflow: 'hidden',
+              }}
+            >
+              <View
+                style={{
+                  width: `${progress}%`,
+                  height: '100%',
+                  backgroundColor: '#00E6C3',
+                  borderRadius: 2,
+                }}
+              />
+            </View>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+            {/* Question Content */}
+            <YStack
+              backgroundColor="rgba(255, 255, 255, 0.1)"
+              borderRadius={12}
+              padding={16}
+              marginBottom={24}
+            >
+              <Text fontSize={18} fontWeight="bold" color="$color" marginBottom={16}>
+                {currentQuestion.question_text.en}
+              </Text>
+
+              {/* Question Media */}
+              {currentQuestion.image && (
+                <Image
+                  source={{ uri: currentQuestion.image }}
+                  style={{
+                    width: '100%',
+                    height: 200,
+                    borderRadius: 8,
+                    marginBottom: 16,
+                  }}
+                />
+              )}
+            </YStack>
+
+            {/* Answer Options */}
+            <YStack gap={8}>
+              {currentQuestion.answers.map((answer) => {
+                const isSelected = selectedAnswers.includes(answer.id);
+                const isCorrect = feedback?.isCorrect && isSelected;
+                const isIncorrect = feedback && !feedback.isCorrect && isSelected;
+                const isCorrectAnswer = feedback?.correctAnswerId === answer.id;
+                const showFeedback = !!feedback;
+
+                let backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                let borderColor = 'rgba(255, 255, 255, 0.2)';
+                
+                if (showFeedback) {
+                  if (isCorrect || isCorrectAnswer) {
+                    backgroundColor = 'rgba(34, 197, 94, 0.2)';
+                    borderColor = '#22C55E';
+                  } else if (isIncorrect) {
+                    backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                    borderColor = '#EF4444';
+                  }
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={answer.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 16,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      backgroundColor,
+                      borderColor,
+                      opacity: showFeedback ? 0.8 : 1,
+                    }}
+                    onPress={() => !showFeedback && handleAnswerSelect([answer.id])}
+                    disabled={showFeedback}
+                  >
+                    <View
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        borderWidth: 2,
+                        borderColor: isSelected ? '#00E6C3' : '#666',
+                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                        marginRight: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {isSelected && <Feather name="check" size={16} color="#fff" />}
+                    </View>
+                    
+                    <Text fontSize={16} color="$color" flex={1}>
+                      {answer.answer_text.en}
+                    </Text>
+
+                    {showFeedback && (isCorrect || isCorrectAnswer) && (
+                      <Feather name="check-circle" size={20} color="#22C55E" />
+                    )}
+                    {showFeedback && isIncorrect && (
+                      <Feather name="x-circle" size={20} color="#EF4444" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </YStack>
+
+            {/* Explanation */}
+            {feedback && currentQuestion.explanation_text?.en && (
+              <YStack
+                backgroundColor="rgba(0, 230, 195, 0.1)"
+                padding={16}
+                borderRadius={12}
+                marginTop={16}
+              >
+                <Text fontSize={16} fontWeight="bold" color="#00E6C3" marginBottom={8}>
+                  Explanation
+                </Text>
+                <Text fontSize={14} color="$color">
+                  {currentQuestion.explanation_text.en}
+                </Text>
+              </YStack>
+            )}
+          </ScrollView>
+
+          {/* Navigation */}
+          <XStack
+            justifyContent="space-between"
+            alignItems="center"
+            padding={16}
+            borderTopWidth={1}
+            borderTopColor="rgba(255, 255, 255, 0.2)"
+          >
+            <Button
+              backgroundColor={currentQuestionIndex > 0 ? '#333' : 'transparent'}
+              disabled={currentQuestionIndex === 0}
+              onPress={handleQuizPrevious}
+              borderRadius={8}
+              paddingHorizontal={20}
+            >
+              Previous
+            </Button>
+
+            <Text fontSize={14} color="$gray11">
+              {currentQuestionIndex + 1} / {quizQuestions.length}
+            </Text>
+
+            <Button
+              backgroundColor={hasAnswer ? '#00E6C3' : '#666'}
+              color={hasAnswer ? '#000' : '#ccc'}
+              disabled={!hasAnswer}
+              onPress={handleQuizNext}
+              borderRadius={8}
+              paddingHorizontal={20}
+            >
+              {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish' : 'Next'}
+            </Button>
+          </XStack>
+        </YStack>
+      </RNModal>
     );
   };
 
@@ -1624,38 +2332,10 @@ export function ProgressScreen() {
     const isDone = completedIds.includes(selectedExercise.id);
     const isPasswordLocked = isExercisePasswordLocked(selectedExercise);
 
-    // For repeated exercises, check if previous repeats are complete
-    let previousRepeatsComplete = true;
-    if (selectedExercise.isRepeat && selectedExercise.originalId) {
-      // Find all previous repeats of this exercise
-      const previousRepeats = exercises.filter(
-        (e) =>
-          (e.id === selectedExercise.originalId ||
-            (e.isRepeat && e.originalId === selectedExercise.originalId)) &&
-          (e.repeatNumber === undefined || e.repeatNumber < (selectedExercise.repeatNumber || 0)),
-      );
-
-      // Check if all previous repeats are complete
-      previousRepeatsComplete = previousRepeats.every((prevEx) => completedIds.includes(prevEx.id));
-    }
-
-    // Determine if exercise should be available based on previous exercises
-    // For repeated exercises, we need all previous repeats to be complete
-    const originalIndex = exercises.findIndex(
-      (e) =>
-        !e.isRepeat &&
-        e.id === (selectedExercise.isRepeat ? selectedExercise.originalId : selectedExercise.id),
-    );
-    const prevExercisesComplete =
-      // If it's the first exercise or a repeat of the first exercise, it's always available
-      originalIndex <= 0 ||
-      // Otherwise, check if all previous non-repeat exercises are complete AND
-      // for a repeat, check if all previous repeats of the same exercise are complete
-      (exercises
-        .slice(0, originalIndex)
-        .filter((e) => !e.isRepeat || e.originalId !== selectedExercise.originalId) // Exclude other repeats of this exercise
-        .every((prevEx) => completedIds.includes(prevEx.id)) &&
-        previousRepeatsComplete);
+    // More permissive access - only block if password-locked
+    // No longer checking previous exercise completion
+    // More permissive access - only block if password-locked
+    const prevExercisesComplete = !isPasswordLocked;
 
     // Get information about repeats for navigation
     const baseExercise = selectedExercise.isRepeat
@@ -1737,7 +2417,7 @@ export function ProgressScreen() {
             {selectedExercise.icon && (
               <View style={{ marginRight: 8 }}>
                 <Feather
-                  name={selectedExercise.icon as any}
+                  name={selectedExercise.icon as keyof typeof Feather.glyphMap}
                   size={28}
                   color={isPasswordLocked ? '#FF9500' : '#00E6C3'}
                 />
@@ -1794,6 +2474,31 @@ export function ProgressScreen() {
             <Text color="$gray11" marginBottom={16}>
               {selectedExercise.description[lang]}
             </Text>
+          )}
+
+          {/* NEW: Quiz Section */}
+          {hasQuizQuestions[selectedExercise.id] && (
+            <YStack marginBottom={24}>
+              <XStack alignItems="center" gap={8} marginBottom={12}>
+                <MaterialIcons name="quiz" size={20} color="#00E6C3" />
+                <Text fontSize={18} fontWeight="bold" color="#00E6C3">
+                  Quiz
+                </Text>
+              </XStack>
+              
+              <QuizStatisticsDisplay stats={quizStatistics} />
+              
+              <Button
+                backgroundColor="#00E6C3"
+                color="#000"
+                fontWeight="bold"
+                onPress={() => navigateToQuiz(selectedExercise)}
+                borderRadius={12}
+                paddingVertical={16}
+              >
+                {quizStatistics && quizStatistics.total_attempts > 0 ? 'Retake Quiz' : 'Start Quiz'}
+              </Button>
+            </YStack>
           )}
 
           {/* Password Locked Exercise State - ALWAYS takes precedence */}
@@ -1857,9 +2562,6 @@ export function ProgressScreen() {
                 </Text>
               )}
             </YStack>
-          ) : !prevExercisesComplete ? (
-            /* Unavailable Exercise State - When previous exercises aren't complete */
-            <UnavailableExerciseView />
           ) : (
             /* Normal Exercise Content when Available and Not Locked */
             <>
@@ -1915,7 +2617,9 @@ export function ProgressScreen() {
                         padding: 12,
                         borderRadius: 8,
                         borderLeftWidth: 4,
-                        borderLeftColor: completedIds.includes(selectedExercise.id) ? '#00E6C3' : '#4B6BFF',
+                        borderLeftColor: completedIds.includes(selectedExercise.id)
+                          ? '#00E6C3'
+                          : '#4B6BFF',
                       }}
                       onPress={() => {
                         // Toggle the main exercise completion
@@ -1940,7 +2644,9 @@ export function ProgressScreen() {
                               alignItems: 'center',
                               justifyContent: 'center',
                               borderWidth: 2,
-                              borderColor: completedIds.includes(selectedExercise.id) ? '#00E6C3' : '#888',
+                              borderColor: completedIds.includes(selectedExercise.id)
+                                ? '#00E6C3'
+                                : '#888',
                             }}
                           >
                             {completedIds.includes(selectedExercise.id) && (
@@ -2095,16 +2801,10 @@ export function ProgressScreen() {
                                     `Repetition ${repeat.repeatNumber}`}
                                 </Text>
                               </XStack>
-                              <Text
-                                fontSize={14}
-                                color="#4B6BFF"
-                                fontWeight="bold"
-                              >
+                              <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
                                 {repeat.repeatNumber}/{repeat.repeat_count}
                               </Text>
-                              {isDone && (
-                                <Feather name="check-circle" size={18} color="#00E6C3" />
-                              )}
+                              {isDone && <Feather name="check-circle" size={18} color="#00E6C3" />}
                             </XStack>
                           </TouchableOpacity>
                         );
@@ -2118,16 +2818,16 @@ export function ProgressScreen() {
                 onPress={() => {
                   // Toggle main exercise
                   toggleCompletion(selectedExercise.id);
-                  
+
                   // Also toggle all virtual repeats if this exercise has repeats
                   if (selectedExercise.repeat_count && selectedExercise.repeat_count > 1) {
                     const shouldMarkDone = !isDone; // If main is becoming done, mark all virtual repeats as done
-                    
+
                     // Generate all virtual repeat IDs
                     for (let i = 2; i <= selectedExercise.repeat_count; i++) {
                       const virtualId = `${selectedExercise.id}-virtual-${i}`;
                       const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
-                      
+
                       // Only toggle if virtual repeat state doesn't match desired state
                       if (shouldMarkDone && !isVirtualDone) {
                         toggleVirtualRepeatCompletion(virtualId);
@@ -2207,6 +2907,8 @@ export function ProgressScreen() {
             </>
           )}
         </ScrollView>
+        {/* Add Quiz Interface */}
+        <QuizInterface />
       </YStack>
     );
   }
@@ -2225,7 +2927,8 @@ export function ProgressScreen() {
         ? getPathProgress(filteredPaths[pathIndex - 1].id) >= 1
         : false;
     const isFirstPath = pathIndex === 0;
-    const isAvailable = isFirstPath || previousPathCompleted;
+    // Make paths more accessible - only block if specifically locked
+    const isAvailable = !isPathPasswordLocked(detailPath);
 
     // Check if path is locked with password - HIGHEST PRIORITY
     const isPasswordLocked = isPathPasswordLocked(detailPath);
@@ -2254,7 +2957,7 @@ export function ProgressScreen() {
             {detailPath.icon && (
               <View style={{ marginRight: 8 }}>
                 <Feather
-                  name={detailPath.icon as any}
+                  name={detailPath.icon as keyof typeof Feather.glyphMap}
                   size={28}
                   color={isPasswordLocked ? '#FF9500' : '#00E6C3'}
                 />
@@ -2403,103 +3106,116 @@ export function ProgressScreen() {
                   // Process exercises: show all exercises and create virtual repeats for UI
                   let displayIndex = 0;
 
-                                     return exercises.map((exercise) => {
-                     displayIndex++;
-                     
-                     const main = exercise;
+                  return exercises.map((exercise) => {
+                    displayIndex++;
 
-                     // Main exercise logic
-                     const mainIsDone = completedIds.includes(main.id);
-                     const mainIsPasswordLocked = isExercisePasswordLocked(main);
+                    const main = exercise;
 
-                     // Calculate if main exercise is available
-                     const mainOriginalIndex = exercises.findIndex((e) => e.id === main.id);
-                     const mainPrevExercisesComplete = mainOriginalIndex <= 0 || 
-                       exercises.slice(0, mainOriginalIndex)
-                         .every((prevEx) => completedIds.includes(prevEx.id));
+                    // Main exercise logic
+                    const mainIsDone = completedIds.includes(main.id);
+                    const mainIsPasswordLocked = isExercisePasswordLocked(main);
 
-                  return (
+                    // More permissive access - only block if password-locked
+                    const mainIsAvailable = !mainIsPasswordLocked;
+
+                    return (
                       <YStack key={main.id} marginBottom={16}>
                         {/* Main Exercise */}
                         <TouchableOpacity onPress={() => setSelectedExercise(main)}>
                           <XStack alignItems="center" gap={12}>
-                        <TouchableOpacity
-                          onPress={(e) => {
-                            e.stopPropagation();
-                                if (!mainIsPasswordLocked && mainPrevExercisesComplete) {
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                if (mainIsAvailable) {
                                   toggleCompletion(main.id);
-                            }
-                          }}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 6,
-                            borderWidth: 2,
+                                }
+                              }}
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 6,
+                                borderWidth: 2,
                                 borderColor: mainIsDone ? '#00E6C3' : '#888',
                                 backgroundColor: mainIsDone ? '#00E6C3' : 'transparent',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginRight: 8,
-                          }}
-                        >
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginRight: 8,
+                              }}
+                            >
                               {mainIsDone && <Feather name="check" size={20} color="#fff" />}
-                        </TouchableOpacity>
-                        <Card
-                          padding={16}
-                          borderRadius={16}
-                          backgroundColor="$backgroundStrong"
-                          flex={1}
-                        >
-                          <XStack justifyContent="space-between" alignItems="center">
-                            <XStack alignItems="center" gap={8} flex={1}>
-                              <Text
-                                fontSize={18}
-                                fontWeight="bold"
-                                color="$color"
-                                numberOfLines={1}
-                              >
-                                     {displayIndex}. {main.title?.[lang] || main.title?.en || 'Untitled'}
-                              </Text>
-
-                                   {/* Show repeat count if it has repeats */}
-                                   {main.repeat_count && main.repeat_count > 1 && (
-                                <XStack
-                                  backgroundColor="#4B6BFF"
-                                  paddingHorizontal={8}
-                                  paddingVertical={4}
-                                  borderRadius={12}
-                                  alignItems="center"
-                                  gap={4}
-                                >
-                                  <Feather name="repeat" size={14} color="white" />
-                                  <Text fontSize={12} color="white" fontWeight="bold">
-                                         {main.repeat_count}x
+                            </TouchableOpacity>
+                            <Card
+                              padding={16}
+                              borderRadius={16}
+                              backgroundColor="$backgroundStrong"
+                              flex={1}
+                            >
+                              <XStack justifyContent="space-between" alignItems="center">
+                                <XStack alignItems="center" gap={8} flex={1}>
+                                  <Text
+                                    fontSize={18}
+                                    fontWeight="bold"
+                                    color="$color"
+                                    numberOfLines={1}
+                                  >
+                                    {displayIndex}.{' '}
+                                    {main.title?.[lang] || main.title?.en || 'Untitled'}
                                   </Text>
+
+                                  {/* Show repeat count if it has repeats */}
+                                  {main.repeat_count && main.repeat_count > 1 && (
+                                    <XStack
+                                      backgroundColor="#4B6BFF"
+                                      paddingHorizontal={8}
+                                      paddingVertical={4}
+                                      borderRadius={12}
+                                      alignItems="center"
+                                      gap={4}
+                                    >
+                                      <Feather name="repeat" size={14} color="white" />
+                                      <Text fontSize={12} color="white" fontWeight="bold">
+                                        {main.repeat_count}x
+                                      </Text>
+                                    </XStack>
+                                  )}
+
+                                  {/* Show quiz indicator if exercise has quiz */}
+                                  {hasQuizQuestions[main.id] && (
+                                    <XStack
+                                      backgroundColor="#00E6C3"
+                                      paddingHorizontal={8}
+                                      paddingVertical={4}
+                                      borderRadius={12}
+                                      alignItems="center"
+                                      gap={4}
+                                    >
+                                      <MaterialIcons name="quiz" size={14} color="#000" />
+                                      <Text fontSize={12} color="#000" fontWeight="bold">
+                                        Quiz
+                                      </Text>
+                                    </XStack>
+                                  )}
                                 </XStack>
+
+                                {/* Show appropriate icon based on state - LOCK gets priority */}
+                                {mainIsPasswordLocked ? (
+                                  <MaterialIcons name="lock" size={20} color="#FF9500" />
+                                ) : mainIsDone ? (
+                                  <Feather name="check-circle" size={20} color="#00E6C3" />
+                                ) : null}
+                              </XStack>
+
+                              {main.description?.[lang] && (
+                                <Text color="$gray11" marginTop={4}>
+                                  {main.description[lang]}
+                                </Text>
                               )}
-                            </XStack>
-
-                            {/* Show appropriate icon based on state - LOCK gets priority */}
-                                 {mainIsPasswordLocked ? (
-                              <MaterialIcons name="lock" size={20} color="#FF9500" />
-                                 ) : !mainPrevExercisesComplete ? (
-                              <MaterialIcons name="hourglass-empty" size={20} color="#FF9500" />
-                                 ) : mainIsDone ? (
-                              <Feather name="check-circle" size={20} color="#00E6C3" />
-                            ) : null}
+                              <RepeatProgressBar exercise={main} />
+                            </Card>
                           </XStack>
-
-                               {main.description?.[lang] && (
-                            <Text color="$gray11" marginTop={4}>
-                                   {main.description[lang]}
-                            </Text>
-                          )}
-                          <RepeatProgressBar exercise={main} />
-                        </Card>
-                      </XStack>
-                    </TouchableOpacity>
-                       </YStack>
-                  );
+                        </TouchableOpacity>
+                      </YStack>
+                    );
                   });
                 })()
               )}
@@ -2594,22 +3310,10 @@ export function ProgressScreen() {
             const isActive = activePath === path.id;
             const percent = getPathProgress(path.id);
 
-            // First path is always enabled, others depend on previous completion
-            const isFirstPath = idx === 0;
-            const previousPathCompleted =
-              idx > 0 && filteredPaths[idx - 1]
-                ? getPathProgress(filteredPaths[idx - 1].id) >= 1
-                : false;
-
-            const isEnabled = isFirstPath || previousPathCompleted;
-
-            // Visual highlight for the next path that is now enabled
-            const isNextToUnlock =
-              isEnabled && !isFirstPath && previousPathCompleted && percent < 1;
-
-            // Check if path is password-locked - HIGHEST PRIORITY
+            // More permissive access - only block if password-locked
             const isPasswordLocked = isPathPasswordLocked(path);
             const hasPassword = pathHasPassword(path);
+            const isEnabled = !isPasswordLocked; // Much more permissive
 
             return (
               <TouchableOpacity
@@ -2619,20 +3323,12 @@ export function ProgressScreen() {
                 style={{
                   marginBottom: 20,
                   opacity: isEnabled ? 1 : 0.5,
-                  borderWidth: isNextToUnlock ? 3 : isPasswordLocked ? 2 : 0,
-                  borderColor: isNextToUnlock
-                    ? '#00E6C3'
-                    : isPasswordLocked
-                      ? '#FF9500'
-                      : 'transparent',
+                  borderWidth: isPasswordLocked ? 2 : 0,
+                  borderColor: isPasswordLocked ? '#FF9500' : 'transparent',
                   borderRadius: 24,
-                  shadowColor: isNextToUnlock
-                    ? '#00E6C3'
-                    : isPasswordLocked
-                      ? '#FF9500'
-                      : 'transparent',
-                  shadowOpacity: isNextToUnlock ? 0.5 : isPasswordLocked ? 0.3 : 0,
-                  shadowRadius: isNextToUnlock ? 12 : isPasswordLocked ? 8 : 0,
+                  shadowColor: isPasswordLocked ? '#FF9500' : 'transparent',
+                  shadowOpacity: isPasswordLocked ? 0.3 : 0,
+                  shadowRadius: isPasswordLocked ? 8 : 0,
                   shadowOffset: { width: 0, height: 0 },
                 }}
               >
@@ -2694,12 +3390,12 @@ export function ProgressScreen() {
                         <Text
                           fontSize={20}
                           fontWeight={isActive ? 'bold' : '600'}
-                          color={isActive ? '$color' : isPasswordLocked ? '#FF9500' : '$gray11'}
+                          color={isActive ? '$color' : isPasswordLocked ? '#FF9500' : '$color'}
                         >
                           {idx + 1}. {path.title[lang]}
                         </Text>
 
-                        {/* Show appropriate icon based on state - LOCK gets priority */}
+                        {/* Show password indicator if needed */}
                         {isPasswordLocked && hasPassword && (
                           <XStack
                             backgroundColor="#FF7300"
