@@ -22,11 +22,25 @@ class MessageService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
+    // First, get conversation IDs where user is a participant
+    const { data: userConversations, error: convError } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', user.id);
+
+    if (convError) throw convError;
+    
+    const conversationIds = userConversations?.map(c => c.conversation_id) || [];
+    if (conversationIds.length === 0) {
+      return [];
+    }
+
+    // Then get full conversation data with all participants
     const { data, error } = await supabase
       .from('conversations')
       .select(`
         *,
-        conversation_participants!inner(
+        conversation_participants(
           user_id,
           profiles!conversation_participants_user_id_fkey(
             id,
@@ -40,7 +54,7 @@ class MessageService {
           sender:profiles(*)
         )
       `)
-      .eq('conversation_participants.user_id', user.id)
+      .in('id', conversationIds)
       .order('updated_at', { ascending: false });
 
     if (error) throw error;
@@ -51,7 +65,8 @@ class MessageService {
       firstConversation: data?.[0] ? {
         id: data[0].id,
         conversation_participants: data[0].conversation_participants,
-        participantsCount: data[0].conversation_participants?.length || 0
+        participantsCount: data[0].conversation_participants?.length || 0,
+        hasParticipants: data[0].conversation_participants && data[0].conversation_participants.length > 0
       } : null
     });
 
@@ -65,17 +80,25 @@ class MessageService {
       ).length;
 
       // Filter out current user from participants and ensure profile data is available
-      const otherParticipants = conv.conversation_participants?.filter(p => p.user_id !== user.id).map(p => ({
-        ...p,
-        profile: p.profiles // Map profiles to profile for backward compatibility
-      })) || [];
+      const allParticipants = conv.conversation_participants || [];
+      const otherParticipants = allParticipants
+        .filter(p => p.user_id !== user.id)
+        .map(p => ({
+          ...p,
+          profile: p.profiles // Map profiles to profile for backward compatibility
+        }));
       
       console.log('🔍 Processing conversation:', {
         conversationId: conv.id,
-        totalParticipants: conv.conversation_participants?.length,
+        totalParticipants: allParticipants.length,
         otherParticipants: otherParticipants.length,
-        firstParticipant: otherParticipants[0],
-        profileData: otherParticipants[0]?.profile
+        currentUserId: user.id,
+        rawParticipants: allParticipants.map(p => ({ userId: p.user_id, hasProfile: !!p.profiles })),
+        firstOtherParticipant: otherParticipants[0] ? {
+          userId: otherParticipants[0].user_id,
+          hasProfile: !!otherParticipants[0].profiles,
+          profileData: otherParticipants[0].profiles
+        } : null
       });
 
       return {
@@ -89,16 +112,21 @@ class MessageService {
     return conversations;
   }
 
-  // Get messages for a conversation
+  // Get messages for a conversation (newest first)
   async getMessages(conversationId: string): Promise<Message[]> {
     const { data, error } = await supabase
       .from('messages')
       .select(`
         *,
-        sender:profiles(*)
+        sender:profiles!messages_sender_id_fkey(
+          id,
+          full_name,
+          avatar_url,
+          email
+        )
       `)
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false }); // Changed to descending for newest first
 
     if (error) throw error;
     return data || [];
@@ -145,16 +173,16 @@ class MessageService {
       const newMessageIds = messageIds.filter(id => !existingMessageIds.has(id));
 
       if (newMessageIds.length > 0) {
-        const { error } = await supabase
-          .from('message_reads')
+    const { error } = await supabase
+      .from('message_reads')
           .insert(
             newMessageIds.map(messageId => ({
-              message_id: messageId,
-              user_id: user.id
-            }))
-          );
+          message_id: messageId,
+          user_id: user.id
+        }))
+      );
 
-        if (error) throw error;
+    if (error) throw error;
       }
     } catch (error) {
       console.error('Error marking messages as read:', error);
@@ -283,40 +311,129 @@ class MessageService {
           filter: `conversation_id=eq.${conversationId}`
         },
         async (payload) => {
-          // Fetch the complete message with sender profile
-          const { data } = await supabase
-            .from('messages')
-            .select(`
-              *,
-              sender:profiles(*)
-            `)
-            .eq('id', payload.new.id)
-            .single();
-          
-          if (data) {
-            callback(data as Message);
+          try {
+            // Fetch the complete message with sender profile
+            const { data, error } = await supabase
+              .from('messages')
+              .select(`
+                *,
+                sender:profiles!messages_sender_id_fkey(
+                  id,
+                  full_name,
+                  avatar_url,
+                  email
+                )
+              `)
+              .eq('id', payload.new.id)
+              .single();
+            
+            if (error) {
+              console.error('Error fetching message details:', error);
+              return;
+            }
+            
+            if (data) {
+              callback(data as Message);
+            }
+          } catch (error) {
+            console.error('Error in message subscription:', error);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        async (payload) => {
+          try {
+            // Handle message updates (like read status)
+            const { data, error } = await supabase
+              .from('messages')
+              .select(`
+                *,
+                sender:profiles!messages_sender_id_fkey(
+                  id,
+                  full_name,
+                  avatar_url,
+                  email
+                )
+              `)
+              .eq('id', payload.new.id)
+              .single();
+            
+            if (error) {
+              console.error('Error fetching updated message:', error);
+              return;
+            }
+            
+            if (data) {
+              callback(data as Message);
+            }
+          } catch (error) {
+            console.error('Error in message update subscription:', error);
           }
         }
       )
       .subscribe();
   }
 
-  // Subscribe to conversation updates
+  // Subscribe to conversation updates - Enhanced with better real-time support
   subscribeToConversations(callback: (conversation: Conversation) => void) {
-    return supabase
-      .channel('conversations')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversations'
-        },
-        (payload) => {
+    const channel = supabase.channel('conversations-global');
+    
+    // Listen to conversation table changes
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'conversations'
+      },
+      async (payload) => {
+        try {
+          console.log('📡 Conversation update:', payload.eventType, payload.new?.id);
           callback(payload.new as Conversation);
+        } catch (error) {
+          console.error('Error in conversation subscription:', error);
         }
-      )
-      .subscribe();
+      }
+    );
+    
+    // Listen to message changes to update conversation last_message
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages'
+      },
+      async (payload) => {
+        try {
+          const conversationId = payload.new?.conversation_id;
+          if (conversationId) {
+            console.log('📡 New message in conversation:', conversationId);
+            // Trigger conversation refresh by fetching updated conversation
+            const { data: updatedConversation } = await supabase
+              .from('conversations')
+              .select('*')
+              .eq('id', conversationId)
+              .single();
+            
+            if (updatedConversation) {
+              callback(updatedConversation as Conversation);
+            }
+          }
+        } catch (error) {
+          console.error('Error in message-conversation subscription:', error);
+        }
+      }
+    );
+    
+    return channel.subscribe();
   }
 
   // Delete a conversation

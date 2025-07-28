@@ -1,16 +1,14 @@
-import { useCallback } from 'react';
+import { useEffect } from 'react';
 import { MessageBell } from '../components/MessageBell';
 import { NotificationBell } from '../components/NotificationBell';
 
 export const useHeaderIcons = () => {
-  const getHeaderRight = useCallback(() => {
-    return (
-      <>
-        <MessageBell size={24} color="#FFFFFF" />
-        <NotificationBell size={24} color="#FFFFFF" />
-      </>
-    );
+  useEffect(() => {
+    // Header icons setup logic can go here
   }, []);
 
-  return { getHeaderRight };
+  return {
+    MessageBell,
+    NotificationBell,
+  };
 }; 

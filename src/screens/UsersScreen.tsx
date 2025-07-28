@@ -210,34 +210,34 @@ export function UsersScreen() {
 
           {/* Actions Column */}
           <YStack alignItems="flex-end" gap="$2">
-            {/* Role badge */}
-            {user.role && (
-              <Card
-                backgroundColor={
+          {/* Role badge */}
+          {user.role && (
+            <Card
+              backgroundColor={
+                user.role === 'student'
+                  ? '$blue5'
+                  : user.role === 'instructor'
+                    ? '$green5'
+                    : '$purple5'
+              }
+              padding="$2"
+              borderRadius="$4"
+            >
+              <Text
+                color={
                   user.role === 'student'
-                    ? '$blue5'
+                    ? '$blue11'
                     : user.role === 'instructor'
-                      ? '$green5'
-                      : '$purple5'
+                      ? '$green11'
+                      : '$purple11'
                 }
-                padding="$2"
-                borderRadius="$4"
+                fontWeight="500"
+                fontSize="$2"
               >
-                <Text
-                  color={
-                    user.role === 'student'
-                      ? '$blue11'
-                      : user.role === 'instructor'
-                        ? '$green11'
-                        : '$purple11'
-                  }
-                  fontWeight="500"
-                  fontSize="$2"
-                >
-                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                </Text>
-              </Card>
-            )}
+                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+              </Text>
+            </Card>
+          )}
 
             {/* Follow/Unfollow Button */}
             {!user.isCurrentUser && (

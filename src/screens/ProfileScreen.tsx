@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
-import { YStack, XStack, Switch, useTheme, Card } from 'tamagui';
+import { YStack, XStack, Switch, useTheme, Card, Input } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 import * as Location from 'expo-location';
-import { Alert, Modal, View, Pressable, Image, ScrollView, RefreshControl } from 'react-native';
+import { Alert, Modal, View, Pressable, Image, ScrollView, RefreshControl, TextInput } from 'react-native';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
 import { Button } from '../components/Button';
@@ -32,6 +32,7 @@ import {
   checkForPotentialIssues,
   getPerformanceSummary,
 } from '../utils/performanceMonitor';
+import { pushNotificationService } from '../services/pushNotificationService';
 
 type ExperienceLevel = Database['public']['Enums']['experience_level'];
 type UserRole = Database['public']['Enums']['user_role'];
@@ -66,6 +67,21 @@ export function ProfileScreen() {
   const [availableSchools, setAvailableSchools] = useState<Array<{id: string; name: string; location: string}>>([]);
   const [selectedSupervisorIds, setSelectedSupervisorIds] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Student selector for teachers/instructors
+  const [supervisedStudents, setSupervisedStudents] = useState<Array<{id: string; full_name: string; email: string}>>([]);
+  const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
+  const [showStudentSelector, setShowStudentSelector] = useState(false);
+
+  // Invitation system states
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{id: string; full_name: string; email: string}>>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [inviteType, setInviteType] = useState<'supervisor' | 'student' | null>(null);
+  
+  // Sound settings
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Add comprehensive logging
   const { logAction, logAsyncAction, logRenderIssue, logMemoryWarning } = useScreenLogger({
@@ -453,6 +469,167 @@ export function ProfileScreen() {
     }
   }, [logError]);
 
+  // Search for users to invite
+  const searchUsers = useCallback(async (query: string) => {
+    if (!query.trim() || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    
+    try {
+      setSearchLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .neq('id', profile?.id) // Exclude current user
+        .limit(10);
+
+      if (error) throw error;
+      setSearchResults(data || []);
+    } catch (error) {
+      logError('Error searching users', error as Error);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [profile?.id, logError]);
+
+  // Send invitation - unified for both directions with push notification
+  const sendInvitation = async (targetUserId: string, invitationType: 'supervisor' | 'student') => {
+    try {
+      if (!profile?.id) return;
+      
+      const targetUser = searchResults.find(u => u.id === targetUserId);
+      if (!targetUser) return;
+
+      // Send enhanced push notification with database storage
+      await pushNotificationService.sendInvitationNotification(
+        profile.id,
+        targetUserId,
+        profile.full_name || profile.email || 'Unknown User',
+        profile.role || 'user',
+        invitationType
+      );
+
+      Alert.alert(
+        'Invitation Sent! 🎉', 
+        `${invitationType === 'student' ? 'Student supervision' : 'Supervisor'} invitation sent to ${targetUser.full_name || targetUser.email}. They will receive a push notification.`
+      );
+      
+      setShowInviteModal(false);
+      setSearchQuery('');
+      setSearchResults([]);
+      
+      logInfo('Invitation sent successfully', { 
+        targetUserId, 
+        invitationType,
+        targetUserName: targetUser.full_name 
+      });
+    } catch (error) {
+      logError('Error sending invitation', error as Error);
+      Alert.alert('Error', 'Failed to send invitation. Please try again.');
+    }
+  };
+
+  // Fix the fetchSupervisedStudents function with a simpler approach
+  const fetchSupervisedStudents = useCallback(async () => {
+    try {
+      if (!profile?.id) return;
+      
+      // Get student relationships first, then fetch profile details separately
+      const { data: relationships, error: relError } = await supabase
+        .from('student_supervisor_relationships')
+        .select('student_id')
+        .eq('supervisor_id', profile.id);
+
+      if (relError) {
+        console.error('Error fetching student relationships:', relError);
+        logError('Error fetching student relationships', relError);
+        return;
+      }
+
+      if (!relationships || relationships.length === 0) {
+        setSupervisedStudents([]);
+        return;
+      }
+
+      // Get profile details for all students
+      const studentIds = relationships.map(rel => rel.student_id);
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', studentIds);
+
+      if (profileError) {
+        console.error('Error fetching student profiles:', profileError);
+        logError('Error fetching student profiles', profileError);
+        return;
+      }
+
+      const students = profiles?.map(profile => ({
+        id: profile.id,
+        full_name: profile.full_name || 'Unknown Student',
+        email: profile.email || ''
+      })) || [];
+      
+      setSupervisedStudents(students);
+      logInfo('Supervised students loaded', { studentCount: students.length });
+    } catch (error) {
+      logError('Error fetching supervised students', error as Error);
+    }
+  }, [profile?.id, logInfo, logError]);
+
+  // Check if current user can supervise students (is teacher/instructor/admin/supervisor)
+  const canSuperviseStudents = () => {
+    const supervisorRoles = ['instructor', 'school', 'admin', 'teacher', 'supervisor'];
+    return profile?.role && supervisorRoles.includes(profile.role);
+  };
+
+  // Get current active student or self
+  const getActiveUser = () => {
+    if (activeStudentId && supervisedStudents.length > 0) {
+      const student = supervisedStudents.find(s => s.id === activeStudentId);
+      return student ? {
+        id: student.id,
+        full_name: student.full_name,
+        email: student.email,
+        isStudent: true
+      } : {
+        id: profile?.id || '',
+        full_name: profile?.full_name || '',
+        email: profile?.email || '',
+        isStudent: false
+      };
+    }
+    return {
+      id: profile?.id || '',
+      full_name: profile?.full_name || '',
+      email: profile?.email || '',
+      isStudent: false
+    };
+  };
+
+  // Switch active student
+  const switchActiveStudent = (studentId: string | null) => {
+    setActiveStudentId(studentId);
+    setShowStudentSelector(false);
+    
+    if (studentId) {
+      const student = supervisedStudents.find(s => s.id === studentId);
+      logInfo('Switched to student view', { 
+        studentId, 
+        studentName: student?.full_name 
+      });
+      Alert.alert(
+        'Student View Active',
+        `You are now viewing ${student?.full_name}'s progress and data.`
+      );
+    } else {
+      logInfo('Switched back to own view');
+      Alert.alert('Own View Active', 'You are now viewing your own progress and data.');
+    }
+  };
+
   // Fetch available schools from database
   const fetchAvailableSchools = useCallback(async () => {
     try {
@@ -607,11 +784,18 @@ export function ProfileScreen() {
     setRefreshing(true);
     try {
       if (profile?.id) {
-        await Promise.all([
+        const promises = [
           getUserProfileWithRelationships(profile.id),
           fetchAvailableSupervisors(),
           fetchAvailableSchools(),
-        ]);
+        ];
+        
+        // Add supervised students fetch for teachers/instructors
+        if (canSuperviseStudents()) {
+          promises.push(fetchSupervisedStudents());
+        }
+        
+        await Promise.all(promises);
       }
     } catch (error) {
       console.error('Error refreshing profile data:', error);
@@ -627,8 +811,29 @@ export function ProfileScreen() {
       // Also pre-load available options
       fetchAvailableSupervisors();
       fetchAvailableSchools();
+      
+      // Load supervised students if user can supervise
+      if (canSuperviseStudents()) {
+        fetchSupervisedStudents();
+      }
     }
-  }, [profile?.id, getUserProfileWithRelationships, fetchAvailableSupervisors, fetchAvailableSchools]);
+  }, [profile?.id, getUserProfileWithRelationships, fetchAvailableSupervisors, fetchAvailableSchools, fetchSupervisedStudents]);
+
+  // Load sound settings on component mount
+  useEffect(() => {
+    const loadSoundSettings = async () => {
+      try {
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        const soundSetting = await AsyncStorage.getItem('notification_sound_enabled');
+        setSoundEnabled(soundSetting !== 'false'); // Default to enabled
+      } catch (error) {
+        console.error('Error loading sound settings:', error);
+        setSoundEnabled(true); // Default to enabled on error
+      }
+    };
+    
+    loadSoundSettings();
+  }, []);
 
   return (
     <Screen 
@@ -802,6 +1007,83 @@ export function ProfileScreen() {
               <Text color="$color">{LANGUAGE_LABELS[language]}</Text>
             </Button>
 
+            {/* Supervised Students Section for Supervisors */}
+            {canSuperviseStudents() && (
+              <Card bordered padding="$4" marginVertical="$2">
+                <YStack gap="$2">
+                  <XStack justifyContent="space-between" alignItems="center">
+                    <Text size="lg" weight="bold" color="$color">
+                      Supervised Students
+                    </Text>
+                    <XStack gap="$2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$green9"
+                        onPress={() => {
+                          fetchSupervisedStudents();
+                          setShowStudentSelector(true);
+                        }}
+                      >
+                        <Text color="white">
+                          {activeStudentId ? 'Switch Student' : 'Select Student'}
+                        </Text>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$blue9"
+                        onPress={() => {
+                          setInviteType('student');
+                          setShowInviteModal(true);
+                        }}
+                      >
+                        <Text color="white">Invite Students</Text>
+                      </Button>
+                    </XStack>
+                  </XStack>
+                  
+                  {activeStudentId ? (
+                    <YStack gap="$1">
+                      <Text color="$green11" size="sm">
+                        🎯 Active View: {getActiveUser().full_name}
+                      </Text>
+                      <Text color="$gray11" size="xs">
+                        You can see this student's progress, routes, and exercises
+                      </Text>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$gray7"
+                        onPress={() => switchActiveStudent(null)}
+                        marginTop="$1"
+                      >
+                        <Text>Switch Back to My View</Text>
+                      </Button>
+                    </YStack>
+                  ) : supervisedStudents.length > 0 ? (
+                    <YStack gap="$1">
+                      <Text color="$gray11" size="sm">
+                        👨‍🏫 Managing {supervisedStudents.length} student{supervisedStudents.length !== 1 ? 's' : ''} • Currently viewing your own profile
+                      </Text>
+                      <Text color="$gray11" size="xs">
+                        Select a student above to view their progress and help with their exercises
+                      </Text>
+                    </YStack>
+                  ) : (
+                    <YStack gap="$1">
+                      <Text color="$gray11" size="sm">
+                        👥 No supervised students yet
+                      </Text>
+                      <Text color="$gray11" size="xs">
+                        Invite students to supervise their learning journey
+                      </Text>
+                    </YStack>
+                  )}
+                </YStack>
+              </Card>
+            )}
+
             {/* Supervisors Section - ALWAYS SHOW */}
             <Card bordered padding="$4" marginVertical="$2">
               <YStack gap="$2">
@@ -809,20 +1091,36 @@ export function ProfileScreen() {
                   <Text size="lg" weight="bold" color="$color">
                     {t('profile.supervisors') || 'Supervisors'}
                   </Text>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    backgroundColor="$blue9"
-                    onPress={() => {
-                      fetchAvailableSupervisors();
-                      setShowSupervisorModal(true);
-                    }}
-                    disabled={relationshipsLoading}
-                  >
-                    <Text color="white">
-                      {supervisors.length > 0 ? 'Change' : 'Add Supervisors'}
-                    </Text>
-                  </Button>
+                                          <XStack gap="$2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            backgroundColor="$blue9"
+                            onPress={() => {
+                              fetchAvailableSupervisors();
+                              setShowSupervisorModal(true);
+                            }}
+                            disabled={relationshipsLoading}
+                          >
+                            <Text color="white">
+                              {supervisors.length > 0 ? 'Change' : 'Add Supervisors'}
+                            </Text>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            backgroundColor="$green9"
+                            onPress={() => {
+                              // Role-aware invitation: Students invite supervisors, Supervisors invite students
+                              setInviteType(canSuperviseStudents() ? 'student' : 'supervisor');
+                              setShowInviteModal(true);
+                            }}
+                          >
+                            <Text color="white">
+                              {canSuperviseStudents() ? 'Invite Students' : 'Invite Supervisors'}
+                            </Text>
+                          </Button>
+                        </XStack>
                 </XStack>
                 
                 {supervisors.length === 0 ? (
@@ -1017,6 +1315,172 @@ export function ProfileScreen() {
                 />
               </Switch>
             </XStack>
+
+            {/* Notification Settings */}
+            <Card bordered padding="$4" marginVertical="$2">
+              <YStack gap="$3">
+                <Text size="lg" weight="bold" color="$color">
+                  🔔 Notification Settings
+                </Text>
+                
+                <XStack justifyContent="space-between" alignItems="center">
+                  <YStack flex={1}>
+                    <Text color="$color" fontWeight="500">Push Notifications</Text>
+                    <Text color="$gray11" fontSize="$3">Get notified about messages, routes, and updates</Text>
+                  </YStack>
+                  <Switch
+                    size="$4"
+                    checked={true}
+                    backgroundColor="$blue8"
+                    onCheckedChange={async (checked) => {
+                      if (checked) {
+                        await pushNotificationService.registerForPushNotifications();
+                        Alert.alert('Notifications Enabled', 'You will receive push notifications for important updates.');
+                      } else {
+                        Alert.alert('Feature Not Available', 'Notification disabling will be available in a future update.');
+                      }
+                    }}
+                  >
+                    <Switch.Thumb />
+                  </Switch>
+                </XStack>
+
+                <XStack justifyContent="space-between" alignItems="center">
+                  <YStack flex={1}>
+                    <Text color="$color" fontWeight="500">App Badge</Text>
+                    <Text color="$gray11" fontSize="$3">Show unread count on app icon</Text>
+                  </YStack>
+                  <Switch
+                    size="$4"
+                    checked={true}
+                    backgroundColor="$blue8"
+                    onCheckedChange={async (checked) => {
+                      if (checked) {
+                        await pushNotificationService.updateBadgeCount();
+                        Alert.alert('Badge Enabled', 'App icon will show unread count.');
+                      } else {
+                        await pushNotificationService.setBadgeCount(0);
+                        Alert.alert('Badge Disabled', 'App icon badge cleared.');
+                      }
+                    }}
+                  >
+                    <Switch.Thumb />
+                  </Switch>
+                </XStack>
+
+                <XStack justifyContent="space-between" alignItems="center">
+                  <YStack flex={1}>
+                    <Text color="$color" fontWeight="500">Notification Sounds</Text>
+                    <Text color="$gray11" fontSize="$3">Play sounds for messages and notifications</Text>
+                  </YStack>
+                  <Switch
+                    size="$4"
+                    checked={soundEnabled}
+                    backgroundColor={soundEnabled ? "$blue8" : "$gray6"}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        // Save sound setting directly with AsyncStorage
+                        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                        await AsyncStorage.setItem('notification_sound_enabled', checked.toString());
+                        setSoundEnabled(checked);
+                        
+                        if (checked) {
+                          Alert.alert('Sounds Enabled', 'You will hear notification sounds.');
+                          // Play test sound
+                          await pushNotificationService.playNotificationSound('notification');
+                        } else {
+                          Alert.alert('Sounds Disabled', 'Notification sounds turned off.');
+                        }
+                      } catch (error) {
+                        console.error('Error updating sound settings:', error);
+                        Alert.alert('Error', 'Failed to update sound settings');
+                      }
+                    }}
+                  >
+                    <Switch.Thumb />
+                  </Switch>
+                </XStack>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  backgroundColor="$gray7"
+                  onPress={async () => {
+                    try {
+                      await pushNotificationService.updateBadgeCount();
+                      const currentBadge = await pushNotificationService.getBadgeCount();
+                      Alert.alert(
+                        'Badge Updated',
+                        `Current badge count: ${currentBadge}\n\nNote: Badge count may only be visible when the app is published to the App Store.`
+                      );
+                    } catch (error) {
+                      console.error('Badge update error:', error);
+                      Alert.alert('Error', 'Failed to update badge count');
+                    }
+                  }}
+                >
+                  <Text>🔄 Update Badge Count</Text>
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  backgroundColor="$purple9"
+                  onPress={async () => {
+                    try {
+                      Alert.alert(
+                        'Test Sounds',
+                        'Choose a sound to test:',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: '🔔 Notification Sound',
+                            onPress: async () => {
+                              await pushNotificationService.playNotificationSound('notification');
+                            }
+                          },
+                          {
+                            text: '💬 Message Sound',
+                            onPress: async () => {
+                              await pushNotificationService.playNotificationSound('message');
+                            }
+                          },
+                          {
+                            text: '📱 System Sound',
+                            onPress: async () => {
+                              await pushNotificationService.playSystemSound();
+                            }
+                          }
+                        ]
+                      );
+                    } catch (error) {
+                      console.error('Test sound error:', error);
+                      Alert.alert('Error', 'Failed to play test sound');
+                    }
+                  }}
+                >
+                  <Text color="white">🎵 Test Sounds</Text>
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  backgroundColor="$red9"
+                  onPress={async () => {
+                    try {
+                      await pushNotificationService.clearAllNotifications();
+                      await pushNotificationService.setBadgeCount(0);
+                      Alert.alert('Cleared', 'All notifications and badge count cleared');
+                    } catch (error) {
+                      console.error('Clear notifications error:', error);
+                      Alert.alert('Error', 'Failed to clear notifications');
+                    }
+                  }}
+                >
+                  <Text color="white">🗑️ Clear All Notifications</Text>
+                </Button>
+              </YStack>
+            </Card>
 
             <Button onPress={handleShowOnboarding} variant="secondary" size="lg">
               <XStack gap="$2" alignItems="center">
@@ -1239,6 +1703,60 @@ ${
                   marginBottom="$2"
                 >
                   System Health Check
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      if (!profile?.id) {
+                        Alert.alert('Error', 'User not found');
+                        return;
+                      }
+                      
+                      Alert.alert(
+                        'Test Notifications',
+                        'Choose a notification type to test:',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'General Test',
+                            onPress: async () => {
+                              await pushNotificationService.sendTestNotification(profile.id, 'general');
+                              Alert.alert('Success', 'Test notification sent!');
+                            }
+                          },
+                          {
+                            text: 'Route Test',
+                            onPress: async () => {
+                              await pushNotificationService.sendTestNotification(profile.id, 'route');
+                              Alert.alert('Success', 'Route test notification sent!');
+                            }
+                          },
+                          {
+                            text: 'Follow Test',
+                            onPress: async () => {
+                              await pushNotificationService.sendTestNotification(profile.id, 'follow');
+                              Alert.alert('Success', 'Follow test notification sent!');
+                            }
+                          },
+                          {
+                            text: 'Message Test',
+                            onPress: async () => {
+                              await pushNotificationService.sendTestNotification(profile.id, 'message');
+                              Alert.alert('Success', 'Message test notification sent!');
+                            }
+                          }
+                        ]
+                      );
+                    } catch (error) {
+                      logError('Failed to send test notification', error as Error);
+                      Alert.alert('Error', 'Failed to send test notification');
+                    }
+                  }}
+                  marginBottom="$2"
+                >
+                  🔔 Test Push Notifications
                 </Button>
               </YStack>
             </Card>
@@ -1579,6 +2097,205 @@ ${
 
             <Button
               onPress={() => setShowSchoolModal(false)}
+              variant="secondary"
+              backgroundColor="$backgroundHover"
+            >
+              {t('common.cancel') || 'Cancel'}
+            </Button>
+          </YStack>
+        </Pressable>
+      </Modal>
+
+      {/* Invitation Modal */}
+      <Modal
+        visible={showInviteModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowInviteModal(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowInviteModal(false)}
+        >
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
+            maxHeight="80%"
+          >
+            <Text size="xl" weight="bold" color="$color">
+              {inviteType === 'supervisor' ? 'Invite Supervisor' : 'Invite Students'}
+            </Text>
+            <Text color="$gray11" size="sm">
+              {inviteType === 'supervisor' 
+                ? 'Find someone to supervise your learning progress'
+                : 'Find students you want to supervise and help with their learning'
+              }
+            </Text>
+            
+            <XStack gap="$2">
+              <Input
+                flex={1}
+                value={searchQuery}
+                onChangeText={(text) => {
+                  setSearchQuery(text);
+                  searchUsers(text);
+                }}
+                placeholder="Search by name or email..."
+              />
+              <Button 
+                onPress={() => searchUsers(searchQuery)} 
+                disabled={searchLoading}
+                variant="secondary"
+              >
+                <Feather name="search" size={16} />
+              </Button>
+            </XStack>
+            
+            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={true}>
+              <YStack gap="$2">
+                {searchLoading ? (
+                  <Card padding="$4">
+                    <Text textAlign="center" color="$gray11">Searching...</Text>
+                  </Card>
+                ) : searchResults.length === 0 && searchQuery.length >= 2 ? (
+                  <Card padding="$4">
+                    <Text textAlign="center" color="$gray11">No users found</Text>
+                  </Card>
+                ) : (
+                  searchResults.map((user) => (
+                    <Card key={user.id} padding="$3" pressStyle={{ scale: 0.98 }}>
+                      <XStack justifyContent="space-between" alignItems="center">
+                        <YStack flex={1}>
+                          <Text fontWeight="bold">{user.full_name || 'Unknown User'}</Text>
+                          <Text color="$gray11" fontSize="$3">{user.email}</Text>
+                        </YStack>
+                        <Button
+                          onPress={() => sendInvitation(user.id, inviteType!)}
+                          variant="secondary"
+                          size="sm"
+                          backgroundColor="$blue10"
+                        >
+                          <Text color="white">Invite</Text>
+                        </Button>
+                      </XStack>
+                    </Card>
+                  ))
+                )}
+              </YStack>
+            </ScrollView>
+
+            <Button
+              onPress={() => setShowInviteModal(false)}
+              variant="secondary"
+              backgroundColor="$backgroundHover"
+            >
+              Cancel
+            </Button>
+          </YStack>
+        </Pressable>
+      </Modal>
+
+      {/* Student Selector Modal for Teachers/Instructors */}
+      <Modal
+        visible={showStudentSelector}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStudentSelector(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowStudentSelector(false)}
+        >
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
+            maxHeight="80%"
+          >
+            <Text size="xl" weight="bold" color="$color">
+              Select Student to View
+            </Text>
+            <Text color="$gray11" size="sm">
+              Choose a student to view their progress, routes, and exercises
+            </Text>
+            
+            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={true}>
+              <YStack gap="$2">
+                {/* Option to view own profile */}
+                <Button
+                  onPress={() => switchActiveStudent(null)}
+                  variant={!activeStudentId ? 'primary' : 'secondary'}
+                  backgroundColor={!activeStudentId ? '$blue10' : undefined}
+                  size="lg"
+                >
+                  <YStack alignItems="flex-start" width="100%">
+                    <Text color={!activeStudentId ? 'white' : '$color'} fontWeight="bold">
+                      My Own Profile
+                    </Text>
+                    <Text color={!activeStudentId ? 'white' : '$gray11'} fontSize="$3">
+                      View your own progress and data
+                    </Text>
+                  </YStack>
+                </Button>
+
+                {/* Students list */}
+                {supervisedStudents.length === 0 ? (
+                  <YStack padding="$4" alignItems="center">
+                    <Text color="$gray11" textAlign="center">
+                      👥 No supervised students
+                    </Text>
+                    <Text color="$gray11" fontSize="$3" textAlign="center" marginTop="$2">
+                      Students need to add you as their supervisor first
+                    </Text>
+                  </YStack>
+                ) : (
+                  supervisedStudents.map((student) => {
+                    const isSelected = activeStudentId === student.id;
+                    return (
+                      <Button
+                        key={student.id}
+                        onPress={() => switchActiveStudent(student.id)}
+                        variant={isSelected ? 'primary' : 'secondary'}
+                        backgroundColor={isSelected ? '$green10' : undefined}
+                        size="lg"
+                      >
+                        <YStack alignItems="flex-start" width="100%">
+                          <Text color={isSelected ? 'white' : '$color'} fontWeight="bold">
+                            {student.full_name}
+                          </Text>
+                          {student.email && (
+                            <Text color={isSelected ? 'white' : '$gray11'} fontSize="$3">
+                              {student.email}
+                            </Text>
+                          )}
+                          {isSelected && (
+                            <Text color="white" fontSize="$2" marginTop="$1">
+                              Currently Active
+                            </Text>
+                          )}
+                        </YStack>
+                      </Button>
+                    );
+                  })
+                )}
+              </YStack>
+            </ScrollView>
+
+            <Button
+              onPress={() => setShowStudentSelector(false)}
               variant="secondary"
               backgroundColor="$backgroundHover"
             >

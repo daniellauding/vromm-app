@@ -15,9 +15,17 @@ export const NotificationsScreen: React.FC = () => {
   useEffect(() => {
     loadNotifications();
     
-    // Subscribe to real-time updates
-    const subscription = notificationService.subscribeToNotifications((notification) => {
+    // Subscribe to real-time updates with sound
+    const subscription = notificationService.subscribeToNotifications(async (notification) => {
       setNotifications(prev => [notification, ...prev]);
+      
+      // Play sound for new notifications
+      try {
+        const { pushNotificationService } = await import('../services/pushNotificationService');
+        await pushNotificationService.playNotificationSound('notification');
+      } catch (error) {
+        console.log('Could not play notification sound:', error);
+      }
     });
 
     return () => {
@@ -55,39 +63,89 @@ export const NotificationsScreen: React.FC = () => {
         );
       }
 
+      console.log('🔔 Handling notification press:', {
+        type: notification.type,
+        data: notification.data,
+        metadata: notification.metadata,
+        actorId: notification.actor_id,
+        hasNavigator: !!navigation
+      });
+
       // Navigate based on notification type
       switch (notification.type) {
         case 'message':
+        case 'message_received':
+          console.log('📍 Navigating to Messages');
           (navigation as any).navigate('Messages');
           break;
+          
         case 'route_review':
         case 'route_uploaded':
         case 'route_saved':
         case 'route_driven':
+        case 'route_completed':
+        case 'route_reviewed':
+        case 'route_liked':
           if (notification.data?.route_id || notification.metadata?.route_id) {
             const routeId = notification.data?.route_id || notification.metadata?.route_id;
+            console.log('📍 Navigating to RouteDetail:', routeId);
             (navigation as any).navigate('RouteDetail', { routeId });
           }
           break;
+          
         case 'follow':
         case 'user_follow':
-          if (notification.actor_id) {
-            (navigation as any).navigate('PublicProfile', { userId: notification.actor_id });
+        case 'new_follower':
+          const userId = notification.actor_id || notification.data?.follower_id || notification.data?.from_user_id;
+          if (userId) {
+            console.log('📍 Navigating to PublicProfile:', userId);
+            (navigation as any).navigate('PublicProfile', { userId });
           }
           break;
+          
+        case 'supervisor_invitation':
+        case 'student_invitation':
+          const inviterUserId = notification.data?.from_user_id || notification.actor_id;
+          if (inviterUserId) {
+            console.log('📍 Navigating to PublicProfile for invitation:', inviterUserId);
+            (navigation as any).navigate('PublicProfile', { userId: inviterUserId });
+          }
+          break;
+          
+        case 'conversation_created':
+          if (notification.data?.conversation_id) {
+            console.log('📍 Navigating to Conversation:', notification.data.conversation_id);
+            (navigation as any).navigate('Conversation', { 
+              conversationId: notification.data.conversation_id 
+            });
+          } else {
+            console.log('📍 Navigating to Messages (no conversation ID)');
+            (navigation as any).navigate('Messages');
+          }
+          break;
+          
+        case 'exercise_completed':
+        case 'learning_path_completed':
+        case 'quiz_completed':
+          console.log('📍 Navigating to ProgressTab');
+          (navigation as any).navigate('MainTabs', { screen: 'ProgressTab' });
+          break;
+          
         case 'like':
           // If it's a route like, navigate to the route
           if (notification.data?.route_id || notification.metadata?.route_id) {
             const routeId = notification.data?.route_id || notification.metadata?.route_id;
+            console.log('📍 Navigating to RouteDetail for like:', routeId);
             (navigation as any).navigate('RouteDetail', { routeId });
           }
           break;
+          
         default:
-          console.log('Unhandled notification type:', notification.type);
+          console.log('❓ Unhandled notification type:', notification.type);
           break;
       }
     } catch (error) {
-      console.error('Error handling notification press:', error);
+      console.error('❌ Error handling notification press:', error);
     }
   };
 
@@ -210,9 +268,9 @@ export const NotificationsScreen: React.FC = () => {
             <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
           
-          <Text fontSize={24} fontWeight="bold" color="$color">
-            Notifications
-          </Text>
+        <Text fontSize={24} fontWeight="bold" color="$color">
+          Notifications
+        </Text>
         </XStack>
         
         {notifications.some(n => !n.is_read) && (

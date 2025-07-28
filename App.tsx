@@ -11,7 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme, Platform, NativeModules, View, AppState } from 'react-native';
 import * as Font from 'expo-font';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from './src/lib/supabase';
 import { StatusBar } from 'expo-status-bar';
 import { setupTranslationSubscription } from './src/services/translationService';
@@ -21,6 +21,7 @@ import { CreateRouteProvider } from './src/contexts/CreateRouteContext';
 import { MessagingProvider } from './src/contexts/MessagingContext';
 import { ErrorBoundary, clearOldCrashReports } from './src/components/ErrorBoundary';
 import { logInfo, logWarn, logError, logNavigation } from './src/utils/logger';
+import { pushNotificationService } from './src/services/pushNotificationService';
 
 // Disable reanimated warnings about reading values during render
 
@@ -81,6 +82,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function AppContent() {
   const { user, loading: authLoading, initialized } = useAuth();
   const colorScheme = useColorScheme();
+  const navigationRef = useRef<any>();
 
   // Add app-level logging and crash monitoring
   useEffect(() => {
@@ -117,6 +119,14 @@ function AppContent() {
       logInfo('App cleanup completed');
     };
   }, [colorScheme]);
+
+  // Set up push notification navigation reference
+  useEffect(() => {
+    if (navigationRef.current) {
+      pushNotificationService.setNavigationRef(navigationRef);
+      logInfo('Push notification navigation reference set');
+    }
+  }, [navigationRef.current]);
 
   // Enable analytics collection when the app starts
   useEffect(() => {
@@ -204,6 +214,7 @@ function AppContent() {
 
   return (
     <NavigationContainer
+      ref={navigationRef}
       onStateChange={(state) => {
         const currentRoute = state?.routes[state?.index || 0]?.name;
         

@@ -36,6 +36,8 @@ import { useModal } from '../contexts/ModalContext';
 import { useToast } from '../contexts/ToastContext';
 import { useCreateRoute } from '../contexts/CreateRouteContext';
 import { RecordDrivingModal } from '../components/RecordDrivingSheet';
+import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector';
+import { AdvancedExerciseCreator } from '../components/AdvancedExerciseCreator';
 import * as mediaUtils from '../utils/mediaUtils';
 
 // Helper function to extract YouTube video ID
@@ -192,6 +194,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const [newExercise, setNewExercise] = useState<Partial<Exercise>>({});
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [activeSection, setActiveSection] = useState('basic'); // 'basic', 'exercises', 'media', 'details'
+  const [showExerciseSelector, setShowExerciseSelector] = useState(false);
+  const [showAdvancedExerciseCreator, setShowAdvancedExerciseCreator] = useState(false);
   const { getCurrentLocation, locationPermission, requestLocationPermission } = useLocation();
   const windowHeight = Dimensions.get('window').height;
   const windowWidth = Dimensions.get('window').width;
@@ -1032,6 +1036,21 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         description: newExercise.description || '',
         duration: newExercise.duration,
         repetitions: newExercise.repetitions,
+        source: 'custom',
+        // Set defaults for user-generated content
+        is_user_generated: true,
+        visibility: 'private', // Default to private
+        category: 'user-created',
+        difficulty_level: 'beginner',
+        vehicle_type: 'both',
+        creator_id: user?.id,
+        created_at: new Date().toISOString(),
+        promotion_status: 'none',
+        quality_score: 0,
+        rating: 0,
+        rating_count: 0,
+        completion_count: 0,
+        report_count: 0,
       },
     ]);
     setNewExercise({});
@@ -1039,6 +1058,65 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const handleRemoveExercise = (id: string) => {
     setExercises(exercises.filter((ex) => ex.id !== id));
+  };
+
+  // Handle exercise selector changes
+  const handleExercisesChange = (updatedExercises: RouteExercise[]) => {
+    // Convert RouteExercise[] to Exercise[] for compatibility
+    const convertedExercises: Exercise[] = updatedExercises.map(ex => ({
+      id: ex.id,
+      title: ex.title,
+      description: ex.description,
+      duration: ex.duration,
+      repetitions: ex.repetitions,
+      learning_path_exercise_id: ex.learning_path_exercise_id,
+      learning_path_id: ex.learning_path_id,
+      learning_path_title: ex.learning_path_title,
+      youtube_url: ex.youtube_url,
+      icon: ex.icon,
+      image: ex.image,
+      embed_code: ex.embed_code,
+      has_quiz: ex.has_quiz,
+      quiz_required: ex.quiz_required,
+      isRepeat: ex.isRepeat,
+      originalId: ex.originalId,
+      repeatNumber: ex.repeatNumber,
+      source: ex.source,
+    }));
+    
+    setExercises(convertedExercises);
+  };
+
+  // Handle exercises created from AdvancedExerciseCreator
+  const handleAdvancedExerciseCreated = (exercise: any) => {
+    const newExercise: Exercise = {
+      id: Date.now().toString(),
+      title: typeof exercise.title === 'string' ? exercise.title : exercise.title.en,
+      description: typeof exercise.description === 'string' ? exercise.description : exercise.description?.en || '',
+      duration: exercise.duration,
+      repetitions: exercise.repetitions,
+      source: 'custom',
+      is_user_generated: true,
+      visibility: exercise.visibility || 'private',
+      category: exercise.category || 'user-created',
+      difficulty_level: exercise.difficulty_level || 'beginner',
+      vehicle_type: exercise.vehicle_type || 'both',
+      creator_id: user?.id,
+      created_at: new Date().toISOString(),
+      promotion_status: 'none',
+      quality_score: 0,
+      rating: 0,
+      rating_count: 0,
+      completion_count: 0,
+      report_count: 0,
+      youtube_url: exercise.youtube_url,
+      embed_code: exercise.embed_code,
+      has_quiz: exercise.has_quiz,
+      quiz_required: exercise.quiz_required,
+    };
+    
+    setExercises(prev => [...prev, newExercise]);
+    setShowAdvancedExerciseCreator(false);
   };
 
   const pickMedia = async (useCamera = false) => {
@@ -1077,6 +1155,18 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     }
   };
 
+  const uploadPhoto = async () => {
+    try {
+      const newMedia = await mediaUtils.pickMediaFromLibrary(false); // Single photo selection
+      if (newMedia && newMedia.length > 0) {
+        setMedia([...media, ...newMedia]);
+      }
+    } catch (err) {
+      console.error('Error uploading photo:', err);
+      Alert.alert('Error', 'Failed to upload photo. Please try again.');
+    }
+  };
+
   const recordVideo = async () => {
     try {
       const newMedia = await mediaUtils.recordVideo();
@@ -1086,6 +1176,18 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     } catch (err) {
       console.error('Error recording video:', err);
       Alert.alert('Error', 'Failed to record video. Please try again.');
+    }
+  };
+
+  const uploadVideo = async () => {
+    try {
+      const newMedia = await mediaUtils.pickVideoFromLibrary(false); // Single video selection
+      if (newMedia && newMedia.length > 0) {
+        setMedia([...media, ...newMedia]);
+      }
+    } catch (err) {
+      console.error('Error uploading video:', err);
+      Alert.alert('Error', 'Failed to upload video. Please try again.');
     }
   };
 
@@ -2513,99 +2615,161 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                   <YStack gap="$4">
                     <Heading>{getTranslation(t, 'createRoute.exercises', 'Exercises')}</Heading>
                     <Text size="sm" color="$gray11">
-                      {getTranslation(t, 'createRoute.addExercise', 'Add Exercise')}
+                      Add exercises from learning paths or create custom ones
                     </Text>
 
-                    <YStack gap="$4">
-                      <FormField
-                        value={newExercise.title || ''}
-                        onChangeText={(text) =>
-                          setNewExercise((prev) => ({ ...prev, title: text }))
-                        }
-                        placeholder={getTranslation(
-                          t,
-                          'createRoute.exerciseTitlePlaceholder',
-                          'Enter exercise title',
-                        )}
-                        accessibilityLabel={getTranslation(
-                          t,
-                          'createRoute.exerciseTitle',
-                          'Exercise Title',
-                        )}
-                      />
-                      <TextArea
-                        value={newExercise.description || ''}
-                        onChangeText={(text) =>
-                          setNewExercise((prev) => ({ ...prev, description: text }))
-                        }
-                        placeholder={getTranslation(
-                          t,
-                          'createRoute.exerciseDescriptionPlaceholder',
-                          'Enter exercise description',
-                        )}
-                        numberOfLines={3}
-                        accessibilityLabel={getTranslation(
-                          t,
-                          'createRoute.exerciseDescription',
-                          'Exercise Description',
-                        )}
-                        size="md"
-                        backgroundColor="$backgroundHover"
-                        borderColor="$borderColor"
-                      />
-                      <XStack gap="$2">
-                        <FormField
-                          flex={1}
-                          value={newExercise.duration || ''}
-                          onChangeText={(text) =>
-                            setNewExercise((prev) => ({ ...prev, duration: text }))
-                          }
-                          placeholder={getTranslation(
-                            t,
-                            'createRoute.durationPlaceholder',
-                            'Duration (e.g., 30 sec)',
-                          )}
-                          accessibilityLabel={getTranslation(t, 'createRoute.duration', 'Duration')}
-                        />
-                      </XStack>
+                    {/* Learning Path Exercises Selector */}
+                    <YStack gap="$3">
+                      <Heading size="$4">From Learning Paths</Heading>
                       <Button
-                        onPress={handleAddExercise}
-                        disabled={!newExercise.title}
+                        onPress={() => setShowExerciseSelector(true)}
                         variant="secondary"
-                        size="md"
+                        size="lg"
+                        backgroundColor="$green5"
+                      >
+                        <XStack gap="$2" alignItems="center">
+                          <Feather name="book-open" size={18} color="$green11" />
+                          <Text color="$green11" fontWeight="500">
+                            Select from Learning Paths ({exercises.filter(ex => ex.source === 'learning_path').length} selected)
+                          </Text>
+                      </XStack>
+                      </Button>
+                    </YStack>
+
+                    <Separator marginVertical="$4" />
+
+                    {/* Advanced Custom Exercise Creator */}
+                    <YStack gap="$3">
+                      <Heading size="$4">Create Custom Exercise</Heading>
+                      <Text size="sm" color="$gray11">
+                        Create rich, feature-complete exercises with multimedia support, quizzes, and multilingual content
+                      </Text>
+                      
+                      <Button
+                        onPress={() => setShowAdvancedExerciseCreator(true)}
+                        variant="secondary"
+                        size="lg"
+                        backgroundColor="$blue5"
                         marginTop="$2"
                       >
                         <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="$blue10" />
-                          <Text color="$blue10">
-                            {getTranslation(t, 'createRoute.addExercise', 'Add Exercise')}
+                          <Feather name="plus-circle" size={20} color="$blue11" />
+                          <Text color="$blue11" fontWeight="500">
+                            Create Advanced Exercise
                           </Text>
                         </XStack>
                       </Button>
+                      
+                      <YStack gap="$2" marginTop="$2">
+                        <Text size="sm" color="$green11" fontWeight="500">
+                          🎯 Features Available:
+                        </Text>
+                        <Text size="xs" color="$gray11">
+                          ✅ Photos, Videos & YouTube integration • ✅ Interactive quizzes & embeds
+                        </Text>
+                        <Text size="xs" color="$gray11">
+                          ✅ Public/Private visibility • ✅ Categories & difficulty levels
+                        </Text>
+                        <Text size="xs" color="$gray11">
+                          ✅ Multilingual support (EN/SV) • ✅ Rich descriptions & instructions
+                        </Text>
+                      </YStack>
                     </YStack>
 
                     <Separator marginVertical="$4" />
 
                     {exercises.length > 0 ? (
                       <YStack gap="$4">
+                        <Text size="lg" weight="bold">
+                          Selected Exercises ({exercises.length})
+                        </Text>
                         {exercises.map((exercise) => (
-                          <Card key={exercise.id} bordered padding="$3">
+                          <Card 
+                            key={exercise.id} 
+                            bordered 
+                            padding="$3"
+                            backgroundColor={exercise.source === 'learning_path' ? '$green1' : '$background'}
+                            borderColor={exercise.source === 'learning_path' ? '$green8' : '$borderColor'}
+                          >
                             <YStack gap="$2">
-                              <XStack justifyContent="space-between" alignItems="center">
+                              <XStack justifyContent="space-between" alignItems="flex-start">
+                                <YStack flex={1} gap="$1">
+                                  <XStack alignItems="center" gap="$2">
                                 <Text size="lg" weight="medium">
                                   {exercise.title}
                                 </Text>
+                                    {exercise.source === 'learning_path' && (
+                                      <View style={{
+                                        backgroundColor: '#10B981',
+                                        paddingHorizontal: 6,
+                                        paddingVertical: 2,
+                                        borderRadius: 8,
+                                      }}>
+                                        <Text fontSize={10} color="white" fontWeight="500">
+                                          LEARNING PATH
+                                        </Text>
+                                      </View>
+                                    )}
+                                    {exercise.isRepeat && (
+                                      <View style={{
+                                        backgroundColor: '#F59E0B',
+                                        paddingHorizontal: 6,
+                                        paddingVertical: 2,
+                                        borderRadius: 8,
+                                      }}>
+                                        <Text fontSize={10} color="white" fontWeight="500">
+                                          REPEAT {exercise.repeatNumber || ''}
+                                        </Text>
+                                      </View>
+                                    )}
+                                    {exercise.has_quiz && (
+                                      <View style={{
+                                        backgroundColor: '#3B82F6',
+                                        paddingHorizontal: 6,
+                                        paddingVertical: 2,
+                                        borderRadius: 8,
+                                      }}>
+                                        <Text fontSize={10} color="white" fontWeight="500">
+                                          QUIZ
+                                        </Text>
+                                      </View>
+                                    )}
+                                    {exercise.youtube_url && (
+                                      <View style={{
+                                        backgroundColor: '#EF4444',
+                                        paddingHorizontal: 6,
+                                        paddingVertical: 2,
+                                        borderRadius: 8,
+                                      }}>
+                                        <Text fontSize={10} color="white" fontWeight="500">
+                                          VIDEO
+                                        </Text>
+                                      </View>
+                                    )}
+                                  </XStack>
+                                  
+                                  {exercise.learning_path_title && (
+                                    <Text size="sm" color="$green11">
+                                      From: {exercise.learning_path_title}
+                                    </Text>
+                                  )}
+                                </YStack>
+                                
                                 <Button
                                   variant="secondary"
                                   size="sm"
                                   onPress={() => handleRemoveExercise(exercise.id)}
+                                  backgroundColor="$red5"
                                 >
-                                  <Feather name="trash-2" size={16} color="$gray11" />
+                                  <Feather name="trash-2" size={16} color="$red10" />
                                 </Button>
                               </XStack>
+                              
                               {exercise.description && (
                                 <Text color="$gray11">{exercise.description}</Text>
                               )}
+                              
+                              <XStack gap="$3" alignItems="center" flexWrap="wrap">
                               {exercise.duration && (
                                 <XStack gap="$1" alignItems="center">
                                   <Feather name="clock" size={14} color="$gray11" />
@@ -2614,6 +2778,25 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                   </Text>
                                 </XStack>
                               )}
+                                
+                                {exercise.repetitions && (
+                                  <XStack gap="$1" alignItems="center">
+                                    <Feather name="repeat" size={14} color="$gray11" />
+                                    <Text size="sm" color="$gray11">
+                                      {exercise.repetitions}
+                                    </Text>
+                                  </XStack>
+                                )}
+                                
+                                {exercise.source === 'learning_path' && (
+                                  <XStack gap="$1" alignItems="center">
+                                    <Feather name="link" size={14} color="$gray11" />
+                                    <Text size="sm" color="$gray11">
+                                      Linked to Learning Path
+                                    </Text>
+                                  </XStack>
+                                )}
+                              </XStack>
                             </YStack>
                           </Card>
                         ))}
@@ -2664,6 +2847,20 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       </Button>
                       <Button
                         flex={1}
+                        onPress={uploadPhoto}
+                        variant="secondary"
+                        size="md"
+                        marginTop="$2"
+                      >
+                        <XStack gap="$2" alignItems="center">
+                          <Feather name="upload" size={18} color="$blue10" />
+                          <Text color="$blue10">
+                            {getTranslation(t, 'createRoute.uploadPhoto', 'Upload Photo')}
+                          </Text>
+                        </XStack>
+                      </Button>
+                      <Button
+                        flex={1}
                         onPress={recordVideo}
                         variant="secondary"
                         size="md"
@@ -2673,6 +2870,20 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           <Feather name="plus" size={18} color="$blue10" />
                           <Text color="$blue10">
                             {getTranslation(t, 'createRoute.takeVideo', 'Take Video')}
+                          </Text>
+                        </XStack>
+                      </Button>
+                      <Button
+                        flex={1}
+                        onPress={uploadVideo}
+                        variant="secondary"
+                        size="md"
+                        marginTop="$2"
+                      >
+                        <XStack gap="$2" alignItems="center">
+                          <Feather name="upload" size={18} color="$blue10" />
+                          <Text color="$blue10">
+                            {getTranslation(t, 'createRoute.uploadVideo', 'Upload Video')}
                           </Text>
                         </XStack>
                       </Button>
@@ -2918,6 +3129,21 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           </XStack>
         </Button>
       </YStack>
+
+      {/* Exercise Selector Modal */}
+      <ExerciseSelector
+        visible={showExerciseSelector}
+        onClose={() => setShowExerciseSelector(false)}
+        selectedExercises={exercises as RouteExercise[]}
+        onExercisesChange={handleExercisesChange}
+      />
+
+      {/* Advanced Exercise Creator Modal */}
+      <AdvancedExerciseCreator
+        visible={showAdvancedExerciseCreator}
+        onClose={() => setShowAdvancedExerciseCreator(false)}
+        onExerciseCreated={handleAdvancedExerciseCreated}
+      />
 
       {/* Exit Confirmation Bottom Sheet */}
       <Modal

@@ -20,13 +20,22 @@ export const MessageBell: React.FC<MessageBellProps> = ({
   useEffect(() => {
     loadUnreadCount();
     
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates with enhanced handling
     const subscription = messageService.subscribeToConversations(() => {
+      console.log('📡 MessageBell: Conversation update detected, refreshing count');
       loadUnreadCount();
     });
 
+    // Set up periodic refresh for real-time feel
+    const refreshInterval = setInterval(() => {
+      loadUnreadCount();
+    }, 10000); // Refresh every 10 seconds
+
     return () => {
-      subscription.unsubscribe();
+      if (subscription?.unsubscribe) {
+        subscription.unsubscribe();
+      }
+      clearInterval(refreshInterval);
     };
   }, []);
 

@@ -62,6 +62,47 @@ export const pickMediaFromLibrary = async (allowMultiple = true): Promise<MediaI
 };
 
 /**
+ * Pick video from library for upload
+ */
+export const pickVideoFromLibrary = async (allowMultiple = false): Promise<MediaItem[] | null> => {
+  try {
+    // Request permissions with proper error handling
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission needed',
+        'Media library permission is required to select videos',
+      );
+      return null;
+    }
+
+    // Settings optimized for video selection
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsMultipleSelection: allowMultiple,
+      quality: 0.7, // Good quality but not too large
+      allowsEditing: false, // No editing for videos to prevent memory issues
+      base64: false, // Don't request base64 for better performance
+      videoMaxDuration: 60, // Max 60 seconds to prevent huge files
+    });
+
+    if (result.canceled) return null;
+
+    // Process selected videos with error handling
+    return result.assets.map((asset) => ({
+      id: Date.now().toString() + Math.random(),
+      type: 'video',
+      uri: asset.uri,
+      fileName: asset.uri.split('/').pop() || 'video.mp4',
+    }));
+  } catch (error) {
+    console.error('Error picking video:', error);
+    Alert.alert('Error', 'Failed to select video. Please try again.');
+    return null;
+  }
+};
+
+/**
  * Take a photo with the camera using stable settings
  */
 export const takePhoto = async (): Promise<MediaItem | null> => {

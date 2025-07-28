@@ -33,11 +33,31 @@ export const ConversationScreen: React.FC = () => {
       loadConversation();
       loadMessages();
       
-      // Subscribe to real-time message updates
-      const subscription = messageService.subscribeToMessages(conversationId, (message) => {
-        setMessages(prev => [...prev, message]);
-        // Mark message as read if it's from another user
+      // Subscribe to real-time message updates with enhanced handling
+      const subscription = messageService.subscribeToMessages(conversationId, async (message) => {
+        console.log('📡 ConversationScreen: New message received:', message.id);
+        
+        setMessages(prev => {
+          // Check if message already exists to avoid duplicates
+          const exists = prev.some(m => m.id === message.id);
+          if (exists) {
+            // Update existing message (e.g., read status changed)
+            return prev.map(m => m.id === message.id ? { ...m, ...message } : m)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          } else {
+            // Add new message at top (newest first)
+            return [message, ...prev];
+          }
+        });
+        
+        // Play sound for new messages from other users
         if (message.sender_id !== user?.id) {
+          try {
+            await pushNotificationService.playNotificationSound('message');
+          } catch (error) {
+            console.log('Could not play message sound:', error);
+          }
+          
           messageService.markMessagesAsRead([message.id]);
         }
       });
@@ -63,7 +83,7 @@ export const ConversationScreen: React.FC = () => {
     try {
       setLoading(true);
       const data = await messageService.getMessages(conversationId);
-      setMessages(data);
+      setMessages(data); // Already sorted newest first from service
       
       // Mark messages as read
       const { data: { user } } = await supabase.auth.getUser();
@@ -75,6 +95,13 @@ export const ConversationScreen: React.FC = () => {
       if (unreadMessages.length > 0) {
         await messageService.markMessagesAsRead(unreadMessages.map(msg => msg.id));
       }
+      
+      // Scroll to top after loading (newest messages)
+      setTimeout(() => {
+        if (data.length > 0) {
+          flatListRef.current?.scrollToIndex({ index: 0, animated: false });
+        }
+      }, 100);
     } catch (error) {
       console.error('Error loading messages:', error);
     } finally {
@@ -89,6 +116,11 @@ export const ConversationScreen: React.FC = () => {
       setSending(true);
       await messageService.sendMessage(conversationId, newMessage.trim());
       setNewMessage('');
+      
+      // Scroll to top to show the new message
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({ index: 0, animated: true });
+      }, 100);
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
@@ -138,24 +170,50 @@ export const ConversationScreen: React.FC = () => {
     }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => {
+  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
     const isOwnMessage = item.sender_id === currentUserId;
     const isRead = item.read_by?.includes(currentUserId || '');
+    
+    // Group consecutive messages from the same user (newest first order)
+    const prevMessage = index > 0 ? messages[index - 1] : null; // previous message (newer)
+    const nextMessage = index < messages.length - 1 ? messages[index + 1] : null; // next message (older)
+    
+    const isFirstInGroup = !prevMessage || prevMessage.sender_id !== item.sender_id; // First = newest in group
+    const isLastInGroup = !nextMessage || nextMessage.sender_id !== item.sender_id; // Last = oldest in group
+    
+    // Different bubble styling for grouped messages
+    const getBorderRadius = () => {
+      const baseRadius = 16;
+      const smallRadius = 4;
+      
+      if (isOwnMessage) {
+        if (isFirstInGroup && isLastInGroup) return baseRadius; // Single message
+        if (isFirstInGroup) return `${baseRadius}px ${baseRadius}px ${smallRadius}px ${baseRadius}px`; // First in group
+        if (isLastInGroup) return `${baseRadius}px ${baseRadius}px ${baseRadius}px ${smallRadius}px`; // Last in group
+        return `${baseRadius}px ${baseRadius}px ${smallRadius}px ${smallRadius}px`; // Middle of group
+      } else {
+        if (isFirstInGroup && isLastInGroup) return baseRadius; // Single message
+        if (isFirstInGroup) return `${baseRadius}px ${baseRadius}px ${baseRadius}px ${smallRadius}px`; // First in group
+        if (isLastInGroup) return `${smallRadius}px ${baseRadius}px ${baseRadius}px ${baseRadius}px`; // Last in group
+        return `${smallRadius}px ${baseRadius}px ${baseRadius}px ${smallRadius}px`; // Middle of group
+      }
+    };
 
     return (
       <XStack
         paddingHorizontal={16}
-        paddingVertical={4}
+        paddingVertical={isLastInGroup ? 4 : 1} // Less spacing for grouped messages
         justifyContent={isOwnMessage ? 'flex-end' : 'flex-start'}
       >
         <YStack
           maxWidth="70%"
           backgroundColor={isOwnMessage ? '#00FFBC' : 'rgba(255, 255, 255, 0.1)'}
-          borderRadius={16}
+          borderRadius={getBorderRadius()}
           padding={12}
           gap={4}
         >
-          {!isOwnMessage && item.sender && (
+          {/* Only show sender name for first message in group */}
+          {!isOwnMessage && item.sender && isFirstInGroup && (
             <Text fontSize={12} color="$gray11" fontWeight="bold">
               {item.sender.full_name}
             </Text>
@@ -169,20 +227,23 @@ export const ConversationScreen: React.FC = () => {
             {item.content}
           </Text>
           
-          <XStack justifyContent="space-between" alignItems="center" gap={8}>
-            <Text
-              fontSize={10}
-              color={isOwnMessage ? 'rgba(0, 0, 0, 0.6)' : '$gray11'}
-            >
-              {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-            </Text>
-            
-            {isOwnMessage && (
-              <Text fontSize={12} color={isOwnMessage ? 'rgba(0, 0, 0, 0.6)' : '$gray11'}>
-                {isRead ? '✓✓' : '✓'}
+          {/* Only show timestamp and read status on last message in group */}
+          {isLastInGroup && (
+            <XStack justifyContent="space-between" alignItems="center" gap={8}>
+              <Text
+                fontSize={10}
+                color={isOwnMessage ? 'rgba(0, 0, 0, 0.6)' : '$gray11'}
+              >
+                {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
               </Text>
-            )}
-          </XStack>
+              
+              {isOwnMessage && (
+                <Text fontSize={12} color={isOwnMessage ? 'rgba(0, 0, 0, 0.6)' : '$gray11'}>
+                  {isRead ? '✓✓' : '✓'}
+                </Text>
+              )}
+            </XStack>
+          )}
         </YStack>
       </XStack>
     );
@@ -241,25 +302,25 @@ export const ConversationScreen: React.FC = () => {
         </TouchableOpacity>
         
         <TouchableOpacity onPress={handleAvatarPress}>
-          <Avatar circular size={40}>
-            <Avatar.Image
-              source={{ 
+        <Avatar circular size={40}>
+          <Avatar.Image
+            source={{ 
                 uri: participantWithProfile?.profile?.avatar_url || 
                       `https://ui-avatars.com/api/?name=${encodeURIComponent(participantDisplayName)}&background=00FFBC&color=000` 
-              }}
-            />
-            <Avatar.Fallback backgroundColor="$gray8" />
-          </Avatar>
+            }}
+          />
+          <Avatar.Fallback backgroundColor="$gray8" />
+        </Avatar>
         </TouchableOpacity>
         
         <TouchableOpacity onPress={handleAvatarPress} flex={1}>
           <YStack>
-            <Text fontSize={16} fontWeight="bold" color="$color">
+          <Text fontSize={16} fontWeight="bold" color="$color">
               {participantDisplayName}
-            </Text>
-            <Text fontSize={12} color="$gray11">
-              {conversation?.is_group ? 'Group' : 'Direct message'}
-            </Text>
+          </Text>
+          <Text fontSize={12} color="$gray11">
+            {conversation?.is_group ? 'Group' : 'Direct message'}
+          </Text>
           </YStack>
         </TouchableOpacity>
 
@@ -320,17 +381,25 @@ export const ConversationScreen: React.FC = () => {
         onPress={() => setShowDropdown(false)}
         style={{ flex: 1 }}
       >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          inverted
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 16 }}
-          onContentSizeChange={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}
-          scrollEnabled={true}
-        />
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        renderItem={({ item, index }) => renderMessage({ item, index })}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: 16 }}
+        onContentSizeChange={() => {
+          // Auto-scroll to top when new messages arrive
+          if (messages.length > 0) {
+            flatListRef.current?.scrollToIndex({ index: 0, animated: true });
+          }
+        }}
+        scrollEnabled={true}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+          autoscrollToTopThreshold: 10
+        }}
+      />
       </TouchableOpacity>
 
       {/* Message Input */}

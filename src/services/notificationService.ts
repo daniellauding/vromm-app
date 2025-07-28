@@ -60,7 +60,7 @@ class NotificationService {
     if (!user) return 0;
 
     try {
-      const { data, error } = await supabase
+    const { data, error } = await supabase
         .from('notifications')
         .select('id')
         .eq('user_id', user.id)

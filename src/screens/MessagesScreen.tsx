@@ -17,24 +17,42 @@ export const MessagesScreen: React.FC = () => {
   useEffect(() => {
     loadConversations();
     
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates with improved handling
     const subscription = messageService.subscribeToConversations((conversation) => {
+      console.log('📡 Real-time conversation update:', conversation.id);
+      
       setConversations(prev => {
+        // Ensure we have a valid conversation
+        if (!conversation || !conversation.id) {
+          console.warn('Invalid conversation received:', conversation);
+          return prev;
+        }
+
         const index = prev.findIndex(c => c.id === conversation.id);
         if (index >= 0) {
+          // Update existing conversation
           const updated = [...prev];
-          updated[index] = { ...updated[index], ...conversation };
+          updated[index] = { 
+            ...updated[index], 
+            ...conversation,
+            // Preserve participants if not included in update
+            participants: conversation.participants || updated[index].participants
+          };
           return updated.sort((a, b) => 
-            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+            new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
           );
         } else {
-          return [conversation, ...prev];
+          // Add new conversation - need to fetch full details
+          loadConversations(); // Refresh full list to get complete data
+          return prev;
         }
       });
     });
 
     return () => {
-      subscription.unsubscribe();
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      }
     };
   }, []);
 
@@ -110,12 +128,12 @@ export const MessagesScreen: React.FC = () => {
   const getConversationDisplayName = (conversation: Conversation) => {
     const otherParticipant = conversation.participants?.find(p => p.user_id !== user?.id);
     
-    if (otherParticipant?.profile?.full_name) {
-      return otherParticipant.profile.full_name;
+    if (otherParticipant?.profile?.full_name?.trim()) {
+      return otherParticipant.profile.full_name.trim();
     }
     
-    if (otherParticipant?.profile?.email) {
-      return otherParticipant.profile.email;
+    if (otherParticipant?.profile?.email?.trim()) {
+      return otherParticipant.profile.email.trim();
     }
     
     if (otherParticipant?.user_id) {
@@ -147,21 +165,27 @@ export const MessagesScreen: React.FC = () => {
   };
 
   const renderConversation = ({ item }: { item: Conversation }) => {
+    // Safely check if item exists
+    if (!item || !item.id) {
+      return null;
+    }
+
     // Find the other participant (not the current user)
     const otherParticipant = item.participants?.find(p => p.user_id !== user?.id);
     const lastMessage = item.last_message;
     const displayName = getConversationDisplayName(item);
+    const safeDisplayName = String(displayName || 'Unknown User');
     
-    // Debug logging
+    // Debug logging with safe values
     console.log('🔍 Conversation participant data:', {
-      conversationId: item.id,
-      participantsCount: item.participants?.length || 0,
+      conversationId: String(item.id || ''),
+      participantsCount: Number(item.participants?.length || 0),
       otherParticipant: otherParticipant ? {
-        userId: otherParticipant.user_id,
-        profile: otherParticipant.profile,
-        displayName
+        userId: String(otherParticipant.user_id || ''),
+        profile: otherParticipant.profile || null,
+        displayName: safeDisplayName
       } : null,
-      currentUserId: user?.id
+      currentUserId: String(user?.id || '')
     });
     
     return (
@@ -177,15 +201,17 @@ export const MessagesScreen: React.FC = () => {
           gap={12}
         >
           <TouchableOpacity onPress={() => handleViewProfile(item)}>
-            <Avatar circular size={48}>
-              <Avatar.Image
-                source={{ 
-                  uri: otherParticipant?.profile?.avatar_url || 
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=00FFBC&color=000` 
-                }}
-              />
-              <Avatar.Fallback backgroundColor="$gray8" />
-            </Avatar>
+          <Avatar circular size={48}>
+            <Avatar.Image
+              source={{ 
+                uri: otherParticipant?.profile?.avatar_url || 
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(safeDisplayName)}&background=00FFBC&color=000` 
+              }}
+            />
+            <Avatar.Fallback backgroundColor="$gray8">
+              <User size={24} color="white" />
+            </Avatar.Fallback>
+          </Avatar>
           </TouchableOpacity>
           
           <YStack flex={1} gap={4}>
@@ -196,16 +222,16 @@ export const MessagesScreen: React.FC = () => {
                 color="$color"
                 numberOfLines={1}
               >
-                {displayName}
+                {safeDisplayName}
               </Text>
-              {lastMessage && (
+              {lastMessage?.created_at ? (
                 <Text
                   fontSize={12}
                   color="$gray11"
                 >
-                  {formatDistanceToNow(new Date(lastMessage.created_at), { addSuffix: true })}
+                  {String(formatDistanceToNow(new Date(lastMessage.created_at), { addSuffix: true }))}
                 </Text>
-              )}
+              ) : null}
             </XStack>
             
             <XStack justifyContent="space-between" alignItems="center">
@@ -215,10 +241,10 @@ export const MessagesScreen: React.FC = () => {
                 numberOfLines={1}
                 flex={1}
               >
-                {lastMessage?.content || 'No messages yet'}
+                {String(lastMessage?.content || '').trim() || 'No messages yet'}
               </Text>
               
-              {item.unread_count && item.unread_count > 0 && (
+              {item.unread_count && item.unread_count > 0 ? (
                 <YStack
                   backgroundColor="#EF4444"
                   borderRadius={10}
@@ -232,10 +258,10 @@ export const MessagesScreen: React.FC = () => {
                     fontWeight="bold"
                     color="#FFFFFF"
                   >
-                    {item.unread_count > 99 ? '99+' : item.unread_count}
+                    {item.unread_count > 99 ? '99+' : String(item.unread_count)}
                   </Text>
                 </YStack>
-              )}
+              ) : null}
             </XStack>
           </YStack>
         </XStack>
@@ -267,9 +293,9 @@ export const MessagesScreen: React.FC = () => {
             <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
           
-          <Text fontSize={24} fontWeight="bold" color="$color">
-            Messages
-          </Text>
+        <Text fontSize={24} fontWeight="bold" color="$color">
+          Messages
+        </Text>
         </XStack>
         
         <XStack gap={16}>

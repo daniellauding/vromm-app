@@ -20,13 +20,22 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   useEffect(() => {
     loadUnreadCount();
     
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates with enhanced handling
     const subscription = notificationService.subscribeToNotifications(() => {
+      console.log('📡 NotificationBell: New notification detected, refreshing count');
       loadUnreadCount();
     });
 
+    // Set up periodic refresh for real-time feel
+    const refreshInterval = setInterval(() => {
+      loadUnreadCount();
+    }, 15000); // Refresh every 15 seconds
+
     return () => {
-      subscription.unsubscribe();
+      if (subscription?.unsubscribe) {
+        subscription.unsubscribe();
+      }
+      clearInterval(refreshInterval);
     };
   }, []);
 

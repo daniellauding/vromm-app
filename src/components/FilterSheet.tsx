@@ -89,13 +89,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   selectedChip: {
-    backgroundColor: '#1A3D3D',
+    backgroundColor: '#00E6C3',
   },
   chipText: {
     fontSize: 14,
+    fontWeight: '500',
   },
   selectedChipText: {
-    color: 'white',
+    color: '#000000',
+    fontWeight: '600',
   },
   footer: {
     paddingHorizontal: 20,
@@ -307,7 +309,7 @@ export function FilterSheet({
                     styles.filterChip,
                     {
                       borderColor,
-                      backgroundColor: filters.sort === sort ? '#1A3D3D' : 'transparent',
+                      backgroundColor: filters.sort === sort ? '#00E6C3' : 'transparent',
                     },
                   ]}
                   onPress={() => setSingleFilter('sort', sort)}
@@ -316,7 +318,8 @@ export function FilterSheet({
                     style={[
                       styles.chipText,
                       {
-                        color: filters.sort === sort ? 'white' : textColor,
+                        color: filters.sort === sort ? '#000000' : textColor,
+                      fontWeight: filters.sort === sort ? '600' : '500',
                       },
                     ]}
                   >
@@ -341,7 +344,7 @@ export function FilterSheet({
                     {
                       borderColor,
                       backgroundColor: isSelected('difficulty', difficulty)
-                        ? '#1A3D3D'
+                        ? '#00E6C3'
                         : 'transparent',
                     },
                   ]}
@@ -351,7 +354,8 @@ export function FilterSheet({
                     style={[
                       styles.chipText,
                       {
-                        color: isSelected('difficulty', difficulty) ? 'white' : textColor,
+                        color: isSelected('difficulty', difficulty) ? '#000000' : textColor,
+                        fontWeight: isSelected('difficulty', difficulty) ? '600' : '500',
                       },
                     ]}
                   >
@@ -375,7 +379,7 @@ export function FilterSheet({
                     styles.filterChip,
                     {
                       borderColor,
-                      backgroundColor: isSelected('spotType', spotType) ? '#1A3D3D' : 'transparent',
+                      backgroundColor: isSelected('spotType', spotType) ? '#00E6C3' : 'transparent',
                     },
                   ]}
                   onPress={() => toggleFilter('spotType', spotType)}
@@ -384,7 +388,8 @@ export function FilterSheet({
                     style={[
                       styles.chipText,
                       {
-                        color: isSelected('spotType', spotType) ? 'white' : textColor,
+                        color: isSelected('spotType', spotType) ? '#000000' : textColor,
+                        fontWeight: isSelected('spotType', spotType) ? '600' : '500',
                       },
                     ]}
                   >
@@ -408,7 +413,7 @@ export function FilterSheet({
                     styles.filterChip,
                     {
                       borderColor,
-                      backgroundColor: isSelected('category', category) ? '#1A3D3D' : 'transparent',
+                      backgroundColor: isSelected('category', category) ? '#00E6C3' : 'transparent',
                     },
                   ]}
                   onPress={() => toggleFilter('category', category)}
@@ -417,7 +422,8 @@ export function FilterSheet({
                     style={[
                       styles.chipText,
                       {
-                        color: isSelected('category', category) ? 'white' : textColor,
+                        color: isSelected('category', category) ? '#000000' : textColor,
+                        fontWeight: isSelected('category', category) ? '600' : '500',
                       },
                     ]}
                   >
@@ -442,7 +448,7 @@ export function FilterSheet({
                     {
                       borderColor,
                       backgroundColor: isSelected('transmissionType', transmissionType)
-                        ? '#1A3D3D'
+                        ? '#00E6C3'
                         : 'transparent',
                     },
                   ]}
@@ -453,8 +459,9 @@ export function FilterSheet({
                       styles.chipText,
                       {
                         color: isSelected('transmissionType', transmissionType)
-                          ? 'white'
+                          ? '#000000'
                           : textColor,
+                        fontWeight: isSelected('transmissionType', transmissionType) ? '600' : '500',
                       },
                     ]}
                   >
@@ -479,7 +486,7 @@ export function FilterSheet({
                     {
                       borderColor,
                       backgroundColor: isSelected('activityLevel', activityLevel)
-                        ? '#1A3D3D'
+                        ? '#00E6C3'
                         : 'transparent',
                     },
                   ]}
@@ -489,7 +496,8 @@ export function FilterSheet({
                     style={[
                       styles.chipText,
                       {
-                        color: isSelected('activityLevel', activityLevel) ? 'white' : textColor,
+                        color: isSelected('activityLevel', activityLevel) ? '#000000' : textColor,
+                        fontWeight: isSelected('activityLevel', activityLevel) ? '600' : '500',
                       },
                     ]}
                   >
@@ -514,7 +522,7 @@ export function FilterSheet({
                     {
                       borderColor,
                       backgroundColor: isSelected('bestSeason', bestSeason)
-                        ? '#1A3D3D'
+                        ? '#00E6C3'
                         : 'transparent',
                     },
                   ]}
@@ -524,7 +532,8 @@ export function FilterSheet({
                     style={[
                       styles.chipText,
                       {
-                        color: isSelected('bestSeason', bestSeason) ? 'white' : textColor,
+                        color: isSelected('bestSeason', bestSeason) ? '#000000' : textColor,
+                        fontWeight: isSelected('bestSeason', bestSeason) ? '600' : '500',
                       },
                     ]}
                   >
@@ -549,7 +558,7 @@ export function FilterSheet({
                     {
                       borderColor,
                       backgroundColor: isSelected('vehicleTypes', vehicleType)
-                        ? '#1A3D3D'
+                        ? '#00E6C3'
                         : 'transparent',
                     },
                   ]}
@@ -559,7 +568,8 @@ export function FilterSheet({
                     style={[
                       styles.chipText,
                       {
-                        color: isSelected('vehicleTypes', vehicleType) ? 'white' : textColor,
+                        color: isSelected('vehicleTypes', vehicleType) ? '#000000' : textColor,
+                        fontWeight: isSelected('vehicleTypes', vehicleType) ? '600' : '500',
                       },
                     ]}
                   >
@@ -584,7 +594,7 @@ export function FilterSheet({
                     {
                       borderColor,
                       backgroundColor:
-                        filters.experienceLevel === level ? '#1A3D3D' : 'transparent',
+                        filters.experienceLevel === level ? '#00E6C3' : 'transparent',
                     },
                   ]}
                   onPress={() => setSingleFilter('experienceLevel', level)}
@@ -593,7 +603,8 @@ export function FilterSheet({
                     style={[
                       styles.chipText,
                       {
-                        color: filters.experienceLevel === level ? 'white' : textColor,
+                        color: filters.experienceLevel === level ? '#000000' : textColor,
+                      fontWeight: filters.experienceLevel === level ? '600' : '500',
                       },
                     ]}
                   >
@@ -629,13 +640,13 @@ export function FilterSheet({
                   style={{
                     width: 24,
                     height: 24,
-                    backgroundColor: '#1A3D3D',
+                    backgroundColor: '#00E6C3',
                     borderRadius: 12,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <Feather name="move" size={14} color="white" />
+                  <Feather name="move" size={14} color="#000000" />
                 </View>
               </Slider.Thumb>
             </Slider>
@@ -659,7 +670,7 @@ export function FilterSheet({
             },
           ]}
         >
-          <Button backgroundColor="#1A3D3D" color="white" size="$5" onPress={handleApply}>
+          <Button backgroundColor="#00E6C3" color="#000000" size="$5" onPress={handleApply}>
             {t('filters.seeRoutes', { count: routeCount })}
           </Button>
         </View>

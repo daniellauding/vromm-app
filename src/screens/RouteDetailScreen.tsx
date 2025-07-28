@@ -32,6 +32,7 @@ import { Region } from 'react-native-maps';
 import { ReportDialog } from '../components/report/ReportDialog';
 import { useTranslation } from '../contexts/TranslationContext';
 import { parseRecordingStats, isRecordedRoute, formatRecordingStatsDisplay } from '../utils/routeUtils';
+import { RouteExerciseList } from '../components/RouteExerciseList';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type RouteRow = Database['public']['Tables']['routes']['Row'];
@@ -123,6 +124,7 @@ interface SupabaseRouteResponse extends Omit<RouteRow, 'waypoint_details' | 'med
 type RouteData = Omit<RouteRow, 'waypoint_details' | 'media_attachments'> & {
   waypoint_details: (WaypointDetail & Json)[];
   media_attachments: (MediaAttachment & Json)[];
+  exercises?: Exercise[];
   creator?: {
     id: string;
     full_name: string;
@@ -170,6 +172,15 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   const [carouselHeight, setCarouselHeight] = useState(300); // Height for the carousel
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showAdminControls, setShowAdminControls] = useState(false);
+  
+  // Exercise-related state
+  const [exerciseStats, setExerciseStats] = useState<{
+    completed: number;
+    total: number;
+    lastSessionAt?: string;
+  } | null>(null);
+  const [completedExerciseIds, setCompletedExerciseIds] = useState<Set<string>>(new Set());
+  const [allExercisesCompleted, setAllExercisesCompleted] = useState(false);
 
   useEffect(() => {
     if (routeId) {
@@ -247,6 +258,13 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
     checkAdminStatus();
   }, [user]);
+
+  // Load exercise statistics when route data changes
+  useEffect(() => {
+    if (routeData?.exercises && user) {
+      loadExerciseStats();
+    }
+  }, [routeData?.exercises, user]);
 
   const loadRouteData = useCallback(async () => {
     if (!routeId) return;
@@ -833,6 +851,69 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     Alert.alert('Open in Maps', 'Choose which map app to use:', alertButtons);
   };
 
+  const loadExerciseStats = async () => {
+    try {
+      if (!user || !routeData?.exercises) return;
+
+      // Get route exercise sessions for this user and route
+      const { data: sessions } = await supabase
+        .from('route_exercise_sessions')
+        .select('*')
+        .eq('route_id', routeId)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (!sessions?.length) {
+        setExerciseStats({
+          completed: 0,
+          total: routeData.exercises.length,
+        });
+        return;
+      }
+
+      // Get the latest completed session
+      const latestCompletedSession = sessions.find(s => s.status === 'completed');
+      const latestSession = sessions[0];
+
+      // Get all completed exercises from the latest session
+      let completedExerciseIds = new Set<string>();
+      if (latestSession) {
+        const { data: completions } = await supabase
+          .from('route_exercise_completions')
+          .select('exercise_id')
+          .eq('session_id', latestSession.id);
+
+        if (completions) {
+          completedExerciseIds = new Set(completions.map(c => c.exercise_id));
+        }
+      }
+
+      setCompletedExerciseIds(completedExerciseIds);
+      setAllExercisesCompleted(completedExerciseIds.size === routeData.exercises.length);
+      
+      setExerciseStats({
+        completed: completedExerciseIds.size,
+        total: routeData.exercises.length,
+        lastSessionAt: latestCompletedSession?.completed_at || latestSession?.created_at,
+      });
+    } catch (error) {
+      console.error('Error loading exercise stats:', error);
+    }
+  };
+
+  const handleStartExercises = () => {
+    if (!routeData?.exercises || !Array.isArray(routeData.exercises)) {
+      Alert.alert('Error', 'No exercises available for this route');
+      return;
+    }
+
+    navigation.navigate('RouteExercise', {
+      routeId,
+      exercises: routeData.exercises,
+      routeName: routeData.name,
+    });
+  };
+
   const startRoute = async () => {
     try {
       if (!user || !routeId) {
@@ -1226,6 +1307,84 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                 ))}
               </YStack>
             </Card>
+
+            {/* Route Exercises Section */}
+            {routeData.exercises && Array.isArray(routeData.exercises) && routeData.exercises.length > 0 && (
+              <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+                <YStack gap="$4">
+                  <XStack justifyContent="space-between" alignItems="center">
+                    <Text fontSize="$6" fontWeight="600" color="$color">
+                      {getTranslation(t, 'routeDetail.exercises', 'Route Exercises')}
+                    </Text>
+                    <Button
+                      onPress={handleStartExercises}
+                      backgroundColor="$blue10"
+                      icon={<Feather name="play" size={18} color="white" />}
+                      size="md"
+                    >
+                      <Text color="white" fontSize={14} fontWeight="600">
+                        {allExercisesCompleted ? 'Review' : 'Start'} Exercises
+                      </Text>
+                      {allExercisesCompleted && (
+                        <View style={{
+                          backgroundColor: '#10B981',
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 8,
+                          marginLeft: 8,
+                        }}>
+                          <XStack alignItems="center" gap={2}>
+                            <Feather name="check" size={10} color="white" />
+                            <Text fontSize={10} color="white" fontWeight="600">
+                              COMPLETED
+                            </Text>
+                          </XStack>
+                        </View>
+                      )}
+                    </Button>
+                  </XStack>
+
+                  {/* Exercise List Preview */}
+                  <RouteExerciseList 
+                    exercises={routeData.exercises} 
+                    completedIds={completedExerciseIds}
+                    maxPreview={3}
+                  />
+
+                  {/* Exercise Statistics */}
+                  {exerciseStats && (
+                    <Card bordered padding="$3" backgroundColor="$gray2">
+                      <YStack gap="$2">
+                        <Text fontSize={12} fontWeight="600" color="$gray11">
+                          Your Progress
+                        </Text>
+                        <XStack justifyContent="space-between" alignItems="center">
+                          <Text fontSize={11} color="$gray11">
+                            Completed: {exerciseStats.completed}/{exerciseStats.total}
+                          </Text>
+                          <Text fontSize={11} color="$gray11">
+                            {Math.round((exerciseStats.completed / exerciseStats.total) * 100)}%
+                          </Text>
+                        </XStack>
+                        <Progress
+                          value={(exerciseStats.completed / exerciseStats.total) * 100}
+                          backgroundColor="$gray6"
+                          size="$0.5"
+                        >
+                          <Progress.Indicator backgroundColor="$blue10" />
+                        </Progress>
+                        
+                        {exerciseStats.lastSessionAt && (
+                          <Text fontSize={10} color="$gray9" marginTop="$1">
+                            Last session: {new Date(exerciseStats.lastSessionAt).toLocaleDateString()}
+                          </Text>
+                        )}
+                      </YStack>
+                    </Card>
+                  )}
+                </YStack>
+              </Card>
+            )}
 
             {/* Reviews Section */}
             <ReviewSection routeId={routeId} reviews={reviews} onReviewAdded={loadReviews} />

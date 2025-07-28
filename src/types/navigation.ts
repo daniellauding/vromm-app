@@ -5,6 +5,7 @@ import { CompositeNavigationProp } from '@react-navigation/native';
 import { Database } from '../lib/database.types';
 import { SearchResult } from '../components/SearchView';
 import type { Route } from '../hooks/useRoutes';
+import type { Exercise } from './route';
 
 export type FilterCategory = {
   id: string;
@@ -67,6 +68,11 @@ export type RootStackParamList = {
   Conversation: { conversationId: string };
   Notifications: undefined;
   NewMessage: undefined;
+  RouteExercise: {
+    routeId: string;
+    exercises: Exercise[];
+    routeName?: string;
+  };
   RouteList: {
     title: string;
     routes: Route[];

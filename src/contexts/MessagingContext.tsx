@@ -37,6 +37,9 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
       
       setUnreadMessageCount(messageCount);
       setUnreadNotificationCount(notificationCount);
+      
+      // Update app badge count
+      await pushNotificationService.updateBadgeCount();
     } catch (error) {
       console.error('Error refreshing counts:', error);
     }
@@ -71,12 +74,9 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
         },
         (response) => {
           console.log('Notification response:', response);
-          // Handle deep linking here
-          const data = response.notification.request.content.data;
-          if (data?.screen) {
-            // Navigate to the appropriate screen
-            // This would need to be implemented with your navigation system
-          }
+          // Use the enhanced notification response handler
+          pushNotificationService.handleNotificationResponse(response);
+          refreshCounts();
         }
       );
 
