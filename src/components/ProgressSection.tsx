@@ -75,7 +75,7 @@ export function ProgressSection() {
   const navigation = useNavigation<NavigationProp>();
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id: string } | null>(null);
 
   // Add useFocusEffect to refresh data when screen comes into focus
   useFocusEffect(
@@ -119,7 +119,7 @@ export function ProgressSection() {
         if (!error && data) {
           // Use a function updater to ensure we're working with the latest state
           console.log(`ProgressSection: Fetched ${data.length} completions`);
-          setCompletedIds(data.map((c: any) => c.exercise_id));
+          setCompletedIds(data.map((c: { exercise_id: string }) => c.exercise_id));
         } else {
           console.log('ProgressSection: No completions or error', error);
           setCompletedIds([]);
@@ -182,7 +182,7 @@ export function ProgressSection() {
           .from('learning_path_exercises')
           .select('id')
           .eq('learning_path_id', path.id);
-        map[path.id] = data ? data.map((e: any) => e.id) : [];
+        map[path.id] = data ? data.map((e: { id: string }) => e.id) : [];
       }
       setExercisesByPath(map);
     };
@@ -240,7 +240,7 @@ export function ProgressSection() {
 
       if (!error && data) {
         console.log(`ProgressSection: Fetched ${data.length} completions`);
-        setCompletedIds(data.map((c: any) => c.exercise_id));
+        setCompletedIds(data.map((c: { exercise_id: string }) => c.exercise_id));
       } else {
         console.log('ProgressSection: No completions or error', error);
         setCompletedIds([]);
@@ -270,14 +270,10 @@ export function ProgressSection() {
           {paths.map((path, idx) => {
             const isActive = activePath === path.id;
             const percent = getPathProgress(path.id);
-            // Enable if first path, or previous path is 100% complete
-            const isEnabled = idx === 0 || getPathProgress(paths[idx - 1]?.id) === 1;
-            // Visual highlight for the next path that is now enabled
-            const isNextToUnlock =
-              isEnabled &&
-              idx > 0 &&
-              getPathProgress(paths[idx - 1]?.id) === 1 &&
-              getPathProgress(path.id) < 1;
+            // Allow all paths to be clickable - no order restriction
+            const isEnabled = true;
+            // Visual highlight for paths with progress
+            const isNextToUnlock = percent > 0 && percent < 1;
             return (
               <TouchableOpacity
                 key={path.id}

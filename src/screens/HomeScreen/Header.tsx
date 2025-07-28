@@ -1,10 +1,14 @@
 import React from 'react';
-import { XStack } from 'tamagui';
+import { YStack, XStack } from 'tamagui';
 
 import { Button } from '../../components/Button';
 import { Text } from '../../components/Text';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
+
+// ADD MESSAGING COMPONENTS
+import { MessageBell } from '../../components/MessageBell';
+import { NotificationBell } from '../../components/NotificationBell';
 
 import { useAuth } from '@/src/context/AuthContext';
 import { NavigationProp } from '@/src/types/navigation';
@@ -17,7 +21,7 @@ export const HomeHeader = () => {
   const { profile } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   return (
-    <XStack
+    <YStack
       justifyContent="space-between"
       alignItems="center"
       paddingHorizontal="$4"
@@ -33,14 +37,19 @@ export const HomeHeader = () => {
           : t('home.welcome')}
       </Text>
 
-      <Button
-        size="sm"
-        variant="secondary"
-        onPress={() => navigation.navigate('UsersScreen')}
-        icon={<Feather name="users" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />}
-      >
-        Users
-      </Button>
-    </XStack>
+      <XStack gap={12} alignItems="center">
+        <MessageBell size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
+        <NotificationBell size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
+        
+        <Button
+          size="sm"
+          variant="secondary"
+          onPress={() => navigation.navigate('UsersScreen')}
+          icon={<Feather name="users" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />}
+        >
+          Users
+        </Button>
+      </XStack>
+    </YStack>
   );
 };

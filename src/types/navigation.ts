@@ -61,6 +61,12 @@ export type RootStackParamList = {
   RoleSelectionScreen: undefined;
   PublicProfile: { userId: string };
   UsersScreen: undefined;
+  
+  // Messaging screens
+  Messages: undefined;
+  Conversation: { conversationId: string };
+  Notifications: undefined;
+  NewMessage: undefined;
   RouteList: {
     title: string;
     routes: Route[];

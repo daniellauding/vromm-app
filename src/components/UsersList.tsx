@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Image, TouchableOpacity, useColorScheme } from 'react-native';
-import { XStack, YStack, ScrollView, View } from 'tamagui';
+import { XStack, YStack, ScrollView, View, Button } from 'tamagui';
 import { Text } from './Text';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
+import { useAuth } from '../context/AuthContext';
 
 type User = {
   id: string;
@@ -14,13 +15,17 @@ type User = {
   role?: string;
   location?: string;
   created_at?: string;
+  isFollowing?: boolean;
+  isCurrentUser?: boolean;
 };
 
 export function UsersList() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [followLoading, setFollowLoading] = useState<{ [key: string]: boolean }>({});
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -35,7 +40,25 @@ export function UsersList() {
 
         if (error) throw error;
 
-        setUsers(data || []);
+        let usersWithFollowStatus = data || [];
+
+        // If user is authenticated, check follow status for each user
+        if (user?.id) {
+          const { data: followData } = await supabase
+            .from('user_follows')
+            .select('following_id')
+            .eq('follower_id', user.id);
+
+          const followingIds = new Set(followData?.map(f => f.following_id) || []);
+
+          usersWithFollowStatus = (data || []).map(userData => ({
+            ...userData,
+            isFollowing: followingIds.has(userData.id),
+            isCurrentUser: userData.id === user.id
+          }));
+        }
+
+        setUsers(usersWithFollowStatus);
       } catch (error) {
         console.error('Error fetching users:', error);
       } finally {
@@ -44,10 +67,53 @@ export function UsersList() {
     };
 
     fetchUsers();
-  }, []);
+  }, [user?.id]);
 
   const navigateToProfile = (userId: string) => {
     navigation.navigate('PublicProfile', { userId });
+  };
+
+  const handleFollow = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
+    try {
+      if (!user?.id || followLoading[targetUserId]) return;
+      
+      setFollowLoading(prev => ({ ...prev, [targetUserId]: true }));
+
+      if (isCurrentlyFollowing) {
+        // Unfollow
+        const { error } = await supabase
+          .from('user_follows')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('following_id', targetUserId);
+
+        if (error) throw error;
+
+        setUsers(prev => prev.map(u => 
+          u.id === targetUserId ? { ...u, isFollowing: false } : u
+        ));
+        console.log('👤 User unfollowed');
+      } else {
+        // Follow
+        const { error } = await supabase
+          .from('user_follows')
+          .insert([{
+            follower_id: user.id,
+            following_id: targetUserId,
+          }]);
+
+        if (error) throw error;
+
+        setUsers(prev => prev.map(u => 
+          u.id === targetUserId ? { ...u, isFollowing: true } : u
+        ));
+        console.log('👤 User followed');
+      }
+    } catch (error) {
+      console.error('Error following/unfollowing user:', error);
+    } finally {
+      setFollowLoading(prev => ({ ...prev, [targetUserId]: false }));
+    }
   };
 
   if (loading) {
@@ -160,6 +226,36 @@ export function UsersList() {
                     {user.location}
                   </Text>
                 </XStack>
+              )}
+
+              {/* Follow/Unfollow Button */}
+              {!user.isCurrentUser && (
+                <Button
+                  size="xs"
+                  variant={user.isFollowing ? "secondary" : "primary"}
+                  backgroundColor={user.isFollowing ? "$red5" : "$blue10"}
+                  onPress={() => handleFollow(user.id, user.isFollowing || false)}
+                  disabled={followLoading[user.id]}
+                  marginTop="$2"
+                  width="100%"
+                >
+                  {followLoading[user.id] ? (
+                    <Text color={user.isFollowing ? "$red11" : "white"} fontSize="$1">
+                      ...
+                    </Text>
+                  ) : (
+                    <XStack gap="$1" alignItems="center">
+                      <Feather 
+                        name={user.isFollowing ? "user-minus" : "user-plus"} 
+                        size={10} 
+                        color={user.isFollowing ? "#EF4444" : "white"} 
+                      />
+                      <Text color={user.isFollowing ? "$red11" : "white"} fontSize="$1" fontWeight="500">
+                        {user.isFollowing ? 'Unfollow' : 'Follow'}
+                      </Text>
+                    </XStack>
+                  )}
+                </Button>
               )}
             </YStack>
           </TouchableOpacity>

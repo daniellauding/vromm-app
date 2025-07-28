@@ -16,6 +16,7 @@ import { ReportDialog } from '../components/report/ReportDialog';
 import { ProfileButton } from '../components/ProfileButton';
 import { useFocusEffect } from '@react-navigation/native';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
+import { messageService } from '../services/messageService';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   routes_created: number;
@@ -401,6 +402,31 @@ export function PublicProfileScreen() {
     }
   };
 
+  const handleMessage = async () => {
+    if (!profile || !user?.id || profile.id === user.id) return;
+
+    try {
+      // Check if conversation already exists
+      const conversations = await messageService.getConversations();
+      const existingConversation = conversations.find(conv => 
+        !conv.is_group && 
+        conv.participants?.some(p => p.user_id === profile.id)
+      );
+
+      if (existingConversation) {
+        // Navigate to existing conversation
+        navigation.navigate('Conversation', { conversationId: existingConversation.id });
+      } else {
+        // Create new conversation
+        const conversation = await messageService.createConversation([profile.id]);
+        navigation.navigate('Conversation', { conversationId: conversation.id });
+      }
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      Alert.alert('Error', 'Failed to start conversation. Please try again.');
+    }
+  };
+
   // ==================== USER RELATIONSHIPS ====================
 
   const loadUserRelationships = async () => {
@@ -666,6 +692,20 @@ export function PublicProfileScreen() {
                       </>
                     )}
                   </XStack>
+                </Button>
+                
+                {/* Message Button */}
+                <Button
+                  onPress={handleMessage}
+                  icon={<Feather name="message-circle" size={14} color="white" />}
+                  variant="primary"
+                  backgroundColor="$green10"
+                  size="sm"
+                  flexShrink={1}
+                >
+                  <Text color="white" fontSize="$2" fontWeight="500">
+                    {t('profile.message') || 'Message'}
+                  </Text>
                 </Button>
                 
                 {/* Share Button */}

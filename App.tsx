@@ -18,6 +18,7 @@ import { setupTranslationSubscription } from './src/services/translationService'
 import { ModalProvider } from './src/contexts/ModalContext';
 import { ToastProvider } from './src/contexts/ToastContext';
 import { CreateRouteProvider } from './src/contexts/CreateRouteContext';
+import { MessagingProvider } from './src/contexts/MessagingContext';
 import { ErrorBoundary, clearOldCrashReports } from './src/components/ErrorBoundary';
 import { logInfo, logWarn, logError, logNavigation } from './src/utils/logger';
 
@@ -68,6 +69,12 @@ import { RoleSelectionScreen } from './src/screens/RoleSelectionScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import { PublicProfileScreen } from './src/screens/PublicProfileScreen';
 import { UsersScreen } from './src/screens/UsersScreen';
+
+// Messaging screens
+import { MessagesScreen } from './src/screens/MessagesScreen';
+import { ConversationScreen } from './src/screens/ConversationScreen';
+import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import { NewMessageScreen } from './src/screens/NewMessageScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -359,6 +366,36 @@ function AppContent() {
                   headerShown: false,
                 }}
               />
+              
+              {/* Messaging screens */}
+              <Stack.Screen
+                name="Messages"
+                component={MessagesScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="Conversation"
+                component={ConversationScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="Notifications"
+                component={NotificationsScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="NewMessage"
+                component={NewMessageScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
             </>
           )}
         </Stack.Navigator>
@@ -425,7 +462,9 @@ export default function App() {
                   <LocationProvider>
                     <CreateRouteProvider>
                       <ModalProvider>
-                        <AppContent />
+                        <MessagingProvider>
+                          <AppContent />
+                        </MessagingProvider>
                       </ModalProvider>
                     </CreateRouteProvider>
                   </LocationProvider>

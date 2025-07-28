@@ -1,0 +1,354 @@
+import { supabase } from '../lib/supabase';
+import { Database } from '../lib/database.types';
+
+export type Conversation = Database['public']['Tables']['conversations']['Row'] & {
+  participants?: Database['public']['Tables']['conversation_participants']['Row'][];
+  last_message?: Database['public']['Tables']['messages']['Row'];
+  unread_count?: number;
+};
+
+export type Message = Database['public']['Tables']['messages']['Row'] & {
+  sender?: Database['public']['Tables']['profiles']['Row'];
+  read_by?: string[];
+};
+
+export type ConversationParticipant = Database['public']['Tables']['conversation_participants']['Row'] & {
+  profile?: Database['public']['Tables']['profiles']['Row'];
+};
+
+class MessageService {
+  // Get all conversations for current user
+  async getConversations(): Promise<Conversation[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('conversations')
+      .select(`
+        *,
+        conversation_participants!inner(
+          user_id,
+          profiles!conversation_participants_user_id_fkey(
+            id,
+            full_name,
+            avatar_url,
+            email
+          )
+        ),
+        messages(
+          *,
+          sender:profiles(*)
+        )
+      `)
+      .eq('conversation_participants.user_id', user.id)
+      .order('updated_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Debug logging for raw conversation data
+    console.log('📊 Raw conversation data from database:', {
+      conversationsCount: data?.length || 0,
+      firstConversation: data?.[0] ? {
+        id: data[0].id,
+        conversation_participants: data[0].conversation_participants,
+        participantsCount: data[0].conversation_participants?.length || 0
+      } : null
+    });
+
+    // Process conversations to add unread counts and last message
+    const conversations = data?.map(conv => {
+      const messages = conv.messages || [];
+      const lastMessage = messages[messages.length - 1];
+      const unreadCount = messages.filter(msg => 
+        msg.sender_id !== user.id && 
+        !msg.read_by?.includes(user.id)
+      ).length;
+
+      // Filter out current user from participants and ensure profile data is available
+      const otherParticipants = conv.conversation_participants?.filter(p => p.user_id !== user.id).map(p => ({
+        ...p,
+        profile: p.profiles // Map profiles to profile for backward compatibility
+      })) || [];
+      
+      console.log('🔍 Processing conversation:', {
+        conversationId: conv.id,
+        totalParticipants: conv.conversation_participants?.length,
+        otherParticipants: otherParticipants.length,
+        firstParticipant: otherParticipants[0],
+        profileData: otherParticipants[0]?.profile
+      });
+
+      return {
+        ...conv,
+        last_message: lastMessage,
+        unread_count: unreadCount,
+        participants: otherParticipants
+      };
+    }) || [];
+
+    return conversations;
+  }
+
+  // Get messages for a conversation
+  async getMessages(conversationId: string): Promise<Message[]> {
+    const { data, error } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        sender:profiles(*)
+      `)
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  // Send a message
+  async sendMessage(conversationId: string, content: string, messageType: 'text' | 'image' | 'file' = 'text', metadata?: any): Promise<Message> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content,
+        message_type: messageType,
+        metadata: metadata || {}
+      })
+      .select(`
+        *,
+        sender:profiles(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  // Mark messages as read
+  async markMessagesAsRead(messageIds: string[]): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    try {
+      // Check which messages are already marked as read to avoid duplicates
+      const { data: existingReads } = await supabase
+        .from('message_reads')
+        .select('message_id')
+        .eq('user_id', user.id)
+        .in('message_id', messageIds);
+
+      const existingMessageIds = new Set(existingReads?.map(r => r.message_id) || []);
+      const newMessageIds = messageIds.filter(id => !existingMessageIds.has(id));
+
+      if (newMessageIds.length > 0) {
+        const { error } = await supabase
+          .from('message_reads')
+          .insert(
+            newMessageIds.map(messageId => ({
+              message_id: messageId,
+              user_id: user.id
+            }))
+          );
+
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+      // Don't throw the error to prevent breaking the conversation flow
+    }
+  }
+
+  // Create a new conversation
+  async createConversation(participantIds: string[], name?: string, isGroup: boolean = false): Promise<Conversation> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // Create conversation
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .insert({
+        name,
+        is_group: isGroup,
+        created_by: user.id,
+        type: isGroup ? 'group' : 'direct'
+      })
+      .select()
+      .single();
+
+    if (convError) throw convError;
+
+    // Add participants
+    const allParticipants = [user.id, ...participantIds];
+    const { error: partError } = await supabase
+      .from('conversation_participants')
+      .insert(
+        allParticipants.map(userId => ({
+          conversation_id: conversation.id,
+          user_id: userId,
+          is_admin: userId === user.id
+        }))
+      );
+
+    if (partError) throw partError;
+
+    return conversation;
+  }
+
+  // Get conversation by ID
+  async getConversation(conversationId: string): Promise<Conversation | null> {
+    const { data, error } = await supabase
+      .from('conversations')
+      .select(`
+        *,
+        conversation_participants(
+          user_id,
+          profiles!conversation_participants_user_id_fkey(
+            id,
+            full_name,
+            avatar_url,
+            email
+          )
+        )
+      `)
+      .eq('id', conversationId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  // Search users for new conversation
+  async searchUsers(query: string): Promise<Database['public']['Tables']['profiles']['Row'][]> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .ilike('full_name', `%${query}%`)
+      .limit(10);
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  // Get unread message count - Alternative implementation without database function
+  async getUnreadCount(): Promise<number> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return 0;
+
+    try {
+      // Get all conversations for the user
+      const { data: conversations } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+
+      if (!conversations) return 0;
+
+      const conversationIds = conversations.map(c => c.conversation_id);
+
+      // Get unread messages count
+      const { data: messages } = await supabase
+        .from('messages')
+        .select('id, message_reads!left(user_id)')
+        .in('conversation_id', conversationIds)
+        .neq('sender_id', user.id);
+
+      if (!messages) return 0;
+
+      // Count messages that don't have a read record for this user
+      const unreadCount = messages.filter(msg => 
+        !msg.message_reads?.some(read => read.user_id === user.id)
+      ).length;
+
+      return unreadCount;
+    } catch (error) {
+      console.error('Error getting unread count:', error);
+      return 0;
+    }
+  }
+
+  // Subscribe to real-time updates
+  subscribeToMessages(conversationId: string, callback: (message: Message) => void) {
+    return supabase
+      .channel(`messages:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        async (payload) => {
+          // Fetch the complete message with sender profile
+          const { data } = await supabase
+            .from('messages')
+            .select(`
+              *,
+              sender:profiles(*)
+            `)
+            .eq('id', payload.new.id)
+            .single();
+          
+          if (data) {
+            callback(data as Message);
+          }
+        }
+      )
+      .subscribe();
+  }
+
+  // Subscribe to conversation updates
+  subscribeToConversations(callback: (conversation: Conversation) => void) {
+    return supabase
+      .channel('conversations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations'
+        },
+        (payload) => {
+          callback(payload.new as Conversation);
+        }
+      )
+      .subscribe();
+  }
+
+  // Delete a conversation
+  async deleteConversation(conversationId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    try {
+      // Delete messages first (they should cascade delete, but let's be explicit)
+      await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', conversationId);
+
+      // Delete conversation participants
+      await supabase
+        .from('conversation_participants')
+        .delete()
+        .eq('conversation_id', conversationId);
+
+      // Delete the conversation
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      throw error;
+    }
+  }
+}
+
+export const messageService = new MessageService(); 
