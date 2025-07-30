@@ -271,6 +271,7 @@ export function ProgressScreen() {
   const [selectedExercise, setSelectedExercise] = useState<PathExercise | null>(null);
   const { user } = useAuth();
   const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [completionsLoading, setCompletionsLoading] = useState(false);
   const [pathProgress, setPathProgress] = useState<{ [pathId: string]: number }>({});
 
@@ -860,7 +861,7 @@ export function ProgressScreen() {
         >
           <View
             style={{
-              width: `${percent * 100}%`,
+              width: `${Math.round(percent * 100)}%`,
               height: '100%',
               backgroundColor: '#00E6C3',
               borderRadius: 2,
@@ -1383,6 +1384,22 @@ export function ProgressScreen() {
     fetchLearningPaths();
   }, []);
 
+  // Populate exercisesByPath mapping for consistent progress calculation
+  useEffect(() => {
+    const fetchAllExercises = async () => {
+      const map: { [pathId: string]: string[] } = {};
+      for (const path of paths) {
+        const { data } = await supabase
+          .from('learning_path_exercises')
+          .select('id')
+          .eq('learning_path_id', path.id);
+        map[path.id] = data ? data.map((e: { id: string }) => e.id) : [];
+      }
+      setExercisesByPath(map);
+    };
+    if (paths.length > 0) fetchAllExercises();
+  }, [paths]);
+
   useEffect(() => {
     if (selectedPathId && paths.length > 0) {
       const path = paths.find((p) => p.id === selectedPathId);
@@ -1512,23 +1529,15 @@ export function ProgressScreen() {
     setShowDetailView(true);
   };
 
-  // Calculate progress for each path from local state
+  // Calculate progress for each path using exercisesByPath mapping
   const getPathProgress = (pathId: string): number => {
     if (!pathId) return 0;
 
-    // Only calculate for the currently loaded exercises if this is the active path
-    if (activePath === pathId && exercises.length > 0) {
-      const total = exercises.length;
-      const completed = exercises.filter((ex) => completedIds.includes(ex.id)).length;
-      return total === 0 ? 0 : completed / total;
-    }
+    const ids = exercisesByPath[pathId] || [];
+    if (ids.length === 0) return 0;
 
-    // For other paths or if exercises aren't loaded, use a safer approach
-    const exerciseIds = exercises.filter((ex) => ex.learning_path_id === pathId).map((ex) => ex.id);
-    if (exerciseIds.length === 0) return 0;
-
-    const completedExercises = exerciseIds.filter((id) => completedIds.includes(id)).length;
-    return completedExercises / exerciseIds.length;
+    const completed = ids.filter((id) => completedIds.includes(id)).length;
+    return completed / ids.length;
   };
 
   // Render the filter modals

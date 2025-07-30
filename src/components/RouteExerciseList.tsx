@@ -9,12 +9,14 @@ interface RouteExerciseListProps {
   exercises: Exercise[];
   completedIds?: Set<string>;
   maxPreview?: number;
+  onExercisePress?: (exercise: Exercise, index: number) => void;
 }
 
 export function RouteExerciseList({ 
   exercises, 
   completedIds = new Set(),
-  maxPreview = 3 
+  maxPreview = 3,
+  onExercisePress
 }: RouteExerciseListProps) {
   const displayExercises = exercises.slice(0, maxPreview);
   const remainingCount = exercises.length - maxPreview;
@@ -22,8 +24,12 @@ export function RouteExerciseList({
   return (
     <YStack gap="$2">
       {displayExercises.map((exercise, index) => (
-        <Card key={exercise.id || index} bordered padding="$3" backgroundColor="$background">
-          <XStack justifyContent="space-between" alignItems="center">
+        <TouchableOpacity
+          key={exercise.id || index}
+          onPress={() => onExercisePress?.(exercise, index)}
+        >
+          <Card bordered padding="$3" backgroundColor="$background">
+            <XStack justifyContent="space-between" alignItems="center">
             <YStack flex={1} gap="$1">
               <Text fontSize={14} fontWeight="600" color="$color">
                 {exercise.title || 'Untitled Exercise'}
@@ -83,11 +89,15 @@ export function RouteExerciseList({
               </XStack>
             </YStack>
             
-            {completedIds.has(exercise.id) && (
-              <Feather name="check-circle" size={20} color="#10B981" />
-            )}
+            <XStack alignItems="center" gap="$2">
+              {completedIds.has(exercise.id) && (
+                <Feather name="check-circle" size={20} color="#10B981" />
+              )}
+              <Feather name="chevron-right" size={16} color="$gray9" />
+            </XStack>
           </XStack>
-        </Card>
+          </Card>
+        </TouchableOpacity>
       ))}
       
       {remainingCount > 0 && (

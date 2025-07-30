@@ -77,6 +77,9 @@ import { ConversationScreen } from './src/screens/ConversationScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { NewMessageScreen } from './src/screens/NewMessageScreen';
 
+// Exercise screens
+import { RouteExerciseScreen } from './src/screens/RouteExerciseScreen';
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppContent() {
@@ -403,6 +406,15 @@ function AppContent() {
               <Stack.Screen
                 name="NewMessage"
                 component={NewMessageScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              
+              {/* Exercise screens */}
+              <Stack.Screen
+                name="RouteExercise"
+                component={RouteExerciseScreen}
                 options={{
                   headerShown: false,
                 }}

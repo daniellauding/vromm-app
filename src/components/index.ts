@@ -11,3 +11,4 @@ export { ExerciseSelector } from './ExerciseSelector';
 export { RouteExerciseViewer } from './RouteExerciseViewer';
 export { RouteExerciseList } from './RouteExerciseList';
 export { AdvancedExerciseCreator } from './AdvancedExerciseCreator';
+export { ExerciseDetailModal } from './ExerciseDetailModal';

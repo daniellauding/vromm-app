@@ -32,7 +32,7 @@ import { Region } from 'react-native-maps';
 import { ReportDialog } from '../components/report/ReportDialog';
 import { useTranslation } from '../contexts/TranslationContext';
 import { parseRecordingStats, isRecordedRoute, formatRecordingStatsDisplay } from '../utils/routeUtils';
-import { RouteExerciseList } from '../components/RouteExerciseList';
+import { RouteExerciseList, ExerciseDetailModal } from '../components';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type RouteRow = Database['public']['Tables']['routes']['Row'];
@@ -77,6 +77,8 @@ interface Exercise {
   title: string;
   description?: string;
   duration?: string;
+  has_quiz?: boolean;
+  quiz_data?: any;
 }
 
 interface MediaAttachment {
@@ -110,13 +112,14 @@ interface RawMediaAttachment {
   [key: string]: JsonValue | undefined;
 }
 
-interface SupabaseRouteResponse extends Omit<RouteRow, 'waypoint_details' | 'media_attachments'> {
+interface SupabaseRouteResponse extends Omit<RouteRow, 'waypoint_details' | 'media_attachments' | 'suggested_exercises'> {
   creator: {
     id: string;
     full_name: string;
   } | null;
   waypoint_details: RawWaypointDetail[];
   media_attachments: RawMediaAttachment[];
+  suggested_exercises: any;
   reviews: { count: number }[];
   average_rating: { rating: number }[];
 }
@@ -181,6 +184,10 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   } | null>(null);
   const [completedExerciseIds, setCompletedExerciseIds] = useState<Set<string>>(new Set());
   const [allExercisesCompleted, setAllExercisesCompleted] = useState(false);
+  
+  // Exercise detail modal state
+  const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
 
   useEffect(() => {
     if (routeId) {
@@ -277,6 +284,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         creator:creator_id(id, full_name),
         waypoint_details,
         media_attachments,
+        suggested_exercises,
         reviews:route_reviews(
           id,
           rating,
@@ -312,11 +320,33 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         }))
       : [];
 
+    // Parse exercises from suggested_exercises field in database
+    let exercises: Exercise[] = [];
+    if (routeResponse.suggested_exercises) {
+      try {
+        const exercisesData = Array.isArray(routeResponse.suggested_exercises) 
+          ? routeResponse.suggested_exercises 
+          : JSON.parse(String(routeResponse.suggested_exercises));
+        
+        exercises = exercisesData.map((ex: any) => ({
+          id: ex.id || ex.learning_path_exercise_id || `exercise_${Date.now()}`,
+          title: ex.title || 'Exercise',
+          description: ex.description || '',
+          duration: ex.duration || ex.duration_minutes,
+          has_quiz: ex.has_quiz,
+          quiz_data: ex.quiz_data,
+        }));
+      } catch (err) {
+        console.error('Error parsing exercises:', err);
+      }
+    }
+
     // Transform the raw data into our expected format
     const transformedData: RouteData = {
       ...routeResponse,
       waypoint_details: waypoints as (WaypointDetail & Json)[],
       media_attachments: media as (MediaAttachment & Json)[],
+      exercises: exercises, // Add parsed exercises
       creator: routeResponse.creator || undefined,
       reviews: routeResponse.reviews || [],
       average_rating: routeResponse.average_rating || [],
@@ -855,7 +885,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     try {
       if (!user || !routeData?.exercises) return;
 
-      // Get route exercise sessions for this user and route
+      // Get ALL route exercise sessions for this user and route
       const { data: sessions } = await supabase
         .from('route_exercise_sessions')
         .select('*')
@@ -871,20 +901,21 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         return;
       }
 
-      // Get the latest completed session
+      // Get the latest completed session for timestamp
       const latestCompletedSession = sessions.find(s => s.status === 'completed');
-      const latestSession = sessions[0];
 
-      // Get all completed exercises from the latest session
+      // Get ALL completed exercises from ALL sessions (for cross-device sync)
+      const allSessionIds = sessions.map(s => s.id);
       let completedExerciseIds = new Set<string>();
-      if (latestSession) {
-        const { data: completions } = await supabase
+      
+      if (allSessionIds.length > 0) {
+        const { data: allCompletions } = await supabase
           .from('route_exercise_completions')
           .select('exercise_id')
-          .eq('session_id', latestSession.id);
+          .in('session_id', allSessionIds);
 
-        if (completions) {
-          completedExerciseIds = new Set(completions.map(c => c.exercise_id));
+        if (allCompletions) {
+          completedExerciseIds = new Set(allCompletions.map(c => c.exercise_id));
         }
       }
 
@@ -894,7 +925,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       setExerciseStats({
         completed: completedExerciseIds.size,
         total: routeData.exercises.length,
-        lastSessionAt: latestCompletedSession?.completed_at || latestSession?.created_at,
+        lastSessionAt: latestCompletedSession?.completed_at || sessions[0]?.created_at,
       });
     } catch (error) {
       console.error('Error loading exercise stats:', error);
@@ -912,6 +943,21 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       exercises: routeData.exercises,
       routeName: routeData.name,
     });
+  };
+
+  const handleExercisePress = (exercise: Exercise, index: number) => {
+    setSelectedExercise(exercise);
+    setShowExerciseModal(true);
+  };
+
+  const handleExerciseComplete = (exerciseId: string) => {
+    // Update the completed exercises state
+    setCompletedExerciseIds(prev => new Set([...prev, exerciseId]));
+    
+    // Reload exercise stats
+    if (routeData?.exercises) {
+      loadExerciseStats();
+    }
   };
 
   const startRoute = async () => {
@@ -1349,6 +1395,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                     exercises={routeData.exercises} 
                     completedIds={completedExerciseIds}
                     maxPreview={3}
+                    onExercisePress={handleExercisePress}
                   />
 
                   {/* Exercise Statistics */}
@@ -1367,7 +1414,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                           </Text>
                         </XStack>
                         <Progress
-                          value={(exerciseStats.completed / exerciseStats.total) * 100}
+                          value={Math.round((exerciseStats.completed / exerciseStats.total) * 100)}
                           backgroundColor="$gray6"
                           size="$0.5"
                         >
@@ -1472,6 +1519,15 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           onClose={() => setShowReportDialog(false)}
         />
       )}
+
+      {/* Exercise Detail Modal */}
+      <ExerciseDetailModal
+        visible={showExerciseModal}
+        onClose={() => setShowExerciseModal(false)}
+        exercise={selectedExercise}
+        routeId={routeId}
+        onExerciseComplete={handleExerciseComplete}
+      />
     </Screen>
   );
 }

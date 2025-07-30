@@ -7,6 +7,7 @@ import {
   useColorScheme,
   Image,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { YStack, XStack, Card, Progress, Button } from 'tamagui';
 import { Text } from '../components/Text';
@@ -134,7 +135,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
           .eq('session_id', existingSession.id);
 
         if (completions) {
-          setCompletedExercises(new Set(completions.map(c => c.exercise_id)));
+          setCompletedExercises(new Set(completions.map((c) => c.exercise_id)));
         }
       } else {
         // Create new session
@@ -203,13 +204,13 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
           await ExerciseProgressService.completeRepeatExerciseFromRoute(
             currentExercise.learning_path_exercise_id,
             currentExercise.originalId,
+            currentExercise.repeatNumber || 1,
             routeId,
-            currentExercise.repeatNumber || 1
           );
         } else {
           await ExerciseProgressService.completeExerciseFromRoute(
             currentExercise.learning_path_exercise_id,
-            routeId
+            routeId,
           );
         }
       }
@@ -248,16 +249,11 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
       setShowCongrats(true);
 
       setTimeout(() => {
-        Alert.alert(
-          'Congratulations!',
-          `You've completed all ${exercises.length} exercises for this route!`,
-          [
-            {
-              text: 'Continue',
-              onPress: () => navigation.goBack(),
-            },
-          ]
-        );
+        // Navigate back with refresh flag to update progress
+        navigation.navigate('RouteDetail', { 
+          routeId, 
+          shouldRefresh: true 
+        });
       }, 2000);
     } catch (error) {
       console.error('Error completing session:', error);
@@ -298,16 +294,139 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         {
           text: 'Exit',
           style: 'destructive',
-          onPress: () => navigation.goBack(),
+          onPress: () => navigation.navigate('RouteDetail', { 
+            routeId, 
+            shouldRefresh: true 
+          }),
         },
       ]
     );
   };
 
+  // Helper functions for media rendering (matching ProgressScreen)
   const getYouTubeVideoId = (url: string): string | null => {
-    const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const match = url.match(regex);
     return match ? match[1] : null;
+  };
+
+  const getTypeformId = (embedCode: string): string | null => {
+    const urlMatch = embedCode.match(/https:\/\/[a-zA-Z0-9]+\.typeform\.com\/to\/([a-zA-Z0-9]+)/);
+    if (urlMatch) return urlMatch[1];
+    
+    const idOnlyMatch = embedCode.match(/^[a-zA-Z0-9]{8,}$/);
+    if (idOnlyMatch) return embedCode;
+    
+    return null;
+  };
+
+  // YouTube Embed Component (matching ProgressScreen)
+  const YouTubeEmbed = ({ videoId }: { videoId: string }) => (
+    <View
+      style={{
+        aspectRatio: 16 / 9,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: '#000',
+        minHeight: 200,
+      }}
+    >
+      <WebView
+        source={{
+          uri: `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1`,
+        }}
+        style={{ flex: 1 }}
+        allowsFullscreenVideo
+        javaScriptEnabled
+        domStorageEnabled
+        startInLoadingState
+        scrollEnabled={false}
+        mediaPlaybackRequiresUserAction={false}
+        allowsInlineMediaPlayback
+      />
+    </View>
+  );
+
+  // TypeForm Embed Component (matching ProgressScreen)
+  const TypeFormEmbed = ({ formId }: { formId: string }) => (
+    <View
+      style={{
+        height: 500,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: '#f5f5f5',
+      }}
+    >
+      <WebView
+        source={{ uri: `https://form.typeform.com/to/${formId}` }}
+        style={{ flex: 1 }}
+        javaScriptEnabled
+        domStorageEnabled
+        startInLoadingState
+        scrollEnabled={false}
+      />
+    </View>
+  );
+
+  // Media rendering function (exactly like ProgressScreen)
+  const renderExerciseMedia = (exercise: Exercise) => {
+    return (
+      <YStack gap={16}>
+        {/* YouTube Video */}
+        {exercise.youtube_url && (
+          <YStack>
+            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+              Video Tutorial
+            </Text>
+            {(() => {
+              const videoId = getYouTubeVideoId(exercise.youtube_url);
+              return videoId ? (
+                <YouTubeEmbed videoId={videoId} />
+              ) : (
+                <TouchableOpacity
+                  onPress={() => exercise.youtube_url && Linking.openURL(exercise.youtube_url)}
+                  style={{ padding: 8, backgroundColor: '#FF0000', borderRadius: 8 }}
+                >
+                  <Text color="white">Watch on YouTube</Text>
+                </TouchableOpacity>
+              );
+            })()}
+          </YStack>
+        )}
+
+        {/* Image */}
+        {exercise.image && (
+          <YStack>
+            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+              Reference Image
+            </Text>
+            <Image
+              source={{ uri: exercise.image }}
+              style={{
+                width: '100%',
+                height: 200,
+                borderRadius: 8,
+                resizeMode: 'cover',
+              }}
+            />
+          </YStack>
+        )}
+
+        {/* Embed (TypeForm) */}
+        {exercise.embed_code &&
+          (() => {
+            const typeformValue = exercise.embed_code ? getTypeformId(exercise.embed_code) : null;
+            return typeformValue ? (
+              <YStack>
+                <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+                  Interactive Form
+                </Text>
+                <TypeFormEmbed formId={typeformValue} />
+              </YStack>
+            ) : null;
+          })()}
+      </YStack>
+    );
   };
 
   const renderExerciseContent = () => {
@@ -316,150 +435,207 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
     const isCompleted = completedExercises.has(currentExercise.id);
 
     return (
-      <Card
-        backgroundColor="$backgroundStrong"
-        bordered
-        padding="$6"
-        borderRadius="$6"
-        marginHorizontal="$4"
-      >
-        <YStack gap="$4">
-          {/* Exercise Header */}
-          <YStack gap="$2">
-            <XStack justifyContent="space-between" alignItems="flex-start">
-              <YStack flex={1} gap="$1">
-                <Text fontSize={24} fontWeight="700" color="$color">
-                  {currentExercise.title}
-                </Text>
-                
-                {/* Exercise badges */}
-                <XStack gap="$2" flexWrap="wrap">
-                  <View style={{
-                    backgroundColor: currentExercise.source === 'learning_path' ? '#3B82F6' : '#10B981',
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 8,
-                  }}>
-                    <Text fontSize={11} color="white" fontWeight="600">
-                      {currentExercise.source === 'learning_path' ? 'LEARNING PATH' : 'CUSTOM'}
-                    </Text>
-                  </View>
-                  
-                  {currentExercise.isRepeat && (
-                    <View style={{
-                      backgroundColor: '#F59E0B',
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                    }}>
-                      <Text fontSize={11} color="white" fontWeight="600">
-                        REPEAT {currentExercise.repeatNumber || ''}
-                      </Text>
-                    </View>
-                  )}
-                  
-                  {currentExercise.has_quiz && (
-                    <View style={{
-                      backgroundColor: '#8B5CF6',
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                    }}>
-                      <Text fontSize={11} color="white" fontWeight="600">QUIZ</Text>
-                    </View>
-                  )}
-                  
-                  {currentExercise.youtube_url && (
-                    <View style={{
-                      backgroundColor: '#EF4444',
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                    }}>
-                      <Text fontSize={11} color="white" fontWeight="600">VIDEO</Text>
-                    </View>
-                  )}
-                  
-                  {isCompleted && (
-                    <View style={{
-                      backgroundColor: '#10B981',
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                    }}>
-                      <Text fontSize={11} color="white" fontWeight="600">COMPLETED</Text>
-                    </View>
-                  )}
-                </XStack>
-              </YStack>
-            </XStack>
-
-            {/* Learning path info */}
-            {currentExercise.learning_path_title && (
-              <Text fontSize={14} color="$blue11">
-                From: {currentExercise.learning_path_title}
-              </Text>
-            )}
-          </YStack>
-
-          {/* Exercise Description */}
-          {currentExercise.description && (
-            <Text fontSize={16} color="$gray11" lineHeight={24}>
-              {currentExercise.description}
-            </Text>
-          )}
-
-          {/* Exercise Duration/Repetitions */}
-          {(currentExercise.duration || currentExercise.repetitions) && (
-            <XStack gap="$4" alignItems="center">
-              {currentExercise.duration && (
-                <XStack gap="$1" alignItems="center">
-                  <Feather name="clock" size={16} color="$gray9" />
-                  <Text fontSize={14} color="$gray11">
-                    {currentExercise.duration}
-                  </Text>
-                </XStack>
-              )}
-              {currentExercise.repetitions && (
-                <XStack gap="$1" alignItems="center">
-                  <Feather name="repeat" size={16} color="$gray9" />
-                  <Text fontSize={14} color="$gray11">
-                    {currentExercise.repetitions}
-                  </Text>
-                </XStack>
-              )}
-            </XStack>
-          )}
-
-          {/* YouTube Video */}
-          {currentExercise.youtube_url && (() => {
-            const videoId = getYouTubeVideoId(currentExercise.youtube_url);
-            if (videoId) {
-              return (
-                <View style={{ height: 200, borderRadius: 12, overflow: 'hidden' }}>
-                  <WebView
-                    source={{ uri: `https://www.youtube.com/embed/${videoId}` }}
-                    style={{ flex: 1 }}
-                    allowsFullscreenVideo
-                  />
-                </View>
-              );
-            }
-            return null;
-          })()}
-
-          {/* Exercise Image */}
-          {currentExercise.image && (
-            <View style={{ borderRadius: 12, overflow: 'hidden' }}>
-              <Image
-                source={{ uri: currentExercise.image }}
-                style={{ width: '100%', height: 200 }}
-                resizeMode="cover"
+      <YStack gap={16}>
+        {/* Exercise header with icon - ProgressScreen style */}
+        <XStack alignItems="center" gap={12} marginBottom={16}>
+          {currentExercise.icon && (
+            <View style={{ marginRight: 8 }}>
+              <Feather
+                name={currentExercise.icon as keyof typeof Feather.glyphMap}
+                size={28}
+                color={isCompleted ? '#00E6C3' : '#4B6BFF'}
               />
             </View>
           )}
-        </YStack>
-      </Card>
+          <YStack flex={1}>
+            <XStack alignItems="center" gap={8}>
+              <Text fontSize={28} fontWeight="bold" color="$color" numberOfLines={2}>
+                {currentExercise.title}
+              </Text>
+
+              {/* Show repeat indicator if it's a repeat */}
+              {currentExercise.isRepeat && (
+                <XStack
+                  backgroundColor="#4B6BFF"
+                  paddingHorizontal={8}
+                  paddingVertical={4}
+                  borderRadius={12}
+                  alignItems="center"
+                  gap={4}
+                >
+                  <Feather name="repeat" size={14} color="white" />
+                  <Text fontSize={12} color="white" fontWeight="bold">
+                    {currentExercise.repeatNumber}/{currentExercise.repeat_count}
+                  </Text>
+                </XStack>
+              )}
+            </XStack>
+
+            {/* Learning path connection info */}
+            {currentExercise.learning_path_exercise_id && (
+              <Text fontSize={14} color="#4B6BFF" marginTop={4}>
+                🔗 Connected to Learning Path Progress
+                {currentExercise.learning_path_title && ` • ${currentExercise.learning_path_title}`}
+              </Text>
+            )}
+          </YStack>
+        </XStack>
+
+        {/* Exercise Description */}
+        {currentExercise.description && (
+          <YStack marginBottom={16}>
+            <Text fontSize={16} color="$gray11" lineHeight={24}>
+              {currentExercise.description}
+            </Text>
+          </YStack>
+        )}
+
+        {/* Media Content - Full ProgressScreen rendering */}
+        {renderExerciseMedia(currentExercise)}
+
+        {/* Repetition Progress (if this is a repeated exercise) */}
+        {(currentExercise.isRepeat ||
+          (currentExercise.repeat_count && currentExercise.repeat_count > 1)) && (
+          <YStack
+            marginTop={16}
+            marginBottom={8}
+            backgroundColor="rgba(75, 107, 255, 0.1)"
+            padding={16}
+            borderRadius={12}
+          >
+            <XStack alignItems="center" gap={8} marginBottom={8}>
+              <Feather name="repeat" size={20} color="#4B6BFF" />
+              <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
+                {currentExercise.isRepeat
+                  ? `Repetition ${currentExercise.repeatNumber} of ${currentExercise.repeat_count}`
+                  : `This exercise requires ${currentExercise.repeat_count} repetitions`}
+              </Text>
+            </XStack>
+
+            {currentExercise.isRepeat && (
+              <Text color="$gray11">
+                Complete this repetition to continue with your progress.
+              </Text>
+            )}
+          </YStack>
+        )}
+
+        {/* Quiz Questions - Enhanced display */}
+        {currentExercise.has_quiz && currentExercise.quiz_data && (() => {
+          try {
+            const quizData = typeof currentExercise.quiz_data === 'string' 
+              ? JSON.parse(currentExercise.quiz_data) 
+              : currentExercise.quiz_data;
+            
+            if (quizData?.questions && Array.isArray(quizData.questions)) {
+              return (
+                <YStack marginTop={16} gap={16}>
+                  <XStack alignItems="center" gap={8}>
+                    <Feather name="help-circle" size={20} color="#8B5CF6" />
+                    <Text fontSize={18} fontWeight="bold" color="#8B5CF6">
+                      Quiz Questions
+                    </Text>
+                  </XStack>
+                  {quizData.questions.map((question: any, index: number) => (
+                    <YStack key={index} backgroundColor="#f8f9fa" padding={16} borderRadius={12}>
+                      <Text fontSize={16} fontWeight="600" color="$color" marginBottom={12}>
+                        Question {index + 1}: {question.question || question.text || 'Question'}
+                      </Text>
+                      
+                      {/* Answer Options */}
+                      {question.options && Array.isArray(question.options) && (
+                        <YStack gap={8}>
+                          {question.options.map((option: any, optIndex: number) => {
+                            const isCorrect = question.correct_answer === optIndex || 
+                                             question.correctAnswer === optIndex ||
+                                             (Array.isArray(question.correct_answers) && question.correct_answers.includes(optIndex));
+                            
+                            return (
+                              <View 
+                                key={optIndex}
+                                style={{
+                                  backgroundColor: isCorrect ? '#10B981' : '#ffffff',
+                                  padding: 12,
+                                  borderRadius: 8,
+                                  borderWidth: 1,
+                                  borderColor: isCorrect ? '#059669' : '#e5e7eb',
+                                }}
+                              >
+                                <XStack gap={8} alignItems="center">
+                                  <Text fontSize={14} fontWeight={isCorrect ? "600" : "400"} 
+                                        color={isCorrect ? "white" : "#374151"}>
+                                    {String.fromCharCode(65 + optIndex)}. {option.text || option}
+                                  </Text>
+                                  {isCorrect && (
+                                    <Feather name="check-circle" size={16} color="white" />
+                                  )}
+                                </XStack>
+                              </View>
+                            );
+                          })}
+                        </YStack>
+                      )}
+                      
+                      {/* Explanation */}
+                      {question.explanation && (
+                        <View style={{
+                          backgroundColor: '#EBF8FF',
+                          padding: 12,
+                          borderRadius: 8,
+                          borderLeftWidth: 4,
+                          borderLeftColor: '#3B82F6',
+                          marginTop: 12,
+                        }}>
+                          <Text fontSize={14} color="#1F2937" fontStyle="italic">
+                            💡 {question.explanation}
+                          </Text>
+                        </View>
+                      )}
+                    </YStack>
+                  ))}
+                </YStack>
+              );
+            }
+          } catch (error) {
+            console.error('Error parsing quiz data:', error);
+            return (
+              <View style={{
+                backgroundColor: '#FEF3C7',
+                padding: 12,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: '#F59E0B',
+                marginTop: 16,
+              }}>
+                <Text fontSize={14} color="#92400E">
+                  📝 This exercise contains a quiz, but the questions couldn't be loaded properly.
+                </Text>
+              </View>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Completion Status */}
+        {isCompleted && (
+          <View style={{
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            padding: 16,
+            borderRadius: 12,
+            marginTop: 16,
+            borderWidth: 1,
+            borderColor: '#10B981',
+          }}>
+            <XStack gap={8} alignItems="center">
+              <Feather name="check-circle" size={20} color="#10B981" />
+              <Text fontSize={16} fontWeight="600" color="#10B981">
+                Exercise Completed
+                {currentExercise.learning_path_exercise_id && ' • Progress synced to learning path'}
+              </Text>
+            </XStack>
+          </View>
+        )}
+      </YStack>
     );
   };
 
@@ -491,7 +667,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
   }
 
   return (
-    <Screen edges={[]} padding={false}>
+    <Screen>
       <YStack f={1}>
         {/* Header */}
         <Header
@@ -534,7 +710,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
           </XStack>
           
           <Progress
-            value={progress}
+            value={Math.round(progress)}
             backgroundColor="$gray5"
             size="$1"
           >
@@ -546,7 +722,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{ padding: 24, paddingBottom: 120 }}
         >
           {showCongrats ? (
             <YStack alignItems="center" justifyContent="center" padding="$8" gap="$4">
@@ -559,9 +735,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
               </Text>
             </YStack>
           ) : (
-            <YStack gap="$4" paddingBottom="$4">
-              {renderExerciseContent()}
-            </YStack>
+            renderExerciseContent()
           )}
         </ScrollView>
 
