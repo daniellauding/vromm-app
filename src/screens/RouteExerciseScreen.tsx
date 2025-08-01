@@ -69,6 +69,10 @@ interface QuizQuestion {
   order_index: number;
   explanation_text?: { en: string; sv: string };
   answers: QuizAnswer[];
+  // Media support
+  image?: string;
+  youtube_url?: string;
+  embed_code?: string;
 }
 
 interface QuizAnswer {
@@ -98,9 +102,28 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
   const [hasCompletedBefore, setHasCompletedBefore] = useState(false);
   
   // Quiz state
-  const [quizAnswers, setQuizAnswers] = useState<{ [questionIndex: number]: string | string[] }>({});
+  const [quizAnswers, setQuizAnswers] = useState<{ [questionIndex: number]: string | string[] }>(
+    {},
+  );
   const [showQuizResults, setShowQuizResults] = useState(false);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+
+  // Quiz statistics and history
+  const [quizStats, setQuizStats] = useState<{
+    attempts: number;
+    bestScore: number;
+    averageScore: number;
+    lastAttemptAt?: string;
+  } | null>(null);
+  const [quizHistory, setQuizHistory] = useState<
+    Array<{
+      id: string;
+      score: number;
+      total: number;
+      percentage: number;
+      completed_at: string;
+    }>
+  >([]);
 
   // Repetition state
   const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
@@ -121,6 +144,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
     setQuizSubmitted(false);
     loadVirtualRepeatCompletions();
     loadQuizQuestions();
+    loadQuizStats();
   }, [currentIndex]);
 
   // Load real quiz questions from database
@@ -137,7 +161,80 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
       
       console.log('🔍 [RouteExercise] Loading real quiz questions for exercise:', exerciseId);
 
-      // Fetch questions from exercise_quiz_questions table
+      // Check if exerciseId is a valid UUID format
+      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(exerciseId);
+      
+      if (!isValidUUID) {
+        console.log('📝 [RouteExercise] Exercise ID is not a UUID (custom exercise), checking for embedded quiz data instead:', exerciseId);
+        
+        // For custom exercises, check if quiz_data exists in the exercise object
+        if (currentExercise.quiz_data) {
+          console.log('✅ [RouteExercise] Found quiz_data in custom exercise, parsing...', {
+            quiz_data_type: typeof currentExercise.quiz_data,
+            quiz_data_preview: typeof currentExercise.quiz_data === 'string' 
+              ? (currentExercise.quiz_data as string).substring(0, 100) + '...'
+              : JSON.stringify(currentExercise.quiz_data || {}).substring(0, 100) + '...'
+          });
+          try {
+            const parsedQuizData = typeof currentExercise.quiz_data === 'string' 
+              ? JSON.parse(currentExercise.quiz_data) 
+              : currentExercise.quiz_data;
+            
+            if (parsedQuizData?.questions && Array.isArray(parsedQuizData.questions)) {
+              // Convert old quiz format to new format
+              const convertedQuestions = parsedQuizData.questions.map((q: any, index: number) => ({
+                id: `custom-${exerciseId}-q${index}`,
+                exercise_id: exerciseId,
+                question_text: typeof q.question === 'string' ? { en: q.question, sv: q.question } : q.question,
+                question_type: q.type || 'single_choice',
+                order_index: index + 1,
+                explanation_text: q.explanation ? { en: q.explanation, sv: q.explanation } : undefined,
+                answers: (() => {
+                  // Handle both array and multilingual object formats
+                  let optionsArray: any[] = [];
+                  if (Array.isArray(q.options)) {
+                    // Simple array format
+                    optionsArray = q.options;
+                  } else if (q.options && typeof q.options === 'object') {
+                    // Multilingual object format: {"en": [...], "sv": [...]}
+                    optionsArray = q.options.en || q.options.sv || [];
+                  }
+                  
+                  return optionsArray.map((option: any, optIndex: number) => ({
+                    id: `custom-${exerciseId}-q${index}-a${optIndex}`,
+                    question_id: `custom-${exerciseId}-q${index}`,
+                    answer_text: typeof option === 'string' ? { en: option, sv: option } : (q.options?.en && q.options?.sv ? { en: q.options.en[optIndex] || option, sv: q.options.sv[optIndex] || option } : option),
+                    is_correct: q.correct_answer === optIndex || (Array.isArray(q.correct_answers) && q.correct_answers.includes(optIndex)),
+                    order_index: optIndex + 1
+                  }));
+                })()
+              }));
+              
+              console.log('✅ [RouteExercise] Converted custom quiz questions:', convertedQuestions.length);
+              console.log('🔍 [RouteExercise] Quiz questions with answers:', convertedQuestions.map((q: any) => ({
+                id: q.id,
+                question: q.question_text,
+                answerCount: q.answers?.length || 0,
+                answers: q.answers?.map((a: any) => ({ id: a.id, text: a.answer_text, correct: a.is_correct }))
+              })));
+              setQuizQuestions(convertedQuestions);
+              return;
+            }
+          } catch (parseError) {
+            console.error('❌ [RouteExercise] Error parsing custom exercise quiz_data:', parseError);
+          }
+        }
+        
+        console.log('📝 [RouteExercise] No quiz data found for custom exercise', {
+          has_quiz: currentExercise.has_quiz,
+          quiz_data: currentExercise.quiz_data,
+          quiz_data_type: typeof currentExercise.quiz_data
+        });
+        setQuizQuestions([]);
+        return;
+      }
+
+      // Fetch questions from exercise_quiz_questions table (for UUID-based exercises)
       const { data: questions, error: questionsError } = await supabase
         .from('exercise_quiz_questions')
         .select('*')
@@ -384,15 +481,123 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
     console.log('Legacy quiz function called - real quiz uses handleRealQuizAnswerSelect');
   };
 
-  const submitQuiz = () => {
+  const submitQuiz = async () => {
     setQuizSubmitted(true);
     setShowQuizResults(true);
+    
+    // Calculate and save the quiz score
+    const { score, total } = calculateQuizScoreFromRealQuiz();
+    await saveQuizAttempt(score, total);
   };
 
   const resetQuiz = () => {
     setQuizAnswers({});
     setShowQuizResults(false);
     setQuizSubmitted(false);
+  };
+
+  // Load quiz statistics and history for the current exercise
+  const loadQuizStats = async () => {
+    if (!currentExercise || !user) return;
+
+    try {
+      const exerciseId = currentExercise.learning_path_exercise_id || currentExercise.id;
+
+      // Check if it's a valid UUID (database exercise) - custom exercises don't have quiz attempts tracked
+      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(exerciseId);
+      
+      if (!isValidUUID) {
+        console.log('📊 [RouteExercise] Custom exercise - no quiz stats tracking');
+        return;
+      }
+
+      // Load quiz attempts for this exercise
+      const { data: attempts, error } = await supabase
+        .from('quiz_attempts')
+        .select('*')
+        .eq('exercise_id', exerciseId)
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error loading quiz stats:', error);
+        return;
+      }
+
+      if (attempts && attempts.length > 0) {
+        const scores = attempts.map(a => a.score_percentage || 0);
+        const totalScore = scores.reduce((sum, score) => sum + score, 0);
+        
+        setQuizStats({
+          attempts: attempts.length,
+          bestScore: Math.max(...scores),
+          averageScore: Math.round(totalScore / scores.length),
+          lastAttemptAt: attempts[0]?.completed_at,
+        });
+
+        setQuizHistory(attempts.map(attempt => ({
+          id: attempt.id,
+          score: attempt.correct_answers || 0,
+          total: attempt.total_questions || 0,
+          percentage: attempt.score_percentage || 0,
+          completed_at: attempt.completed_at || attempt.started_at,
+        })));
+
+        console.log('📊 [RouteExercise] Loaded quiz stats:', {
+          attempts: attempts.length,
+          bestScore: Math.max(...scores),
+          averageScore: Math.round(totalScore / scores.length),
+        });
+      }
+    } catch (error) {
+      console.error('❌ [RouteExercise] Error loading quiz stats:', error);
+    }
+  };
+
+  // Save quiz attempt to database (for UUID exercises)
+  const saveQuizAttempt = async (score: number, total: number) => {
+    if (!currentExercise || !user) return;
+
+    try {
+      const exerciseId = currentExercise.learning_path_exercise_id || currentExercise.id;
+      
+      // Check if it's a valid UUID (database exercise)
+      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(exerciseId);
+      
+      if (!isValidUUID) {
+        console.log('📊 [RouteExercise] Custom exercise - not saving quiz attempt');
+        return;
+      }
+
+      const percentage = Math.round((score / total) * 100);
+      
+      const { error } = await supabase
+        .from('quiz_attempts')
+        .insert({
+          exercise_id: exerciseId,
+          user_id: user.id,
+          attempt_number: (quizStats?.attempts || 0) + 1,
+          started_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+          total_questions: total,
+          correct_answers: score,
+          score_percentage: percentage,
+          is_completed: true,
+          passed: percentage >= 70, // Assuming 70% pass threshold
+          pass_threshold: 70,
+          time_spent_seconds: 0, // Could track this if needed
+        });
+
+      if (error) {
+        console.error('❌ Error saving quiz attempt:', error);
+      } else {
+        console.log('✅ Quiz attempt saved:', { score, total, percentage });
+        // Reload stats after saving
+        loadQuizStats();
+      }
+    } catch (error) {
+      console.error('❌ Error saving quiz attempt:', error);
+    }
   };
 
   useEffect(() => {
@@ -442,6 +647,11 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
     try {
       if (!user) return;
 
+      // Skip session tracking for single exercises (those starting with 00000000)
+      if (routeId && routeId.startsWith('00000000-0000-0000-0000-')) {
+        return;
+      }
+
       const { data } = await supabase
         .from('route_exercise_sessions')
         .select('*')
@@ -459,6 +669,13 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
   const initializeSession = async () => {
     try {
       if (!user) return;
+
+      // Skip session tracking for single exercises (those starting with 00000000)
+      if (routeId && routeId.startsWith('00000000-0000-0000-0000-')) {
+        console.log('🔍 [RouteExercise] Skipping session tracking for single exercise view');
+        setLoading(false);
+        return;
+      }
 
       // Check for existing in-progress session
       const { data: existingSession } = await supabase
@@ -606,10 +823,12 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
       if (newCompleted.size === exercises.length) {
         console.log('🎉 [RouteExercise] All exercises completed - finishing session');
         await completeSession();
-      } else {
-        // Move to next exercise automatically
-        console.log('➡️ [RouteExercise] Moving to next exercise');
+      } else if (!currentExercise.repeat_count || currentExercise.repeat_count <= 1) {
+        // Only auto-advance if exercise has no repeats
+        console.log('➡️ [RouteExercise] Exercise has no repeats - auto-advancing to next exercise');
         handleNext();
+      } else {
+        console.log('🚫 [RouteExercise] Exercise has repeats - staying on current exercise for user to complete all repeats');
       }
     } catch (error) {
       console.error('❌ [RouteExercise] Error completing exercise:', error);
@@ -873,7 +1092,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
             {currentExercise.learning_path_exercise_id && (
               <Text fontSize={14} color="#4B6BFF" marginTop={4}>
                 🔗 Connected to Learning Path Progress
-                {currentExercise.learning_path_title && ` • ${currentExercise.learning_path_title}`}
+                {currentExercise.learning_path_title && ` • ${getDisplayText(currentExercise.learning_path_title)}`}
               </Text>
             )}
           </YStack>
@@ -1126,7 +1345,18 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
               </View>
             ) : quizQuestions.length > 0 ? (
               <>
-                {/* Quiz Header with Score */}
+                {/* Debug logging moved outside JSX */}
+                {(() => {
+                  console.log('🎯 [RouteExercise] RENDERING INTERACTIVE QUIZ UI:', {
+                    questionCount: quizQuestions.length,
+                    loadingQuiz,
+                    showQuizResults,
+                    quizAnswers: Object.keys(quizAnswers).length,
+                    exerciseId: currentExercise.id,
+                  });
+                  return null; // Return null for JSX
+                })()}
+                {/* Quiz Header with Score and Stats */}
                 <XStack alignItems="center" justifyContent="space-between" marginBottom={16}>
                   <XStack alignItems="center" gap={8}>
                     <Feather name="help-circle" size={20} color="#8B5CF6" />
@@ -1147,6 +1377,50 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
                   )}
                 </XStack>
 
+                {/* Quiz Statistics Panel */}
+                {quizStats && (
+                  <Card backgroundColor="rgba(75, 107, 255, 0.1)" padding={12} borderRadius={8} marginBottom={12}>
+                    <YStack gap={8}>
+                                             <XStack alignItems="center" justifyContent="space-between">
+                        <Text fontSize={14} fontWeight="600" color="#4B6BFF">
+                          📊 Quiz Statistics
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            Alert.alert(
+                              'Quiz History',
+                              quizHistory.length > 0 
+                                ? quizHistory.map((attempt, index) => 
+                                    `Attempt ${index + 1}: ${attempt.score}/${attempt.total} (${attempt.percentage}%)\n${new Date(attempt.completed_at).toLocaleDateString()}`
+                                  ).join('\n\n')
+                                : 'No previous attempts found',
+                              [{ text: 'OK' }]
+                            );
+                          }}
+                        >
+                          <Feather name="clock" size={16} color="#4B6BFF" />
+                        </TouchableOpacity>
+                      </XStack>
+                      <XStack justifyContent="space-between">
+                        <Text fontSize={12} color="#4B6BFF">
+                          Attempts: {quizStats.attempts}
+                        </Text>
+                        <Text fontSize={12} color="#4B6BFF">
+                          Best: {quizStats.bestScore}%
+                        </Text>
+                        <Text fontSize={12} color="#4B6BFF">
+                          Avg: {quizStats.averageScore}%
+                        </Text>
+                      </XStack>
+                      {quizStats.lastAttemptAt && (
+                        <Text fontSize={10} color="#6B7280">
+                          Last attempt: {new Date(quizStats.lastAttemptAt).toLocaleDateString()}
+                        </Text>
+                      )}
+                    </YStack>
+                  </Card>
+                )}
+
                 {/* Real Quiz Questions */}
                 {quizQuestions.map((question: QuizQuestion, questionIndex: number) => {
                   const userAnswer = quizAnswers[questionIndex];
@@ -1157,6 +1431,43 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
                       <Text fontSize={16} fontWeight="600" color="$color" marginBottom={12}>
                         Question {questionIndex + 1}: {getDisplayText(question.question_text)}
                       </Text>
+                      
+                      {/* Question Media */}
+                      {(question.image || question.youtube_url || question.embed_code) && (
+                        <YStack marginBottom={12} borderRadius={8} overflow="hidden">
+                          {question.image && (
+                            <Image
+                              source={{ uri: question.image }}
+                              style={{
+                                width: '100%',
+                                height: 200,
+                                borderRadius: 8,
+                                resizeMode: 'cover',
+                              }}
+                            />
+                          )}
+                          {question.youtube_url && (
+                            <View style={{ height: 200 }}>
+                              <WebView 
+                                source={{ 
+                                  uri: question.youtube_url.includes('embed') 
+                                    ? question.youtube_url 
+                                    : question.youtube_url.replace('watch?v=', 'embed/')
+                                }}
+                                style={{ flex: 1 }}
+                              />
+                            </View>
+                          )}
+                          {question.embed_code && !question.youtube_url && (
+                            <View style={{ height: 200 }}>
+                              <WebView 
+                                source={{ html: question.embed_code }}
+                                style={{ flex: 1 }}
+                              />
+                            </View>
+                          )}
+                        </YStack>
+                      )}
                         
                       {isMultipleChoice && (
                         <Text fontSize={12} color="#8B5CF6" marginBottom={8} fontStyle="italic">
@@ -1487,11 +1798,23 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
                 <Button
                   onPress={async () => {
                     const isCompleted = completedExercises.has(currentExercise?.id || '');
+                    
+                    console.log('🎯 [RouteExercise] Complete/Incomplete button pressed:', {
+                      exerciseId: currentExercise.id,
+                      exerciseTitle: getDisplayText(currentExercise.title),
+                      currentlyCompleted: isCompleted,
+                      actionToTake: isCompleted ? 'MARK_INCOMPLETE' : 'MARK_COMPLETE',
+                      isRepeatExercise: currentExercise.isRepeat,
+                      hasRepeats: !!currentExercise.repeat_count && currentExercise.repeat_count > 1
+                    });
+                    
                     if (isCompleted) {
                       // Toggle to incomplete - remove from local state
                       const newCompleted = new Set(completedExercises);
                       newCompleted.delete(currentExercise.id);
                       setCompletedExercises(newCompleted);
+                      
+                      console.log('🔴 [RouteExercise] Marking exercise as incomplete');
                       
                       // Remove from database
                       await supabase
@@ -1500,8 +1823,15 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
                         .eq('session_id', sessionId)
                         .eq('exercise_id', currentExercise.id);
                     } else {
+                      console.log('🟢 [RouteExercise] Marking exercise as complete (NOT affecting virtual repeats)');
+                      
                       // Complete the exercise
                       await completeExercise();
+                      
+                      // DON'T auto-advance if this exercise has repeats - user should decide when to move on
+                      if (currentExercise.repeat_count && currentExercise.repeat_count > 1) {
+                        console.log('🚫 [RouteExercise] Exercise has repeats - NOT auto-advancing to next exercise');
+                      }
                     }
                   }}
                   backgroundColor={completedExercises.has(currentExercise?.id || '') ? "$gray10" : "$green10"}

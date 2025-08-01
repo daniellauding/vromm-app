@@ -1051,6 +1051,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         rating_count: 0,
         completion_count: 0,
         report_count: 0,
+        // Add quiz support for simple exercises
+        has_quiz: false,
+        quiz_data: null,
       },
     ]);
     setNewExercise({});
@@ -1058,6 +1061,28 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const handleRemoveExercise = (id: string) => {
     setExercises(exercises.filter((ex) => ex.id !== id));
+  };
+
+  const [editingExercise, setEditingExercise] = useState<any>(null);
+
+  const handleEditExercise = (exercise: any) => {
+    // For custom exercises, we can edit them using the AdvancedExerciseCreator
+    console.log('📝 [CreateRoute] Editing custom exercise:', {
+      id: exercise.id,
+      title: exercise.title,
+      has_quiz: exercise.has_quiz,
+      quiz_data: exercise.quiz_data
+    });
+
+    // Set up the form data for editing
+    if (exercise.source === 'custom') {
+      // Remove the exercise from the list temporarily
+      handleRemoveExercise(exercise.id);
+      
+      // Set the exercise data for editing and open the creator
+      setEditingExercise(exercise);
+      setShowAdvancedExerciseCreator(true);
+    }
   };
 
   // Handle exercise selector changes
@@ -1089,6 +1114,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   // Handle exercises created from AdvancedExerciseCreator
   const handleAdvancedExerciseCreated = (exercise: any) => {
+    console.log('🔧 [CreateRoute] Advanced exercise created:', {
+      has_quiz: exercise.has_quiz,
+      quiz_data: !!exercise.quiz_data,
+      quiz_data_type: typeof exercise.quiz_data,
+      quiz_questions_count: exercise.quiz_data?.questions?.length || 0
+    });
+    
     const newExercise: Exercise = {
       id: Date.now().toString(),
       title: typeof exercise.title === 'string' ? exercise.title : exercise.title.en,
@@ -1113,10 +1145,20 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       embed_code: exercise.embed_code,
       has_quiz: exercise.has_quiz,
       quiz_required: exercise.quiz_required,
+      quiz_data: exercise.quiz_data, // THIS WAS MISSING!
     };
+    
+    console.log('✅ [CreateRoute] Adding exercise to list:', {
+      id: newExercise.id,
+      title: newExercise.title,
+      has_quiz: newExercise.has_quiz,
+      quiz_data: !!newExercise.quiz_data,
+      quiz_data_preview: newExercise.quiz_data ? JSON.stringify(newExercise.quiz_data).substring(0, 100) + '...' : null
+    });
     
     setExercises(prev => [...prev, newExercise]);
     setShowAdvancedExerciseCreator(false);
+    setEditingExercise(null); // Clear editing state
   };
 
   const pickMedia = async (useCamera = false) => {
@@ -1450,7 +1492,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         is_public: formData.visibility === 'public',
         waypoint_details: finalWaypointDetails,
         metadata: finalMetadata,
-        suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises) : '',
+        suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises.map(ex => ({
+          ...ex,
+          // Ensure quiz data is properly saved
+          has_quiz: ex.has_quiz || false,
+          quiz_data: ex.quiz_data || null
+        }))) : '',
         media_attachments: mediaToUpdate,
         drawing_mode: finalDrawingMode,
       };
@@ -1627,7 +1674,39 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         }
       }
 
-      if (route.exercises) {
+      // Load existing exercises from suggested_exercises field
+      if ((route as any).suggested_exercises) {
+        try {
+          let loadedExercises: RouteExercise[] = [];
+          
+          if (typeof (route as any).suggested_exercises === 'string') {
+            // Parse JSON string
+            const cleanedString = (route as any).suggested_exercises.trim();
+            if (cleanedString && cleanedString !== 'null' && cleanedString !== '') {
+              loadedExercises = JSON.parse(cleanedString);
+            }
+          } else if (Array.isArray((route as any).suggested_exercises)) {
+            // Already an array
+            loadedExercises = (route as any).suggested_exercises;
+          }
+          
+          console.log('📚 [CreateRoute] Loaded existing exercises:', {
+            count: loadedExercises.length,
+            exercises: loadedExercises.map(ex => ({ 
+              id: ex.id, 
+              title: ex.title, 
+              source: ex.source,
+              has_quiz: ex.has_quiz 
+            }))
+          });
+          
+          setExercises(loadedExercises);
+        } catch (parseError) {
+          console.error('❌ [CreateRoute] Error parsing existing exercises:', parseError);
+          setExercises([]);
+        }
+      } else if (route.exercises) {
+        // Fallback to old field name
         setExercises(route.exercises);
       }
 
@@ -2755,14 +2834,26 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                   )}
                                 </YStack>
                                 
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onPress={() => handleRemoveExercise(exercise.id)}
-                                  backgroundColor="$red5"
-                                >
-                                  <Feather name="trash-2" size={16} color="$red10" />
-                                </Button>
+                                <XStack gap="$2">
+                                  {exercise.source === 'custom' && (
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      onPress={() => handleEditExercise(exercise)}
+                                      backgroundColor="$blue5"
+                                    >
+                                      <Feather name="edit-3" size={16} color="$blue10" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onPress={() => handleRemoveExercise(exercise.id)}
+                                    backgroundColor="$red5"
+                                  >
+                                    <Feather name="trash-2" size={16} color="$red10" />
+                                  </Button>
+                                </XStack>
                               </XStack>
                               
                               {exercise.description && (
@@ -3141,8 +3232,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       {/* Advanced Exercise Creator Modal */}
       <AdvancedExerciseCreator
         visible={showAdvancedExerciseCreator}
-        onClose={() => setShowAdvancedExerciseCreator(false)}
+        onClose={() => {
+          setShowAdvancedExerciseCreator(false);
+          setEditingExercise(null); // Clear editing state
+        }}
         onExerciseCreated={handleAdvancedExerciseCreated}
+        initialData={editingExercise} // Pass exercise data for editing
       />
 
       {/* Exit Confirmation Bottom Sheet */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   ScrollView, 
@@ -21,6 +21,7 @@ interface AdvancedExerciseCreatorProps {
   visible: boolean;
   onClose: () => void;
   onExerciseCreated: (exercise: Exercise) => void;
+  initialData?: Exercise; // Optional initial data for editing
 }
 
 interface ExerciseFormData {
@@ -47,6 +48,10 @@ interface ExerciseFormData {
     correct_answer: number;
     explanation_en: string;
     explanation_sv: string;
+    // Media support for questions
+    image?: string;
+    youtube_url?: string;
+    embed_code?: string;
   }[];
   quiz_pass_score: number;
   quiz_max_attempts: number;
@@ -93,38 +98,128 @@ const COMMON_TAGS = [
 export function AdvancedExerciseCreator({ 
   visible, 
   onClose, 
-  onExerciseCreated 
+  onExerciseCreated,
+  initialData
 }: AdvancedExerciseCreatorProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const colorScheme = useColorScheme();
 
-  const [formData, setFormData] = useState<ExerciseFormData>({
-    title_en: '',
-    title_sv: '',
-    description_en: '',
-    description_sv: '',
-    duration: '',
-    repetitions: '',
-    youtube_url: '',
-    embed_code: '',
-    has_quiz: false,
-    quiz_questions: [],
-    quiz_pass_score: 70,
-    quiz_max_attempts: 3,
-    visibility: 'private',
-    category: 'user-created',
-    tags: [],
-    difficulty_level: 'beginner',
-    vehicle_type: 'both',
-    repeat_count: 1,
-    is_locked: false,
-    lock_password: '',
+  const [formData, setFormData] = useState<ExerciseFormData>(() => {
+    if (initialData) {
+      // Pre-populate form with existing exercise data
+      const title = typeof initialData.title === 'string' 
+        ? { en: initialData.title, sv: initialData.title }
+        : initialData.title;
+      const description = typeof initialData.description === 'string'
+        ? { en: initialData.description || '', sv: initialData.description || '' }
+        : initialData.description || { en: '', sv: '' };
+
+      // Parse quiz data if it exists
+      let quizQuestions: any[] = [];
+      if (initialData.quiz_data && typeof initialData.quiz_data === 'object') {
+        const quizData = initialData.quiz_data as any;
+        if (quizData.questions && Array.isArray(quizData.questions)) {
+          quizQuestions = quizData.questions.map((q: any, index: number) => ({
+            id: q.id || Date.now().toString() + index,
+            question_en: typeof q.question === 'string' ? q.question : (q.question?.en || ''),
+            question_sv: typeof q.question === 'string' ? q.question : (q.question?.sv || q.question?.en || ''),
+            options_en: Array.isArray(q.options) ? q.options : (q.options?.en || []),
+            options_sv: Array.isArray(q.options) ? q.options : (q.options?.sv || q.options?.en || []),
+            correct_answer: q.correct_answer || 0,
+            explanation_en: typeof q.explanation === 'string' ? q.explanation : (q.explanation?.en || ''),
+            explanation_sv: typeof q.explanation === 'string' ? q.explanation : (q.explanation?.sv || q.explanation?.en || ''),
+            image: q.image || '',
+            youtube_url: q.youtube_url || '',
+            embed_code: q.embed_code || ''
+          }));
+        }
+      }
+
+      return {
+        title_en: title?.en || '',
+        title_sv: title?.sv || title?.en || '',
+        description_en: description?.en || '',
+        description_sv: description?.sv || description?.en || '',
+        duration: initialData.duration || '',
+        repetitions: initialData.repetitions || '',
+        youtube_url: initialData.youtube_url || '',
+        embed_code: initialData.embed_code || '',
+        has_quiz: initialData.has_quiz || false,
+        quiz_questions: quizQuestions,
+        quiz_pass_score: 70,
+        quiz_max_attempts: 3,
+        visibility: initialData.visibility || 'private',
+        category: initialData.category || 'user-created',
+        tags: initialData.tags || [],
+        difficulty_level: initialData.difficulty_level || 'beginner',
+        vehicle_type: initialData.vehicle_type || 'both',
+        repeat_count: initialData.repeat_count || 1,
+        is_locked: initialData.is_locked || false,
+        lock_password: initialData.lock_password || '',
+      };
+    }
+
+    // Default form data when no initialData
+    return {
+      title_en: '',
+      title_sv: '',
+      description_en: '',
+      description_sv: '',
+      duration: '',
+      repetitions: '',
+      youtube_url: '',
+      embed_code: '',
+      has_quiz: false,
+      quiz_questions: [],
+      quiz_pass_score: 70,
+      quiz_max_attempts: 3,
+      visibility: 'private',
+      category: 'user-created',
+      tags: [],
+      difficulty_level: 'beginner',
+      vehicle_type: 'both',
+      repeat_count: 1,
+      is_locked: false,
+      lock_password: '',
+    };
   });
 
   const [media, setMedia] = useState<mediaUtils.MediaItem[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [tagInput, setTagInput] = useState('');
+
+  // Reset form when modal closes (for new exercises, not when editing)
+  useEffect(() => {
+    if (!visible && !initialData) {
+      // Reset form to default state when modal closes and not editing
+      setFormData({
+        title_en: '',
+        title_sv: '',
+        description_en: '',
+        description_sv: '',
+        duration: '',
+        repetitions: '',
+        youtube_url: '',
+        embed_code: '',
+        has_quiz: false,
+        quiz_questions: [],
+        quiz_pass_score: 70,
+        quiz_max_attempts: 3,
+        visibility: 'private',
+        category: 'user-created',
+        tags: [],
+        difficulty_level: 'beginner',
+        vehicle_type: 'both',
+        repeat_count: 1,
+        is_locked: false,
+        lock_password: '',
+      });
+      setMedia([]);
+      setCurrentStep(0);
+      setTagInput('');
+    }
+  }, [visible, initialData]);
 
   const steps = [
     'Basic Info',
@@ -161,6 +256,10 @@ export function AdvancedExerciseCreator({
       correct_answer: 0,
       explanation_en: '',
       explanation_sv: '',
+      // Media fields
+      image: '',
+      youtube_url: '',
+      embed_code: '',
     };
     
     setFormData(prev => ({
@@ -229,6 +328,13 @@ export function AdvancedExerciseCreator({
   };
 
   const validateAndCreateExercise = () => {
+    console.log(`📝 [AdvancedExerciseCreator] ${initialData ? 'Updating' : 'Creating'} exercise:`, {
+      title: formData.title_en,
+      has_quiz: formData.has_quiz,
+      quiz_questions: formData.quiz_questions.length,
+      isEditing: !!initialData
+    });
+
     // Validation
     if (!formData.title_en.trim()) {
       Alert.alert('Error', 'Please provide an English title');
@@ -298,7 +404,11 @@ export function AdvancedExerciseCreator({
           explanation: { 
             en: q.explanation_en, 
             sv: q.explanation_sv || q.explanation_en 
-          }
+          },
+          // Include media fields
+          image: q.image || undefined,
+          youtube_url: q.youtube_url || undefined,
+          embed_code: q.embed_code || undefined
         })),
         pass_score: formData.quiz_pass_score,
         max_attempts: formData.quiz_max_attempts
@@ -384,6 +494,10 @@ export function AdvancedExerciseCreator({
           explanation: q.explanation_sv.trim()
             ? { en: q.explanation_en, sv: q.explanation_sv }
             : q.explanation_en || undefined,
+          // Include media fields
+          image: q.image || undefined,
+          youtube_url: q.youtube_url || undefined,
+          embed_code: q.embed_code || undefined
         })),
         pass_score: formData.quiz_pass_score,
         max_attempts: formData.quiz_max_attempts,
@@ -783,10 +897,14 @@ export function AdvancedExerciseCreator({
           <TouchableOpacity onPress={handleClose}>
             <Feather name="x" size={24} color={colorScheme === 'dark' ? '#fff' : '#000'} />
           </TouchableOpacity>
-          <Text fontSize={18} fontWeight="600">Create Advanced Exercise</Text>
-          <TouchableOpacity onPress={validateAndCreateExercise}>
-            <Text color="$blue10" fontWeight="600">Create</Text>
-          </TouchableOpacity>
+                          <Text fontSize={18} fontWeight="600">
+                  {initialData ? 'Edit Exercise' : 'Create Advanced Exercise'}
+                </Text>
+                      <TouchableOpacity onPress={validateAndCreateExercise}>
+              <Text color="$blue10" fontWeight="600">
+                {initialData ? 'Update' : 'Create'}
+              </Text>
+            </TouchableOpacity>
         </XStack>
         
         {/* Step Progress */}
@@ -1009,6 +1127,56 @@ export function AdvancedExerciseCreator({
                         placeholder={`Alternativ ${optionIndex + 1}`}
                       />
                     ))}
+                  </YStack>
+                  
+                  {/* Question Media */}
+                  <YStack gap="$2">
+                    <Text fontSize="$3" fontWeight="500">Question Media (Optional)</Text>
+                    
+                    {/* Image URL */}
+                    <YStack gap="$1">
+                      <Text fontSize="$2" color="$gray11">Image URL</Text>
+                      <Input
+                        value={question.image || ''}
+                        onChangeText={(text) => {
+                          const updated = formData.quiz_questions.map(q => 
+                            q.id === question.id ? { ...q, image: text } : q
+                          );
+                          setFormData(prev => ({ ...prev, quiz_questions: updated }));
+                        }}
+                        placeholder="https://example.com/image.jpg"
+                      />
+                    </YStack>
+                    
+                    {/* YouTube URL */}
+                    <YStack gap="$1">
+                      <Text fontSize="$2" color="$gray11">YouTube URL</Text>
+                      <Input
+                        value={question.youtube_url || ''}
+                        onChangeText={(text) => {
+                          const updated = formData.quiz_questions.map(q => 
+                            q.id === question.id ? { ...q, youtube_url: text } : q
+                          );
+                          setFormData(prev => ({ ...prev, quiz_questions: updated }));
+                        }}
+                        placeholder="https://youtube.com/watch?v=..."
+                      />
+                    </YStack>
+                    
+                    {/* Embed Code */}
+                    <YStack gap="$1">
+                      <Text fontSize="$2" color="$gray11">Embed Code</Text>
+                      <Input
+                        value={question.embed_code || ''}
+                        onChangeText={(text) => {
+                          const updated = formData.quiz_questions.map(q => 
+                            q.id === question.id ? { ...q, embed_code: text } : q
+                          );
+                          setFormData(prev => ({ ...prev, quiz_questions: updated }));
+                        }}
+                        placeholder="<iframe>...</iframe> or TypeForm embed"
+                      />
+                    </YStack>
                   </YStack>
                   
                   {/* Explanation */}

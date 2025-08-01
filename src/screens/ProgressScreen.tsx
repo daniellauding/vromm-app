@@ -338,6 +338,17 @@ export function ProgressScreen() {
   }>({});
   const [currentQuizAttempt, setCurrentQuizAttempt] = useState<QuizAttempt | null>(null);
   const [quizStatistics, setQuizStatistics] = useState<QuizStatistics | null>(null);
+  
+  // NEW: Show all exercises toggle
+  const [showAllExercises, setShowAllExercises] = useState(false);
+  const [allAvailableExercises, setAllAvailableExercises] = useState<(PathExercise & { source: 'database' | 'custom_route'; route_name?: string })[]>([]);
+  
+  // Load all exercises when toggle is enabled
+  useEffect(() => {
+    if (showAllExercises && user) {
+      loadAllAvailableExercises();
+    }
+  }, [showAllExercises, user]);
   const [quizHistory, setQuizHistory] = useState<QuizAttempt[]>([]);
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
   const [hasQuizQuestions, setHasQuizQuestions] = useState<{ [exerciseId: string]: boolean }>({});
@@ -1020,6 +1031,107 @@ export function ProgressScreen() {
   };
 
   // Check if content is already unlocked in database
+  // NEW: Load all exercises from both database and custom routes
+  const loadAllAvailableExercises = async () => {
+    if (!user) return;
+    
+    try {
+      console.log('🔍 [ProgressScreen] Loading all available exercises...');
+      
+      // Get database exercises (learning path exercises)
+      const { data: dbExercises, error: dbError } = await supabase
+        .from('learning_path_exercises')
+        .select('*')
+        .order('title', { ascending: true });
+      
+      if (dbError) {
+        console.error('❌ Error loading database exercises:', dbError);
+      }
+      
+      // Get custom exercises from routes
+      const { data: routes, error: routesError } = await supabase
+        .from('routes')
+        .select('id, name, suggested_exercises')
+        .not('suggested_exercises', 'is', null)
+        .order('created_at', { ascending: false });
+      
+      if (routesError) {
+        console.error('❌ Error loading custom routes:', routesError);
+      }
+      
+      const allExercises: (PathExercise & { source: 'database' | 'custom_route'; route_name?: string })[] = [];
+      
+      // Add database exercises
+      if (dbExercises) {
+        dbExercises.forEach(exercise => {
+          allExercises.push({
+            ...exercise,
+            source: 'database',
+            repeat_count: exercise.repeat_count || 1,
+          });
+        });
+      }
+      
+      // Add custom exercises from routes
+      if (routes) {
+        routes.forEach(route => {
+          try {
+            // Handle both string and array formats, with comprehensive error handling
+            let exercises: any[] = [];
+            if (typeof route.suggested_exercises === 'string') {
+              // Clean the string and try to parse
+              const cleanedString = route.suggested_exercises.trim();
+              if (cleanedString && cleanedString !== 'null' && cleanedString !== '') {
+                try {
+                  exercises = JSON.parse(cleanedString);
+                } catch (parseError) {
+                  console.warn('⚠️ [ProgressScreen] Skipping malformed JSON in route:', route.id, 'Error:', parseError);
+                  // Try to extract route name for debugging
+                  console.warn('Route name:', route.name);
+                  console.warn('First 100 chars of suggested_exercises:', cleanedString.substring(0, 100));
+                  return; // Skip this route entirely
+                }
+              }
+            } else if (Array.isArray(route.suggested_exercises)) {
+              exercises = route.suggested_exercises;
+            }
+            
+            exercises.forEach((exercise: any) => {
+              if (exercise.source === 'custom') {
+                allExercises.push({
+                  id: exercise.id,
+                  learning_path_id: '', // Custom exercises don't belong to learning paths
+                  title: typeof exercise.title === 'string' ? { en: exercise.title, sv: exercise.title } : exercise.title,
+                  description: typeof exercise.description === 'string' ? { en: exercise.description, sv: exercise.description } : exercise.description,
+                  order_index: 999, // Put custom exercises at the end
+                  repeat_count: exercise.repetitions || 1,
+                  has_quiz: exercise.has_quiz || false,
+                  quiz_required: exercise.quiz_required || false,
+                  source: 'custom_route',
+                  route_name: route.name,
+                  created_at: exercise.created_at || new Date().toISOString(),
+                  updated_at: exercise.created_at || new Date().toISOString(),
+                });
+              }
+            });
+          } catch (error) {
+            console.error('❌ Error parsing route exercises:', error);
+          }
+        });
+      }
+      
+      console.log('✅ [ProgressScreen] Loaded all exercises:', {
+        total: allExercises.length,
+        database: allExercises.filter(e => e.source === 'database').length,
+        custom: allExercises.filter(e => e.source === 'custom_route').length,
+      });
+      
+      setAllAvailableExercises(allExercises);
+    } catch (error) {
+      console.error('❌ [ProgressScreen] Error loading all exercises:', error);
+    }
+  };
+
   const checkExistingUnlock = async (
     contentId: string,
     contentType: 'learning_path' | 'exercise',
@@ -3354,9 +3466,37 @@ export function ProgressScreen() {
           borderRadius={16}
           marginBottom={24}
         >
-          <Text fontSize={16} fontWeight="bold" color="$color">
-            Filter Learning Paths
-          </Text>
+          <XStack alignItems="center" justifyContent="space-between">
+            <Text fontSize={16} fontWeight="bold" color="$color">
+              Filter Learning Paths
+            </Text>
+            
+            <TouchableOpacity
+              onPress={() => setShowAllExercises(!showAllExercises)}
+              style={{
+                backgroundColor: showAllExercises ? '#4B6BFF' : '#333',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Feather 
+                name={showAllExercises ? "list" : "plus"} 
+                size={14} 
+                color={showAllExercises ? "white" : "#888"} 
+              />
+              <Text 
+                fontSize={12} 
+                fontWeight="600" 
+                color={showAllExercises ? "white" : "#888"}
+              >
+                {showAllExercises ? "All Exercises" : "Show All"}
+              </Text>
+            </TouchableOpacity>
+          </XStack>
 
           <XStack flexWrap="wrap" gap={8} justifyContent="space-between">
             {Object.keys(categoryFilters).map((filterType) => {
@@ -3401,18 +3541,148 @@ export function ProgressScreen() {
         {/* Render filter selection modals */}
         {renderFilterModal(activeFilterType)}
 
-        {filteredPaths.length === 0 ? (
-          <YStack padding={16} alignItems="center" justifyContent="center" gap={8}>
-            <Feather name="info" size={32} color="$gray11" />
-            <Text fontSize={20} fontWeight="bold" color="$color" textAlign="center">
-              No learning paths found
-            </Text>
-            <Text fontSize={16} color="$gray11" textAlign="center">
-              Try adjusting your filter settings to see more learning paths.
-            </Text>
+        {/* Show All Exercises Section */}
+        {showAllExercises && (
+          <YStack
+            backgroundColor="$backgroundStronger"
+            borderRadius={16}
+            padding={16}
+            marginBottom={24}
+          >
+            <XStack alignItems="center" justifyContent="space-between" marginBottom={16}>
+              <Text fontSize={18} fontWeight="bold" color="$color">
+                All Available Exercises ({allAvailableExercises.length})
+              </Text>
+              <Text fontSize={12} color="$gray11">
+                Database: {allAvailableExercises.filter(e => e.source === 'database').length} | 
+                Custom: {allAvailableExercises.filter(e => e.source === 'custom_route').length}
+              </Text>
+            </XStack>
+
+            {allAvailableExercises.length === 0 ? (
+              <YStack alignItems="center" padding={20}>
+                <Feather name="search" size={32} color="$gray11" />
+                <Text fontSize={16} color="$gray11" textAlign="center" marginTop={8}>
+                  Loading exercises...
+                </Text>
+              </YStack>
+            ) : (
+              <YStack gap={8}>
+                {allAvailableExercises.map((exercise, index) => (
+                  <TouchableOpacity
+                    key={`${exercise.source}-${exercise.id}`}
+                    onPress={() => {
+                      console.log('🎯 [ProgressScreen] Exercise selected:', exercise);
+                      
+                      if (exercise.source === 'database') {
+                        // For database exercises, navigate to RouteExerciseScreen for full experience
+                        const exerciseForRoute = {
+                          id: `lpe_${exercise.id}`,
+                          title: exercise.title,
+                          description: exercise.description,
+                          learning_path_exercise_id: exercise.id,
+                          learning_path_id: exercise.learning_path_id,
+                          learning_path_title: { en: 'Learning Path', sv: 'Lärandeväg' },
+                          youtube_url: exercise.youtube_url || '',
+                          icon: '',
+                          image: exercise.image || '',
+                          embed_code: exercise.embed_code || '',
+                          source: 'learning_path',
+                          repeat_count: exercise.repeat_count || 1,
+                          has_quiz: exercise.has_quiz || false,
+                          quiz_data: false
+                        };
+
+                        // Generate a proper UUID for single exercise (using a predictable pattern)
+                        const singleExerciseRouteId = `00000000-0000-0000-0000-${exercise.id.replace(/-/g, '').substring(0, 12)}`;
+                        
+                        (navigation as any).navigate('RouteExercise', {
+                          routeId: singleExerciseRouteId,
+                          exercises: [exerciseForRoute],
+                          routeName: `${exercise.title[lang] || exercise.title.en} (Individual Exercise)`,
+                          startIndex: 0,
+                        });
+                      } else {
+                        // For custom exercises, show route and navigate
+                        Alert.alert(
+                          'Custom Exercise',
+                          `This exercise is from the route "${exercise.route_name}". Would you like to view the route?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'View Route',
+                              onPress: () => {
+                                // Navigate to route detail - we'd need the route ID
+                                Alert.alert('Info', 'Route navigation will be added in a future update');
+                              }
+                            }
+                          ]
+                        );
+                      }
+                    }}
+                    style={{
+                      backgroundColor: exercise.source === 'database' ? '#1a1a2e' : '#2e1a1a',
+                      padding: 12,
+                      borderRadius: 8,
+                      borderLeftWidth: 4,
+                      borderLeftColor: exercise.source === 'database' ? '#4B6BFF' : '#FF6B4B',
+                    }}
+                  >
+                    <XStack alignItems="center" justifyContent="space-between">
+                      <YStack flex={1}>
+                        <Text fontSize={14} fontWeight="600" color="$color" numberOfLines={1}>
+                          {exercise.title[lang] || exercise.title.en || 'No title'}
+                        </Text>
+                        <Text fontSize={12} color="$gray11" numberOfLines={2} marginTop={2}>
+                          {exercise.description[lang] || exercise.description.en || 'No description'}
+                        </Text>
+                        <XStack alignItems="center" gap={8} marginTop={4}>
+                          <Text fontSize={10} color={exercise.source === 'database' ? '#4B6BFF' : '#FF6B4B'} fontWeight="600">
+                            {exercise.source === 'database' ? 'DATABASE' : 'CUSTOM'}
+                          </Text>
+                          {exercise.route_name && (
+                            <Text fontSize={10} color="$gray11">
+                              from "{exercise.route_name}"
+                            </Text>
+                          )}
+                          {exercise.has_quiz && (
+                            <XStack alignItems="center" gap={2}>
+                              <Feather name="help-circle" size={10} color="#8B5CF6" />
+                              <Text fontSize={10} color="#8B5CF6">QUIZ</Text>
+                            </XStack>
+                          )}
+                          {exercise.repeat_count && exercise.repeat_count > 1 && (
+                            <XStack alignItems="center" gap={2}>
+                              <Feather name="repeat" size={10} color="#F59E0B" />
+                              <Text fontSize={10} color="#F59E0B">{exercise.repeat_count}x</Text>
+                            </XStack>
+                          )}
+                        </XStack>
+                      </YStack>
+                      <Feather name="chevron-right" size={16} color="$gray11" />
+                    </XStack>
+                  </TouchableOpacity>
+                ))}
+              </YStack>
+            )}
           </YStack>
-        ) : (
-          filteredPaths.map((path, idx) => {
+        )}
+
+        {/* Learning Paths Section - only show when not viewing all exercises */}
+        {!showAllExercises && (
+          <>
+            {filteredPaths.length === 0 ? (
+              <YStack padding={16} alignItems="center" justifyContent="center" gap={8}>
+                <Feather name="info" size={32} color="$gray11" />
+                <Text fontSize={20} fontWeight="bold" color="$color" textAlign="center">
+                  No learning paths found
+                </Text>
+                <Text fontSize={16} color="$gray11" textAlign="center">
+                  Try adjusting your filter settings to see more learning paths.
+                </Text>
+              </YStack>
+            ) : (
+              filteredPaths.map((path, idx) => {
             const isActive = activePath === path.id;
             const percent = getPathProgress(path.id);
 
@@ -3573,6 +3843,8 @@ export function ProgressScreen() {
             );
           })
         )}
+        </>
+      )}
       </ScrollView>
     </YStack>
   );
