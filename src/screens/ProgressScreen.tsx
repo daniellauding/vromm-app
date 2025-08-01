@@ -258,6 +258,7 @@ interface CategoryOption {
 }
 
 export function ProgressScreen() {
+  const navigation = useNavigation();
   const route = useRoute<RouteProp<TabParamList, 'ProgressTab'>>();
   const { selectedPathId, showDetail } = route.params || {};
 
@@ -879,10 +880,23 @@ export function ProgressScreen() {
   const toggleCompletion = async (exerciseId: string) => {
     if (!user) return;
 
-    const isDone = completedIds.includes(exerciseId);
-    console.log(
-      `ProgressScreen: Toggling exercise ${exerciseId} from ${isDone ? 'done' : 'not done'} to ${isDone ? 'not done' : 'done'}`,
+    // Find the exercise details for debugging
+    const exercise = exercises.find(ex => ex.id === exerciseId);
+    const learningPath = paths.find(path => 
+      path.id === exercise?.learning_path_id
     );
+
+    const isDone = completedIds.includes(exerciseId);
+    
+    console.log('🎯 [ProgressScreen] Toggle Completion:', {
+      exerciseId,
+      exerciseTitle: exercise?.title,
+      learningPathId: exercise?.learning_path_id,
+      learningPathTitle: learningPath?.title,
+      currentCompletions: completedIds.length,
+      isCurrentlyCompleted: isDone,
+      actionToTake: isDone ? 'REMOVE' : 'ADD'
+    });
 
     // Update UI immediately for better user experience
     if (isDone) {
@@ -898,9 +912,20 @@ export function ProgressScreen() {
           .eq('exercise_id', exerciseId);
 
         if (error) {
-          console.error('ProgressScreen: Error removing completion', error);
+          console.error('❌ [ProgressScreen] Error removing completion:', error);
         } else {
-          console.log('ProgressScreen: Successfully removed completion');
+          console.log('🔴 [ProgressScreen] Successfully removed completion');
+          
+          // Recalculate progress for affected learning path
+          if (exercise?.learning_path_id) {
+            const pathProgress = getPathProgress(exercise.learning_path_id);
+            console.log('📊 [ProgressScreen] Learning Path Progress after removal:', {
+              pathId: exercise.learning_path_id,
+              pathTitle: learningPath?.title,
+              progressPercent: pathProgress,
+              remainingCompletions: completedIds.length - 1
+            });
+          }
         }
       } catch (err) {
         console.error('ProgressScreen: Exception in toggleCompletion (remove)', err);
@@ -916,9 +941,20 @@ export function ProgressScreen() {
           .insert([{ user_id: user.id, exercise_id: exerciseId }]);
 
         if (error) {
-          console.error('ProgressScreen: Error adding completion', error);
+          console.error('❌ [ProgressScreen] Error adding completion:', error);
         } else {
-          console.log('ProgressScreen: Successfully added completion');
+          console.log('🟢 [ProgressScreen] Successfully added completion');
+          
+          // Recalculate progress for affected learning path
+          if (exercise?.learning_path_id) {
+            const pathProgress = getPathProgress(exercise.learning_path_id);
+            console.log('📊 [ProgressScreen] Learning Path Progress after addition:', {
+              pathId: exercise.learning_path_id,
+              pathTitle: learningPath?.title,
+              progressPercent: pathProgress,
+              totalCompletions: completedIds.length + 1
+            });
+          }
         }
       } catch (err) {
         console.error('ProgressScreen: Exception in toggleCompletion (add)', err);
@@ -1085,10 +1121,25 @@ export function ProgressScreen() {
       return;
     }
 
-    const isDone = virtualRepeatCompletions.includes(virtualId);
-    console.log(
-      `ProgressScreen: Toggling virtual repeat ${virtualId} (exercise: ${exerciseId}, repeat: ${repeatNumber}) from ${isDone ? 'done' : 'not done'} to ${isDone ? 'not done' : 'done'}`,
+    // Find the exercise details for debugging
+    const exercise = exercises.find(ex => ex.id === exerciseId);
+    const learningPath = paths.find(path => 
+      path.id === exercise?.learning_path_id
     );
+
+    const isDone = virtualRepeatCompletions.includes(virtualId);
+    
+    console.log('🔄 [ProgressScreen] Toggle Virtual Repeat:', {
+      virtualId,
+      originalExerciseId: exerciseId,
+      repeatNumber,
+      exerciseTitle: exercise?.title,
+      learningPathId: exercise?.learning_path_id,
+      learningPathTitle: learningPath?.title,
+      currentlyCompleted: isDone,
+      totalVirtualCompletions: virtualRepeatCompletions.length,
+      actionToTake: isDone ? 'REMOVE' : 'ADD'
+    });
 
     // Update UI immediately for better user experience
     if (isDone) {
@@ -1105,11 +1156,22 @@ export function ProgressScreen() {
           .eq('repeat_number', repeatNumber);
 
         if (error) {
-          console.error('ProgressScreen: Error removing virtual repeat completion', error);
+          console.error('❌ [ProgressScreen] Error removing virtual repeat completion:', error);
           // Rollback UI change on error
           setVirtualRepeatCompletions((prev) => [...prev, virtualId]);
         } else {
-          console.log('ProgressScreen: Successfully removed virtual repeat completion');
+          console.log('🔴 [ProgressScreen] Successfully removed virtual repeat completion');
+          
+          // Recalculate progress for affected learning path
+          if (exercise?.learning_path_id) {
+            const pathProgress = getPathProgress(exercise.learning_path_id);
+            console.log('📊 [ProgressScreen] Learning Path Progress after virtual repeat removal:', {
+              pathId: exercise.learning_path_id,
+              pathTitle: learningPath?.title,
+              progressPercent: pathProgress,
+              remainingVirtualCompletions: virtualRepeatCompletions.length - 1
+            });
+          }
         }
       } catch (err) {
         console.error('ProgressScreen: Exception in toggleVirtualRepeatCompletion (remove)', err);
@@ -1125,17 +1187,28 @@ export function ProgressScreen() {
         const { error } = await supabase.from('virtual_repeat_completions').insert([
           {
             user_id: user.id,
-            exercise_id: exerciseId,
+            exercise_id: exerciseId, // Use the original exercise ID (not virtual ID)
             repeat_number: repeatNumber,
           },
         ]);
 
         if (error) {
-          console.error('ProgressScreen: Error adding virtual repeat completion', error);
+          console.error('❌ [ProgressScreen] Error adding virtual repeat completion:', error);
           // Rollback UI change on error
           setVirtualRepeatCompletions((prev) => prev.filter((id) => id !== virtualId));
         } else {
-          console.log('ProgressScreen: Successfully added virtual repeat completion');
+          console.log('🟢 [ProgressScreen] Successfully added virtual repeat completion');
+          
+          // Recalculate progress for affected learning path
+          if (exercise?.learning_path_id) {
+            const pathProgress = getPathProgress(exercise.learning_path_id);
+            console.log('📊 [ProgressScreen] Learning Path Progress after virtual repeat addition:', {
+              pathId: exercise.learning_path_id,
+              pathTitle: learningPath?.title,
+              progressPercent: pathProgress,
+              totalVirtualCompletions: virtualRepeatCompletions.length + 1
+            });
+          }
         }
       } catch (err) {
         console.error('ProgressScreen: Exception in toggleVirtualRepeatCompletion (add)', err);
@@ -1383,6 +1456,30 @@ export function ProgressScreen() {
   useEffect(() => {
     fetchLearningPaths();
   }, []);
+
+  // Add navigation listener to refresh data when returning to this screen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('🔄 [ProgressScreen] Screen focused - refreshing data');
+      fetchCompletions();
+      // Also refresh the exercises to get latest state
+      if (showDetailView && detailPath) {
+        const refreshExercises = async () => {
+          const { data } = await supabase
+            .from('learning_path_exercises')
+            .select('*')
+            .eq('learning_path_id', detailPath.id)
+            .order('order_index', { ascending: true });
+          if (data) {
+            setExercises(data);
+          }
+        };
+        refreshExercises();
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, showDetailView, detailPath]);
 
   // Populate exercisesByPath mapping for consistent progress calculation
   useEffect(() => {

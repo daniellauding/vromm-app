@@ -185,9 +185,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   const [completedExerciseIds, setCompletedExerciseIds] = useState<Set<string>>(new Set());
   const [allExercisesCompleted, setAllExercisesCompleted] = useState(false);
   
-  // Exercise detail modal state
-  const [showExerciseModal, setShowExerciseModal] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  // Exercise detail modal state - Removed, now navigates directly to RouteExerciseScreen
 
   useEffect(() => {
     if (routeId) {
@@ -328,14 +326,90 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           ? routeResponse.suggested_exercises 
           : JSON.parse(String(routeResponse.suggested_exercises));
         
-        exercises = exercisesData.map((ex: any) => ({
-          id: ex.id || ex.learning_path_exercise_id || `exercise_${Date.now()}`,
-          title: ex.title || 'Exercise',
-          description: ex.description || '',
-          duration: ex.duration || ex.duration_minutes,
-          has_quiz: ex.has_quiz,
-          quiz_data: ex.quiz_data,
-        }));
+        // Process each exercise and fetch full data if it's from a learning path
+        const enrichedExercises = await Promise.all(
+          exercisesData.map(async (ex: any) => {
+            // If this exercise is from a learning path, fetch the complete data
+            if (ex.learning_path_exercise_id) {
+              try {
+                const { data: fullExercise } = await supabase
+                  .from('learning_path_exercises')
+                  .select('*')
+                  .eq('id', ex.learning_path_exercise_id)
+                  .single();
+                
+                if (fullExercise) {
+                  // Merge route exercise data with full learning path exercise data
+                  return {
+                    id: ex.id || ex.learning_path_exercise_id,
+                    title: fullExercise.title || ex.title || 'Exercise',
+                    description: fullExercise.description || ex.description || '',
+                    duration: ex.duration || ex.duration_minutes,
+                    repetitions: ex.repetitions,
+                    order_index: ex.order_index,
+                    // Learning path data
+                    learning_path_exercise_id: ex.learning_path_exercise_id,
+                    learning_path_id: ex.learning_path_id,
+                    learning_path_title: ex.learning_path_title,
+                    // Media fields from learning path exercise (the missing data!)
+                    youtube_url: fullExercise.youtube_url,
+                    icon: fullExercise.icon,
+                    image: fullExercise.image,
+                    embed_code: fullExercise.embed_code,
+                    language_specific_media: fullExercise.language_specific_media,
+                    // Quiz fields from learning path exercise
+                    has_quiz: fullExercise.has_quiz || ex.has_quiz,
+                    quiz_required: fullExercise.quiz_required || ex.quiz_required,
+                    quiz_pass_score: fullExercise.quiz_pass_score || ex.quiz_pass_score,
+                    quiz_data: fullExercise.quiz_data || ex.quiz_data,
+                    // Other fields from learning path exercise
+                    repeat_count: fullExercise.repeat_count || ex.repeat_count,
+                    bypass_order: fullExercise.bypass_order || ex.bypass_order,
+                    is_locked: fullExercise.is_locked || ex.is_locked,
+                    lock_password: fullExercise.lock_password || ex.lock_password,
+                    paywall_enabled: fullExercise.paywall_enabled || ex.paywall_enabled,
+                    price_usd: fullExercise.price_usd || ex.price_usd,
+                    price_sek: fullExercise.price_sek || ex.price_sek,
+                    source: ex.source || 'learning_path',
+                    source_route_id: fullExercise.source_route_id,
+                    source_type: fullExercise.source_type,
+                    created_at: fullExercise.created_at,
+                    updated_at: fullExercise.updated_at,
+                  };
+                }
+              } catch (error) {
+                console.error('Error fetching full exercise data:', error);
+              }
+            }
+            
+            // Fallback to route exercise data only (for custom exercises)
+            return {
+              id: ex.id || `exercise_${Date.now()}`,
+              title: ex.title || 'Exercise',
+              description: ex.description || '',
+              duration: ex.duration || ex.duration_minutes,
+              repetitions: ex.repetitions,
+              order_index: ex.order_index,
+              // Basic fields from route exercise
+              youtube_url: ex.youtube_url,
+              icon: ex.icon,
+              image: ex.image,
+              embed_code: ex.embed_code,
+              has_quiz: ex.has_quiz,
+              quiz_data: ex.quiz_data,
+              source: ex.source || 'custom',
+              is_user_generated: ex.is_user_generated,
+              category: ex.category,
+              difficulty_level: ex.difficulty_level,
+              vehicle_type: ex.vehicle_type,
+              visibility: ex.visibility,
+              creator_id: ex.creator_id,
+              created_at: ex.created_at,
+            };
+          })
+        );
+        
+        exercises = enrichedExercises;
       } catch (err) {
         console.error('Error parsing exercises:', err);
       }
@@ -942,12 +1016,20 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       routeId,
       exercises: routeData.exercises,
       routeName: routeData.name,
+      startIndex: 0,
     });
   };
 
   const handleExercisePress = (exercise: Exercise, index: number) => {
-    setSelectedExercise(exercise);
-    setShowExerciseModal(true);
+    // Navigate directly to RouteExerciseScreen starting at the selected exercise
+    if (routeData && routeData.exercises) {
+      navigation.navigate('RouteExercise', {
+        routeId,
+        exercises: routeData.exercises,
+        routeName: routeData.name || 'Route',
+        startIndex: index,
+      });
+    }
   };
 
   const handleExerciseComplete = (exerciseId: string) => {
@@ -1295,36 +1377,69 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                         sample: penCoords.slice(0, 2)
                       });
 
+                      // Validate coordinates before passing to Map
+                      const validWaypoints = (routeData as RouteData)?.waypoint_details
+                        ?.filter(wp => 
+                          typeof wp.lat === 'number' && 
+                          typeof wp.lng === 'number' && 
+                          !isNaN(wp.lat) && 
+                          !isNaN(wp.lng) &&
+                          wp.lat >= -90 && wp.lat <= 90 &&
+                          wp.lng >= -180 && wp.lng <= 180
+                        )
+                        ?.map((wp) => ({
+                          latitude: wp.lat,
+                          longitude: wp.lng,
+                          title: wp.title || '',
+                          description: wp.description || '',
+                        })) || [];
+
+                      const validPenCoords = penCoords?.filter(coord => 
+                        coord && 
+                        typeof coord.latitude === 'number' && 
+                        typeof coord.longitude === 'number' &&
+                        !isNaN(coord.latitude) && 
+                        !isNaN(coord.longitude) &&
+                        coord.latitude >= -90 && coord.latitude <= 90 &&
+                        coord.longitude >= -180 && coord.longitude <= 180
+                      ) || [];
+
+                      const mapRegion = getMapRegion();
+                      const firstValidWaypoint = validWaypoints[0];
+                      const defaultRegion = {
+                        latitude: firstValidWaypoint?.latitude || 59.3293,  // Stockholm default
+                        longitude: firstValidWaypoint?.longitude || 18.0686,
+                        latitudeDelta: 0.02,
+                        longitudeDelta: 0.02,
+                      };
+
+                      // Only render Map if we have valid data
+                      if (validWaypoints.length === 0 && validPenCoords.length === 0) {
+                        return (
+                          <View style={{ height: 200, backgroundColor: '#f5f5f5', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+                            <Text>No map data available</Text>
+                          </View>
+                        );
+                      }
+
                       return (
                         <Map
-                          waypoints={
-                            (routeData as RouteData)?.waypoint_details?.map((wp) => ({
-                              latitude: wp.lat,
-                              longitude: wp.lng,
-                              title: wp.title,
-                              description: wp.description,
-                            })) || []
-                          }
-                          region={getMapRegion() || {
-                            latitude: (routeData as RouteData)?.waypoint_details?.[0]?.lat || 0,
-                            longitude: (routeData as RouteData)?.waypoint_details?.[0]?.lng || 0,
-                            latitudeDelta: 0.02,
-                            longitudeDelta: 0.02,
-                          }}
+                          waypoints={validWaypoints}
+                          region={mapRegion || defaultRegion}
                           routePath={
-                            (routeData as RouteData)?.waypoint_details?.length > 2
-                              ? (routeData as RouteData)?.waypoint_details?.map((wp) => ({
-                                  latitude: wp.lat,
-                                  longitude: wp.lng,
+                            validWaypoints.length > 2
+                              ? validWaypoints.map((wp) => ({
+                                  latitude: wp.latitude,
+                                  longitude: wp.longitude,
                                 }))
                               : undefined
                           }
                           showStartEndMarkers={
-                            (routeData as RouteData)?.waypoint_details?.length > 2 && 
+                            validWaypoints.length > 2 && 
                             (actualDrawingMode === 'waypoint' || actualDrawingMode === 'record')
                           }
-                          drawingMode={actualDrawingMode}
-                          penDrawingCoordinates={penCoords}
+                          drawingMode={actualDrawingMode || 'waypoint'}
+                          penDrawingCoordinates={validPenCoords}
                         />
                       );
                     })()}
@@ -1520,14 +1635,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         />
       )}
 
-      {/* Exercise Detail Modal */}
-      <ExerciseDetailModal
-        visible={showExerciseModal}
-        onClose={() => setShowExerciseModal(false)}
-        exercise={selectedExercise}
-        routeId={routeId}
-        onExerciseComplete={handleExerciseComplete}
-      />
+      {/* Exercise Detail Modal - Removed, now navigates directly to RouteExerciseScreen */}
     </Screen>
   );
 }

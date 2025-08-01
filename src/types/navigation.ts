@@ -72,6 +72,7 @@ export type RootStackParamList = {
     routeId: string;
     exercises: Exercise[];
     routeName?: string;
+    startIndex?: number;
   };
   RouteList: {
     title: string;

@@ -22,12 +22,23 @@ import { Exercise } from '../types/route';
 import { ExerciseProgressService } from '../services/exerciseProgressService';
 import { WebView } from 'react-native-webview';
 
+// Helper function to extract text from multilingual fields
+const getDisplayText = (
+  text: string | { en: string; sv: string } | undefined,
+  fallback: string = '',
+): string => {
+  if (!text) return fallback;
+  if (typeof text === 'string') return text;
+  return text.en || text.sv || fallback;
+};
+
 type RouteExerciseScreenProps = {
   route: {
     params: {
       routeId: string;
       exercises: Exercise[];
       routeName?: string;
+      startIndex?: number; // Allow starting at a specific exercise
     };
   };
 };
@@ -47,10 +58,29 @@ interface ExerciseCompletion {
   exercise_id: string;
   completed_at: string;
   session_id: string;
+  user_id: string;
+}
+
+interface QuizQuestion {
+  id: string;
+  exercise_id: string;
+  question_text: { en: string; sv: string };
+  question_type: 'single_choice' | 'multiple_choice' | 'true_false';
+  order_index: number;
+  explanation_text?: { en: string; sv: string };
+  answers: QuizAnswer[];
+}
+
+interface QuizAnswer {
+  id: string;
+  question_id: string;
+  answer_text: { en: string; sv: string };
+  is_correct: boolean;
+  order_index: number;
 }
 
 export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
-  const { routeId, exercises, routeName } = route.params;
+  const { routeId, exercises, routeName, startIndex = 0 } = route.params;
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const colorScheme = useColorScheme();
@@ -58,7 +88,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
   const { width: screenWidth } = Dimensions.get('window');
 
   // State
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(startIndex);
   const [sessionId, setSessionId] = useState<string>('');
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -66,17 +96,333 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const [showCongrats, setShowCongrats] = useState(false);
   const [hasCompletedBefore, setHasCompletedBefore] = useState(false);
+  
+  // Quiz state
+  const [quizAnswers, setQuizAnswers] = useState<{ [questionIndex: number]: string | string[] }>({});
+  const [showQuizResults, setShowQuizResults] = useState(false);
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+
+  // Repetition state
+  const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
+  const [loadingRepetitions, setLoadingRepetitions] = useState(false);
+
+  // Real Quiz state from database
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [loadingQuiz, setLoadingQuiz] = useState(false);
 
   const currentExercise = exercises[currentIndex];
   const progress = ((currentIndex + 1) / exercises.length) * 100;
   const isLastExercise = currentIndex === exercises.length - 1;
 
+  // Reset quiz state when changing exercises
+  useEffect(() => {
+    setQuizAnswers({});
+    setShowQuizResults(false);
+    setQuizSubmitted(false);
+    loadVirtualRepeatCompletions();
+    loadQuizQuestions();
+  }, [currentIndex]);
+
+  // Load real quiz questions from database
+  const loadQuizQuestions = async () => {
+    if (!currentExercise || !user) {
+      setQuizQuestions([]);
+      return;
+    }
+
+    try {
+      setLoadingQuiz(true);
+      
+      const exerciseId = currentExercise.learning_path_exercise_id || currentExercise.id;
+      
+      console.log('🔍 [RouteExercise] Loading real quiz questions for exercise:', exerciseId);
+
+      // Fetch questions from exercise_quiz_questions table
+      const { data: questions, error: questionsError } = await supabase
+        .from('exercise_quiz_questions')
+        .select('*')
+        .eq('exercise_id', exerciseId)
+        .order('order_index', { ascending: true });
+
+      if (questionsError) {
+        console.error('❌ [RouteExercise] Error loading quiz questions:', questionsError);
+        setQuizQuestions([]);
+        return;
+      }
+
+      if (!questions || questions.length === 0) {
+        console.log('📝 [RouteExercise] No quiz questions found for exercise:', exerciseId);
+        setQuizQuestions([]);
+        return;
+      }
+
+      // For each question, fetch its answers
+      const questionsWithAnswers = await Promise.all(
+        questions.map(async (question) => {
+          const { data: answers, error: answersError } = await supabase
+            .from('exercise_quiz_answers')
+            .select('*')
+            .eq('question_id', question.id)
+            .order('order_index', { ascending: true });
+
+          if (answersError) {
+            console.error('❌ [RouteExercise] Error loading answers for question:', question.id, answersError);
+            return { ...question, answers: [] };
+          }
+
+          return { ...question, answers: answers || [] };
+        })
+      );
+
+      console.log('✅ [RouteExercise] Loaded quiz questions:', {
+        exerciseId,
+        questionCount: questionsWithAnswers.length,
+        questionsWithAnswers: questionsWithAnswers.map(q => ({
+          id: q.id,
+          questionText: q.question_text,
+          questionType: q.question_type,
+          answerCount: q.answers.length
+        }))
+      });
+
+      setQuizQuestions(questionsWithAnswers);
+
+    } catch (error) {
+      console.error('❌ [RouteExercise] Exception loading quiz questions:', error);
+      setQuizQuestions([]);
+    } finally {
+      setLoadingQuiz(false);
+    }
+  };
+
+  // Load virtual repeat completions for current exercise
+  const loadVirtualRepeatCompletions = async () => {
+    if (
+      !currentExercise ||
+      !user ||
+      !currentExercise.repeat_count ||
+      currentExercise.repeat_count <= 1
+    ) {
+      setVirtualRepeatCompletions([]);
+      return;
+    }
+
+    try {
+      const exerciseId = currentExercise.learning_path_exercise_id || currentExercise.id;
+      
+      console.log('🔄 [RouteExercise] Loading virtual repeats for:', {
+        exerciseId,
+        exerciseTitle: getDisplayText(currentExercise.title),
+        repeatCount: currentExercise.repeat_count,
+      });
+
+      const { data, error } = await supabase
+        .from('virtual_repeat_completions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('exercise_id', exerciseId);
+
+      if (error) {
+        console.error('❌ [RouteExercise] Error loading virtual repeat completions:', error);
+        return;
+      }
+
+      if (data) {
+        const completionIds = data.map(
+          (c) => `${c.exercise_id}-virtual-${c.repeat_number}`,
+        );
+        console.log('✅ [RouteExercise] Loaded virtual repeat completions:', {
+          rawData: data,
+          completionIds,
+          count: completionIds.length,
+        });
+        setVirtualRepeatCompletions(completionIds);
+      } else {
+        console.log('📝 [RouteExercise] No virtual repeat completions found');
+        setVirtualRepeatCompletions([]);
+      }
+    } catch (error) {
+      console.error('❌ [RouteExercise] Exception loading virtual repeat completions:', error);
+      setVirtualRepeatCompletions([]);
+    }
+  };
+
+  // Toggle virtual repeat completion
+  const toggleVirtualRepeatCompletion = async (repeatNumber: number) => {
+    if (!currentExercise || !user) return;
+
+    const virtualId = `${currentExercise.learning_path_exercise_id || currentExercise.id}-virtual-${repeatNumber}`;
+    const isCompleted = virtualRepeatCompletions.includes(virtualId);
+
+    console.log('🔄 [RouteExercise] Toggle Virtual Repeat:', {
+      virtualId,
+      repeatNumber,
+      exerciseId: currentExercise.id,
+      exerciseTitle: getDisplayText(currentExercise.title),
+      learningPathExerciseId: currentExercise.learning_path_exercise_id,
+      learningPathTitle: currentExercise.learning_path_title,
+      currentlyCompleted: isCompleted,
+      totalVirtualCompletions: virtualRepeatCompletions.length,
+      actionToTake: isCompleted ? 'REMOVE' : 'ADD',
+      currentVirtualCompletions: virtualRepeatCompletions,
+    });
+
+    // CRITICAL: Prevent auto-completing base exercise when clicking virtual repeats
+    console.log('🚫 [RouteExercise] ONLY toggling virtual repeat - NOT touching base exercise');
+
+    try {
+      setLoadingRepetitions(true);
+
+      if (isCompleted) {
+        // Remove completion
+        console.log('🔴 [RouteExercise] Removing virtual repeat completion:', virtualId);
+        await supabase
+          .from('virtual_repeat_completions')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('exercise_id', currentExercise.learning_path_exercise_id || currentExercise.id)
+          .eq('repeat_number', repeatNumber);
+
+        setVirtualRepeatCompletions((prev) => {
+          const newCompletions = prev.filter((id) => id !== virtualId);
+          console.log(
+            '🔴 [RouteExercise] Updated virtual completions count:',
+            newCompletions.length,
+          );
+          return newCompletions;
+        });
+      } else {
+        // Add completion
+        console.log('🟢 [RouteExercise] Adding virtual repeat completion:', virtualId);
+        await supabase.from('virtual_repeat_completions').insert({
+          user_id: user.id,
+          exercise_id: currentExercise.learning_path_exercise_id || currentExercise.id,
+          repeat_number: repeatNumber,
+        });
+
+        setVirtualRepeatCompletions((prev) => {
+          const newCompletions = [...prev, virtualId];
+          console.log(
+            '🟢 [RouteExercise] Updated virtual completions count:',
+            newCompletions.length,
+          );
+          return newCompletions;
+        });
+      }
+
+      // Recalculate completions after state update
+      const updatedCompletions = isCompleted 
+        ? virtualRepeatCompletions.filter((id) => id !== virtualId)
+        : [...virtualRepeatCompletions, virtualId];
+        
+      console.log('📊 [RouteExercise] Virtual Repeat Progress:', {
+        exerciseId: currentExercise.learning_path_exercise_id || currentExercise.id,
+        completedRepeats: updatedCompletions.length,
+        totalRepeats: currentExercise.repeat_count || 1,
+        specificRepeatToggled: repeatNumber,
+        allCompletedRepeats: updatedCompletions,
+      });
+    } catch (error) {
+      console.error('❌ [RouteExercise] Error toggling virtual repeat completion:', error);
+    } finally {
+      setLoadingRepetitions(false);
+    }
+  };
+
+  // Handle answer selection for real quiz
+  const handleRealQuizAnswerSelect = (questionIndex: number, answerId: string, isMultiple: boolean = false) => {
+    setQuizAnswers((prev) => {
+      if (isMultiple) {
+        const currentAnswers = Array.isArray(prev[questionIndex]) ? (prev[questionIndex] as string[]) : [];
+        const newAnswers = currentAnswers.includes(answerId)
+          ? currentAnswers.filter((id) => id !== answerId)
+          : [...currentAnswers, answerId];
+        return { ...prev, [questionIndex]: newAnswers };
+      } else {
+        return { ...prev, [questionIndex]: answerId };
+      }
+    });
+  };
+
+  // Calculate score for real quiz from database
+  const calculateQuizScoreFromRealQuiz = () => {
+    if (!quizQuestions || quizQuestions.length === 0) return { score: 0, total: 0 };
+
+    let correct = 0;
+    const total = quizQuestions.length;
+
+    quizQuestions.forEach((question, index: number) => {
+      const userAnswer = quizAnswers[index];
+      const isMultipleChoice = question.question_type === 'multiple_choice';
+      
+      if (isMultipleChoice) {
+        // Multiple choice - check if all correct answers are selected and no incorrect ones
+        const correctAnswerIds = question.answers?.filter((ans) => ans.is_correct).map((ans) => ans.id) || [];
+        const userAnswersArray = Array.isArray(userAnswer) ? userAnswer : [];
+        
+        const isCorrect = correctAnswerIds.length === userAnswersArray.length &&
+          correctAnswerIds.every((id: string) => userAnswersArray.includes(id));
+        
+        if (isCorrect) correct++;
+      } else {
+        // Single choice or true/false - check if selected answer is correct
+        const selectedAnswer = question.answers?.find((ans) => ans.id === userAnswer);
+        if (selectedAnswer?.is_correct) correct++;
+      }
+    });
+
+    return { score: correct, total };
+  };
+
+  // Quiz functions
+  const handleAnswerSelect = (
+    questionIndex: number,
+    answerIndex: number,
+    isMultiple: boolean = false,
+  ) => {
+    // Legacy function - not used with real quiz data
+    console.log('Legacy quiz function called - real quiz uses handleRealQuizAnswerSelect');
+  };
+
+  const submitQuiz = () => {
+    setQuizSubmitted(true);
+    setShowQuizResults(true);
+  };
+
+  const resetQuiz = () => {
+    setQuizAnswers({});
+    setShowQuizResults(false);
+    setQuizSubmitted(false);
+  };
+
   useEffect(() => {
     if (user && exercises.length > 0) {
+      // Debug: Check exercise linking to learning paths
+      console.log(
+        '📚 Route exercises loaded:',
+        exercises.map((ex) => ({
+          id: ex.id,
+          title: ex.title,
+          learning_path_exercise_id: ex.learning_path_exercise_id,
+          learning_path_title: ex.learning_path_title,
+          isRepeat: ex.isRepeat,
+          repeat_count: ex.repeat_count,
+        })),
+      );
+      
       initializeSession();
       checkPreviousCompletion();
+      loadVirtualRepeatCompletions();
     }
   }, [user, exercises]);
+
+  // Reload virtual repeat completions when current exercise changes
+  useEffect(() => {
+    if (currentExercise && user) {
+      console.log('🔄 [RouteExercise] Current exercise changed, reloading virtual repeats');
+      loadVirtualRepeatCompletions();
+    }
+  }, [currentIndex, currentExercise?.id]);
 
   useEffect(() => {
     const handleKeyPress = (event: any) => {
@@ -126,7 +472,8 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
       if (existingSession) {
         setSession(existingSession);
         setSessionId(existingSession.id);
-        setCurrentIndex(existingSession.current_exercise_index || 0);
+        // Use startIndex if provided, otherwise use saved progress
+        setCurrentIndex(startIndex > 0 ? startIndex : existingSession.current_exercise_index || 0);
         
         // Load completed exercises from this session
         const { data: completions } = await supabase
@@ -146,7 +493,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
             user_id: user.id,
             status: 'in_progress',
             exercises_completed: 0,
-            current_exercise_index: 0,
+            current_exercise_index: startIndex, // Start at the specified index
             started_at: new Date().toISOString(),
           })
           .select()
@@ -185,34 +532,63 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
 
   const completeExercise = async () => {
     try {
-      if (!sessionId || !currentExercise) return;
+      if (!sessionId || !currentExercise || !user) return;
 
-      // Mark exercise as completed in session
+      console.log('🎯 [RouteExercise] Starting completion for:', {
+        exerciseId: currentExercise.id,
+        exerciseTitle: getDisplayText(currentExercise.title),
+        learningPathExerciseId: currentExercise.learning_path_exercise_id,
+        learningPathTitle: currentExercise.learning_path_title,
+        isRepeat: currentExercise.isRepeat,
+        repeatNumber: currentExercise.repeatNumber,
+        routeId,
+        sessionId,
+      });
+
+      // Mark exercise as completed in session (use upsert to handle duplicates)
       const { error: completionError } = await supabase
         .from('route_exercise_completions')
-        .insert({
-          session_id: sessionId,
-          exercise_id: currentExercise.id,
-          completed_at: new Date().toISOString(),
-        });
+        .upsert(
+          {
+            session_id: sessionId,
+            exercise_id: currentExercise.id,
+            completed_at: new Date().toISOString(),
+            user_id: user.id,
+          },
+          {
+            onConflict: 'session_id,exercise_id',
+          },
+        );
 
       if (completionError) throw completionError;
+      console.log('✅ [RouteExercise] Route completion saved successfully');
 
-      // If this is a learning path exercise, also mark it in the learning path system
-      if (currentExercise.learning_path_exercise_id) {
-        if (currentExercise.isRepeat && currentExercise.originalId) {
-          await ExerciseProgressService.completeRepeatExerciseFromRoute(
+              // If this is a learning path exercise, also mark it in the learning path system
+        if (currentExercise.learning_path_exercise_id) {
+          console.log('🔗 [RouteExercise] Syncing to learning path:', {
+            exerciseId: currentExercise.learning_path_exercise_id,
+            routeId,
+            isRepeat: currentExercise.isRepeat,
+            repeatNumber: currentExercise.repeatNumber,
+          });
+        
+          if (currentExercise.isRepeat && currentExercise.originalId) {
+          const success = await ExerciseProgressService.completeRepeatExerciseFromRoute(
             currentExercise.learning_path_exercise_id,
             currentExercise.originalId,
             currentExercise.repeatNumber || 1,
             routeId,
           );
+          console.log('🔗 [RouteExercise] Repeat exercise sync result:', success);
         } else {
-          await ExerciseProgressService.completeExerciseFromRoute(
+          const success = await ExerciseProgressService.completeExerciseFromRoute(
             currentExercise.learning_path_exercise_id,
             routeId,
           );
+          console.log('🔗 [RouteExercise] Exercise sync result:', success);
         }
+      } else {
+        console.log('📝 [RouteExercise] Route exercise not linked to learning path');
       }
 
       // Update local state
@@ -220,15 +596,23 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
       newCompleted.add(currentExercise.id);
       setCompletedExercises(newCompleted);
 
+      console.log('📊 [RouteExercise] Updated completion stats:', {
+        completedCount: newCompleted.size,
+        totalExercises: exercises.length,
+        progressPercent: Math.round((newCompleted.size / exercises.length) * 100),
+      });
+
       // Check if all exercises are completed
       if (newCompleted.size === exercises.length) {
+        console.log('🎉 [RouteExercise] All exercises completed - finishing session');
         await completeSession();
       } else {
-        // Move to next exercise
+        // Move to next exercise automatically
+        console.log('➡️ [RouteExercise] Moving to next exercise');
         handleNext();
       }
     } catch (error) {
-      console.error('Error completing exercise:', error);
+      console.error('❌ [RouteExercise] Error completing exercise:', error);
       Alert.alert('Error', 'Failed to save exercise completion');
     }
   };
@@ -250,9 +634,9 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
 
       setTimeout(() => {
         // Navigate back with refresh flag to update progress
-        navigation.navigate('RouteDetail', { 
-          routeId, 
-          shouldRefresh: true 
+        navigation.navigate('RouteDetail', {
+          routeId,
+          shouldRefresh: true,
         });
       }, 2000);
     } catch (error) {
@@ -294,10 +678,11 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         {
           text: 'Exit',
           style: 'destructive',
-          onPress: () => navigation.navigate('RouteDetail', { 
-            routeId, 
-            shouldRefresh: true 
-          }),
+          onPress: () =>
+            navigation.navigate('RouteDetail', {
+              routeId,
+              shouldRefresh: true,
+            }),
         },
       ]
     );
@@ -305,7 +690,8 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
 
   // Helper functions for media rendering (matching ProgressScreen)
   const getYouTubeVideoId = (url: string): string | null => {
-    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const regex =
+      /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
     const match = url.match(regex);
     return match ? match[1] : null;
   };
@@ -432,6 +818,18 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
   const renderExerciseContent = () => {
     if (!currentExercise) return null;
 
+    console.log('🔍 [RouteExercise] Rendering exercise content for:', {
+      exerciseId: currentExercise.id,
+      exerciseTitle: getDisplayText(currentExercise.title),
+      has_quiz: currentExercise.has_quiz,
+      quiz_data: !!currentExercise.quiz_data,
+      quiz_data_type: typeof currentExercise.quiz_data,
+      quiz_data_preview: typeof currentExercise.quiz_data === 'string' 
+        ? (currentExercise.quiz_data as string).substring(0, 100) + '...'
+        : currentExercise.quiz_data,
+      isQuizExercise: getDisplayText(currentExercise.title).toLowerCase().includes('quiz')
+    });
+
     const isCompleted = completedExercises.has(currentExercise.id);
 
     return (
@@ -450,7 +848,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
           <YStack flex={1}>
             <XStack alignItems="center" gap={8}>
               <Text fontSize={28} fontWeight="bold" color="$color" numberOfLines={2}>
-                {currentExercise.title}
+                {getDisplayText(currentExercise.title)}
               </Text>
 
               {/* Show repeat indicator if it's a repeat */}
@@ -485,7 +883,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         {currentExercise.description && (
           <YStack marginBottom={16}>
             <Text fontSize={16} color="$gray11" lineHeight={24}>
-              {currentExercise.description}
+              {getDisplayText(currentExercise.description)}
             </Text>
           </YStack>
         )}
@@ -520,64 +918,342 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
           </YStack>
         )}
 
-        {/* Quiz Questions - Enhanced display */}
-        {currentExercise.has_quiz && currentExercise.quiz_data && (() => {
-          try {
-            const quizData = typeof currentExercise.quiz_data === 'string' 
-              ? JSON.parse(currentExercise.quiz_data) 
-              : currentExercise.quiz_data;
-            
-            if (quizData?.questions && Array.isArray(quizData.questions)) {
-              return (
-                <YStack marginTop={16} gap={16}>
+        {/* Individual Repetition Tracking */}
+        {currentExercise.repeat_count && currentExercise.repeat_count > 1 && !currentExercise.isRepeat && (
+          <YStack marginTop={16} gap={12}>
+            <XStack alignItems="center" gap={8}>
+              <Feather name="list" size={20} color="#4B6BFF" />
+              <Text fontSize={16} fontWeight="bold" color="#4B6BFF">
+                All Repetitions
+              </Text>
+            </XStack>
+
+            <Text fontSize={12} color="$gray11" marginBottom={8}>
+              {virtualRepeatCompletions.length + (completedExercises.has(currentExercise.id) ? 1 : 0)}/{currentExercise.repeat_count} completed
+            </Text>
+
+            <YStack gap={8}>
+              {/* Base exercise (repetition 1) */}
+              <TouchableOpacity
+                onPress={async () => {
+                  console.log('🎯 [RouteExercise] Base exercise (repetition 1) clicked - DIRECT CLICK');
+                  console.log('🔍 [RouteExercise] Current state before base click:', {
+                    completedExercises: Array.from(completedExercises),
+                    virtualRepeatCompletions: virtualRepeatCompletions,
+                    exerciseId: currentExercise.id
+                  });
+                  await completeExercise();
+                  // After completing base exercise, check if we should auto-advance
+                  const allRepeatsCompleted = virtualRepeatCompletions.length === (currentExercise.repeat_count || 1) - 1;
+                  if (allRepeatsCompleted && !isLastExercise) {
+                    console.log('🎯 [RouteExercise] All repeats completed - auto-advancing to next exercise');
+                    setTimeout(() => handleNext(), 1500); // Small delay to show completion
+                  }
+                }}
+                disabled={loadingRepetitions}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#f8f9fa',
+                  padding: 12,
+                  borderRadius: 8,
+                  borderLeftWidth: 4,
+                  borderLeftColor: completedExercises.has(currentExercise.id) ? '#10B981' : '#6B7280',
+                }}
+              >
+                <View style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 10,
+                  backgroundColor: completedExercises.has(currentExercise.id) ? '#10B981' : 'transparent',
+                  borderWidth: 2,
+                  borderColor: completedExercises.has(currentExercise.id) ? '#10B981' : '#6B7280',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}>
+                  {completedExercises.has(currentExercise.id) && (
+                    <Feather name="check" size={12} color="white" />
+                  )}
+                </View>
+                <Text flex={1} color="$color" fontWeight="500">
+                  {getDisplayText(currentExercise.title)} - Repetition 1
+                </Text>
+                <Text fontSize={12} color="#4B6BFF">
+                  1/{currentExercise.repeat_count}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Virtual repetitions */}
+              {Array.from({ length: currentExercise.repeat_count - 1 }, (_, i) => {
+                const repeatNumber = i + 2;
+                const virtualId = `${currentExercise.learning_path_exercise_id || currentExercise.id}-virtual-${repeatNumber}`;
+                const isCompleted = virtualRepeatCompletions.includes(virtualId);
+
+                return (
+                  <TouchableOpacity
+                    key={repeatNumber}
+                    onPress={async () => {
+                      console.log(`🎯 [RouteExercise] Repeat #${repeatNumber} clicked - DIRECT CLICK ON VIRTUAL REPEAT`);
+                      console.log('🔍 [RouteExercise] Current state before virtual repeat click:', {
+                        repeatNumber,
+                        completedExercises: Array.from(completedExercises),
+                        virtualRepeatCompletions: virtualRepeatCompletions,
+                        exerciseId: currentExercise.id,
+                        isBaseExerciseCompleted: completedExercises.has(currentExercise.id)
+                      });
+                      
+                      await toggleVirtualRepeatCompletion(repeatNumber);
+                      
+                      console.log('🔍 [RouteExercise] State after virtual repeat toggle:', {
+                        repeatNumber,
+                        completedExercises: Array.from(completedExercises),
+                        virtualRepeatCompletions: virtualRepeatCompletions,
+                        exerciseId: currentExercise.id,
+                        isBaseExerciseCompleted: completedExercises.has(currentExercise.id)
+                      });
+                      
+                      // DON'T auto-advance on virtual repeat clicks - only check after state updates properly
+                      console.log('🚫 [RouteExercise] Virtual repeat toggled - NOT auto-advancing (base exercise should remain independent)');
+                    }}
+                    disabled={loadingRepetitions}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#f8f9fa',
+                      padding: 12,
+                      borderRadius: 8,
+                      borderLeftWidth: 4,
+                      borderLeftColor: isCompleted ? '#10B981' : '#6B7280',
+                    }}
+                  >
+                    <View style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: isCompleted ? '#10B981' : 'transparent',
+                      borderWidth: 2,
+                      borderColor: isCompleted ? '#10B981' : '#6B7280',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 12,
+                    }}>
+                      {isCompleted && (
+                        <Feather name="check" size={12} color="white" />
+                      )}
+                    </View>
+                    <Text flex={1} color="$color" fontWeight="500">
+                      Repetition {repeatNumber}
+                    </Text>
+                    <Text fontSize={12} color="#4B6BFF">
+                      {repeatNumber}/{currentExercise.repeat_count}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </YStack>
+
+            {/* Mark All Done Button */}
+            <TouchableOpacity
+              onPress={async () => {
+                console.log('🎯 [RouteExercise] Mark All as Done pressed');
+                
+                // Complete base exercise
+                if (!completedExercises.has(currentExercise.id)) {
+                  await completeExercise();
+                }
+                
+                // Complete all virtual repetitions
+                if (currentExercise.repeat_count) {
+                  for (let i = 2; i <= currentExercise.repeat_count; i++) {
+                    const virtualId = `${currentExercise.learning_path_exercise_id || currentExercise.id}-virtual-${i}`;
+                    if (!virtualRepeatCompletions.includes(virtualId)) {
+                      await toggleVirtualRepeatCompletion(i);
+                    }
+                  }
+                }
+
+                // Auto-advance to next exercise after marking all as done
+                if (!isLastExercise) {
+                  console.log('🎯 [RouteExercise] All repetitions marked as done - auto-advancing to next exercise');
+                  setTimeout(() => handleNext(), 2000); // Longer delay to show all completions
+                }
+              }}
+              disabled={loadingRepetitions || (completedExercises.has(currentExercise.id) && virtualRepeatCompletions.length === (currentExercise.repeat_count || 1) - 1)}
+              style={{
+                backgroundColor: (completedExercises.has(currentExercise.id) && virtualRepeatCompletions.length === (currentExercise.repeat_count || 1) - 1) ? '#10B981' : '#4B6BFF',
+                padding: 16,
+                borderRadius: 12,
+                alignItems: 'center',
+                marginTop: 8,
+                opacity: loadingRepetitions ? 0.7 : 1,
+              }}
+            >
+              <XStack alignItems="center" gap={8}>
+                <Feather name="check-circle" size={16} color="white" />
+                <Text color="white" fontSize={16} fontWeight="600">
+                  {(completedExercises.has(currentExercise.id) && virtualRepeatCompletions.length === (currentExercise.repeat_count || 1) - 1)
+                    ? 'All Repetitions Complete!'
+                    : 'Mark All as Done'}
+                </Text>
+              </XStack>
+            </TouchableOpacity>
+          </YStack>
+        )}
+
+        {/* Interactive Quiz Questions - Now loads from database */}
+        {(currentExercise.has_quiz || 
+          currentExercise.quiz_data || 
+          quizQuestions.length > 0 ||
+          getDisplayText(currentExercise.title).toLowerCase().includes('quiz')) && (
+          <YStack marginTop={16} gap={16}>
+            <XStack alignItems="center" gap={8}>
+              <Feather name="help-circle" size={20} color="#8B5CF6" />
+              <Text fontSize={18} fontWeight="bold" color="#8B5CF6">
+                Quiz Exercise
+              </Text>
+            </XStack>
+
+            {loadingQuiz ? (
+              <View style={{
+                backgroundColor: '#F3F4F6',
+                padding: 16,
+                borderRadius: 12,
+              }}>
+                <Text fontSize={16} color="#6B7280" textAlign="center">
+                  🔄 Loading quiz questions from database...
+                </Text>
+              </View>
+            ) : quizQuestions.length > 0 ? (
+              <>
+                {/* Quiz Header with Score */}
+                <XStack alignItems="center" justifyContent="space-between" marginBottom={16}>
                   <XStack alignItems="center" gap={8}>
                     <Feather name="help-circle" size={20} color="#8B5CF6" />
                     <Text fontSize={18} fontWeight="bold" color="#8B5CF6">
-                      Quiz Questions
+                      Quiz Questions ({quizQuestions.length})
                     </Text>
                   </XStack>
-                  {quizData.questions.map((question: any, index: number) => (
-                    <YStack key={index} backgroundColor="#f8f9fa" padding={16} borderRadius={12}>
-                      <Text fontSize={16} fontWeight="600" color="$color" marginBottom={12}>
-                        Question {index + 1}: {question.question || question.text || 'Question'}
+                  
+                  {showQuizResults && (
+                    <XStack alignItems="center" gap={8}>
+                      <Text fontSize={16} fontWeight="600" color={calculateQuizScoreFromRealQuiz().score === calculateQuizScoreFromRealQuiz().total ? "#10B981" : "#F59E0B"}>
+                        {calculateQuizScoreFromRealQuiz().score}/{calculateQuizScoreFromRealQuiz().total}
                       </Text>
-                      
+                      <TouchableOpacity onPress={resetQuiz}>
+                        <Feather name="refresh-cw" size={18} color="#6B7280" />
+                      </TouchableOpacity>
+                    </XStack>
+                  )}
+                </XStack>
+
+                {/* Real Quiz Questions */}
+                {quizQuestions.map((question: QuizQuestion, questionIndex: number) => {
+                  const userAnswer = quizAnswers[questionIndex];
+                  const isMultipleChoice = question.question_type === 'multiple_choice';
+                  
+                  return (
+                    <YStack key={questionIndex} backgroundColor={colorScheme === 'dark' ? '#1F2937' : '#f8f9fa'} padding={16} borderRadius={12} marginBottom={12}>
+                      <Text fontSize={16} fontWeight="600" color="$color" marginBottom={12}>
+                        Question {questionIndex + 1}: {getDisplayText(question.question_text)}
+                      </Text>
+                        
+                      {isMultipleChoice && (
+                        <Text fontSize={12} color="#8B5CF6" marginBottom={8} fontStyle="italic">
+                          Multiple answers possible - select all that apply
+                        </Text>
+                      )}
+                    
                       {/* Answer Options */}
-                      {question.options && Array.isArray(question.options) && (
+                      {question.answers && Array.isArray(question.answers) && (
                         <YStack gap={8}>
-                          {question.options.map((option: any, optIndex: number) => {
-                            const isCorrect = question.correct_answer === optIndex || 
-                                             question.correctAnswer === optIndex ||
-                                             (Array.isArray(question.correct_answers) && question.correct_answers.includes(optIndex));
+                          {question.answers.map((answer: QuizAnswer, answerIndex: number) => {
+                              const isSelected = isMultipleChoice 
+                                ? (Array.isArray(userAnswer) && userAnswer.includes(answer.id))
+                                : userAnswer === answer.id;
+                              
+                              const isCorrectAnswer = answer.is_correct;
+                              
+                              let backgroundColor = '#ffffff';
+                              let borderColor = '#e5e7eb';
+                              let textColor = '#374151';
+                              
+                              if (colorScheme === 'dark') {
+                                backgroundColor = '#374151';
+                                borderColor = '#6B7280';
+                                textColor = '#F9FAFB';
+                              }
+                              
+                              if (showQuizResults) {
+                                if (isCorrectAnswer) {
+                                  backgroundColor = '#10B981';
+                                  borderColor = '#059669';
+                                  textColor = 'white';
+                                } else if (isSelected && !isCorrectAnswer) {
+                                  backgroundColor = '#EF4444';
+                                  borderColor = '#DC2626';
+                                  textColor = 'white';
+                                }
+                              } else if (isSelected) {
+                                backgroundColor = '#3B82F6';
+                                borderColor = '#2563EB';
+                                textColor = 'white';
+                              }
                             
                             return (
-                              <View 
-                                key={optIndex}
+                              <TouchableOpacity 
+                                key={answer.id}
+                                onPress={() => !showQuizResults && handleRealQuizAnswerSelect(questionIndex, answer.id, isMultipleChoice)}
+                                disabled={showQuizResults}
                                 style={{
-                                  backgroundColor: isCorrect ? '#10B981' : '#ffffff',
+                                  backgroundColor,
                                   padding: 12,
                                   borderRadius: 8,
                                   borderWidth: 1,
-                                  borderColor: isCorrect ? '#059669' : '#e5e7eb',
+                                  borderColor,
+                                  opacity: showQuizResults && !isSelected && !isCorrectAnswer ? 0.6 : 1,
                                 }}
                               >
                                 <XStack gap={8} alignItems="center">
-                                  <Text fontSize={14} fontWeight={isCorrect ? "600" : "400"} 
-                                        color={isCorrect ? "white" : "#374151"}>
-                                    {String.fromCharCode(65 + optIndex)}. {option.text || option}
+                                  {/* Selection indicator */}
+                                  <View style={{
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: isMultipleChoice ? 4 : 10,
+                                    borderWidth: 2,
+                                    borderColor: textColor === 'white' ? 'white' : '#6B7280',
+                                    backgroundColor: isSelected ? (textColor === 'white' ? 'white' : '#3B82F6') : 'transparent',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}>
+                                    {isSelected && (
+                                      <Feather 
+                                        name="check" 
+                                        size={12} 
+                                        color={textColor === 'white' ? '#3B82F6' : 'white'} 
+                                      />
+                                    )}
+                                  </View>
+                                  
+                                  <Text fontSize={14} fontWeight="500" color={textColor} flex={1}>
+                                    {String.fromCharCode(65 + answerIndex)}. {getDisplayText(answer.answer_text)}
                                   </Text>
-                                  {isCorrect && (
+                                  
+                                  {showQuizResults && isCorrectAnswer && (
                                     <Feather name="check-circle" size={16} color="white" />
                                   )}
+                                  {showQuizResults && isSelected && !isCorrectAnswer && (
+                                    <Feather name="x-circle" size={16} color="white" />
+                                  )}
                                 </XStack>
-                              </View>
+                              </TouchableOpacity>
                             );
                           })}
                         </YStack>
                       )}
                       
-                      {/* Explanation */}
-                      {question.explanation && (
+                      {/* Show explanation after submission */}
+                      {showQuizResults && question.explanation_text && (
                         <View style={{
                           backgroundColor: '#EBF8FF',
                           padding: 12,
@@ -587,34 +1263,85 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
                           marginTop: 12,
                         }}>
                           <Text fontSize={14} color="#1F2937" fontStyle="italic">
-                            💡 {question.explanation}
+                            💡 {getDisplayText(question.explanation_text)}
                           </Text>
                         </View>
                       )}
                     </YStack>
-                  ))}
-                </YStack>
-              );
-            }
-          } catch (error) {
-            console.error('Error parsing quiz data:', error);
-            return (
+                  );
+                })}
+                
+                {/* Quiz Submit/Reset Button */}
+                <XStack gap={12} marginTop={8}>
+                  {!showQuizResults ? (
+                    <Button
+                      onPress={submitQuiz}
+                      backgroundColor="#8B5CF6"
+                      flex={1}
+                      size="lg"
+                      disabled={Object.keys(quizAnswers).length === 0}
+                    >
+                      <XStack alignItems="center" gap={8}>
+                        <Feather name="send" size={16} color="white" />
+                        <Text color="white" fontSize={16} fontWeight="600">
+                          Submit Quiz
+                        </Text>
+                      </XStack>
+                    </Button>
+                  ) : (
+                    <XStack flex={1} gap={12}>
+                      <Button
+                        onPress={resetQuiz}
+                        variant="outlined"
+                        flex={1}
+                        size="lg"
+                      >
+                        <XStack alignItems="center" gap={8}>
+                          <Feather name="refresh-cw" size={16} color={iconColor} />
+                          <Text fontSize={16}>Try Again</Text>
+                        </XStack>
+                      </Button>
+                      
+                      <YStack flex={1} justifyContent="center" alignItems="center" 
+                             backgroundColor={calculateQuizScoreFromRealQuiz().score === calculateQuizScoreFromRealQuiz().total ? "#10B981" : "#F59E0B"}
+                             padding={12} borderRadius={8}>
+                        <Text fontSize={18} fontWeight="bold" color="white">
+                          {calculateQuizScoreFromRealQuiz().score === calculateQuizScoreFromRealQuiz().total ? '🎉 Perfect!' : `${Math.round((calculateQuizScoreFromRealQuiz().score/calculateQuizScoreFromRealQuiz().total) * 100)}%`}
+                        </Text>
+                        <Text fontSize={14} color="white">
+                          {calculateQuizScoreFromRealQuiz().score}/{calculateQuizScoreFromRealQuiz().total} correct
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  )}
+                </XStack>
+              </>
+            ) : getDisplayText(currentExercise.title).toLowerCase().includes('quiz') ? (
               <View style={{
                 backgroundColor: '#FEF3C7',
-                padding: 12,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: '#F59E0B',
-                marginTop: 16,
+                padding: 16,
+                borderRadius: 12,
               }}>
-                <Text fontSize={14} color="#92400E">
-                  📝 This exercise contains a quiz, but the questions couldn't be loaded properly.
+                <Text fontSize={16} color="#92400E" textAlign="center">
+                  📝 Quiz exercise detected but no questions found in database
+                </Text>
+                <Text fontSize={14} color="#92400E" textAlign="center" marginTop={4}>
+                  Exercise ID: {currentExercise.learning_path_exercise_id || currentExercise.id}
                 </Text>
               </View>
-            );
-          }
-          return null;
-        })()}
+            ) : (
+              <View style={{
+                backgroundColor: '#EBF8FF',
+                padding: 16,
+                borderRadius: 12,
+              }}>
+                <Text fontSize={16} color="#1F2937" textAlign="center">
+                  🎯 Quiz functionality ready - questions will load from database
+                </Text>
+              </View>
+            )}
+          </YStack>
+        )}
 
         {/* Completion Status */}
         {isCompleted && (
@@ -667,7 +1394,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
   }
 
   return (
-    <Screen>
+    <Screen scroll={false}>
       <YStack f={1}>
         {/* Header */}
         <Header
@@ -721,8 +1448,15 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         {/* Exercise Content */}
         <ScrollView
           style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ padding: 24, paddingBottom: 120 }}
+          showsVerticalScrollIndicator={true}
+          scrollEnabled={true}
+          bounces={true}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={true}
+          contentContainerStyle={{ 
+            padding: 24, 
+            paddingBottom: 24,
+          }}
         >
           {showCongrats ? (
             <YStack alignItems="center" justifyContent="center" padding="$8" gap="$4">
@@ -742,10 +1476,6 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         {/* Navigation Controls */}
         {!showCongrats && (
           <View style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
             backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
             borderTopWidth: 1,
             borderTopColor: colorScheme === 'dark' ? '#333' : '#E5E7EB',
@@ -755,14 +1485,32 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
               {/* Action Buttons */}
               <XStack gap="$3">
                 <Button
-                  onPress={completeExercise}
-                  backgroundColor="$green10"
+                  onPress={async () => {
+                    const isCompleted = completedExercises.has(currentExercise?.id || '');
+                    if (isCompleted) {
+                      // Toggle to incomplete - remove from local state
+                      const newCompleted = new Set(completedExercises);
+                      newCompleted.delete(currentExercise.id);
+                      setCompletedExercises(newCompleted);
+                      
+                      // Remove from database
+                      await supabase
+                        .from('route_exercise_completions')
+                        .delete()
+                        .eq('session_id', sessionId)
+                        .eq('exercise_id', currentExercise.id);
+                    } else {
+                      // Complete the exercise
+                      await completeExercise();
+                    }
+                  }}
+                  backgroundColor={completedExercises.has(currentExercise?.id || '') ? "$gray10" : "$green10"}
                   flex={1}
                   size="lg"
-                  icon={<Feather name="check" size={20} color="white" />}
+                  icon={<Feather name={completedExercises.has(currentExercise?.id || '') ? "x" : "check"} size={20} color="white" />}
                 >
                   <Text color="white" fontSize={16} fontWeight="600">
-                    {completedExercises.has(currentExercise?.id || '') ? 'Completed' : 'Complete'}
+                    {completedExercises.has(currentExercise?.id || '') ? 'Mark Incomplete' : 'Complete'}
                   </Text>
                 </Button>
                 

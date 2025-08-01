@@ -19,6 +19,16 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ExerciseProgressService } from '../services/exerciseProgressService';
 
+// Helper function to extract text from multilingual fields
+const getDisplayText = (
+  text: string | { en: string; sv: string } | undefined,
+  fallback: string = '',
+): string => {
+  if (!text) return fallback;
+  if (typeof text === 'string') return text;
+  return text.en || text.sv || fallback;
+};
+
 // Quiz types (copied from ProgressScreen)
 interface QuizQuestion {
   id: string;
@@ -586,7 +596,7 @@ export function ExerciseDetailModal({
             
             <YStack alignItems="center">
               <Text fontSize={16} fontWeight="bold" color="$color">
-                Quiz: {exercise?.title}
+                Quiz: {getDisplayText(exercise?.title, 'Exercise Quiz')}
               </Text>
               <Text fontSize={14} color="$gray11">
                 Question {currentQuestionIndex + 1} of {quizQuestions.length} |{' '}
@@ -632,7 +642,7 @@ export function ExerciseDetailModal({
               marginBottom={24}
             >
               <Text fontSize={18} fontWeight="bold" color="$color" marginBottom={16}>
-                {currentQuestion.question_text.en}
+                {getDisplayText(currentQuestion.question_text, 'Question text not available')}
               </Text>
 
               {/* Question Media */}
@@ -704,7 +714,7 @@ export function ExerciseDetailModal({
                     </View>
                     
                     <Text fontSize={16} color="$color" flex={1}>
-                      {answer.answer_text.en}
+                      {getDisplayText(answer.answer_text, 'Answer not available')}
                     </Text>
 
                     {showFeedback && (isCorrect || isCorrectAnswer) && (
@@ -730,7 +740,7 @@ export function ExerciseDetailModal({
                   Explanation
                 </Text>
                 <Text fontSize={14} color="$color">
-                  {currentQuestion.explanation_text.en}
+                  {getDisplayText(currentQuestion.explanation_text, 'No explanation available')}
                 </Text>
               </YStack>
             )}
@@ -812,14 +822,14 @@ export function ExerciseDetailModal({
             <XStack alignItems="center" gap="$3" marginBottom="$4">
               <Feather name="book-open" size={24} color="#00E6C3" />
               <Text fontSize={24} fontWeight="bold" color="$color" flex={1}>
-                {exercise.title}
+                {getDisplayText(exercise.title, 'Untitled Exercise')}
               </Text>
             </XStack>
 
             {/* Exercise Description */}
             {exercise.description && (
               <Text fontSize={16} color="$gray11" marginBottom="$6" lineHeight={24}>
-                {exercise.description}
+                {getDisplayText(exercise.description, 'No description available')}
               </Text>
             )}
 

@@ -42,29 +42,16 @@ export class ExerciseProgressService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Check if already completed
-      const { data: existing } = await supabase
-        .from('learning_path_exercise_completions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('exercise_id', exerciseId)
-        .single();
-
-      if (existing) {
-        console.log('Exercise already completed, skipping...');
-        return true;
-      }
-
-      // Insert completion record
+      // Use upsert to allow re-completion (update completion timestamp)
+      // Note: Only including columns that exist in the schema - route_id doesn't exist
       const { error } = await supabase
         .from('learning_path_exercise_completions')
-        .insert({
+        .upsert({
           user_id: user.id,
           exercise_id: exerciseId,
-          route_id: routeId,
-          completed_at: new Date().toISOString(),
-          completion_source: 'route',
-          progress_data: progressData || {}
+          completed_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,exercise_id'
         });
 
       if (error) throw error;
@@ -90,32 +77,18 @@ export class ExerciseProgressService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Check if this specific repeat is already completed
-      const { data: existing } = await supabase
-        .from('virtual_repeat_completions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('exercise_id', exerciseId)
-        .eq('original_exercise_id', originalExerciseId)
-        .eq('repeat_number', repeatNumber)
-        .single();
-
-      if (existing) {
-        console.log('Repeat exercise already completed, skipping...');
-        return true;
-      }
-
-      // Insert virtual repeat completion
+      // Use upsert to allow re-completion of repeats
+      // Note: Only including columns that exist in the schema - route_id may not exist
       const { error } = await supabase
         .from('virtual_repeat_completions')
-        .insert({
+        .upsert({
           user_id: user.id,
           exercise_id: exerciseId,
           original_exercise_id: originalExerciseId,
           repeat_number: repeatNumber,
-          route_id: routeId,
-          completed_at: new Date().toISOString(),
-          completion_source: 'route'
+          completed_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,exercise_id,original_exercise_id,repeat_number'
         });
 
       if (error) throw error;
