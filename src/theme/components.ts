@@ -227,9 +227,3 @@ export const config = createTamagui({
   media,
   ...componentThemes,
 });
-
-type Conf = typeof config;
-
-declare module '@tamagui/core' {
-  interface TamaguiCustomConfig extends Conf {}
-}
