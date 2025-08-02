@@ -36,23 +36,26 @@ export class ExerciseProgressService {
       time_spent?: number;
       quiz_score?: number;
       attempts?: number;
-    }
+    },
   ): Promise<boolean> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       // Use upsert to allow re-completion (update completion timestamp)
       // Note: Only including columns that exist in the schema - route_id doesn't exist
-      const { error } = await supabase
-        .from('learning_path_exercise_completions')
-        .upsert({
+      const { error } = await supabase.from('learning_path_exercise_completions').upsert(
+        {
           user_id: user.id,
           exercise_id: exerciseId,
-          completed_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,exercise_id'
-        });
+          completed_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'user_id,exercise_id',
+        },
+      );
 
       if (error) throw error;
 
@@ -71,29 +74,34 @@ export class ExerciseProgressService {
     exerciseId: string,
     originalExerciseId: string,
     repeatNumber: number,
-    routeId: string
+    routeId: string,
   ): Promise<boolean> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       // Use upsert to allow re-completion of repeats
       // Note: Only including columns that exist in the schema - route_id may not exist
-      const { error } = await supabase
-        .from('virtual_repeat_completions')
-        .upsert({
+      const { error } = await supabase.from('virtual_repeat_completions').upsert(
+        {
           user_id: user.id,
           exercise_id: exerciseId,
           original_exercise_id: originalExerciseId,
           repeat_number: repeatNumber,
-          completed_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,exercise_id,original_exercise_id,repeat_number'
-        });
+          completed_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'user_id,exercise_id,original_exercise_id,repeat_number',
+        },
+      );
 
       if (error) throw error;
 
-      console.log(`✅ Repeat exercise ${exerciseId} (repeat ${repeatNumber}) completed from route ${routeId}`);
+      console.log(
+        `✅ Repeat exercise ${exerciseId} (repeat ${repeatNumber}) completed from route ${routeId}`,
+      );
       return true;
     } catch (error) {
       console.error('Error completing repeat exercise from route:', error);
@@ -106,10 +114,12 @@ export class ExerciseProgressService {
    */
   static async getRouteExerciseCompletions(
     routeId: string,
-    exerciseIds: string[]
+    exerciseIds: string[],
   ): Promise<Map<string, ExerciseCompletion | VirtualRepeatCompletion>> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return new Map();
 
       const completions = new Map<string, ExerciseCompletion | VirtualRepeatCompletion>();
@@ -122,7 +132,7 @@ export class ExerciseProgressService {
         .in('exercise_id', exerciseIds);
 
       if (regularCompletions) {
-        regularCompletions.forEach(completion => {
+        regularCompletions.forEach((completion) => {
           completions.set(completion.exercise_id, completion);
         });
       }
@@ -135,7 +145,7 @@ export class ExerciseProgressService {
         .in('exercise_id', exerciseIds);
 
       if (repeatCompletions) {
-        repeatCompletions.forEach(completion => {
+        repeatCompletions.forEach((completion) => {
           completions.set(completion.exercise_id, completion);
         });
       }
@@ -157,15 +167,17 @@ export class ExerciseProgressService {
     totalRepeatsCompleted: number;
   }> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const targetUserId = userId || user?.id;
-      
+
       if (!targetUserId) {
         return {
           totalExercisesCompleted: 0,
           exercisesCompletedFromRoutes: 0,
           uniqueLearningPathsProgressed: 0,
-          totalRepeatsCompleted: 0
+          totalRepeatsCompleted: 0,
         };
       }
 
@@ -185,13 +197,15 @@ export class ExerciseProgressService {
       // Get unique learning paths progressed
       const { data: uniquePaths } = await supabase
         .from('learning_path_exercise_completions')
-        .select(`
+        .select(
+          `
           learning_path_exercises!inner(learning_path_id)
-        `)
+        `,
+        )
         .eq('user_id', targetUserId);
 
       const uniqueLearningPathsProgressed = new Set(
-        uniquePaths?.map(item => item.learning_path_exercises?.learning_path_id)
+        uniquePaths?.map((item) => item.learning_path_exercises?.learning_path_id),
       ).size;
 
       // Get total repeat completions
@@ -204,7 +218,7 @@ export class ExerciseProgressService {
         totalExercisesCompleted: totalExercisesCompleted || 0,
         exercisesCompletedFromRoutes: exercisesCompletedFromRoutes || 0,
         uniqueLearningPathsProgressed: uniqueLearningPathsProgressed || 0,
-        totalRepeatsCompleted: totalRepeatsCompleted || 0
+        totalRepeatsCompleted: totalRepeatsCompleted || 0,
       };
     } catch (error) {
       console.error('Error getting user progress stats:', error);
@@ -212,7 +226,7 @@ export class ExerciseProgressService {
         totalExercisesCompleted: 0,
         exercisesCompletedFromRoutes: 0,
         uniqueLearningPathsProgressed: 0,
-        totalRepeatsCompleted: 0
+        totalRepeatsCompleted: 0,
       };
     }
   }
@@ -223,16 +237,20 @@ export class ExerciseProgressService {
    */
   static async canAccessExercise(exerciseId: string): Promise<boolean> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return false;
 
       // Get exercise details
       const { data: exercise } = await supabase
         .from('learning_path_exercises')
-        .select(`
+        .select(
+          `
           *,
           learning_paths!inner(*)
-        `)
+        `,
+        )
         .eq('id', exerciseId)
         .single();
 
@@ -267,25 +285,31 @@ export class ExerciseProgressService {
   /**
    * Get exercises that are part of routes the user has access to
    */
-  static async getAccessibleRouteExercises(): Promise<{
-    exerciseId: string;
-    routeId: string;
-    routeName: string;
-    exerciseTitle: string;
-    learningPathTitle: string;
-  }[]> {
+  static async getAccessibleRouteExercises(): Promise<
+    {
+      exerciseId: string;
+      routeId: string;
+      routeName: string;
+      exerciseTitle: string;
+      learningPathTitle: string;
+    }[]
+  > {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return [];
 
       // Get routes with learning path exercises
       const { data } = await supabase
         .from('routes')
-        .select(`
+        .select(
+          `
           id,
           name,
           exercises
-        `)
+        `,
+        )
         .eq('is_public', true);
 
       const accessibleExercises: {
@@ -304,11 +328,13 @@ export class ExerciseProgressService {
                 // Get learning path exercise details
                 const { data: lpExercise } = await supabase
                   .from('learning_path_exercises')
-                  .select(`
+                  .select(
+                    `
                     id,
                     title,
                     learning_paths!inner(title)
-                  `)
+                  `,
+                  )
                   .eq('id', exercise.learning_path_exercise_id)
                   .single();
 
@@ -318,7 +344,10 @@ export class ExerciseProgressService {
                     routeId: route.id,
                     routeName: route.name,
                     exerciseTitle: lpExercise.title?.en || lpExercise.title?.sv || 'Untitled',
-                    learningPathTitle: lpExercise.learning_paths?.title?.en || lpExercise.learning_paths?.title?.sv || 'Unknown Path'
+                    learningPathTitle:
+                      lpExercise.learning_paths?.title?.en ||
+                      lpExercise.learning_paths?.title?.sv ||
+                      'Unknown Path',
                   });
                 }
               }
@@ -335,4 +364,4 @@ export class ExerciseProgressService {
   }
 }
 
-export default ExerciseProgressService; 
+export default ExerciseProgressService;

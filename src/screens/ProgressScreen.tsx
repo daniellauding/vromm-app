@@ -189,8 +189,8 @@ interface UserPayment {
   created_at: string;
 }
 
-// For demo, English only. Replace with language context if needed.
-const lang = 'en';
+// Use translation context that's available in the app
+import { useTranslation } from '../contexts/TranslationContext';
 
 // ProgressCircle component
 interface ProgressCircleProps {
@@ -260,6 +260,8 @@ interface CategoryOption {
 export function ProgressScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<TabParamList, 'ProgressTab'>>();
+  const { language: lang, t } = useTranslation(); // Get user's language preference and t function
+  const { profile } = useAuth(); // Get user profile for auth context
   const { selectedPathId, showDetail } = route.params || {};
 
   const [activePath, setActivePath] = useState<string>(selectedPathId || '');
@@ -313,7 +315,7 @@ export function ProgressScreen() {
   const [unlockedPaths, setUnlockedPaths] = useState<string[]>([]);
   const [unlockedExercises, setUnlockedExercises] = useState<string[]>([]);
   const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
-  
+
   // Add state for database-persisted unlocks
   const [persistedUnlocks, setPersistedUnlocks] = useState<{
     paths: string[];
@@ -338,11 +340,13 @@ export function ProgressScreen() {
   }>({});
   const [currentQuizAttempt, setCurrentQuizAttempt] = useState<QuizAttempt | null>(null);
   const [quizStatistics, setQuizStatistics] = useState<QuizStatistics | null>(null);
-  
+
   // NEW: Show all exercises toggle
   const [showAllExercises, setShowAllExercises] = useState(false);
-  const [allAvailableExercises, setAllAvailableExercises] = useState<(PathExercise & { source: 'database' | 'custom_route'; route_name?: string })[]>([]);
-  
+  const [allAvailableExercises, setAllAvailableExercises] = useState<
+    (PathExercise & { source: 'database' | 'custom_route'; route_name?: string })[]
+  >([]);
+
   // Load all exercises when toggle is enabled
   useEffect(() => {
     if (showAllExercises && user) {
@@ -353,21 +357,27 @@ export function ProgressScreen() {
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
   const [hasQuizQuestions, setHasQuizQuestions] = useState<{ [exerciseId: string]: boolean }>({});
 
-  // Load categories from Supabase
+    // Load categories from Supabase - RESTORED with proper error handling
   useEffect(() => {
     const fetchCategories = async () => {
       try {
+        console.log('🔍 Fetching categories from database...');
+        
         const { data, error } = await supabase
           .from('learning_path_categories')
           .select('*')
           .order('order_index', { ascending: true });
 
         if (error) {
-          console.error('Error fetching categories:', error);
+          console.error('❌ Error fetching categories:', error);
+          // Use fallback defaults if database fails
+          setDefaultFilters();
           return;
         }
 
-        // Group by category type - EXTENDED with new categories
+        console.log('✅ Successfully fetched categories:', data?.length || 0);
+
+        // Group by category type
         const groupedCategories: Record<CategoryType, CategoryOption[]> = {
           vehicle_type: [],
           transmission_type: [],
@@ -379,7 +389,7 @@ export function ProgressScreen() {
           type: [],
         };
 
-        // Add an "All" option for each category
+        // Add "All" option for each category
         for (const key of Object.keys(groupedCategories) as CategoryType[]) {
           groupedCategories[key].push({
             id: `all-${key}`,
@@ -401,30 +411,53 @@ export function ProgressScreen() {
 
         setCategoryOptions(groupedCategories);
 
-        // Set default filters based on is_default flag
+        // Set defaults based on your actual data
+        // Most learning paths have: Car, Manual, Standard License, Beginner, "Prepare for driving test"
         const defaultFilters: Record<CategoryType, string> = {
-          vehicle_type: 'all',
-          transmission_type: 'all',
-          license_type: 'all',
-          experience_level: 'all',
-          purpose: 'all',
-          user_profile: 'all',
-          platform: 'all',
-          type: 'all',
+          vehicle_type: 'all', // Show all vehicle types
+          transmission_type: 'all', // Show all transmission types  
+          license_type: 'all', // Show all license types
+          experience_level: 'all', // Show all experience levels
+          purpose: 'all', // Show all purposes (learning, Signs & Situations, etc.)
+          user_profile: 'all', // Show all user profiles
+          platform: 'all', // Show all platforms
+          type: 'all', // Show all content types
         };
 
-        Object.keys(groupedCategories).forEach((key) => {
-          const category = key as CategoryType;
-          const defaultOption = groupedCategories[category].find((opt) => opt.is_default);
-          if (defaultOption) {
-            defaultFilters[category] = defaultOption.value;
-          }
-        });
-
         setCategoryFilters(defaultFilters);
+        console.log('✅ Set default category filters:', defaultFilters);
+
       } catch (err) {
-        console.error('Error processing categories:', err);
+        console.error('💥 Exception fetching categories:', err);
+        setDefaultFilters();
       }
+    };
+
+    // Helper function to set fallback defaults
+    const setDefaultFilters = () => {
+      console.log('⚠️ Using fallback category filters');
+      setCategoryFilters({
+        vehicle_type: 'all',
+        transmission_type: 'all',
+        license_type: 'all',
+        experience_level: 'all',
+        purpose: 'all',
+        user_profile: 'all',
+        platform: 'all',
+        type: 'all',
+      });
+      
+      // Set empty category options as fallback
+      setCategoryOptions({
+        vehicle_type: [],
+        transmission_type: [],
+        license_type: [],
+        experience_level: [],
+        purpose: [],
+        user_profile: [],
+        platform: [],
+        type: [],
+      });
     };
 
     fetchCategories();
@@ -433,16 +466,16 @@ export function ProgressScreen() {
   // Modal state for category filter selection
   const [activeFilterType, setActiveFilterType] = useState<CategoryType | null>(null);
 
-  // Category labels for display - EXTENDED
+  // Category labels for display - EXTENDED with translations
   const categoryLabels: Record<CategoryType, string> = {
-    vehicle_type: 'Vehicle Type',
-    transmission_type: 'Transmission',
-    license_type: 'License Type',
-    experience_level: 'Experience Level',
-    purpose: 'Purpose',
-    user_profile: 'User Profile',
-    platform: 'Platform', // NEW
-    type: 'Content Type', // NEW
+    vehicle_type: t('filters.vehicleType') || 'Vehicle Type',
+    transmission_type: t('filters.transmissionType') || 'Transmission',
+    license_type: t('filters.licenseType') || 'License Type',
+    experience_level: t('filters.experienceLevel') || 'Experience Level',
+    purpose: t('filters.purpose') || 'Purpose',
+    user_profile: t('filters.userProfile') || 'User Profile',
+    platform: t('filters.platform') || 'Platform',
+    type: t('filters.contentType') || 'Content Type',
   };
 
   // Filter option selection handler
@@ -593,7 +626,10 @@ export function ProgressScreen() {
     }
   };
 
-  const completeQuizAttempt = async (attemptId: string, finalScore: { correct: number; total: number }) => {
+  const completeQuizAttempt = async (
+    attemptId: string,
+    finalScore: { correct: number; total: number },
+  ) => {
     if (!selectedExercise) return;
 
     const scorePercentage = (finalScore.correct / finalScore.total) * 100;
@@ -665,7 +701,7 @@ export function ProgressScreen() {
   const navigateToQuiz = async (exercise: PathExercise) => {
     console.log('Starting quiz for exercise:', exercise.title.en);
     setQuizStartTime(Date.now());
-    
+
     // 1. Fetch quiz questions
     const questions = await fetchQuizQuestions(exercise.id);
     if (questions.length === 0) {
@@ -674,10 +710,7 @@ export function ProgressScreen() {
     }
 
     // 2. Load user statistics and history
-    await Promise.all([
-      loadQuizStatistics(exercise.id),
-      loadQuizHistory(exercise.id),
-    ]);
+    await Promise.all([loadQuizStatistics(exercise.id), loadQuizHistory(exercise.id)]);
 
     // 3. Initialize quiz state
     setQuizQuestions(questions);
@@ -699,16 +732,22 @@ export function ProgressScreen() {
     if (!currentQuestion) return;
 
     // Find the selected answers
-    const selectedAnswers = currentQuestion.answers.filter((answer) => answerIds.includes(answer.id));
-    
+    const selectedAnswers = currentQuestion.answers.filter((answer) =>
+      answerIds.includes(answer.id),
+    );
+
     // Determine if the answer is correct
     let isCorrect = false;
-    if (currentQuestion.question_type === 'single_choice' || currentQuestion.question_type === 'true_false') {
+    if (
+      currentQuestion.question_type === 'single_choice' ||
+      currentQuestion.question_type === 'true_false'
+    ) {
       isCorrect = selectedAnswers.length === 1 && selectedAnswers[0].is_correct;
     } else if (currentQuestion.question_type === 'multiple_choice') {
-      const correctAnswers = currentQuestion.answers.filter(answer => answer.is_correct);
-      isCorrect = selectedAnswers.length === correctAnswers.length && 
-                  selectedAnswers.every(answer => answer.is_correct);
+      const correctAnswers = currentQuestion.answers.filter((answer) => answer.is_correct);
+      isCorrect =
+        selectedAnswers.length === correctAnswers.length &&
+        selectedAnswers.every((answer) => answer.is_correct);
     }
 
     // Find the correct answer for feedback
@@ -717,9 +756,9 @@ export function ProgressScreen() {
     // Update UI feedback
     setShowAnswerFeedback((prev) => ({
       ...prev,
-      [currentQuestionIndex]: { 
-        isCorrect, 
-        correctAnswerId: correctAnswer?.id || '' 
+      [currentQuestionIndex]: {
+        isCorrect,
+        correctAnswerId: correctAnswer?.id || '',
       },
     }));
 
@@ -773,7 +812,7 @@ export function ProgressScreen() {
     setShowAnswerFeedback({});
     setCurrentQuizAttempt(null);
     setQuizStartTime(Date.now());
-    
+
     if (selectedExercise) {
       startQuizAttempt(selectedExercise.id);
     }
@@ -790,7 +829,7 @@ export function ProgressScreen() {
     setShowAnswerFeedback({});
     setCurrentQuizAttempt(null);
     setQuizStartTime(0);
-    
+
     // Reload quiz statistics after closing
     if (selectedExercise) {
       loadQuizStatistics(selectedExercise.id);
@@ -857,7 +896,7 @@ export function ProgressScreen() {
   // Small progress bar component for repeats
   const RepeatProgressBar = ({ exercise }: { exercise: PathExercise }) => {
     const { completed, total, percent } = getRepeatProgress(exercise);
-    
+
     if (total <= 1) return null;
 
     return (
@@ -892,13 +931,11 @@ export function ProgressScreen() {
     if (!user) return;
 
     // Find the exercise details for debugging
-    const exercise = exercises.find(ex => ex.id === exerciseId);
-    const learningPath = paths.find(path => 
-      path.id === exercise?.learning_path_id
-    );
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    const learningPath = paths.find((path) => path.id === exercise?.learning_path_id);
 
     const isDone = completedIds.includes(exerciseId);
-    
+
     console.log('🎯 [ProgressScreen] Toggle Completion:', {
       exerciseId,
       exerciseTitle: exercise?.title,
@@ -906,7 +943,7 @@ export function ProgressScreen() {
       learningPathTitle: learningPath?.title,
       currentCompletions: completedIds.length,
       isCurrentlyCompleted: isDone,
-      actionToTake: isDone ? 'REMOVE' : 'ADD'
+      actionToTake: isDone ? 'REMOVE' : 'ADD',
     });
 
     // Update UI immediately for better user experience
@@ -926,7 +963,7 @@ export function ProgressScreen() {
           console.error('❌ [ProgressScreen] Error removing completion:', error);
         } else {
           console.log('🔴 [ProgressScreen] Successfully removed completion');
-          
+
           // Recalculate progress for affected learning path
           if (exercise?.learning_path_id) {
             const pathProgress = getPathProgress(exercise.learning_path_id);
@@ -934,7 +971,7 @@ export function ProgressScreen() {
               pathId: exercise.learning_path_id,
               pathTitle: learningPath?.title,
               progressPercent: pathProgress,
-              remainingCompletions: completedIds.length - 1
+              remainingCompletions: completedIds.length - 1,
             });
           }
         }
@@ -955,7 +992,7 @@ export function ProgressScreen() {
           console.error('❌ [ProgressScreen] Error adding completion:', error);
         } else {
           console.log('🟢 [ProgressScreen] Successfully added completion');
-          
+
           // Recalculate progress for affected learning path
           if (exercise?.learning_path_id) {
             const pathProgress = getPathProgress(exercise.learning_path_id);
@@ -963,7 +1000,7 @@ export function ProgressScreen() {
               pathId: exercise.learning_path_id,
               pathTitle: learningPath?.title,
               progressPercent: pathProgress,
-              totalCompletions: completedIds.length + 1
+              totalCompletions: completedIds.length + 1,
             });
           }
         }
@@ -1034,36 +1071,39 @@ export function ProgressScreen() {
   // NEW: Load all exercises from both database and custom routes
   const loadAllAvailableExercises = async () => {
     if (!user) return;
-    
+
     try {
       console.log('🔍 [ProgressScreen] Loading all available exercises...');
-      
+
       // Get database exercises (learning path exercises)
       const { data: dbExercises, error: dbError } = await supabase
         .from('learning_path_exercises')
         .select('*')
         .order('title', { ascending: true });
-      
+
       if (dbError) {
         console.error('❌ Error loading database exercises:', dbError);
       }
-      
+
       // Get custom exercises from routes
       const { data: routes, error: routesError } = await supabase
         .from('routes')
         .select('id, name, suggested_exercises')
         .not('suggested_exercises', 'is', null)
         .order('created_at', { ascending: false });
-      
+
       if (routesError) {
         console.error('❌ Error loading custom routes:', routesError);
       }
-      
-      const allExercises: (PathExercise & { source: 'database' | 'custom_route'; route_name?: string })[] = [];
-      
+
+      const allExercises: (PathExercise & {
+        source: 'database' | 'custom_route';
+        route_name?: string;
+      })[] = [];
+
       // Add database exercises
       if (dbExercises) {
-        dbExercises.forEach(exercise => {
+        dbExercises.forEach((exercise) => {
           allExercises.push({
             ...exercise,
             source: 'database',
@@ -1071,10 +1111,10 @@ export function ProgressScreen() {
           });
         });
       }
-      
+
       // Add custom exercises from routes
       if (routes) {
-        routes.forEach(route => {
+        routes.forEach((route) => {
           try {
             // Handle both string and array formats, with comprehensive error handling
             let exercises: any[] = [];
@@ -1085,24 +1125,38 @@ export function ProgressScreen() {
                 try {
                   exercises = JSON.parse(cleanedString);
                 } catch (parseError) {
-                  console.warn('⚠️ [ProgressScreen] Skipping malformed JSON in route:', route.id, 'Error:', parseError);
+                  console.warn(
+                    '⚠️ [ProgressScreen] Skipping malformed JSON in route:',
+                    route.id,
+                    'Error:',
+                    parseError,
+                  );
                   // Try to extract route name for debugging
                   console.warn('Route name:', route.name);
-                  console.warn('First 100 chars of suggested_exercises:', cleanedString.substring(0, 100));
+                  console.warn(
+                    'First 100 chars of suggested_exercises:',
+                    cleanedString.substring(0, 100),
+                  );
                   return; // Skip this route entirely
                 }
               }
             } else if (Array.isArray(route.suggested_exercises)) {
               exercises = route.suggested_exercises;
             }
-            
+
             exercises.forEach((exercise: any) => {
               if (exercise.source === 'custom') {
                 allExercises.push({
                   id: exercise.id,
                   learning_path_id: '', // Custom exercises don't belong to learning paths
-                  title: typeof exercise.title === 'string' ? { en: exercise.title, sv: exercise.title } : exercise.title,
-                  description: typeof exercise.description === 'string' ? { en: exercise.description, sv: exercise.description } : exercise.description,
+                  title:
+                    typeof exercise.title === 'string'
+                      ? { en: exercise.title, sv: exercise.title }
+                      : exercise.title,
+                  description:
+                    typeof exercise.description === 'string'
+                      ? { en: exercise.description, sv: exercise.description }
+                      : exercise.description,
                   order_index: 999, // Put custom exercises at the end
                   repeat_count: exercise.repetitions || 1,
                   has_quiz: exercise.has_quiz || false,
@@ -1119,13 +1173,13 @@ export function ProgressScreen() {
           }
         });
       }
-      
+
       console.log('✅ [ProgressScreen] Loaded all exercises:', {
         total: allExercises.length,
-        database: allExercises.filter(e => e.source === 'database').length,
-        custom: allExercises.filter(e => e.source === 'custom_route').length,
+        database: allExercises.filter((e) => e.source === 'database').length,
+        custom: allExercises.filter((e) => e.source === 'custom_route').length,
       });
-      
+
       setAllAvailableExercises(allExercises);
     } catch (error) {
       console.error('❌ [ProgressScreen] Error loading all exercises:', error);
@@ -1160,10 +1214,10 @@ export function ProgressScreen() {
 
     try {
       const { error } = await supabase.from('user_unlocked_content').insert({
-          user_id: user.id,
-          content_id: contentId,
+        user_id: user.id,
+        content_id: contentId,
         content_type: contentType,
-        });
+      });
 
       if (error && error.code !== '23505') {
         // Ignore duplicate key errors
@@ -1201,7 +1255,7 @@ export function ProgressScreen() {
         const exercises = data
           .filter((item) => item.content_type === 'exercise')
           .map((item) => item.content_id);
-        
+
         setPersistedUnlocks({ paths, exercises });
         console.log(
           `ProgressScreen: Loaded ${paths.length} path unlocks and ${exercises.length} exercise unlocks from database`,
@@ -1234,13 +1288,11 @@ export function ProgressScreen() {
     }
 
     // Find the exercise details for debugging
-    const exercise = exercises.find(ex => ex.id === exerciseId);
-    const learningPath = paths.find(path => 
-      path.id === exercise?.learning_path_id
-    );
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    const learningPath = paths.find((path) => path.id === exercise?.learning_path_id);
 
     const isDone = virtualRepeatCompletions.includes(virtualId);
-    
+
     console.log('🔄 [ProgressScreen] Toggle Virtual Repeat:', {
       virtualId,
       originalExerciseId: exerciseId,
@@ -1250,7 +1302,7 @@ export function ProgressScreen() {
       learningPathTitle: learningPath?.title,
       currentlyCompleted: isDone,
       totalVirtualCompletions: virtualRepeatCompletions.length,
-      actionToTake: isDone ? 'REMOVE' : 'ADD'
+      actionToTake: isDone ? 'REMOVE' : 'ADD',
     });
 
     // Update UI immediately for better user experience
@@ -1273,16 +1325,19 @@ export function ProgressScreen() {
           setVirtualRepeatCompletions((prev) => [...prev, virtualId]);
         } else {
           console.log('🔴 [ProgressScreen] Successfully removed virtual repeat completion');
-          
+
           // Recalculate progress for affected learning path
           if (exercise?.learning_path_id) {
             const pathProgress = getPathProgress(exercise.learning_path_id);
-            console.log('📊 [ProgressScreen] Learning Path Progress after virtual repeat removal:', {
-              pathId: exercise.learning_path_id,
-              pathTitle: learningPath?.title,
-              progressPercent: pathProgress,
-              remainingVirtualCompletions: virtualRepeatCompletions.length - 1
-            });
+            console.log(
+              '📊 [ProgressScreen] Learning Path Progress after virtual repeat removal:',
+              {
+                pathId: exercise.learning_path_id,
+                pathTitle: learningPath?.title,
+                progressPercent: pathProgress,
+                remainingVirtualCompletions: virtualRepeatCompletions.length - 1,
+              },
+            );
           }
         }
       } catch (err) {
@@ -1310,16 +1365,19 @@ export function ProgressScreen() {
           setVirtualRepeatCompletions((prev) => prev.filter((id) => id !== virtualId));
         } else {
           console.log('🟢 [ProgressScreen] Successfully added virtual repeat completion');
-          
+
           // Recalculate progress for affected learning path
           if (exercise?.learning_path_id) {
             const pathProgress = getPathProgress(exercise.learning_path_id);
-            console.log('📊 [ProgressScreen] Learning Path Progress after virtual repeat addition:', {
-              pathId: exercise.learning_path_id,
-              pathTitle: learningPath?.title,
-              progressPercent: pathProgress,
-              totalVirtualCompletions: virtualRepeatCompletions.length + 1
-            });
+            console.log(
+              '📊 [ProgressScreen] Learning Path Progress after virtual repeat addition:',
+              {
+                pathId: exercise.learning_path_id,
+                pathTitle: learningPath?.title,
+                progressPercent: pathProgress,
+                totalVirtualCompletions: virtualRepeatCompletions.length + 1,
+              },
+            );
           }
         }
       } catch (err) {
@@ -1409,41 +1467,53 @@ export function ProgressScreen() {
   // Dedicated function to fetch completions
   const fetchCompletions = async () => {
     if (!user) return;
-    setCompletionsLoading(true);
     
-    // Fetch regular exercise completions
-    const { data: regularData, error: regularError } = await supabase
-      .from('learning_path_exercise_completions')
-      .select('exercise_id')
-      .eq('user_id', user.id);
-    
-    // Fetch virtual repeat completions
-    const { data: virtualData, error: virtualError } = await supabase
-      .from('virtual_repeat_completions')
-      .select('exercise_id, repeat_number')
-      .eq('user_id', user.id);
-    
-    if (!regularError && regularData) {
-      setCompletedIds(regularData.map((c: { exercise_id: string }) => c.exercise_id));
-    } else {
-      setCompletedIds([]);
-    }
-    
-    if (!virtualError && virtualData) {
-      // Convert virtual completions back to virtualId format: "exerciseId-virtual-2"
-      const virtualCompletions = virtualData.map(
-        (c: { exercise_id: string; repeat_number: number }) =>
-          `${c.exercise_id}-virtual-${c.repeat_number}`,
+    try {
+      setCompletionsLoading(true);
+      console.log('🔍 Attempting to fetch exercise completions...');
+
+      // Fetch regular exercise completions
+      const { data: regularData, error: regularError } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('exercise_id')
+        .eq('user_id', user.id);
+
+      // Fetch virtual repeat completions
+      const { data: virtualData, error: virtualError } = await supabase
+        .from('virtual_repeat_completions')
+        .select('exercise_id, repeat_number')
+        .eq('user_id', user.id);
+
+      if (regularError) {
+        console.error('❌ Error fetching regular completions:', regularError);
+        setCompletedIds([]);
+      } else {
+        setCompletedIds(regularData?.map((c: { exercise_id: string }) => c.exercise_id) || []);
+      }
+
+      if (virtualError) {
+        console.error('❌ Error fetching virtual completions:', virtualError);
+        setVirtualRepeatCompletions([]);
+      } else {
+        // Convert virtual completions back to virtualId format: "exerciseId-virtual-2"
+        const virtualCompletions = virtualData?.map(
+          (c: { exercise_id: string; repeat_number: number }) =>
+            `${c.exercise_id}-virtual-${c.repeat_number}`,
+        ) || [];
+        setVirtualRepeatCompletions(virtualCompletions);
+      }
+
+      console.log(
+        `✅ Loaded ${regularData?.length || 0} regular completions and ${virtualData?.length || 0} virtual repeat completions`,
       );
-      setVirtualRepeatCompletions(virtualCompletions);
-    } else {
+    } catch (error) {
+      console.error('💥 Critical error fetching completions:', error);
+      // Set empty arrays to prevent crashes
+      setCompletedIds([]);
       setVirtualRepeatCompletions([]);
+    } finally {
+      setCompletionsLoading(false);
     }
-    
-    console.log(
-      `ProgressScreen: Loaded ${regularData?.length || 0} regular completions and ${virtualData?.length || 0} virtual repeat completions`,
-    );
-    setCompletionsLoading(false);
   };
 
   // Fetch completions and existing unlocks for the current user
@@ -1451,6 +1521,9 @@ export function ProgressScreen() {
     fetchCompletions();
     loadExistingUnlocks();
 
+    // RESTORED: Real-time subscription for completions
+    console.log('✅ Setting up real-time subscriptions');
+    
     // Set up real-time subscription for completions
     if (user) {
       console.log('ProgressScreen: Setting up real-time subscription', user.id);
@@ -1515,42 +1588,64 @@ export function ProgressScreen() {
     return 0;
   };
 
-  // Filter paths based on selected categories - EXTENDED with new filters
+  // Filter paths based on selected categories with robust data value matching
   const filteredPaths = useMemo(() => {
     return paths.filter((path) => {
-      // Skip filtering for "all" values or if path doesn't have the property
+      // Handle variations in data values and allow null values
       const matchesVehicleType =
         categoryFilters.vehicle_type === 'all' ||
         !path.vehicle_type ||
-        path.vehicle_type === categoryFilters.vehicle_type;
+        path.vehicle_type === categoryFilters.vehicle_type ||
+        // Handle data variations
+        (categoryFilters.vehicle_type === 'passenger_car' && path.vehicle_type === 'Car') ||
+        (categoryFilters.vehicle_type === 'Car' && path.vehicle_type === 'passenger_car');
+        
       const matchesTransmission =
         categoryFilters.transmission_type === 'all' ||
         !path.transmission_type ||
-        path.transmission_type === categoryFilters.transmission_type;
+        path.transmission_type === categoryFilters.transmission_type ||
+        // Handle data variations
+        (categoryFilters.transmission_type === 'manual' && path.transmission_type === 'Manual') ||
+        (categoryFilters.transmission_type === 'Manual' && path.transmission_type === 'manual');
+        
       const matchesLicense =
         categoryFilters.license_type === 'all' ||
         !path.license_type ||
-        path.license_type === categoryFilters.license_type;
+        path.license_type === categoryFilters.license_type ||
+        // Handle data variations
+        (categoryFilters.license_type === 'b' && path.license_type === 'Standard Driving License') ||
+        (categoryFilters.license_type === 'Standard Driving License' && path.license_type === 'b');
+        
       const matchesExperience =
         categoryFilters.experience_level === 'all' ||
         !path.experience_level ||
-        path.experience_level === categoryFilters.experience_level;
+        path.experience_level === categoryFilters.experience_level ||
+        // Handle data variations
+        (categoryFilters.experience_level === 'beginner' && path.experience_level === 'Beginner') ||
+        (categoryFilters.experience_level === 'Beginner' && path.experience_level === 'beginner');
+        
       const matchesPurpose =
         categoryFilters.purpose === 'all' ||
         !path.purpose ||
         path.purpose === categoryFilters.purpose;
+        
       const matchesUserProfile =
         categoryFilters.user_profile === 'all' ||
         !path.user_profile ||
-        path.user_profile === categoryFilters.user_profile;
-      // NEW: Platform filtering
+        path.user_profile === categoryFilters.user_profile ||
+        // "All" user profile matches any filter
+        path.user_profile === 'All';
+        
       const matchesPlatform =
         categoryFilters.platform === 'all' ||
         !path.platform ||
+        path.platform === 'both' || // "both" platform matches any filter
         path.platform === categoryFilters.platform;
-      // NEW: Type filtering
+        
       const matchesType =
-        categoryFilters.type === 'all' || !path.type || path.type === categoryFilters.type;
+        categoryFilters.type === 'all' || 
+        !path.type || 
+        path.type === categoryFilters.type;
 
       return (
         matchesVehicleType &&
@@ -1643,22 +1738,33 @@ export function ProgressScreen() {
   const fetchLearningPaths = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Attempting to fetch learning paths...');
+      
+      // Add timeout and error handling
       const { data, error } = await supabase
         .from('learning_paths')
         .select('*')
         .eq('active', true)
         .order('order_index', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Database error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Successfully fetched learning paths:', data?.length || 0);
       setPaths(data || []);
+      
       // Set the first path as active by default if no selectedPathId
       if (data && data.length > 0 && !selectedPathId) {
         setActivePath(data[0].id);
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'An error occurred while fetching learning paths',
-      );
+      console.error('💥 Critical error fetching learning paths:', err);
+      setError('Unable to connect to database. Please check your internet connection.');
+      
+      // Set empty data to prevent crashes
+      setPaths([]);
     } finally {
       setLoading(false);
     }
@@ -1676,7 +1782,11 @@ export function ProgressScreen() {
     if (index === 0) return true;
 
     // Make paths more accessible - only block if specifically locked
-    if (path.is_locked && !unlockedPaths.includes(path.id) && !persistedUnlocks.paths.includes(path.id)) {
+    if (
+      path.is_locked &&
+      !unlockedPaths.includes(path.id) &&
+      !persistedUnlocks.paths.includes(path.id)
+    ) {
       return false;
     }
 
@@ -1711,7 +1821,11 @@ export function ProgressScreen() {
     if (exerciseIndex === 0) return true;
 
     // Make exercises more accessible - only block if specifically locked
-    if (exercise.is_locked && !unlockedExercises.includes(exercise.id) && !persistedUnlocks.exercises.includes(exercise.id)) {
+    if (
+      exercise.is_locked &&
+      !unlockedExercises.includes(exercise.id) &&
+      !persistedUnlocks.exercises.includes(exercise.id)
+    ) {
       return false;
     }
 
@@ -2028,7 +2142,7 @@ export function ProgressScreen() {
     // Use !! to convert undefined to false, ensuring boolean return
     return (
       !!path.is_locked &&
-           !unlockedPaths.includes(path.id) && 
+      !unlockedPaths.includes(path.id) &&
       !persistedUnlocks.paths.includes(path.id)
     );
   };
@@ -2036,12 +2150,12 @@ export function ProgressScreen() {
   // NEW: Check if path is behind paywall
   const isPathPaywallLocked = (path: LearningPath): boolean => {
     if (!path.paywall_enabled) return false;
-    
+
     // Check if user has paid for this path
     const hasPaid = userPayments.some(
-      (payment) => payment.learning_path_id === path.id && payment.status === 'completed'
+      (payment) => payment.learning_path_id === path.id && payment.status === 'completed',
     );
-    
+
     return !hasPaid;
   };
 
@@ -2064,12 +2178,12 @@ export function ProgressScreen() {
   // NEW: Check if exercise is behind paywall
   const isExercisePaywallLocked = (exercise: PathExercise): boolean => {
     if (!exercise.paywall_enabled) return false;
-    
+
     // Check if user has paid for this exercise
     const hasPaid = userPayments.some(
-      (payment) => payment.exercise_id === exercise.id && payment.status === 'completed'
+      (payment) => payment.exercise_id === exercise.id && payment.status === 'completed',
     );
-    
+
     return !hasPaid;
   };
 
@@ -2163,36 +2277,44 @@ export function ProgressScreen() {
           <MaterialIcons name="quiz" size={20} color="#00E6C3" />
           <Text fontSize={16} fontWeight="bold" color="#00E6C3">
             Quiz Performance
-        </Text>
+          </Text>
         </XStack>
-        
+
         <XStack justifyContent="space-between" marginBottom={8}>
           <YStack alignItems="center">
             <Text fontSize={24} fontWeight="bold" color="$color">
               {stats.best_score_percentage.toFixed(0)}%
-        </Text>
-            <Text fontSize={12} color="$gray11">Best Score</Text>
+            </Text>
+            <Text fontSize={12} color="$gray11">
+              Best Score
+            </Text>
           </YStack>
-          
+
           <YStack alignItems="center">
             <Text fontSize={24} fontWeight="bold" color="$color">
               {stats.times_passed}
             </Text>
-            <Text fontSize={12} color="$gray11">Times Passed</Text>
+            <Text fontSize={12} color="$gray11">
+              Times Passed
+            </Text>
           </YStack>
-          
+
           <YStack alignItems="center">
             <Text fontSize={24} fontWeight="bold" color="$color">
               {stats.current_streak}
             </Text>
-            <Text fontSize={12} color="$gray11">Current Streak</Text>
+            <Text fontSize={12} color="$gray11">
+              Current Streak
+            </Text>
           </YStack>
-          
+
           <YStack alignItems="center">
             <Text fontSize={24} fontWeight="bold" color="$color">
               {stats.total_attempts}
             </Text>
-            <Text fontSize={12} color="$gray11">Total Attempts</Text>
+            <Text fontSize={12} color="$gray11">
+              Total Attempts
+            </Text>
           </YStack>
         </XStack>
       </YStack>
@@ -2202,8 +2324,12 @@ export function ProgressScreen() {
   const QuizInterface = () => {
     // Only show quiz modal when explicitly requested and questions are loaded
     if (!showQuiz || quizQuestions.length === 0) return null;
-    
-    console.log('Rendering QuizInterface', { showQuiz, questionsCount: quizQuestions.length, completed: quizCompleted });
+
+    console.log('Rendering QuizInterface', {
+      showQuiz,
+      questionsCount: quizQuestions.length,
+      completed: quizCompleted,
+    });
 
     const currentQuestion = quizQuestions[currentQuestionIndex];
     const progress = ((currentQuestionIndex + 1) / quizQuestions.length) * 100;
@@ -2280,12 +2406,7 @@ export function ProgressScreen() {
             )}
 
             <XStack gap={12}>
-              <Button
-                flex={1}
-                backgroundColor="#333"
-                onPress={closeQuiz}
-                borderRadius={12}
-              >
+              <Button flex={1} backgroundColor="#333" onPress={closeQuiz} borderRadius={12}>
                 Back to Exercise
               </Button>
               <Button
@@ -2325,14 +2446,14 @@ export function ProgressScreen() {
             <TouchableOpacity onPress={closeQuiz}>
               <Feather name="arrow-left" size={28} color="#fff" />
             </TouchableOpacity>
-            
+
             <YStack alignItems="center">
               <Text fontSize={16} fontWeight="bold" color="$color">
                 Quiz: {selectedExercise?.title.en}
               </Text>
               <Text fontSize={14} color="$gray11">
-                Question {currentQuestionIndex + 1} of {quizQuestions.length} |{' '}
-                Score: {quizScore.correct}/{quizScore.total}
+                Question {currentQuestionIndex + 1} of {quizQuestions.length} | Score:{' '}
+                {quizScore.correct}/{quizScore.total}
               </Text>
             </YStack>
 
@@ -2346,10 +2467,10 @@ export function ProgressScreen() {
           {/* Progress Bar */}
           <View style={{ padding: 16 }}>
             <View
-          style={{
+              style={{
                 width: '100%',
                 height: 4,
-            backgroundColor: '#333',
+                backgroundColor: '#333',
                 borderRadius: 2,
                 overflow: 'hidden',
               }}
@@ -2402,7 +2523,7 @@ export function ProgressScreen() {
 
                 let backgroundColor = 'rgba(255, 255, 255, 0.05)';
                 let borderColor = 'rgba(255, 255, 255, 0.2)';
-                
+
                 if (showFeedback) {
                   if (isCorrect || isCorrectAnswer) {
                     backgroundColor = 'rgba(34, 197, 94, 0.2)';
@@ -2419,7 +2540,7 @@ export function ProgressScreen() {
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
-            padding: 16,
+                      padding: 16,
                       borderRadius: 8,
                       borderWidth: 1,
                       backgroundColor,
@@ -2433,21 +2554,21 @@ export function ProgressScreen() {
                       style={{
                         width: 24,
                         height: 24,
-            borderRadius: 12,
+                        borderRadius: 12,
                         borderWidth: 2,
                         borderColor: isSelected ? '#00E6C3' : '#666',
                         backgroundColor: isSelected ? '#00E6C3' : 'transparent',
                         marginRight: 12,
-            alignItems: 'center',
+                        alignItems: 'center',
                         justifyContent: 'center',
-          }}
-        >
+                      }}
+                    >
                       {isSelected && <Feather name="check" size={16} color="#fff" />}
                     </View>
-                    
+
                     <Text fontSize={16} color="$color" flex={1}>
                       {answer.answer_text.en}
-          </Text>
+                    </Text>
 
                     {showFeedback && (isCorrect || isCorrectAnswer) && (
                       <Feather name="check-circle" size={20} color="#22C55E" />
@@ -2455,10 +2576,10 @@ export function ProgressScreen() {
                     {showFeedback && isIncorrect && (
                       <Feather name="x-circle" size={20} color="#EF4444" />
                     )}
-        </TouchableOpacity>
+                  </TouchableOpacity>
                 );
               })}
-      </YStack>
+            </YStack>
 
             {/* Explanation */}
             {feedback && currentQuestion.explanation_text?.en && (
@@ -2595,7 +2716,7 @@ export function ProgressScreen() {
 
     return (
       <YStack flex={1} backgroundColor="$background">
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
           refreshControl={
             <RefreshControl
@@ -2703,9 +2824,9 @@ export function ProgressScreen() {
                   Quiz
                 </Text>
               </XStack>
-              
+
               <QuizStatisticsDisplay stats={quizStatistics} />
-              
+
               <Button
                 backgroundColor="#00E6C3"
                 color="#000"
@@ -2962,7 +3083,9 @@ export function ProgressScreen() {
                                   <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
                                     {repeatNumber}/{selectedExercise.repeat_count}
                                   </Text>
-                                  {isDone && <Feather name="check-circle" size={18} color="#00E6C3" />}
+                                  {isDone && (
+                                    <Feather name="check-circle" size={18} color="#00E6C3" />
+                                  )}
                                 </XStack>
                               </TouchableOpacity>
                             );
@@ -3036,16 +3159,16 @@ export function ProgressScreen() {
                 onPress={() => {
                   // Toggle main exercise
                   toggleCompletion(selectedExercise.id);
-                  
+
                   // Also toggle all virtual repeats if this exercise has repeats
                   if (selectedExercise.repeat_count && selectedExercise.repeat_count > 1) {
                     const shouldMarkDone = !isDone; // If main is becoming done, mark all virtual repeats as done
-                    
+
                     // Generate all virtual repeat IDs
                     for (let i = 2; i <= selectedExercise.repeat_count; i++) {
                       const virtualId = `${selectedExercise.id}-virtual-${i}`;
                       const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
-                      
+
                       // Only toggle if virtual repeat state doesn't match desired state
                       if (shouldMarkDone && !isVirtualDone) {
                         toggleVirtualRepeatCompletion(virtualId);
@@ -3154,7 +3277,7 @@ export function ProgressScreen() {
 
     return (
       <YStack flex={1} backgroundColor="$background">
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
           refreshControl={
             <RefreshControl
@@ -3324,78 +3447,78 @@ export function ProgressScreen() {
                   // Process exercises: show all exercises and create virtual repeats for UI
                   let displayIndex = 0;
 
-                                     return exercises.map((exercise) => {
-                     displayIndex++;
-                     
-                     const main = exercise;
+                  return exercises.map((exercise) => {
+                    displayIndex++;
 
-                     // Main exercise logic
-                     const mainIsDone = completedIds.includes(main.id);
-                     const mainIsPasswordLocked = isExercisePasswordLocked(main);
+                    const main = exercise;
+
+                    // Main exercise logic
+                    const mainIsDone = completedIds.includes(main.id);
+                    const mainIsPasswordLocked = isExercisePasswordLocked(main);
 
                     // More permissive access - only block if password-locked
                     const mainIsAvailable = !mainIsPasswordLocked;
 
-                  return (
+                    return (
                       <YStack key={main.id} marginBottom={16}>
                         {/* Main Exercise */}
                         <TouchableOpacity onPress={() => setSelectedExercise(main)}>
                           <XStack alignItems="center" gap={12}>
-                        <TouchableOpacity
-                          onPress={(e) => {
-                            e.stopPropagation();
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
                                 if (mainIsAvailable) {
                                   toggleCompletion(main.id);
-                            }
-                          }}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 6,
-                            borderWidth: 2,
+                                }
+                              }}
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 6,
+                                borderWidth: 2,
                                 borderColor: mainIsDone ? '#00E6C3' : '#888',
                                 backgroundColor: mainIsDone ? '#00E6C3' : 'transparent',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginRight: 8,
-                          }}
-                        >
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginRight: 8,
+                              }}
+                            >
                               {mainIsDone && <Feather name="check" size={20} color="#fff" />}
-                        </TouchableOpacity>
-                        <Card
-                          padding={16}
-                          borderRadius={16}
-                          backgroundColor="$backgroundStrong"
-                          flex={1}
-                        >
-                          <XStack justifyContent="space-between" alignItems="center">
-                            <XStack alignItems="center" gap={8} flex={1}>
-                              <Text
-                                fontSize={18}
-                                fontWeight="bold"
-                                color="$color"
-                                numberOfLines={1}
-                              >
+                            </TouchableOpacity>
+                            <Card
+                              padding={16}
+                              borderRadius={16}
+                              backgroundColor="$backgroundStrong"
+                              flex={1}
+                            >
+                              <XStack justifyContent="space-between" alignItems="center">
+                                <XStack alignItems="center" gap={8} flex={1}>
+                                  <Text
+                                    fontSize={18}
+                                    fontWeight="bold"
+                                    color="$color"
+                                    numberOfLines={1}
+                                  >
                                     {displayIndex}.{' '}
                                     {main.title?.[lang] || main.title?.en || 'Untitled'}
-                              </Text>
-
-                                   {/* Show repeat count if it has repeats */}
-                                   {main.repeat_count && main.repeat_count > 1 && (
-                                <XStack
-                                  backgroundColor="#4B6BFF"
-                                  paddingHorizontal={8}
-                                  paddingVertical={4}
-                                  borderRadius={12}
-                                  alignItems="center"
-                                  gap={4}
-                                >
-                                  <Feather name="repeat" size={14} color="white" />
-                                  <Text fontSize={12} color="white" fontWeight="bold">
-                                         {main.repeat_count}x
                                   </Text>
-                                </XStack>
-                              )}
+
+                                  {/* Show repeat count if it has repeats */}
+                                  {main.repeat_count && main.repeat_count > 1 && (
+                                    <XStack
+                                      backgroundColor="#4B6BFF"
+                                      paddingHorizontal={8}
+                                      paddingVertical={4}
+                                      borderRadius={12}
+                                      alignItems="center"
+                                      gap={4}
+                                    >
+                                      <Feather name="repeat" size={14} color="white" />
+                                      <Text fontSize={12} color="white" fontWeight="bold">
+                                        {main.repeat_count}x
+                                      </Text>
+                                    </XStack>
+                                  )}
 
                                   {/* Show quiz indicator if exercise has quiz */}
                                   {hasQuizQuestions[main.id] && (
@@ -3413,27 +3536,27 @@ export function ProgressScreen() {
                                       </Text>
                                     </XStack>
                                   )}
-                            </XStack>
+                                </XStack>
 
-                            {/* Show appropriate icon based on state - LOCK gets priority */}
-                                 {mainIsPasswordLocked ? (
-                              <MaterialIcons name="lock" size={20} color="#FF9500" />
-                                 ) : mainIsDone ? (
-                              <Feather name="check-circle" size={20} color="#00E6C3" />
-                            ) : null}
+                                {/* Show appropriate icon based on state - LOCK gets priority */}
+                                {mainIsPasswordLocked ? (
+                                  <MaterialIcons name="lock" size={20} color="#FF9500" />
+                                ) : mainIsDone ? (
+                                  <Feather name="check-circle" size={20} color="#00E6C3" />
+                                ) : null}
+                              </XStack>
+
+                              {main.description?.[lang] && (
+                                <Text color="$gray11" marginTop={4}>
+                                  {main.description[lang]}
+                                </Text>
+                              )}
+                              <RepeatProgressBar exercise={main} />
+                            </Card>
                           </XStack>
-
-                               {main.description?.[lang] && (
-                            <Text color="$gray11" marginTop={4}>
-                                   {main.description[lang]}
-                            </Text>
-                          )}
-                          <RepeatProgressBar exercise={main} />
-                        </Card>
-                      </XStack>
-                    </TouchableOpacity>
-                       </YStack>
-                  );
+                        </TouchableOpacity>
+                      </YStack>
+                    );
                   });
                 })()
               )}
@@ -3446,7 +3569,7 @@ export function ProgressScreen() {
 
   return (
     <YStack flex={1} backgroundColor="$background" padding={0}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
         refreshControl={
           <RefreshControl
@@ -3468,9 +3591,9 @@ export function ProgressScreen() {
         >
           <XStack alignItems="center" justifyContent="space-between">
             <Text fontSize={16} fontWeight="bold" color="$color">
-              Filter Learning Paths
+              {t('progress.filterLearningPaths')}
             </Text>
-            
+
             <TouchableOpacity
               onPress={() => setShowAllExercises(!showAllExercises)}
               style={{
@@ -3483,17 +3606,13 @@ export function ProgressScreen() {
                 gap: 6,
               }}
             >
-              <Feather 
-                name={showAllExercises ? "list" : "plus"} 
-                size={14} 
-                color={showAllExercises ? "white" : "#888"} 
+              <Feather
+                name={showAllExercises ? 'list' : 'plus'}
+                size={14}
+                color={showAllExercises ? 'white' : '#888'}
               />
-              <Text 
-                fontSize={12} 
-                fontWeight="600" 
-                color={showAllExercises ? "white" : "#888"}
-              >
-                {showAllExercises ? "All Exercises" : "Show All"}
+              <Text fontSize={12} fontWeight="600" color={showAllExercises ? 'white' : '#888'}>
+                {showAllExercises ? 'All Exercises' : 'Show All'}
               </Text>
             </TouchableOpacity>
           </XStack>
@@ -3554,8 +3673,8 @@ export function ProgressScreen() {
                 All Available Exercises ({allAvailableExercises.length})
               </Text>
               <Text fontSize={12} color="$gray11">
-                Database: {allAvailableExercises.filter(e => e.source === 'database').length} | 
-                Custom: {allAvailableExercises.filter(e => e.source === 'custom_route').length}
+                Database: {allAvailableExercises.filter((e) => e.source === 'database').length} |
+                Custom: {allAvailableExercises.filter((e) => e.source === 'custom_route').length}
               </Text>
             </XStack>
 
@@ -3573,7 +3692,7 @@ export function ProgressScreen() {
                     key={`${exercise.source}-${exercise.id}`}
                     onPress={() => {
                       console.log('🎯 [ProgressScreen] Exercise selected:', exercise);
-                      
+
                       if (exercise.source === 'database') {
                         // For database exercises, navigate to RouteExerciseScreen for full experience
                         const exerciseForRoute = {
@@ -3590,12 +3709,12 @@ export function ProgressScreen() {
                           source: 'learning_path',
                           repeat_count: exercise.repeat_count || 1,
                           has_quiz: exercise.has_quiz || false,
-                          quiz_data: false
+                          quiz_data: false,
                         };
 
                         // Generate a proper UUID for single exercise (using a predictable pattern)
                         const singleExerciseRouteId = `00000000-0000-0000-0000-${exercise.id.replace(/-/g, '').substring(0, 12)}`;
-                        
+
                         (navigation as any).navigate('RouteExercise', {
                           routeId: singleExerciseRouteId,
                           exercises: [exerciseForRoute],
@@ -3613,10 +3732,13 @@ export function ProgressScreen() {
                               text: 'View Route',
                               onPress: () => {
                                 // Navigate to route detail - we'd need the route ID
-                                Alert.alert('Info', 'Route navigation will be added in a future update');
-                              }
-                            }
-                          ]
+                                Alert.alert(
+                                  'Info',
+                                  'Route navigation will be added in a future update',
+                                );
+                              },
+                            },
+                          ],
                         );
                       }
                     }}
@@ -3634,10 +3756,16 @@ export function ProgressScreen() {
                           {exercise.title[lang] || exercise.title.en || 'No title'}
                         </Text>
                         <Text fontSize={12} color="$gray11" numberOfLines={2} marginTop={2}>
-                          {exercise.description[lang] || exercise.description.en || 'No description'}
+                          {exercise.description[lang] ||
+                            exercise.description.en ||
+                            'No description'}
                         </Text>
                         <XStack alignItems="center" gap={8} marginTop={4}>
-                          <Text fontSize={10} color={exercise.source === 'database' ? '#4B6BFF' : '#FF6B4B'} fontWeight="600">
+                          <Text
+                            fontSize={10}
+                            color={exercise.source === 'database' ? '#4B6BFF' : '#FF6B4B'}
+                            fontWeight="600"
+                          >
                             {exercise.source === 'database' ? 'DATABASE' : 'CUSTOM'}
                           </Text>
                           {exercise.route_name && (
@@ -3648,13 +3776,17 @@ export function ProgressScreen() {
                           {exercise.has_quiz && (
                             <XStack alignItems="center" gap={2}>
                               <Feather name="help-circle" size={10} color="#8B5CF6" />
-                              <Text fontSize={10} color="#8B5CF6">QUIZ</Text>
+                              <Text fontSize={10} color="#8B5CF6">
+                                QUIZ
+                              </Text>
                             </XStack>
                           )}
                           {exercise.repeat_count && exercise.repeat_count > 1 && (
                             <XStack alignItems="center" gap={2}>
                               <Feather name="repeat" size={10} color="#F59E0B" />
-                              <Text fontSize={10} color="#F59E0B">{exercise.repeat_count}x</Text>
+                              <Text fontSize={10} color="#F59E0B">
+                                {exercise.repeat_count}x
+                              </Text>
                             </XStack>
                           )}
                         </XStack>
@@ -3683,168 +3815,168 @@ export function ProgressScreen() {
               </YStack>
             ) : (
               filteredPaths.map((path, idx) => {
-            const isActive = activePath === path.id;
-            const percent = getPathProgress(path.id);
+                const isActive = activePath === path.id;
+                const percent = getPathProgress(path.id);
 
-            // More permissive access - only block if password-locked
-            const isPasswordLocked = isPathPasswordLocked(path);
-            const hasPassword = pathHasPassword(path);
-            const isEnabled = !isPasswordLocked; // Much more permissive
+                // More permissive access - only block if password-locked
+                const isPasswordLocked = isPathPasswordLocked(path);
+                const hasPassword = pathHasPassword(path);
+                const isEnabled = !isPasswordLocked; // Much more permissive
 
-            return (
-              <TouchableOpacity
-                key={path.id}
-                onPress={() => handlePathPress(path, idx)}
-                activeOpacity={0.8}
-                style={{
-                  marginBottom: 20,
-                  opacity: isEnabled ? 1 : 0.5,
-                  borderWidth: isPasswordLocked ? 2 : 0,
-                  borderColor: isPasswordLocked ? '#FF9500' : 'transparent',
-                  borderRadius: 24,
-                  shadowColor: isPasswordLocked ? '#FF9500' : 'transparent',
-                  shadowOpacity: isPasswordLocked ? 0.3 : 0,
-                  shadowRadius: isPasswordLocked ? 8 : 0,
-                  shadowOffset: { width: 0, height: 0 },
-                }}
-              >
-                <Card
-                  backgroundColor={
-                    isActive ? '$blue5' : isPasswordLocked ? '#331800' : '$backgroundStrong'
-                  }
-                  padding={20}
-                  borderRadius={20}
-                  elevate
-                >
-                  <XStack alignItems="center" gap={16}>
-                    <View
-                      style={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: 16,
-                        backgroundColor: isActive
-                          ? '#00E6C3'
-                          : isPasswordLocked
-                            ? '#FF9500'
-                            : '#222',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
+                return (
+                  <TouchableOpacity
+                    key={path.id}
+                    onPress={() => handlePathPress(path, idx)}
+                    activeOpacity={0.8}
+                    style={{
+                      marginBottom: 20,
+                      opacity: isEnabled ? 1 : 0.5,
+                      borderWidth: isPasswordLocked ? 2 : 0,
+                      borderColor: isPasswordLocked ? '#FF9500' : 'transparent',
+                      borderRadius: 24,
+                      shadowColor: isPasswordLocked ? '#FF9500' : 'transparent',
+                      shadowOpacity: isPasswordLocked ? 0.3 : 0,
+                      shadowRadius: isPasswordLocked ? 8 : 0,
+                      shadowOffset: { width: 0, height: 0 },
+                    }}
+                  >
+                    <Card
+                      backgroundColor={
+                        isActive ? '$blue5' : isPasswordLocked ? '#331800' : '$backgroundStrong'
+                      }
+                      padding={20}
+                      borderRadius={20}
+                      elevate
                     >
-                      {isPasswordLocked ? (
-                        <MaterialIcons name="lock" size={30} color="#fff" />
-                      ) : (
-                        <>
-                          {/* Progress circle with percent */}
-                          <ProgressCircle
-                            percent={percent}
-                            size={40}
-                            color="#fff"
-                            bg={isActive ? '#00E6C3' : '#222'}
-                          />
-                          <Text
-                            style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: 40,
-                              height: 40,
-                              textAlign: 'center',
-                              textAlignVertical: 'center',
-                              lineHeight: 40,
-                            }}
-                            color={isActive ? '$color' : '$gray11'}
-                            fontWeight="bold"
-                          >
-                            {Math.round(percent * 100)}%
-                          </Text>
-                        </>
-                      )}
-                    </View>
-                    <YStack flex={1}>
-                      <XStack alignItems="center" gap={8}>
-                        <Text
-                          fontSize={20}
-                          fontWeight={isActive ? 'bold' : '600'}
-                          color={isActive ? '$color' : isPasswordLocked ? '#FF9500' : '$color'}
+                      <XStack alignItems="center" gap={16}>
+                        <View
+                          style={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: 16,
+                            backgroundColor: isActive
+                              ? '#00E6C3'
+                              : isPasswordLocked
+                                ? '#FF9500'
+                                : '#222',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
                         >
-                          {idx + 1}. {path.title[lang]}
-                        </Text>
-
-                        {/* Show password indicator if needed */}
-                        {isPasswordLocked && hasPassword && (
-                          <XStack
-                            backgroundColor="#FF7300"
-                            paddingHorizontal={8}
-                            paddingVertical={4}
-                            borderRadius={12}
-                            alignItems="center"
-                            gap={4}
-                          >
-                            <MaterialIcons name="vpn-key" size={16} color="white" />
-                            <Text fontSize={12} color="white" fontWeight="bold">
-                              Password
+                          {isPasswordLocked ? (
+                            <MaterialIcons name="lock" size={30} color="#fff" />
+                          ) : (
+                            <>
+                              {/* Progress circle with percent */}
+                              <ProgressCircle
+                                percent={percent}
+                                size={40}
+                                color="#fff"
+                                bg={isActive ? '#00E6C3' : '#222'}
+                              />
+                              <Text
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: 40,
+                                  height: 40,
+                                  textAlign: 'center',
+                                  textAlignVertical: 'center',
+                                  lineHeight: 40,
+                                }}
+                                color={isActive ? '$color' : '$gray11'}
+                                fontWeight="bold"
+                              >
+                                {Math.round(percent * 100)}%
+                              </Text>
+                            </>
+                          )}
+                        </View>
+                        <YStack flex={1}>
+                          <XStack alignItems="center" gap={8}>
+                            <Text
+                              fontSize={20}
+                              fontWeight={isActive ? 'bold' : '600'}
+                              color={isActive ? '$color' : isPasswordLocked ? '#FF9500' : '$color'}
+                            >
+                              {idx + 1}. {path.title[lang]}
                             </Text>
+
+                            {/* Show password indicator if needed */}
+                            {isPasswordLocked && hasPassword && (
+                              <XStack
+                                backgroundColor="#FF7300"
+                                paddingHorizontal={8}
+                                paddingVertical={4}
+                                borderRadius={12}
+                                alignItems="center"
+                                gap={4}
+                              >
+                                <MaterialIcons name="vpn-key" size={16} color="white" />
+                                <Text fontSize={12} color="white" fontWeight="bold">
+                                  Password
+                                </Text>
+                              </XStack>
+                            )}
                           </XStack>
-                        )}
+
+                          <Text color="$gray11" fontSize={14} marginTop={2}>
+                            {path.description[lang]}
+                          </Text>
+
+                          {/* Category displays */}
+                          <XStack flexWrap="wrap" marginTop={4} gap={4}>
+                            {path.vehicle_type && (
+                              <Text fontSize={12} color="$blue10">
+                                {path.vehicle_type}
+                                {path.transmission_type ? ' • ' : ''}
+                              </Text>
+                            )}
+
+                            {path.transmission_type && (
+                              <Text fontSize={12} color="$blue10">
+                                {path.transmission_type}
+                                {path.license_type ? ' • ' : ''}
+                              </Text>
+                            )}
+
+                            {path.license_type && (
+                              <Text fontSize={12} color="$blue10">
+                                {path.license_type}
+                                {path.experience_level ? ' • ' : ''}
+                              </Text>
+                            )}
+
+                            {path.experience_level && (
+                              <Text fontSize={12} color="$blue10">
+                                {path.experience_level}
+                                {path.purpose ? ' • ' : ''}
+                              </Text>
+                            )}
+
+                            {path.purpose && (
+                              <Text fontSize={12} color="$blue10">
+                                {path.purpose}
+                                {path.user_profile ? ' • ' : ''}
+                              </Text>
+                            )}
+
+                            {path.user_profile && (
+                              <Text fontSize={12} color="$blue10">
+                                {path.user_profile}
+                              </Text>
+                            )}
+                          </XStack>
+                        </YStack>
                       </XStack>
-
-                      <Text color="$gray11" fontSize={14} marginTop={2}>
-                        {path.description[lang]}
-                      </Text>
-
-                      {/* Category displays */}
-                      <XStack flexWrap="wrap" marginTop={4} gap={4}>
-                        {path.vehicle_type && (
-                          <Text fontSize={12} color="$blue10">
-                            {path.vehicle_type}
-                            {path.transmission_type ? ' • ' : ''}
-                          </Text>
-                        )}
-
-                        {path.transmission_type && (
-                          <Text fontSize={12} color="$blue10">
-                            {path.transmission_type}
-                            {path.license_type ? ' • ' : ''}
-                          </Text>
-                        )}
-
-                        {path.license_type && (
-                          <Text fontSize={12} color="$blue10">
-                            {path.license_type}
-                            {path.experience_level ? ' • ' : ''}
-                          </Text>
-                        )}
-
-                        {path.experience_level && (
-                          <Text fontSize={12} color="$blue10">
-                            {path.experience_level}
-                            {path.purpose ? ' • ' : ''}
-                          </Text>
-                        )}
-
-                        {path.purpose && (
-                          <Text fontSize={12} color="$blue10">
-                            {path.purpose}
-                            {path.user_profile ? ' • ' : ''}
-                          </Text>
-                        )}
-
-                        {path.user_profile && (
-                          <Text fontSize={12} color="$blue10">
-                            {path.user_profile}
-                          </Text>
-                        )}
-                      </XStack>
-                    </YStack>
-                  </XStack>
-                </Card>
-              </TouchableOpacity>
-            );
-          })
+                    </Card>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </>
         )}
-        </>
-      )}
       </ScrollView>
     </YStack>
   );

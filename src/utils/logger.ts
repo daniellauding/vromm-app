@@ -34,7 +34,7 @@ class Logger {
   // Get memory information
   getMemoryInfo(screen?: string): MemoryInfo {
     const timestamp = Date.now();
-    
+
     if (Platform.OS === 'web' && (global as any).performance?.memory) {
       const memory = (global as any).performance.memory;
       return {
@@ -58,7 +58,7 @@ class Logger {
   log(level: 'info' | 'warn' | 'error' | 'debug', message: string, data?: any, screen?: string) {
     const timestamp = new Date().toISOString();
     const memory = this.getMemoryInfo(screen);
-    
+
     const logEntry = {
       level,
       message,
@@ -77,10 +77,10 @@ class Logger {
     }
 
     // Also log to console with memory info
-    const memoryStr = memory.usedJSHeapSize 
+    const memoryStr = memory.usedJSHeapSize
       ? `[Memory: ${(memory.usedJSHeapSize / 1024 / 1024).toFixed(1)}MB]`
       : '[Memory: N/A]';
-    
+
     const screenStr = screen ? `[${screen}]` : '';
     const fullMessage = `${screenStr} ${memoryStr} ${message}`;
 
@@ -108,7 +108,7 @@ class Logger {
   // Navigation logging
   logNavigation(from: string, to: string) {
     const memoryBefore = this.getMemoryInfo(from);
-    
+
     // Small delay to capture memory after navigation
     setTimeout(() => {
       const memoryAfter = this.getMemoryInfo(to);
@@ -119,15 +119,16 @@ class Logger {
         memoryBefore,
         memoryAfter,
       };
-      
+
       this.navigationLogs.push(navLog);
       if (this.navigationLogs.length > 50) {
         this.navigationLogs = this.navigationLogs.slice(-50);
       }
 
-      const memoryDiff = memoryAfter.usedJSHeapSize && memoryBefore.usedJSHeapSize
-        ? ((memoryAfter.usedJSHeapSize - memoryBefore.usedJSHeapSize) / 1024 / 1024).toFixed(1)
-        : 'N/A';
+      const memoryDiff =
+        memoryAfter.usedJSHeapSize && memoryBefore.usedJSHeapSize
+          ? ((memoryAfter.usedJSHeapSize - memoryBefore.usedJSHeapSize) / 1024 / 1024).toFixed(1)
+          : 'N/A';
 
       this.log('info', `Navigation: ${from} → ${to} | Memory diff: ${memoryDiff}MB`, navLog, to);
     }, 100);
@@ -138,7 +139,7 @@ class Logger {
     const endTime = Date.now();
     const duration = endTime - startTime;
     const memory = this.getMemoryInfo(screen);
-    
+
     const perfLog: PerformanceLog = {
       screen,
       action,
@@ -174,12 +175,17 @@ class Logger {
 
   // Error logging with context
   logError(error: Error, context?: string, screen?: string) {
-    this.log('error', `Error${context ? ` in ${context}` : ''}: ${error.message}`, {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      context,
-    }, screen);
+    this.log(
+      'error',
+      `Error${context ? ` in ${context}` : ''}: ${error.message}`,
+      {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        context,
+      },
+      screen,
+    );
   }
 
   // Memory warning
@@ -226,10 +232,10 @@ class Logger {
 export const logger = new Logger();
 
 // Convenience methods
-export const logInfo = (message: string, data?: any, screen?: string) => 
+export const logInfo = (message: string, data?: any, screen?: string) =>
   logger.log('info', message, data, screen);
 
-export const logWarn = (message: string, data?: any, screen?: string) => 
+export const logWarn = (message: string, data?: any, screen?: string) =>
   logger.log('warn', message, data, screen);
 
 export const logError = (messageOrError: string | Error, data?: any, screen?: string) => {
@@ -242,26 +248,20 @@ export const logError = (messageOrError: string | Error, data?: any, screen?: st
   }
 };
 
-export const logDebug = (message: string, data?: any, screen?: string) => 
+export const logDebug = (message: string, data?: any, screen?: string) =>
   logger.log('debug', message, data, screen);
 
-export const logNavigation = (from: string, to: string) => 
-  logger.logNavigation(from, to);
+export const logNavigation = (from: string, to: string) => logger.logNavigation(from, to);
 
-export const logPerformance = (screen: string, action: string, startTime: number) => 
+export const logPerformance = (screen: string, action: string, startTime: number) =>
   logger.logPerformance(screen, action, startTime);
 
-export const logScreenMount = (screenName: string) => 
-  logger.logScreenMount(screenName);
+export const logScreenMount = (screenName: string) => logger.logScreenMount(screenName);
 
-export const logScreenUnmount = (screenName: string) => 
-  logger.logScreenUnmount(screenName);
+export const logScreenUnmount = (screenName: string) => logger.logScreenUnmount(screenName);
 
-export const logScreenFocus = (screenName: string) => 
-  logger.logScreenFocus(screenName);
+export const logScreenFocus = (screenName: string) => logger.logScreenFocus(screenName);
 
-export const logScreenBlur = (screenName: string) => 
-  logger.logScreenBlur(screenName);
+export const logScreenBlur = (screenName: string) => logger.logScreenBlur(screenName);
 
-export const getCrashReport = () => 
-  logger.getCrashReport();
+export const getCrashReport = () => logger.getCrashReport();

@@ -67,16 +67,20 @@ export function PublicProfileScreen() {
     currentTitle: '',
   });
   const [showAdminControls, setShowAdminControls] = useState(false);
-  
+
   // Follow/Unfollow system state
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
-  
+
   // Relationship data
-  const [supervisors, setSupervisors] = useState<Array<{supervisor_id: string; supervisor_name: string; supervisor_email: string}>>([]);
-  const [schools, setSchools] = useState<Array<{school_id: string; school_name: string; school_location: string}>>([]);
+  const [supervisors, setSupervisors] = useState<
+    Array<{ supervisor_id: string; supervisor_name: string; supervisor_email: string }>
+  >([]);
+  const [schools, setSchools] = useState<
+    Array<{ school_id: string; school_name: string; school_location: string }>
+  >([]);
 
   useEffect(() => {
     loadProfile();
@@ -230,10 +234,7 @@ export function PublicProfileScreen() {
           .limit(3),
 
         // Get all routes created by user for driving stats calculation
-        supabase
-          .from('routes')
-          .select('description, metadata')
-          .eq('creator_id', userId),
+        supabase.from('routes').select('description, metadata').eq('creator_id', userId),
 
         // Get all routes driven by user (via driven_routes table)
         supabase
@@ -252,31 +253,31 @@ export function PublicProfileScreen() {
       // Calculate driving statistics from both created and driven routes
       const createdRoutes = counts[7].data || [];
       const drivenRoutesData = counts[8].data || [];
-      
+
       // Extract actual route data from driven_routes (which has nested route data)
       const drivenRoutes = drivenRoutesData
         .map((dr: any) => dr.route)
         .filter((route: any) => route !== null);
-      
+
       // Combine all routes (avoid duplicates by checking route content)
       const allRoutesMap = new Map();
-      
+
       // Add created routes
       createdRoutes.forEach((route: any) => {
         if (route.description) {
           allRoutesMap.set(route.description, route);
         }
       });
-      
+
       // Add driven routes (may include duplicates if user created and drove same route)
       drivenRoutes.forEach((route: any) => {
         if (route && route.description) {
           allRoutesMap.set(route.description, route);
         }
       });
-      
+
       const allUniqueRoutes = Array.from(allRoutesMap.values());
-      
+
       let totalDistanceDriven = 0; // in km
       let totalDurationDriven = 0; // in seconds
       let recordedRoutesCount = 0;
@@ -292,17 +293,17 @@ export function PublicProfileScreen() {
         console.log(`🚗 Processing route ${index + 1}:`, {
           hasDescription: !!route.description,
           description: route.description?.substring(0, 100) + '...',
-          isRecorded: isRecordedRoute(route)
+          isRecorded: isRecordedRoute(route),
         });
-        
+
         // Check if this is a recorded route
         if (isRecordedRoute(route)) {
           recordedRoutesCount++;
-          
+
           // Parse recording stats from description
           const recordingStats = parseRecordingStats(route.description || '');
           console.log(`🚗 Route ${index + 1} recording stats:`, recordingStats);
-          
+
           if (recordingStats) {
             // Parse distance (format: "X.XX km")
             const distanceMatch = recordingStats.distance.match(/([0-9.]+)/);
@@ -311,22 +312,24 @@ export function PublicProfileScreen() {
               totalDistanceDriven += distance;
               console.log(`🚗 Added distance: ${distance} km`);
             }
-            
+
             // Parse duration (format: "HH:MM" or "MM:SS")
             const durationParts = recordingStats.drivingTime.split(':');
             if (durationParts.length === 2) {
               const minutes = parseInt(durationParts[0]);
               const seconds = parseInt(durationParts[1]);
-              const duration = (minutes * 60) + seconds;
+              const duration = minutes * 60 + seconds;
               totalDurationDriven += duration;
               console.log(`🚗 Added duration: ${duration} seconds (${minutes}m ${seconds}s)`);
             } else if (durationParts.length === 3) {
               const hours = parseInt(durationParts[0]);
               const minutes = parseInt(durationParts[1]);
               const seconds = parseInt(durationParts[2]);
-              const duration = (hours * 3600) + (minutes * 60) + seconds;
+              const duration = hours * 3600 + minutes * 60 + seconds;
               totalDurationDriven += duration;
-              console.log(`🚗 Added duration: ${duration} seconds (${hours}h ${minutes}m ${seconds}s)`);
+              console.log(
+                `🚗 Added duration: ${duration} seconds (${hours}h ${minutes}m ${seconds}s)`,
+              );
             }
           }
         }
@@ -339,7 +342,7 @@ export function PublicProfileScreen() {
         recordedRoutesCount,
         createdRoutesProcessed: createdRoutes.length,
         drivenRoutesProcessed: drivenRoutes.length,
-        uniqueRoutesProcessed: allUniqueRoutes.length
+        uniqueRoutesProcessed: allUniqueRoutes.length,
       });
 
       // Create complete profile object with driving stats
@@ -408,9 +411,8 @@ export function PublicProfileScreen() {
     try {
       // Check if conversation already exists
       const conversations = await messageService.getConversations();
-      const existingConversation = conversations.find(conv => 
-        !conv.is_group && 
-        conv.participants?.some(p => p.user_id === profile.id)
+      const existingConversation = conversations.find(
+        (conv) => !conv.is_group && conv.participants?.some((p) => p.user_id === profile.id),
       );
 
       if (existingConversation) {
@@ -434,20 +436,24 @@ export function PublicProfileScreen() {
       if (!userId) return;
 
       // Get supervisors using the RPC function
-      const { data: supervisorsData, error: supervisorsError } = await supabase
-        .rpc('get_user_supervisor_details', { target_user_id: userId });
+      const { data: supervisorsData, error: supervisorsError } = await supabase.rpc(
+        'get_user_supervisor_details',
+        { target_user_id: userId },
+      );
 
       // Get schools using direct table query since the function doesn't exist
       const { data: schoolsData, error: schoolsError } = await supabase
         .from('school_memberships')
-        .select(`
+        .select(
+          `
           school_id,
           schools!inner(
             id,
             name,
             location
           )
-        `)
+        `,
+        )
         .eq('user_id', userId);
 
       if (supervisorsError) {
@@ -457,11 +463,13 @@ export function PublicProfileScreen() {
       }
 
       // Transform school data to match expected format
-      const transformedSchools = schoolsError ? [] : schoolsData?.map(membership => ({
-        school_id: membership.school_id,
-        school_name: membership.schools.name,
-        school_location: membership.schools.location
-      })) || [];
+      const transformedSchools = schoolsError
+        ? []
+        : schoolsData?.map((membership) => ({
+            school_id: membership.school_id,
+            school_name: membership.schools.name,
+            school_location: membership.schools.location,
+          })) || [];
 
       if (schoolsError) {
         console.error('Error fetching user schools:', schoolsError);
@@ -522,7 +530,7 @@ export function PublicProfileScreen() {
   const handleFollow = async () => {
     try {
       if (!user?.id || !userId || followLoading) return;
-      
+
       setFollowLoading(true);
 
       if (isFollowing) {
@@ -536,21 +544,21 @@ export function PublicProfileScreen() {
         if (error) throw error;
 
         setIsFollowing(false);
-        setFollowersCount(prev => prev - 1);
+        setFollowersCount((prev) => prev - 1);
         console.log('👤 User unfollowed');
       } else {
         // Follow
-        const { error } = await supabase
-          .from('user_follows')
-          .insert([{
+        const { error } = await supabase.from('user_follows').insert([
+          {
             follower_id: user.id,
             following_id: userId,
-          }]);
+          },
+        ]);
 
         if (error) throw error;
 
         setIsFollowing(true);
-        setFollowersCount(prev => prev + 1);
+        setFollowersCount((prev) => prev + 1);
         console.log('👤 User followed');
       }
     } catch (error) {
@@ -635,7 +643,7 @@ export function PublicProfileScreen() {
     );
   }
 
-              // Helper function to format driving time
+  // Helper function to format driving time
   const formatDrivingTime = (seconds: number): string => {
     if (seconds < 60) return `${seconds}s`;
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
@@ -669,31 +677,37 @@ export function PublicProfileScreen() {
                 <Button
                   onPress={handleFollow}
                   disabled={followLoading}
-                  variant={isFollowing ? "secondary" : "primary"}
-                  backgroundColor={isFollowing ? "$red5" : "$blue10"}
+                  variant={isFollowing ? 'secondary' : 'primary'}
+                  backgroundColor={isFollowing ? '$red5' : '$blue10'}
                   size="sm"
                   flexShrink={1}
                 >
                   <XStack gap="$1" alignItems="center">
                     {followLoading ? (
-                      <Text color={isFollowing ? "$red11" : "white"} fontSize="$3">
+                      <Text color={isFollowing ? '$red11' : 'white'} fontSize="$3">
                         {t('profile.loading') || '...'}
                       </Text>
                     ) : (
                       <>
-                        <Feather 
-                          name={isFollowing ? "user-minus" : "user-plus"} 
-                          size={14} 
-                          color={isFollowing ? "#EF4444" : "white"} 
+                        <Feather
+                          name={isFollowing ? 'user-minus' : 'user-plus'}
+                          size={14}
+                          color={isFollowing ? '#EF4444' : 'white'}
                         />
-                        <Text color={isFollowing ? "$red11" : "white"} fontSize="$2" fontWeight="500">
-                          {isFollowing ? (t('profile.unfollow') || 'Unfollow') : (t('profile.follow') || 'Follow')}
+                        <Text
+                          color={isFollowing ? '$red11' : 'white'}
+                          fontSize="$2"
+                          fontWeight="500"
+                        >
+                          {isFollowing
+                            ? t('profile.unfollow') || 'Unfollow'
+                            : t('profile.follow') || 'Follow'}
                         </Text>
                       </>
                     )}
                   </XStack>
                 </Button>
-                
+
                 {/* Message Button */}
                 <Button
                   onPress={handleMessage}
@@ -707,7 +721,7 @@ export function PublicProfileScreen() {
                     {t('profile.message') || 'Message'}
                   </Text>
                 </Button>
-                
+
                 {/* Share Button */}
                 <Button
                   onPress={handleShare}
@@ -716,7 +730,7 @@ export function PublicProfileScreen() {
                   size="sm"
                   flexShrink={1}
                 />
-                
+
                 {/* Report Button */}
                 <Button
                   onPress={handleReport}
@@ -732,420 +746,422 @@ export function PublicProfileScreen() {
       />
 
       <YStack padding="$4" gap="$4" paddingBottom="$8">
-          {/* Profile header with avatar */}
-          <YStack alignItems="center" gap="$2">
-            {profile.avatar_url ? (
-              <Image
-                source={{ uri: profile.avatar_url }}
-                style={{ width: 120, height: 120, borderRadius: 60 }}
-              />
-            ) : (
-              <View
-                style={{
-                  width: 120,
-                  height: 120,
-                  borderRadius: 60,
-                  backgroundColor: '#444',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Feather name="user" size={60} color="#ddd" />
-              </View>
-            )}
-
-            <Text fontSize="$6" fontWeight="bold">
-              {profile.full_name || t('profile.unnamed')}
-            </Text>
-
-            {profile.location && (
-              <XStack alignItems="center" gap="$1">
-                <Feather name="map-pin" size={16} color={iconColor} />
-                <Text>{profile.location}</Text>
-              </XStack>
-            )}
-
-            {profile.role && (
-              <Card padding="$2" marginTop="$2" backgroundColor="$blue5" borderRadius="$4">
-                <Text color="$blue11" fontWeight="500">
-                  {profile.role === 'student'
-                    ? t('profile.roles.student') || 'Student'
-                    : profile.role === 'instructor'
-                      ? t('profile.roles.instructor') || 'Instructor'
-                      : t('profile.roles.school') || 'School'}
-                </Text>
-              </Card>
-            )}
-          </YStack>
-
-          {/* Stats Grid - 2x3 layout with driving stats */}
-          <Card padding="$4" bordered>
-            <YStack gap="$4">
-              {/* First row */}
-              <XStack justifyContent="space-between">
-                <YStack alignItems="center" flex={1}>
-                  <Text fontSize="$6" fontWeight="bold">
-                    {profile.routes_created}
-                  </Text>
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {t('profile.routesCreated') || 'Routes Created'}
-                  </Text>
-                </YStack>
-
-                <YStack alignItems="center" flex={1}>
-                  <Text fontSize="$6" fontWeight="bold">
-                    {profile.routes_driven}
-                  </Text>
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {t('profile.routesDriven') || 'Routes Driven'}
-                  </Text>
-                </YStack>
-
-                <YStack alignItems="center" flex={1}>
-                  <Text fontSize="$6" fontWeight="bold">
-                    {profile.routes_saved}
-                  </Text>
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {t('profile.routesSaved') || 'Routes Saved'}
-                  </Text>
-                </YStack>
-              </XStack>
-
-              {/* Second row */}
-              <XStack justifyContent="space-around">
-                <YStack alignItems="center" flex={1}>
-                  <Text fontSize="$6" fontWeight="bold">
-                    {profile.reviews_given}
-                  </Text>
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {t('profile.reviewsGiven') || 'Reviews Given'}
-                  </Text>
-                </YStack>
-
-                <YStack alignItems="center" flex={1}>
-                  <Text fontSize="$6" fontWeight="bold">
-                    {profile.average_rating.toFixed(1)}
-                  </Text>
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {t('profile.avgRating') || 'Avg Rating'}
-                  </Text>
-                </YStack>
-
-                <YStack alignItems="center" flex={1}>
-                  <Text fontSize="$6" fontWeight="bold" color="$green10">
-                    {profile.total_distance_driven.toFixed(1)}
-                  </Text>
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {t('profile.kmDriven') || 'km Driven'}
-                  </Text>
-                </YStack>
-              </XStack>
-
-              {/* Third row - Follow Stats */}
-              <XStack justifyContent="space-around">
-                <YStack alignItems="center" flex={1}>
-                  <Text fontSize="$6" fontWeight="bold" color="$blue10">
-                    {followersCount}
-                  </Text>
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {t('profile.followers') || 'Followers'}
-                  </Text>
-                </YStack>
-
-                <YStack alignItems="center" flex={1}>
-                  <Text fontSize="$6" fontWeight="bold" color="$blue10">
-                    {followingCount}
-                  </Text>
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {t('profile.following') || 'Following'}
-                  </Text>
-                </YStack>
-
-                {/* Empty space for alignment */}
-                <YStack alignItems="center" flex={1}>
-                  <Text fontSize="$6" fontWeight="bold" opacity={0}>
-                    -
-                  </Text>
-                  <Text fontSize="$3" color="$gray11" textAlign="center" opacity={0}>
-                    -
-                  </Text>
-                </YStack>
-              </XStack>
-            </YStack>
-          </Card>
-
-          {/* Driving Statistics Card - Additional detailed stats */}
-          {(profile.recorded_routes_created > 0 || profile.total_distance_driven > 0) && (
-            <Card padding="$4" bordered backgroundColor="$green1">
-              <YStack gap="$3">
-                <XStack alignItems="center" gap="$2">
-                  <Feather name="activity" size={20} color="#22C55E" />
-                  <Text fontSize="$5" fontWeight="bold" color="$green11">
-                    {t('profile.drivingStats') || 'Driving Statistics'}
-                  </Text>
-                </XStack>
-                
-                <XStack justifyContent="space-around">
-                  <YStack alignItems="center" flex={1}>
-                    <Text fontSize="$5" fontWeight="bold" color="$green11">
-                      {profile.recorded_routes_created}
-                    </Text>
-                    <Text fontSize="$3" color="$gray11" textAlign="center">
-                      {t('profile.recordedRoutes') || 'Recorded Routes'}
-                    </Text>
-                  </YStack>
-
-                  <YStack alignItems="center" flex={1}>
-                    <Text fontSize="$5" fontWeight="bold" color="$green11">
-                      {profile.total_distance_driven.toFixed(1)} km
-                    </Text>
-                    <Text fontSize="$3" color="$gray11" textAlign="center">
-                      {t('profile.totalDistance') || 'Total Distance'}
-                    </Text>
-                  </YStack>
-
-                  <YStack alignItems="center" flex={1}>
-                    <Text fontSize="$5" fontWeight="bold" color="$green11">
-                      {formatDrivingTime(profile.total_duration_driven)}
-                    </Text>
-                    <Text fontSize="$3" color="$gray11" textAlign="center">
-                      {t('profile.drivingTime') || 'Driving Time'}
-                    </Text>
-                  </YStack>
-                </XStack>
-
-                <Text fontSize="$2" color="$gray9" textAlign="center" fontStyle="italic">
-                  {t('profile.fromRecordedRoutes') || 'Based on GPS-recorded routes only'}
-                </Text>
-              </YStack>
-            </Card>
+        {/* Profile header with avatar */}
+        <YStack alignItems="center" gap="$2">
+          {profile.avatar_url ? (
+            <Image
+              source={{ uri: profile.avatar_url }}
+              style={{ width: 120, height: 120, borderRadius: 60 }}
+            />
+          ) : (
+            <View
+              style={{
+                width: 120,
+                height: 120,
+                borderRadius: 60,
+                backgroundColor: '#444',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Feather name="user" size={60} color="#ddd" />
+            </View>
           )}
 
-          {/* Learning path progress */}
-          {profile.role === 'student' && (
-            <Card padding="$4" bordered>
-              <YStack gap="$2">
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Text fontSize="$5" fontWeight="bold">
-                    {t('profile.learningPath') || 'Learning Path'}
-                  </Text>
-                  <Button
-                    size="sm"
-                    variant="outlined"
-                    onPress={() => navigation.navigate('ProgressTab', { showDetail: true })}
-                  >
-                    {t('profile.viewDetails') || 'View Details'}
-                  </Button>
-                </XStack>
+          <Text fontSize="$6" fontWeight="bold">
+            {profile.full_name || t('profile.unnamed')}
+          </Text>
 
-                <YStack gap="$2">
-                  <XStack justifyContent="space-between">
-                    <Text>{t('profile.learningProgress') || 'Progress'}</Text>
-                    <Text>
-                      {learningPathSteps.completed}/{learningPathSteps.total} (
-                      {Math.round((learningPathSteps.completed / learningPathSteps.total) * 100)}%)
-                    </Text>
-                  </XStack>
-
-                  <View
-                    style={{
-                      height: 8,
-                      backgroundColor: '#eee',
-                      borderRadius: 4,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <View
-                      style={{
-                        height: '100%',
-                        width: `${(learningPathSteps.completed / learningPathSteps.total) * 100}%`,
-                        backgroundColor: '#34C759',
-                      }}
-                    />
-                  </View>
-
-                  {learningPathSteps.currentTitle && (
-                    <XStack alignItems="center" gap="$2">
-                      <Feather name="bookmark" size={14} color={iconColor} />
-                      <Text fontSize="$3" color="$gray11">
-                        {t('profile.currentStep') || 'Current step'}:{' '}
-                        {learningPathSteps.currentTitle}
-                      </Text>
-                    </XStack>
-                  )}
-
-                  <Text fontSize="$3" color="$gray11">
-                    {t('profile.learningPathNote') ||
-                      `${learningPathSteps.completed} of ${learningPathSteps.total} steps completed. View details for more.`}
-                  </Text>
-
-                  {profile.experience_level && (
-                    <XStack alignItems="center" gap="$2" marginTop="$2">
-                      <Feather name="award" size={16} color={iconColor} />
-                      <Text>
-                        {profile.experience_level === 'beginner'
-                          ? t('profile.experienceLevels.beginner') || 'Beginner'
-                          : profile.experience_level === 'intermediate'
-                            ? t('profile.experienceLevels.intermediate') || 'Intermediate'
-                            : t('profile.experienceLevels.advanced') || 'Advanced'}
-                      </Text>
-                    </XStack>
-                  )}
-                </YStack>
-              </YStack>
-            </Card>
+          {profile.location && (
+            <XStack alignItems="center" gap="$1">
+              <Feather name="map-pin" size={16} color={iconColor} />
+              <Text>{profile.location}</Text>
+            </XStack>
           )}
 
-          {/* Connections */}
-          {(schools.length > 0 || supervisors.length > 0) && (
-            <Card padding="$4" bordered>
-              <YStack gap="$3">
-                <Text fontSize="$5" fontWeight="bold">
-                  {t('profile.connections') || 'Connections'}
-                </Text>
-
-                {/* Schools */}
-                {schools.length > 0 && (
-                  <YStack gap="$2">
-                    <XStack alignItems="center" gap="$2">
-                      <Feather name="home" size={16} color={iconColor} />
-                      <Text fontWeight="500">
-                        {schools.length === 1 ? 'School:' : 'Schools:'}
-                      </Text>
-                    </XStack>
-                    {schools.map((school) => (
-                      <XStack key={school.school_id} alignItems="center" gap="$2" paddingLeft="$6">
-                        <Text>• {school.school_name}</Text>
-                        {school.school_location && (
-                          <Text color="$gray11" fontSize="$3">
-                            ({school.school_location})
-                          </Text>
-                        )}
-                      </XStack>
-                    ))}
-                  </YStack>
-                )}
-
-                {/* Supervisors */}
-                {supervisors.length > 0 && (
-                  <YStack gap="$2">
-                    <XStack alignItems="center" gap="$2">
-                      <Feather name="user-check" size={16} color={iconColor} />
-                      <Text fontWeight="500">
-                        {supervisors.length === 1 ? 'Supervisor:' : 'Supervisors:'}
-                      </Text>
-                    </XStack>
-                    {supervisors.map((supervisor) => (
-                      <XStack key={supervisor.supervisor_id} alignItems="center" gap="$2" paddingLeft="$6">
-                        <Text>• {supervisor.supervisor_name}</Text>
-                        {supervisor.supervisor_email && (
-                          <Text color="$gray11" fontSize="$3">
-                            ({supervisor.supervisor_email})
-                          </Text>
-                        )}
-                      </XStack>
-                    ))}
-                  </YStack>
-                )}
-              </YStack>
-            </Card>
-          )}
-
-          {/* Recent routes */}
-          {recentRoutes.length > 0 && (
-            <Card padding="$4" bordered>
-              <YStack gap="$3">
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Text fontSize="$5" fontWeight="bold">
-                    {t('profile.recentRoutes') || 'Recent Routes'}
-                  </Text>
-
-                  <Button size="sm" variant="outlined" onPress={handleViewAllRoutes}>
-                    {t('profile.viewAll') || 'View All'}
-                  </Button>
-                </XStack>
-
-                {recentRoutes.map((route) => (
-                  <Card
-                    key={route.id}
-                    padding="$3"
-                    bordered
-                    pressStyle={{ scale: 0.98 }}
-                    onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
-                    delayPressIn={50}
-                    hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
-                  >
-                    <YStack gap="$1">
-                      <Text fontSize="$4" fontWeight="500">
-                        {route.name}
-                      </Text>
-
-                      <XStack gap="$3">
-                        <XStack alignItems="center" gap="$1">
-                          <Feather name="bar-chart" size={14} color={iconColor} />
-                          <Text fontSize="$3">{route.difficulty}</Text>
-                        </XStack>
-
-                        <XStack alignItems="center" gap="$1">
-                          <Feather name="map-pin" size={14} color={iconColor} />
-                          <Text fontSize="$3">{route.spot_type}</Text>
-                        </XStack>
-                      </XStack>
-                    </YStack>
-                  </Card>
-                ))}
-              </YStack>
-            </Card>
-          )}
-
-          {/* Recent reviews */}
-          {recentReviews.length > 0 && (
-            <Card padding="$4" bordered>
-              <YStack gap="$3">
-                <Text fontSize="$5" fontWeight="bold">
-                  {t('profile.recentReviews') || 'Recent Reviews'}
-                </Text>
-
-                {recentReviews.map((review) => (
-                  <Card 
-                    key={review.id} 
-                    padding="$3" 
-                    bordered
-                    hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
-                  >
-                    <YStack gap="$2">
-                      <XStack justifyContent="space-between" alignItems="center">
-                        <Text fontSize="$4" fontWeight="500">
-                          {review.route?.name || 'Unknown Route'}
-                        </Text>
-
-                        <XStack alignItems="center" gap="$1">
-                          <Feather name="star" size={16} color="#FFD700" />
-                          <Text>{review.rating.toFixed(1)}</Text>
-                        </XStack>
-                      </XStack>
-
-                      {review.content && (
-                        <Text fontSize="$3" color="$gray11" numberOfLines={2}>
-                          {review.content}
-                        </Text>
-                      )}
-                    </YStack>
-                  </Card>
-                ))}
-              </YStack>
+          {profile.role && (
+            <Card padding="$2" marginTop="$2" backgroundColor="$blue5" borderRadius="$4">
+              <Text color="$blue11" fontWeight="500">
+                {profile.role === 'student'
+                  ? t('profile.roles.student') || 'Student'
+                  : profile.role === 'instructor'
+                    ? t('profile.roles.instructor') || 'Instructor'
+                    : t('profile.roles.school') || 'School'}
+              </Text>
             </Card>
           )}
         </YStack>
 
-        {/* Report dialog */}
-        {showReportDialog && (
-          <ReportDialog
-            reportableId={userId}
-            reportableType="user"
-            onClose={() => setShowReportDialog(false)}
-          />
+        {/* Stats Grid - 2x3 layout with driving stats */}
+        <Card padding="$4" bordered>
+          <YStack gap="$4">
+            {/* First row */}
+            <XStack justifyContent="space-between">
+              <YStack alignItems="center" flex={1}>
+                <Text fontSize="$6" fontWeight="bold">
+                  {profile.routes_created}
+                </Text>
+                <Text fontSize="$3" color="$gray11" textAlign="center">
+                  {t('profile.routesCreated') || 'Routes Created'}
+                </Text>
+              </YStack>
+
+              <YStack alignItems="center" flex={1}>
+                <Text fontSize="$6" fontWeight="bold">
+                  {profile.routes_driven}
+                </Text>
+                <Text fontSize="$3" color="$gray11" textAlign="center">
+                  {t('profile.routesDriven') || 'Routes Driven'}
+                </Text>
+              </YStack>
+
+              <YStack alignItems="center" flex={1}>
+                <Text fontSize="$6" fontWeight="bold">
+                  {profile.routes_saved}
+                </Text>
+                <Text fontSize="$3" color="$gray11" textAlign="center">
+                  {t('profile.routesSaved') || 'Routes Saved'}
+                </Text>
+              </YStack>
+            </XStack>
+
+            {/* Second row */}
+            <XStack justifyContent="space-around">
+              <YStack alignItems="center" flex={1}>
+                <Text fontSize="$6" fontWeight="bold">
+                  {profile.reviews_given}
+                </Text>
+                <Text fontSize="$3" color="$gray11" textAlign="center">
+                  {t('profile.reviewsGiven') || 'Reviews Given'}
+                </Text>
+              </YStack>
+
+              <YStack alignItems="center" flex={1}>
+                <Text fontSize="$6" fontWeight="bold">
+                  {profile.average_rating.toFixed(1)}
+                </Text>
+                <Text fontSize="$3" color="$gray11" textAlign="center">
+                  {t('profile.avgRating') || 'Avg Rating'}
+                </Text>
+              </YStack>
+
+              <YStack alignItems="center" flex={1}>
+                <Text fontSize="$6" fontWeight="bold" color="$green10">
+                  {profile.total_distance_driven.toFixed(1)}
+                </Text>
+                <Text fontSize="$3" color="$gray11" textAlign="center">
+                  {t('profile.kmDriven') || 'km Driven'}
+                </Text>
+              </YStack>
+            </XStack>
+
+            {/* Third row - Follow Stats */}
+            <XStack justifyContent="space-around">
+              <YStack alignItems="center" flex={1}>
+                <Text fontSize="$6" fontWeight="bold" color="$blue10">
+                  {followersCount}
+                </Text>
+                <Text fontSize="$3" color="$gray11" textAlign="center">
+                  {t('profile.followers') || 'Followers'}
+                </Text>
+              </YStack>
+
+              <YStack alignItems="center" flex={1}>
+                <Text fontSize="$6" fontWeight="bold" color="$blue10">
+                  {followingCount}
+                </Text>
+                <Text fontSize="$3" color="$gray11" textAlign="center">
+                  {t('profile.following') || 'Following'}
+                </Text>
+              </YStack>
+
+              {/* Empty space for alignment */}
+              <YStack alignItems="center" flex={1}>
+                <Text fontSize="$6" fontWeight="bold" opacity={0}>
+                  -
+                </Text>
+                <Text fontSize="$3" color="$gray11" textAlign="center" opacity={0}>
+                  -
+                </Text>
+              </YStack>
+            </XStack>
+          </YStack>
+        </Card>
+
+        {/* Driving Statistics Card - Additional detailed stats */}
+        {(profile.recorded_routes_created > 0 || profile.total_distance_driven > 0) && (
+          <Card padding="$4" bordered backgroundColor="$green1">
+            <YStack gap="$3">
+              <XStack alignItems="center" gap="$2">
+                <Feather name="activity" size={20} color="#22C55E" />
+                <Text fontSize="$5" fontWeight="bold" color="$green11">
+                  {t('profile.drivingStats') || 'Driving Statistics'}
+                </Text>
+              </XStack>
+
+              <XStack justifyContent="space-around">
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$5" fontWeight="bold" color="$green11">
+                    {profile.recorded_routes_created}
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.recordedRoutes') || 'Recorded Routes'}
+                  </Text>
+                </YStack>
+
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$5" fontWeight="bold" color="$green11">
+                    {profile.total_distance_driven.toFixed(1)} km
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.totalDistance') || 'Total Distance'}
+                  </Text>
+                </YStack>
+
+                <YStack alignItems="center" flex={1}>
+                  <Text fontSize="$5" fontWeight="bold" color="$green11">
+                    {formatDrivingTime(profile.total_duration_driven)}
+                  </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('profile.drivingTime') || 'Driving Time'}
+                  </Text>
+                </YStack>
+              </XStack>
+
+              <Text fontSize="$2" color="$gray9" textAlign="center" fontStyle="italic">
+                {t('profile.fromRecordedRoutes') || 'Based on GPS-recorded routes only'}
+              </Text>
+            </YStack>
+          </Card>
         )}
+
+        {/* Learning path progress */}
+        {profile.role === 'student' && (
+          <Card padding="$4" bordered>
+            <YStack gap="$2">
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text fontSize="$5" fontWeight="bold">
+                  {t('profile.learningPath') || 'Learning Path'}
+                </Text>
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  onPress={() => navigation.navigate('ProgressTab', { showDetail: true })}
+                >
+                  {t('profile.viewDetails') || 'View Details'}
+                </Button>
+              </XStack>
+
+              <YStack gap="$2">
+                <XStack justifyContent="space-between">
+                  <Text>{t('profile.learningProgress') || 'Progress'}</Text>
+                  <Text>
+                    {learningPathSteps.completed}/{learningPathSteps.total} (
+                    {Math.round((learningPathSteps.completed / learningPathSteps.total) * 100)}%)
+                  </Text>
+                </XStack>
+
+                <View
+                  style={{
+                    height: 8,
+                    backgroundColor: '#eee',
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <View
+                    style={{
+                      height: '100%',
+                      width: `${(learningPathSteps.completed / learningPathSteps.total) * 100}%`,
+                      backgroundColor: '#34C759',
+                    }}
+                  />
+                </View>
+
+                {learningPathSteps.currentTitle && (
+                  <XStack alignItems="center" gap="$2">
+                    <Feather name="bookmark" size={14} color={iconColor} />
+                    <Text fontSize="$3" color="$gray11">
+                      {t('profile.currentStep') || 'Current step'}: {learningPathSteps.currentTitle}
+                    </Text>
+                  </XStack>
+                )}
+
+                <Text fontSize="$3" color="$gray11">
+                  {t('profile.learningPathNote') ||
+                    `${learningPathSteps.completed} of ${learningPathSteps.total} steps completed. View details for more.`}
+                </Text>
+
+                {profile.experience_level && (
+                  <XStack alignItems="center" gap="$2" marginTop="$2">
+                    <Feather name="award" size={16} color={iconColor} />
+                    <Text>
+                      {profile.experience_level === 'beginner'
+                        ? t('profile.experienceLevels.beginner') || 'Beginner'
+                        : profile.experience_level === 'intermediate'
+                          ? t('profile.experienceLevels.intermediate') || 'Intermediate'
+                          : t('profile.experienceLevels.advanced') || 'Advanced'}
+                    </Text>
+                  </XStack>
+                )}
+              </YStack>
+            </YStack>
+          </Card>
+        )}
+
+        {/* Connections */}
+        {(schools.length > 0 || supervisors.length > 0) && (
+          <Card padding="$4" bordered>
+            <YStack gap="$3">
+              <Text fontSize="$5" fontWeight="bold">
+                {t('profile.connections') || 'Connections'}
+              </Text>
+
+              {/* Schools */}
+              {schools.length > 0 && (
+                <YStack gap="$2">
+                  <XStack alignItems="center" gap="$2">
+                    <Feather name="home" size={16} color={iconColor} />
+                    <Text fontWeight="500">{schools.length === 1 ? 'School:' : 'Schools:'}</Text>
+                  </XStack>
+                  {schools.map((school) => (
+                    <XStack key={school.school_id} alignItems="center" gap="$2" paddingLeft="$6">
+                      <Text>• {school.school_name}</Text>
+                      {school.school_location && (
+                        <Text color="$gray11" fontSize="$3">
+                          ({school.school_location})
+                        </Text>
+                      )}
+                    </XStack>
+                  ))}
+                </YStack>
+              )}
+
+              {/* Supervisors */}
+              {supervisors.length > 0 && (
+                <YStack gap="$2">
+                  <XStack alignItems="center" gap="$2">
+                    <Feather name="user-check" size={16} color={iconColor} />
+                    <Text fontWeight="500">
+                      {supervisors.length === 1 ? 'Supervisor:' : 'Supervisors:'}
+                    </Text>
+                  </XStack>
+                  {supervisors.map((supervisor) => (
+                    <XStack
+                      key={supervisor.supervisor_id}
+                      alignItems="center"
+                      gap="$2"
+                      paddingLeft="$6"
+                    >
+                      <Text>• {supervisor.supervisor_name}</Text>
+                      {supervisor.supervisor_email && (
+                        <Text color="$gray11" fontSize="$3">
+                          ({supervisor.supervisor_email})
+                        </Text>
+                      )}
+                    </XStack>
+                  ))}
+                </YStack>
+              )}
+            </YStack>
+          </Card>
+        )}
+
+        {/* Recent routes */}
+        {recentRoutes.length > 0 && (
+          <Card padding="$4" bordered>
+            <YStack gap="$3">
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text fontSize="$5" fontWeight="bold">
+                  {t('profile.recentRoutes') || 'Recent Routes'}
+                </Text>
+
+                <Button size="sm" variant="outlined" onPress={handleViewAllRoutes}>
+                  {t('profile.viewAll') || 'View All'}
+                </Button>
+              </XStack>
+
+              {recentRoutes.map((route) => (
+                <Card
+                  key={route.id}
+                  padding="$3"
+                  bordered
+                  pressStyle={{ scale: 0.98 }}
+                  onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
+                  delayPressIn={50}
+                  hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                >
+                  <YStack gap="$1">
+                    <Text fontSize="$4" fontWeight="500">
+                      {route.name}
+                    </Text>
+
+                    <XStack gap="$3">
+                      <XStack alignItems="center" gap="$1">
+                        <Feather name="bar-chart" size={14} color={iconColor} />
+                        <Text fontSize="$3">{route.difficulty}</Text>
+                      </XStack>
+
+                      <XStack alignItems="center" gap="$1">
+                        <Feather name="map-pin" size={14} color={iconColor} />
+                        <Text fontSize="$3">{route.spot_type}</Text>
+                      </XStack>
+                    </XStack>
+                  </YStack>
+                </Card>
+              ))}
+            </YStack>
+          </Card>
+        )}
+
+        {/* Recent reviews */}
+        {recentReviews.length > 0 && (
+          <Card padding="$4" bordered>
+            <YStack gap="$3">
+              <Text fontSize="$5" fontWeight="bold">
+                {t('profile.recentReviews') || 'Recent Reviews'}
+              </Text>
+
+              {recentReviews.map((review) => (
+                <Card
+                  key={review.id}
+                  padding="$3"
+                  bordered
+                  hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                >
+                  <YStack gap="$2">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <Text fontSize="$4" fontWeight="500">
+                        {review.route?.name || 'Unknown Route'}
+                      </Text>
+
+                      <XStack alignItems="center" gap="$1">
+                        <Feather name="star" size={16} color="#FFD700" />
+                        <Text>{review.rating.toFixed(1)}</Text>
+                      </XStack>
+                    </XStack>
+
+                    {review.content && (
+                      <Text fontSize="$3" color="$gray11" numberOfLines={2}>
+                        {review.content}
+                      </Text>
+                    )}
+                  </YStack>
+                </Card>
+              ))}
+            </YStack>
+          </Card>
+        )}
+      </YStack>
+
+      {/* Report dialog */}
+      {showReportDialog && (
+        <ReportDialog
+          reportableId={userId}
+          reportableType="user"
+          onClose={() => setShowReportDialog(false)}
+        />
+      )}
     </Screen>
   );
 }

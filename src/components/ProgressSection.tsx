@@ -8,6 +8,8 @@ import { NavigationProp } from '../types/navigation';
 import { SectionHeader } from './SectionHeader';
 import Svg, { Circle } from 'react-native-svg';
 import { useCallback } from 'react';
+import { useTranslation } from '../contexts/TranslationContext';
+import { useAuth } from '../context/AuthContext';
 
 interface LearningPath {
   id: string;
@@ -17,11 +19,17 @@ interface LearningPath {
   image: string | null;
   order_index: number;
   active: boolean;
+  platform?: string;
+  type?: string;
+  vehicle_type?: string;
+  transmission_type?: string;
+  license_type?: string;
+  experience_level?: string;
+  purpose?: string;
+  user_profile?: string;
   created_at: string;
   updated_at: string;
 }
-
-const lang = 'en'; // For demo, English only. Replace with language context if needed.
 
 interface ProgressCircleProps {
   percent: number;
@@ -69,6 +77,8 @@ function ProgressCircle({
 }
 
 export function ProgressSection() {
+  const { language: lang, t } = useTranslation();
+  const { profile } = useAuth();
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [activePath, setActivePath] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -192,11 +202,13 @@ export function ProgressSection() {
   const fetchLearningPaths = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('learning_paths')
-        .select('*')
-        .eq('active', true)
-        .order('order_index', { ascending: true });
+
+          // Simple query to show all active learning paths 
+    const { data, error } = await supabase
+      .from('learning_paths')
+      .select('*')
+      .eq('active', true)
+      .order('order_index', { ascending: true });
 
       if (error) throw error;
       setPaths(data || []);
@@ -258,12 +270,12 @@ export function ProgressSection() {
   return (
     <YStack space="$4">
       <SectionHeader
-        title="Your Progress"
+        title={t('home.yourProgress') || 'Your Progress'}
         variant="chevron"
         onAction={() =>
           navigation.navigate('ProgressTab', { selectedPathId: paths[0]?.id, showDetail: true })
         }
-        actionLabel="See All"
+        actionLabel={t('common.seeAll') || 'See All'}
       />
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <XStack space="$3" paddingHorizontal="$4">

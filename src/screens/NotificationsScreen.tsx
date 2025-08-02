@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { YStack, XStack, Text, Avatar, Spinner } from 'tamagui';
-import { Bell, Check, User, MessageCircle, Star, Heart, MapPin, ArrowLeft } from '@tamagui/lucide-icons';
+import {
+  Bell,
+  Check,
+  User,
+  MessageCircle,
+  Star,
+  Heart,
+  MapPin,
+  ArrowLeft,
+} from '@tamagui/lucide-icons';
 import { notificationService, Notification } from '../services/notificationService';
 import { useNavigation } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,11 +23,11 @@ export const NotificationsScreen: React.FC = () => {
 
   useEffect(() => {
     loadNotifications();
-    
+
     // Subscribe to real-time updates with sound
     const subscription = notificationService.subscribeToNotifications(async (notification) => {
-      setNotifications(prev => [notification, ...prev]);
-      
+      setNotifications((prev) => [notification, ...prev]);
+
       // Play sound for new notifications
       try {
         const { pushNotificationService } = await import('../services/pushNotificationService');
@@ -56,10 +65,8 @@ export const NotificationsScreen: React.FC = () => {
       // Mark as read
       if (!notification.is_read) {
         await notificationService.markAsRead(notification.id);
-        setNotifications(prev => 
-          prev.map(n => 
-            n.id === notification.id ? { ...n, is_read: true } : n
-          )
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n)),
         );
       }
 
@@ -68,7 +75,7 @@ export const NotificationsScreen: React.FC = () => {
         data: notification.data,
         metadata: notification.metadata,
         actorId: notification.actor_id,
-        hasNavigator: !!navigation
+        hasNavigator: !!navigation,
       });
 
       // Navigate based on notification type
@@ -78,7 +85,7 @@ export const NotificationsScreen: React.FC = () => {
           console.log('📍 Navigating to Messages');
           (navigation as any).navigate('Messages');
           break;
-          
+
         case 'route_review':
         case 'route_uploaded':
         case 'route_saved':
@@ -92,17 +99,20 @@ export const NotificationsScreen: React.FC = () => {
             (navigation as any).navigate('RouteDetail', { routeId });
           }
           break;
-          
+
         case 'follow':
         case 'user_follow':
         case 'new_follower':
-          const userId = notification.actor_id || notification.data?.follower_id || notification.data?.from_user_id;
+          const userId =
+            notification.actor_id ||
+            notification.data?.follower_id ||
+            notification.data?.from_user_id;
           if (userId) {
             console.log('📍 Navigating to PublicProfile:', userId);
             (navigation as any).navigate('PublicProfile', { userId });
           }
           break;
-          
+
         case 'supervisor_invitation':
         case 'student_invitation':
           const inviterUserId = notification.data?.from_user_id || notification.actor_id;
@@ -111,26 +121,26 @@ export const NotificationsScreen: React.FC = () => {
             (navigation as any).navigate('PublicProfile', { userId: inviterUserId });
           }
           break;
-          
+
         case 'conversation_created':
           if (notification.data?.conversation_id) {
             console.log('📍 Navigating to Conversation:', notification.data.conversation_id);
-            (navigation as any).navigate('Conversation', { 
-              conversationId: notification.data.conversation_id 
+            (navigation as any).navigate('Conversation', {
+              conversationId: notification.data.conversation_id,
             });
           } else {
             console.log('📍 Navigating to Messages (no conversation ID)');
             (navigation as any).navigate('Messages');
           }
           break;
-          
+
         case 'exercise_completed':
         case 'learning_path_completed':
         case 'quiz_completed':
           console.log('📍 Navigating to ProgressTab');
           (navigation as any).navigate('MainTabs', { screen: 'ProgressTab' });
           break;
-          
+
         case 'like':
           // If it's a route like, navigate to the route
           if (notification.data?.route_id || notification.metadata?.route_id) {
@@ -139,7 +149,7 @@ export const NotificationsScreen: React.FC = () => {
             (navigation as any).navigate('RouteDetail', { routeId });
           }
           break;
-          
+
         default:
           console.log('❓ Unhandled notification type:', notification.type);
           break;
@@ -152,7 +162,7 @@ export const NotificationsScreen: React.FC = () => {
   const handleMarkAllAsRead = async () => {
     try {
       await notificationService.markAllAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
@@ -193,49 +203,33 @@ export const NotificationsScreen: React.FC = () => {
         >
           <Avatar circular size={40}>
             <Avatar.Image
-              source={{ 
-                uri: item.actor?.avatar_url || 
-                      `https://ui-avatars.com/api/?name=${item.actor?.full_name || 'User'}&background=00FFBC&color=000` 
+              source={{
+                uri:
+                  item.actor?.avatar_url ||
+                  `https://ui-avatars.com/api/?name=${item.actor?.full_name || 'User'}&background=00FFBC&color=000`,
               }}
             />
             <Avatar.Fallback backgroundColor="$gray8" />
           </Avatar>
-          
+
           <YStack flex={1} gap={4}>
             <XStack alignItems="center" gap={8}>
               {getNotificationIcon(item.type)}
-              <Text
-                fontSize={14}
-                fontWeight="bold"
-                color="$color"
-                flex={1}
-              >
+              <Text fontSize={14} fontWeight="bold" color="$color" flex={1}>
                 {item.message}
               </Text>
               {!item.is_read && (
-                <YStack
-                  width={8}
-                  height={8}
-                  borderRadius={4}
-                  backgroundColor="#00FFBC"
-                />
+                <YStack width={8} height={8} borderRadius={4} backgroundColor="#00FFBC" />
               )}
             </XStack>
-            
+
             {item.metadata && Object.keys(item.metadata).length > 0 && (
-              <Text
-                fontSize={12}
-                color="$gray11"
-                lineHeight={16}
-              >
+              <Text fontSize={12} color="$gray11" lineHeight={16}>
                 {JSON.stringify(item.metadata)}
               </Text>
             )}
-            
-            <Text
-              fontSize={12}
-              color="$gray11"
-            >
+
+            <Text fontSize={12} color="$gray11">
               {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
             </Text>
           </YStack>
@@ -248,7 +242,9 @@ export const NotificationsScreen: React.FC = () => {
     return (
       <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="#0F172A">
         <Spinner size="large" color="#00FFBC" />
-        <Text color="$color" marginTop={16}>Loading notifications...</Text>
+        <Text color="$color" marginTop={16}>
+          Loading notifications...
+        </Text>
       </YStack>
     );
   }
@@ -267,17 +263,19 @@ export const NotificationsScreen: React.FC = () => {
           <TouchableOpacity onPress={handleBack}>
             <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          
-        <Text fontSize={24} fontWeight="bold" color="$color">
-          Notifications
-        </Text>
+
+          <Text fontSize={24} fontWeight="bold" color="$color">
+            Notifications
+          </Text>
         </XStack>
-        
-        {notifications.some(n => !n.is_read) && (
+
+        {notifications.some((n) => !n.is_read) && (
           <TouchableOpacity onPress={handleMarkAllAsRead}>
             <XStack alignItems="center" gap={4}>
               <Check size={16} color="#00FFBC" />
-              <Text fontSize={14} color="#00FFBC">Mark all read</Text>
+              <Text fontSize={14} color="#00FFBC">
+                Mark all read
+              </Text>
             </XStack>
           </TouchableOpacity>
         )}
@@ -300,15 +298,11 @@ export const NotificationsScreen: React.FC = () => {
           renderItem={renderNotification}
           keyExtractor={(item) => item.id}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#00FFBC"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FFBC" />
           }
           showsVerticalScrollIndicator={false}
         />
       )}
     </YStack>
   );
-}; 
+};

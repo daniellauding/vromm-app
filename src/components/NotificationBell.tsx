@@ -10,16 +10,16 @@ interface NotificationBellProps {
   color?: string;
 }
 
-export const NotificationBell: React.FC<NotificationBellProps> = ({ 
-  size = 24, 
-  color = '#FFFFFF' 
+export const NotificationBell: React.FC<NotificationBellProps> = ({
+  size = 24,
+  color = '#FFFFFF',
 }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const navigation = useNavigation();
 
   useEffect(() => {
     loadUnreadCount();
-    
+
     // Subscribe to real-time updates with enhanced handling
     const subscription = notificationService.subscribeToNotifications(() => {
       console.log('📡 NotificationBell: New notification detected, refreshing count');
@@ -56,7 +56,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   return (
     <TouchableOpacity onPress={handlePress} style={{ position: 'relative' }}>
       <Bell size={size} color={color} />
-      
+
       {unreadCount > 0 && (
         <View
           style={{
@@ -73,16 +73,11 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             borderColor: '#0F172A',
           }}
         >
-          <Text
-            fontSize={10}
-            fontWeight="bold"
-            color="#FFFFFF"
-            textAlign="center"
-          >
+          <Text fontSize={10} fontWeight="bold" color="#FFFFFF" textAlign="center">
             {unreadCount > 99 ? '99+' : unreadCount}
           </Text>
         </View>
       )}
     </TouchableOpacity>
   );
-}; 
+};

@@ -69,10 +69,7 @@ export const pickVideoFromLibrary = async (allowMultiple = false): Promise<Media
     // Request permissions with proper error handling
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(
-        'Permission needed',
-        'Media library permission is required to select videos',
-      );
+      Alert.alert('Permission needed', 'Media library permission is required to select videos');
       return null;
     }
 
@@ -205,7 +202,8 @@ export const createYoutubeMediaItem = (url: string): MediaItem | null => {
  * Extract YouTube video ID from URL
  */
 export const extractYoutubeVideoId = (url: string): string | null => {
-  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const regex =
+    /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
   const match = url.match(regex);
   return match ? match[1] : null;
 };
@@ -227,7 +225,7 @@ export const uploadMediaToSupabase = async (
     // Read file using the same method as working AddReviewScreen
     const response = await fetch(mediaItem.uri);
     const blob = await response.blob();
-    
+
     // Convert to base64 using FileReader (stable method)
     const reader = new FileReader();
     const base64 = await new Promise<string>((resolve, reject) => {

@@ -42,12 +42,11 @@ export const NewMessageScreen: React.FC = () => {
   const startConversation = async (user: Profile) => {
     try {
       setCreating(true);
-      
+
       // Check if conversation already exists
       const conversations = await messageService.getConversations();
-      const existingConversation = conversations.find(conv => 
-        !conv.is_group && 
-        conv.participants?.some(p => p.user_id === user.id)
+      const existingConversation = conversations.find(
+        (conv) => !conv.is_group && conv.participants?.some((p) => p.user_id === user.id),
       );
 
       if (existingConversation) {
@@ -69,10 +68,7 @@ export const NewMessageScreen: React.FC = () => {
 
   const renderUser = ({ item }: { item: Profile }) => {
     return (
-      <TouchableOpacity 
-        onPress={() => startConversation(item)}
-        disabled={creating}
-      >
+      <TouchableOpacity onPress={() => startConversation(item)} disabled={creating}>
         <XStack
           padding={16}
           borderBottomWidth={1}
@@ -83,34 +79,27 @@ export const NewMessageScreen: React.FC = () => {
         >
           <Avatar circular size={48}>
             <Avatar.Image
-              source={{ 
-                uri: item.avatar_url || 
-                      `https://ui-avatars.com/api/?name=${item.full_name || 'User'}&background=00FFBC&color=000` 
+              source={{
+                uri:
+                  item.avatar_url ||
+                  `https://ui-avatars.com/api/?name=${item.full_name || 'User'}&background=00FFBC&color=000`,
               }}
             />
             <Avatar.Fallback backgroundColor="$gray8" />
           </Avatar>
-          
+
           <YStack flex={1} gap={4}>
-            <Text
-              fontSize={16}
-              fontWeight="bold"
-              color="$color"
-            >
+            <Text fontSize={16} fontWeight="bold" color="$color">
               {item.full_name || 'Unknown User'}
             </Text>
-            
+
             {item.bio && (
-              <Text
-                fontSize={14}
-                color="$gray11"
-                numberOfLines={1}
-              >
+              <Text fontSize={14} color="$gray11" numberOfLines={1}>
                 {item.bio}
               </Text>
             )}
           </YStack>
-          
+
           <MessageCircle size={20} color="#00FFBC" />
         </XStack>
       </TouchableOpacity>
@@ -130,7 +119,7 @@ export const NewMessageScreen: React.FC = () => {
         <TouchableOpacity onPress={handleBack}>
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        
+
         <Text fontSize={20} fontWeight="bold" color="$color" flex={1}>
           New Message
         </Text>
@@ -165,7 +154,9 @@ export const NewMessageScreen: React.FC = () => {
       {loading ? (
         <YStack flex={1} justifyContent="center" alignItems="center">
           <Spinner size="large" color="#00FFBC" />
-          <Text color="$color" marginTop={16}>Searching users...</Text>
+          <Text color="$color" marginTop={16}>
+            Searching users...
+          </Text>
         </YStack>
       ) : searchQuery.trim().length === 0 ? (
         <YStack flex={1} justifyContent="center" alignItems="center" padding={24}>
@@ -196,4 +187,4 @@ export const NewMessageScreen: React.FC = () => {
       )}
     </YStack>
   );
-}; 
+};

@@ -49,12 +49,12 @@ export function UsersList() {
             .select('following_id')
             .eq('follower_id', user.id);
 
-          const followingIds = new Set(followData?.map(f => f.following_id) || []);
+          const followingIds = new Set(followData?.map((f) => f.following_id) || []);
 
-          usersWithFollowStatus = (data || []).map(userData => ({
+          usersWithFollowStatus = (data || []).map((userData) => ({
             ...userData,
             isFollowing: followingIds.has(userData.id),
-            isCurrentUser: userData.id === user.id
+            isCurrentUser: userData.id === user.id,
           }));
         }
 
@@ -76,8 +76,8 @@ export function UsersList() {
   const handleFollow = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
     try {
       if (!user?.id || followLoading[targetUserId]) return;
-      
-      setFollowLoading(prev => ({ ...prev, [targetUserId]: true }));
+
+      setFollowLoading((prev) => ({ ...prev, [targetUserId]: true }));
 
       if (isCurrentlyFollowing) {
         // Unfollow
@@ -89,30 +89,30 @@ export function UsersList() {
 
         if (error) throw error;
 
-        setUsers(prev => prev.map(u => 
-          u.id === targetUserId ? { ...u, isFollowing: false } : u
-        ));
+        setUsers((prev) =>
+          prev.map((u) => (u.id === targetUserId ? { ...u, isFollowing: false } : u)),
+        );
         console.log('👤 User unfollowed');
       } else {
         // Follow
-        const { error } = await supabase
-          .from('user_follows')
-          .insert([{
+        const { error } = await supabase.from('user_follows').insert([
+          {
             follower_id: user.id,
             following_id: targetUserId,
-          }]);
+          },
+        ]);
 
         if (error) throw error;
 
-        setUsers(prev => prev.map(u => 
-          u.id === targetUserId ? { ...u, isFollowing: true } : u
-        ));
+        setUsers((prev) =>
+          prev.map((u) => (u.id === targetUserId ? { ...u, isFollowing: true } : u)),
+        );
         console.log('👤 User followed');
       }
     } catch (error) {
       console.error('Error following/unfollowing user:', error);
     } finally {
-      setFollowLoading(prev => ({ ...prev, [targetUserId]: false }));
+      setFollowLoading((prev) => ({ ...prev, [targetUserId]: false }));
     }
   };
 
@@ -232,25 +232,29 @@ export function UsersList() {
               {!user.isCurrentUser && (
                 <Button
                   size="xs"
-                  variant={user.isFollowing ? "secondary" : "primary"}
-                  backgroundColor={user.isFollowing ? "$red5" : "$blue10"}
+                  variant={user.isFollowing ? 'secondary' : 'primary'}
+                  backgroundColor={user.isFollowing ? '$red5' : '$blue10'}
                   onPress={() => handleFollow(user.id, user.isFollowing || false)}
                   disabled={followLoading[user.id]}
                   marginTop="$2"
                   width="100%"
                 >
                   {followLoading[user.id] ? (
-                    <Text color={user.isFollowing ? "$red11" : "white"} fontSize="$1">
+                    <Text color={user.isFollowing ? '$red11' : 'white'} fontSize="$1">
                       ...
                     </Text>
                   ) : (
                     <XStack gap="$1" alignItems="center">
-                      <Feather 
-                        name={user.isFollowing ? "user-minus" : "user-plus"} 
-                        size={10} 
-                        color={user.isFollowing ? "#EF4444" : "white"} 
+                      <Feather
+                        name={user.isFollowing ? 'user-minus' : 'user-plus'}
+                        size={10}
+                        color={user.isFollowing ? '#EF4444' : 'white'}
                       />
-                      <Text color={user.isFollowing ? "$red11" : "white"} fontSize="$1" fontWeight="500">
+                      <Text
+                        color={user.isFollowing ? '$red11' : 'white'}
+                        fontSize="$1"
+                        fontWeight="500"
+                      >
                         {user.isFollowing ? 'Unfollow' : 'Follow'}
                       </Text>
                     </XStack>

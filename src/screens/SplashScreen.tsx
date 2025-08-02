@@ -391,8 +391,8 @@ export function SplashScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView 
-        style={{ flex: 1 }} 
+      <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{ minHeight: screenHeight }}
         showsVerticalScrollIndicator={false}
         bounces={false}

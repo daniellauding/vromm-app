@@ -25,18 +25,18 @@ export interface CreateRouteFormData {
 export interface CreateRouteState {
   // Form data
   formData: CreateRouteFormData;
-  
+
   // Route data
   waypoints: Waypoint[];
   exercises: Exercise[];
   media: MediaItem[];
-  
+
   // Drawing state
   drawingMode: 'pin' | 'waypoint' | 'pen' | 'record';
   snapToRoads: boolean;
   penPath: Array<{ latitude: number; longitude: number }>;
   routePath: Array<{ latitude: number; longitude: number }> | null;
-  
+
   // Map state
   region: {
     latitude: number;
@@ -44,12 +44,12 @@ export interface CreateRouteState {
     latitudeDelta: number;
     longitudeDelta: number;
   };
-  
+
   // UI state
   activeSection: string;
   searchQuery: string;
   youtubeLink: string;
-  
+
   // Recording context
   isFromRecording: boolean;
   originalRouteId?: string;
@@ -68,17 +68,17 @@ export interface RecordedRouteData {
 interface CreateRouteContextType {
   // State
   persistedState: CreateRouteState | null;
-  
+
   // Actions
   saveState: (state: CreateRouteState) => void;
   restoreState: () => CreateRouteState | null;
   clearState: () => void;
-  
+
   // Recording integration
   setRecordingContext: (routeId?: string) => void;
   getAndClearRecordingContext: () => string | null;
   mergeRecordedData: (recordedData: RecordedRouteData) => CreateRouteState | null;
-  
+
   // Navigation tracking
   markFromRecording: () => void;
   isFromRecording: () => boolean;
@@ -248,7 +248,7 @@ export function useCreateRoute() {
 
 // Helper function to calculate region from waypoints
 function calculateRegionFromWaypoints(
-  waypoints: Waypoint[]
+  waypoints: Waypoint[],
 ): { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null {
   if (!waypoints || waypoints.length === 0) {
     return null;
@@ -277,4 +277,4 @@ function calculateRegionFromWaypoints(
     latitudeDelta: Math.max((maxLat - minLat) * 1.2, 0.02),
     longitudeDelta: Math.max((maxLng - minLng) * 1.2, 0.02),
   };
-} 
+}

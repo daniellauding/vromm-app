@@ -40,12 +40,14 @@ export const HomeHeader = () => {
       <XStack gap={12} alignItems="center">
         <MessageBell size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
         <NotificationBell size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
-        
+
         <Button
           size="sm"
           variant="secondary"
           onPress={() => navigation.navigate('UsersScreen')}
-          icon={<Feather name="users" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />}
+          icon={
+            <Feather name="users" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />
+          }
         >
           Users
         </Button>

@@ -1,7 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, TouchableOpacity, Alert } from 'react-native';
 import { YStack, XStack, Text, Avatar, Input, Button, Spinner } from 'tamagui';
-import { ArrowLeft, Send, Image, Paperclip, MoreVertical, User, Trash2 } from '@tamagui/lucide-icons';
+import {
+  ArrowLeft,
+  Send,
+  Image,
+  Paperclip,
+  MoreVertical,
+  User,
+  Trash2,
+} from '@tamagui/lucide-icons';
 import { messageService, Message, Conversation } from '../services/messageService';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
@@ -27,29 +35,32 @@ export const ConversationScreen: React.FC = () => {
   useEffect(() => {
     const initializeConversation = async () => {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setCurrentUserId(user?.id || null);
-      
+
       loadConversation();
       loadMessages();
-      
+
       // Subscribe to real-time message updates with enhanced handling
       const subscription = messageService.subscribeToMessages(conversationId, async (message) => {
         console.log('📡 ConversationScreen: New message received:', message.id);
-        
-        setMessages(prev => {
+
+        setMessages((prev) => {
           // Check if message already exists to avoid duplicates
-          const exists = prev.some(m => m.id === message.id);
+          const exists = prev.some((m) => m.id === message.id);
           if (exists) {
             // Update existing message (e.g., read status changed)
-            return prev.map(m => m.id === message.id ? { ...m, ...message } : m)
+            return prev
+              .map((m) => (m.id === message.id ? { ...m, ...message } : m))
               .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           } else {
             // Add new message at top (newest first)
             return [message, ...prev];
           }
         });
-        
+
         // Play sound for new messages from other users
         if (message.sender_id !== user?.id) {
           try {
@@ -57,7 +68,7 @@ export const ConversationScreen: React.FC = () => {
           } catch (error) {
             console.log('Could not play message sound:', error);
           }
-          
+
           messageService.markMessagesAsRead([message.id]);
         }
       });
@@ -84,18 +95,19 @@ export const ConversationScreen: React.FC = () => {
       setLoading(true);
       const data = await messageService.getMessages(conversationId);
       setMessages(data); // Already sorted newest first from service
-      
+
       // Mark messages as read
-      const { data: { user } } = await supabase.auth.getUser();
-      const unreadMessages = data.filter(msg => 
-        msg.sender_id !== user?.id &&
-        !msg.read_by?.includes(user?.id || '')
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const unreadMessages = data.filter(
+        (msg) => msg.sender_id !== user?.id && !msg.read_by?.includes(user?.id || ''),
       );
-      
+
       if (unreadMessages.length > 0) {
-        await messageService.markMessagesAsRead(unreadMessages.map(msg => msg.id));
+        await messageService.markMessagesAsRead(unreadMessages.map((msg) => msg.id));
       }
-      
+
       // Scroll to top after loading (newest messages)
       setTimeout(() => {
         if (data.length > 0) {
@@ -116,7 +128,7 @@ export const ConversationScreen: React.FC = () => {
       setSending(true);
       await messageService.sendMessage(conversationId, newMessage.trim());
       setNewMessage('');
-      
+
       // Scroll to top to show the new message
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({ index: 0, animated: true });
@@ -160,7 +172,7 @@ export const ConversationScreen: React.FC = () => {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -173,28 +185,32 @@ export const ConversationScreen: React.FC = () => {
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
     const isOwnMessage = item.sender_id === currentUserId;
     const isRead = item.read_by?.includes(currentUserId || '');
-    
+
     // Group consecutive messages from the same user (newest first order)
     const prevMessage = index > 0 ? messages[index - 1] : null; // previous message (newer)
     const nextMessage = index < messages.length - 1 ? messages[index + 1] : null; // next message (older)
-    
+
     const isFirstInGroup = !prevMessage || prevMessage.sender_id !== item.sender_id; // First = newest in group
     const isLastInGroup = !nextMessage || nextMessage.sender_id !== item.sender_id; // Last = oldest in group
-    
+
     // Different bubble styling for grouped messages
     const getBorderRadius = () => {
       const baseRadius = 16;
       const smallRadius = 4;
-      
+
       if (isOwnMessage) {
         if (isFirstInGroup && isLastInGroup) return baseRadius; // Single message
-        if (isFirstInGroup) return `${baseRadius}px ${baseRadius}px ${smallRadius}px ${baseRadius}px`; // First in group
-        if (isLastInGroup) return `${baseRadius}px ${baseRadius}px ${baseRadius}px ${smallRadius}px`; // Last in group
+        if (isFirstInGroup)
+          return `${baseRadius}px ${baseRadius}px ${smallRadius}px ${baseRadius}px`; // First in group
+        if (isLastInGroup)
+          return `${baseRadius}px ${baseRadius}px ${baseRadius}px ${smallRadius}px`; // Last in group
         return `${baseRadius}px ${baseRadius}px ${smallRadius}px ${smallRadius}px`; // Middle of group
       } else {
         if (isFirstInGroup && isLastInGroup) return baseRadius; // Single message
-        if (isFirstInGroup) return `${baseRadius}px ${baseRadius}px ${baseRadius}px ${smallRadius}px`; // First in group
-        if (isLastInGroup) return `${smallRadius}px ${baseRadius}px ${baseRadius}px ${baseRadius}px`; // Last in group
+        if (isFirstInGroup)
+          return `${baseRadius}px ${baseRadius}px ${baseRadius}px ${smallRadius}px`; // First in group
+        if (isLastInGroup)
+          return `${smallRadius}px ${baseRadius}px ${baseRadius}px ${baseRadius}px`; // Last in group
         return `${smallRadius}px ${baseRadius}px ${baseRadius}px ${smallRadius}px`; // Middle of group
       }
     };
@@ -218,25 +234,18 @@ export const ConversationScreen: React.FC = () => {
               {item.sender.full_name}
             </Text>
           )}
-          
-          <Text
-            fontSize={14}
-            color={isOwnMessage ? '#000000' : '#FFFFFF'}
-            lineHeight={20}
-          >
+
+          <Text fontSize={14} color={isOwnMessage ? '#000000' : '#FFFFFF'} lineHeight={20}>
             {item.content}
           </Text>
-          
+
           {/* Only show timestamp and read status on last message in group */}
           {isLastInGroup && (
             <XStack justifyContent="space-between" alignItems="center" gap={8}>
-              <Text
-                fontSize={10}
-                color={isOwnMessage ? 'rgba(0, 0, 0, 0.6)' : '$gray11'}
-              >
+              <Text fontSize={10} color={isOwnMessage ? 'rgba(0, 0, 0, 0.6)' : '$gray11'}>
                 {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
               </Text>
-              
+
               {isOwnMessage && (
                 <Text fontSize={12} color={isOwnMessage ? 'rgba(0, 0, 0, 0.6)' : '$gray11'}>
                   {isRead ? '✓✓' : '✓'}
@@ -249,39 +258,45 @@ export const ConversationScreen: React.FC = () => {
     );
   };
 
-  const otherParticipant = conversation?.conversation_participants?.find(p => p.user_id !== currentUserId);
-  // Map profiles property to profile for consistency  
-  const participantWithProfile = otherParticipant ? {
-    ...otherParticipant,
-    profile: otherParticipant.profiles || otherParticipant.profile
-  } : null;
-  
+  const otherParticipant = conversation?.conversation_participants?.find(
+    (p) => p.user_id !== currentUserId,
+  );
+  // Map profiles property to profile for consistency
+  const participantWithProfile = otherParticipant
+    ? {
+        ...otherParticipant,
+        profile: otherParticipant.profiles || otherParticipant.profile,
+      }
+    : null;
+
   // Get display name with better fallbacks
   const getParticipantDisplayName = () => {
     if (participantWithProfile?.profile?.full_name) {
       return participantWithProfile.profile.full_name;
     }
-    
+
     // Try to get email if available
     if (participantWithProfile?.profile?.email) {
       return participantWithProfile.profile.email;
     }
-    
+
     // Fallback to user ID snippet
     if (participantWithProfile?.user_id) {
       return `User ${participantWithProfile.user_id.slice(-8)}`;
     }
-    
+
     return 'Unknown User';
   };
-  
+
   const participantDisplayName = getParticipantDisplayName();
 
   if (loading) {
     return (
       <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="#0F172A">
         <Spinner size="large" color="#00FFBC" />
-        <Text color="$color" marginTop={16}>Loading conversation...</Text>
+        <Text color="$color" marginTop={16}>
+          Loading conversation...
+        </Text>
       </YStack>
     );
   }
@@ -300,27 +315,28 @@ export const ConversationScreen: React.FC = () => {
         <TouchableOpacity onPress={handleBack}>
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        
+
         <TouchableOpacity onPress={handleAvatarPress}>
-        <Avatar circular size={40}>
-          <Avatar.Image
-            source={{ 
-                uri: participantWithProfile?.profile?.avatar_url || 
-                      `https://ui-avatars.com/api/?name=${encodeURIComponent(participantDisplayName)}&background=00FFBC&color=000` 
-            }}
-          />
-          <Avatar.Fallback backgroundColor="$gray8" />
-        </Avatar>
+          <Avatar circular size={40}>
+            <Avatar.Image
+              source={{
+                uri:
+                  participantWithProfile?.profile?.avatar_url ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(participantDisplayName)}&background=00FFBC&color=000`,
+              }}
+            />
+            <Avatar.Fallback backgroundColor="$gray8" />
+          </Avatar>
         </TouchableOpacity>
-        
+
         <TouchableOpacity onPress={handleAvatarPress} flex={1}>
           <YStack>
-          <Text fontSize={16} fontWeight="bold" color="$color">
+            <Text fontSize={16} fontWeight="bold" color="$color">
               {participantDisplayName}
-          </Text>
-          <Text fontSize={12} color="$gray11">
-            {conversation?.is_group ? 'Group' : 'Direct message'}
-          </Text>
+            </Text>
+            <Text fontSize={12} color="$gray11">
+              {conversation?.is_group ? 'Group' : 'Direct message'}
+            </Text>
           </YStack>
         </TouchableOpacity>
 
@@ -329,7 +345,7 @@ export const ConversationScreen: React.FC = () => {
           <TouchableOpacity onPress={() => setShowDropdown(!showDropdown)}>
             <MoreVertical size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          
+
           {showDropdown && (
             <YStack
               position="absolute"
@@ -355,9 +371,11 @@ export const ConversationScreen: React.FC = () => {
                 }}
               >
                 <User size={18} color="#FFFFFF" />
-                <Text color="$color" marginLeft={8}>View Profile</Text>
+                <Text color="$color" marginLeft={8}>
+                  View Profile
+                </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 onPress={handleDeleteConversation}
                 style={{
@@ -368,7 +386,9 @@ export const ConversationScreen: React.FC = () => {
                 }}
               >
                 <Trash2 size={18} color="#EF4444" />
-                <Text color="#EF4444" marginLeft={8}>Delete Conversation</Text>
+                <Text color="#EF4444" marginLeft={8}>
+                  Delete Conversation
+                </Text>
               </TouchableOpacity>
             </YStack>
           )}
@@ -376,36 +396,34 @@ export const ConversationScreen: React.FC = () => {
       </XStack>
 
       {/* Messages */}
-      <TouchableOpacity 
-        activeOpacity={1} 
+      <TouchableOpacity
+        activeOpacity={1}
         onPress={() => setShowDropdown(false)}
         style={{ flex: 1 }}
       >
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={({ item, index }) => renderMessage({ item, index })}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 16 }}
-        onContentSizeChange={() => {
-          // Auto-scroll to top when new messages arrive
-          if (messages.length > 0) {
-            flatListRef.current?.scrollToIndex({ index: 0, animated: true });
-          }
-        }}
-        scrollEnabled={true}
-        maintainVisibleContentPosition={{
-          minIndexForVisible: 0,
-          autoscrollToTopThreshold: 10
-        }}
-      />
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={({ item, index }) => renderMessage({ item, index })}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingVertical: 16 }}
+          onContentSizeChange={() => {
+            // Auto-scroll to top when new messages arrive
+            if (messages.length > 0) {
+              flatListRef.current?.scrollToIndex({ index: 0, animated: true });
+            }
+          }}
+          scrollEnabled={true}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+            autoscrollToTopThreshold: 10,
+          }}
+        />
       </TouchableOpacity>
 
       {/* Message Input */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <XStack
           padding={16}
           borderTopWidth={1}
@@ -416,11 +434,11 @@ export const ConversationScreen: React.FC = () => {
           <TouchableOpacity>
             <Paperclip size={20} color="#FFFFFF" />
           </TouchableOpacity>
-          
+
           <TouchableOpacity>
             <Image size={20} color="#FFFFFF" />
           </TouchableOpacity>
-          
+
           <Input
             flex={1}
             placeholder="Type a message..."
@@ -437,12 +455,12 @@ export const ConversationScreen: React.FC = () => {
             maxHeight={100}
             onSubmitEditing={sendMessage}
           />
-          
+
           <TouchableOpacity
             onPress={sendMessage}
             disabled={!newMessage.trim() || sending}
             style={{
-              opacity: (!newMessage.trim() || sending) ? 0.5 : 1
+              opacity: !newMessage.trim() || sending ? 0.5 : 1,
             }}
           >
             <Send size={20} color="#00FFBC" />
@@ -451,4 +469,4 @@ export const ConversationScreen: React.FC = () => {
       </KeyboardAvoidingView>
     </YStack>
   );
-}; 
+};

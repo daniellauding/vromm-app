@@ -47,13 +47,13 @@ class PushNotificationService {
       const token = await Notifications.getExpoPushTokenAsync({
         projectId: 'your-expo-project-id', // Replace with your Expo project ID
       });
-      
+
       this.expoPushToken = token.data;
       console.log('Expo push token:', token.data);
-      
+
       // Store token in Supabase
       await this.storePushToken(token.data);
-      
+
       return token.data;
     } catch (error) {
       console.error('Error getting push token:', error);
@@ -63,7 +63,9 @@ class PushNotificationService {
 
   // Store push token in Supabase
   private async storePushToken(token: string): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
 
     const deviceType = Platform.OS as 'ios' | 'android' | 'web';
@@ -78,14 +80,12 @@ class PushNotificationService {
 
     if (!existingToken) {
       // Insert new token
-      const { error } = await supabase
-        .from('user_push_tokens')
-        .insert({
-          user_id: user.id,
-          token,
-          device_type: deviceType,
-          is_active: true
-        });
+      const { error } = await supabase.from('user_push_tokens').insert({
+        user_id: user.id,
+        token,
+        device_type: deviceType,
+        is_active: true,
+      });
 
       if (error) {
         console.error('Error storing push token:', error);
@@ -96,7 +96,7 @@ class PushNotificationService {
         .from('user_push_tokens')
         .update({
           is_active: true,
-          device_type: deviceType
+          device_type: deviceType,
         })
         .eq('user_id', user.id)
         .eq('token', token);
@@ -109,7 +109,9 @@ class PushNotificationService {
 
   // Remove push token
   async removePushToken(token: string): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
 
     const { error } = await supabase
@@ -136,7 +138,7 @@ class PushNotificationService {
       return [];
     }
 
-    return data?.map(token => token.token) || [];
+    return data?.map((token) => token.token) || [];
   }
 
   // Send push notification to specific user
@@ -144,16 +146,16 @@ class PushNotificationService {
     userId: string,
     title: string,
     body: string,
-    data?: any
+    data?: any,
   ): Promise<void> {
     const tokens = await this.getUserPushTokens(userId);
-    
+
     if (tokens.length === 0) {
       console.log('No active push tokens for user:', userId);
       return;
     }
 
-    const messages = tokens.map(token => ({
+    const messages = tokens.map((token) => ({
       to: token,
       sound: 'default',
       title,
@@ -187,7 +189,7 @@ class PushNotificationService {
     userIds: string[],
     title: string,
     body: string,
-    data?: any
+    data?: any,
   ): Promise<void> {
     for (const userId of userIds) {
       await this.sendPushNotification(userId, title, body, data);
@@ -197,17 +199,15 @@ class PushNotificationService {
   // Set up notification listeners
   setupNotificationListeners(
     onNotificationReceived: (notification: Notifications.Notification) => void,
-    onNotificationResponse: (response: Notifications.NotificationResponse) => void
+    onNotificationResponse: (response: Notifications.NotificationResponse) => void,
   ): void {
     // Listen for notifications received while app is running
-    const notificationListener = Notifications.addNotificationReceivedListener(
-      onNotificationReceived
-    );
+    const notificationListener =
+      Notifications.addNotificationReceivedListener(onNotificationReceived);
 
     // Listen for user tapping on notification
-    const responseListener = Notifications.addNotificationResponseReceivedListener(
-      onNotificationResponse
-    );
+    const responseListener =
+      Notifications.addNotificationResponseReceivedListener(onNotificationResponse);
 
     // Return cleanup function
     return () => {
@@ -221,7 +221,7 @@ class PushNotificationService {
     title: string,
     body: string,
     trigger?: Notifications.NotificationTriggerInput,
-    data?: any
+    data?: any,
   ): Promise<string> {
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
@@ -265,12 +265,12 @@ class PushNotificationService {
     try {
       const { messageService } = await import('./messageService');
       const { notificationService } = await import('./notificationService');
-      
+
       const [unreadMessages, unreadNotifications] = await Promise.all([
         messageService.getUnreadCount(),
-        notificationService.getUnreadCount()
+        notificationService.getUnreadCount(),
       ]);
-      
+
       const totalUnread = unreadMessages + unreadNotifications;
       await this.setBadgeCount(totalUnread);
       console.log('📱 Updated badge:', { unreadMessages, unreadNotifications, totalUnread });
@@ -300,7 +300,9 @@ class PushNotificationService {
   }
 
   // Play notification sound manually (for in-app notifications)
-  async playNotificationSound(soundType: 'message' | 'notification' = 'notification'): Promise<void> {
+  async playNotificationSound(
+    soundType: 'message' | 'notification' = 'notification',
+  ): Promise<void> {
     try {
       const soundEnabled = await PushNotificationService.isSoundEnabled();
       if (!soundEnabled) return;
@@ -317,19 +319,20 @@ class PushNotificationService {
       });
 
       // Use different sounds for different types
-      const soundUri = soundType === 'message' 
-        ? 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' // Message sound
-        : 'https://www.soundjay.com/misc/sounds/bell-ringing-04.wav'; // Notification sound
+      const soundUri =
+        soundType === 'message'
+          ? 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' // Message sound
+          : 'https://www.soundjay.com/misc/sounds/bell-ringing-04.wav'; // Notification sound
 
       // Load and play sound
       const { sound } = await Audio.Sound.createAsync(
         { uri: soundUri },
-        { 
+        {
           shouldPlay: true,
           volume: 0.7,
           rate: 1.0,
           shouldCorrectPitch: true,
-        }
+        },
       );
 
       // Clean up after playing
@@ -373,7 +376,7 @@ class PushNotificationService {
         },
         trigger: null,
       });
-      
+
       console.log('🔊 Played system notification sound');
     } catch (error) {
       console.error('Error playing system sound:', error);
@@ -394,7 +397,7 @@ class PushNotificationService {
   handleNotificationResponse(response: Notifications.NotificationResponse) {
     const data = response.notification.request.content.data;
     const actionUrl = data?.action_url;
-    
+
     if (actionUrl && this.navigationRef?.current) {
       this.navigateFromNotification(actionUrl, data);
     }
@@ -406,22 +409,22 @@ class PushNotificationService {
       if (actionUrl.startsWith('vromm://')) {
         const url = actionUrl.replace('vromm://', '');
         const [screen, ...params] = url.split('/');
-        
+
         switch (screen) {
           case 'profile':
-            this.navigationRef.current?.navigate('PublicProfile', { 
-              userId: data.user_id || data.from_user_id 
+            this.navigationRef.current?.navigate('PublicProfile', {
+              userId: data.user_id || data.from_user_id,
             });
             break;
           case 'route':
-            this.navigationRef.current?.navigate('RouteDetail', { 
-              routeId: data.route_id 
+            this.navigationRef.current?.navigate('RouteDetail', {
+              routeId: data.route_id,
             });
             break;
           case 'messages':
             if (data.conversation_id) {
-              this.navigationRef.current?.navigate('Conversation', { 
-                conversationId: data.conversation_id 
+              this.navigationRef.current?.navigate('Conversation', {
+                conversationId: data.conversation_id,
               });
             } else {
               this.navigationRef.current?.navigate('Messages');
@@ -431,9 +434,9 @@ class PushNotificationService {
             this.navigationRef.current?.navigate('Notifications');
             break;
           case 'progress':
-            this.navigationRef.current?.navigate('MainTabs', { 
+            this.navigationRef.current?.navigate('MainTabs', {
               screen: 'ProgressTab',
-              params: { selectedPathId: data.learning_path_id }
+              params: { selectedPathId: data.learning_path_id },
             });
             break;
           default:
@@ -457,16 +460,18 @@ class PushNotificationService {
   }) {
     try {
       // Store notification in database using the SQL function
-      const { data: notificationId, error: dbError } = await supabase
-        .rpc('send_push_notification', {
+      const { data: notificationId, error: dbError } = await supabase.rpc(
+        'send_push_notification',
+        {
           p_user_id: payload.targetUserId,
           p_type: payload.type,
           p_title: payload.title,
           p_message: payload.message,
           p_data: payload.data || null,
           p_action_url: payload.actionUrl || null,
-          p_priority: payload.priority || 'normal'
-        });
+          p_priority: payload.priority || 'normal',
+        },
+      );
 
       if (dbError) {
         console.error('Error storing notification:', dbError);
@@ -474,24 +479,19 @@ class PushNotificationService {
       }
 
       // Send actual push notification
-      await this.sendPushNotification(
-        payload.targetUserId,
-        payload.title,
-        payload.message,
-        {
-          ...payload.data,
-          action_url: payload.actionUrl,
-          notification_id: notificationId,
-          type: payload.type
-        }
-      );
+      await this.sendPushNotification(payload.targetUserId, payload.title, payload.message, {
+        ...payload.data,
+        action_url: payload.actionUrl,
+        notification_id: notificationId,
+        type: payload.type,
+      });
 
       // Mark as sent in database
       await supabase
         .from('notifications')
-        .update({ 
-          push_sent: true, 
-          push_sent_at: new Date().toISOString() 
+        .update({
+          push_sent: true,
+          push_sent_at: new Date().toISOString(),
         })
         .eq('id', notificationId);
 
@@ -515,12 +515,18 @@ class PushNotificationService {
         follower_name: followerName,
       },
       actionUrl: `vromm://profile/${followerId}`,
-      priority: 'normal'
+      priority: 'normal',
     });
   }
 
   // Send new route notification to followers
-  async sendNewRouteNotification(routeId: string, creatorId: string, creatorName: string, routeTitle: string, followerIds: string[]) {
+  async sendNewRouteNotification(
+    routeId: string,
+    creatorId: string,
+    creatorName: string,
+    routeTitle: string,
+    followerIds: string[],
+  ) {
     for (const followerId of followerIds) {
       await this.sendEnhancedNotification({
         targetUserId: followerId,
@@ -534,20 +540,26 @@ class PushNotificationService {
           route_title: routeTitle,
         },
         actionUrl: `vromm://route/${routeId}`,
-        priority: 'normal'
+        priority: 'normal',
       });
     }
   }
 
   // Send invitation notification (unified for both directions)
-  async sendInvitationNotification(fromUserId: string, targetUserId: string, fromUserName: string, fromUserRole: string, invitationType: 'supervisor' | 'student') {
+  async sendInvitationNotification(
+    fromUserId: string,
+    targetUserId: string,
+    fromUserName: string,
+    fromUserRole: string,
+    invitationType: 'supervisor' | 'student',
+  ) {
     const isStudentInvite = invitationType === 'student';
-    
+
     await this.sendEnhancedNotification({
       targetUserId,
       type: isStudentInvite ? 'student_invitation' : 'supervisor_invitation',
       title: isStudentInvite ? 'Supervision Invitation! 👨‍🏫' : 'Supervisor Request! 🎓',
-      message: isStudentInvite 
+      message: isStudentInvite
         ? `${fromUserName} (${fromUserRole}) wants to supervise you`
         : `${fromUserName} wants you to be their supervisor`,
       data: {
@@ -557,12 +569,18 @@ class PushNotificationService {
         invitation_type: invitationType,
       },
       actionUrl: 'vromm://notifications',
-      priority: 'high'
+      priority: 'high',
     });
   }
 
   // Send route completed notification
-  async sendRouteCompletedNotification(routeId: string, routeTitle: string, completedByUserId: string, completedByName: string, routeCreatorId: string) {
+  async sendRouteCompletedNotification(
+    routeId: string,
+    routeTitle: string,
+    completedByUserId: string,
+    completedByName: string,
+    routeCreatorId: string,
+  ) {
     await this.sendEnhancedNotification({
       targetUserId: routeCreatorId,
       type: 'route_completed',
@@ -575,12 +593,19 @@ class PushNotificationService {
         completed_by_name: completedByName,
       },
       actionUrl: `vromm://route/${routeId}`,
-      priority: 'normal'
+      priority: 'normal',
     });
   }
 
   // Send route review notification
-  async sendRouteReviewNotification(routeId: string, routeTitle: string, reviewerUserId: string, reviewerName: string, rating: number, routeCreatorId: string) {
+  async sendRouteReviewNotification(
+    routeId: string,
+    routeTitle: string,
+    reviewerUserId: string,
+    reviewerName: string,
+    rating: number,
+    routeCreatorId: string,
+  ) {
     const stars = '⭐'.repeat(Math.floor(rating));
     await this.sendEnhancedNotification({
       targetUserId: routeCreatorId,
@@ -595,12 +620,18 @@ class PushNotificationService {
         rating,
       },
       actionUrl: `vromm://route/${routeId}`,
-      priority: 'normal'
+      priority: 'normal',
     });
   }
 
   // Send exercise completed notification to supervisors
-  async sendExerciseCompletedNotification(exerciseId: string, exerciseTitle: string, studentId: string, studentName: string, supervisorIds: string[]) {
+  async sendExerciseCompletedNotification(
+    exerciseId: string,
+    exerciseTitle: string,
+    studentId: string,
+    studentName: string,
+    supervisorIds: string[],
+  ) {
     for (const supervisorId of supervisorIds) {
       await this.sendEnhancedNotification({
         targetUserId: supervisorId,
@@ -614,30 +645,43 @@ class PushNotificationService {
           student_name: studentName,
         },
         actionUrl: `vromm://progress`,
-        priority: 'normal'
+        priority: 'normal',
       });
     }
   }
 
   // Send message notification
-  async sendMessageNotification(conversationId: string, fromUserId: string, fromUserName: string, messagePreview: string, targetUserId: string) {
+  async sendMessageNotification(
+    conversationId: string,
+    fromUserId: string,
+    fromUserName: string,
+    messagePreview: string,
+    targetUserId: string,
+  ) {
     await this.sendEnhancedNotification({
       targetUserId,
       type: 'message_received',
       title: `Message from ${fromUserName} 💬`,
-      message: messagePreview.length > 50 ? messagePreview.substring(0, 50) + '...' : messagePreview,
+      message:
+        messagePreview.length > 50 ? messagePreview.substring(0, 50) + '...' : messagePreview,
       data: {
         conversation_id: conversationId,
         from_user_id: fromUserId,
         from_user_name: fromUserName,
       },
       actionUrl: `vromm://messages/${conversationId}`,
-      priority: 'high'
+      priority: 'high',
     });
   }
 
   // Send learning path completed notification
-  async sendLearningPathCompletedNotification(pathId: string, pathTitle: string, studentId: string, studentName: string, supervisorIds: string[]) {
+  async sendLearningPathCompletedNotification(
+    pathId: string,
+    pathTitle: string,
+    studentId: string,
+    studentName: string,
+    supervisorIds: string[],
+  ) {
     for (const supervisorId of supervisorIds) {
       await this.sendEnhancedNotification({
         targetUserId: supervisorId,
@@ -651,13 +695,21 @@ class PushNotificationService {
           student_name: studentName,
         },
         actionUrl: `vromm://progress/${pathId}`,
-        priority: 'high'
+        priority: 'high',
       });
     }
   }
 
   // Send quiz completed notification
-  async sendQuizCompletedNotification(exerciseId: string, exerciseTitle: string, score: number, passed: boolean, studentId: string, studentName: string, supervisorIds: string[]) {
+  async sendQuizCompletedNotification(
+    exerciseId: string,
+    exerciseTitle: string,
+    score: number,
+    passed: boolean,
+    studentId: string,
+    studentName: string,
+    supervisorIds: string[],
+  ) {
     for (const supervisorId of supervisorIds) {
       await this.sendEnhancedNotification({
         targetUserId: supervisorId,
@@ -673,13 +725,19 @@ class PushNotificationService {
           student_name: studentName,
         },
         actionUrl: `vromm://progress`,
-        priority: 'normal'
+        priority: 'normal',
       });
     }
   }
 
   // Send route liked notification
-  async sendRouteLikedNotification(routeId: string, routeTitle: string, likedByUserId: string, likedByName: string, routeCreatorId: string) {
+  async sendRouteLikedNotification(
+    routeId: string,
+    routeTitle: string,
+    likedByUserId: string,
+    likedByName: string,
+    routeCreatorId: string,
+  ) {
     await this.sendEnhancedNotification({
       targetUserId: routeCreatorId,
       type: 'route_liked',
@@ -692,7 +750,7 @@ class PushNotificationService {
         liked_by_name: likedByName,
       },
       actionUrl: `vromm://route/${routeId}`,
-      priority: 'low'
+      priority: 'low',
     });
   }
 
@@ -704,26 +762,27 @@ class PushNotificationService {
       general: {
         title: 'Test Notification! 🧪',
         message: 'This is a test notification to verify the system works',
-        actionUrl: 'vromm://notifications'
+        actionUrl: 'vromm://notifications',
       },
       route: {
         title: 'Test Route Notification! 🛣️',
         message: 'Someone created a test route for you to check out',
-        actionUrl: 'vromm://route/test-route-id'
+        actionUrl: 'vromm://route/test-route-id',
       },
       message: {
         title: 'Test Message Notification! 💬',
         message: 'You have a test message waiting for you',
-        actionUrl: 'vromm://messages/test-conversation-id'
+        actionUrl: 'vromm://messages/test-conversation-id',
       },
       follow: {
         title: 'Test Follow Notification! 👥',
         message: 'Test User started following you',
-        actionUrl: 'vromm://profile/test-user-id'
-      }
+        actionUrl: 'vromm://profile/test-user-id',
+      },
     };
 
-    const notification = testNotifications[testType as keyof typeof testNotifications] || testNotifications.general;
+    const notification =
+      testNotifications[testType as keyof typeof testNotifications] || testNotifications.general;
 
     await this.sendEnhancedNotification({
       targetUserId: userId,
@@ -733,12 +792,12 @@ class PushNotificationService {
       data: {
         test: true,
         test_type: testType,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       actionUrl: notification.actionUrl,
-      priority: 'normal'
+      priority: 'normal',
     });
   }
 }
 
-export const pushNotificationService = new PushNotificationService(); 
+export const pushNotificationService = new PushNotificationService();

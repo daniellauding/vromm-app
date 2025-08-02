@@ -46,16 +46,16 @@ class PerformanceMonitor {
     operation: () => Promise<T>,
     tableName: string,
     queryType: 'select' | 'insert' | 'update' | 'delete' = 'select',
-    expectedFields?: string[]
+    expectedFields?: string[],
   ): Promise<T> {
     const startTime = Date.now();
     this.metrics.databaseCalls++;
 
     try {
-      logInfo(`Database call started: ${queryType} on ${tableName}`, { 
-        queryType, 
+      logInfo(`Database call started: ${queryType} on ${tableName}`, {
+        queryType,
         tableName,
-        expectedFields 
+        expectedFields,
       });
 
       const result = await operation();
@@ -69,7 +69,7 @@ class PerformanceMonitor {
           duration,
           query: `${queryType} on ${tableName}`,
         };
-        
+
         logWarn(`Slow database query detected`, issue);
         this.logDatabaseIssue(issue);
       }
@@ -107,7 +107,7 @@ class PerformanceMonitor {
   async monitorNetworkCall<T>(
     operation: () => Promise<T>,
     url: string,
-    method: string = 'GET'
+    method: string = 'GET',
   ): Promise<T> {
     const startTime = Date.now();
     this.metrics.networkCalls++;
@@ -124,7 +124,7 @@ class PerformanceMonitor {
           url,
           duration,
         };
-        
+
         logWarn(`Slow network request detected`, issue);
         this.logNetworkIssue(issue);
       }
@@ -192,7 +192,7 @@ class PerformanceMonitor {
       return;
     }
 
-    const missingFields = expectedFields.filter(field => !(field in result));
+    const missingFields = expectedFields.filter((field) => !(field in result));
     if (missingFields.length > 0) {
       const issue: DatabaseIssue = {
         type: 'missing_field',
@@ -206,9 +206,9 @@ class PerformanceMonitor {
     // Check for null values in critical fields
     const criticalFields = ['id', 'created_at', 'updated_at'];
     const nullCriticalFields = criticalFields.filter(
-      field => expectedFields.includes(field) && result[field] == null
+      (field) => expectedFields.includes(field) && result[field] == null,
     );
-    
+
     if (nullCriticalFields.length > 0) {
       logWarn(`Null values in critical fields`, {
         table: tableName,
@@ -221,30 +221,30 @@ class PerformanceMonitor {
   // Categorize database errors
   private categorizeDbError(error: Error): DatabaseIssue['type'] {
     const message = error.message.toLowerCase();
-    
+
     if (message.includes('timeout')) return 'timeout';
     if (message.includes('column') || message.includes('field')) return 'missing_field';
     if (message.includes('type') || message.includes('cast')) return 'type_mismatch';
     if (message.includes('connection')) return 'connection_error';
-    
+
     return 'connection_error';
   }
 
   // Categorize network errors
   private categorizeNetworkError(error: Error): NetworkIssue['type'] {
     const message = error.message.toLowerCase();
-    
+
     if (message.includes('timeout')) return 'timeout';
     if (message.includes('network') || message.includes('connection')) return 'connection_lost';
     if (message.includes('server') || message.includes('500')) return 'server_error';
-    
+
     return 'connection_lost';
   }
 
   // Log database issues
   private logDatabaseIssue(issue: DatabaseIssue) {
     this.metrics.errors.push(`DB: ${issue.type} in ${issue.table}`);
-    
+
     // Log specific recommendations
     switch (issue.type) {
       case 'missing_field':
@@ -274,7 +274,7 @@ class PerformanceMonitor {
   // Log network issues
   private logNetworkIssue(issue: NetworkIssue) {
     this.metrics.errors.push(`NET: ${issue.type} for ${issue.url}`);
-    
+
     switch (issue.type) {
       case 'slow_response':
         logWarn('Slow network response detected', {
@@ -297,7 +297,8 @@ class PerformanceMonitor {
     const totalTime = currentTime - this.metrics.startTime;
 
     // Check if app has been running for a long time (potential memory leaks)
-    if (totalTime > 300000) { // 5 minutes
+    if (totalTime > 300000) {
+      // 5 minutes
       logWarn(`App running for extended time: ${Math.round(totalTime / 60000)} minutes`, {
         context,
         memoryAllocations: this.metrics.memoryAllocations,
@@ -328,7 +329,7 @@ class PerformanceMonitor {
   // Get performance summary
   getPerformanceSummary() {
     const totalTime = Date.now() - this.metrics.startTime;
-    
+
     return {
       totalRuntime: Math.round(totalTime / 1000),
       databaseCalls: this.metrics.databaseCalls,
@@ -337,7 +338,9 @@ class PerformanceMonitor {
       warnings: this.metrics.warnings.length,
       errors: this.metrics.errors.length,
       recentErrors: this.metrics.errors.slice(-5),
-      avgCallsPerMinute: Math.round((this.metrics.databaseCalls + this.metrics.networkCalls) / (totalTime / 60000)),
+      avgCallsPerMinute: Math.round(
+        (this.metrics.databaseCalls + this.metrics.networkCalls) / (totalTime / 60000),
+      ),
     };
   }
 
@@ -362,20 +365,18 @@ export const monitorDatabaseCall = <T>(
   operation: () => Promise<T>,
   tableName: string,
   queryType: 'select' | 'insert' | 'update' | 'delete' = 'select',
-  expectedFields?: string[]
+  expectedFields?: string[],
 ) => performanceMonitor.monitorDatabaseCall(operation, tableName, queryType, expectedFields);
 
 export const monitorNetworkCall = <T>(
   operation: () => Promise<T>,
   url: string,
-  method: string = 'GET'
+  method: string = 'GET',
 ) => performanceMonitor.monitorNetworkCall(operation, url, method);
 
-export const checkMemoryUsage = (context: string) => 
-  performanceMonitor.checkMemoryUsage(context);
+export const checkMemoryUsage = (context: string) => performanceMonitor.checkMemoryUsage(context);
 
-export const checkForPotentialIssues = (context: string) => 
+export const checkForPotentialIssues = (context: string) =>
   performanceMonitor.checkForPotentialIssues(context);
 
-export const getPerformanceSummary = () => 
-  performanceMonitor.getPerformanceSummary(); 
+export const getPerformanceSummary = () => performanceMonitor.getPerformanceSummary();

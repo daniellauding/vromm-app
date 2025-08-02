@@ -15,7 +15,7 @@ export const setupRouteRecordingNavigation = (navigation: any, createRouteContex
       // Check if user was in CreateRoute before recording
       const recordingContext = createRouteContext.getAndClearRecordingContext();
       const hasPersistedState = !!createRouteContext.persistedState;
-      
+
       console.log('🚀 Recording context check:', {
         recordingContext,
         hasPersistedState,
@@ -25,15 +25,15 @@ export const setupRouteRecordingNavigation = (navigation: any, createRouteContex
       if (recordingContext !== null || hasPersistedState) {
         // User came from CreateRoute - merge recorded data with persisted state
         console.log('🚀 Merging recorded data with persisted state');
-        
+
         const mergedState = createRouteContext.mergeRecordedData(routeData);
         if (mergedState) {
           // Update the persisted state with merged data
           createRouteContext.saveState(mergedState);
-          
+
           // Mark as coming from recording for state restoration
           createRouteContext.markFromRecording();
-          
+
           console.log('🚀 State merged and marked for restoration');
         }
 
@@ -41,7 +41,7 @@ export const setupRouteRecordingNavigation = (navigation: any, createRouteContex
         setTimeout(() => {
           navigation.navigate('CreateRoute', {});
         }, 100);
-        
+
         return;
       }
     }

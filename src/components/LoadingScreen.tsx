@@ -10,11 +10,11 @@ interface LoadingScreenProps {
   onTimeout?: () => void;
 }
 
-export function LoadingScreen({ 
-  message = 'Loading...', 
+export function LoadingScreen({
+  message = 'Loading...',
   showAfterMs = 500,
   timeout = 10000,
-  onTimeout 
+  onTimeout,
 }: LoadingScreenProps) {
   const [visible, setVisible] = useState(false);
   const [dots, setDots] = useState('');
@@ -30,7 +30,7 @@ export function LoadingScreen({
         message,
         platform: Platform.OS,
       });
-      
+
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 300,
@@ -44,7 +44,7 @@ export function LoadingScreen({
   // Animate dots
   useEffect(() => {
     const interval = setInterval(() => {
-      setDots(prev => {
+      setDots((prev) => {
         if (prev.length >= 3) return '';
         return prev + '.';
       });
@@ -72,22 +72,17 @@ export function LoadingScreen({
 
   if (!visible) return null;
 
-  const asciiArt = Platform.OS === 'android' && Platform.Version < 28 
-    ? [
-        '  ╭─────╮',
-        '  │ ◐ ◑ │',
-        '  │  ▼  │',
-        '  ╰─────╯',
-        '  Loading',
-      ]
-    : [
-        '  ╭─────────╮',
-        '  │ ◐ ◑ ◐ ◑ │',
-        '  │    ▼    │',
-        '  │ ◑ ◐ ◑ ◐ │',
-        '  ╰─────────╯',
-        '   Loading',
-      ];
+  const asciiArt =
+    Platform.OS === 'android' && Platform.Version < 28
+      ? ['  ╭─────╮', '  │ ◐ ◑ │', '  │  ▼  │', '  ╰─────╯', '  Loading']
+      : [
+          '  ╭─────────╮',
+          '  │ ◐ ◑ ◐ ◑ │',
+          '  │    ▼    │',
+          '  │ ◑ ◐ ◑ ◐ │',
+          '  ╰─────────╯',
+          '   Loading',
+        ];
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
@@ -100,13 +95,11 @@ export function LoadingScreen({
           ))}
           <Text style={styles.dotsText}>{dots}</Text>
         </View>
-        
-        <Text style={styles.messageText}>
-          {message}
-        </Text>
-        
+
+        <Text style={styles.messageText}>{message}</Text>
+
         <Text style={styles.hintText}>
-          {Platform.OS === 'android' && Platform.Version < 28 
+          {Platform.OS === 'android' && Platform.Version < 28
             ? 'Optimizing for older device...'
             : 'Please wait...'}
         </Text>

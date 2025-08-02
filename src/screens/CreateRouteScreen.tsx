@@ -111,9 +111,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     isModal,
     hideHeader,
     hasRoute: !!route,
-    hasParams: !!route?.params
+    hasParams: !!route?.params,
   });
-  
+
   if (route?.params) {
     console.log('🏗️ Route params received:', {
       routeId: route.params.routeId,
@@ -127,14 +127,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       hasInitialStartPoint: !!route.params.initialStartPoint,
       hasInitialEndPoint: !!route.params.initialEndPoint,
       hasOnClose: !!route.params.onClose,
-      hasOnRouteCreated: !!route.params.onRouteCreated
+      hasOnRouteCreated: !!route.params.onRouteCreated,
     });
-    
+
     if (route.params.initialWaypoints) {
       console.log('🏗️ Initial waypoints details:', {
         count: route.params.initialWaypoints.length,
         firstWaypoint: route.params.initialWaypoints[0],
-        lastWaypoint: route.params.initialWaypoints[route.params.initialWaypoints.length - 1]
+        lastWaypoint: route.params.initialWaypoints[route.params.initialWaypoints.length - 1],
       });
     }
   }
@@ -154,14 +154,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const onCloseModal = route?.params?.onClose;
   const onRouteCreated = route?.params?.onRouteCreated;
   const isEditing = !!routeId;
-  
+
   console.log('🏗️ Extracted params:', {
     routeId,
     initialWaypointsCount: initialWaypoints?.length || 0,
     initialName,
     isEditing,
     hasOnCloseModal: !!onCloseModal,
-    hasOnRouteCreated: !!onRouteCreated
+    hasOnRouteCreated: !!onRouteCreated,
   });
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
@@ -179,7 +179,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     console.log('🏗️ Initializing waypoints state:', {
       hasInitialWaypoints: !!initialWaypoints,
       count: initialWaypoints?.length || 0,
-      waypoints: initialWaypoints
+      waypoints: initialWaypoints,
     });
     return initialWaypoints || [];
   });
@@ -213,7 +213,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   // Drawing state refs for continuous drawing
   const drawingRef = useRef(false);
-  const lastDrawPointRef = useRef<{ latitude: number; longitude: number; timestamp?: number } | null>(null);
+  const lastDrawPointRef = useRef<{
+    latitude: number;
+    longitude: number;
+    timestamp?: number;
+  } | null>(null);
 
   // Initialize search query with coordinates if provided
   useEffect(() => {
@@ -222,9 +226,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       hasInitialSearchCoordinates: !!initialSearchCoordinates,
       initialSearchCoordinates,
       currentSearchQuery: searchQuery,
-      shouldSet: initialSearchCoordinates && searchQuery === ''
+      shouldSet: initialSearchCoordinates && searchQuery === '',
     });
-    
+
     if (initialSearchCoordinates && searchQuery === '') {
       console.log('🏗️ Setting initial search coordinates:', initialSearchCoordinates);
       setSearchQuery(initialSearchCoordinates);
@@ -307,12 +311,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     console.log('🏗️ Checking initial waypoints:', {
       hasInitialWaypoints: !!initialWaypoints?.length,
       count: initialWaypoints?.length || 0,
-      waypoints: initialWaypoints
+      waypoints: initialWaypoints,
     });
-    
+
     if (initialWaypoints?.length) {
       console.log('🏗️ Setting up region from initial waypoints...');
-      
+
       const latitudes = initialWaypoints.map((wp) => wp.latitude);
       const longitudes = initialWaypoints.map((wp) => wp.longitude);
 
@@ -329,13 +333,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       };
 
       console.log('🏗️ Calculated region:', newRegion);
-      
+
       // Create a region that contains all waypoints
       setRegion(newRegion);
 
       // Set active section to basic to allow naming the route
       setActiveSection('basic');
-      
+
       console.log('🏗️ ✅ Region and active section set for recorded route');
     }
   }, [isEditing, locationPermission, initialWaypoints]);
@@ -362,7 +366,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   });
 
   // ==================== UNSAVED CHANGES DETECTION ====================
-  
+
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showExitConfirmation, setShowExitConfirmation] = useState(false);
   const [initialStateSnapshot, setInitialStateSnapshot] = useState<any>(null);
@@ -411,15 +415,15 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => backHandler.remove();
-    }, [hasUnsavedChanges])
+    }, [hasUnsavedChanges]),
   );
 
   // ==================== CONTEXT STATE INTEGRATION ====================
-  
+
   // Check if we should restore state from context (coming back from recording)
   useEffect(() => {
     console.log('🔄 ==================== CHECKING FOR STATE RESTORATION ====================');
-    
+
     const shouldRestore = createRouteContext.isFromRecording() && createRouteContext.persistedState;
     console.log('🔄 Should restore state:', {
       isFromRecording: createRouteContext.isFromRecording(),
@@ -459,7 +463,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   // Save state to context when user starts recording
   const saveCurrentStateToContext = () => {
     console.log('🔄 Saving current state to context before recording');
-    
+
     const currentState = {
       formData,
       waypoints,
@@ -486,7 +490,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const saveAsDraft = async () => {
     try {
       console.log('💾 Saving route as draft...');
-      
+
       if (!user?.id) {
         Alert.alert('Error', 'You must be logged in to save drafts');
         return;
@@ -512,19 +516,17 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       };
 
       // Save to Supabase drafts table (you'll need to create this table)
-      const { error } = await supabase
-        .from('route_drafts')
-        .insert([draftData]);
+      const { error } = await supabase.from('route_drafts').insert([draftData]);
 
       if (error) throw error;
 
       console.log('💾 ✅ Draft saved successfully');
       Alert.alert('Success', 'Route saved as draft! You can continue editing it later.');
-      
+
       // Reset unsaved changes flag
       setHasUnsavedChanges(false);
       setShowExitConfirmation(false);
-      
+
       // Navigate back
       navigation.goBack();
     } catch (error) {
@@ -563,10 +565,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const handlePinMode = async (latitude: number, longitude: number) => {
     console.log(`Pin mode: Dropping pin at ${latitude}, ${longitude}`);
-    
+
     // Create basic title with coordinates
     const basicTitle = `Pin (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-    
+
     // Create waypoint immediately to prevent crashes
     const newWaypoint: Waypoint = {
       latitude,
@@ -587,15 +589,19 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         try {
           const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
           if (address) {
-            const title = [address.street, address.city, address.country].filter(Boolean).join(', ');
-            
+            const title = [address.street, address.city, address.country]
+              .filter(Boolean)
+              .join(', ');
+
             // Update with real address
-            setWaypoints([{
-              latitude,
-              longitude,
-              title,
-              description: 'Pin location',
-            }]);
+            setWaypoints([
+              {
+                latitude,
+                longitude,
+                title,
+                description: 'Pin location',
+              },
+            ]);
             setSearchQuery(title);
             console.log(`Pin address resolved: ${title}`);
           }
@@ -613,11 +619,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const handleWaypointMode = async (latitude: number, longitude: number) => {
     try {
       console.log(`Waypoint mode: Adding waypoint at ${latitude}, ${longitude}`);
-      
+
       // Create basic title with waypoint number and coordinates
       const waypointNumber = waypoints.length + 1;
       const basicTitle = `Waypoint ${waypointNumber} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-      
+
       const newWaypoint: Waypoint = {
         latitude,
         longitude,
@@ -637,15 +643,15 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       setSearchQuery(basicTitle);
       console.log(`Waypoint ${waypointNumber} added successfully`);
       console.log(`Current waypoints after adding: ${waypoints.length + 1}`);
-      
+
       // Performance protection for Expo Go
       if (waypointNumber > 5) {
         console.warn(`Performance: ${waypointNumber} waypoints may cause crashes in Expo Go`);
         if (waypointNumber > 8) {
           Alert.alert(
-            'Too Many Waypoints', 
+            'Too Many Waypoints',
             'Maximum 8 waypoints allowed in development mode. Please use fewer waypoints or test on device.',
-            [{ text: 'OK' }]
+            [{ text: 'OK' }],
           );
           return; // Stop adding more waypoints
         }
@@ -654,28 +660,31 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       // Try to get address in background with rate limiting protection
       try {
         // Add delay to prevent rate limiting
-        setTimeout(async () => {
-          try {
-            const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
-            if (address) {
-              const addressTitle = [address.street, address.city, address.country]
-                .filter(Boolean)
-                .join(', ');
-              
-              // Update the specific waypoint with real address
-              setWaypoints((prev) => 
-                prev.map((wp, index) => 
-                  index === prev.length - 1 
-                    ? { ...wp, title: addressTitle }
-                    : wp
-                )
+        setTimeout(
+          async () => {
+            try {
+              const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
+              if (address) {
+                const addressTitle = [address.street, address.city, address.country]
+                  .filter(Boolean)
+                  .join(', ');
+
+                // Update the specific waypoint with real address
+                setWaypoints((prev) =>
+                  prev.map((wp, index) =>
+                    index === prev.length - 1 ? { ...wp, title: addressTitle } : wp,
+                  ),
+                );
+                console.log(`Waypoint ${waypointNumber} address resolved: ${addressTitle}`);
+              }
+            } catch (err) {
+              console.log(
+                `Address lookup failed for waypoint ${waypointNumber}, keeping coordinate title`,
               );
-              console.log(`Waypoint ${waypointNumber} address resolved: ${addressTitle}`);
             }
-          } catch (err) {
-            console.log(`Address lookup failed for waypoint ${waypointNumber}, keeping coordinate title`);
-          }
-        }, Math.min(500 * waypointNumber, 5000)); // Staggered delays to prevent rate limiting, max 5s
+          },
+          Math.min(500 * waypointNumber, 5000),
+        ); // Staggered delays to prevent rate limiting, max 5s
       } catch (err) {
         console.error('Error setting up address lookup:', err);
       }
@@ -686,19 +695,24 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       // Still try to add the waypoint even if address lookup fails
       const waypointNumber = waypoints.length + 1;
       const basicTitle = `Waypoint ${waypointNumber} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-      
-      setWaypoints((prev) => [...prev, {
-        latitude,
-        longitude,
-        title: basicTitle,
-        description: 'Route waypoint',
-      }]);
+
+      setWaypoints((prev) => [
+        ...prev,
+        {
+          latitude,
+          longitude,
+          title: basicTitle,
+          description: 'Route waypoint',
+        },
+      ]);
     }
   };
 
   const handlePenMode = (latitude: number, longitude: number) => {
-    console.log(`Pen mode: ${isDrawing ? 'Adding to' : 'Starting'} pen path at ${latitude}, ${longitude}`);
-    
+    console.log(
+      `Pen mode: ${isDrawing ? 'Adding to' : 'Starting'} pen path at ${latitude}, ${longitude}`,
+    );
+
     if (isDrawing) {
       // Add to pen path for continuous drawing
       const newPath = [...penPath, { latitude, longitude }];
@@ -722,13 +736,15 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   // Continuous drawing functions
   const startContinuousDrawing = (latitude: number, longitude: number) => {
-    console.log(`🎨 STARTING CONTINUOUS DRAWING at: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
-    
+    console.log(
+      `🎨 STARTING CONTINUOUS DRAWING at: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+    );
+
     // Clear any existing drawing first
     if (penPath.length === 0) {
       drawingRef.current = true;
       setIsDrawing(true);
-      
+
       const initialPath = [{ latitude, longitude }];
       setPenPath(initialPath);
       lastDrawPointRef.current = { latitude, longitude, timestamp: Date.now() };
@@ -737,7 +753,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       // Continue existing drawing
       drawingRef.current = true;
       const newPoint = { latitude, longitude };
-      setPenPath(prev => [...prev, newPoint]);
+      setPenPath((prev) => [...prev, newPoint]);
       lastDrawPointRef.current = { latitude, longitude, timestamp: Date.now() };
       console.log(`🎨 Continuing drawing, added point:`, newPoint);
     }
@@ -748,24 +764,23 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       console.log(`🎨 NOT ADDING POINT - drawingRef.current is false`);
       return;
     }
-    
+
     // Add distance filtering to avoid too many points but keep drawing smooth
     const lastPoint = lastDrawPointRef.current;
     if (lastPoint) {
       const distance = Math.sqrt(
-        Math.pow(latitude - lastPoint.latitude, 2) + 
-        Math.pow(longitude - lastPoint.longitude, 2)
+        Math.pow(latitude - lastPoint.latitude, 2) + Math.pow(longitude - lastPoint.longitude, 2),
       );
-      
+
       // Reduced threshold for smoother drawing (was 0.00001, now 0.000005)
       if (distance < 0.000005) {
         console.log(`🎨 NOT ADDING POINT - too close to last point (${distance})`);
         return;
       }
     }
-    
+
     console.log(`🎨 ADDING DRAWING POINT: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
-    setPenPath(prev => {
+    setPenPath((prev) => {
       const newPath = [...prev, { latitude, longitude }];
       console.log(`🎨 New pen path length: ${newPath.length}`);
       return newPath;
@@ -786,7 +801,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       const { latitude, longitude } = event.nativeEvent.coordinate;
       console.log(`Map pressed at: ${latitude}, ${longitude} - Mode: ${drawingMode}`);
       console.log(`Current waypoints before press:`, waypoints.length, waypoints);
-      
+
       // For pen mode, handle continuous drawing
       if (drawingMode === 'pen') {
         console.log(`🎨 PEN MODE TAP - isDrawing: ${isDrawing}, penPath length: ${penPath.length}`);
@@ -803,7 +818,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         // Handle other modes normally
         handleMapPress(event);
       }
-      
+
       // Log waypoints after press (with slight delay to see state update)
       setTimeout(() => {
         console.log(`Waypoints after press:`, waypoints.length, waypoints);
@@ -842,10 +857,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
         console.log('🎨 PEN DRAWING STARTED');
         const { locationX, locationY } = evt.nativeEvent;
-        
+
         // Try coordinate conversion, fallback to approximate method
         if (mapRef.current && mapRef.current.coordinateForPoint) {
-          mapRef.current.coordinateForPoint({ x: locationX, y: locationY })
+          mapRef.current
+            .coordinateForPoint({ x: locationX, y: locationY })
             .then((coordinate: { latitude: number; longitude: number }) => {
               console.log('🎨 DRAG START at:', coordinate);
               startContinuousDrawing(coordinate.latitude, coordinate.longitude);
@@ -865,15 +881,16 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     onPanResponderMove: (evt, gestureState) => {
       if (drawingMode === 'pen' && drawingRef.current && evt.nativeEvent.touches.length === 1) {
         const { locationX, locationY } = evt.nativeEvent;
-        
+
         // Throttle updates to prevent lag (reduced to 30ms for smoother drawing)
         const now = Date.now();
         if (now - (lastDrawPointRef.current?.timestamp || 0) < 30) {
           return;
         }
-        
+
         if (mapRef.current && mapRef.current.coordinateForPoint) {
-          mapRef.current.coordinateForPoint({ x: locationX, y: locationY })
+          mapRef.current
+            .coordinateForPoint({ x: locationX, y: locationY })
             .then((coordinate: { latitude: number; longitude: number }) => {
               console.log('🎨 DRAG MOVE to:', coordinate);
               addContinuousDrawingPoint(coordinate.latitude, coordinate.longitude);
@@ -975,18 +992,20 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       const newWaypoints = penPath.map((point, index) => ({
         latitude: point.latitude,
         longitude: point.longitude,
-        title: index === 0 
-          ? 'Drawing Start' 
-          : index === penPath.length - 1 
-            ? 'Drawing End' 
-            : `Drawing Point ${index + 1}`,
-        description: index === 0 
-          ? 'Start of drawn route' 
-          : index === penPath.length - 1 
-            ? 'End of drawn route' 
-            : 'Drawing waypoint',
+        title:
+          index === 0
+            ? 'Drawing Start'
+            : index === penPath.length - 1
+              ? 'Drawing End'
+              : `Drawing Point ${index + 1}`,
+        description:
+          index === 0
+            ? 'Start of drawn route'
+            : index === penPath.length - 1
+              ? 'End of drawn route'
+              : 'Drawing waypoint',
       }));
-      
+
       setWaypoints((prev) => [...prev, ...newWaypoints]);
       // DON'T clear penPath - keep it for saving to metadata
       // setPenPath([]);
@@ -1003,10 +1022,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     try {
       // Save current state before starting recording
       saveCurrentStateToContext();
-      
+
       // Mark that recording was started from CreateRoute
       createRouteContext.setRecordingContext(routeId);
-      
+
       showModal(<RecordDrivingModal />);
     } catch (error) {
       console.error('Error opening record modal:', error);
@@ -1071,14 +1090,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       id: exercise.id,
       title: exercise.title,
       has_quiz: exercise.has_quiz,
-      quiz_data: exercise.quiz_data
+      quiz_data: exercise.quiz_data,
     });
 
     // Set up the form data for editing
     if (exercise.source === 'custom') {
       // Remove the exercise from the list temporarily
       handleRemoveExercise(exercise.id);
-      
+
       // Set the exercise data for editing and open the creator
       setEditingExercise(exercise);
       setShowAdvancedExerciseCreator(true);
@@ -1088,7 +1107,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   // Handle exercise selector changes
   const handleExercisesChange = (updatedExercises: RouteExercise[]) => {
     // Convert RouteExercise[] to Exercise[] for compatibility
-    const convertedExercises: Exercise[] = updatedExercises.map(ex => ({
+    const convertedExercises: Exercise[] = updatedExercises.map((ex) => ({
       id: ex.id,
       title: ex.title,
       description: ex.description,
@@ -1108,23 +1127,30 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       repeatNumber: ex.repeatNumber,
       source: ex.source,
     }));
-    
+
     setExercises(convertedExercises);
   };
 
   // Handle exercises created from AdvancedExerciseCreator
   const handleAdvancedExerciseCreated = (exercise: any) => {
-    console.log('🔧 [CreateRoute] Advanced exercise created:', {
+    const isEditing = !!editingExercise;
+
+    console.log('🔧 [CreateRoute] Advanced exercise created/updated:', {
+      isEditing,
+      originalId: editingExercise?.id,
       has_quiz: exercise.has_quiz,
       quiz_data: !!exercise.quiz_data,
       quiz_data_type: typeof exercise.quiz_data,
-      quiz_questions_count: exercise.quiz_data?.questions?.length || 0
+      quiz_questions_count: exercise.quiz_data?.questions?.length || 0,
     });
-    
+
     const newExercise: Exercise = {
-      id: Date.now().toString(),
+      id: isEditing ? editingExercise.id : Date.now().toString(), // Preserve ID when editing
       title: typeof exercise.title === 'string' ? exercise.title : exercise.title.en,
-      description: typeof exercise.description === 'string' ? exercise.description : exercise.description?.en || '',
+      description:
+        typeof exercise.description === 'string'
+          ? exercise.description
+          : exercise.description?.en || '',
       duration: exercise.duration,
       repetitions: exercise.repetitions,
       source: 'custom',
@@ -1134,7 +1160,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       difficulty_level: exercise.difficulty_level || 'beginner',
       vehicle_type: exercise.vehicle_type || 'both',
       creator_id: user?.id,
-      created_at: new Date().toISOString(),
+      created_at: isEditing ? editingExercise.created_at : new Date().toISOString(), // Preserve created_at when editing
       promotion_status: 'none',
       quality_score: 0,
       rating: 0,
@@ -1145,18 +1171,29 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       embed_code: exercise.embed_code,
       has_quiz: exercise.has_quiz,
       quiz_required: exercise.quiz_required,
-      quiz_data: exercise.quiz_data, // THIS WAS MISSING!
+      quiz_data: exercise.quiz_data,
+      // Preserve any additional fields from the original exercise when editing
+      ...(isEditing
+        ? {
+            repeat_count: exercise.repeat_count || editingExercise.repeat_count,
+            tags: exercise.tags || editingExercise.tags || [],
+            is_locked: exercise.is_locked || editingExercise.is_locked,
+            lock_password: exercise.lock_password || editingExercise.lock_password,
+          }
+        : {}),
     };
-    
-    console.log('✅ [CreateRoute] Adding exercise to list:', {
+
+    console.log(`✅ [CreateRoute] ${isEditing ? 'Updated' : 'Adding'} exercise to list:`, {
       id: newExercise.id,
       title: newExercise.title,
       has_quiz: newExercise.has_quiz,
       quiz_data: !!newExercise.quiz_data,
-      quiz_data_preview: newExercise.quiz_data ? JSON.stringify(newExercise.quiz_data).substring(0, 100) + '...' : null
+      quiz_data_preview: newExercise.quiz_data
+        ? JSON.stringify(newExercise.quiz_data).substring(0, 100) + '...'
+        : null,
     });
-    
-    setExercises(prev => [...prev, newExercise]);
+
+    setExercises((prev) => [...prev, newExercise]);
     setShowAdvancedExerciseCreator(false);
     setEditingExercise(null); // Clear editing state
   };
@@ -1327,12 +1364,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       Alert.alert('Error', 'Please drop a pin on the map');
       return;
     }
-    
+
     if (drawingMode === 'waypoint' && waypoints.length < 2) {
       Alert.alert('Error', 'Waypoint mode requires at least 2 waypoints');
       return;
     }
-    
+
     if (drawingMode === 'pen') {
       if (penPath.length === 0 && waypoints.length === 0) {
         Alert.alert('Error', 'Please draw a route on the map');
@@ -1340,14 +1377,16 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       } else if (penPath.length > 0 && waypoints.length === 0) {
         // User drew something but didn't finish - show helpful message
         Alert.alert(
-          'Finish Your Drawing', 
+          'Finish Your Drawing',
           'Please tap the "Finish" button to complete your pen drawing before saving.',
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
         return;
       } else if (penPath.length > 0 && waypoints.length > 0) {
         // Valid: User has drawn and finished - both pen coordinates and waypoints exist
-        console.log(`🎨 Valid pen drawing: ${penPath.length} coordinates, ${waypoints.length} waypoints`);
+        console.log(
+          `🎨 Valid pen drawing: ${penPath.length} coordinates, ${waypoints.length} waypoints`,
+        );
       }
     }
 
@@ -1370,16 +1409,21 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
       // Sanitize spot_type to ensure it matches database enum
       const validSpotTypes = ['urban', 'rural', 'highway', 'residential'];
-      const sanitizedSpotType = validSpotTypes.includes(formData.spot_type) 
-        ? formData.spot_type 
+      const sanitizedSpotType = validSpotTypes.includes(formData.spot_type)
+        ? formData.spot_type
         : 'urban';
 
       // Ensure waypoint data is valid
-      const validWaypoints = waypointDetails.filter(wp => 
-        wp.lat && wp.lng && 
-        !isNaN(wp.lat) && !isNaN(wp.lng) &&
-        wp.lat >= -90 && wp.lat <= 90 &&
-        wp.lng >= -180 && wp.lng <= 180
+      const validWaypoints = waypointDetails.filter(
+        (wp) =>
+          wp.lat &&
+          wp.lng &&
+          !isNaN(wp.lat) &&
+          !isNaN(wp.lng) &&
+          wp.lat >= -90 &&
+          wp.lat <= 90 &&
+          wp.lng >= -180 &&
+          wp.lng <= 180,
       );
 
       // When editing, preserve existing media
@@ -1428,7 +1472,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       if (drawingMode === 'pen' && penPath.length > 0) {
         // PEN MODE: Save in web-compatible format
         console.log('🎨 [SAVE] Using WEB-COMPATIBLE PEN FORMAT');
-        
+
         // Convert pen coordinates to web format (lat/lng objects)
         const penWaypoints = penPath.map((coord, index) => ({
           lat: coord.latitude,
@@ -1454,7 +1498,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           waypointsCount: finalWaypoints.length,
           drawingMode: finalDrawingMode,
           firstCoordinate: finalWaypoints[0],
-          lastCoordinate: finalWaypoints[finalWaypoints.length - 1]
+          lastCoordinate: finalWaypoints[finalWaypoints.length - 1],
         });
       } else {
         // OTHER MODES: Use existing logic
@@ -1492,12 +1536,17 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         is_public: formData.visibility === 'public',
         waypoint_details: finalWaypointDetails,
         metadata: finalMetadata,
-        suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises.map(ex => ({
-          ...ex,
-          // Ensure quiz data is properly saved
-          has_quiz: ex.has_quiz || false,
-          quiz_data: ex.quiz_data || null
-        }))) : '',
+        suggested_exercises:
+          exercises.length > 0
+            ? JSON.stringify(
+                exercises.map((ex) => ({
+                  ...ex,
+                  // Ensure quiz data is properly saved
+                  has_quiz: ex.has_quiz || false,
+                  quiz_data: ex.quiz_data || null,
+                })),
+              )
+            : '',
         media_attachments: mediaToUpdate,
         drawing_mode: finalDrawingMode,
       };
@@ -1555,7 +1604,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         // Debug: Confirm what was saved
         console.log('🎨 [SAVE] Route saved successfully!');
         console.log('🎨 [SAVE] Saved metadata:', JSON.stringify(newRoute.metadata, null, 2));
-        
+
         // Track route creation
         await AppAnalytics.trackRouteCreate(formData.spot_type);
 
@@ -1678,7 +1727,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       if ((route as any).suggested_exercises) {
         try {
           let loadedExercises: RouteExercise[] = [];
-          
+
           if (typeof (route as any).suggested_exercises === 'string') {
             // Parse JSON string
             const cleanedString = (route as any).suggested_exercises.trim();
@@ -1689,17 +1738,17 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             // Already an array
             loadedExercises = (route as any).suggested_exercises;
           }
-          
+
           console.log('📚 [CreateRoute] Loaded existing exercises:', {
             count: loadedExercises.length,
-            exercises: loadedExercises.map(ex => ({ 
-              id: ex.id, 
-              title: ex.title, 
+            exercises: loadedExercises.map((ex) => ({
+              id: ex.id,
+              title: ex.title,
               source: ex.source,
-              has_quiz: ex.has_quiz 
-            }))
+              has_quiz: ex.has_quiz,
+            })),
           });
-          
+
           setExercises(loadedExercises);
         } catch (parseError) {
           console.error('❌ [CreateRoute] Error parsing existing exercises:', parseError);
@@ -1959,7 +2008,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar>
-      <ScrollView 
+      <ScrollView
         style={{ flex: 1 }}
         scrollEnabled={drawingMode !== 'pen'}
         showsVerticalScrollIndicator={drawingMode !== 'pen'}
@@ -2034,8 +2083,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
           {/* Section Content */}
           <YStack f={1} backgroundColor="$background">
-            <ScrollView 
-              style={{ flex: 1 }} 
+            <ScrollView
+              style={{ flex: 1 }}
               contentContainerStyle={{ paddingBottom: 100 }}
               scrollEnabled={drawingMode !== 'pen'}
               showsVerticalScrollIndicator={drawingMode !== 'pen'}
@@ -2179,7 +2228,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         {drawingMode === 'pin' && 'Drop a single location marker'}
                         {drawingMode === 'waypoint' &&
                           'Create discrete waypoints connected by lines (minimum 2 required)'}
-                        {drawingMode === 'pen' && 'Freehand drawing: click and drag to draw continuous lines'}
+                        {drawingMode === 'pen' &&
+                          'Freehand drawing: click and drag to draw continuous lines'}
                         {drawingMode === 'record' && initialWaypoints?.length
                           ? 'Recorded route loaded • Click Record Again to start new recording'
                           : 'GPS-based live route recording with real-time stats'}
@@ -2196,7 +2246,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         >
                           <XStack gap="$2" alignItems="center">
                             <Feather name="circle" size={20} color="white" />
-                            <Text color="white" weight="bold">Record Again</Text>
+                            <Text color="white" weight="bold">
+                              Record Again
+                            </Text>
                           </XStack>
                         </Button>
                       )}
@@ -2274,9 +2326,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         )}
                       </YStack>
 
-                      <View 
+                      <View
                         ref={containerRef}
-                        style={{ height: 300, borderRadius: 12, overflow: 'hidden' }} 
+                        style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}
                         {...(drawingMode === 'pen' ? drawingPanResponder.panHandlers : {})}
                       >
                         <MapView
@@ -2284,35 +2336,44 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           style={{ flex: 1 }}
                           region={region}
                           onPress={handleMapPressWrapper}
-                          scrollEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
-                          zoomEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
+                          scrollEnabled={
+                            !(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')
+                          }
+                          zoomEnabled={
+                            !(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')
+                          }
                           pitchEnabled={!(drawingMode === 'pen' && isDrawing)}
                           rotateEnabled={!(drawingMode === 'pen' && isDrawing)}
                           moveOnMarkerPress={false}
                           showsUserLocation={true}
                           userInterfaceStyle="dark"
-                          zoomTapEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
-                          scrollDuringRotateOrZoomEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
+                          zoomTapEnabled={
+                            !(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')
+                          }
+                          scrollDuringRotateOrZoomEnabled={
+                            !(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')
+                          }
                         >
                           {/* Render waypoints as individual markers (not in pen drawing mode) */}
-                          {drawingMode !== 'pen' && waypoints.map((waypoint, index) => {
-                            const isFirst = index === 0;
-                            const isLast = index === waypoints.length - 1 && waypoints.length > 1;
-                            const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
-                            
-                            return (
-                              <Marker
-                                key={`waypoint-${index}`}
-                                coordinate={{
-                                  latitude: waypoint.latitude,
-                                  longitude: waypoint.longitude,
-                                }}
-                                title={waypoint.title}
-                                description={waypoint.description}
-                                pinColor={markerColor}
-                              />
-                            );
-                          })}
+                          {drawingMode !== 'pen' &&
+                            waypoints.map((waypoint, index) => {
+                              const isFirst = index === 0;
+                              const isLast = index === waypoints.length - 1 && waypoints.length > 1;
+                              const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
+
+                              return (
+                                <Marker
+                                  key={`waypoint-${index}`}
+                                  coordinate={{
+                                    latitude: waypoint.latitude,
+                                    longitude: waypoint.longitude,
+                                  }}
+                                  title={waypoint.title}
+                                  description={waypoint.description}
+                                  pinColor={markerColor}
+                                />
+                              );
+                            })}
 
                           {/* Render pen drawing as smooth continuous line */}
                           {drawingMode === 'pen' && penPath.length > 0 && (
@@ -2326,7 +2387,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                   pinColor="orange"
                                 />
                               )}
-                              
+
                               {/* Show continuous line for multiple points */}
                               {penPath.length > 1 && (
                                 <Polyline
@@ -2346,7 +2407,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           {/* Render connecting lines for waypoints (not in pen mode) */}
                           {drawingMode === 'waypoint' && waypoints.length > 1 && (
                             <Polyline
-                              coordinates={waypoints.map(wp => ({
+                              coordinates={waypoints.map((wp) => ({
                                 latitude: wp.latitude,
                                 longitude: wp.longitude,
                               }))}
@@ -2361,14 +2422,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                             <Polyline
                               coordinates={routePath}
                               strokeWidth={drawingMode === 'record' ? 5 : 3}
-                              strokeColor={drawingMode === 'record' ? "#22C55E" : "#1A73E8"}
+                              strokeColor={drawingMode === 'record' ? '#22C55E' : '#1A73E8'}
                               lineJoin="round"
                               lineCap="round"
                             />
                           )}
                         </MapView>
 
-                                                {/* Map Controls - Top Right */}
+                        {/* Map Controls - Top Right */}
                         <XStack position="absolute" top={16} right={16} gap="$2">
                           <Button
                             onPress={handleUndo}
@@ -2379,7 +2440,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           >
                             <Feather name="corner-up-left" size={16} color="white" />
                           </Button>
-                          
+
                           <Button
                             onPress={handleRedo}
                             disabled={undoneWaypoints.length === 0}
@@ -2395,7 +2456,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         <YStack position="absolute" top={16} left={16} gap="$2">
                           <Button
                             onPress={() => {
-                              setRegion(prev => ({
+                              setRegion((prev) => ({
                                 ...prev,
                                 latitudeDelta: prev.latitudeDelta * 0.5,
                                 longitudeDelta: prev.longitudeDelta * 0.5,
@@ -2407,10 +2468,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           >
                             <Feather name="plus" size={16} color="white" />
                           </Button>
-                          
+
                           <Button
                             onPress={() => {
-                              setRegion(prev => ({
+                              setRegion((prev) => ({
                                 ...prev,
                                 latitudeDelta: prev.latitudeDelta * 2,
                                 longitudeDelta: prev.longitudeDelta * 2,
@@ -2448,7 +2509,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                             top: 16,
                             left: '50%',
                             transform: [{ translateX: -50 }],
-                            backgroundColor: drawingMode === 'pen' ? 'rgba(255,107,53,0.9)' : 'rgba(0,0,0,0.8)',
+                            backgroundColor:
+                              drawingMode === 'pen' ? 'rgba(255,107,53,0.9)' : 'rgba(0,0,0,0.8)',
                             paddingHorizontal: 12,
                             paddingVertical: 6,
                             borderRadius: 16,
@@ -2473,16 +2535,16 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           <Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>
                             {drawingMode === 'pin' && 'Tap to drop pin'}
                             {drawingMode === 'waypoint' && 'Tap to add waypoints'}
-                            {drawingMode === 'pen' && (
-                              isDrawing 
-                                ? `Drawing (${penPath.length} points) • Pinch to zoom • Drag to continue` 
+                            {drawingMode === 'pen' &&
+                              (isDrawing
+                                ? `Drawing (${penPath.length} points) • Pinch to zoom • Drag to continue`
                                 : waypoints.length > 0
                                   ? `Finished (${penPath.length} coordinates) • Ready to save`
-                                  : 'Drag to draw • Two fingers to zoom/pan'
-                            )}
-                            {drawingMode === 'record' && (initialWaypoints?.length 
-                              ? `Recorded route (${waypoints.length} waypoints) • Tap Record Again below`
-                              : 'Use Record button below')}
+                                  : 'Drag to draw • Two fingers to zoom/pan')}
+                            {drawingMode === 'record' &&
+                              (initialWaypoints?.length
+                                ? `Recorded route (${waypoints.length} waypoints) • Tap Record Again below`
+                                : 'Use Record button below')}
                           </Text>
                         </View>
 
@@ -2553,18 +2615,27 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           </Text>
                         )}
                         {drawingMode === 'pen' && (
-                          <Text size="sm" color={isDrawing ? "$orange10" : waypoints.length > 0 ? "$green10" : "$blue10"}>
-                            {isDrawing 
-                              ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom` 
-                              : waypoints.length > 0 
-                                ? `Finished (${penPath.length} coordinates → ${waypoints.length} waypoints)`
-                                : `Drawing mode (${penPath.length} points drawn) • Drag to draw, two fingers to zoom`
+                          <Text
+                            size="sm"
+                            color={
+                              isDrawing
+                                ? '$orange10'
+                                : waypoints.length > 0
+                                  ? '$green10'
+                                  : '$blue10'
                             }
+                          >
+                            {isDrawing
+                              ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom`
+                              : waypoints.length > 0
+                                ? `Finished (${penPath.length} coordinates → ${waypoints.length} waypoints)`
+                                : `Drawing mode (${penPath.length} points drawn) • Drag to draw, two fingers to zoom`}
                           </Text>
                         )}
                         {drawingMode === 'record' && initialWaypoints?.length && (
                           <Text size="sm" color="$green10">
-                            Recorded route loaded • {routePath?.length || 0} GPS points • Click Record Again to start new recording
+                            Recorded route loaded • {routePath?.length || 0} GPS points • Click
+                            Record Again to start new recording
                           </Text>
                         )}
                       </XStack>
@@ -2572,10 +2643,16 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       {/* Waypoint Management */}
                       {waypoints.length > 0 && (
                         <YStack gap="$3" marginTop="$4">
-                          <Text size="lg" weight="bold">Waypoints</Text>
+                          <Text size="lg" weight="bold">
+                            Waypoints
+                          </Text>
                           {waypoints.map((waypoint, index) => (
                             <Card key={index} bordered padding="$3">
-                              <XStack justifyContent="space-between" alignItems="flex-start" gap="$3">
+                              <XStack
+                                justifyContent="space-between"
+                                alignItems="flex-start"
+                                gap="$3"
+                              >
                                 <YStack flex={1} gap="$2">
                                   <XStack alignItems="center" gap="$2">
                                     <View
@@ -2583,7 +2660,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                         width: 24,
                                         height: 24,
                                         borderRadius: 12,
-                                        backgroundColor: index === 0 ? '#22C55E' : index === waypoints.length - 1 && waypoints.length > 1 ? '#EF4444' : '#3B82F6',
+                                        backgroundColor:
+                                          index === 0
+                                            ? '#22C55E'
+                                            : index === waypoints.length - 1 && waypoints.length > 1
+                                              ? '#EF4444'
+                                              : '#3B82F6',
                                         justifyContent: 'center',
                                         alignItems: 'center',
                                       }}
@@ -2597,7 +2679,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                     </Text>
                                   </XStack>
                                   <Text size="xs" color="$gray11">
-                                    Lat: {waypoint.latitude.toFixed(6)}, Lng: {waypoint.longitude.toFixed(6)}
+                                    Lat: {waypoint.latitude.toFixed(6)}, Lng:{' '}
+                                    {waypoint.longitude.toFixed(6)}
                                   </Text>
                                   {waypoint.description && (
                                     <Text size="xs" color="$gray10">
@@ -2622,20 +2705,21 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         </YStack>
                       )}
 
-                                            {/* Drawing Info */}
+                      {/* Drawing Info */}
                       {drawingMode === 'pen' && penPath.length > 0 && (
                         <YStack gap="$2" marginTop="$4">
-                          <Text size="lg" weight="bold">Drawing</Text>
+                          <Text size="lg" weight="bold">
+                            Drawing
+                          </Text>
                           <Card bordered padding="$3">
                             <YStack gap="$2">
                               <XStack justifyContent="space-between" alignItems="center">
                                 <Text size="sm" color="$gray11">
-                                  {isDrawing 
-                                    ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom/pan` 
-                                    : waypoints.length > 0 
+                                  {isDrawing
+                                    ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom/pan`
+                                    : waypoints.length > 0
                                       ? `Drawing finished (${penPath.length} raw coordinates → ${waypoints.length} waypoints)`
-                                      : `Drawing paused (${penPath.length} points) • Drag to continue drawing`
-                                  }
+                                      : `Drawing paused (${penPath.length} points) • Drag to continue drawing`}
                                 </Text>
                                 <XStack gap="$2">
                                   {isDrawing && (
@@ -2647,7 +2731,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                     >
                                       <XStack gap="$1" alignItems="center">
                                         <Feather name="check" size={14} color="white" />
-                                        <Text size="sm" color="white">Finish</Text>
+                                        <Text size="sm" color="white">
+                                          Finish
+                                        </Text>
                                       </XStack>
                                     </Button>
                                   )}
@@ -2660,7 +2746,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                       drawingRef.current = false;
                                       lastDrawPointRef.current = null;
                                       // Also clear waypoints if they were generated from pen drawing
-                                      if (waypoints.length > 0 && waypoints[0]?.title?.includes('Drawing')) {
+                                      if (
+                                        waypoints.length > 0 &&
+                                        waypoints[0]?.title?.includes('Drawing')
+                                      ) {
                                         setWaypoints([]);
                                       }
                                     }}
@@ -2670,12 +2759,13 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                   </Button>
                                 </XStack>
                               </XStack>
-                              
+
                               {/* Show status when finished */}
                               {!isDrawing && waypoints.length > 0 && (
                                 <YStack gap="$1">
                                   <Text size="xs" color="$green10">
-                                    ✅ Raw drawing coordinates will be saved to metadata for accurate display
+                                    ✅ Raw drawing coordinates will be saved to metadata for
+                                    accurate display
                                   </Text>
                                   <Text size="xs" color="$gray9">
                                     Metadata will contain: {penPath.length} coordinate points
@@ -2709,9 +2799,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         <XStack gap="$2" alignItems="center">
                           <Feather name="book-open" size={18} color="$green11" />
                           <Text color="$green11" fontWeight="500">
-                            Select from Learning Paths ({exercises.filter(ex => ex.source === 'learning_path').length} selected)
+                            Select from Learning Paths (
+                            {exercises.filter((ex) => ex.source === 'learning_path').length}{' '}
+                            selected)
                           </Text>
-                      </XStack>
+                        </XStack>
                       </Button>
                     </YStack>
 
@@ -2721,9 +2813,10 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                     <YStack gap="$3">
                       <Heading size="$4">Create Custom Exercise</Heading>
                       <Text size="sm" color="$gray11">
-                        Create rich, feature-complete exercises with multimedia support, quizzes, and multilingual content
+                        Create rich, feature-complete exercises with multimedia support, quizzes,
+                        and multilingual content
                       </Text>
-                      
+
                       <Button
                         onPress={() => setShowAdvancedExerciseCreator(true)}
                         variant="secondary"
@@ -2738,7 +2831,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           </Text>
                         </XStack>
                       </Button>
-                      
+
                       <YStack gap="$2" marginTop="$2">
                         <Text size="sm" color="$green11" fontWeight="500">
                           🎯 Features Available:
@@ -2763,77 +2856,89 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           Selected Exercises ({exercises.length})
                         </Text>
                         {exercises.map((exercise) => (
-                          <Card 
-                            key={exercise.id} 
-                            bordered 
+                          <Card
+                            key={exercise.id}
+                            bordered
                             padding="$3"
-                            backgroundColor={exercise.source === 'learning_path' ? '$green1' : '$background'}
-                            borderColor={exercise.source === 'learning_path' ? '$green8' : '$borderColor'}
+                            backgroundColor={
+                              exercise.source === 'learning_path' ? '$green1' : '$background'
+                            }
+                            borderColor={
+                              exercise.source === 'learning_path' ? '$green8' : '$borderColor'
+                            }
                           >
                             <YStack gap="$2">
                               <XStack justifyContent="space-between" alignItems="flex-start">
                                 <YStack flex={1} gap="$1">
                                   <XStack alignItems="center" gap="$2">
-                                <Text size="lg" weight="medium">
-                                  {exercise.title}
-                                </Text>
+                                    <Text size="lg" weight="medium">
+                                      {exercise.title}
+                                    </Text>
                                     {exercise.source === 'learning_path' && (
-                                      <View style={{
-                                        backgroundColor: '#10B981',
-                                        paddingHorizontal: 6,
-                                        paddingVertical: 2,
-                                        borderRadius: 8,
-                                      }}>
+                                      <View
+                                        style={{
+                                          backgroundColor: '#10B981',
+                                          paddingHorizontal: 6,
+                                          paddingVertical: 2,
+                                          borderRadius: 8,
+                                        }}
+                                      >
                                         <Text fontSize={10} color="white" fontWeight="500">
                                           LEARNING PATH
                                         </Text>
                                       </View>
                                     )}
                                     {exercise.isRepeat && (
-                                      <View style={{
-                                        backgroundColor: '#F59E0B',
-                                        paddingHorizontal: 6,
-                                        paddingVertical: 2,
-                                        borderRadius: 8,
-                                      }}>
+                                      <View
+                                        style={{
+                                          backgroundColor: '#F59E0B',
+                                          paddingHorizontal: 6,
+                                          paddingVertical: 2,
+                                          borderRadius: 8,
+                                        }}
+                                      >
                                         <Text fontSize={10} color="white" fontWeight="500">
                                           REPEAT {exercise.repeatNumber || ''}
                                         </Text>
                                       </View>
                                     )}
                                     {exercise.has_quiz && (
-                                      <View style={{
-                                        backgroundColor: '#3B82F6',
-                                        paddingHorizontal: 6,
-                                        paddingVertical: 2,
-                                        borderRadius: 8,
-                                      }}>
+                                      <View
+                                        style={{
+                                          backgroundColor: '#3B82F6',
+                                          paddingHorizontal: 6,
+                                          paddingVertical: 2,
+                                          borderRadius: 8,
+                                        }}
+                                      >
                                         <Text fontSize={10} color="white" fontWeight="500">
                                           QUIZ
                                         </Text>
                                       </View>
                                     )}
                                     {exercise.youtube_url && (
-                                      <View style={{
-                                        backgroundColor: '#EF4444',
-                                        paddingHorizontal: 6,
-                                        paddingVertical: 2,
-                                        borderRadius: 8,
-                                      }}>
+                                      <View
+                                        style={{
+                                          backgroundColor: '#EF4444',
+                                          paddingHorizontal: 6,
+                                          paddingVertical: 2,
+                                          borderRadius: 8,
+                                        }}
+                                      >
                                         <Text fontSize={10} color="white" fontWeight="500">
                                           VIDEO
                                         </Text>
                                       </View>
                                     )}
                                   </XStack>
-                                  
+
                                   {exercise.learning_path_title && (
                                     <Text size="sm" color="$green11">
                                       From: {exercise.learning_path_title}
                                     </Text>
                                   )}
                                 </YStack>
-                                
+
                                 <XStack gap="$2">
                                   {exercise.source === 'custom' && (
                                     <Button
@@ -2855,21 +2960,21 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                   </Button>
                                 </XStack>
                               </XStack>
-                              
+
                               {exercise.description && (
                                 <Text color="$gray11">{exercise.description}</Text>
                               )}
-                              
+
                               <XStack gap="$3" alignItems="center" flexWrap="wrap">
-                              {exercise.duration && (
-                                <XStack gap="$1" alignItems="center">
-                                  <Feather name="clock" size={14} color="$gray11" />
-                                  <Text size="sm" color="$gray11">
-                                    {exercise.duration}
-                                  </Text>
-                                </XStack>
-                              )}
-                                
+                                {exercise.duration && (
+                                  <XStack gap="$1" alignItems="center">
+                                    <Feather name="clock" size={14} color="$gray11" />
+                                    <Text size="sm" color="$gray11">
+                                      {exercise.duration}
+                                    </Text>
+                                  </XStack>
+                                )}
+
                                 {exercise.repetitions && (
                                   <XStack gap="$1" alignItems="center">
                                     <Feather name="repeat" size={14} color="$gray11" />
@@ -2878,7 +2983,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                     </Text>
                                   </XStack>
                                 )}
-                                
+
                                 {exercise.source === 'learning_path' && (
                                   <XStack gap="$1" alignItems="center">
                                     <Feather name="link" size={14} color="$gray11" />
@@ -3233,6 +3338,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       <AdvancedExerciseCreator
         visible={showAdvancedExerciseCreator}
         onClose={() => {
+          // If we were editing an exercise and user cancels, restore the original exercise
+          if (editingExercise) {
+            console.log(
+              '📝 [CreateRoute] User cancelled edit - restoring original exercise:',
+              editingExercise.id,
+            );
+            setExercises((prev) => [...prev, editingExercise]);
+          }
           setShowAdvancedExerciseCreator(false);
           setEditingExercise(null); // Clear editing state
         }}
@@ -3247,29 +3360,35 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         animationType="none"
         onRequestClose={() => setShowExitConfirmation(false)}
       >
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'flex-end'
-        }}>
-          <Animated.View style={{
-            backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            paddingHorizontal: 20,
-            paddingTop: 20,
-            paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-            maxHeight: '60%',
-          }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <Animated.View
+            style={{
+              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingHorizontal: 20,
+              paddingTop: 20,
+              paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+              maxHeight: '60%',
+            }}
+          >
             {/* Handle bar */}
-            <View style={{
-              width: 40,
-              height: 4,
-              backgroundColor: colorScheme === 'dark' ? '#333' : '#DDD',
-              borderRadius: 2,
-              alignSelf: 'center',
-              marginBottom: 20,
-            }} />
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                backgroundColor: colorScheme === 'dark' ? '#333' : '#DDD',
+                borderRadius: 2,
+                alignSelf: 'center',
+                marginBottom: 20,
+              }}
+            />
 
             <YStack gap="$4">
               <YStack gap="$2">
@@ -3277,7 +3396,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                   {t('createRoute.unsavedChanges') || 'Unsaved Changes'}
                 </Text>
                 <Text fontSize="$4" color="$gray11" textAlign="center">
-                  {t('createRoute.unsavedChangesMessage') || 'You have unsaved changes. What would you like to do?'}
+                  {t('createRoute.unsavedChangesMessage') ||
+                    'You have unsaved changes. What would you like to do?'}
                 </Text>
               </YStack>
 
@@ -3298,11 +3418,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                 </Button>
 
                 {/* Continue Editing Button */}
-                <Button
-                  onPress={handleContinueEditing}
-                  variant="primary"
-                  size="lg"
-                >
+                <Button onPress={handleContinueEditing} variant="primary" size="lg">
                   <XStack gap="$2" alignItems="center">
                     <Feather name="edit-3" size={20} color="white" />
                     <Text color="white" fontSize="$4" fontWeight="500">

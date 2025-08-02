@@ -1,15 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { AppState, AppStateStatus } from 'react-native';
-import { 
-  logScreenMount, 
-  logScreenUnmount, 
-  logScreenFocus, 
+import {
+  logScreenMount,
+  logScreenUnmount,
+  logScreenFocus,
   logScreenBlur,
   logPerformance,
   logInfo,
   logError,
-  logWarn
+  logWarn,
 } from '../utils/logger';
 
 interface ScreenLoggerOptions {
@@ -19,11 +19,11 @@ interface ScreenLoggerOptions {
   logProps?: boolean;
 }
 
-export function useScreenLogger({ 
-  screenName, 
+export function useScreenLogger({
+  screenName,
   trackPerformance = true,
   trackMemory = true,
-  logProps = false 
+  logProps = false,
 }: ScreenLoggerOptions) {
   const mountTime = useRef<number>(Date.now());
   const focusTime = useRef<number | null>(null);
@@ -33,9 +33,9 @@ export function useScreenLogger({
   useEffect(() => {
     const startTime = Date.now();
     mountTime.current = startTime;
-    
+
     logScreenMount(screenName);
-    
+
     if (trackPerformance) {
       logInfo(`Screen render started`, null, screenName);
     }
@@ -46,7 +46,7 @@ export function useScreenLogger({
         logInfo('App came to foreground', { previousState: appStateRef.current }, screenName);
       } else if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
         logInfo('App went to background', { nextState: nextAppState }, screenName);
-        
+
         // Log memory warning if app is backgrounded (might indicate memory pressure)
         if (nextAppState === 'background') {
           logWarn('App backgrounded - potential memory pressure', null, screenName);
@@ -60,9 +60,9 @@ export function useScreenLogger({
     return () => {
       const unmountTime = Date.now();
       const totalTime = unmountTime - mountTime.current;
-      
+
       logScreenUnmount(screenName);
-      
+
       if (trackPerformance) {
         logPerformance(screenName, 'screen_lifetime', mountTime.current);
         logInfo(`Screen was mounted for ${totalTime}ms`, { totalTime }, screenName);
@@ -77,9 +77,9 @@ export function useScreenLogger({
     useRef(() => {
       const startTime = Date.now();
       focusTime.current = startTime;
-      
+
       logScreenFocus(screenName);
-      
+
       if (trackPerformance) {
         logInfo('Screen focused', null, screenName);
       }
@@ -87,17 +87,17 @@ export function useScreenLogger({
       return () => {
         const blurTime = Date.now();
         const focusedTime = focusTime.current ? blurTime - focusTime.current : 0;
-        
+
         logScreenBlur(screenName);
-        
+
         if (trackPerformance && focusTime.current) {
           logPerformance(screenName, 'screen_focus_duration', focusTime.current);
           logInfo(`Screen was focused for ${focusedTime}ms`, { focusedTime }, screenName);
         }
-        
+
         focusTime.current = null;
       };
-    }).current
+    }).current,
   );
 
   // Utility functions for manual logging within the screen
@@ -106,29 +106,29 @@ export function useScreenLogger({
   };
 
   const logAsyncAction = async <T>(
-    action: string, 
+    action: string,
     asyncFn: () => Promise<T>,
-    logData?: any
+    logData?: any,
   ): Promise<T> => {
     const startTime = Date.now();
     logInfo(`Starting async action: ${action}`, logData, screenName);
-    
+
     try {
       const result = await asyncFn();
-      
+
       if (trackPerformance) {
         logPerformance(screenName, `async_${action}`, startTime);
       }
-      
+
       logInfo(`Completed async action: ${action}`, { success: true }, screenName);
       return result;
     } catch (error) {
       logError(`Failed async action: ${action}`, error, screenName);
-      
+
       if (trackPerformance) {
         logPerformance(screenName, `async_${action}_failed`, startTime);
       }
-      
+
       throw error;
     }
   };
@@ -148,4 +148,4 @@ export function useScreenLogger({
     logMemoryWarning,
     screenName,
   };
-} 
+}

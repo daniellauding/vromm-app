@@ -96,7 +96,7 @@ export const GettingStarted = () => {
 
     return () => {
       supabase.removeChannel(subscription);
-    }
+    };
   }, [user]);
 
   // Query supabase and check if the user has at least one saved route

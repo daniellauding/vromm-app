@@ -229,7 +229,7 @@ export function FilterSheet({
   };
 
   // Set single value filter
-  const setSingleFilter = React.useCallback((type: keyof FilterOptions, value: any) => {
+  const setSingleFilter = React.useCallback((type: keyof FilterOptions, value: string | number) => {
     setFilters((prev) => ({
       ...prev,
       [type]: value,
@@ -250,7 +250,7 @@ export function FilterSheet({
     onClose();
   }, [onClose]);
 
-  if (!isVisible && translateY._value === screenHeight) return null;
+  if (!isVisible) return null;
 
   return (
     <View style={styles.container} pointerEvents="box-none">
@@ -319,7 +319,7 @@ export function FilterSheet({
                       styles.chipText,
                       {
                         color: filters.sort === sort ? '#000000' : textColor,
-                      fontWeight: filters.sort === sort ? '600' : '500',
+                        fontWeight: filters.sort === sort ? '600' : '500',
                       },
                     ]}
                   >
@@ -461,7 +461,9 @@ export function FilterSheet({
                         color: isSelected('transmissionType', transmissionType)
                           ? '#000000'
                           : textColor,
-                        fontWeight: isSelected('transmissionType', transmissionType) ? '600' : '500',
+                        fontWeight: isSelected('transmissionType', transmissionType)
+                          ? '600'
+                          : '500',
                       },
                     ]}
                   >
@@ -604,7 +606,7 @@ export function FilterSheet({
                       styles.chipText,
                       {
                         color: filters.experienceLevel === level ? '#000000' : textColor,
-                      fontWeight: filters.experienceLevel === level ? '600' : '500',
+                        fontWeight: filters.experienceLevel === level ? '600' : '500',
                       },
                     ]}
                   >
@@ -671,7 +673,7 @@ export function FilterSheet({
           ]}
         >
           <Button backgroundColor="#00E6C3" color="#000000" size="$5" onPress={handleApply}>
-            {t('filters.seeRoutes', { count: routeCount })}
+            {t('filters.seeRoutes')} ({routeCount})
           </Button>
         </View>
       </Animated.View>

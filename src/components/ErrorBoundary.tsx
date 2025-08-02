@@ -49,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // Generate comprehensive crash report
     const crashReport = getCrashReport();
-    
+
     // Store crash report locally for debugging
     this.storeCrashReport(crashReport, error);
 
@@ -81,10 +81,7 @@ export class ErrorBoundary extends Component<Props, State> {
         platformVersion: Platform.Version,
       };
 
-      await AsyncStorage.setItem(
-        `crash_report_${Date.now()}`,
-        JSON.stringify(crashData, null, 2)
-      );
+      await AsyncStorage.setItem(`crash_report_${Date.now()}`, JSON.stringify(crashData, null, 2));
 
       logInfo('Crash report stored locally');
     } catch (storageError) {
@@ -104,20 +101,18 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleViewCrashReport = () => {
     if (this.state.crashReport) {
-      Alert.alert(
-        'Crash Report',
-        'This report contains technical details about the crash.',
-        [
-          { text: 'Close', style: 'cancel' },
-          {
-            text: 'Copy to Clipboard',
-            onPress: () => {
-              // In a real app, you'd use Clipboard API
-              logInfo('Crash report copied to clipboard', { reportLength: this.state.crashReport?.length });
-            },
+      Alert.alert('Crash Report', 'This report contains technical details about the crash.', [
+        { text: 'Close', style: 'cancel' },
+        {
+          text: 'Copy to Clipboard',
+          onPress: () => {
+            // In a real app, you'd use Clipboard API
+            logInfo('Crash report copied to clipboard', {
+              reportLength: this.state.crashReport?.length,
+            });
           },
-        ]
-      );
+        },
+      ]);
     }
   };
 
@@ -132,13 +127,20 @@ export class ErrorBoundary extends Component<Props, State> {
         <View style={{ flex: 1, backgroundColor: '#000', padding: 20 }}>
           <YStack flex={1} justifyContent="center" alignItems="center" gap="$4">
             <Feather name="alert-triangle" size={64} color="#FF6B6B" />
-            
+
             <Card padding="$4" backgroundColor="$backgroundStrong" borderRadius="$4">
               <YStack gap="$3" alignItems="center">
-                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#FF6B6B', textAlign: 'center' }}>
+                <Text
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 'bold',
+                    color: '#FF6B6B',
+                    textAlign: 'center',
+                  }}
+                >
                   Oops! Something went wrong
                 </Text>
-                
+
                 <Text style={{ fontSize: 16, color: '#999', textAlign: 'center' }}>
                   The app encountered an unexpected error and needs to restart.
                 </Text>
@@ -159,39 +161,37 @@ export class ErrorBoundary extends Component<Props, State> {
                     size="$4"
                   >
                     <Feather name="refresh-cw" size={20} color="white" />
-                    <Text style={{ color: 'white', marginLeft: 8, fontSize: 16, fontWeight: 'bold' }}>
+                    <Text
+                      style={{ color: 'white', marginLeft: 8, fontSize: 16, fontWeight: 'bold' }}
+                    >
                       Restart App
                     </Text>
                   </Button>
 
-                  <Button
-                    onPress={this.handleViewCrashReport}
-                    variant="secondary"
-                    size="$3"
-                  >
+                  <Button onPress={this.handleViewCrashReport} variant="secondary" size="$3">
                     <Feather name="file-text" size={16} color="#999" />
-                    <Text style={{ color: '#999', marginLeft: 8 }}>
-                      View Crash Report
-                    </Text>
+                    <Text style={{ color: '#999', marginLeft: 8 }}>View Crash Report</Text>
                   </Button>
                 </YStack>
 
                 {__DEV__ && this.state.error?.stack && (
-                  <ScrollView 
-                    style={{ 
-                      maxHeight: 200, 
-                      width: '100%', 
-                      backgroundColor: '#111', 
+                  <ScrollView
+                    style={{
+                      maxHeight: 200,
+                      width: '100%',
+                      backgroundColor: '#111',
                       borderRadius: 8,
                       padding: 12,
-                      marginTop: 16
+                      marginTop: 16,
                     }}
                   >
-                    <Text style={{ 
-                      fontSize: 12, 
-                      color: '#ccc', 
-                      fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' 
-                    }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: '#ccc',
+                        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+                      }}
+                    >
                       {this.state.error.stack}
                     </Text>
                   </ScrollView>
@@ -216,13 +216,13 @@ export class ErrorBoundary extends Component<Props, State> {
 export const getStoredCrashReports = async (): Promise<any[]> => {
   try {
     const keys = await AsyncStorage.getAllKeys();
-    const crashKeys = keys.filter(key => key.startsWith('crash_report_'));
-    
+    const crashKeys = keys.filter((key) => key.startsWith('crash_report_'));
+
     const crashReports = await Promise.all(
       crashKeys.map(async (key) => {
         const report = await AsyncStorage.getItem(key);
         return report ? JSON.parse(report) : null;
-      })
+      }),
     );
 
     return crashReports.filter(Boolean);
@@ -236,8 +236,8 @@ export const getStoredCrashReports = async (): Promise<any[]> => {
 export const clearOldCrashReports = async (olderThanDays: number = 7): Promise<void> => {
   try {
     const keys = await AsyncStorage.getAllKeys();
-    const crashKeys = keys.filter(key => key.startsWith('crash_report_'));
-    const cutoffTime = Date.now() - (olderThanDays * 24 * 60 * 60 * 1000);
+    const crashKeys = keys.filter((key) => key.startsWith('crash_report_'));
+    const cutoffTime = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
 
     for (const key of crashKeys) {
       const timestamp = parseInt(key.replace('crash_report_', ''));
@@ -250,4 +250,4 @@ export const clearOldCrashReports = async (olderThanDays: number = 7): Promise<v
   } catch (error) {
     logError('Failed to clear old crash reports', error as Error);
   }
-}; 
+};

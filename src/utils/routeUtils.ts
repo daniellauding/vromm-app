@@ -45,9 +45,11 @@ export function parseRecordingStats(description: string): RecordingStats | null 
  */
 export function isRecordedRoute(route: any): boolean {
   return (
-    route?.description?.includes('Recorded drive') || 
+    route?.description?.includes('Recorded drive') ||
     route?.drawing_mode === 'record' ||
-    (route?.metadata && typeof route.metadata === 'object' && route.metadata.actualDrawingMode === 'record')
+    (route?.metadata &&
+      typeof route.metadata === 'object' &&
+      route.metadata.actualDrawingMode === 'record')
   );
 }
 
@@ -62,4 +64,4 @@ export function formatRecordingStatsDisplay(stats: RecordingStats) {
     { label: 'Max Speed', value: stats.maxSpeed, icon: 'zap' },
     { label: 'Avg Speed', value: stats.avgSpeed, icon: 'trending-up' },
   ];
-} 
+}

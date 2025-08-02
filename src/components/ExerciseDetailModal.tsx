@@ -131,21 +131,19 @@ export function ExerciseDetailModal({
     selectedAnswerIds: string[],
     isCorrect: boolean,
     timeSpentSeconds: number,
-    pointsEarned: number
+    pointsEarned: number,
   ) => {
     if (!user || !currentQuizAttempt) return;
 
     try {
-      const { error } = await supabase
-        .from('quiz_question_attempts')
-        .insert({
-          attempt_id: currentQuizAttempt.id,
-          question_id: questionId,
-          selected_answer_ids: selectedAnswerIds,
-          is_correct: isCorrect,
-          time_spent_seconds: timeSpentSeconds,
-          points_earned: pointsEarned,
-        });
+      const { error } = await supabase.from('quiz_question_attempts').insert({
+        attempt_id: currentQuizAttempt.id,
+        question_id: questionId,
+        selected_answer_ids: selectedAnswerIds,
+        is_correct: isCorrect,
+        time_spent_seconds: timeSpentSeconds,
+        points_earned: pointsEarned,
+      });
 
       if (error) {
         console.error('Error saving quiz question attempt:', error);
@@ -199,7 +197,10 @@ export function ExerciseDetailModal({
     }
   };
 
-  const completeQuizAttempt = async (attemptId: string, score: { correct: number; total: number }) => {
+  const completeQuizAttempt = async (
+    attemptId: string,
+    score: { correct: number; total: number },
+  ) => {
     const scorePercentage = (score.correct / score.total) * 100;
     const timeSpent = Math.floor((Date.now() - quizStartTime) / 1000);
     const passed = scorePercentage >= (exercise?.quiz_pass_score || 70);
@@ -231,10 +232,12 @@ export function ExerciseDetailModal({
       // 1. Fetch quiz questions
       const { data: questions, error: questionsError } = await supabase
         .from('quiz_questions')
-        .select(`
+        .select(
+          `
           *,
           answers:quiz_answers(*)
-        `)
+        `,
+        )
         .eq('exercise_id', exercise.id)
         .order('order_index', { ascending: true });
 
@@ -273,16 +276,22 @@ export function ExerciseDetailModal({
     if (!currentQuestion) return;
 
     // Find the selected answers
-    const selectedAnswers = currentQuestion.answers.filter((answer) => answerIds.includes(answer.id));
-    
+    const selectedAnswers = currentQuestion.answers.filter((answer) =>
+      answerIds.includes(answer.id),
+    );
+
     // Determine if the answer is correct
     let isCorrect = false;
-    if (currentQuestion.question_type === 'single_choice' || currentQuestion.question_type === 'true_false') {
+    if (
+      currentQuestion.question_type === 'single_choice' ||
+      currentQuestion.question_type === 'true_false'
+    ) {
       isCorrect = selectedAnswers.length === 1 && selectedAnswers[0].is_correct;
     } else if (currentQuestion.question_type === 'multiple_choice') {
-      const correctAnswers = currentQuestion.answers.filter(answer => answer.is_correct);
-      isCorrect = selectedAnswers.length === correctAnswers.length && 
-                  selectedAnswers.every(answer => answer.is_correct);
+      const correctAnswers = currentQuestion.answers.filter((answer) => answer.is_correct);
+      isCorrect =
+        selectedAnswers.length === correctAnswers.length &&
+        selectedAnswers.every((answer) => answer.is_correct);
     }
 
     // Find the correct answer for feedback
@@ -291,9 +300,9 @@ export function ExerciseDetailModal({
     // Update UI feedback
     setShowAnswerFeedback((prev) => ({
       ...prev,
-      [currentQuestionIndex]: { 
-        isCorrect, 
-        correctAnswerId: correctAnswer?.id || '' 
+      [currentQuestionIndex]: {
+        isCorrect,
+        correctAnswerId: correctAnswer?.id || '',
       },
     }));
 
@@ -317,7 +326,7 @@ export function ExerciseDetailModal({
       answerIds,
       isCorrect,
       timeSpent,
-      pointsEarned
+      pointsEarned,
     );
   };
 
@@ -347,7 +356,7 @@ export function ExerciseDetailModal({
     setShowAnswerFeedback({});
     setCurrentQuizAttempt(null);
     setQuizStartTime(Date.now());
-    
+
     if (exercise) {
       startQuizAttempt(exercise.id);
     }
@@ -389,14 +398,12 @@ export function ExerciseDetailModal({
       }
 
       // Create completion record
-      const { error: completionError } = await supabase
-        .from('route_exercise_completions')
-        .insert({
-          session_id: session.id,
-          user_id: user.id,
-          exercise_id: exercise.id,
-          completed_at: new Date().toISOString(),
-        });
+      const { error: completionError } = await supabase.from('route_exercise_completions').insert({
+        session_id: session.id,
+        user_id: user.id,
+        exercise_id: exercise.id,
+        completed_at: new Date().toISOString(),
+      });
 
       if (completionError) {
         console.error('Error creating completion:', completionError);
@@ -411,7 +418,7 @@ export function ExerciseDetailModal({
 
       setIsCompleted(true);
       onExerciseComplete?.(exercise.id);
-      
+
       Alert.alert('Success', 'Exercise marked as complete!');
     } catch (error) {
       console.error('Error marking complete:', error);
@@ -423,7 +430,8 @@ export function ExerciseDetailModal({
 
   // Helper functions (copied from ProgressScreen)
   const getYouTubeVideoId = (url: string): string | null => {
-    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const regex =
+      /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const match = url.match(regex);
     return match ? match[1] : null;
   };
@@ -460,7 +468,7 @@ export function ExerciseDetailModal({
         media.push(
           <View key="youtube" style={{ marginBottom: 16 }}>
             <YouTubeEmbed videoId={videoId} />
-          </View>
+          </View>,
         );
       }
     }
@@ -482,7 +490,7 @@ export function ExerciseDetailModal({
             }}
             resizeMode="cover"
           />
-        </TouchableOpacity>
+        </TouchableOpacity>,
       );
     }
 
@@ -493,7 +501,7 @@ export function ExerciseDetailModal({
         media.push(
           <View key="typeform" style={{ marginBottom: 16 }}>
             <TypeFormEmbed typeformId={typeformId} />
-          </View>
+          </View>,
         );
       }
     }
@@ -504,7 +512,7 @@ export function ExerciseDetailModal({
   // Quiz Interface Component
   const QuizInterface = () => {
     if (!showQuiz || quizQuestions.length === 0) return null;
-    
+
     const currentQuestion = quizQuestions[currentQuestionIndex];
     const progress = ((currentQuestionIndex + 1) / quizQuestions.length) * 100;
     const selectedAnswers = quizAnswers[currentQuestionIndex] || [];
@@ -548,12 +556,7 @@ export function ExerciseDetailModal({
             </YStack>
 
             <XStack gap={12}>
-              <Button
-                flex={1}
-                backgroundColor="#333"
-                onPress={closeQuiz}
-                borderRadius={12}
-              >
+              <Button flex={1} backgroundColor="#333" onPress={closeQuiz} borderRadius={12}>
                 Back to Exercise
               </Button>
               <Button
@@ -593,14 +596,14 @@ export function ExerciseDetailModal({
             <TouchableOpacity onPress={closeQuiz}>
               <Feather name="arrow-left" size={28} color="#fff" />
             </TouchableOpacity>
-            
+
             <YStack alignItems="center">
               <Text fontSize={16} fontWeight="bold" color="$color">
                 Quiz: {getDisplayText(exercise?.title, 'Exercise Quiz')}
               </Text>
               <Text fontSize={14} color="$gray11">
-                Question {currentQuestionIndex + 1} of {quizQuestions.length} |{' '}
-                Score: {quizScore.correct}/{quizScore.total}
+                Question {currentQuestionIndex + 1} of {quizQuestions.length} | Score:{' '}
+                {quizScore.correct}/{quizScore.total}
               </Text>
             </YStack>
 
@@ -670,7 +673,7 @@ export function ExerciseDetailModal({
 
                 let backgroundColor = 'rgba(255, 255, 255, 0.05)';
                 let borderColor = 'rgba(255, 255, 255, 0.2)';
-                
+
                 if (showFeedback) {
                   if (isCorrect || isCorrectAnswer) {
                     backgroundColor = 'rgba(34, 197, 94, 0.2)';
@@ -712,7 +715,7 @@ export function ExerciseDetailModal({
                     >
                       {isSelected && <Feather name="check" size={16} color="#fff" />}
                     </View>
-                    
+
                     <Text fontSize={16} color="$color" flex={1}>
                       {getDisplayText(answer.answer_text, 'Answer not available')}
                     </Text>
@@ -794,10 +797,12 @@ export function ExerciseDetailModal({
         presentationStyle="fullScreen"
         onRequestClose={onClose}
       >
-        <View style={{ 
-          flex: 1, 
-          backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#ffffff' 
-        }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#ffffff',
+          }}
+        >
           {/* Header */}
           <XStack
             justifyContent="space-between"
@@ -807,9 +812,13 @@ export function ExerciseDetailModal({
             borderBottomColor="rgba(255, 255, 255, 0.2)"
           >
             <TouchableOpacity onPress={onClose}>
-              <Feather name="arrow-left" size={28} color={colorScheme === 'dark' ? '#fff' : '#000'} />
+              <Feather
+                name="arrow-left"
+                size={28}
+                color={colorScheme === 'dark' ? '#fff' : '#000'}
+              />
             </TouchableOpacity>
-            
+
             <Text fontSize={18} fontWeight="bold" color="$color" flex={1} textAlign="center">
               Exercise Details
             </Text>
@@ -845,7 +854,7 @@ export function ExerciseDetailModal({
                     Interactive Quiz
                   </Text>
                 </XStack>
-                
+
                 <Text fontSize={14} color="$gray11" marginBottom="$4">
                   Test your knowledge with an interactive quiz for this exercise.
                 </Text>
@@ -858,7 +867,9 @@ export function ExerciseDetailModal({
                 >
                   <XStack alignItems="center" gap="$2">
                     <Feather name="play" size={16} color="#000" />
-                    <Text color="#000" fontWeight="bold">Start Quiz</Text>
+                    <Text color="#000" fontWeight="bold">
+                      Start Quiz
+                    </Text>
                   </XStack>
                 </Button>
               </Card>
@@ -873,25 +884,31 @@ export function ExerciseDetailModal({
                     Quiz Questions
                   </Text>
                 </XStack>
-                
+
                 {exercise.quiz_data.questions?.map((question: any, index: number) => (
-                  <YStack key={index} marginBottom="$4" padding="$3" backgroundColor="$background" borderRadius={8}>
+                  <YStack
+                    key={index}
+                    marginBottom="$4"
+                    padding="$3"
+                    backgroundColor="$background"
+                    borderRadius={8}
+                  >
                     <Text fontSize={16} fontWeight="bold" color="$color" marginBottom="$2">
                       {index + 1}. {question.question}
                     </Text>
-                    
+
                     {question.options?.map((option: string, optionIndex: number) => (
                       <Text key={optionIndex} fontSize={14} color="$gray11" marginLeft="$3">
                         {String.fromCharCode(65 + optionIndex)}. {option}
                       </Text>
                     ))}
-                    
+
                     {question.correct_answer && (
                       <Text fontSize={14} color="#00E6C3" marginTop="$2" fontWeight="bold">
                         Correct: {question.correct_answer}
                       </Text>
                     )}
-                    
+
                     {question.explanation && (
                       <Text fontSize={14} color="$gray9" marginTop="$2" fontStyle="italic">
                         {question.explanation}
@@ -905,16 +922,16 @@ export function ExerciseDetailModal({
             {/* Completion Status */}
             <Card bordered padding="$4" marginBottom="$4">
               <XStack alignItems="center" gap="$3" marginBottom="$3">
-                <Feather 
-                  name={isCompleted ? "check-circle" : "circle"} 
-                  size={24} 
-                  color={isCompleted ? "#10B981" : "#6B7280"} 
+                <Feather
+                  name={isCompleted ? 'check-circle' : 'circle'}
+                  size={24}
+                  color={isCompleted ? '#10B981' : '#6B7280'}
                 />
                 <Text fontSize={18} fontWeight="bold" color="$color">
                   {isCompleted ? 'Completed' : 'Not Completed'}
                 </Text>
               </XStack>
-              
+
               {!isCompleted && (
                 <Button
                   backgroundColor="#00E6C3"
@@ -935,4 +952,4 @@ export function ExerciseDetailModal({
       <QuizInterface />
     </>
   );
-} 
+}

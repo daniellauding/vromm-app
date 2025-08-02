@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  View, 
-  ScrollView, 
-  Alert, 
-  TouchableOpacity, 
+import {
+  View,
+  ScrollView,
+  Alert,
+  TouchableOpacity,
   useColorScheme,
   Modal,
   Dimensions,
   FlatList,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { YStack, XStack, Card, Input, Separator, Avatar } from 'tamagui';
 import { Text } from './Text';
@@ -90,18 +90,18 @@ interface ExerciseSelectorProps {
   onExercisesChange: (exercises: RouteExercise[]) => void;
 }
 
-export function ExerciseSelector({ 
-  visible, 
-  onClose, 
-  selectedExercises, 
-  onExercisesChange 
+export function ExerciseSelector({
+  visible,
+  onClose,
+  selectedExercises,
+  onExercisesChange,
 }: ExerciseSelectorProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const { height: screenHeight } = Dimensions.get('window');
-  
+
   // State
   const [loading, setLoading] = useState(false);
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
@@ -142,10 +142,12 @@ export function ExerciseSelector({
       setLoading(true);
       const { data, error } = await supabase
         .from('learning_path_exercises')
-        .select(`
+        .select(
+          `
           *,
           learning_paths!inner(title, active)
-        `)
+        `,
+        )
         .eq('learning_paths.active', true)
         .order('learning_path_id')
         .order('order_index');
@@ -162,29 +164,33 @@ export function ExerciseSelector({
 
   // Filter and sort exercises
   const filteredExercises = useMemo(() => {
-    let filtered = exercises.filter(exercise => {
+    const filtered = exercises.filter((exercise) => {
       // Path filter
       if (selectedPathId && exercise.learning_path_id !== selectedPathId) {
         return false;
       }
-      
+
       // Repeat filter
       if (!showRepeats && exercise.isRepeat) {
         return false;
       }
-      
+
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const title = (exercise.title?.en || exercise.title?.sv || '').toLowerCase();
-        const description = (exercise.description?.en || exercise.description?.sv || '').toLowerCase();
-        const pathTitle = learningPaths.find(p => p.id === exercise.learning_path_id)?.title?.en?.toLowerCase() || '';
-        
-        return title.includes(query) || 
-               description.includes(query) || 
-               pathTitle.includes(query);
+        const description = (
+          exercise.description?.en ||
+          exercise.description?.sv ||
+          ''
+        ).toLowerCase();
+        const pathTitle =
+          learningPaths.find((p) => p.id === exercise.learning_path_id)?.title?.en?.toLowerCase() ||
+          '';
+
+        return title.includes(query) || description.includes(query) || pathTitle.includes(query);
       }
-      
+
       return true;
     });
 
@@ -194,8 +200,8 @@ export function ExerciseSelector({
         case 'title':
           return (a.title?.en || '').localeCompare(b.title?.en || '');
         case 'path':
-          const pathA = learningPaths.find(p => p.id === a.learning_path_id)?.title?.en || '';
-          const pathB = learningPaths.find(p => p.id === b.learning_path_id)?.title?.en || '';
+          const pathA = learningPaths.find((p) => p.id === a.learning_path_id)?.title?.en || '';
+          const pathB = learningPaths.find((p) => p.id === b.learning_path_id)?.title?.en || '';
           return pathA.localeCompare(pathB);
         case 'order':
         default:
@@ -211,19 +217,17 @@ export function ExerciseSelector({
 
   // Check if exercise is selected
   const isExerciseSelected = (exercise: PathExercise): boolean => {
-    return selectedExercises.some(selected => 
-      selected.learning_path_exercise_id === exercise.id
-    );
+    return selectedExercises.some((selected) => selected.learning_path_exercise_id === exercise.id);
   };
 
   // Toggle exercise selection
   const toggleExercise = (exercise: PathExercise) => {
-    const pathInfo = learningPaths.find(p => p.id === exercise.learning_path_id);
-    
+    const pathInfo = learningPaths.find((p) => p.id === exercise.learning_path_id);
+
     if (isExerciseSelected(exercise)) {
       // Remove exercise
-      const updated = selectedExercises.filter(selected => 
-        selected.learning_path_exercise_id !== exercise.id
+      const updated = selectedExercises.filter(
+        (selected) => selected.learning_path_exercise_id !== exercise.id,
       );
       onExercisesChange(updated);
     } else {
@@ -244,26 +248,26 @@ export function ExerciseSelector({
         isRepeat: exercise.isRepeat,
         originalId: exercise.originalId,
         repeatNumber: exercise.repeatNumber,
-        source: 'learning_path'
+        source: 'learning_path',
       };
-      
+
       onExercisesChange([...selectedExercises, routeExercise]);
     }
   };
 
   // Clear all selections
   const clearSelections = () => {
-    const customExercises = selectedExercises.filter(ex => ex.source === 'custom');
+    const customExercises = selectedExercises.filter((ex) => ex.source === 'custom');
     onExercisesChange(customExercises);
   };
 
   // Select all visible exercises
   const selectAllVisible = () => {
     const newSelections: RouteExercise[] = [];
-    
-    filteredExercises.forEach(exercise => {
+
+    filteredExercises.forEach((exercise) => {
       if (!isExerciseSelected(exercise)) {
-        const pathInfo = learningPaths.find(p => p.id === exercise.learning_path_id);
+        const pathInfo = learningPaths.find((p) => p.id === exercise.learning_path_id);
         const routeExercise: RouteExercise = {
           id: `lpe_${exercise.id}`,
           title: exercise.title?.en || exercise.title?.sv || 'Untitled',
@@ -280,24 +284,24 @@ export function ExerciseSelector({
           isRepeat: exercise.isRepeat,
           originalId: exercise.originalId,
           repeatNumber: exercise.repeatNumber,
-          source: 'learning_path'
+          source: 'learning_path',
         };
         newSelections.push(routeExercise);
       }
     });
-    
+
     onExercisesChange([...selectedExercises, ...newSelections]);
   };
 
   // Get exercise stats
-  const selectedCount = selectedExercises.filter(ex => ex.source === 'learning_path').length;
+  const selectedCount = selectedExercises.filter((ex) => ex.source === 'learning_path').length;
   const totalCount = filteredExercises.length;
 
   // Render exercise item
   const renderExerciseItem = ({ item: exercise }: { item: PathExercise }) => {
     const isSelected = isExerciseSelected(exercise);
-    const pathInfo = learningPaths.find(p => p.id === exercise.learning_path_id);
-    
+    const pathInfo = learningPaths.find((p) => p.id === exercise.learning_path_id);
+
     return (
       <Card
         key={exercise.id}
@@ -342,37 +346,49 @@ export function ExerciseSelector({
                     {pathInfo?.title?.en || pathInfo?.title?.sv || 'Unknown Path'}
                   </Text>
                 </YStack>
-                
+
                 {/* Badges */}
                 <XStack gap="$1">
                   {exercise.has_quiz && (
-                    <View style={{
-                      backgroundColor: '#10B981',
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                      borderRadius: 8,
-                    }}>
-                      <Text fontSize={10} color="white" fontWeight="500">QUIZ</Text>
+                    <View
+                      style={{
+                        backgroundColor: '#10B981',
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text fontSize={10} color="white" fontWeight="500">
+                        QUIZ
+                      </Text>
                     </View>
                   )}
                   {exercise.youtube_url && (
-                    <View style={{
-                      backgroundColor: '#EF4444',
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                      borderRadius: 8,
-                    }}>
-                      <Text fontSize={10} color="white" fontWeight="500">VIDEO</Text>
+                    <View
+                      style={{
+                        backgroundColor: '#EF4444',
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text fontSize={10} color="white" fontWeight="500">
+                        VIDEO
+                      </Text>
                     </View>
                   )}
                   {exercise.isRepeat && (
-                    <View style={{
-                      backgroundColor: '#F59E0B',
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                      borderRadius: 8,
-                    }}>
-                      <Text fontSize={10} color="white" fontWeight="500">REPEAT</Text>
+                    <View
+                      style={{
+                        backgroundColor: '#F59E0B',
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text fontSize={10} color="white" fontWeight="500">
+                        REPEAT
+                      </Text>
                     </View>
                   )}
                 </XStack>
@@ -394,7 +410,7 @@ export function ExerciseSelector({
                       Order: {exercise.order_index}
                     </Text>
                   </XStack>
-                  
+
                   {exercise.repeat_count && (
                     <XStack gap="$1" alignItems="center">
                       <Feather name="repeat" size={12} color="$gray9" />
@@ -435,170 +451,170 @@ export function ExerciseSelector({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'flex-end'
-        }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'flex-end',
+          }}
+        >
           <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={{
-              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              maxHeight: screenHeight * 0.85,
-              paddingTop: 20,
-            }}>
-          {/* Handle bar */}
-          <View style={{
-            width: 40,
-            height: 4,
-            backgroundColor: colorScheme === 'dark' ? '#333' : '#DDD',
-            borderRadius: 2,
-            alignSelf: 'center',
-            marginBottom: 20,
-          }} />
+            <View
+              style={{
+                backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                maxHeight: screenHeight * 0.85,
+                paddingTop: 20,
+              }}
+            >
+              {/* Handle bar */}
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  backgroundColor: colorScheme === 'dark' ? '#333' : '#DDD',
+                  borderRadius: 2,
+                  alignSelf: 'center',
+                  marginBottom: 20,
+                }}
+              />
 
-          {/* Header */}
-          <XStack
-            justifyContent="space-between"
-            alignItems="center"
-            paddingHorizontal={20}
-            marginBottom={20}
-          >
-            <YStack>
-              <Text fontSize={20} fontWeight="bold">
-                Learning Path Exercises
-              </Text>
-              <Text fontSize={14} color="$gray11">
-                {selectedCount} of {totalCount} selected
-              </Text>
-            </YStack>
-            
-            <XStack gap="$2">
-              <Button
-                onPress={clearSelections}
-                variant="secondary"
-                size="sm"
-                disabled={selectedCount === 0}
+              {/* Header */}
+              <XStack
+                justifyContent="space-between"
+                alignItems="center"
+                paddingHorizontal={20}
+                marginBottom={20}
               >
-                <Text fontSize={12}>Clear</Text>
-              </Button>
-              <Button
-                onPress={onClose}
-                variant="primary"
-                size="sm"
-              >
-                <Text fontSize={12} color="white">Done</Text>
-              </Button>
-            </XStack>
-          </XStack>
-
-          {/* Search and filters */}
-          <YStack paddingHorizontal={20} gap="$3" marginBottom={20}>
-            {/* Search */}
-            <Input
-              placeholder="Search exercises..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              size="$4"
-              backgroundColor="$backgroundHover"
-            />
-
-            {/* Filter chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <XStack gap="$2" paddingRight={20}>
-                {/* Learning path filter */}
-                <Chip
-                  active={selectedPathId === null}
-                  onPress={() => setSelectedPathId(null)}
-                >
-                  All Paths
-                </Chip>
-                
-                {learningPaths.map(path => (
-                  <Chip
-                    key={path.id}
-                    active={selectedPathId === path.id}
-                    onPress={() => setSelectedPathId(path.id)}
-                  >
-                    {path.title?.en || path.title?.sv || 'Untitled'}
-                  </Chip>
-                ))}
-              </XStack>
-            </ScrollView>
-
-            {/* Options */}
-            <XStack justifyContent="space-between" alignItems="center">
-              <XStack gap="$3">
-                <TouchableOpacity
-                  onPress={() => setShowRepeats(!showRepeats)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                >
-                  <View style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 3,
-                    backgroundColor: showRepeats ? '#3B82F6' : 'transparent',
-                    borderWidth: 2,
-                    borderColor: '#3B82F6',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}>
-                    {showRepeats && <Feather name="check" size={10} color="white" />}
-                  </View>
-                  <Text fontSize={14}>Include Repeats</Text>
-                </TouchableOpacity>
-              </XStack>
-
-              <XStack gap="$2">
-                <Button
-                  onPress={selectAllVisible}
-                  variant="secondary"
-                  size="sm"
-                  disabled={filteredExercises.length === 0}
-                >
-                  <XStack gap="$1" alignItems="center">
-                    <Feather name="check-square" size={14} color="$blue10" />
-                    <Text fontSize={12} color="$blue10">Select All</Text>
-                  </XStack>
-                </Button>
-              </XStack>
-            </XStack>
-          </YStack>
-
-          {/* Exercise list */}
-          <FlatList
-            data={filteredExercises}
-            renderItem={renderExerciseItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={{ 
-              paddingHorizontal: 20,
-              paddingBottom: 40
-            }}
-            showsVerticalScrollIndicator={false}
-            refreshing={loading}
-            onRefresh={loadAllExercises}
-            ListEmptyComponent={
-              <YStack alignItems="center" padding="$4">
-                <Feather name="search" size={48} color="$gray9" />
-                <Text fontSize={16} color="$gray11" textAlign="center" marginTop="$2">
-                  {loading ? 'Loading exercises...' : 'No exercises found'}
-                </Text>
-                {searchQuery && (
-                  <Text fontSize={14} color="$gray9" textAlign="center" marginTop="$1">
-                    Try adjusting your search or filters
+                <YStack>
+                  <Text fontSize={20} fontWeight="bold">
+                    Learning Path Exercises
                   </Text>
-                )}
+                  <Text fontSize={14} color="$gray11">
+                    {selectedCount} of {totalCount} selected
+                  </Text>
+                </YStack>
+
+                <XStack gap="$2">
+                  <Button
+                    onPress={clearSelections}
+                    variant="secondary"
+                    size="sm"
+                    disabled={selectedCount === 0}
+                  >
+                    <Text fontSize={12}>Clear</Text>
+                  </Button>
+                  <Button onPress={onClose} variant="primary" size="sm">
+                    <Text fontSize={12} color="white">
+                      Done
+                    </Text>
+                  </Button>
+                </XStack>
+              </XStack>
+
+              {/* Search and filters */}
+              <YStack paddingHorizontal={20} gap="$3" marginBottom={20}>
+                {/* Search */}
+                <Input
+                  placeholder="Search exercises..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  size="$4"
+                  backgroundColor="$backgroundHover"
+                />
+
+                {/* Filter chips */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <XStack gap="$2" paddingRight={20}>
+                    {/* Learning path filter */}
+                    <Chip active={selectedPathId === null} onPress={() => setSelectedPathId(null)}>
+                      All Paths
+                    </Chip>
+
+                    {learningPaths.map((path) => (
+                      <Chip
+                        key={path.id}
+                        active={selectedPathId === path.id}
+                        onPress={() => setSelectedPathId(path.id)}
+                      >
+                        {path.title?.en || path.title?.sv || 'Untitled'}
+                      </Chip>
+                    ))}
+                  </XStack>
+                </ScrollView>
+
+                {/* Options */}
+                <XStack justifyContent="space-between" alignItems="center">
+                  <XStack gap="$3">
+                    <TouchableOpacity
+                      onPress={() => setShowRepeats(!showRepeats)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                    >
+                      <View
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 3,
+                          backgroundColor: showRepeats ? '#3B82F6' : 'transparent',
+                          borderWidth: 2,
+                          borderColor: '#3B82F6',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {showRepeats && <Feather name="check" size={10} color="white" />}
+                      </View>
+                      <Text fontSize={14}>Include Repeats</Text>
+                    </TouchableOpacity>
+                  </XStack>
+
+                  <XStack gap="$2">
+                    <Button
+                      onPress={selectAllVisible}
+                      variant="secondary"
+                      size="sm"
+                      disabled={filteredExercises.length === 0}
+                    >
+                      <XStack gap="$1" alignItems="center">
+                        <Feather name="check-square" size={14} color="$blue10" />
+                        <Text fontSize={12} color="$blue10">
+                          Select All
+                        </Text>
+                      </XStack>
+                    </Button>
+                  </XStack>
+                </XStack>
               </YStack>
-            }
-          />
+
+              {/* Exercise list */}
+              <FlatList
+                data={filteredExercises}
+                renderItem={renderExerciseItem}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={{
+                  paddingHorizontal: 20,
+                  paddingBottom: 40,
+                }}
+                showsVerticalScrollIndicator={false}
+                refreshing={loading}
+                onRefresh={loadAllExercises}
+                ListEmptyComponent={
+                  <YStack alignItems="center" padding="$4">
+                    <Feather name="search" size={48} color="$gray9" />
+                    <Text fontSize={16} color="$gray11" textAlign="center" marginTop="$2">
+                      {loading ? 'Loading exercises...' : 'No exercises found'}
+                    </Text>
+                    {searchQuery && (
+                      <Text fontSize={14} color="$gray9" textAlign="center" marginTop="$1">
+                        Try adjusting your search or filters
+                      </Text>
+                    )}
+                  </YStack>
+                }
+              />
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -613,22 +629,26 @@ export function ExerciseSelector({
           onRequestClose={() => setPreviewExercise(null)}
         >
           <TouchableWithoutFeedback onPress={() => setPreviewExercise(null)}>
-            <View style={{
-              flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.7)',
-              justifyContent: 'center',
-              alignItems: 'center',
-              padding: 20,
-            }}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: 20,
+              }}
+            >
               <TouchableWithoutFeedback onPress={() => {}}>
-                <View style={{
-                  backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-                  borderRadius: 16,
-                  padding: 20,
-                  maxHeight: screenHeight * 0.8,
-                  width: '100%',
-                  maxWidth: 400,
-                }}>
+                <View
+                  style={{
+                    backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                    borderRadius: 16,
+                    padding: 20,
+                    maxHeight: screenHeight * 0.8,
+                    width: '100%',
+                    maxWidth: 400,
+                  }}
+                >
                   {/* Preview Header */}
                   <XStack justifyContent="space-between" alignItems="center" marginBottom={16}>
                     <Text fontSize={18} fontWeight="bold">
@@ -654,16 +674,8 @@ export function ExerciseSelector({
                     <Card
                       bordered
                       padding="$3"
-                      backgroundColor={
-                        isExerciseSelected(previewExercise) 
-                          ? '$green1' 
-                          : '$blue1'
-                      }
-                      borderColor={
-                        isExerciseSelected(previewExercise) 
-                          ? '$green8' 
-                          : '$blue8'
-                      }
+                      backgroundColor={isExerciseSelected(previewExercise) ? '$green1' : '$blue1'}
+                      borderColor={isExerciseSelected(previewExercise) ? '$green8' : '$blue8'}
                     >
                       <YStack gap="$3">
                         {/* Exercise header */}
@@ -671,69 +683,82 @@ export function ExerciseSelector({
                           <YStack flex={1} gap="$1">
                             <XStack alignItems="center" gap="$2">
                               <Text fontSize={16} fontWeight="600">
-                                {previewExercise.title?.en || previewExercise.title?.sv || 'Untitled'}
-                                {previewExercise.isRepeat && ` (Repeat ${previewExercise.repeatNumber || ''})`}
+                                {previewExercise.title?.en ||
+                                  previewExercise.title?.sv ||
+                                  'Untitled'}
+                                {previewExercise.isRepeat &&
+                                  ` (Repeat ${previewExercise.repeatNumber || ''})`}
                               </Text>
-                              
+
                               {/* Status badges */}
                               <XStack gap="$1">
                                 {isExerciseSelected(previewExercise) && (
-                                  <View style={{
-                                    backgroundColor: '#10B981',
-                                    paddingHorizontal: 6,
-                                    paddingVertical: 2,
-                                    borderRadius: 8,
-                                  }}>
+                                  <View
+                                    style={{
+                                      backgroundColor: '#10B981',
+                                      paddingHorizontal: 6,
+                                      paddingVertical: 2,
+                                      borderRadius: 8,
+                                    }}
+                                  >
                                     <Text fontSize={10} color="white" fontWeight="500">
                                       SELECTED
                                     </Text>
                                   </View>
                                 )}
-                                
-                                <View style={{
-                                  backgroundColor: '#3B82F6',
-                                  paddingHorizontal: 6,
-                                  paddingVertical: 2,
-                                  borderRadius: 8,
-                                }}>
+
+                                <View
+                                  style={{
+                                    backgroundColor: '#3B82F6',
+                                    paddingHorizontal: 6,
+                                    paddingVertical: 2,
+                                    borderRadius: 8,
+                                  }}
+                                >
                                   <Text fontSize={10} color="white" fontWeight="500">
                                     LEARNING PATH
                                   </Text>
                                 </View>
-                                
+
                                 {previewExercise.isRepeat && (
-                                  <View style={{
-                                    backgroundColor: '#F59E0B',
-                                    paddingHorizontal: 6,
-                                    paddingVertical: 2,
-                                    borderRadius: 8,
-                                  }}>
+                                  <View
+                                    style={{
+                                      backgroundColor: '#F59E0B',
+                                      paddingHorizontal: 6,
+                                      paddingVertical: 2,
+                                      borderRadius: 8,
+                                    }}
+                                  >
                                     <Text fontSize={10} color="white" fontWeight="500">
                                       REPEAT {previewExercise.repeatNumber || ''}
                                     </Text>
                                   </View>
                                 )}
-                                
+
                                 {previewExercise.has_quiz && (
-                                  <View style={{
-                                    backgroundColor: '#8B5CF6',
-                                    paddingHorizontal: 6,
-                                    paddingVertical: 2,
-                                    borderRadius: 8,
-                                  }}>
+                                  <View
+                                    style={{
+                                      backgroundColor: '#8B5CF6',
+                                      paddingHorizontal: 6,
+                                      paddingVertical: 2,
+                                      borderRadius: 8,
+                                    }}
+                                  >
                                     <Text fontSize={10} color="white" fontWeight="500">
                                       QUIZ
                                     </Text>
                                   </View>
                                 )}
-                                
+
                                 {previewExercise.youtube_url && (
-                                  <View style={{
-                                    backgroundColor: '#EF4444',
-                                    paddingHorizontal: 6,
-                                    paddingVertical: 2,
-                                    borderRadius: 8,
-                                  }}>
+                                  <View
+                                    style={{
+                                      backgroundColor: '#EF4444',
+                                      paddingHorizontal: 6,
+                                      paddingVertical: 2,
+                                      borderRadius: 8,
+                                    }}
+                                  >
                                     <Text fontSize={10} color="white" fontWeight="500">
                                       VIDEO
                                     </Text>
@@ -741,9 +766,11 @@ export function ExerciseSelector({
                                 )}
                               </XStack>
                             </XStack>
-                            
+
                             <Text fontSize={12} color="$blue11">
-                              From: {learningPaths.find(p => p.id === previewExercise.learning_path_id)?.title?.en || 'Unknown Path'}
+                              From:{' '}
+                              {learningPaths.find((p) => p.id === previewExercise.learning_path_id)
+                                ?.title?.en || 'Unknown Path'}
                             </Text>
                           </YStack>
                         </XStack>
@@ -763,7 +790,7 @@ export function ExerciseSelector({
                               Order: {previewExercise.order_index}
                             </Text>
                           </XStack>
-                          
+
                           {previewExercise.repeat_count && (
                             <XStack gap="$1" alignItems="center">
                               <Feather name="repeat" size={12} color="$gray9" />
@@ -772,7 +799,7 @@ export function ExerciseSelector({
                               </Text>
                             </XStack>
                           )}
-                          
+
                           <XStack gap="$1" alignItems="center">
                             <Feather name="link" size={12} color="$gray9" />
                             <Text fontSize={12} color="$gray9">
@@ -815,7 +842,7 @@ export function ExerciseSelector({
                       >
                         <Text fontSize={14}>Close</Text>
                       </Button>
-                      
+
                       <Button
                         onPress={() => {
                           toggleExercise(previewExercise);
@@ -827,10 +854,10 @@ export function ExerciseSelector({
                         backgroundColor={isExerciseSelected(previewExercise) ? '$red10' : '$blue10'}
                       >
                         <XStack gap="$1" alignItems="center">
-                          <Feather 
-                            name={isExerciseSelected(previewExercise) ? "minus" : "plus"} 
-                            size={16} 
-                            color="white" 
+                          <Feather
+                            name={isExerciseSelected(previewExercise) ? 'minus' : 'plus'}
+                            size={16}
+                            color="white"
                           />
                           <Text fontSize={14} color="white">
                             {isExerciseSelected(previewExercise) ? 'Remove' : 'Add to Route'}
@@ -847,4 +874,4 @@ export function ExerciseSelector({
       )}
     </Modal>
   );
-} 
+}

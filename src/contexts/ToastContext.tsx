@@ -48,7 +48,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
       duration: toastData.duration || 4000,
     };
 
-    setToasts(prev => [...prev, newToast]);
+    setToasts((prev) => [...prev, newToast]);
 
     // Auto-dismiss after duration
     if (newToast.duration > 0) {
@@ -59,7 +59,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
   };
 
   const hideToast = (id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
   const showRouteCreatedToast = (routeId: string, routeName: string, isUpdate = false) => {
@@ -109,12 +109,7 @@ function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
       }}
     >
       {toasts.map((toast) => (
-        <ToastItem
-          key={toast.id}
-          toast={toast}
-          onDismiss={onDismiss}
-          colorScheme={colorScheme}
-        />
+        <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} colorScheme={colorScheme} />
       ))}
     </View>
   );
@@ -231,63 +226,63 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
         pointerEvents: 'auto',
       }}
     >
-        <TouchableOpacity
-          onPress={toast.action?.onPress}
-          style={{ flexDirection: 'row', alignItems: 'center' }}
-          activeOpacity={toast.action ? 0.7 : 1}
-        >
-          <Feather
-            name={getIconName()}
-            size={20}
-            color={getTextColor()}
-            style={{ marginRight: 12 }}
-          />
-          
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: '600',
-                color: getTextColor(),
-                marginBottom: 2,
-              }}
-            >
-              {toast.title}
-            </Text>
+      <TouchableOpacity
+        onPress={toast.action?.onPress}
+        style={{ flexDirection: 'row', alignItems: 'center' }}
+        activeOpacity={toast.action ? 0.7 : 1}
+      >
+        <Feather
+          name={getIconName()}
+          size={20}
+          color={getTextColor()}
+          style={{ marginRight: 12 }}
+        />
+
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: '600',
+              color: getTextColor(),
+              marginBottom: 2,
+            }}
+          >
+            {toast.title}
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: getTextColor(),
+              opacity: 0.8,
+            }}
+          >
+            {toast.message}
+          </Text>
+        </View>
+
+        {toast.action && (
+          <View style={{ marginLeft: 12 }}>
             <Text
               style={{
                 fontSize: 14,
+                fontWeight: '600',
                 color: getTextColor(),
-                opacity: 0.8,
+                textDecorationLine: 'underline',
               }}
             >
-              {toast.message}
+              {toast.action.label}
             </Text>
           </View>
+        )}
 
-          {toast.action && (
-            <View style={{ marginLeft: 12 }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: getTextColor(),
-                  textDecorationLine: 'underline',
-                }}
-              >
-                {toast.action.label}
-              </Text>
-            </View>
-          )}
-
-          <TouchableOpacity
-            onPress={handleDismiss}
-            style={{ marginLeft: 12, padding: 4 }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="x" size={18} color={getTextColor()} />
-          </TouchableOpacity>
-                  </TouchableOpacity>
-        </Animated.View>
-    );
-  } 
+        <TouchableOpacity
+          onPress={handleDismiss}
+          style={{ marginLeft: 12, padding: 4 }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="x" size={18} color={getTextColor()} />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}

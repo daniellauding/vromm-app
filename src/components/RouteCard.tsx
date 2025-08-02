@@ -108,20 +108,22 @@ export function RouteCard({ route }: RouteCardProps) {
     if (region && waypoints.length > 0) {
       // Create route path for recorded routes (more than just waypoints)
       const routePath = waypoints.length > 2 ? waypoints : undefined;
-      const showStartEndMarkers = waypoints.length > 2 && (route.drawing_mode === 'waypoint' || route.drawing_mode === 'record');
+      const showStartEndMarkers =
+        waypoints.length > 2 &&
+        (route.drawing_mode === 'waypoint' || route.drawing_mode === 'record');
 
       // Extract pen drawing coordinates from metadata
       const penDrawingCoordinates = route.metadata?.coordinates || [];
-      
+
       items.push({
         type: 'map' as const,
-        data: { 
-          region, 
-          waypoints, 
+        data: {
+          region,
+          waypoints,
           routePath,
           showStartEndMarkers,
           drawingMode: route.drawing_mode,
-          penDrawingCoordinates
+          penDrawingCoordinates,
         },
       });
     }
@@ -265,19 +267,21 @@ export function RouteCard({ route }: RouteCardProps) {
           </XStack>
 
           {/* Recording Stats - Only show for recorded routes */}
-          {isRecordedRoute(route) && (() => {
-            const recordingStats = parseRecordingStats(route.description || '');
-            if (!recordingStats) return null;
-            
-            return (
-              <XStack gap="$3" alignItems="center" marginTop="$2">
-                <Feather name="activity" size={14} color="$green10" />
-                <Text fontSize="$3" color="$green10" fontWeight="600">
-                  📍 {recordingStats.distance} • ⏱️ {recordingStats.duration} • 🚗 {recordingStats.maxSpeed}
-                </Text>
-              </XStack>
-            );
-          })()}
+          {isRecordedRoute(route) &&
+            (() => {
+              const recordingStats = parseRecordingStats(route.description || '');
+              if (!recordingStats) return null;
+
+              return (
+                <XStack gap="$3" alignItems="center" marginTop="$2">
+                  <Feather name="activity" size={14} color="$green10" />
+                  <Text fontSize="$3" color="$green10" fontWeight="600">
+                    📍 {recordingStats.distance} • ⏱️ {recordingStats.duration} • 🚗{' '}
+                    {recordingStats.maxSpeed}
+                  </Text>
+                </XStack>
+              );
+            })()}
 
           {route.description && !isRecordedRoute(route) && (
             <Text numberOfLines={2} color="$gray11">

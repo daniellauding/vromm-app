@@ -77,7 +77,7 @@ const SLOW_OPERATION_CAUSES = {
  */
 export async function withTimeoutDiagnostics<T>(
   promise: Promise<T>,
-  config: TimeoutConfig
+  config: TimeoutConfig,
 ): Promise<OperationResult<T>> {
   const startTime = Date.now();
   const {
@@ -96,7 +96,7 @@ export async function withTimeoutDiagnostics<T>(
     if (!warningShown) {
       warningShown = true;
       const duration = Date.now() - startTime;
-      
+
       logWarn(`Slow operation detected: ${operation}`, {
         operation,
         context,
@@ -109,7 +109,7 @@ export async function withTimeoutDiagnostics<T>(
         Alert.alert(
           'Operation Taking Longer Than Expected',
           `${operation} is taking longer than usual. This might be due to network issues or server load.`,
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
       }
     }
@@ -118,7 +118,10 @@ export async function withTimeoutDiagnostics<T>(
   // Set up timeout timer
   const timeoutTimer = setTimeout(() => {
     timeoutOccurred = true;
-    logError(`Operation timeout: ${operation}`, new Error(`Operation timed out after ${timeoutMs}ms`));
+    logError(
+      `Operation timeout: ${operation}`,
+      new Error(`Operation timed out after ${timeoutMs}ms`),
+    );
   }, timeoutMs);
 
   try {
@@ -153,21 +156,21 @@ export async function withTimeoutDiagnostics<T>(
     };
   } catch (error) {
     const duration = Date.now() - startTime;
-    
+
     // Clear timers
     clearTimeout(warningTimer);
     clearTimeout(timeoutTimer);
 
     const isTimeoutError = (error as Error).message.includes('timed out');
-    
+
     if (isTimeoutError) {
       logError(`Operation timeout: ${operation}`, error as Error);
-      
+
       if (showUserAlert) {
         Alert.alert(
           'Operation Timed Out',
           `${operation} took too long to complete. Please check your connection and try again.`,
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
       }
     } else {
@@ -189,7 +192,7 @@ export async function withTimeoutDiagnostics<T>(
  */
 function getPotentialCauses(operation: string): string[] {
   const operationLower = operation.toLowerCase();
-  
+
   if (operationLower.includes('database') || operationLower.includes('query')) {
     return SLOW_OPERATION_CAUSES.database;
   }
@@ -199,13 +202,21 @@ function getPotentialCauses(operation: string): string[] {
   if (operationLower.includes('location') || operationLower.includes('gps')) {
     return SLOW_OPERATION_CAUSES.location;
   }
-  if (operationLower.includes('auth') || operationLower.includes('login') || operationLower.includes('signup')) {
+  if (
+    operationLower.includes('auth') ||
+    operationLower.includes('login') ||
+    operationLower.includes('signup')
+  ) {
     return SLOW_OPERATION_CAUSES.auth;
   }
-  if (operationLower.includes('network') || operationLower.includes('api') || operationLower.includes('fetch')) {
+  if (
+    operationLower.includes('network') ||
+    operationLower.includes('api') ||
+    operationLower.includes('fetch')
+  ) {
     return SLOW_OPERATION_CAUSES.network;
   }
-  
+
   // Default to network causes if we can't categorize
   return SLOW_OPERATION_CAUSES.network;
 }
@@ -216,7 +227,7 @@ function getPotentialCauses(operation: string): string[] {
 export function withDatabaseTimeout<T>(
   promise: Promise<T>,
   operation: string,
-  context?: string
+  context?: string,
 ): Promise<OperationResult<T>> {
   return withTimeoutDiagnostics(promise, {
     operation: `Database: ${operation}`,
@@ -231,7 +242,7 @@ export function withDatabaseTimeout<T>(
 export function withNetworkTimeout<T>(
   promise: Promise<T>,
   operation: string,
-  context?: string
+  context?: string,
 ): Promise<OperationResult<T>> {
   return withTimeoutDiagnostics(promise, {
     operation: `Network: ${operation}`,
@@ -246,7 +257,7 @@ export function withNetworkTimeout<T>(
 export function withUploadTimeout<T>(
   promise: Promise<T>,
   operation: string,
-  context?: string
+  context?: string,
 ): Promise<OperationResult<T>> {
   return withTimeoutDiagnostics(promise, {
     operation: `Upload: ${operation}`,
@@ -262,7 +273,7 @@ export function withUploadTimeout<T>(
 export function withLocationTimeout<T>(
   promise: Promise<T>,
   operation: string,
-  context?: string
+  context?: string,
 ): Promise<OperationResult<T>> {
   return withTimeoutDiagnostics(promise, {
     operation: `Location: ${operation}`,
@@ -278,7 +289,7 @@ export function withLocationTimeout<T>(
 export function withAuthTimeout<T>(
   promise: Promise<T>,
   operation: string,
-  context?: string
+  context?: string,
 ): Promise<OperationResult<T>> {
   return withTimeoutDiagnostics(promise, {
     operation: `Auth: ${operation}`,
@@ -372,4 +383,4 @@ export function createDiagnosticReport(context: string) {
 
   logInfo('Diagnostic report generated', report);
   return report;
-} 
+}

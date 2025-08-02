@@ -14,10 +14,10 @@ interface RouteExerciseViewerProps {
   onExerciseComplete?: (exerciseId: string) => void;
 }
 
-export function RouteExerciseViewer({ 
-  routeId, 
-  exercises, 
-  onExerciseComplete 
+export function RouteExerciseViewer({
+  routeId,
+  exercises,
+  onExerciseComplete,
 }: RouteExerciseViewerProps) {
   const { user } = useAuth();
   const colorScheme = useColorScheme();
@@ -34,13 +34,13 @@ export function RouteExerciseViewer({
   const loadCompletionStatus = async () => {
     try {
       const learningPathExerciseIds = exercises
-        .filter(ex => ex.learning_path_exercise_id)
-        .map(ex => ex.learning_path_exercise_id!);
+        .filter((ex) => ex.learning_path_exercise_id)
+        .map((ex) => ex.learning_path_exercise_id!);
 
       if (learningPathExerciseIds.length > 0) {
         const completionMap = await ExerciseProgressService.getRouteExerciseCompletions(
           routeId,
-          learningPathExerciseIds
+          learningPathExerciseIds,
         );
         setCompletions(completionMap);
       }
@@ -51,11 +51,14 @@ export function RouteExerciseViewer({
 
   const handleCompleteExercise = async (exercise: Exercise) => {
     if (!exercise.learning_path_exercise_id) {
-      Alert.alert('Info', 'This is a custom exercise. Completion tracking is only available for learning path exercises.');
+      Alert.alert(
+        'Info',
+        'This is a custom exercise. Completion tracking is only available for learning path exercises.',
+      );
       return;
     }
 
-    setLoadingCompletions(prev => new Set([...prev, exercise.id]));
+    setLoadingCompletions((prev) => new Set([...prev, exercise.id]));
 
     try {
       let success = false;
@@ -66,7 +69,7 @@ export function RouteExerciseViewer({
           exercise.learning_path_exercise_id,
           exercise.originalId,
           exercise.repeatNumber,
-          routeId
+          routeId,
         );
       } else {
         // Handle regular exercise
@@ -75,13 +78,16 @@ export function RouteExerciseViewer({
           routeId,
           {
             time_spent: 0, // Could be tracked
-            completion_source: 'route'
-          }
+            completion_source: 'route',
+          },
         );
       }
 
       if (success) {
-        Alert.alert('Success', 'Exercise completed! This progress counts toward your learning path.');
+        Alert.alert(
+          'Success',
+          'Exercise completed! This progress counts toward your learning path.',
+        );
         await loadCompletionStatus(); // Refresh completion status
         onExerciseComplete?.(exercise.id);
       } else {
@@ -91,7 +97,7 @@ export function RouteExerciseViewer({
       console.error('Error completing exercise:', error);
       Alert.alert('Error', 'Failed to complete exercise. Please try again.');
     } finally {
-      setLoadingCompletions(prev => {
+      setLoadingCompletions((prev) => {
         const newSet = new Set(prev);
         newSet.delete(exercise.id);
         return newSet;
@@ -124,7 +130,7 @@ export function RouteExerciseViewer({
       <Text fontSize={18} fontWeight="bold">
         Exercises ({exercises.length})
       </Text>
-      
+
       {exercises.map((exercise, index) => {
         const isCompleted = isExerciseCompleted(exercise);
         const isLoading = isExerciseLoading(exercise);
@@ -136,18 +142,10 @@ export function RouteExerciseViewer({
             bordered
             padding="$3"
             backgroundColor={
-              isCompleted 
-                ? '$green1' 
-                : isLearningPathExercise 
-                  ? '$blue1' 
-                  : '$background'
+              isCompleted ? '$green1' : isLearningPathExercise ? '$blue1' : '$background'
             }
             borderColor={
-              isCompleted 
-                ? '$green8' 
-                : isLearningPathExercise 
-                  ? '$blue8' 
-                  : '$borderColor'
+              isCompleted ? '$green8' : isLearningPathExercise ? '$blue8' : '$borderColor'
             }
           >
             <YStack gap="$3">
@@ -158,68 +156,78 @@ export function RouteExerciseViewer({
                     <Text fontSize={16} fontWeight="600">
                       {index + 1}. {exercise.title}
                     </Text>
-                    
+
                     {/* Status badges */}
                     <XStack gap="$1">
                       {isCompleted && (
-                        <View style={{
-                          backgroundColor: '#10B981',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 8,
-                        }}>
+                        <View
+                          style={{
+                            backgroundColor: '#10B981',
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 8,
+                          }}
+                        >
                           <Text fontSize={10} color="white" fontWeight="500">
                             COMPLETED
                           </Text>
                         </View>
                       )}
-                      
+
                       {isLearningPathExercise && (
-                        <View style={{
-                          backgroundColor: '#3B82F6',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 8,
-                        }}>
+                        <View
+                          style={{
+                            backgroundColor: '#3B82F6',
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 8,
+                          }}
+                        >
                           <Text fontSize={10} color="white" fontWeight="500">
                             LEARNING PATH
                           </Text>
                         </View>
                       )}
-                      
+
                       {exercise.isRepeat && (
-                        <View style={{
-                          backgroundColor: '#F59E0B',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 8,
-                        }}>
+                        <View
+                          style={{
+                            backgroundColor: '#F59E0B',
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 8,
+                          }}
+                        >
                           <Text fontSize={10} color="white" fontWeight="500">
                             REPEAT {exercise.repeatNumber || ''}
                           </Text>
                         </View>
                       )}
-                      
+
                       {exercise.has_quiz && (
-                        <View style={{
-                          backgroundColor: '#8B5CF6',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 8,
-                        }}>
+                        <View
+                          style={{
+                            backgroundColor: '#8B5CF6',
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 8,
+                          }}
+                        >
                           <Text fontSize={10} color="white" fontWeight="500">
                             QUIZ
                           </Text>
                         </View>
                       )}
-                      
+
                       {exercise.youtube_url && (
-                        <View style={{
-                          backgroundColor: '#EF4444',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 8,
-                        }}>
+                        <View
+                          style={{
+                            backgroundColor: '#EF4444',
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 8,
+                          }}
+                        >
                           <Text fontSize={10} color="white" fontWeight="500">
                             VIDEO
                           </Text>
@@ -227,20 +235,20 @@ export function RouteExerciseViewer({
                       )}
                     </XStack>
                   </XStack>
-                  
+
                   {exercise.learning_path_title && (
                     <Text fontSize={12} color="$blue11">
                       From: {exercise.learning_path_title}
                     </Text>
                   )}
                 </YStack>
-                
+
                 {/* Completion button */}
                 {isLearningPathExercise && user && (
                   <Button
                     onPress={() => handleCompleteExercise(exercise)}
                     disabled={isCompleted || isLoading}
-                    variant={isCompleted ? "secondary" : "primary"}
+                    variant={isCompleted ? 'secondary' : 'primary'}
                     size="sm"
                     backgroundColor={isCompleted ? '$green5' : '$blue10'}
                   >
@@ -252,10 +260,7 @@ export function RouteExerciseViewer({
                       ) : (
                         <Feather name="circle" size={14} color="white" />
                       )}
-                      <Text 
-                        fontSize={12} 
-                        color={isCompleted ? "$green11" : "white"}
-                      >
+                      <Text fontSize={12} color={isCompleted ? '$green11' : 'white'}>
                         {isCompleted ? 'Completed' : 'Complete'}
                       </Text>
                     </XStack>
@@ -280,7 +285,7 @@ export function RouteExerciseViewer({
                     </Text>
                   </XStack>
                 )}
-                
+
                 {exercise.repetitions && (
                   <XStack gap="$1" alignItems="center">
                     <Feather name="repeat" size={12} color="$gray9" />
@@ -289,7 +294,7 @@ export function RouteExerciseViewer({
                     </Text>
                   </XStack>
                 )}
-                
+
                 {isLearningPathExercise && (
                   <XStack gap="$1" alignItems="center">
                     <Feather name="link" size={12} color="$gray9" />
@@ -326,7 +331,7 @@ export function RouteExerciseViewer({
           </Card>
         );
       })}
-      
+
       {/* Summary */}
       <Card bordered padding="$3" backgroundColor="$gray1">
         <XStack justifyContent="space-between" alignItems="center">
@@ -334,10 +339,11 @@ export function RouteExerciseViewer({
             Exercise Progress
           </Text>
           <Text fontSize={14} fontWeight="500">
-            {exercises.filter(ex => isExerciseCompleted(ex)).length} of {exercises.length} completed
+            {exercises.filter((ex) => isExerciseCompleted(ex)).length} of {exercises.length}{' '}
+            completed
           </Text>
         </XStack>
       </Card>
     </YStack>
   );
-} 
+}

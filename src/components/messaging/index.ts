@@ -7,4 +7,4 @@ export { NewMessageScreen } from '../../screens/NewMessageScreen';
 export { MessagingProvider, useMessaging } from '../../contexts/MessagingContext';
 export { messageService } from '../../services/messageService';
 export { notificationService } from '../../services/notificationService';
-export { pushNotificationService } from '../../services/pushNotificationService'; 
+export { pushNotificationService } from '../../services/pushNotificationService';

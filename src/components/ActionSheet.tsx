@@ -130,7 +130,7 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetPr
     console.log('🎭 ==================== ACTION SHEET - CREATE ROUTE ====================');
     console.log('🎭 ActionSheet Create Route pressed');
     console.log('🎭 About to close ActionSheet and call onCreateRoute...');
-    
+
     onClose();
     console.log('🎭 ActionSheet closed, calling onCreateRoute callback...');
     onCreateRoute();
@@ -142,7 +142,7 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetPr
     console.log('🎭 ==================== ACTION SHEET - RECORD DRIVING ====================');
     console.log('🎭 ActionSheet Record Driving pressed');
     console.log('🎭 About to close ActionSheet and show RecordDrivingModal...');
-    
+
     onClose();
     console.log('🎭 ActionSheet closed, showing RecordDrivingModal...');
     showModal(<RecordDrivingModal onCreateRoute={onCreateRoute} />);

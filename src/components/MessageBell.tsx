@@ -10,16 +10,13 @@ interface MessageBellProps {
   color?: string;
 }
 
-export const MessageBell: React.FC<MessageBellProps> = ({ 
-  size = 24, 
-  color = '#FFFFFF' 
-}) => {
+export const MessageBell: React.FC<MessageBellProps> = ({ size = 24, color = '#FFFFFF' }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const navigation = useNavigation();
 
   useEffect(() => {
     loadUnreadCount();
-    
+
     // Subscribe to real-time updates with enhanced handling
     const subscription = messageService.subscribeToConversations(() => {
       console.log('📡 MessageBell: Conversation update detected, refreshing count');
@@ -56,7 +53,7 @@ export const MessageBell: React.FC<MessageBellProps> = ({
   return (
     <TouchableOpacity onPress={handlePress} style={{ position: 'relative' }}>
       <MessageCircle size={size} color={color} />
-      
+
       {unreadCount > 0 && (
         <View
           style={{
@@ -73,16 +70,11 @@ export const MessageBell: React.FC<MessageBellProps> = ({
             borderColor: '#0F172A',
           }}
         >
-          <Text
-            fontSize={10}
-            fontWeight="bold"
-            color="#FFFFFF"
-            textAlign="center"
-          >
+          <Text fontSize={10} fontWeight="bold" color="#FFFFFF" textAlign="center">
             {unreadCount > 99 ? '99+' : unreadCount}
           </Text>
         </View>
       )}
     </TouchableOpacity>
   );
-}; 
+};

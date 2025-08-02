@@ -29,7 +29,7 @@ export type RootStackParamList = {
   Signup: undefined;
   ForgotPassword: undefined;
   RouteDetail: { routeId: string; shouldRefresh?: boolean; shouldRefreshReviews?: boolean };
-  CreateRoute: { 
+  CreateRoute: {
     routeId?: string;
     initialWaypoints?: Array<{
       latitude: number;
@@ -62,7 +62,7 @@ export type RootStackParamList = {
   RoleSelectionScreen: undefined;
   PublicProfile: { userId: string };
   UsersScreen: undefined;
-  
+
   // Messaging screens
   Messages: undefined;
   Conversation: { conversationId: string };

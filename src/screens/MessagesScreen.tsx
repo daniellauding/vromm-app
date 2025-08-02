@@ -16,30 +16,30 @@ export const MessagesScreen: React.FC = () => {
 
   useEffect(() => {
     loadConversations();
-    
+
     // Subscribe to real-time updates with improved handling
     const subscription = messageService.subscribeToConversations((conversation) => {
       console.log('📡 Real-time conversation update:', conversation.id);
-      
-      setConversations(prev => {
+
+      setConversations((prev) => {
         // Ensure we have a valid conversation
         if (!conversation || !conversation.id) {
           console.warn('Invalid conversation received:', conversation);
           return prev;
         }
 
-        const index = prev.findIndex(c => c.id === conversation.id);
+        const index = prev.findIndex((c) => c.id === conversation.id);
         if (index >= 0) {
           // Update existing conversation
           const updated = [...prev];
-          updated[index] = { 
-            ...updated[index], 
+          updated[index] = {
+            ...updated[index],
             ...conversation,
             // Preserve participants if not included in update
-            participants: conversation.participants || updated[index].participants
+            participants: conversation.participants || updated[index].participants,
           };
-          return updated.sort((a, b) => 
-            new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
+          return updated.sort(
+            (a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime(),
           );
         } else {
           // Add new conversation - need to fetch full details
@@ -94,7 +94,7 @@ export const MessagesScreen: React.FC = () => {
   };
 
   const handleViewProfile = (conversation: Conversation) => {
-    const otherParticipant = conversation.participants?.find(p => p.user_id !== user?.id);
+    const otherParticipant = conversation.participants?.find((p) => p.user_id !== user?.id);
     if (otherParticipant?.user_id) {
       (navigation as any).navigate('PublicProfile', { userId: otherParticipant.user_id });
     }
@@ -121,47 +121,43 @@ export const MessagesScreen: React.FC = () => {
             }
           },
         },
-      ]
+      ],
     );
   };
 
   const getConversationDisplayName = (conversation: Conversation) => {
-    const otherParticipant = conversation.participants?.find(p => p.user_id !== user?.id);
-    
+    const otherParticipant = conversation.participants?.find((p) => p.user_id !== user?.id);
+
     if (otherParticipant?.profile?.full_name?.trim()) {
       return otherParticipant.profile.full_name.trim();
     }
-    
+
     if (otherParticipant?.profile?.email?.trim()) {
       return otherParticipant.profile.email.trim();
     }
-    
+
     if (otherParticipant?.user_id) {
       return `User ${otherParticipant.user_id.slice(-8)}`;
     }
-    
+
     return 'Unknown User';
   };
 
   const handleLongPressConversation = (conversation: Conversation) => {
     const displayName = getConversationDisplayName(conversation);
-    
-    Alert.alert(
-      displayName,
-      'Choose an action',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'View Profile',
-          onPress: () => handleViewProfile(conversation),
-        },
-        {
-          text: 'Delete Conversation',
-          style: 'destructive',
-          onPress: () => handleDeleteConversation(conversation),
-        },
-      ]
-    );
+
+    Alert.alert(displayName, 'Choose an action', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'View Profile',
+        onPress: () => handleViewProfile(conversation),
+      },
+      {
+        text: 'Delete Conversation',
+        style: 'destructive',
+        onPress: () => handleDeleteConversation(conversation),
+      },
+    ]);
   };
 
   const renderConversation = ({ item }: { item: Conversation }) => {
@@ -171,25 +167,27 @@ export const MessagesScreen: React.FC = () => {
     }
 
     // Find the other participant (not the current user)
-    const otherParticipant = item.participants?.find(p => p.user_id !== user?.id);
+    const otherParticipant = item.participants?.find((p) => p.user_id !== user?.id);
     const lastMessage = item.last_message;
     const displayName = getConversationDisplayName(item);
     const safeDisplayName = String(displayName || 'Unknown User');
-    
+
     // Debug logging with safe values
     console.log('🔍 Conversation participant data:', {
       conversationId: String(item.id || ''),
       participantsCount: Number(item.participants?.length || 0),
-      otherParticipant: otherParticipant ? {
-        userId: String(otherParticipant.user_id || ''),
-        profile: otherParticipant.profile || null,
-        displayName: safeDisplayName
-      } : null,
-      currentUserId: String(user?.id || '')
+      otherParticipant: otherParticipant
+        ? {
+            userId: String(otherParticipant.user_id || ''),
+            profile: otherParticipant.profile || null,
+            displayName: safeDisplayName,
+          }
+        : null,
+      currentUserId: String(user?.id || ''),
     });
-    
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={() => handleConversationPress(item)}
         onLongPress={() => handleLongPressConversation(item)}
       >
@@ -201,49 +199,39 @@ export const MessagesScreen: React.FC = () => {
           gap={12}
         >
           <TouchableOpacity onPress={() => handleViewProfile(item)}>
-          <Avatar circular size={48}>
-            <Avatar.Image
-              source={{ 
-                uri: otherParticipant?.profile?.avatar_url || 
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(safeDisplayName)}&background=00FFBC&color=000` 
-              }}
-            />
-            <Avatar.Fallback backgroundColor="$gray8">
-              <User size={24} color="white" />
-            </Avatar.Fallback>
-          </Avatar>
+            <Avatar circular size={48}>
+              <Avatar.Image
+                source={{
+                  uri:
+                    otherParticipant?.profile?.avatar_url ||
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(safeDisplayName)}&background=00FFBC&color=000`,
+                }}
+              />
+              <Avatar.Fallback backgroundColor="$gray8">
+                <User size={24} color="white" />
+              </Avatar.Fallback>
+            </Avatar>
           </TouchableOpacity>
-          
+
           <YStack flex={1} gap={4}>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text
-                fontSize={16}
-                fontWeight="bold"
-                color="$color"
-                numberOfLines={1}
-              >
+              <Text fontSize={16} fontWeight="bold" color="$color" numberOfLines={1}>
                 {safeDisplayName}
               </Text>
               {lastMessage?.created_at ? (
-                <Text
-                  fontSize={12}
-                  color="$gray11"
-                >
-                  {String(formatDistanceToNow(new Date(lastMessage.created_at), { addSuffix: true }))}
+                <Text fontSize={12} color="$gray11">
+                  {String(
+                    formatDistanceToNow(new Date(lastMessage.created_at), { addSuffix: true }),
+                  )}
                 </Text>
               ) : null}
             </XStack>
-            
+
             <XStack justifyContent="space-between" alignItems="center">
-              <Text
-                fontSize={14}
-                color="$gray11"
-                numberOfLines={1}
-                flex={1}
-              >
+              <Text fontSize={14} color="$gray11" numberOfLines={1} flex={1}>
                 {String(lastMessage?.content || '').trim() || 'No messages yet'}
               </Text>
-              
+
               {item.unread_count && item.unread_count > 0 ? (
                 <YStack
                   backgroundColor="#EF4444"
@@ -253,11 +241,7 @@ export const MessagesScreen: React.FC = () => {
                   justifyContent="center"
                   alignItems="center"
                 >
-                  <Text
-                    fontSize={10}
-                    fontWeight="bold"
-                    color="#FFFFFF"
-                  >
+                  <Text fontSize={10} fontWeight="bold" color="#FFFFFF">
                     {item.unread_count > 99 ? '99+' : String(item.unread_count)}
                   </Text>
                 </YStack>
@@ -273,7 +257,9 @@ export const MessagesScreen: React.FC = () => {
     return (
       <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="#0F172A">
         <Spinner size="large" color="#00FFBC" />
-        <Text color="$color" marginTop={16}>Loading conversations...</Text>
+        <Text color="$color" marginTop={16}>
+          Loading conversations...
+        </Text>
       </YStack>
     );
   }
@@ -292,17 +278,17 @@ export const MessagesScreen: React.FC = () => {
           <TouchableOpacity onPress={handleBack}>
             <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          
-        <Text fontSize={24} fontWeight="bold" color="$color">
-          Messages
-        </Text>
+
+          <Text fontSize={24} fontWeight="bold" color="$color">
+            Messages
+          </Text>
         </XStack>
-        
+
         <XStack gap={16}>
           <TouchableOpacity onPress={handleSearch}>
             <Search size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          
+
           <TouchableOpacity onPress={handleNewMessage}>
             <Plus size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -325,15 +311,11 @@ export const MessagesScreen: React.FC = () => {
           renderItem={renderConversation}
           keyExtractor={(item) => item.id}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#00FFBC"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FFBC" />
           }
           showsVerticalScrollIndicator={false}
         />
       )}
     </YStack>
   );
-}; 
+};

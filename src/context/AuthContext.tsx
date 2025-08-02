@@ -95,12 +95,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('[AUTH_STATE_DEBUG] Auth state changed:', { 
-        event: _event, 
+      console.log('[AUTH_STATE_DEBUG] Auth state changed:', {
+        event: _event,
         hasSession: !!session,
         hasUser: !!session?.user,
         userId: session?.user?.id,
-        userEmail: session?.user?.email
+        userEmail: session?.user?.email,
       });
 
       // If user just signed in, ensure they have a profile
@@ -143,7 +143,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
 
-      console.log('[AUTH_STATE_DEBUG] Updating state - session:', !!session, 'user:', !!session?.user);
+      console.log(
+        '[AUTH_STATE_DEBUG] Updating state - session:',
+        !!session,
+        'user:',
+        !!session?.user,
+      );
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -237,20 +242,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signIn = React.useCallback(async (email: string, password: string) => {
     console.log('[AUTH_DEBUG] signIn called with email:', email);
-    
+
     try {
       console.log('[AUTH_DEBUG] Setting loading to true');
       setLoading(true);
 
       console.log('[AUTH_DEBUG] Attempting Supabase auth...');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      
-      console.log('[AUTH_DEBUG] Supabase response:', { 
-        hasUser: !!data?.user, 
+
+      console.log('[AUTH_DEBUG] Supabase response:', {
+        hasUser: !!data?.user,
         hasSession: !!data?.session,
-        errorMessage: error?.message 
+        errorMessage: error?.message,
       });
-      
+
       if (error) {
         console.log('[AUTH_DEBUG] Supabase auth error:', error);
         throw error;
@@ -296,7 +301,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.warn('Analytics tracking failed:', analyticsError);
         }
       }
-      
+
       console.log('[AUTH_DEBUG] signIn process completed successfully');
     } catch (error) {
       console.log('[AUTH_DEBUG] signIn failed, throwing error:', error);

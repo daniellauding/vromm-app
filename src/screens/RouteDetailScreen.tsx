@@ -31,7 +31,11 @@ import { MediaCarousel, CarouselMediaItem } from '../components/MediaCarousel';
 import { Region } from 'react-native-maps';
 import { ReportDialog } from '../components/report/ReportDialog';
 import { useTranslation } from '../contexts/TranslationContext';
-import { parseRecordingStats, isRecordedRoute, formatRecordingStatsDisplay } from '../utils/routeUtils';
+import {
+  parseRecordingStats,
+  isRecordedRoute,
+  formatRecordingStatsDisplay,
+} from '../utils/routeUtils';
 import { RouteExerciseList, ExerciseDetailModal } from '../components';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
@@ -112,7 +116,8 @@ interface RawMediaAttachment {
   [key: string]: JsonValue | undefined;
 }
 
-interface SupabaseRouteResponse extends Omit<RouteRow, 'waypoint_details' | 'media_attachments' | 'suggested_exercises'> {
+interface SupabaseRouteResponse
+  extends Omit<RouteRow, 'waypoint_details' | 'media_attachments' | 'suggested_exercises'> {
   creator: {
     id: string;
     full_name: string;
@@ -175,7 +180,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   const [carouselHeight, setCarouselHeight] = useState(300); // Height for the carousel
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showAdminControls, setShowAdminControls] = useState(false);
-  
+
   // Exercise-related state
   const [exerciseStats, setExerciseStats] = useState<{
     completed: number;
@@ -184,7 +189,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   } | null>(null);
   const [completedExerciseIds, setCompletedExerciseIds] = useState<Set<string>>(new Set());
   const [allExercisesCompleted, setAllExercisesCompleted] = useState(false);
-  
+
   // Exercise detail modal state - Removed, now navigates directly to RouteExerciseScreen
 
   useEffect(() => {
@@ -322,10 +327,10 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     let exercises: Exercise[] = [];
     if (routeResponse.suggested_exercises) {
       try {
-        const exercisesData = Array.isArray(routeResponse.suggested_exercises) 
-          ? routeResponse.suggested_exercises 
+        const exercisesData = Array.isArray(routeResponse.suggested_exercises)
+          ? routeResponse.suggested_exercises
           : JSON.parse(String(routeResponse.suggested_exercises));
-        
+
         // Process each exercise and fetch full data if it's from a learning path
         const enrichedExercises = await Promise.all(
           exercisesData.map(async (ex: any) => {
@@ -337,7 +342,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   .select('*')
                   .eq('id', ex.learning_path_exercise_id)
                   .single();
-                
+
                 if (fullExercise) {
                   // Merge route exercise data with full learning path exercise data
                   return {
@@ -381,7 +386,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                 console.error('Error fetching full exercise data:', error);
               }
             }
-            
+
             // Fallback to route exercise data only (for custom exercises)
             return {
               id: ex.id || `exercise_${Date.now()}`,
@@ -406,9 +411,9 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               creator_id: ex.creator_id,
               created_at: ex.created_at,
             };
-          })
+          }),
         );
-        
+
         exercises = enrichedExercises;
       } catch (err) {
         console.error('Error parsing exercises:', err);
@@ -761,8 +766,10 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
       // Create route path for recorded routes (more than just waypoints)
       const routePath = waypoints.length > 2 ? waypoints : undefined;
-      const showStartEndMarkers = waypoints.length > 2 && (routeData.drawing_mode === 'waypoint' || routeData.drawing_mode === 'record');
-      
+      const showStartEndMarkers =
+        waypoints.length > 2 &&
+        (routeData.drawing_mode === 'waypoint' || routeData.drawing_mode === 'record');
+
       // Handle both web and iOS pen drawing formats
       let penDrawingCoordinates: any[] = [];
       let actualDrawingMode = routeData.drawing_mode;
@@ -770,7 +777,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       if (routeData.drawing_mode === 'pen') {
         // WEB FORMAT: Pen coordinates are stored as the main waypoints
         console.log('🎨 [RouteDetail] WEB FORMAT - Pen coordinates from waypoints');
-        penDrawingCoordinates = waypoints.map(wp => ({
+        penDrawingCoordinates = waypoints.map((wp) => ({
           latitude: wp.latitude,
           longitude: wp.longitude,
         }));
@@ -788,17 +795,17 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         actualDrawingMode,
         penCoordinatesLength: penDrawingCoordinates.length,
         waypointsLength: waypoints.length,
-        penSample: penDrawingCoordinates.slice(0, 2)
+        penSample: penDrawingCoordinates.slice(0, 2),
       });
 
-      items.push({ 
-        type: 'map', 
-        waypoints, 
-        region, 
+      items.push({
+        type: 'map',
+        waypoints,
+        region,
         routePath,
         showStartEndMarkers,
         drawingMode: actualDrawingMode,
-        penDrawingCoordinates
+        penDrawingCoordinates,
       });
     }
 
@@ -817,9 +824,9 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         penCoordinatesLength: item.penDrawingCoordinates?.length || 0,
         drawingMode: item.drawingMode,
         hasPenCoordinates: !!item.penDrawingCoordinates,
-        penSample: item.penDrawingCoordinates?.slice(0, 2)
+        penSample: item.penDrawingCoordinates?.slice(0, 2),
       });
-      
+
       return (
         <Map
           waypoints={item.waypoints}
@@ -897,7 +904,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     // For recorded routes with many waypoints, limit intermediate waypoints to avoid URL length issues
     const maxIntermediateWaypoints = 8;
     const intermediateWaypoints = waypoints.slice(1, -1);
-    
+
     // If too many waypoints, sample them evenly
     let selectedWaypoints = intermediateWaypoints;
     if (intermediateWaypoints.length > maxIntermediateWaypoints) {
@@ -907,9 +914,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         .slice(0, maxIntermediateWaypoints);
     }
 
-    const waypointsStr = selectedWaypoints
-      .map((wp) => `${wp.lat},${wp.lng}`)
-      .join('|');
+    const waypointsStr = selectedWaypoints.map((wp) => `${wp.lat},${wp.lng}`).join('|');
 
     // Create URL options for different map apps
     const mapOptions = [
@@ -941,7 +946,10 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           if (supported) {
             Linking.openURL(option.url);
           } else {
-            Alert.alert('Error', `Could not open ${option.title}. Please make sure the app is installed.`);
+            Alert.alert(
+              'Error',
+              `Could not open ${option.title}. Please make sure the app is installed.`,
+            );
           }
         });
       },
@@ -976,12 +984,12 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       }
 
       // Get the latest completed session for timestamp
-      const latestCompletedSession = sessions.find(s => s.status === 'completed');
+      const latestCompletedSession = sessions.find((s) => s.status === 'completed');
 
       // Get ALL completed exercises from ALL sessions (for cross-device sync)
-      const allSessionIds = sessions.map(s => s.id);
+      const allSessionIds = sessions.map((s) => s.id);
       let completedExerciseIds = new Set<string>();
-      
+
       if (allSessionIds.length > 0) {
         const { data: allCompletions } = await supabase
           .from('route_exercise_completions')
@@ -989,13 +997,13 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           .in('session_id', allSessionIds);
 
         if (allCompletions) {
-          completedExerciseIds = new Set(allCompletions.map(c => c.exercise_id));
+          completedExerciseIds = new Set(allCompletions.map((c) => c.exercise_id));
         }
       }
 
       setCompletedExerciseIds(completedExerciseIds);
       setAllExercisesCompleted(completedExerciseIds.size === routeData.exercises.length);
-      
+
       setExerciseStats({
         completed: completedExerciseIds.size,
         total: routeData.exercises.length,
@@ -1034,8 +1042,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
   const handleExerciseComplete = (exerciseId: string) => {
     // Update the completed exercises state
-    setCompletedExerciseIds(prev => new Set([...prev, exerciseId]));
-    
+    setCompletedExerciseIds((prev) => new Set([...prev, exerciseId]));
+
     // Reload exercise stats
     if (routeData?.exercises) {
       loadExerciseStats();
@@ -1296,45 +1304,46 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               </Card>
 
               {/* Recording Stats Card - Only show for recorded routes */}
-              {isRecordedRoute(routeData) && (() => {
-                const recordingStats = parseRecordingStats(routeData.description || '');
-                if (!recordingStats) return null;
-                
-                const formattedStats = formatRecordingStatsDisplay(recordingStats);
-                
-                return (
-                  <Card backgroundColor="$backgroundStrong" bordered padding="$4">
-                    <YStack gap="$3">
-                                             <XStack alignItems="center" gap="$2">
-                         <Feather name="activity" size={20} color={iconColor} />
-                         <Text fontSize="$6" fontWeight="600" color="$color">
-                           {getTranslation(t, 'routeDetail.recordingStats', 'Recording Stats')}
-                         </Text>
-                       </XStack>
-                      
+              {isRecordedRoute(routeData) &&
+                (() => {
+                  const recordingStats = parseRecordingStats(routeData.description || '');
+                  if (!recordingStats) return null;
+
+                  const formattedStats = formatRecordingStatsDisplay(recordingStats);
+
+                  return (
+                    <Card backgroundColor="$backgroundStrong" bordered padding="$4">
                       <YStack gap="$3">
-                        {formattedStats.map((stat, index) => (
-                          <XStack key={index} justifyContent="space-between" alignItems="center">
-                            <XStack alignItems="center" gap="$2">
-                              <Feather name={stat.icon as any} size={16} color="$gray11" />
-                              <Text fontSize="$4" color="$gray11">
-                                {stat.label}
+                        <XStack alignItems="center" gap="$2">
+                          <Feather name="activity" size={20} color={iconColor} />
+                          <Text fontSize="$6" fontWeight="600" color="$color">
+                            {getTranslation(t, 'routeDetail.recordingStats', 'Recording Stats')}
+                          </Text>
+                        </XStack>
+
+                        <YStack gap="$3">
+                          {formattedStats.map((stat, index) => (
+                            <XStack key={index} justifyContent="space-between" alignItems="center">
+                              <XStack alignItems="center" gap="$2">
+                                <Feather name={stat.icon as any} size={16} color="$gray11" />
+                                <Text fontSize="$4" color="$gray11">
+                                  {stat.label}
+                                </Text>
+                              </XStack>
+                              <Text fontSize="$4" fontWeight="600" color="$color">
+                                {stat.value}
                               </Text>
                             </XStack>
-                            <Text fontSize="$4" fontWeight="600" color="$color">
-                              {stat.value}
-                            </Text>
-                          </XStack>
-                        ))}
+                          ))}
+                        </YStack>
+
+                        <Text fontSize="$3" color="$gray9" fontStyle="italic">
+                          Recorded with live GPS tracking
+                        </Text>
                       </YStack>
-                      
-                      <Text fontSize="$3" color="$gray9" fontStyle="italic">
-                        Recorded with live GPS tracking
-                      </Text>
-                    </YStack>
-                  </Card>
-                );
-              })()}
+                    </Card>
+                  );
+                })()}
 
               {/* Map Card */}
               <Card backgroundColor="$backgroundStrong" bordered padding="$4">
@@ -1351,13 +1360,14 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       if ((routeData as RouteData)?.drawing_mode === 'pen') {
                         // WEB FORMAT: Pen coordinates are stored as the main waypoints
                         console.log('🎨 [RouteDetail] Map Card - WEB FORMAT detected');
-                        const waypoints = (routeData as RouteData)?.waypoint_details?.map((wp) => ({
-                          latitude: wp.lat,
-                          longitude: wp.lng,
-                          title: wp.title,
-                          description: wp.description,
-                        })) || [];
-                        penCoords = waypoints.map(wp => ({
+                        const waypoints =
+                          (routeData as RouteData)?.waypoint_details?.map((wp) => ({
+                            latitude: wp.lat,
+                            longitude: wp.lng,
+                            title: wp.title,
+                            description: wp.description,
+                          })) || [];
+                        penCoords = waypoints.map((wp) => ({
                           latitude: wp.latitude,
                           longitude: wp.longitude,
                         }));
@@ -1366,7 +1376,9 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                         // iOS FORMAT: Pen coordinates are in metadata
                         console.log('🎨 [RouteDetail] Map Card - iOS FORMAT detected');
                         penCoords = (routeData as RouteData)?.metadata?.coordinates || [];
-                        actualDrawingMode = (routeData as RouteData)?.metadata?.actualDrawingMode || (routeData as RouteData)?.drawing_mode;
+                        actualDrawingMode =
+                          (routeData as RouteData)?.metadata?.actualDrawingMode ||
+                          (routeData as RouteData)?.drawing_mode;
                       }
 
                       console.log('🎨 [RouteDetail] Map Card - Final setup:', {
@@ -1374,40 +1386,48 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                         originalDrawingMode: (routeData as RouteData)?.drawing_mode,
                         actualDrawingMode,
                         penCoordsLength: penCoords.length,
-                        sample: penCoords.slice(0, 2)
+                        sample: penCoords.slice(0, 2),
                       });
 
                       // Validate coordinates before passing to Map
-                      const validWaypoints = (routeData as RouteData)?.waypoint_details
-                        ?.filter(wp => 
-                          typeof wp.lat === 'number' && 
-                          typeof wp.lng === 'number' && 
-                          !isNaN(wp.lat) && 
-                          !isNaN(wp.lng) &&
-                          wp.lat >= -90 && wp.lat <= 90 &&
-                          wp.lng >= -180 && wp.lng <= 180
-                        )
-                        ?.map((wp) => ({
-                          latitude: wp.lat,
-                          longitude: wp.lng,
-                          title: wp.title || '',
-                          description: wp.description || '',
-                        })) || [];
+                      const validWaypoints =
+                        (routeData as RouteData)?.waypoint_details
+                          ?.filter(
+                            (wp) =>
+                              typeof wp.lat === 'number' &&
+                              typeof wp.lng === 'number' &&
+                              !isNaN(wp.lat) &&
+                              !isNaN(wp.lng) &&
+                              wp.lat >= -90 &&
+                              wp.lat <= 90 &&
+                              wp.lng >= -180 &&
+                              wp.lng <= 180,
+                          )
+                          ?.map((wp) => ({
+                            latitude: wp.lat,
+                            longitude: wp.lng,
+                            title: wp.title || '',
+                            description: wp.description || '',
+                          })) || [];
 
-                      const validPenCoords = penCoords?.filter(coord => 
-                        coord && 
-                        typeof coord.latitude === 'number' && 
-                        typeof coord.longitude === 'number' &&
-                        !isNaN(coord.latitude) && 
-                        !isNaN(coord.longitude) &&
-                        coord.latitude >= -90 && coord.latitude <= 90 &&
-                        coord.longitude >= -180 && coord.longitude <= 180
-                      ) || [];
+                      const validPenCoords =
+                        penCoords?.filter(
+                          (coord) =>
+                            coord &&
+                            typeof coord.latitude === 'number' &&
+                            typeof coord.longitude === 'number' &&
+                            !isNaN(coord.latitude) &&
+                            !isNaN(coord.longitude) &&
+                            coord.latitude >= -90 &&
+                            coord.latitude <= 90 &&
+                            coord.longitude >= -180 &&
+                            coord.longitude <= 180,
+                        ) || [];
 
                       const mapRegion = getMapRegion();
                       const firstValidWaypoint = validWaypoints[0];
                       const defaultRegion = {
-                        latitude: firstValidWaypoint?.latitude || 59.3293,  // Stockholm default
+                        latitude: firstValidWaypoint?.latitude || 59.3293, // Stockholm default
                         longitude: firstValidWaypoint?.longitude || 18.0686,
                         latitudeDelta: 0.02,
                         longitudeDelta: 0.02,
@@ -1416,7 +1436,15 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       // Only render Map if we have valid data
                       if (validWaypoints.length === 0 && validPenCoords.length === 0) {
                         return (
-                          <View style={{ height: 200, backgroundColor: '#f5f5f5', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+                          <View
+                            style={{
+                              height: 200,
+                              backgroundColor: '#f5f5f5',
+                              borderRadius: 8,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
                             <Text>No map data available</Text>
                           </View>
                         );
@@ -1435,7 +1463,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                               : undefined
                           }
                           showStartEndMarkers={
-                            validWaypoints.length > 2 && 
+                            validWaypoints.length > 2 &&
                             (actualDrawingMode === 'waypoint' || actualDrawingMode === 'record')
                           }
                           drawingMode={actualDrawingMode || 'waypoint'}
@@ -1470,83 +1498,93 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
             </Card>
 
             {/* Route Exercises Section */}
-            {routeData.exercises && Array.isArray(routeData.exercises) && routeData.exercises.length > 0 && (
-              <Card backgroundColor="$backgroundStrong" bordered padding="$4">
-                <YStack gap="$4">
-                  <XStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="$6" fontWeight="600" color="$color">
-                      {getTranslation(t, 'routeDetail.exercises', 'Route Exercises')}
-                    </Text>
-                    <Button
-                      onPress={handleStartExercises}
-                      backgroundColor="$blue10"
-                      icon={<Feather name="play" size={18} color="white" />}
-                      size="md"
-                    >
-                      <Text color="white" fontSize={14} fontWeight="600">
-                        {allExercisesCompleted ? 'Review' : 'Start'} Exercises
+            {routeData.exercises &&
+              Array.isArray(routeData.exercises) &&
+              routeData.exercises.length > 0 && (
+                <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+                  <YStack gap="$4">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <Text fontSize="$6" fontWeight="600" color="$color">
+                        {t('routeDetail.exercises')}
                       </Text>
-                      {allExercisesCompleted && (
-                        <View style={{
-                          backgroundColor: '#10B981',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 8,
-                          marginLeft: 8,
-                        }}>
-                          <XStack alignItems="center" gap={2}>
-                            <Feather name="check" size={10} color="white" />
-                            <Text fontSize={10} color="white" fontWeight="600">
-                              COMPLETED
+                      <Button
+                        onPress={handleStartExercises}
+                        backgroundColor="$blue10"
+                        icon={<Feather name="play" size={18} color="white" />}
+                        size="md"
+                      >
+                        <Text color="white" fontSize={14} fontWeight="600">
+                          {allExercisesCompleted
+                            ? t('routeDetail.reviewExercises')
+                            : t('routeDetail.startExercises')}
+                        </Text>
+                        {allExercisesCompleted && (
+                          <View
+                            style={{
+                              backgroundColor: '#10B981',
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 8,
+                              marginLeft: 8,
+                            }}
+                          >
+                            <XStack alignItems="center" gap={2}>
+                              <Feather name="check" size={10} color="white" />
+                              <Text fontSize={10} color="white" fontWeight="600">
+                                COMPLETED
+                              </Text>
+                            </XStack>
+                          </View>
+                        )}
+                      </Button>
+                    </XStack>
+
+                    {/* Exercise List Preview */}
+                    <RouteExerciseList
+                      exercises={routeData.exercises}
+                      completedIds={completedExerciseIds}
+                      maxPreview={3}
+                      onExercisePress={handleExercisePress}
+                    />
+
+                    {/* Exercise Statistics */}
+                    {exerciseStats && (
+                      <Card bordered padding="$3" backgroundColor="$gray2">
+                        <YStack gap="$2">
+                          <Text fontSize={12} fontWeight="600" color="$gray11">
+                            {t('routeDetail.yourProgress')}
+                          </Text>
+                          <XStack justifyContent="space-between" alignItems="center">
+                            <Text fontSize={11} color="$gray11">
+                              {t('routeDetail.completed')}: {exerciseStats.completed}/
+                              {exerciseStats.total}
+                            </Text>
+                            <Text fontSize={11} color="$gray11">
+                              {Math.round((exerciseStats.completed / exerciseStats.total) * 100)}%
                             </Text>
                           </XStack>
-                        </View>
-                      )}
-                    </Button>
-                  </XStack>
+                          <Progress
+                            value={Math.round(
+                              (exerciseStats.completed / exerciseStats.total) * 100,
+                            )}
+                            backgroundColor="$gray6"
+                            size="$0.5"
+                          >
+                            <Progress.Indicator backgroundColor="$blue10" />
+                          </Progress>
 
-                  {/* Exercise List Preview */}
-                  <RouteExerciseList 
-                    exercises={routeData.exercises} 
-                    completedIds={completedExerciseIds}
-                    maxPreview={3}
-                    onExercisePress={handleExercisePress}
-                  />
-
-                  {/* Exercise Statistics */}
-                  {exerciseStats && (
-                    <Card bordered padding="$3" backgroundColor="$gray2">
-                      <YStack gap="$2">
-                        <Text fontSize={12} fontWeight="600" color="$gray11">
-                          Your Progress
-                        </Text>
-                        <XStack justifyContent="space-between" alignItems="center">
-                          <Text fontSize={11} color="$gray11">
-                            Completed: {exerciseStats.completed}/{exerciseStats.total}
-                          </Text>
-                          <Text fontSize={11} color="$gray11">
-                            {Math.round((exerciseStats.completed / exerciseStats.total) * 100)}%
-                          </Text>
-                        </XStack>
-                        <Progress
-                          value={Math.round((exerciseStats.completed / exerciseStats.total) * 100)}
-                          backgroundColor="$gray6"
-                          size="$0.5"
-                        >
-                          <Progress.Indicator backgroundColor="$blue10" />
-                        </Progress>
-                        
-                        {exerciseStats.lastSessionAt && (
-                          <Text fontSize={10} color="$gray9" marginTop="$1">
-                            Last session: {new Date(exerciseStats.lastSessionAt).toLocaleDateString()}
-                          </Text>
-                        )}
-                      </YStack>
-                    </Card>
-                  )}
-                </YStack>
-              </Card>
-            )}
+                          {exerciseStats.lastSessionAt && (
+                            <Text fontSize={10} color="$gray9" marginTop="$1">
+                              {t('routeDetail.lastSession')}:{' '}
+                              {new Date(exerciseStats.lastSessionAt).toLocaleDateString()}
+                            </Text>
+                          )}
+                        </YStack>
+                      </Card>
+                    )}
+                  </YStack>
+                </Card>
+              )}
 
             {/* Reviews Section */}
             <ReviewSection routeId={routeId} reviews={reviews} onReviewAdded={loadReviews} />

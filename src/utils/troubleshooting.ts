@@ -263,11 +263,11 @@ export function diagnosePotentialIssues(context: string): DiagnosticResult {
   const diagnosticReport = createDiagnosticReport(context);
   const detectedIssues: TroubleshootingIssue[] = [];
   const recommendations: string[] = [];
-  
+
   // Check for memory issues
   const hasMemoryIssue = detectMemoryIssues(context);
   if (hasMemoryIssue) {
-    detectedIssues.push(COMMON_ISSUES.find(issue => issue.id === 'memory_warnings')!);
+    detectedIssues.push(COMMON_ISSUES.find((issue) => issue.id === 'memory_warnings')!);
     recommendations.push('High memory usage detected - consider restarting app');
   }
 
@@ -280,10 +280,14 @@ export function diagnosePotentialIssues(context: string): DiagnosticResult {
   }
 
   // Determine overall urgency
-  const urgencies = detectedIssues.map(issue => issue.urgency);
-  const maxUrgency = urgencies.includes('critical') ? 'critical' :
-                    urgencies.includes('high') ? 'high' :
-                    urgencies.includes('medium') ? 'medium' : 'low';
+  const urgencies = detectedIssues.map((issue) => issue.urgency);
+  const maxUrgency = urgencies.includes('critical')
+    ? 'critical'
+    : urgencies.includes('high')
+      ? 'high'
+      : urgencies.includes('medium')
+        ? 'medium'
+        : 'low';
 
   // Add general recommendations
   if (recommendations.length === 0) {
@@ -311,37 +315,34 @@ export function diagnosePotentialIssues(context: string): DiagnosticResult {
  */
 export function findSolutionsForSymptoms(symptoms: string[]): TroubleshootingIssue[] {
   const matchedIssues: TroubleshootingIssue[] = [];
-  
+
   for (const issue of COMMON_ISSUES) {
-    const matchCount = symptoms.filter(symptom => 
-      issue.symptoms.some(issueSymptom => 
-        issueSymptom.toLowerCase().includes(symptom.toLowerCase()) ||
-        symptom.toLowerCase().includes(issueSymptom.toLowerCase())
-      )
+    const matchCount = symptoms.filter((symptom) =>
+      issue.symptoms.some(
+        (issueSymptom) =>
+          issueSymptom.toLowerCase().includes(symptom.toLowerCase()) ||
+          symptom.toLowerCase().includes(issueSymptom.toLowerCase()),
+      ),
     ).length;
-    
+
     if (matchCount > 0) {
       matchedIssues.push(issue);
     }
   }
-  
+
   // Sort by relevance (most matching symptoms first)
   matchedIssues.sort((a, b) => {
-    const aMatches = symptoms.filter(symptom => 
-      a.symptoms.some(issueSymptom => 
-        issueSymptom.toLowerCase().includes(symptom.toLowerCase())
-      )
+    const aMatches = symptoms.filter((symptom) =>
+      a.symptoms.some((issueSymptom) => issueSymptom.toLowerCase().includes(symptom.toLowerCase())),
     ).length;
-    
-    const bMatches = symptoms.filter(symptom => 
-      b.symptoms.some(issueSymptom => 
-        issueSymptom.toLowerCase().includes(symptom.toLowerCase())
-      )
+
+    const bMatches = symptoms.filter((symptom) =>
+      b.symptoms.some((issueSymptom) => issueSymptom.toLowerCase().includes(symptom.toLowerCase())),
     ).length;
-    
+
     return bMatches - aMatches;
   });
-  
+
   return matchedIssues;
 }
 
@@ -349,41 +350,41 @@ export function findSolutionsForSymptoms(symptoms: string[]): TroubleshootingIss
  * Show troubleshooting dialog with solutions
  */
 export function showTroubleshootingDialog(
-  title: string, 
-  symptoms: string[], 
-  context: string = 'Unknown'
+  title: string,
+  symptoms: string[],
+  context: string = 'Unknown',
 ) {
   const matchedIssues = findSolutionsForSymptoms(symptoms);
   const diagnostic = diagnosePotentialIssues(context);
-  
+
   if (matchedIssues.length === 0) {
     Alert.alert(
       'Troubleshooting',
       'No specific solutions found for the reported symptoms. Try these general steps:\n\n' +
-      '• Restart the app\n' +
-      '• Check internet connection\n' +
-      '• Free up device storage\n' +
-      '• Contact support if issue persists'
+        '• Restart the app\n' +
+        '• Check internet connection\n' +
+        '• Free up device storage\n' +
+        '• Contact support if issue persists',
     );
     return;
   }
-  
+
   const topIssue = matchedIssues[0];
   const solutions = topIssue.solutions.slice(0, 5); // Show top 5 solutions
-  
+
   Alert.alert(
     `Troubleshooting: ${topIssue.title}`,
-    `Possible solutions:\n\n${solutions.map((solution, index) => 
-      `${index + 1}. ${solution}`
-    ).join('\n')}\n\nUrgency: ${topIssue.urgency.toUpperCase()}`,
+    `Possible solutions:\n\n${solutions
+      .map((solution, index) => `${index + 1}. ${solution}`)
+      .join('\n')}\n\nUrgency: ${topIssue.urgency.toUpperCase()}`,
     [
       { text: 'Got It', style: 'default' },
-      { 
-        text: 'More Info', 
+      {
+        text: 'More Info',
         style: 'default',
-        onPress: () => showDetailedTroubleshooting(topIssue, diagnostic)
-      }
-    ]
+        onPress: () => showDetailedTroubleshooting(topIssue, diagnostic),
+      },
+    ],
   );
 }
 
@@ -394,10 +395,10 @@ function showDetailedTroubleshooting(issue: TroubleshootingIssue, diagnostic: Di
   Alert.alert(
     `Detailed: ${issue.title}`,
     `SYMPTOMS:\n${issue.symptoms.join('\n')}\n\n` +
-    `POSSIBLE CAUSES:\n${issue.causes.join('\n')}\n\n` +
-    `ALL SOLUTIONS:\n${issue.solutions.map((sol, i) => `${i + 1}. ${sol}`).join('\n')}\n\n` +
-    `SYSTEM STATUS:\n${diagnostic.recommendations.join('\n')}`,
-    [{ text: 'Close' }]
+      `POSSIBLE CAUSES:\n${issue.causes.join('\n')}\n\n` +
+      `ALL SOLUTIONS:\n${issue.solutions.map((sol, i) => `${i + 1}. ${sol}`).join('\n')}\n\n` +
+      `SYSTEM STATUS:\n${diagnostic.recommendations.join('\n')}`,
+    [{ text: 'Close' }],
   );
 }
 
@@ -407,13 +408,13 @@ function showDetailedTroubleshooting(issue: TroubleshootingIssue, diagnostic: Di
 export async function performQuickHealthCheck(context: string = 'HealthCheck'): Promise<void> {
   try {
     logInfo('Starting quick health check', { context });
-    
+
     const diagnostic = diagnosePotentialIssues(context);
     const hasMemoryIssue = detectMemoryIssues(context);
-    
+
     let status = '✅ All systems appear normal';
     let details = 'No issues detected';
-    
+
     if (diagnostic.urgency === 'critical') {
       status = '🚨 CRITICAL ISSUES DETECTED';
       details = 'Immediate action required';
@@ -424,33 +425,32 @@ export async function performQuickHealthCheck(context: string = 'HealthCheck'): 
       status = '⚠️ Some issues detected';
       details = 'Minor optimizations recommended';
     }
-    
+
     Alert.alert(
       'Health Check Results',
       `${status}\n\n${details}\n\nRecommendations:\n${diagnostic.recommendations.slice(0, 3).join('\n')}`,
       [
         { text: 'OK' },
-        { 
-          text: 'View Details', 
+        {
+          text: 'View Details',
           onPress: () => {
             Alert.alert(
               'Detailed Health Report',
               `Platform: ${diagnostic.diagnosticReport.platform.OS}\n` +
-              `Memory: ${diagnostic.diagnosticReport.memory.usage || 'N/A'}\n` +
-              `Issues Found: ${diagnostic.detectedIssues.length}\n` +
-              `Urgency: ${diagnostic.urgency}\n\n` +
-              `All Recommendations:\n${diagnostic.recommendations.join('\n')}`
+                `Memory: ${diagnostic.diagnosticReport.memory.usage || 'N/A'}\n` +
+                `Issues Found: ${diagnostic.detectedIssues.length}\n` +
+                `Urgency: ${diagnostic.urgency}\n\n` +
+                `All Recommendations:\n${diagnostic.recommendations.join('\n')}`,
             );
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
-    
   } catch (error) {
     logError('Health check failed', error as Error);
     Alert.alert(
       'Health Check Failed',
-      'Unable to complete health check. This might indicate a serious issue. Try restarting the app.'
+      'Unable to complete health check. This might indicate a serious issue. Try restarting the app.',
     );
   }
 }
@@ -460,25 +460,25 @@ export async function performQuickHealthCheck(context: string = 'HealthCheck'): 
  */
 export function initiateEmergencyRecovery(issueType: string = 'unknown') {
   logWarn(`Emergency recovery initiated for: ${issueType}`);
-  
+
   Alert.alert(
     'Emergency Recovery',
     'Critical issue detected. Follow these steps in order:\n\n' +
-    '1. Force close the app completely\n' +
-    '2. Wait 30 seconds\n' +
-    '3. Restart the app\n' +
-    '4. If still failing, restart your device\n' +
-    '5. If problem persists, contact support',
+      '1. Force close the app completely\n' +
+      '2. Wait 30 seconds\n' +
+      '3. Restart the app\n' +
+      '4. If still failing, restart your device\n' +
+      '5. If problem persists, contact support',
     [
       { text: 'Got It' },
-      { 
+      {
         text: 'Contact Support',
         onPress: () => {
           // This would typically open a support channel
           Alert.alert('Support', 'Please contact our support team with error details.');
-        }
-      }
-    ]
+        },
+      },
+    ],
   );
 }
 
@@ -492,4 +492,4 @@ export const troubleshootingUtils = {
   performQuickHealthCheck,
   initiateEmergencyRecovery,
   COMMON_ISSUES,
-}; 
+};

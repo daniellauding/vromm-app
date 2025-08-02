@@ -12,14 +12,17 @@ export type Message = Database['public']['Tables']['messages']['Row'] & {
   read_by?: string[];
 };
 
-export type ConversationParticipant = Database['public']['Tables']['conversation_participants']['Row'] & {
-  profile?: Database['public']['Tables']['profiles']['Row'];
-};
+export type ConversationParticipant =
+  Database['public']['Tables']['conversation_participants']['Row'] & {
+    profile?: Database['public']['Tables']['profiles']['Row'];
+  };
 
 class MessageService {
   // Get all conversations for current user
   async getConversations(): Promise<Conversation[]> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     // First, get conversation IDs where user is a participant
@@ -29,8 +32,8 @@ class MessageService {
       .eq('user_id', user.id);
 
     if (convError) throw convError;
-    
-    const conversationIds = userConversations?.map(c => c.conversation_id) || [];
+
+    const conversationIds = userConversations?.map((c) => c.conversation_id) || [];
     if (conversationIds.length === 0) {
       return [];
     }
@@ -38,7 +41,8 @@ class MessageService {
     // Then get full conversation data with all participants
     const { data, error } = await supabase
       .from('conversations')
-      .select(`
+      .select(
+        `
         *,
         conversation_participants(
           user_id,
@@ -53,7 +57,8 @@ class MessageService {
           *,
           sender:profiles(*)
         )
-      `)
+      `,
+      )
       .in('id', conversationIds)
       .order('updated_at', { ascending: false });
 
@@ -62,52 +67,60 @@ class MessageService {
     // Debug logging for raw conversation data
     console.log('📊 Raw conversation data from database:', {
       conversationsCount: data?.length || 0,
-      firstConversation: data?.[0] ? {
-        id: data[0].id,
-        conversation_participants: data[0].conversation_participants,
-        participantsCount: data[0].conversation_participants?.length || 0,
-        hasParticipants: data[0].conversation_participants && data[0].conversation_participants.length > 0
-      } : null
+      firstConversation: data?.[0]
+        ? {
+            id: data[0].id,
+            conversation_participants: data[0].conversation_participants,
+            participantsCount: data[0].conversation_participants?.length || 0,
+            hasParticipants:
+              data[0].conversation_participants && data[0].conversation_participants.length > 0,
+          }
+        : null,
     });
 
     // Process conversations to add unread counts and last message
-    const conversations = data?.map(conv => {
-      const messages = conv.messages || [];
-      const lastMessage = messages[messages.length - 1];
-      const unreadCount = messages.filter(msg => 
-        msg.sender_id !== user.id && 
-        !msg.read_by?.includes(user.id)
-      ).length;
+    const conversations =
+      data?.map((conv) => {
+        const messages = conv.messages || [];
+        const lastMessage = messages[messages.length - 1];
+        const unreadCount = messages.filter(
+          (msg) => msg.sender_id !== user.id && !msg.read_by?.includes(user.id),
+        ).length;
 
-      // Filter out current user from participants and ensure profile data is available
-      const allParticipants = conv.conversation_participants || [];
-      const otherParticipants = allParticipants
-        .filter(p => p.user_id !== user.id)
-        .map(p => ({
-          ...p,
-          profile: p.profiles // Map profiles to profile for backward compatibility
-        }));
-      
-      console.log('🔍 Processing conversation:', {
-        conversationId: conv.id,
-        totalParticipants: allParticipants.length,
-        otherParticipants: otherParticipants.length,
-        currentUserId: user.id,
-        rawParticipants: allParticipants.map(p => ({ userId: p.user_id, hasProfile: !!p.profiles })),
-        firstOtherParticipant: otherParticipants[0] ? {
-          userId: otherParticipants[0].user_id,
-          hasProfile: !!otherParticipants[0].profiles,
-          profileData: otherParticipants[0].profiles
-        } : null
-      });
+        // Filter out current user from participants and ensure profile data is available
+        const allParticipants = conv.conversation_participants || [];
+        const otherParticipants = allParticipants
+          .filter((p) => p.user_id !== user.id)
+          .map((p) => ({
+            ...p,
+            profile: p.profiles, // Map profiles to profile for backward compatibility
+          }));
 
-      return {
-        ...conv,
-        last_message: lastMessage,
-        unread_count: unreadCount,
-        participants: otherParticipants
-      };
-    }) || [];
+        console.log('🔍 Processing conversation:', {
+          conversationId: conv.id,
+          totalParticipants: allParticipants.length,
+          otherParticipants: otherParticipants.length,
+          currentUserId: user.id,
+          rawParticipants: allParticipants.map((p) => ({
+            userId: p.user_id,
+            hasProfile: !!p.profiles,
+          })),
+          firstOtherParticipant: otherParticipants[0]
+            ? {
+                userId: otherParticipants[0].user_id,
+                hasProfile: !!otherParticipants[0].profiles,
+                profileData: otherParticipants[0].profiles,
+              }
+            : null,
+        });
+
+        return {
+          ...conv,
+          last_message: lastMessage,
+          unread_count: unreadCount,
+          participants: otherParticipants,
+        };
+      }) || [];
 
     return conversations;
   }
@@ -116,7 +129,8 @@ class MessageService {
   async getMessages(conversationId: string): Promise<Message[]> {
     const { data, error } = await supabase
       .from('messages')
-      .select(`
+      .select(
+        `
         *,
         sender:profiles!messages_sender_id_fkey(
           id,
@@ -124,7 +138,8 @@ class MessageService {
           avatar_url,
           email
         )
-      `)
+      `,
+      )
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false }); // Changed to descending for newest first
 
@@ -133,8 +148,15 @@ class MessageService {
   }
 
   // Send a message
-  async sendMessage(conversationId: string, content: string, messageType: 'text' | 'image' | 'file' = 'text', metadata?: any): Promise<Message> {
-    const { data: { user } } = await supabase.auth.getUser();
+  async sendMessage(
+    conversationId: string,
+    content: string,
+    messageType: 'text' | 'image' | 'file' = 'text',
+    metadata?: any,
+  ): Promise<Message> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     const { data, error } = await supabase
@@ -144,12 +166,14 @@ class MessageService {
         sender_id: user.id,
         content,
         message_type: messageType,
-        metadata: metadata || {}
+        metadata: metadata || {},
       })
-      .select(`
+      .select(
+        `
         *,
         sender:profiles(*)
-      `)
+      `,
+      )
       .single();
 
     if (error) throw error;
@@ -158,7 +182,9 @@ class MessageService {
 
   // Mark messages as read
   async markMessagesAsRead(messageIds: string[]): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     try {
@@ -169,20 +195,18 @@ class MessageService {
         .eq('user_id', user.id)
         .in('message_id', messageIds);
 
-      const existingMessageIds = new Set(existingReads?.map(r => r.message_id) || []);
-      const newMessageIds = messageIds.filter(id => !existingMessageIds.has(id));
+      const existingMessageIds = new Set(existingReads?.map((r) => r.message_id) || []);
+      const newMessageIds = messageIds.filter((id) => !existingMessageIds.has(id));
 
       if (newMessageIds.length > 0) {
-    const { error } = await supabase
-      .from('message_reads')
-          .insert(
-            newMessageIds.map(messageId => ({
-          message_id: messageId,
-          user_id: user.id
-        }))
-      );
+        const { error } = await supabase.from('message_reads').insert(
+          newMessageIds.map((messageId) => ({
+            message_id: messageId,
+            user_id: user.id,
+          })),
+        );
 
-    if (error) throw error;
+        if (error) throw error;
       }
     } catch (error) {
       console.error('Error marking messages as read:', error);
@@ -191,8 +215,14 @@ class MessageService {
   }
 
   // Create a new conversation
-  async createConversation(participantIds: string[], name?: string, isGroup: boolean = false): Promise<Conversation> {
-    const { data: { user } } = await supabase.auth.getUser();
+  async createConversation(
+    participantIds: string[],
+    name?: string,
+    isGroup: boolean = false,
+  ): Promise<Conversation> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     // Create conversation
@@ -202,7 +232,7 @@ class MessageService {
         name,
         is_group: isGroup,
         created_by: user.id,
-        type: isGroup ? 'group' : 'direct'
+        type: isGroup ? 'group' : 'direct',
       })
       .select()
       .single();
@@ -211,15 +241,13 @@ class MessageService {
 
     // Add participants
     const allParticipants = [user.id, ...participantIds];
-    const { error: partError } = await supabase
-      .from('conversation_participants')
-      .insert(
-        allParticipants.map(userId => ({
-          conversation_id: conversation.id,
-          user_id: userId,
-          is_admin: userId === user.id
-        }))
-      );
+    const { error: partError } = await supabase.from('conversation_participants').insert(
+      allParticipants.map((userId) => ({
+        conversation_id: conversation.id,
+        user_id: userId,
+        is_admin: userId === user.id,
+      })),
+    );
 
     if (partError) throw partError;
 
@@ -230,7 +258,8 @@ class MessageService {
   async getConversation(conversationId: string): Promise<Conversation | null> {
     const { data, error } = await supabase
       .from('conversations')
-      .select(`
+      .select(
+        `
         *,
         conversation_participants(
           user_id,
@@ -241,7 +270,8 @@ class MessageService {
             email
           )
         )
-      `)
+      `,
+      )
       .eq('id', conversationId)
       .single();
 
@@ -263,7 +293,9 @@ class MessageService {
 
   // Get unread message count - Alternative implementation without database function
   async getUnreadCount(): Promise<number> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return 0;
 
     try {
@@ -275,7 +307,7 @@ class MessageService {
 
       if (!conversations) return 0;
 
-      const conversationIds = conversations.map(c => c.conversation_id);
+      const conversationIds = conversations.map((c) => c.conversation_id);
 
       // Get unread messages count
       const { data: messages } = await supabase
@@ -287,8 +319,8 @@ class MessageService {
       if (!messages) return 0;
 
       // Count messages that don't have a read record for this user
-      const unreadCount = messages.filter(msg => 
-        !msg.message_reads?.some(read => read.user_id === user.id)
+      const unreadCount = messages.filter(
+        (msg) => !msg.message_reads?.some((read) => read.user_id === user.id),
       ).length;
 
       return unreadCount;
@@ -308,14 +340,15 @@ class MessageService {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`
+          filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
           try {
             // Fetch the complete message with sender profile
             const { data, error } = await supabase
               .from('messages')
-              .select(`
+              .select(
+                `
                 *,
                 sender:profiles!messages_sender_id_fkey(
                   id,
@@ -323,22 +356,23 @@ class MessageService {
                   avatar_url,
                   email
                 )
-              `)
+              `,
+              )
               .eq('id', payload.new.id)
               .single();
-            
+
             if (error) {
               console.error('Error fetching message details:', error);
               return;
             }
-            
+
             if (data) {
               callback(data as Message);
             }
           } catch (error) {
             console.error('Error in message subscription:', error);
           }
-        }
+        },
       )
       .on(
         'postgres_changes',
@@ -346,14 +380,15 @@ class MessageService {
           event: 'UPDATE',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`
+          filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
           try {
             // Handle message updates (like read status)
             const { data, error } = await supabase
               .from('messages')
-              .select(`
+              .select(
+                `
                 *,
                 sender:profiles!messages_sender_id_fkey(
                   id,
@@ -361,22 +396,23 @@ class MessageService {
                   avatar_url,
                   email
                 )
-              `)
+              `,
+              )
               .eq('id', payload.new.id)
               .single();
-            
+
             if (error) {
               console.error('Error fetching updated message:', error);
               return;
             }
-            
+
             if (data) {
               callback(data as Message);
             }
           } catch (error) {
             console.error('Error in message update subscription:', error);
           }
-        }
+        },
       )
       .subscribe();
   }
@@ -384,14 +420,14 @@ class MessageService {
   // Subscribe to conversation updates - Enhanced with better real-time support
   subscribeToConversations(callback: (conversation: Conversation) => void) {
     const channel = supabase.channel('conversations-global');
-    
+
     // Listen to conversation table changes
     channel.on(
       'postgres_changes',
       {
         event: '*',
         schema: 'public',
-        table: 'conversations'
+        table: 'conversations',
       },
       async (payload) => {
         try {
@@ -400,16 +436,16 @@ class MessageService {
         } catch (error) {
           console.error('Error in conversation subscription:', error);
         }
-      }
+      },
     );
-    
+
     // Listen to message changes to update conversation last_message
     channel.on(
       'postgres_changes',
       {
         event: 'INSERT',
         schema: 'public',
-        table: 'messages'
+        table: 'messages',
       },
       async (payload) => {
         try {
@@ -422,7 +458,7 @@ class MessageService {
               .select('*')
               .eq('id', conversationId)
               .single();
-            
+
             if (updatedConversation) {
               callback(updatedConversation as Conversation);
             }
@@ -430,23 +466,22 @@ class MessageService {
         } catch (error) {
           console.error('Error in message-conversation subscription:', error);
         }
-      }
+      },
     );
-    
+
     return channel.subscribe();
   }
 
   // Delete a conversation
   async deleteConversation(conversationId: string): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     try {
       // Delete messages first (they should cascade delete, but let's be explicit)
-      await supabase
-        .from('messages')
-        .delete()
-        .eq('conversation_id', conversationId);
+      await supabase.from('messages').delete().eq('conversation_id', conversationId);
 
       // Delete conversation participants
       await supabase
@@ -455,10 +490,7 @@ class MessageService {
         .eq('conversation_id', conversationId);
 
       // Delete the conversation
-      const { error } = await supabase
-        .from('conversations')
-        .delete()
-        .eq('id', conversationId);
+      const { error } = await supabase.from('conversations').delete().eq('id', conversationId);
 
       if (error) throw error;
     } catch (error) {
@@ -468,4 +500,4 @@ class MessageService {
   }
 }
 
-export const messageService = new MessageService(); 
+export const messageService = new MessageService();

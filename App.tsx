@@ -103,9 +103,9 @@ function AppContent() {
 
     // Monitor app state changes
     const handleAppStateChange = (nextAppState: string) => {
-      logInfo(`App state changed to: ${nextAppState}`, { 
+      logInfo(`App state changed to: ${nextAppState}`, {
         previousState: AppState.currentState,
-        nextState: nextAppState 
+        nextState: nextAppState,
       });
 
       if (nextAppState === 'background') {
@@ -188,12 +188,12 @@ function AppContent() {
   }, []);
 
   console.log('[APP_DEBUG] AppContent rendering');
-  console.log('[APP_DEBUG] Auth state:', { 
-    isAuthenticated: !!user, 
-    authLoading, 
+  console.log('[APP_DEBUG] Auth state:', {
+    isAuthenticated: !!user,
+    authLoading,
     initialized,
     userId: user?.id,
-    userEmail: user?.email
+    userEmail: user?.email,
   });
 
   // Only return null during initial app startup, not during login attempts
@@ -203,7 +203,7 @@ function AppContent() {
     // Import LoadingScreen dynamically to avoid circular imports
     const LoadingScreen = require('./src/components/LoadingScreen').LoadingScreen;
     return (
-      <LoadingScreen 
+      <LoadingScreen
         message="Starting app..."
         showAfterMs={1000}
         timeout={15000}
@@ -220,7 +220,7 @@ function AppContent() {
       ref={navigationRef}
       onStateChange={(state) => {
         const currentRoute = state?.routes[state?.index || 0]?.name;
-        
+
         logInfo('Navigation state changed', {
           currentRoute,
           routeCount: state?.routes?.length,
@@ -315,7 +315,11 @@ function AppContent() {
                 component={CreateRouteScreen}
                 options={{ headerShown: false }}
               />
-              <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
+              <Stack.Screen
+                name="Search"
+                component={SearchScreen}
+                options={{ headerShown: false }}
+              />
               <Stack.Screen
                 name="AddReview"
                 component={AddReviewScreen}
@@ -380,7 +384,7 @@ function AppContent() {
                   headerShown: false,
                 }}
               />
-              
+
               {/* Messaging screens */}
               <Stack.Screen
                 name="Messages"
@@ -410,7 +414,7 @@ function AppContent() {
                   headerShown: false,
                 }}
               />
-              
+
               {/* Exercise screens */}
               <Stack.Screen
                 name="RouteExercise"
@@ -460,7 +464,7 @@ export default function App() {
   if (!fontsLoaded) {
     const LoadingScreen = require('./src/components/LoadingScreen').LoadingScreen;
     return (
-      <LoadingScreen 
+      <LoadingScreen
         message="Loading fonts..."
         showAfterMs={500}
         timeout={10000}
@@ -509,7 +513,7 @@ if (__DEV__) {
 
   console.warn = (...args) => {
     const message = args.join(' ');
-    
+
     // Silence Reanimated warnings about reading values during render
     if (
       typeof args[0] === 'string' &&
@@ -517,26 +521,26 @@ if (__DEV__) {
     ) {
       return;
     }
-    
+
     // Suppress repetitive font size warnings
     if (message.includes('No font size found') && message.includes('in size tokens')) {
       const warningKey = 'font-size-warning';
       const count = warningCounts.get(warningKey) || 0;
-      
+
       if (count < MAX_WARNINGS_PER_TYPE) {
         warningCounts.set(warningKey, count + 1);
         originalWarn(...args);
-        
+
         if (count === MAX_WARNINGS_PER_TYPE - 1) {
           originalWarn(
             '[SUPPRESSED] Further font size warnings will be suppressed. ' +
-            'This is a known issue with Tamagui token configuration.'
+              'This is a known issue with Tamagui token configuration.',
           );
         }
       }
       return;
     }
-    
+
     originalWarn(...args);
   };
 }

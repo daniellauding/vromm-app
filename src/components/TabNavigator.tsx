@@ -3,7 +3,17 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { tokens } from '../tokens';
 import { useTranslation } from '../contexts/TranslationContext';
 import { TabParamList, RootStackParamList } from '../types/navigation';
-import { Platform, useColorScheme, TouchableOpacity, ViewStyle, View, Modal, Animated, Dimensions, SafeAreaView } from 'react-native';
+import {
+  Platform,
+  useColorScheme,
+  TouchableOpacity,
+  ViewStyle,
+  View,
+  Modal,
+  Animated,
+  Dimensions,
+  SafeAreaView,
+} from 'react-native';
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -35,14 +45,14 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.7; // 70% of screen width
 
 // Hamburger Drawer Component
-const HamburgerDrawer = ({ 
-  isOpen, 
-  onClose, 
-  colorScheme, 
-  navigation 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+const HamburgerDrawer = ({
+  isOpen,
+  onClose,
+  colorScheme,
+  navigation,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
   colorScheme: 'light' | 'dark' | null;
   navigation: any;
 }) => {
@@ -103,11 +113,7 @@ const HamburgerDrawer = ({
           opacity: overlayOpacity,
         }}
       >
-        <TouchableOpacity
-          style={{ flex: 1 }}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
       </Animated.View>
 
       {/* Drawer */}
@@ -134,7 +140,11 @@ const HamburgerDrawer = ({
                 {t('drawer.menu') || 'Menu'}
               </Text>
               <TouchableOpacity onPress={onClose}>
-                <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                <Feather
+                  name="x"
+                  size={24}
+                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                />
               </TouchableOpacity>
             </XStack>
 
@@ -148,15 +158,14 @@ const HamburgerDrawer = ({
                   }}
                 >
                   <XStack alignItems="center" gap="$3">
-                    <Feather 
-                      name={item.icon as any} 
-                      size={20} 
-                      color={item.danger ? '#FF4444' : (colorScheme === 'dark' ? '#FFFFFF' : '#000000')} 
+                    <Feather
+                      name={item.icon as any}
+                      size={20}
+                      color={
+                        item.danger ? '#FF4444' : colorScheme === 'dark' ? '#FFFFFF' : '#000000'
+                      }
                     />
-                    <Text 
-                      fontSize="$4" 
-                      color={item.danger ? '#FF4444' : undefined}
-                    >
+                    <Text fontSize="$4" color={item.danger ? '#FF4444' : undefined}>
                       {item.label}
                     </Text>
                   </XStack>
@@ -192,9 +201,8 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps) => {
             gap: 4,
           },
           isSelected && {
-            backgroundColor: colorScheme === 'dark' 
-              ? 'rgba(255,255,255,0.15)' 
-              : 'rgba(105,227,196,0.15)', // Light teal background for light mode
+            backgroundColor:
+              colorScheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(105,227,196,0.15)', // Light teal background for light mode
           },
         ]}
       >
@@ -211,18 +219,18 @@ export function TabNavigator() {
   const { showModal } = useModal();
   const createRouteContext = useCreateRoute();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  
+
   // Get access to the parent (root) navigation to navigate to CreateRoute
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // Track navigation state changes
-  const navigationState = useNavigationState(state => state);
+  const navigationState = useNavigationState((state) => state);
   const prevRouteRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     if (navigationState) {
       const currentRoute = navigationState.routes[navigationState.index]?.name;
-      
+
       if (currentRoute && prevRouteRef.current && currentRoute !== prevRouteRef.current) {
         // Log navigation between tabs
         logNavigation(prevRouteRef.current, currentRoute);
@@ -232,7 +240,7 @@ export function TabNavigator() {
           timestamp: Date.now(),
         });
       }
-      
+
       prevRouteRef.current = currentRoute;
     }
   }, [navigationState]);
@@ -240,13 +248,13 @@ export function TabNavigator() {
   // Log tab navigator mount and set up global navigation handler
   useEffect(() => {
     logInfo('TabNavigator mounted', { colorScheme });
-    
+
     // Set up global navigation handler for route recording with context support
     (global as any).navigateToCreateRoute = (routeData: any) => {
       console.log('🌐 Global navigation handler called with route data from TabNavigator');
       handleCreateRoute(routeData);
     };
-    
+
     return () => {
       logInfo('TabNavigator unmounted');
       // Clean up global handler
@@ -312,7 +320,7 @@ export function TabNavigator() {
       hasNavigation: !!navigation,
       hasContext: !!createRouteContext,
     });
-    
+
     try {
       if (routeData) {
         // This is recorded route data from RecordDrivingSheet
@@ -322,13 +330,13 @@ export function TabNavigator() {
           name: routeData.name,
           description: routeData.description?.substring(0, 50) + '...',
           hasRoutePath: !!routeData.routePath,
-          routePathLength: routeData.routePath?.length || 0
+          routePathLength: routeData.routePath?.length || 0,
         });
 
         // Check if user was in CreateRoute before recording
         const recordingContext = createRouteContext.getAndClearRecordingContext();
         const hasPersistedState = !!createRouteContext.persistedState;
-        
+
         console.log('🎯 Context check:', {
           recordingContext,
           hasPersistedState,
@@ -338,15 +346,15 @@ export function TabNavigator() {
         if (recordingContext !== null || hasPersistedState) {
           // User came from CreateRoute - merge recorded data with persisted state
           console.log('🎯 Merging recorded data with persisted state');
-          
+
           const mergedState = createRouteContext.mergeRecordedData(routeData);
           if (mergedState) {
             // Update the persisted state with merged data
             createRouteContext.saveState(mergedState);
-            
+
             // Mark as coming from recording for state restoration
             createRouteContext.markFromRecording();
-            
+
             console.log('🎯 State merged and marked for restoration');
           }
 
@@ -379,12 +387,12 @@ export function TabNavigator() {
       console.error('🎯 ❌ Navigation error:', error);
       console.error('🎯 Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack'
+        stack: error instanceof Error ? error.stack : 'No stack',
       });
     }
   };
 
-      return (
+  return (
     <View style={{ flex: 1 }}>
       {/* Hamburger Menu Button - Top Right */}
       <TouchableOpacity
@@ -408,119 +416,123 @@ export function TabNavigator() {
         onPress={() => setIsDrawerOpen(true)}
         accessibilityLabel="Open menu"
       >
-        <Feather 
-          name="menu" 
-          size={20} 
-          color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
-        />
+        <Feather name="menu" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
       </TouchableOpacity>
 
       <Tab.Navigator screenOptions={screenOptions}>
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeScreen}
-        options={{
-          title: t('navigation.home'),
-          tabBarIcon: ({ focused, color, size }) => <HomeIcon focused={focused} color={color} size={size} />,
+        <Tab.Screen
+          name="HomeTab"
+          component={HomeScreen}
+          options={{
+            title: t('navigation.home'),
+            tabBarIcon: ({ focused, color, size }) => (
+              <HomeIcon focused={focused} color={color} size={size} />
+            ),
+          }}
+          listeners={{
+            tabPress: () => {
+              logInfo('Home tab pressed');
+            },
+          }}
+        />
+        <Tab.Screen
+          name="ProgressTab"
+          component={ProgressScreen}
+          options={{
+            title: t('navigation.progress'),
+            tabBarIcon: ({ focused, color, size }) => (
+              <PractiseIcon focused={focused} color={color} size={size} />
+            ),
+          }}
+          listeners={{
+            tabPress: () => {
+              logInfo('Progress tab pressed');
+            },
+          }}
+        />
+        <Tab.Screen
+          name="MapTab"
+          component={MapScreen}
+          options={{
+            title: t('navigation.map'),
+            tabBarIcon: ({ focused, color, size }) => (
+              <MapIcon focused={focused} color={color} size={size} />
+            ),
+          }}
+          listeners={{
+            tabPress: () => {
+              logInfo('Map tab pressed');
+            },
+          }}
+        />
+        <Tab.Screen
+          name="ProfileTab"
+          options={{
+            title: t('navigation.profile'),
+            tabBarIcon: ({ focused, color, size }) => (
+              <ProfileIcon focused={focused} color={color} size={size} />
+            ),
+          }}
+          listeners={{
+            tabPress: () => {
+              logInfo('Profile tab pressed');
+            },
+          }}
+        >
+          {() => {
+            const { user } = useAuth();
+
+            if (!user?.id) {
+              return <ProfileScreen />;
+            }
+
+            // Create a nested stack navigator for profile-related screens
+            return (
+              <Stack.Navigator screenOptions={{ headerShown: false }}>
+                <Stack.Screen
+                  name="PublicProfile"
+                  component={PublicProfileScreen}
+                  initialParams={{ userId: user.id }}
+                />
+                <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+              </Stack.Navigator>
+            );
+          }}
+        </Tab.Screen>
+      </Tab.Navigator>
+
+      {/* Floating Create Route Button - Central with color scheme support */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: TOTAL_HEIGHT + 10, // Position above tab bar
+          left: '50%',
+          marginLeft: -28, // Half of button width (56/2)
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: colorScheme === 'dark' ? '#1A3D3D' : '#69e3c4', // Teal for light mode
+          justifyContent: 'center',
+          alignItems: 'center',
+          elevation: 8,
+          shadowColor: colorScheme === 'dark' ? '#000' : '#333',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.2,
+          shadowRadius: 6,
+          zIndex: 1000,
+          // Add border for light mode visibility
+          borderWidth: colorScheme === 'light' ? 2 : 0,
+          borderColor: colorScheme === 'light' ? '#FFFFFF' : 'transparent',
         }}
-        listeners={{
-          tabPress: () => {
-            logInfo('Home tab pressed');
-          },
+        onPress={() => {
+          console.log('🎯 Central Create Route button pressed');
+          showModal(<ActionSheetModal onCreateRoute={handleCreateRoute} />);
         }}
-      />
-      <Tab.Screen
-        name="ProgressTab"
-        component={ProgressScreen}
-        options={{
-          title: t('navigation.progress'),
-          tabBarIcon: ({ focused, color, size }) => <PractiseIcon focused={focused} color={color} size={size} />,
-        }}
-        listeners={{
-          tabPress: () => {
-            logInfo('Progress tab pressed');
-          },
-        }}
-      />
-      <Tab.Screen
-        name="MapTab"
-        component={MapScreen}
-        options={{
-          title: t('navigation.map'),
-          tabBarIcon: ({ focused, color, size }) => <MapIcon focused={focused} color={color} size={size} />,
-        }}
-        listeners={{
-          tabPress: () => {
-            logInfo('Map tab pressed');
-          },
-        }}
-      />
-      <Tab.Screen
-        name="ProfileTab"
-        options={{
-          title: t('navigation.profile'),
-          tabBarIcon: ({ focused, color, size }) => <ProfileIcon focused={focused} color={color} size={size} />,
-        }}
-        listeners={{
-          tabPress: () => {
-            logInfo('Profile tab pressed');
-          },
-        }}
+        accessibilityLabel="Create route or record driving"
       >
-        {() => {
-          const { user } = useAuth();
-
-          if (!user?.id) {
-            return <ProfileScreen />;
-          }
-
-          // Create a nested stack navigator for profile-related screens
-          return (
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
-              <Stack.Screen
-                name="PublicProfile"
-                component={PublicProfileScreen}
-                initialParams={{ userId: user.id }}
-              />
-              <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
-            </Stack.Navigator>
-          );
-        }}
-      </Tab.Screen>
-    </Tab.Navigator>
-
-    {/* Floating Create Route Button - Central with color scheme support */}
-    <TouchableOpacity
-      style={{
-        position: 'absolute',
-        bottom: TOTAL_HEIGHT + 10, // Position above tab bar
-        left: '50%',
-        marginLeft: -28, // Half of button width (56/2)
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: colorScheme === 'dark' ? '#1A3D3D' : '#69e3c4', // Teal for light mode
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 8,
-        shadowColor: colorScheme === 'dark' ? '#000' : '#333',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.2,
-        shadowRadius: 6,
-        zIndex: 1000,
-        // Add border for light mode visibility
-        borderWidth: colorScheme === 'light' ? 2 : 0,
-        borderColor: colorScheme === 'light' ? '#FFFFFF' : 'transparent',
-      }}
-      onPress={() => {
-        console.log('🎯 Central Create Route button pressed');
-        showModal(<ActionSheetModal onCreateRoute={handleCreateRoute} />);
-      }}
-      accessibilityLabel="Create route or record driving"
-          >
-        <Feather 
-          name="plus" 
-          size={24} 
+        <Feather
+          name="plus"
+          size={24}
           color={colorScheme === 'dark' ? 'white' : '#1A3D3D'} // Dark icon for light mode
         />
       </TouchableOpacity>

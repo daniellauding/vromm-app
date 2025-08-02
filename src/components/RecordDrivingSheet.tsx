@@ -279,20 +279,20 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const [isPaused, setIsPaused] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [waypoints, setWaypoints] = useState<RecordedWaypoint[]>([]);
-  
+
   // Time tracking - separate total time from driving time
   const [totalElapsedTime, setTotalElapsedTime] = useState(0); // Total duration including pauses
   const [drivingTime, setDrivingTime] = useState(0); // Active driving time (excluding pauses)
   const [recordingStartTime, setRecordingStartTime] = useState<Date | null>(null);
   const [pausedTime, setPausedTime] = useState(0); // Total time spent paused
   const [lastPauseTime, setLastPauseTime] = useState<Date | null>(null);
-  
+
   // Enhanced speed and distance tracking
   const [distance, setDistance] = useState(0);
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [maxSpeed, setMaxSpeed] = useState(0);
   const [averageSpeed, setAverageSpeed] = useState(0);
-  
+
   const [locationSubscription, setLocationSubscription] =
     useState<Location.LocationSubscription | null>(null);
   const [showSummary, setShowSummary] = useState(false);
@@ -353,8 +353,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       return [];
     }
   }, [waypoints]);
-
-
 
   // Add these missing functions back as empty placeholders
   const startBackgroundLocationTask = async () => {
@@ -440,9 +438,10 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
               }
 
               // Enhanced speed calculation with GPS fallback
-              const gpsSpeed = location.coords.speed !== null && location.coords.speed >= 0
-                ? location.coords.speed * 3.6  // Convert m/s to km/h
-                : null;
+              const gpsSpeed =
+                location.coords.speed !== null && location.coords.speed >= 0
+                  ? location.coords.speed * 3.6 // Convert m/s to km/h
+                  : null;
 
               // Calculated speed from distance/time if we have previous waypoint
               let calculatedSpeed = 0;
@@ -450,32 +449,33 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                 const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 1];
                 const timeDiff = (newWaypoint.timestamp - lastWaypoint.timestamp) / 1000; // seconds
                 if (timeDiff > 0 && distanceFromLast > 0) {
-                  calculatedSpeed = (distanceFromLast / 1000) / (timeDiff / 3600); // km/h
+                  calculatedSpeed = distanceFromLast / 1000 / (timeDiff / 3600); // km/h
                 }
               }
 
               // Use most reliable speed source
               const finalSpeed = gpsSpeed !== null && gpsSpeed < 200 ? gpsSpeed : calculatedSpeed;
-              
+
               // Update speed tracking
               setCurrentSpeed(Math.max(0, finalSpeed));
-              setMaxSpeed(prev => Math.max(prev, finalSpeed));
+              setMaxSpeed((prev) => Math.max(prev, finalSpeed));
 
-                    // Enhanced waypoint filtering - DISABLED FOR TESTING
-      const minimumWaypointDistance = 0; // 0 meters - TESTING MODE
-      const minimumSpeed = 0; // 0 km/h - TESTING MODE
-      shouldAddWaypoint = shouldAddWaypoint && 
-        (distanceFromLast >= minimumWaypointDistance || finalSpeed >= minimumSpeed);
-      
-      console.log('🚗 WAYPOINT FILTER DEBUG:', {
-        distanceFromLast,
-        finalSpeed,
-        minimumWaypointDistance,
-        minimumSpeed,
-        shouldAddWaypoint,
-        isPaused,
-        totalWaypoints: wayPointsRef.current.length
-      });
+              // Enhanced waypoint filtering - DISABLED FOR TESTING
+              const minimumWaypointDistance = 0; // 0 meters - TESTING MODE
+              const minimumSpeed = 0; // 0 km/h - TESTING MODE
+              shouldAddWaypoint =
+                shouldAddWaypoint &&
+                (distanceFromLast >= minimumWaypointDistance || finalSpeed >= minimumSpeed);
+
+              console.log('🚗 WAYPOINT FILTER DEBUG:', {
+                distanceFromLast,
+                finalSpeed,
+                minimumWaypointDistance,
+                minimumSpeed,
+                shouldAddWaypoint,
+                isPaused,
+                totalWaypoints: wayPointsRef.current.length,
+              });
 
               // Throttle waypoint updates to reduce memory pressure
               if (
@@ -499,12 +499,11 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
               if (!isPaused && shouldAddWaypoint) {
                 // Update waypoints ref immediately for calculations
                 wayPointsRef.current = [...wayPointsRef.current, newWaypoint];
-                
+
                 // Throttle state updates to reduce re-renders (update every 5 waypoints or 2 seconds)
-                const shouldUpdateState = 
-                  wayPointsRef.current.length % 5 === 0 || 
-                  now - lastStateUpdateRef.current > 2000;
-                
+                const shouldUpdateState =
+                  wayPointsRef.current.length % 5 === 0 || now - lastStateUpdateRef.current > 2000;
+
                 if (shouldUpdateState) {
                   setWaypoints([...wayPointsRef.current]);
                   lastStateUpdateRef.current = now;
@@ -563,9 +562,9 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         waypoints: waypoints.length,
         totalElapsedTime,
         drivingTime,
-        distance
+        distance,
       });
-      
+
       // Reset all state and refs for clean start
       setWaypoints([]);
       wayPointsRef.current = [];
@@ -582,15 +581,15 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       setLastPauseTime(null);
       setDebugMessage(null);
       lastErrorRef.current = null;
-      
+
       // Reset all timer refs
       isPausedRef.current = false;
       lastPauseTimeRef.current = null;
       pausedTimeRef.current = 0;
-      
+
       console.log('🎬 State Reset Complete:', {
         recordingStartTime: startTime.toISOString(),
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       // Get user's current location to center map
@@ -625,21 +624,21 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             const startTimeMs = startTimeRef.current!;
             const currentPausedTime = pausedTimeRef.current;
             const isCurrentlyPaused = isPausedRef.current;
-            
+
             // Always update total elapsed time (includes pauses)
             const totalElapsed = Math.floor((now - startTimeMs) / 1000);
             setTotalElapsedTime(totalElapsed);
-            
+
             // Update driving time (excludes pauses)
             const activeDriving = Math.floor((now - startTimeMs - currentPausedTime) / 1000);
             setDrivingTime(Math.max(0, activeDriving)); // Ensure non-negative
-            
+
             // Only recalculate average speed when actually driving
             if (!isCurrentlyPaused && activeDriving > 0 && distance > 0) {
               const timeHours = activeDriving / 3600;
               setAverageSpeed(distance / timeHours);
             }
-            
+
             // Debug log every 5 seconds to verify timer is working
             if (totalElapsed % 5 === 0 && totalElapsed > 0) {
               console.log('⏱️ TIMER TICK (FIXED):', {
@@ -650,14 +649,14 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                 isCurrentlyPaused,
                 currentPausedTime,
                 distance: distance.toFixed(2),
-                startTime: new Date(startTimeMs).toISOString()
+                startTime: new Date(startTimeMs).toISOString(),
               });
             }
           } catch (error) {
             console.error('❌ Timer error:', error);
           }
         }, 1000) as unknown as NodeJS.Timeout;
-        
+
         console.log('🎬 Fixed timer started - using refs to avoid closure issues');
       } catch (err) {
         console.error('Error setting up timer:', err);
@@ -667,11 +666,11 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       console.log('🎬 Setting recording state: isRecording=true, isPaused=false');
       setIsRecording(true);
       setIsPaused(false);
-      
+
       console.log('🎬 Final ref state check:', {
         isPausedRef: isPausedRef.current,
         pausedTimeRef: pausedTimeRef.current,
-        startTimeRef: startTimeRef.current
+        startTimeRef: startTimeRef.current,
       });
 
       console.log('🎬 Starting location tracking...');
@@ -689,22 +688,22 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     console.log('⏸️ PAUSE RECORDING CALLED:', {
       isRecording,
       isPaused,
-      isPausedRef: isPausedRef.current
+      isPausedRef: isPausedRef.current,
     });
-    
+
     if (isRecording && !isPaused && !isPausedRef.current) {
       const pauseTime = Date.now();
-      
+
       // Update both state and ref
       setIsPaused(true);
       isPausedRef.current = true;
       lastPauseTimeRef.current = pauseTime;
       setLastPauseTime(new Date(pauseTime));
-      
+
       console.log('⏸️ Recording PAUSED:', {
         pauseTime: new Date(pauseTime).toISOString(),
         currentTotalTime: totalElapsedTime,
-        currentDrivingTime: drivingTime
+        currentDrivingTime: drivingTime,
       });
     }
   }, [isRecording, isPaused, totalElapsedTime, drivingTime]);
@@ -715,27 +714,27 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       isRecording,
       isPaused,
       isPausedRef: isPausedRef.current,
-      lastPauseTimeRef: lastPauseTimeRef.current
+      lastPauseTimeRef: lastPauseTimeRef.current,
     });
-    
+
     if (isRecording && isPaused && isPausedRef.current && lastPauseTimeRef.current) {
       const resumeTime = Date.now();
       const pauseDuration = resumeTime - lastPauseTimeRef.current;
-      
+
       // Update refs first
       isPausedRef.current = false;
       pausedTimeRef.current = pausedTimeRef.current + pauseDuration;
       lastPauseTimeRef.current = null;
-      
+
       // Update state
       setIsPaused(false);
-      setPausedTime(prev => prev + pauseDuration);
+      setPausedTime((prev) => prev + pauseDuration);
       setLastPauseTime(null);
-      
+
       console.log('▶️ Recording RESUMED:', {
         pauseDuration: Math.floor(pauseDuration / 1000) + 's',
         totalPausedTime: Math.floor(pausedTimeRef.current / 1000) + 's',
-        resumeTime: new Date(resumeTime).toISOString()
+        resumeTime: new Date(resumeTime).toISOString(),
       });
     }
   }, [isRecording, isPaused]);
@@ -744,7 +743,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const stopRecording = useCallback(() => {
     try {
       console.log('🛑 STOP RECORDING CALLED');
-      
+
       // Clean up location subscription
       if (locationSubscription) {
         locationSubscription.remove();
@@ -772,7 +771,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       setIsRecording(false);
       setIsPaused(false);
       setShowSummary(true);
-      
+
       // Ensure final waypoint state is synchronized
       if (wayPointsRef.current.length > 0) {
         setWaypoints([...wayPointsRef.current]);
@@ -784,12 +783,12 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       } catch (err) {
         console.warn('Error cleaning up sensors:', err);
       }
-      
+
       console.log('🛑 Recording STOPPED - Final stats:', {
         totalTime: formatTime(totalElapsedTime),
         drivingTime: formatTime(drivingTime),
         distance: distance.toFixed(2) + 'km',
-        waypoints: wayPointsRef.current.length
+        waypoints: wayPointsRef.current.length,
       });
     } catch (error) {
       console.error('Error stopping recording:', error);
@@ -797,33 +796,43 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       setIsRecording(false);
       setShowSummary(true);
     }
-  }, [locationSubscription, stopBackgroundLocationTask, cleanupMotionSensors, totalElapsedTime, drivingTime, distance]);
+  }, [
+    locationSubscription,
+    stopBackgroundLocationTask,
+    cleanupMotionSensors,
+    totalElapsedTime,
+    drivingTime,
+    distance,
+  ]);
 
   // Format time display with HH:MM:SS format - memoized
-  const formatTime = useCallback((seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    // Debug log for timer formatting (only log occasionally to avoid spam)
-    if (seconds % 10 === 0 && seconds > 0) {
-      console.log('⏰ formatTime called:', { 
-        inputSeconds: seconds, 
-        hours, 
-        mins, 
-        secs,
-        isRecording,
-        isPaused 
-      });
-    }
-    
-    // Always show at least MM:SS, add hours if recording goes over 1 hour
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    } else {
-      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-  }, [isRecording, isPaused]);
+  const formatTime = useCallback(
+    (seconds: number): string => {
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+
+      // Debug log for timer formatting (only log occasionally to avoid spam)
+      if (seconds % 10 === 0 && seconds > 0) {
+        console.log('⏰ formatTime called:', {
+          inputSeconds: seconds,
+          hours,
+          mins,
+          secs,
+          isRecording,
+          isPaused,
+        });
+      }
+
+      // Always show at least MM:SS, add hours if recording goes over 1 hour
+      if (hours > 0) {
+        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      } else {
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+    },
+    [isRecording, isPaused],
+  );
 
   // Navigate to route creation with recorded data - memoized
   const saveRecording = useCallback(() => {
@@ -837,7 +846,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         drivingTime,
         totalElapsedTime,
         averageSpeed: averageSpeed.toFixed(1),
-        maxSpeed: maxSpeed.toFixed(1)
+        maxSpeed: maxSpeed.toFixed(1),
       });
 
       // Skip if no waypoints
@@ -853,19 +862,19 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           console.warn('Invalid waypoint found:', wp);
           return false;
         }
-        
+
         // Check for NaN or invalid coordinates
         if (isNaN(wp.latitude) || isNaN(wp.longitude)) {
           console.warn('NaN coordinates found:', wp);
           return false;
         }
-        
+
         // Check for reasonable coordinate ranges
         if (wp.latitude < -90 || wp.latitude > 90 || wp.longitude < -180 || wp.longitude > 180) {
           console.warn('Out of range coordinates found:', wp);
           return false;
         }
-        
+
         return true;
       });
 
@@ -879,7 +888,9 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       // Limit waypoints to prevent memory issues (max 100 waypoints)
       const limitedWaypoints = validWaypoints.slice(0, 100);
       if (limitedWaypoints.length < validWaypoints.length) {
-        console.warn(`Limited waypoints from ${validWaypoints.length} to ${limitedWaypoints.length} for performance`);
+        console.warn(
+          `Limited waypoints from ${validWaypoints.length} to ${limitedWaypoints.length} for performance`,
+        );
       }
 
       // Create route data object using validated waypoints
@@ -956,13 +967,13 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         description: savedData.description.substring(0, 100) + '...',
         searchCoordinates: savedData.searchCoordinates,
         firstWaypoint: savedData.waypoints[0],
-        lastWaypoint: savedData.waypoints[savedData.waypoints.length - 1]
+        lastWaypoint: savedData.waypoints[savedData.waypoints.length - 1],
       });
 
       // Call the callback immediately to pass data to CreateRouteScreen
       console.log('💾 ==================== CALLBACK PROCESS ====================');
       console.log('💾 onCreateRoute callback exists:', !!onCreateRoute);
-      
+
       if (onCreateRoute) {
         try {
           console.log('💾 CALLING onCreateRoute with data...');
@@ -971,12 +982,12 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             hasWaypoints: !!savedData.waypoints,
             waypointCount: savedData.waypoints?.length,
             hasName: !!savedData.name,
-            hasDescription: !!savedData.description
+            hasDescription: !!savedData.description,
           });
-          
+
           onCreateRoute(savedData);
           console.log('💾 ✅ onCreateRoute callback completed successfully');
-          
+
           // Close the modal after successful callback
           try {
             console.log('💾 Closing modal...');
@@ -989,7 +1000,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           console.error('💾 ❌ Error in onCreateRoute callback:', error);
           console.error('💾 Error details:', {
             message: error instanceof Error ? error.message : 'Unknown error',
-            stack: error instanceof Error ? error.stack : 'No stack'
+            stack: error instanceof Error ? error.stack : 'No stack',
           });
           Alert.alert('Error', 'Failed to open route creation. Please try again.');
         }
@@ -1006,7 +1017,17 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       console.error('Error saving recording:', error);
       Alert.alert('Error', 'Failed to save the recording. Please try again.');
     }
-  }, [waypoints, distance, drivingTime, totalElapsedTime, averageSpeed, maxSpeed, formatTime, hideModal, onCreateRoute]);
+  }, [
+    waypoints,
+    distance,
+    drivingTime,
+    totalElapsedTime,
+    averageSpeed,
+    maxSpeed,
+    formatTime,
+    hideModal,
+    onCreateRoute,
+  ]);
 
   // Cancel recording session - memoized
   const cancelRecording = useCallback(() => {
@@ -1070,11 +1091,14 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   // Render floating widget as direct positioned element when minimized
   const renderFloatingWidget = () => {
     if (!isMinimized || !isRecording) return null;
-    
+
     return (
       <View style={styles.floatingWidgetContainer} pointerEvents="box-none">
         <TouchableOpacity
-          style={[styles.floatingWidgetExpanded, { backgroundColor: isPaused ? 'rgba(255, 149, 0, 0.95)' : 'rgba(255, 59, 48, 0.95)' }]}
+          style={[
+            styles.floatingWidgetExpanded,
+            { backgroundColor: isPaused ? 'rgba(255, 149, 0, 0.95)' : 'rgba(255, 59, 48, 0.95)' },
+          ]}
           onPress={() => {
             console.log('🎬 MAXIMIZE BUTTON PRESSED');
             handleMaximize();
@@ -1085,14 +1109,10 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           <View style={styles.floatingHeader}>
             <View style={styles.floatingHeaderLeft}>
               <View style={[styles.recordingDot, isPaused ? styles.pausedDot : styles.activeDot]} />
-              <Text style={styles.floatingStatusText}>
-                {isPaused ? 'PAUSED' : 'REC'}
-              </Text>
-              <Text style={styles.floatingTimeText}>
-                {formatTime(totalElapsedTime)}
-              </Text>
+              <Text style={styles.floatingStatusText}>{isPaused ? 'PAUSED' : 'REC'}</Text>
+              <Text style={styles.floatingTimeText}>{formatTime(totalElapsedTime)}</Text>
             </View>
-            
+
             {/* Controls in header */}
             <View style={styles.floatingControls} pointerEvents="auto">
               <TouchableOpacity
@@ -1100,9 +1120,9 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                 onPress={isPaused ? resumeRecording : pauseRecording}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Feather name={isPaused ? "play" : "pause"} size={14} color="white" />
+                <Feather name={isPaused ? 'play' : 'pause'} size={14} color="white" />
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.floatingControlButton, { backgroundColor: 'rgba(0,0,0,0.3)' }]}
                 onPress={() => {
@@ -1116,7 +1136,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
               </TouchableOpacity>
             </View>
           </View>
-          
+
           {/* Stats row */}
           <View style={styles.floatingStats}>
             <Text style={styles.floatingStatsText}>
@@ -1140,330 +1160,339 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             onPress={isRecording ? undefined : onClose}
           />
           <View style={[styles.sheet, { backgroundColor: DARK_THEME.background }]}>
-        <View style={styles.handleContainer}>
-          <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
-          <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
-            {t('map.recordDriving') || 'Record Route'}
-          </Text>
-          <XStack gap={8} alignItems="center">
-            {/* Always show minimize button when recording - Debug added */}
-            {isRecording && (
-              <TouchableOpacity 
-                onPress={() => {
-                  console.log('🎬 MINIMIZE BUTTON PRESSED');
-                  handleMinimize();
-                }}
-                style={{
-                  padding: 4, // Add padding for easier tapping
-                  backgroundColor: 'rgba(255,255,255,0.1)', // Add background for visibility
-                  borderRadius: 4
-                }}
-              >
-                <Feather name="minus" size={24} color={DARK_THEME.text} />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity onPress={cancelRecording} disabled={false}>
-              <Feather name="x" size={24} color={DARK_THEME.text} />
-            </TouchableOpacity>
-          </XStack>
-        </View>
-
-        {/* Map Toggle Button - Show during recording or if we have waypoints to preview */}
-        {(isRecording || waypoints.length > 0) && (
-          <XStack justifyContent="center" marginBottom={8}>
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: showMap ? '#69e3c4' : 'rgba(255,255,255,0.2)',
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: showMap ? '#69e3c4' : 'rgba(255,255,255,0.3)',
-              }}
-              onPress={() => setShowMap(!showMap)}
-            >
-              <Feather name={showMap ? 'eye-off' : 'map'} size={16} color="white" />
-              <Text color="white" marginLeft={4} fontWeight="500">
-                {showMap ? 'Hide Preview' : 'Show Route Preview'}
+            <View style={styles.handleContainer}>
+              <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
+              <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
+                {t('map.recordDriving') || 'Record Route'}
               </Text>
-            </TouchableOpacity>
-          </XStack>
-        )}
+              <XStack gap={8} alignItems="center">
+                {/* Always show minimize button when recording - Debug added */}
+                {isRecording && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      console.log('🎬 MINIMIZE BUTTON PRESSED');
+                      handleMinimize();
+                    }}
+                    style={{
+                      padding: 4, // Add padding for easier tapping
+                      backgroundColor: 'rgba(255,255,255,0.1)', // Add background for visibility
+                      borderRadius: 4,
+                    }}
+                  >
+                    <Feather name="minus" size={24} color={DARK_THEME.text} />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={cancelRecording} disabled={false}>
+                  <Feather name="x" size={24} color={DARK_THEME.text} />
+                </TouchableOpacity>
+              </XStack>
+            </View>
 
-        {/* Enhanced Map Preview with Live Updates */}
-        {showMap && (
-          <View style={styles.mapContainer}>
-            <MapView
-              style={styles.map}
-              region={
-                waypoints.length > 0 ? {
-                  latitude: waypoints[waypoints.length - 1].latitude,
-                  longitude: waypoints[waypoints.length - 1].longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                } : {
-                  latitude: 37.7749,
-                  longitude: -122.4194,
-                  latitudeDelta: 0.1,
-                  longitudeDelta: 0.1,
-                }
-              }
-              showsUserLocation={true}
-              userInterfaceStyle="dark"
-            >
-              {/* Route Path */}
-              {getRoutePath().length > 1 && (
-                <Polyline
-                  coordinates={getRoutePath()}
-                  strokeWidth={3}
-                  strokeColor={isPaused ? '#FF9500' : '#69e3c4'}
-                  lineJoin="round"
-                  lineCap="round"
-                />
-              )}
-              
-              {/* Start and End Markers */}
-              {waypoints.length > 0 && (
-                <Marker
-                  coordinate={{
-                    latitude: waypoints[0].latitude,
-                    longitude: waypoints[0].longitude,
+            {/* Map Toggle Button - Show during recording or if we have waypoints to preview */}
+            {(isRecording || waypoints.length > 0) && (
+              <XStack justifyContent="center" marginBottom={8}>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: showMap ? '#69e3c4' : 'rgba(255,255,255,0.2)',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: showMap ? '#69e3c4' : 'rgba(255,255,255,0.3)',
                   }}
-                  title="Start"
-                  description="Recording started here"
-                  pinColor="green"
-                />
-              )}
-              
-              {waypoints.length > 1 && (
-                <Marker
-                  coordinate={{
-                    latitude: waypoints[waypoints.length - 1].latitude,
-                    longitude: waypoints[waypoints.length - 1].longitude,
-                  }}
-                  title="Current Position"
-                  description="Live recording position"
-                  pinColor="red"
-                />
-              )}
-            </MapView>
-
-            {/* Enhanced Recording Indicator */}
-            {isRecording && (
-              <View style={styles.recordingIndicator}>
-                <View style={[styles.recordingDot, isPaused ? styles.pausedDot : styles.activeDot]} />
-                <Text style={styles.recordingText}>
-                  {isPaused ? 'PAUSED' : 'LIVE RECORDING'}
-                </Text>
-                <Text style={styles.recordingSubtext}>
-                  {waypoints.length} points • {distance.toFixed(2)}km
-                </Text>
-              </View>
+                  onPress={() => setShowMap(!showMap)}
+                >
+                  <Feather name={showMap ? 'eye-off' : 'map'} size={16} color="white" />
+                  <Text color="white" marginLeft={4} fontWeight="500">
+                    {showMap ? 'Hide Preview' : 'Show Route Preview'}
+                  </Text>
+                </TouchableOpacity>
+              </XStack>
             )}
 
-            {/* Map Stats Overlay */}
-            {!isRecording && waypoints.length > 0 && (
-              <View style={styles.mapStatsOverlay}>
-                <Text style={styles.mapStatsText}>
-                  Route Preview • {waypoints.length} waypoints
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Recording Status Display (always shown when recording) */}
-        {isRecording && !showMap && (
-          <View
-            style={[
-              styles.recordingStatusContainer,
-              { backgroundColor: DARK_THEME.cardBackground },
-            ]}
-          >
-            <View style={styles.recordingStatusInner}>
-              <View style={[styles.recordingDot, isPaused ? styles.pausedDot : styles.activeDot]} />
-              <Text color={DARK_THEME.text} fontSize={16} fontWeight="bold" marginLeft={8}>
-                {isPaused ? 'RECORDING PAUSED' : 'RECORDING ACTIVE'}
-              </Text>
-            </View>
-            <Text color={DARK_THEME.text} marginTop={4}>
-              Recording {waypoints.length} waypoints • {distance.toFixed(2)} km
-            </Text>
-            {debugMessage && (
-              <Text color="#FF9500" fontSize={12} marginTop={4}>
-                {debugMessage}
-              </Text>
-            )}
-          </View>
-        )}
-
-        <YStack padding={16} space={16}>
-          {/* Enhanced Stats display */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-                DURATION
-              </Text>
-              <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
-                {formatTime(totalElapsedTime)}
-              </Text>
-              <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-                Driving: {formatTime(drivingTime)}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-                DISTANCE
-              </Text>
-              <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
-                {distance.toFixed(2)} km
-              </Text>
-              <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-                {waypoints.length} waypoints
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-                SPEED
-              </Text>
-              <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
-                {formatSpeed(currentSpeed)} km/h
-              </Text>
-              <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-                Max: {formatSpeed(maxSpeed)} km/h
-              </Text>
-              <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-                Avg: {formatSpeed(averageSpeed)} km/h
-              </Text>
-            </View>
-          </View>
-
-          {/* Record/Summary view */}
-          {!showSummary ? (
-            /* Record button */
-            <View style={styles.recordButtonContainer}>
-              {isRecording ? (
-                <XStack gap={16} justifyContent="center">
-                  {isPaused ? (
-                    <TouchableOpacity
-                      style={[styles.controlButton, { backgroundColor: '#1A3D3D' }]}
-                      onPress={resumeRecording}
-                    >
-                      <Feather name="play" size={28} color="white" />
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      style={[styles.controlButton, { backgroundColor: '#3D3D1A' }]}
-                      onPress={pauseRecording}
-                    >
-                      <Feather name="pause" size={28} color="white" />
-                    </TouchableOpacity>
+            {/* Enhanced Map Preview with Live Updates */}
+            {showMap && (
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  region={
+                    waypoints.length > 0
+                      ? {
+                          latitude: waypoints[waypoints.length - 1].latitude,
+                          longitude: waypoints[waypoints.length - 1].longitude,
+                          latitudeDelta: 0.01,
+                          longitudeDelta: 0.01,
+                        }
+                      : {
+                          latitude: 37.7749,
+                          longitude: -122.4194,
+                          latitudeDelta: 0.1,
+                          longitudeDelta: 0.1,
+                        }
+                  }
+                  showsUserLocation={true}
+                  userInterfaceStyle="dark"
+                >
+                  {/* Route Path */}
+                  {getRoutePath().length > 1 && (
+                    <Polyline
+                      coordinates={getRoutePath()}
+                      strokeWidth={3}
+                      strokeColor={isPaused ? '#FF9500' : '#69e3c4'}
+                      lineJoin="round"
+                      lineCap="round"
+                    />
                   )}
 
-                  <TouchableOpacity
-                    style={[styles.controlButton, { backgroundColor: 'red' }]}
-                    onPress={stopRecording}
-                  >
-                    <Feather name="square" size={28} color="white" />
-                  </TouchableOpacity>
-                </XStack>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.recordButton, { backgroundColor: '#1A3D3D' }]}
-                  onPress={startRecording}
-                >
-                  <Feather name="play" size={32} color="white" />
-                </TouchableOpacity>
-              )}
-              <Text color={DARK_THEME.text} marginTop={8}>
-                {isRecording ? (isPaused ? 'Recording Paused' : 'Recording...') : 'Start Recording'}
-              </Text>
-            </View>
-          ) : (
-            /* Summary view */
-            <YStack space={16}>
-              <Text color={DARK_THEME.text} fontSize={18} fontWeight="600" textAlign="center">
-                Recording Complete
-              </Text>
+                  {/* Start and End Markers */}
+                  {waypoints.length > 0 && (
+                    <Marker
+                      coordinate={{
+                        latitude: waypoints[0].latitude,
+                        longitude: waypoints[0].longitude,
+                      }}
+                      title="Start"
+                      description="Recording started here"
+                      pinColor="green"
+                    />
+                  )}
 
-              <Text color={DARK_THEME.text} textAlign="center">
-                {waypoints.length > 0 
-                  ? `Your route has been recorded successfully with ${waypoints.length} waypoints. You can now create a route, continue recording, or start over.`
-                  : 'No movement was recorded. You can try recording again.'
-                }
-              </Text>
+                  {waypoints.length > 1 && (
+                    <Marker
+                      coordinate={{
+                        latitude: waypoints[waypoints.length - 1].latitude,
+                        longitude: waypoints[waypoints.length - 1].longitude,
+                      }}
+                      title="Current Position"
+                      description="Live recording position"
+                      pinColor="red"
+                    />
+                  )}
+                </MapView>
 
-              {waypoints.length > 0 && (
-                <Button
-                  backgroundColor="#1A3D3D"
-                  color="white"
-                  onPress={saveRecording}
-                  size="$4"
-                  height={50}
-                  pressStyle={{ opacity: 0.8 }}
-                >
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="check" size={24} color="white" />
-                    <Text color="white" fontWeight="600" fontSize={18}>
-                      Create Route
+                {/* Enhanced Recording Indicator */}
+                {isRecording && (
+                  <View style={styles.recordingIndicator}>
+                    <View
+                      style={[styles.recordingDot, isPaused ? styles.pausedDot : styles.activeDot]}
+                    />
+                    <Text style={styles.recordingText}>
+                      {isPaused ? 'PAUSED' : 'LIVE RECORDING'}
                     </Text>
-                  </XStack>
-                </Button>
-              )}
+                    <Text style={styles.recordingSubtext}>
+                      {waypoints.length} points • {distance.toFixed(2)}km
+                    </Text>
+                  </View>
+                )}
 
-              <XStack gap={12} justifyContent="center">
-                <Button
-                  backgroundColor="#3D3D1A"
-                  color="white"
-                  onPress={() => {
-                    console.log('🔄 CONTINUE RECORDING');
-                    setShowSummary(false);
-                    setIsRecording(true);
-                    setIsPaused(false);
-                    startLocationTracking();
-                  }}
-                  flex={1}
-                >
-                  <XStack gap="$1" alignItems="center">
-                    <Feather name="play" size={18} color="white" />
-                    <Text color="white">Continue</Text>
-                  </XStack>
-                </Button>
+                {/* Map Stats Overlay */}
+                {!isRecording && waypoints.length > 0 && (
+                  <View style={styles.mapStatsOverlay}>
+                    <Text style={styles.mapStatsText}>
+                      Route Preview • {waypoints.length} waypoints
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
-                <Button
-                  backgroundColor="#CC4400"
-                  color="white"
-                  onPress={() => {
-                    console.log('🔄 RESTART RECORDING');
-                    setShowSummary(false);
-                    startRecording();
-                  }}
-                  flex={1}
-                >
-                  <XStack gap="$1" alignItems="center">
-                    <Feather name="refresh-cw" size={18} color="white" />
-                    <Text color="white">Start Over</Text>
-                  </XStack>
-                </Button>
-              </XStack>
-
-              <Button
-                backgroundColor="rgba(255,255,255,0.1)"
-                color="white"
-                onPress={cancelRecording}
-                marginBottom={8}
+            {/* Recording Status Display (always shown when recording) */}
+            {isRecording && !showMap && (
+              <View
+                style={[
+                  styles.recordingStatusContainer,
+                  { backgroundColor: DARK_THEME.cardBackground },
+                ]}
               >
-                <Text color="white">Dismiss</Text>
-              </Button>
+                <View style={styles.recordingStatusInner}>
+                  <View
+                    style={[styles.recordingDot, isPaused ? styles.pausedDot : styles.activeDot]}
+                  />
+                  <Text color={DARK_THEME.text} fontSize={16} fontWeight="bold" marginLeft={8}>
+                    {isPaused ? 'RECORDING PAUSED' : 'RECORDING ACTIVE'}
+                  </Text>
+                </View>
+                <Text color={DARK_THEME.text} marginTop={4}>
+                  Recording {waypoints.length} waypoints • {distance.toFixed(2)} km
+                </Text>
+                {debugMessage && (
+                  <Text color="#FF9500" fontSize={12} marginTop={4}>
+                    {debugMessage}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            <YStack padding={16} space={16}>
+              {/* Enhanced Stats display */}
+              <View style={styles.statsContainer}>
+                <View style={styles.statItem}>
+                  <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
+                    DURATION
+                  </Text>
+                  <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
+                    {formatTime(totalElapsedTime)}
+                  </Text>
+                  <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
+                    Driving: {formatTime(drivingTime)}
+                  </Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
+                    DISTANCE
+                  </Text>
+                  <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
+                    {distance.toFixed(2)} km
+                  </Text>
+                  <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
+                    {waypoints.length} waypoints
+                  </Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
+                    SPEED
+                  </Text>
+                  <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
+                    {formatSpeed(currentSpeed)} km/h
+                  </Text>
+                  <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
+                    Max: {formatSpeed(maxSpeed)} km/h
+                  </Text>
+                  <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
+                    Avg: {formatSpeed(averageSpeed)} km/h
+                  </Text>
+                </View>
+              </View>
+
+              {/* Record/Summary view */}
+              {!showSummary ? (
+                /* Record button */
+                <View style={styles.recordButtonContainer}>
+                  {isRecording ? (
+                    <XStack gap={16} justifyContent="center">
+                      {isPaused ? (
+                        <TouchableOpacity
+                          style={[styles.controlButton, { backgroundColor: '#1A3D3D' }]}
+                          onPress={resumeRecording}
+                        >
+                          <Feather name="play" size={28} color="white" />
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={[styles.controlButton, { backgroundColor: '#3D3D1A' }]}
+                          onPress={pauseRecording}
+                        >
+                          <Feather name="pause" size={28} color="white" />
+                        </TouchableOpacity>
+                      )}
+
+                      <TouchableOpacity
+                        style={[styles.controlButton, { backgroundColor: 'red' }]}
+                        onPress={stopRecording}
+                      >
+                        <Feather name="square" size={28} color="white" />
+                      </TouchableOpacity>
+                    </XStack>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.recordButton, { backgroundColor: '#1A3D3D' }]}
+                      onPress={startRecording}
+                    >
+                      <Feather name="play" size={32} color="white" />
+                    </TouchableOpacity>
+                  )}
+                  <Text color={DARK_THEME.text} marginTop={8}>
+                    {isRecording
+                      ? isPaused
+                        ? 'Recording Paused'
+                        : 'Recording...'
+                      : 'Start Recording'}
+                  </Text>
+                </View>
+              ) : (
+                /* Summary view */
+                <YStack space={16}>
+                  <Text color={DARK_THEME.text} fontSize={18} fontWeight="600" textAlign="center">
+                    Recording Complete
+                  </Text>
+
+                  <Text color={DARK_THEME.text} textAlign="center">
+                    {waypoints.length > 0
+                      ? `Your route has been recorded successfully with ${waypoints.length} waypoints. You can now create a route, continue recording, or start over.`
+                      : 'No movement was recorded. You can try recording again.'}
+                  </Text>
+
+                  {waypoints.length > 0 && (
+                    <Button
+                      backgroundColor="#1A3D3D"
+                      color="white"
+                      onPress={saveRecording}
+                      size="$4"
+                      height={50}
+                      pressStyle={{ opacity: 0.8 }}
+                    >
+                      <XStack gap="$2" alignItems="center">
+                        <Feather name="check" size={24} color="white" />
+                        <Text color="white" fontWeight="600" fontSize={18}>
+                          Create Route
+                        </Text>
+                      </XStack>
+                    </Button>
+                  )}
+
+                  <XStack gap={12} justifyContent="center">
+                    <Button
+                      backgroundColor="#3D3D1A"
+                      color="white"
+                      onPress={() => {
+                        console.log('🔄 CONTINUE RECORDING');
+                        setShowSummary(false);
+                        setIsRecording(true);
+                        setIsPaused(false);
+                        startLocationTracking();
+                      }}
+                      flex={1}
+                    >
+                      <XStack gap="$1" alignItems="center">
+                        <Feather name="play" size={18} color="white" />
+                        <Text color="white">Continue</Text>
+                      </XStack>
+                    </Button>
+
+                    <Button
+                      backgroundColor="#CC4400"
+                      color="white"
+                      onPress={() => {
+                        console.log('🔄 RESTART RECORDING');
+                        setShowSummary(false);
+                        startRecording();
+                      }}
+                      flex={1}
+                    >
+                      <XStack gap="$1" alignItems="center">
+                        <Feather name="refresh-cw" size={18} color="white" />
+                        <Text color="white">Start Over</Text>
+                      </XStack>
+                    </Button>
+                  </XStack>
+
+                  <Button
+                    backgroundColor="rgba(255,255,255,0.1)"
+                    color="white"
+                    onPress={cancelRecording}
+                    marginBottom={8}
+                  >
+                    <Text color="white">Dismiss</Text>
+                  </Button>
+                </YStack>
+              )}
             </YStack>
-          )}
-        </YStack>
           </View>
         </View>
       )}
-      
+
       {/* Floating widget overlay - always render when minimized */}
       {renderFloatingWidget()}
     </>
@@ -1513,7 +1542,9 @@ export const RecordDrivingModal = ({ onCreateRoute }: RecordDrivingModalProps = 
     }
   };
 
-  return <RecordDrivingSheet isVisible={true} onClose={hideModal} onCreateRoute={handleCreateRoute} />;
+  return (
+    <RecordDrivingSheet isVisible={true} onClose={hideModal} onCreateRoute={handleCreateRoute} />
+  );
 };
 
 const styles = StyleSheet.create({

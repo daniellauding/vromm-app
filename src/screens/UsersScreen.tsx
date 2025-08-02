@@ -64,12 +64,12 @@ export function UsersScreen() {
           .select('following_id')
           .eq('follower_id', user.id);
 
-        const followingIds = new Set(followData?.map(f => f.following_id) || []);
+        const followingIds = new Set(followData?.map((f) => f.following_id) || []);
 
-        usersWithFollowStatus = (data || []).map(userData => ({
+        usersWithFollowStatus = (data || []).map((userData) => ({
           ...userData,
           isFollowing: followingIds.has(userData.id),
-          isCurrentUser: userData.id === user.id
+          isCurrentUser: userData.id === user.id,
         }));
       }
 
@@ -106,8 +106,8 @@ export function UsersScreen() {
   const handleFollow = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
     try {
       if (!user?.id || followLoading[targetUserId]) return;
-      
-      setFollowLoading(prev => ({ ...prev, [targetUserId]: true }));
+
+      setFollowLoading((prev) => ({ ...prev, [targetUserId]: true }));
 
       if (isCurrentlyFollowing) {
         // Unfollow
@@ -119,30 +119,30 @@ export function UsersScreen() {
 
         if (error) throw error;
 
-        setUsers(prev => prev.map(u => 
-          u.id === targetUserId ? { ...u, isFollowing: false } : u
-        ));
+        setUsers((prev) =>
+          prev.map((u) => (u.id === targetUserId ? { ...u, isFollowing: false } : u)),
+        );
         console.log('👤 User unfollowed');
       } else {
         // Follow
-        const { error } = await supabase
-          .from('user_follows')
-          .insert([{
+        const { error } = await supabase.from('user_follows').insert([
+          {
             follower_id: user.id,
             following_id: targetUserId,
-          }]);
+          },
+        ]);
 
         if (error) throw error;
 
-        setUsers(prev => prev.map(u => 
-          u.id === targetUserId ? { ...u, isFollowing: true } : u
-        ));
+        setUsers((prev) =>
+          prev.map((u) => (u.id === targetUserId ? { ...u, isFollowing: true } : u)),
+        );
         console.log('👤 User followed');
       }
     } catch (error) {
       console.error('Error following/unfollowing user:', error);
     } finally {
-      setFollowLoading(prev => ({ ...prev, [targetUserId]: false }));
+      setFollowLoading((prev) => ({ ...prev, [targetUserId]: false }));
     }
   };
 
@@ -210,58 +210,62 @@ export function UsersScreen() {
 
           {/* Actions Column */}
           <YStack alignItems="flex-end" gap="$2">
-          {/* Role badge */}
-          {user.role && (
-            <Card
-              backgroundColor={
-                user.role === 'student'
-                  ? '$blue5'
-                  : user.role === 'instructor'
-                    ? '$green5'
-                    : '$purple5'
-              }
-              padding="$2"
-              borderRadius="$4"
-            >
-              <Text
-                color={
+            {/* Role badge */}
+            {user.role && (
+              <Card
+                backgroundColor={
                   user.role === 'student'
-                    ? '$blue11'
+                    ? '$blue5'
                     : user.role === 'instructor'
-                      ? '$green11'
-                      : '$purple11'
+                      ? '$green5'
+                      : '$purple5'
                 }
-                fontWeight="500"
-                fontSize="$2"
+                padding="$2"
+                borderRadius="$4"
               >
-                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-              </Text>
-            </Card>
-          )}
+                <Text
+                  color={
+                    user.role === 'student'
+                      ? '$blue11'
+                      : user.role === 'instructor'
+                        ? '$green11'
+                        : '$purple11'
+                  }
+                  fontWeight="500"
+                  fontSize="$2"
+                >
+                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                </Text>
+              </Card>
+            )}
 
             {/* Follow/Unfollow Button */}
             {!user.isCurrentUser && (
               <Button
                 size="sm"
-                variant={user.isFollowing ? "secondary" : "primary"}
-                backgroundColor={user.isFollowing ? "$red5" : "$blue10"}
+                variant={user.isFollowing ? 'secondary' : 'primary'}
+                backgroundColor={user.isFollowing ? '$red5' : '$blue10'}
                 onPress={() => handleFollow(user.id, user.isFollowing || false)}
                 disabled={followLoading[user.id]}
                 minWidth={80}
               >
                 <XStack gap="$1" alignItems="center">
                   {followLoading[user.id] ? (
-                    <Text color={user.isFollowing ? "$red11" : "white"} fontSize="$2">
+                    <Text color={user.isFollowing ? '$red11' : 'white'} fontSize="$2">
                       ...
                     </Text>
                   ) : (
                     <>
-                      <Feather 
-                        name={user.isFollowing ? "user-minus" : "user-plus"} 
-                        size={12} 
-                        color={user.isFollowing ? "#EF4444" : "white"} 
+                      <Feather
+                        name={user.isFollowing ? 'user-minus' : 'user-plus'}
+                        size={12}
+                        color={user.isFollowing ? '#EF4444' : 'white'}
                       />
-                      <Text color={user.isFollowing ? "$red11" : "white"} fontSize="$2" fontWeight="500">
+                      <Text
+                        color={user.isFollowing ? '$red11' : 'white'}
+                        fontSize="$2"
+                        fontWeight="500"
+                      >
                         {user.isFollowing ? 'Unfollow' : 'Follow'}
                       </Text>
                     </>

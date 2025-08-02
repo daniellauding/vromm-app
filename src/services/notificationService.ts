@@ -13,15 +13,19 @@ export type Follow = Database['public']['Tables']['user_follows']['Row'] & {
 class NotificationService {
   // Get all notifications for current user
   async getNotifications(limit: number = 50, offset: number = 0): Promise<Notification[]> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     const { data, error } = await supabase
       .from('notifications')
-      .select(`
+      .select(
+        `
         *,
         actor:profiles!notifications_actor_id_fkey(*)
-      `)
+      `,
+      )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -42,7 +46,9 @@ class NotificationService {
 
   // Mark all notifications as read
   async markAllAsRead(): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     const { error } = await supabase
@@ -56,11 +62,13 @@ class NotificationService {
 
   // Get unread notification count - Alternative implementation without database function
   async getUnreadCount(): Promise<number> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return 0;
 
     try {
-    const { data, error } = await supabase
+      const { data, error } = await supabase
         .from('notifications')
         .select('id')
         .eq('user_id', user.id)
@@ -70,7 +78,7 @@ class NotificationService {
         console.error('Error getting unread notifications count:', error);
         return 0;
       }
-      
+
       return data?.length || 0;
     } catch (error) {
       console.error('Error getting unread count:', error);
@@ -80,20 +88,24 @@ class NotificationService {
 
   // Follow a user
   async followUser(userIdToFollow: string): Promise<Follow> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     const { data, error } = await supabase
       .from('user_follows')
       .insert({
         follower_id: user.id,
-        following_id: userIdToFollow
+        following_id: userIdToFollow,
       })
-      .select(`
+      .select(
+        `
         *,
         follower:profiles!user_follows_follower_id_fkey(*),
         following:profiles!user_follows_following_id_fkey(*)
-      `)
+      `,
+      )
       .single();
 
     if (error) throw error;
@@ -102,7 +114,9 @@ class NotificationService {
 
   // Unfollow a user
   async unfollowUser(userIdToUnfollow: string): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     const { error } = await supabase
@@ -116,17 +130,21 @@ class NotificationService {
 
   // Get followers
   async getFollowers(userId?: string): Promise<Follow[]> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     const targetUserId = userId || user.id;
 
     const { data, error } = await supabase
       .from('user_follows')
-      .select(`
+      .select(
+        `
         *,
         follower:profiles!user_follows_follower_id_fkey(*)
-      `)
+      `,
+      )
       .eq('following_id', targetUserId);
 
     if (error) throw error;
@@ -135,17 +153,21 @@ class NotificationService {
 
   // Get following
   async getFollowing(userId?: string): Promise<Follow[]> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     const targetUserId = userId || user.id;
 
     const { data, error } = await supabase
       .from('user_follows')
-      .select(`
+      .select(
+        `
         *,
         following:profiles!user_follows_following_id_fkey(*)
-      `)
+      `,
+      )
       .eq('follower_id', targetUserId);
 
     if (error) throw error;
@@ -154,7 +176,9 @@ class NotificationService {
 
   // Check if following a user
   async isFollowing(userIdToCheck: string): Promise<boolean> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return false;
 
     const { data, error } = await supabase
@@ -175,7 +199,7 @@ class NotificationService {
     message: string,
     targetId?: string,
     metadata?: any,
-    actorId?: string
+    actorId?: string,
   ): Promise<Notification> {
     const { data: notification, error } = await supabase
       .from('notifications')
@@ -185,12 +209,14 @@ class NotificationService {
         type,
         target_id: targetId,
         message,
-        metadata: metadata || {}
+        metadata: metadata || {},
       })
-      .select(`
+      .select(
+        `
         *,
         actor:profiles!notifications_actor_id_fkey(*)
-      `)
+      `,
+      )
       .single();
 
     if (error) throw error;
@@ -206,11 +232,11 @@ class NotificationService {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'notifications'
+          table: 'notifications',
         },
         (payload) => {
           callback(payload.new as Notification);
-        }
+        },
       )
       .subscribe();
   }
@@ -224,14 +250,14 @@ class NotificationService {
         {
           event: '*',
           schema: 'public',
-          table: 'user_follows'
+          table: 'user_follows',
         },
         (payload) => {
           callback(payload.new as Follow);
-        }
+        },
       )
       .subscribe();
   }
 }
 
-export const notificationService = new NotificationService(); 
+export const notificationService = new NotificationService();

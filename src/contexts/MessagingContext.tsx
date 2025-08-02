@@ -34,10 +34,10 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
         messageService.getUnreadCount(),
         notificationService.getUnreadCount(),
       ]);
-      
+
       setUnreadMessageCount(messageCount);
       setUnreadNotificationCount(notificationCount);
-      
+
       // Update app badge count
       await pushNotificationService.updateBadgeCount();
     } catch (error) {
@@ -48,7 +48,9 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
   useEffect(() => {
     const initializeMessaging = async () => {
       // Check if user is authenticated
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       // Register for push notifications
@@ -77,7 +79,7 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
           // Use the enhanced notification response handler
           pushNotificationService.handleNotificationResponse(response);
           refreshCounts();
-        }
+        },
       );
 
       return () => {
@@ -96,9 +98,5 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
     refreshCounts,
   };
 
-  return (
-    <MessagingContext.Provider value={value}>
-      {children}
-    </MessagingContext.Provider>
-  );
-}; 
+  return <MessagingContext.Provider value={value}>{children}</MessagingContext.Provider>;
+};

@@ -58,12 +58,13 @@ export function CreateRouteModal({ routeData, onRouteCreated }: CreateRouteModal
     }
 
     // Validate waypoint structure
-    const invalidWaypoints = routeData.waypoints.filter(wp => 
-      !wp || 
-      typeof wp.latitude !== 'number' || 
-      typeof wp.longitude !== 'number' ||
-      isNaN(wp.latitude) || 
-      isNaN(wp.longitude)
+    const invalidWaypoints = routeData.waypoints.filter(
+      (wp) =>
+        !wp ||
+        typeof wp.latitude !== 'number' ||
+        typeof wp.longitude !== 'number' ||
+        isNaN(wp.latitude) ||
+        isNaN(wp.longitude),
     );
 
     if (invalidWaypoints.length > 0) {
