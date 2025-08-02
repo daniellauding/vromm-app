@@ -38,6 +38,158 @@ export const db = {
     },
   },
 
+  // Events
+  events: {
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select(`
+          *,
+          creator:profiles!events_created_by_fkey(
+            id,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('visibility', 'public')
+        .order('event_date', { ascending: true });
+
+      if (error) throw error;
+
+      // Get attendee counts separately
+      if (data) {
+        const eventsWithCounts = await Promise.all(
+          data.map(async (event) => {
+            const { count } = await supabase
+              .from('event_attendees')
+              .select('*', { count: 'exact', head: true })
+              .eq('event_id', event.id)
+              .eq('status', 'accepted');
+            
+            return {
+              ...event,
+              attendees: [{ count: count || 0 }]
+            };
+          })
+        );
+        return eventsWithCounts;
+      }
+
+      return data;
+    },
+    
+    getById: async (id: string) => {
+      const { data, error } = await supabase
+        .from('events')
+        .select(`
+          *,
+          creator:profiles!events_created_by_fkey(
+            id,
+            full_name,
+            avatar_url
+          ),
+          attendees:event_attendees(
+            id,
+            user_id,
+            status,
+            invited_at,
+            responded_at,
+            user:profiles!event_attendees_user_id_fkey(
+              id,
+              full_name,
+              avatar_url
+            )
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    create: async (eventData: {
+      title: string;
+      description?: string;
+      location?: string;
+      visibility?: 'public' | 'private' | 'invite-only';
+      event_date?: string;
+    }) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error('User not authenticated');
+
+      const { data, error } = await supabase
+        .from('events')
+        .insert({
+          ...eventData,
+          created_by: user.user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    update: async (id: string, updates: {
+      title?: string;
+      description?: string;
+      location?: string;
+      visibility?: 'public' | 'private' | 'invite-only';
+      event_date?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('events')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    delete: async (id: string) => {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+
+    addAttendee: async (eventId: string, userId: string) => {
+      const { data, error } = await supabase
+        .from('event_attendees')
+        .insert({
+          event_id: eventId,
+          user_id: userId,
+          status: 'invited',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    updateAttendeeStatus: async (eventId: string, userId: string, status: 'accepted' | 'rejected') => {
+      const { data, error } = await supabase
+        .from('event_attendees')
+        .update({
+          status,
+          responded_at: new Date().toISOString(),
+        })
+        .eq('event_id', eventId)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+  },
+
   // Add other table operations here
 };
 

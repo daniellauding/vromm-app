@@ -77,6 +77,11 @@ import { ConversationScreen } from './src/screens/ConversationScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { NewMessageScreen } from './src/screens/NewMessageScreen';
 
+// Events screens
+import { EventsScreen } from './src/screens/EventsScreen';
+import { EventDetailScreen } from './src/screens/EventDetailScreen';
+import { CreateEventScreen } from './src/screens/CreateEventScreen';
+
 // Exercise screens
 import { RouteExerciseScreen } from './src/screens/RouteExerciseScreen';
 
@@ -410,6 +415,29 @@ function AppContent() {
               <Stack.Screen
                 name="NewMessage"
                 component={NewMessageScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              {/* Events screens */}
+              <Stack.Screen
+                name="Events"
+                component={EventsScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="EventDetail"
+                component={EventDetailScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="CreateEvent"
+                component={CreateEventScreen}
                 options={{
                   headerShown: false,
                 }}

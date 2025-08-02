@@ -5,10 +5,12 @@ import { Button } from '../../components/Button';
 import { Text } from '../../components/Text';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
+import { Calendar } from '@tamagui/lucide-icons';
 
 // ADD MESSAGING COMPONENTS
 import { MessageBell } from '../../components/MessageBell';
 import { NotificationBell } from '../../components/NotificationBell';
+import { EventsBell } from '../../components/EventsBell';
 
 import { useAuth } from '@/src/context/AuthContext';
 import { NavigationProp } from '@/src/types/navigation';
@@ -40,6 +42,7 @@ export const HomeHeader = () => {
       <XStack gap={12} alignItems="center">
         <MessageBell size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
         <NotificationBell size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
+        <EventsBell size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
 
         <Button
           size="sm"

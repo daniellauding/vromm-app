@@ -68,6 +68,11 @@ export type RootStackParamList = {
   Conversation: { conversationId: string };
   Notifications: undefined;
   NewMessage: undefined;
+  
+  // Events screens
+  Events: undefined;
+  EventDetail: { eventId: string };
+  CreateEvent: { eventId?: string };
   RouteExercise: {
     routeId: string;
     exercises: Exercise[];

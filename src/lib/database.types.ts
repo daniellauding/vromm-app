@@ -873,6 +873,104 @@ export type Database = {
           },
         ];
       };
+      events: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          media: Json | null;
+          embeds: Json | null;
+          location: string | null;
+          visibility: 'public' | 'private' | 'invite-only';
+          reminders: Json | null;
+          repeat: 'none' | 'daily' | 'weekly' | 'monthly' | 'custom';
+          event_date: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          media?: Json | null;
+          embeds?: Json | null;
+          location?: string | null;
+          visibility?: 'public' | 'private' | 'invite-only';
+          reminders?: Json | null;
+          repeat?: 'none' | 'daily' | 'weekly' | 'monthly' | 'custom';
+          event_date?: string | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          description?: string | null;
+          media?: Json | null;
+          embeds?: Json | null;
+          location?: string | null;
+          visibility?: 'public' | 'private' | 'invite-only';
+          reminders?: Json | null;
+          repeat?: 'none' | 'daily' | 'weekly' | 'monthly' | 'custom';
+          event_date?: string | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'events_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      event_attendees: {
+        Row: {
+          id: string;
+          event_id: string;
+          user_id: string;
+          status: 'invited' | 'accepted' | 'rejected';
+          invited_at: string;
+          responded_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          user_id: string;
+          status?: 'invited' | 'accepted' | 'rejected';
+          invited_at?: string;
+          responded_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          user_id?: string;
+          status?: 'invited' | 'accepted' | 'rejected';
+          invited_at?: string;
+          responded_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'event_attendees_event_id_fkey';
+            columns: ['event_id'];
+            isOneToOne: false;
+            referencedRelation: 'events';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'event_attendees_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       school_admin_memberships: {
