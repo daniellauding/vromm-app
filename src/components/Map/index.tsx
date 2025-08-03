@@ -236,8 +236,9 @@ export function Map({
     )[]
   >([]);
   const supercluster = useRef<Supercluster | null>(
-    new Supercluster({ minZoom: 0, maxZoom: 15, radius: 30 }),
+    new Supercluster({ minZoom: 0, maxZoom: 15, radius: 30 })
   );
+  
   // Forward the ref
   React.useImperativeHandle(ref, () => mapRef.current!, []);
 
@@ -348,10 +349,6 @@ export function Map({
   );
 
   if (!region) return null;
-  if (drawingMode) {
-    console.trace();
-    return null;
-  }
 
   console.log('🗺️ Map: region', region);
   return (

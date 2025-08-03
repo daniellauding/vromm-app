@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, TouchableOpacity } from 'react-native';
+import { ScrollView, TouchableOpacity, Alert, View, useColorScheme } from 'react-native';
 import { YStack, XStack, Text, Spinner, Button } from 'tamagui';
 import {
   ArrowLeft,
@@ -10,11 +10,21 @@ import {
   Check,
   X,
   UserPlus,
+  BookOpen,
+  Route as RouteIcon,
+  ArrowRight,
+  Repeat,
+  Calendar,
+  CalendarPlus,
+  Share,
 } from '@tamagui/lucide-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
 import { NavigationProp } from '../types/navigation';
 import { db, supabase } from '../lib/supabase';
+import { RouteCard } from '../components/RouteCard';
+import { Map as MapComponent } from '../components/Map';
+import { CalendarService } from '../services/calendarService';
 
 interface Event {
   id: string;
@@ -23,12 +33,22 @@ interface Event {
   location?: string;
   visibility: 'public' | 'private' | 'invite-only';
   event_date?: string;
+  repeat?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'custom';
+  recurrence_rule?: any;
+  recurrence_end_date?: string;
+  recurrence_count?: number;
+  is_recurring_instance?: boolean;
+  parent_event_id?: string;
   created_by: string;
   created_at: string;
   creator?: {
     id: string;
     full_name?: string;
     avatar_url?: string;
+  };
+  embeds?: {
+    exercises?: any[];
+    routes?: any[];
   };
   attendees?: Array<{
     id: string;
@@ -52,6 +72,7 @@ export const EventDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
   const { eventId } = route.params as { eventId: string };
+  const colorScheme = useColorScheme();
 
   useEffect(() => {
     loadEvent();
@@ -72,7 +93,7 @@ export const EventDetailScreen: React.FC = () => {
       // Check if current user is in attendees list
       const { data: { user } } = await supabase.auth.getUser();
       if (user && event.attendees) {
-        const currentUserAttendance = event.attendees.find(a => a.user_id === user.id);
+        const currentUserAttendance = event.attendees.find((a: any) => a.user_id === user.id);
         setUserStatus(currentUserAttendance?.status || null);
       }
     } catch (error) {
@@ -129,8 +150,97 @@ export const EventDetailScreen: React.FC = () => {
   };
 
   const handleInviteUsers = () => {
-    // TODO: Navigate to user selection screen
-    console.log('Invite users to event:', eventId);
+    if (!event) return;
+    
+    // Only event creators can invite users
+    if (event.created_by !== currentUserId) {
+      Alert.alert('Permission Denied', 'Only the event creator can invite users');
+      return;
+    }
+
+    // Navigate to InviteUsersScreen
+    (navigation as any).navigate('InviteUsers', {
+      eventId: eventId,
+      eventTitle: event.title,
+      onInvitesSent: (invitedUserIds: string[]) => {
+        // Refresh the event data to show new attendees
+        loadEvent();
+        Alert.alert('Success', `Invited ${invitedUserIds.length} user${invitedUserIds.length === 1 ? '' : 's'}`);
+      },
+    });
+  };
+
+  const handleRemoveInvitation = async (attendeeId: string, userName: string) => {
+    if (!event || event.created_by !== currentUserId) return;
+
+    Alert.alert(
+      'Remove Invitation',
+      `Remove invitation for ${userName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await supabase
+                .from('event_attendees')
+                .delete()
+                .eq('id', attendeeId);
+              
+              loadEvent(); // Refresh the event data
+              Alert.alert('Success', `Removed invitation for ${userName}`);
+            } catch (error) {
+              console.error('Error removing invitation:', error);
+              Alert.alert('Error', 'Failed to remove invitation');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleExportToCalendar = () => {
+    if (!event) return;
+
+    Alert.alert(
+      'Export to Calendar',
+      'Choose how to export this event to your calendar',
+      [
+        {
+          text: 'Download .ics File',
+          onPress: async () => {
+            try {
+              await CalendarService.exportEvent(event);
+            } catch (error) {
+              console.error('Calendar export error:', error);
+              Alert.alert('Export Failed', 'Could not export event to calendar');
+            }
+          },
+        },
+        {
+          text: 'Open in Google Calendar',
+          onPress: () => {
+            const url = CalendarService.generateCalendarUrl(event, 'google');
+            Alert.alert(
+              'Google Calendar',
+              'This will open Google Calendar in your browser. Copy this URL if needed:',
+              [
+                { text: 'Copy URL', onPress: () => {
+                  // Note: You might want to add Clipboard API here
+                  console.log('Calendar URL:', url);
+                }},
+                { text: 'Cancel', style: 'cancel' }
+              ]
+            );
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   const getVisibilityColor = (visibility: string) => {
@@ -143,6 +253,73 @@ export const EventDetailScreen: React.FC = () => {
         return '#F59E0B';
       default:
         return '#6B7280';
+    }
+  };
+
+  const getRecurrenceDescription = (event: Event): string | null => {
+    if (!event.repeat || event.repeat === 'none') return null;
+
+    const rule = event.recurrence_rule;
+    let description = '';
+
+    switch (event.repeat) {
+      case 'daily':
+        description = 'Every day';
+        break;
+      case 'weekly':
+        if (rule?.daysOfWeek && rule.daysOfWeek.length > 0) {
+          const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const selectedDays = rule.daysOfWeek.map((d: number) => dayNames[d]).join(', ');
+          description = `Every week on ${selectedDays}`;
+        } else {
+          description = 'Every week';
+        }
+        break;
+      case 'biweekly':
+        description = 'Every 2 weeks';
+        if (rule?.daysOfWeek && rule.daysOfWeek.length > 0) {
+          const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const selectedDays = rule.daysOfWeek.map((d: number) => dayNames[d]).join(', ');
+          description += ` on ${selectedDays}`;
+        }
+        break;
+      case 'monthly':
+        if (rule?.dayOfMonth) {
+          const suffix = getOrdinalSuffix(rule.dayOfMonth);
+          description = `Monthly on the ${rule.dayOfMonth}${suffix}`;
+        } else {
+          description = 'Every month';
+        }
+        break;
+      case 'custom':
+        if (rule?.interval) {
+          description = `Every ${rule.interval} week${rule.interval > 1 ? 's' : ''}`;
+        } else {
+          description = 'Custom pattern';
+        }
+        break;
+      default:
+        description = 'Recurring event';
+    }
+
+    // Add end information
+    if (event.recurrence_end_date) {
+      const endDate = new Date(event.recurrence_end_date);
+      description += ` until ${endDate.toLocaleDateString()}`;
+    } else if (event.recurrence_count) {
+      description += ` for ${event.recurrence_count} occurrences`;
+    }
+
+    return description;
+  };
+
+  const getOrdinalSuffix = (day: number): string => {
+    if (day >= 11 && day <= 13) return 'th';
+    switch (day % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
     }
   };
 
@@ -237,17 +414,123 @@ export const EventDetailScreen: React.FC = () => {
           {/* Event Details */}
           <YStack gap={16}>
             {event.location && (
-              <XStack alignItems="flex-start" gap={12}>
-                <MapPin size={20} color="#00FFBC" />
-                <YStack flex={1}>
-                  <Text fontSize={14} fontWeight="600" color="$color">
-                    Location
-                  </Text>
-                  <Text fontSize={14} color="$gray11">
-                    {event.location}
-                  </Text>
-                </YStack>
-              </XStack>
+              <YStack gap={12}>
+                <XStack alignItems="flex-start" gap={12}>
+                  <MapPin size={20} color="#00FFBC" />
+                  <YStack flex={1}>
+                    <Text fontSize={14} fontWeight="600" color="$color">
+                      Location
+                    </Text>
+                    {(() => {
+                      // Try to parse enhanced location data
+                      try {
+                        const locationData = JSON.parse(event.location);
+                        
+                        if (locationData.waypoints && Array.isArray(locationData.waypoints)) {
+                          // Enhanced location with waypoints
+                          return (
+                            <YStack gap={8}>
+                              <Text fontSize={14} color="$gray11">
+                                {locationData.searchQuery || 'Multiple locations'}
+                              </Text>
+                              <YStack gap={4}>
+                                {locationData.waypoints.slice(0, 3).map((waypoint: any, index: number) => (
+                                  <Text key={index} fontSize={12} color="$gray9">
+                                    📍 {waypoint.title || `${waypoint.latitude.toFixed(4)}, ${waypoint.longitude.toFixed(4)}`}
+                                  </Text>
+                                ))}
+                                {locationData.waypoints.length > 3 && (
+                                  <Text fontSize={12} color="$gray9">
+                                    +{locationData.waypoints.length - 3} more locations
+                                  </Text>
+                                )}
+                              </YStack>
+                            </YStack>
+                          );
+                        } else if (locationData.coordinates) {
+                          // Simple coordinate format
+                          return (
+                            <Text fontSize={14} color="$gray11">
+                              {locationData.address || `${locationData.coordinates.latitude.toFixed(6)}, ${locationData.coordinates.longitude.toFixed(6)}`}
+                            </Text>
+                          );
+                        }
+                      } catch (e) {
+                        // Fallback for simple string location
+                      }
+                      
+                      // Simple string location
+                      return (
+                        <Text fontSize={14} color="$gray11">
+                          {event.location}
+                        </Text>
+                      );
+                    })()}
+                  </YStack>
+                </XStack>
+
+                {/* Enhanced Location Map Display */}
+                {(() => {
+                  try {
+                    const locationData = JSON.parse(event.location);
+                    
+                    if (locationData.waypoints && Array.isArray(locationData.waypoints)) {
+                      // Calculate region for waypoints
+                      const waypoints = locationData.waypoints;
+                      const lats = waypoints.map((w: any) => w.latitude);
+                      const lngs = waypoints.map((w: any) => w.longitude);
+                      
+                      const region = {
+                        latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
+                        longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+                        latitudeDelta: Math.max(...lats) - Math.min(...lats) + 0.02,
+                        longitudeDelta: Math.max(...lngs) - Math.min(...lngs) + 0.02,
+                      };
+
+                      return (
+                        <View style={{ height: 200, borderRadius: 8, overflow: 'hidden', marginTop: 8 }}>
+                          <MapComponent
+                            waypoints={waypoints}
+                            region={region}
+                            style={{ flex: 1 }}
+                            drawingMode={locationData.drawingMode || 'pin'}
+                          />
+                        </View>
+                      );
+                    } else if (locationData.coordinates) {
+                      // Single location with coordinates
+                      const waypoints = [{
+                        latitude: locationData.coordinates.latitude,
+                        longitude: locationData.coordinates.longitude,
+                        title: 'Event Location',
+                        description: locationData.address || 'Event location',
+                      }];
+                      
+                      const region = {
+                        latitude: locationData.coordinates.latitude,
+                        longitude: locationData.coordinates.longitude,
+                        latitudeDelta: 0.02,
+                        longitudeDelta: 0.02,
+                      };
+
+                      return (
+                        <View style={{ height: 200, borderRadius: 8, overflow: 'hidden', marginTop: 8 }}>
+                          <MapComponent
+                            waypoints={waypoints}
+                            region={region}
+                            style={{ flex: 1 }}
+                            drawingMode="pin"
+                          />
+                        </View>
+                      );
+                    }
+                  } catch (e) {
+                    // No enhanced location data, no map
+                  }
+                  
+                  return null;
+                })()}
+              </YStack>
             )}
 
             {event.event_date && (
@@ -264,6 +547,26 @@ export const EventDetailScreen: React.FC = () => {
               </XStack>
             )}
 
+            {/* Recurrence Information */}
+            {getRecurrenceDescription(event) && (
+              <XStack alignItems="flex-start" gap={12}>
+                <Repeat size={20} color="#8B5CF6" />
+                <YStack flex={1}>
+                  <Text fontSize={14} fontWeight="600" color="$color">
+                    Repeats
+                  </Text>
+                  <Text fontSize={14} color="$gray11">
+                    {getRecurrenceDescription(event)}
+                  </Text>
+                  {event.is_recurring_instance && (
+                    <Text fontSize={12} color="#8B5CF6" marginTop={4}>
+                      📅 This is a recurring event instance
+                    </Text>
+                  )}
+                </YStack>
+              </XStack>
+            )}
+
             <XStack alignItems="flex-start" gap={12}>
               <Users size={20} color="#00FFBC" />
               <YStack flex={1}>
@@ -276,6 +579,107 @@ export const EventDetailScreen: React.FC = () => {
               </YStack>
             </XStack>
           </YStack>
+
+          {/* Practice Exercises */}
+          {event.embeds?.exercises && Array.isArray(event.embeds.exercises) && event.embeds.exercises.length > 0 && (
+            <YStack gap={16}>
+              <XStack alignItems="center" justifyContent="space-between">
+                <XStack alignItems="center" gap={12}>
+                  <BookOpen size={20} color="#8B5CF6" />
+                  <Text fontSize={18} fontWeight="bold" color="$color">
+                    Practice Exercises ({event.embeds.exercises.length})
+                  </Text>
+                </XStack>
+              </XStack>
+              
+              <Text fontSize={14} color="$gray11">
+                Complete these exercises to prepare for the event
+              </Text>
+
+              <YStack gap={12}>
+                {event.embeds.exercises.map((exercise: any, index: number) => (
+                  <TouchableOpacity
+                    key={exercise.id || index}
+                    onPress={() => {
+                                             // Navigate to RouteExerciseScreen with this single exercise
+                       (navigation as any).navigate('RouteExercise', {
+                         routeId: null, // No route ID for event exercises
+                         exercises: [exercise],
+                         routeName: `${event.title} - Exercise`,
+                         startIndex: 0,
+                       });
+                    }}
+                    style={{
+                      backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#F9FAFB',
+                      padding: 16,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: colorScheme === 'dark' ? '#374151' : '#E5E7EB',
+                    }}
+                  >
+                    <XStack alignItems="center" gap={12}>
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 20,
+                          backgroundColor: '#8B5CF6',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text fontSize={18} color="white" fontWeight="600">
+                          {index + 1}
+                        </Text>
+                      </View>
+                      
+                      <YStack flex={1}>
+                        <Text fontSize={16} fontWeight="600" color="$color">
+                          {typeof exercise.title === 'string' ? exercise.title : exercise.title?.en || 'Exercise'}
+                        </Text>
+                        {exercise.description && (
+                          <Text fontSize={14} color="$gray11" numberOfLines={2}>
+                            {typeof exercise.description === 'string' ? exercise.description : exercise.description?.en || ''}
+                          </Text>
+                        )}
+                        {exercise.duration && (
+                          <Text fontSize={12} color="#8B5CF6" marginTop={4}>
+                            📝 Duration: {exercise.duration}
+                          </Text>
+                        )}
+                      </YStack>
+                      
+                      <ArrowRight size={20} color="$gray9" />
+                    </XStack>
+                  </TouchableOpacity>
+                ))}
+              </YStack>
+            </YStack>
+          )}
+
+          {/* Recommended Routes */}
+          {event.embeds?.routes && Array.isArray(event.embeds.routes) && event.embeds.routes.length > 0 && (
+            <YStack gap={16}>
+              <XStack alignItems="center" gap={12}>
+                <RouteIcon size={20} color="#10B981" />
+                <Text fontSize={18} fontWeight="bold" color="$color">
+                  Recommended Routes ({event.embeds.routes.length})
+                </Text>
+              </XStack>
+              
+              <Text fontSize={14} color="$gray11">
+                These routes are recommended for this event
+              </Text>
+
+              <YStack gap={16}>
+                {event.embeds.routes.map((route: any) => (
+                  <View key={route.id}>
+                    <RouteCard route={route} />
+                  </View>
+                ))}
+              </YStack>
+            </YStack>
+          )}
 
           {/* Action Buttons */}
           <YStack gap={12}>
@@ -350,6 +754,20 @@ export const EventDetailScreen: React.FC = () => {
                 Invite Users
               </Button>
             )}
+
+            {/* Calendar Export Button */}
+            <Button
+              size="lg"
+              backgroundColor="rgba(139, 92, 246, 0.1)"
+              borderColor="#8B5CF6"
+              borderWidth={1}
+              color="#8B5CF6"
+              fontWeight="600"
+              onPress={handleExportToCalendar}
+              icon={<CalendarPlus size={20} color="#8B5CF6" />}
+            >
+              Export to Calendar
+            </Button>
           </YStack>
 
           {/* Attendees List */}
@@ -390,6 +808,20 @@ export const EventDetailScreen: React.FC = () => {
                       {attendee.status}
                     </Text>
                   </YStack>
+
+                  {/* Remove invitation button (only for event creators) */}
+                  {event.created_by === currentUserId && (
+                    <TouchableOpacity
+                      onPress={() => handleRemoveInvitation(attendee.id, attendee.user?.full_name || 'Unknown User')}
+                      style={{
+                        padding: 6,
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                        borderRadius: 6,
+                      }}
+                    >
+                      <X size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  )}
                 </XStack>
               ))}
             </YStack>

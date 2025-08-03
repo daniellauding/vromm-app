@@ -10,9 +10,13 @@ import {
   Heart,
   MapPin,
   ArrowLeft,
+  Calendar,
+  Users,
+  X,
 } from '@tamagui/lucide-icons';
 import { notificationService, Notification } from '../services/notificationService';
 import { useNavigation } from '@react-navigation/native';
+import { supabase } from '../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
 
 export const NotificationsScreen: React.FC = () => {
@@ -141,6 +145,24 @@ export const NotificationsScreen: React.FC = () => {
           (navigation as any).navigate('MainTabs', { screen: 'ProgressTab' });
           break;
 
+        case 'event_invitation':
+        case 'event_invite':
+          if (notification.data?.event_id || notification.metadata?.event_id) {
+            const eventId = notification.data?.event_id || notification.metadata?.event_id;
+            console.log('📍 Navigating to EventDetail for invitation:', eventId);
+            (navigation as any).navigate('EventDetail', { eventId });
+          }
+          break;
+
+        case 'event_reminder':
+        case 'event_updated':
+          if (notification.data?.event_id || notification.metadata?.event_id) {
+            const eventId = notification.data?.event_id || notification.metadata?.event_id;
+            console.log('📍 Navigating to EventDetail:', eventId);
+            (navigation as any).navigate('EventDetail', { eventId });
+          }
+          break;
+
         case 'like':
           // If it's a route like, navigate to the route
           if (notification.data?.route_id || notification.metadata?.route_id) {
@@ -172,6 +194,58 @@ export const NotificationsScreen: React.FC = () => {
     navigation.goBack();
   };
 
+  const handleAcceptInvitation = async (notification: Notification) => {
+    try {
+      const eventId = notification.data?.event_id || notification.metadata?.event_id;
+      if (!eventId) return;
+
+      // Update event_attendees to accept invitation
+      const { error } = await supabase
+        .from('event_attendees')
+        .update({ status: 'accepted' })
+        .eq('event_id', eventId)
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+
+      if (error) throw error;
+
+      // Mark notification as read
+      await notificationService.markAsRead(notification.id);
+      
+      // Remove from notifications list
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+      
+      console.log('✅ Event invitation accepted');
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+    }
+  };
+
+  const handleRejectInvitation = async (notification: Notification) => {
+    try {
+      const eventId = notification.data?.event_id || notification.metadata?.event_id;
+      if (!eventId) return;
+
+      // Update event_attendees to reject invitation
+      const { error } = await supabase
+        .from('event_attendees')
+        .update({ status: 'rejected' })
+        .eq('event_id', eventId)
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+
+      if (error) throw error;
+
+      // Mark notification as read
+      await notificationService.markAsRead(notification.id);
+      
+      // Remove from notifications list
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+      
+      console.log('❌ Event invitation rejected');
+    } catch (error) {
+      console.error('Error rejecting invitation:', error);
+    }
+  };
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'follow':
@@ -185,6 +259,12 @@ export const NotificationsScreen: React.FC = () => {
       case 'route_saved':
       case 'route_driven':
         return <MapPin size={20} color="#00FFBC" />;
+      case 'event_invitation':
+      case 'event_invite':
+        return <Users size={20} color="#F59E0B" />;
+      case 'event_reminder':
+      case 'event_updated':
+        return <Calendar size={20} color="#8B5CF6" />;
       default:
         return <Bell size={20} color="#00FFBC" />;
     }
@@ -232,6 +312,53 @@ export const NotificationsScreen: React.FC = () => {
             <Text fontSize={12} color="$gray11">
               {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
             </Text>
+
+            {/* Event Invitation Action Buttons */}
+            {(item.type === 'event_invitation' || item.type === 'event_invite') && (
+              <XStack gap={8} marginTop={8}>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleAcceptInvitation(item);
+                  }}
+                  style={{
+                    backgroundColor: '#00FFBC',
+                    borderRadius: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <Check size={14} color="#000" />
+                  <Text fontSize={12} fontWeight="600" color="#000">
+                    Accept
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleRejectInvitation(item);
+                  }}
+                  style={{
+                    backgroundColor: '#EF4444',
+                    borderRadius: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <X size={14} color="#FFF" />
+                  <Text fontSize={12} fontWeight="600" color="#FFF">
+                    Decline
+                  </Text>
+                </TouchableOpacity>
+              </XStack>
+            )}
           </YStack>
         </XStack>
       </TouchableOpacity>

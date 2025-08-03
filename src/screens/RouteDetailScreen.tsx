@@ -10,6 +10,7 @@ import {
   Share,
   Linking,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { YStack, XStack, Text, Card, Button, TextArea, Progress, Separator } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,8 +20,10 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Map } from '../components/Map';
 import { Feather } from '@expo/vector-icons';
+import { Play } from '@tamagui/lucide-icons';
 import Carousel from 'react-native-reanimated-carousel';
 import { WebView } from 'react-native-webview';
+import { ImageWithFallback } from '../components/ImageWithFallback';
 import { format } from 'date-fns';
 import { Database } from '../lib/database.types';
 import { ReviewSection } from '../components/ReviewSection';
@@ -803,21 +806,71 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         waypoints,
         region,
         routePath,
-        showStartEndMarkers,
+        showStartEndMarkers: true, // Always show markers for better visibility
         drawingMode: actualDrawingMode,
         penDrawingCoordinates,
       });
     }
 
-    // Add media attachments
-    routeData?.media_attachments?.forEach((attachment) => {
-      items.push({ type: attachment.type, url: attachment.url });
+    // Add media attachments (deduplicated) - include videos
+    const uniqueMedia = routeData?.media_attachments?.filter((attachment, index, arr) => 
+      arr.findIndex(a => a.url === attachment.url && a.type === attachment.type) === index
+    ) || [];
+    
+    console.log('📷 [RouteDetail] Media attachments:', {
+      total: routeData?.media_attachments?.length || 0,
+      afterDedup: uniqueMedia.length,
+      mediaTypes: uniqueMedia.map(m => ({ type: m.type, url: m.url.substring(0, 50) + '...' }))
+    });
+    
+    // Validate and filter out invalid URLs
+    const validMedia = uniqueMedia.filter((attachment) => {
+      const isValidUrl = attachment.url && (
+        attachment.url.startsWith('http://') || 
+        attachment.url.startsWith('https://') || 
+        attachment.url.startsWith('file://') ||
+        attachment.url.startsWith('data:') ||
+        attachment.url.startsWith('content://')
+      );
+      
+      if (!isValidUrl) {
+        console.warn('⚠️ [RouteDetail] Invalid media URL detected (skipping):', {
+          type: attachment.type,
+          url: attachment.url,
+          description: attachment.description
+        });
+        return false;
+      }
+      
+      return true;
+    });
+
+    console.log('📷 [RouteDetail] Valid media after URL validation:', {
+      beforeValidation: uniqueMedia.length,
+      afterValidation: validMedia.length,
+      skipped: uniqueMedia.length - validMedia.length
+    });
+    
+    validMedia.forEach((attachment) => {
+      console.log('📷 [RouteDetail] Adding valid media item:', { type: attachment.type, url: attachment.url });
+      items.push({ 
+        type: attachment.type, 
+        url: attachment.url,
+        description: attachment.description 
+      });
+    });
+
+    console.log('🎬 [RouteDetail] Final carousel items:', {
+      totalItems: items.length,
+      itemTypes: items.map(i => i.type)
     });
 
     return items;
   };
 
   const renderCarouselItem = ({ item }: { item: any }) => {
+    console.log('🎬 [RouteDetail] Rendering carousel item:', { type: item.type, url: item.url });
+    
     if (item.type === 'map') {
       console.log('🎨 [RouteDetail] Rendering map carousel item with:', {
         waypointsLength: item.waypoints?.length || 0,
@@ -841,18 +894,59 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         />
       );
     } else if (item.type === 'image') {
+      console.log('📷 [RouteDetail] Rendering image:', item.url);
       return (
-        <Image
+        <ImageWithFallback
           source={{ uri: item.url }}
           style={{ width: windowWidth, height: HERO_HEIGHT }}
           resizeMode="cover"
         />
       );
-    } else if (item.type === 'youtube') {
+    } else if (item.type === 'video') {
+      console.log('🎥 [RouteDetail] Rendering video preview:', item.url);
       return (
-        <WebView source={{ uri: item.url }} style={{ width: windowWidth, height: HERO_HEIGHT }} />
+        <TouchableOpacity 
+          style={{ width: windowWidth, height: HERO_HEIGHT, position: 'relative' }}
+          onPress={() => console.log('🎥 Video play requested:', item.url)}
+          activeOpacity={0.8}
+        >
+          <View style={{ 
+            width: '100%', 
+            height: '100%', 
+            backgroundColor: '#000', 
+            justifyContent: 'center', 
+            alignItems: 'center' 
+          }}>
+            <View style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              borderRadius: 50,
+              width: 100,
+              height: 100,
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}>
+              <Play size={48} color="#FFF" />
+            </View>
+            <Text style={{ color: '#FFF', marginTop: 16, fontSize: 16, fontWeight: '600' }}>
+              Tap to play video
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+    } else if (item.type === 'youtube') {
+      console.log('📺 [RouteDetail] Rendering YouTube:', item.url);
+      return (
+        <WebView 
+          source={{ uri: item.url }} 
+          style={{ width: windowWidth, height: HERO_HEIGHT }}
+          allowsInlineMediaPlayback={true}
+          mediaPlaybackRequiresUserAction={true}
+          startInLoadingState={true}
+          scalesPageToFit={true}
+        />
       );
     }
+    console.warn('⚠️ [RouteDetail] Unknown carousel item type:', item.type);
     return null;
   };
 

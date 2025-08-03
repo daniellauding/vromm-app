@@ -20,6 +20,7 @@ import { ToastProvider } from './src/contexts/ToastContext';
 import { CreateRouteProvider } from './src/contexts/CreateRouteContext';
 import { MessagingProvider } from './src/contexts/MessagingContext';
 import { ErrorBoundary, clearOldCrashReports } from './src/components/ErrorBoundary';
+import { NetworkAlert } from './src/components/NetworkAlert';
 import { logInfo, logWarn, logError, logNavigation } from './src/utils/logger';
 import { pushNotificationService } from './src/services/pushNotificationService';
 
@@ -81,6 +82,7 @@ import { NewMessageScreen } from './src/screens/NewMessageScreen';
 import { EventsScreen } from './src/screens/EventsScreen';
 import { EventDetailScreen } from './src/screens/EventDetailScreen';
 import { CreateEventScreen } from './src/screens/CreateEventScreen';
+import { InviteUsersScreen } from './src/screens/InviteUsersScreen';
 
 // Exercise screens
 import { RouteExerciseScreen } from './src/screens/RouteExerciseScreen';
@@ -221,21 +223,23 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer
-      ref={navigationRef}
-      onStateChange={(state) => {
-        const currentRoute = state?.routes[state?.index || 0]?.name;
+    <>
+      <NetworkAlert />
+      <NavigationContainer
+        ref={navigationRef}
+        onStateChange={(state) => {
+          const currentRoute = state?.routes[state?.index || 0]?.name;
 
-        logInfo('Navigation state changed', {
-          currentRoute,
-          routeCount: state?.routes?.length,
-          stackIndex: state?.index,
-          timestamp: Date.now(),
-        });
+          logInfo('Navigation state changed', {
+            currentRoute,
+            routeCount: state?.routes?.length,
+            stackIndex: state?.index,
+            timestamp: Date.now(),
+          });
 
-        // Track screen views for analytics - works on both iOS and Android
-        if (state) {
-          const route = state.routes[state.index];
+          // Track screen views for analytics - works on both iOS and Android
+          if (state) {
+            const route = state.routes[state.index];
           const screen_name = route.name;
           const screen_class = route.name;
 
@@ -442,6 +446,13 @@ function AppContent() {
                   headerShown: false,
                 }}
               />
+              <Stack.Screen
+                name="InviteUsers"
+                component={InviteUsersScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
 
               {/* Exercise screens */}
               <Stack.Screen
@@ -456,7 +467,8 @@ function AppContent() {
         </Stack.Navigator>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       </ToastProvider>
-    </NavigationContainer>
+          </NavigationContainer>
+    </>
   );
 }
 

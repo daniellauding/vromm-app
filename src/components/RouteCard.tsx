@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
-import { View, Image, useColorScheme, Dimensions } from 'react-native';
+import { View, Image, useColorScheme, Dimensions, TouchableOpacity } from 'react-native';
 import { YStack, Text, Card, XStack } from 'tamagui';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { Feather } from '@expo/vector-icons';
+import { Play } from '@tamagui/lucide-icons';
 import { Map } from './Map';
 import Carousel from 'react-native-reanimated-carousel';
+import { ImageWithFallback } from './ImageWithFallback';
 import { Database } from '../lib/database.types';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 
@@ -108,12 +110,16 @@ export function RouteCard({ route }: RouteCardProps) {
     if (region && waypoints.length > 0) {
       // Create route path for recorded routes (more than just waypoints)
       const routePath = waypoints.length > 2 ? waypoints : undefined;
-      const showStartEndMarkers =
-        waypoints.length > 2 &&
-        (route.drawing_mode === 'waypoint' || route.drawing_mode === 'record');
+      const showStartEndMarkers = true; // Always show markers for better visibility
 
       // Extract pen drawing coordinates from metadata
       const penDrawingCoordinates = route.metadata?.coordinates || [];
+
+      console.log('🗺️ [RouteCard] Adding map item:', { 
+        waypointsCount: waypoints.length,
+        drawingMode: route.drawing_mode,
+        showStartEndMarkers 
+      });
 
       items.push({
         type: 'map' as const,
@@ -128,17 +134,54 @@ export function RouteCard({ route }: RouteCardProps) {
       });
     }
 
-    // Add route media attachments
-    const media =
-      route.media_attachments
-        ?.filter((m) => m.type === 'image')
-        .map((m) => ({
-          type: 'image' as const,
-          data: {
-            url: m.url,
-            description: m.description,
-          },
-        })) || [];
+    // Add route media attachments (deduplicated) - include images AND videos
+    const uniqueAttachments = route.media_attachments
+      ?.filter((m, index, arr) => 
+        (m.type === 'image' || m.type === 'video') && 
+        arr.findIndex(a => a.url === m.url && a.type === m.type) === index
+      ) || [];
+
+    console.log('📷 [RouteCard] Media attachments:', {
+      total: route.media_attachments?.length || 0,
+      afterFilter: uniqueAttachments.length,
+      types: uniqueAttachments.map(m => m.type)
+    });
+
+    // Validate and filter out invalid URLs
+    const validAttachments = uniqueAttachments.filter((m) => {
+      const isValidUrl = m.url && (
+        m.url.startsWith('http://') || 
+        m.url.startsWith('https://') || 
+        m.url.startsWith('file://') ||
+        m.url.startsWith('data:') ||
+        m.url.startsWith('content://')
+      );
+      
+      if (!isValidUrl) {
+        console.warn('⚠️ [RouteCard] Invalid media URL detected (skipping):', {
+          type: m.type,
+          url: m.url,
+          description: m.description
+        });
+        return false;
+      }
+      
+      return true;
+    });
+
+    console.log('📷 [RouteCard] Valid media after URL validation:', {
+      beforeValidation: uniqueAttachments.length,
+      afterValidation: validAttachments.length,
+      skipped: uniqueAttachments.length - validAttachments.length
+    });
+
+    const media = validAttachments.map((m) => ({
+      type: m.type as const,
+      data: {
+        url: m.url,
+        description: m.description,
+      },
+    }));
 
     return [...items, ...media];
   }, [route.media_attachments, region, waypoints, route.drawing_mode]);
@@ -168,8 +211,36 @@ export function RouteCard({ route }: RouteCardProps) {
                     drawingMode={carouselItems[0].data.drawingMode}
                     penDrawingCoordinates={carouselItems[0].data.penDrawingCoordinates}
                   />
+                                  ) : carouselItems[0].type === 'video' ? (
+                    <TouchableOpacity 
+                      style={{ width: '100%', height: '100%', position: 'relative' }}
+                      onPress={() => console.log('🎥 Video play requested:', carouselItems[0].data.url)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        backgroundColor: '#000', 
+                        justifyContent: 'center', 
+                        alignItems: 'center' 
+                      }}>
+                        <View style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                          borderRadius: 50,
+                          width: 80,
+                          height: 80,
+                          justifyContent: 'center',
+                          alignItems: 'center'
+                        }}>
+                          <Play size={32} color="#FFF" />
+                        </View>
+                        <Text style={{ color: '#FFF', marginTop: 8, fontSize: 12 }}>
+                          Tap to play video
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
                 ) : (
-                  <Image
+                  <ImageWithFallback
                     source={{ uri: carouselItems[0].data.url }}
                     style={{ width: '100%', height: '100%' }}
                     resizeMode="cover"
@@ -201,8 +272,36 @@ export function RouteCard({ route }: RouteCardProps) {
                         drawingMode={item.data.drawingMode}
                         penDrawingCoordinates={item.data.penDrawingCoordinates}
                       />
+                                          ) : item.type === 'video' ? (
+                        <TouchableOpacity 
+                          style={{ width: '100%', height: '100%', position: 'relative' }}
+                          onPress={() => console.log('🎥 Video play requested:', item.data.url)}
+                          activeOpacity={0.8}
+                        >
+                          <View style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            backgroundColor: '#000', 
+                            justifyContent: 'center', 
+                            alignItems: 'center' 
+                          }}>
+                            <View style={{
+                              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                              borderRadius: 50,
+                              width: 80,
+                              height: 80,
+                              justifyContent: 'center',
+                              alignItems: 'center'
+                            }}>
+                              <Play size={32} color="#FFF" />
+                            </View>
+                            <Text style={{ color: '#FFF', marginTop: 8, fontSize: 12 }}>
+                              Tap to play video
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
                     ) : (
-                      <Image
+                      <ImageWithFallback
                         source={{ uri: item.data.url }}
                         style={{ width: '100%', height: '100%' }}
                         resizeMode="cover"

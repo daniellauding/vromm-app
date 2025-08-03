@@ -22,12 +22,16 @@ interface ToastContextType {
   showToast: (toast: Omit<ToastData, 'id'>) => void;
   hideToast: (id: string) => void;
   showRouteCreatedToast: (routeId: string, routeName: string, isUpdate?: boolean) => void;
+  showEventCreatedToast: (eventId: string, eventName: string, isUpdate?: boolean) => void;
+  showEventInviteToast: (eventId: string, eventName: string, inviteCount: number) => void;
 }
 
 const ToastContext = createContext<ToastContextType>({
   showToast: () => {},
   hideToast: () => {},
   showRouteCreatedToast: () => {},
+  showEventCreatedToast: () => {},
+  showEventInviteToast: () => {},
 });
 
 export const useToast = () => useContext(ToastContext);
@@ -78,8 +82,38 @@ export function ToastProvider({ children }: ToastProviderProps) {
     });
   };
 
+  const showEventCreatedToast = (eventId: string, eventName: string, isUpdate = false) => {
+    showToast({
+      title: isUpdate ? 'Event Updated!' : 'Event Created!',
+      message: `"${eventName}" has been ${isUpdate ? 'updated' : 'created'} successfully`,
+      type: 'success',
+      action: {
+        label: 'View',
+        onPress: () => {
+          navigation.navigate('EventDetail', { eventId });
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const showEventInviteToast = (eventId: string, eventName: string, inviteCount: number) => {
+    showToast({
+      title: 'Invitations Sent!',
+      message: `${inviteCount} invitation${inviteCount > 1 ? 's' : ''} sent for "${eventName}"`,
+      type: 'success',
+      action: {
+        label: 'View Event',
+        onPress: () => {
+          navigation.navigate('EventDetail', { eventId });
+        },
+      },
+      duration: 4000,
+    });
+  };
+
   return (
-    <ToastContext.Provider value={{ showToast, hideToast, showRouteCreatedToast }}>
+    <ToastContext.Provider value={{ showToast, hideToast, showRouteCreatedToast, showEventCreatedToast, showEventInviteToast }}>
       {children}
       <ToastContainer toasts={toasts} onDismiss={hideToast} />
     </ToastContext.Provider>

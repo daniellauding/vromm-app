@@ -49,8 +49,8 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const { showModal } = useModal();
   const mapRef = useRef<MapView>(null);
   const [region, setRegion] = useState({
-    latitude: 0,
-    longitude: 0,
+    latitude: 60.1282,
+    longitude: 18.6435,
     latitudeDelta: 0.1,
     longitudeDelta: 0.1,
   });
@@ -284,7 +284,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   }
 
   return (
-    <Screen edges={[]} padding={false} hideStatusBar>
+    <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
       <SafeAreaView edges={['top']} style={{ zIndex: 1000 }}>
         <AppHeader
           onLocateMe={handleLocateMe}

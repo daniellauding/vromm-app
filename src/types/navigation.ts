@@ -73,6 +73,11 @@ export type RootStackParamList = {
   Events: undefined;
   EventDetail: { eventId: string };
   CreateEvent: { eventId?: string };
+  InviteUsers: {
+    eventId: string;
+    eventTitle: string;
+    onInvitesSent?: (invitedUserIds: string[]) => void;
+  };
   RouteExercise: {
     routeId: string;
     exercises: Exercise[];

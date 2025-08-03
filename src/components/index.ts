@@ -6,6 +6,9 @@ export * from './FormField';
 export * from './Map';
 export * from './Chip';
 
+// Event components
+export { EventCard } from './EventCard';
+
 // Exercise components
 export { ExerciseSelector } from './ExerciseSelector';
 export { RouteExerciseViewer } from './RouteExerciseViewer';

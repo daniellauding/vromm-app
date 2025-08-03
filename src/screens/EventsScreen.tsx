@@ -8,11 +8,16 @@ import {
   MapPin,
   Users,
   Clock,
+  Check,
+  X,
+  Mail,
 } from '@tamagui/lucide-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
 import { NavigationProp } from '../types/navigation';
-import { db } from '../lib/supabase';
+import { db, supabase } from '../lib/supabase';
+import { EventCard } from '../components/EventCard';
+import { useAuth } from '../context/AuthContext';
 
 interface Event {
   id: string;
@@ -23,6 +28,11 @@ interface Event {
   event_date?: string;
   created_by: string;
   created_at: string;
+  media?: Array<{
+    type: 'image' | 'video' | 'youtube';
+    url: string;
+    description?: string;
+  }>;
   creator?: {
     id: string;
     full_name?: string;
@@ -33,13 +43,25 @@ interface Event {
 
 export const EventsScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
+  const [invitations, setInvitations] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'invitations'>('all');
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
 
   useEffect(() => {
     loadEvents();
+    loadInvitations();
   }, []);
+
+  // Auto-refresh when screen comes into focus (e.g., returning from editing)
+  useFocusEffect(
+    React.useCallback(() => {
+      loadEvents();
+      loadInvitations();
+    }, [])
+  );
 
   const loadEvents = async () => {
     try {
@@ -53,14 +75,89 @@ export const EventsScreen: React.FC = () => {
     }
   };
 
+  const loadInvitations = async () => {
+    try {
+      if (!user?.id) return;
+
+      // Get events where user is invited with pending status
+      const { data, error } = await supabase
+        .from('event_attendees')
+        .select(`
+          event_id,
+          status,
+          events!inner(
+            id,
+            title,
+            description,
+            location,
+            visibility,
+            event_date,
+            created_by,
+            created_at,
+            media,
+            creator:profiles!events_created_by_fkey(
+              id,
+              full_name,
+              avatar_url
+            )
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'pending');
+
+      if (error) throw error;
+
+      const invitationEvents = data?.map(invitation => ({
+        ...invitation.events,
+        invitationStatus: invitation.status
+      })) || [];
+
+      setInvitations(invitationEvents);
+    } catch (error) {
+      console.error('Error loading invitations:', error);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadEvents();
+    await loadInvitations();
     setRefreshing(false);
   };
 
-  const handleEventPress = (event: Event) => {
-    navigation.navigate('EventDetail', { eventId: event.id });
+  const handleAcceptInvitation = async (eventId: string) => {
+    try {
+      const { error } = await supabase
+        .from('event_attendees')
+        .update({ status: 'accepted' })
+        .eq('event_id', eventId)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      // Remove from invitations and refresh
+      setInvitations(prev => prev.filter(inv => inv.id !== eventId));
+      loadEvents(); // Refresh events list
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+    }
+  };
+
+  const handleRejectInvitation = async (eventId: string) => {
+    try {
+      const { error } = await supabase
+        .from('event_attendees')
+        .update({ status: 'rejected' })
+        .eq('event_id', eventId)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      // Remove from invitations
+      setInvitations(prev => prev.filter(inv => inv.id !== eventId));
+    } catch (error) {
+      console.error('Error rejecting invitation:', error);
+    }
   };
 
   const handleCreateEvent = () => {
@@ -71,93 +168,8 @@ export const EventsScreen: React.FC = () => {
     navigation.goBack();
   };
 
-  const getVisibilityColor = (visibility: string) => {
-    switch (visibility) {
-      case 'public':
-        return '#00FFBC';
-      case 'private':
-        return '#EF4444';
-      case 'invite-only':
-        return '#F59E0B';
-      default:
-        return '#6B7280';
-    }
-  };
-
   const renderEvent = ({ item }: { item: Event }) => {
-    return (
-      <TouchableOpacity onPress={() => handleEventPress(item)}>
-        <YStack
-          margin={8}
-          padding={16}
-          backgroundColor="rgba(255, 255, 255, 0.05)"
-          borderRadius={12}
-          borderWidth={1}
-          borderColor="rgba(255, 255, 255, 0.1)"
-          gap={12}
-        >
-          {/* Event Header */}
-          <XStack justifyContent="space-between" alignItems="flex-start">
-            <YStack flex={1} gap={4}>
-              <Text fontSize={18} fontWeight="bold" color="$color">
-                {item.title}
-              </Text>
-              <Text fontSize={14} color="$gray11" numberOfLines={2}>
-                {item.description}
-              </Text>
-            </YStack>
-            <YStack
-              paddingHorizontal={8}
-              paddingVertical={4}
-              backgroundColor={getVisibilityColor(item.visibility)}
-              borderRadius={8}
-            >
-              <Text fontSize={12} fontWeight="600" color="#000">
-                {item.visibility}
-              </Text>
-            </YStack>
-          </XStack>
-
-          {/* Event Details */}
-          <YStack gap={8}>
-            {item.location && (
-              <XStack alignItems="center" gap={8}>
-                <MapPin size={16} color="$gray11" />
-                <Text fontSize={14} color="$gray11">
-                  {item.location}
-                </Text>
-              </XStack>
-            )}
-
-            {item.event_date && (
-              <XStack alignItems="center" gap={8}>
-                <Clock size={16} color="$gray11" />
-                <Text fontSize={14} color="$gray11">
-                  {formatDistanceToNow(new Date(item.event_date), { addSuffix: true })}
-                </Text>
-              </XStack>
-            )}
-
-            <XStack alignItems="center" gap={8}>
-              <Users size={16} color="$gray11" />
-              <Text fontSize={14} color="$gray11">
-                {item.attendees?.[0]?.count || 0} attending
-              </Text>
-            </XStack>
-          </YStack>
-
-          {/* Creator Info */}
-          <XStack alignItems="center" gap={8} paddingTop={8} borderTopWidth={1} borderTopColor="rgba(255, 255, 255, 0.1)">
-            <Text fontSize={12} color="$gray11">
-              Created by {item.creator?.full_name || 'Unknown'}
-            </Text>
-            <Text fontSize={12} color="$gray11">
-              • {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-            </Text>
-          </XStack>
-        </YStack>
-      </TouchableOpacity>
-    );
+    return <EventCard event={item} />;
   };
 
   if (loading) {
@@ -201,8 +213,57 @@ export const EventsScreen: React.FC = () => {
         </TouchableOpacity>
       </XStack>
 
+      {/* Tabs */}
+      <XStack padding={16} gap={8}>
+        <TouchableOpacity
+          onPress={() => setActiveTab('all')}
+          style={{
+            backgroundColor: activeTab === 'all' ? '#00FFBC' : 'rgba(255, 255, 255, 0.1)',
+            borderRadius: 8,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            flex: 1,
+          }}
+        >
+          <Calendar size={16} color={activeTab === 'all' ? '#000' : '#FFF'} />
+          <Text
+            fontSize={14}
+            fontWeight="600"
+            color={activeTab === 'all' ? '#000' : '#FFF'}
+          >
+            All Events ({events.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setActiveTab('invitations')}
+          style={{
+            backgroundColor: activeTab === 'invitations' ? '#F59E0B' : 'rgba(255, 255, 255, 0.1)',
+            borderRadius: 8,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            flex: 1,
+          }}
+        >
+          <Mail size={16} color={activeTab === 'invitations' ? '#000' : '#FFF'} />
+          <Text
+            fontSize={14}
+            fontWeight="600"
+            color={activeTab === 'invitations' ? '#000' : '#FFF'}
+          >
+            Invitations ({invitations.length})
+          </Text>
+        </TouchableOpacity>
+      </XStack>
+
       {/* Events List */}
-      {events.length === 0 ? (
+      {activeTab === 'all' && events.length === 0 ? (
         <YStack flex={1} justifyContent="center" alignItems="center" padding={24}>
           <Calendar size={48} color="rgba(255, 255, 255, 0.3)" />
           <Text fontSize={18} color="$gray11" textAlign="center" marginTop={16}>
@@ -228,10 +289,79 @@ export const EventsScreen: React.FC = () => {
             </XStack>
           </TouchableOpacity>
         </YStack>
+      ) : activeTab === 'invitations' && invitations.length === 0 ? (
+        <YStack flex={1} justifyContent="center" alignItems="center" padding={24}>
+          <Mail size={48} color="rgba(255, 255, 255, 0.3)" />
+          <Text fontSize={18} color="$gray11" textAlign="center" marginTop={16}>
+            No invitations
+          </Text>
+          <Text fontSize={14} color="$gray11" textAlign="center" marginTop={8}>
+            You'll see event invitations here when you receive them
+          </Text>
+        </YStack>
       ) : (
         <FlatList
-          data={events}
-          renderItem={renderEvent}
+          data={activeTab === 'all' ? events : invitations}
+          renderItem={({ item }: { item: Event }) => (
+            activeTab === 'invitations' ? (
+              // Invitation with accept/reject buttons
+              <YStack
+                margin={8}
+                padding={16}
+                backgroundColor="rgba(245, 158, 11, 0.1)"
+                borderRadius={12}
+                borderWidth={1}
+                borderColor="#F59E0B"
+                gap={12}
+              >
+                <EventCard event={item} />
+                
+                {/* Invitation Actions */}
+                <XStack gap={12} paddingTop={8} borderTopWidth={1} borderTopColor="rgba(255, 255, 255, 0.1)">
+                  <TouchableOpacity
+                    onPress={() => handleAcceptInvitation(item.id)}
+                    style={{
+                      backgroundColor: '#00FFBC',
+                      borderRadius: 8,
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      flex: 1,
+                    }}
+                  >
+                    <Check size={16} color="#000" />
+                    <Text fontSize={14} fontWeight="600" color="#000">
+                      Accept Invitation
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => handleRejectInvitation(item.id)}
+                    style={{
+                      backgroundColor: '#EF4444',
+                      borderRadius: 8,
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      flex: 1,
+                    }}
+                  >
+                    <X size={16} color="#FFF" />
+                    <Text fontSize={14} fontWeight="600" color="#FFF">
+                      Decline
+                    </Text>
+                  </TouchableOpacity>
+                </XStack>
+              </YStack>
+            ) : (
+              // Regular event card
+              <EventCard event={item} />
+            )
+          )}
           keyExtractor={(item) => item.id}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FFBC" />
