@@ -83,6 +83,7 @@ import { EventsScreen } from './src/screens/EventsScreen';
 import { EventDetailScreen } from './src/screens/EventDetailScreen';
 import { CreateEventScreen } from './src/screens/CreateEventScreen';
 import { InviteUsersScreen } from './src/screens/InviteUsersScreen';
+import { CommunityFeedScreen } from './src/screens/CommunityFeedScreen';
 
 // Exercise screens
 import { RouteExerciseScreen } from './src/screens/RouteExerciseScreen';
@@ -449,6 +450,14 @@ function AppContent() {
               <Stack.Screen
                 name="InviteUsers"
                 component={InviteUsersScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="CommunityFeedScreen"
+                component={CommunityFeedScreen}
                 options={{
                   headerShown: false,
                 }}

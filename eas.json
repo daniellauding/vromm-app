@@ -81,6 +81,7 @@
       }
     },
     "testflight": {
+      "autoIncrement": true,
       "distribution": "store",
       "channel": "production",
       "env": {

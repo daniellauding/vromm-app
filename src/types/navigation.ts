@@ -102,6 +102,7 @@ export type RootStackParamList = {
       | 'vehicle_types';
     activeFilter?: FilterCategory;
   };
+  CommunityFeedScreen: undefined;
 };
 
 export type TabParamList = {

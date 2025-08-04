@@ -22,6 +22,7 @@ import { CityRoutes } from './CityRoutes';
 import { CreatedRoutes } from './CreatedRoutes';
 import { NearByRoutes } from './NearByRoutes';
 import { DrivenRoutes } from './DrivenRoutes';
+import { CommunityFeed } from './CommunityFeed';
 
 // Update the Route type to include creator id
 type Route = {
@@ -80,6 +81,7 @@ export function HomeScreen() {
   const handleFilterPress = (filter: FilterCategory) => {
     navigation.navigate('RouteList', {
       title: `${filter.label} Routes`,
+      routes: [], // Routes will be loaded in RouteList screen based on filter
       type: filter.type,
       activeFilter: filter,
     });
@@ -106,6 +108,7 @@ export function HomeScreen() {
           <GettingStarted />
           <ProgressSection />
           <SavedRoutes />
+          <CommunityFeed />
           <QuickFilters handleFilterPress={handleFilterPress} />
 
           {/* Create Route Button */}
