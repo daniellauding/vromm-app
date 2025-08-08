@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { YStack, XStack } from 'tamagui';
+import { Alert, TouchableOpacity, useColorScheme } from 'react-native';
+import { YStack, XStack, View } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
@@ -9,6 +10,8 @@ import { Header } from '../components/Header';
 import { useTranslation } from '../contexts/TranslationContext';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
+import { Ionicons } from '@expo/vector-icons';
+import { googleSignInService } from '../services/googleSignInService';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -17,9 +20,11 @@ export function LoginScreen() {
   const [error, setError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [oauthLoading, setOauthLoading] = useState(false);
   const { signIn } = useAuth();
   const { t, clearCache } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
+  const colorScheme = useColorScheme();
 
   // Note: Removed clearCache() call that was causing logger errors
 
@@ -81,6 +86,81 @@ export function LoginScreen() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    if (oauthLoading) return;
+
+    try {
+      setOauthLoading(true);
+      console.log('Google login pressed');
+
+      // Guard for Expo Go / web where native module isn't available
+      // Avoid TurboModule errors by informing the user
+      // @ts-expect-error dynamic require for RN env
+      const { Platform, NativeModules } = require('react-native');
+      const hasNativeModule = Platform.OS !== 'web' && !!NativeModules?.RNGoogleSignin;
+      if (!hasNativeModule) {
+        Alert.alert(
+          'Unavailable in Expo Go',
+          'Google Sign-In requires a development build. Please run a dev client build to use Google login.'
+        );
+        return;
+      }
+
+      const result = await googleSignInService.signIn();
+
+      if (result.success) {
+        console.log('✅ Google Sign-In successful:', result.user?.email);
+        // Navigation will be handled automatically by AuthContext
+        // when Supabase auth state changes
+      } else {
+        Alert.alert('Google Sign-In Failed', result.error || 'Please try again.');
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      Alert.alert('Error', 'Google login failed. Please try again.');
+    } finally {
+      setOauthLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    if (oauthLoading) return;
+    
+    try {
+      setOauthLoading(true);
+      console.log('Apple login pressed');
+      
+      // TODO: Implement Apple authentication
+      // Example: const result = await AppleAuthentication.signInAsync();
+      
+      Alert.alert('Info', 'Apple login will be implemented soon');
+    } catch (error) {
+      console.error('Apple login error:', error);
+      Alert.alert('Error', 'Apple login failed. Please try again.');
+    } finally {
+      setOauthLoading(false);
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    if (oauthLoading) return;
+    
+    try {
+      setOauthLoading(true);
+      console.log('Facebook login pressed');
+      
+      // TODO: Implement Facebook authentication
+      // Example: const result = await LoginManager.logInWithPermissions();
+      
+      Alert.alert('Info', 'Facebook login will be implemented soon');
+    } catch (error) {
+      console.error('Facebook login error:', error);
+      Alert.alert('Error', 'Facebook login failed. Please try again.');
+    } finally {
+      setOauthLoading(false);
+    }
+  };
+
   return (
     <Screen scroll>
       <YStack f={1} gap={32} width="100%">
@@ -124,6 +204,106 @@ export function LoginScreen() {
             <Button onPress={() => navigation.navigate('ForgotPassword')} variant="link" size="md">
               {t('auth.signIn.forgotPassword')}
             </Button>
+
+            {/* OAuth Login Buttons */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-around',
+                alignItems: 'center',
+                marginTop: 20,
+                paddingHorizontal: 60,
+                width: '100%',
+              }}
+            >
+              <TouchableOpacity 
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 25,
+                  backgroundColor: '#F5F5F5',
+                  borderWidth: 1,
+                  borderColor: '#E0E0E0',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: {
+                    width: 0,
+                    height: 2,
+                  },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 3,
+                  elevation: 3,
+                }}
+                onPress={handleGoogleLogin}
+                activeOpacity={0.7}
+                disabled={oauthLoading}
+                accessibilityLabel="Sign in with Google"
+                accessibilityRole="button"
+              >
+                <Ionicons name="logo-google" size={24} color="#4285F4" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 25,
+                  backgroundColor: '#F5F5F5',
+                  borderWidth: 1,
+                  borderColor: '#E0E0E0',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: {
+                    width: 0,
+                    height: 2,
+                  },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 3,
+                  elevation: 3,
+                }}
+                onPress={handleAppleLogin}
+                activeOpacity={0.7}
+                disabled={oauthLoading}
+                accessibilityLabel="Sign in with Apple"
+                accessibilityRole="button"
+              >
+                <Ionicons 
+                  name="logo-apple" 
+                  size={24} 
+                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
+                />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 25,
+                  backgroundColor: '#F5F5F5',
+                  borderWidth: 1,
+                  borderColor: '#E0E0E0',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: {
+                    width: 0,
+                    height: 2,
+                  },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 3,
+                  elevation: 3,
+                }}
+                onPress={handleFacebookLogin}
+                activeOpacity={0.7}
+                disabled={oauthLoading}
+                accessibilityLabel="Sign in with Facebook"
+                accessibilityRole="button"
+              >
+                <Ionicons name="logo-facebook" size={24} color="#1877F2" />
+              </TouchableOpacity>
+            </View>
           </YStack>
         </YStack>
 

@@ -23,6 +23,7 @@ import { ErrorBoundary, clearOldCrashReports } from './src/components/ErrorBound
 import { NetworkAlert } from './src/components/NetworkAlert';
 import { logInfo, logWarn, logError, logNavigation } from './src/utils/logger';
 import { pushNotificationService } from './src/services/pushNotificationService';
+import { googleSignInService } from './src/services/googleSignInService';
 
 // Disable reanimated warnings about reading values during render
 
@@ -508,6 +509,22 @@ export default function App() {
       }
     }
     loadFonts();
+
+    // Initialize Google Sign-In (skip in Expo Go/web where the native module is unavailable)
+    const initializeGoogleSignIn = async () => {
+      try {
+        if (Platform.OS !== 'web' && (NativeModules as any)?.RNGoogleSignin) {
+          await googleSignInService.configure();
+          console.log('✅ Google Sign-In initialized successfully');
+        } else {
+          console.log('ℹ️ Google Sign-In not available (Expo Go or web). Skipping initialization.');
+        }
+      } catch (error) {
+        console.error('❌ Google Sign-In initialization failed:', error);
+      }
+    };
+
+    initializeGoogleSignIn();
   }, []);
 
   if (!fontsLoaded) {

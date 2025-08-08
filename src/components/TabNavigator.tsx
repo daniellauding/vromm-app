@@ -13,6 +13,8 @@ import {
   Animated,
   Dimensions,
   SafeAreaView,
+  ScrollView,
+  ColorSchemeName,
 } from 'react-native';
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
@@ -50,11 +52,13 @@ const HamburgerDrawer = ({
   onClose,
   colorScheme,
   navigation,
+  onOpenBetaInfo,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  colorScheme: 'light' | 'dark' | null;
+  colorScheme: ColorSchemeName;
   navigation: any;
+  onOpenBetaInfo: () => void;
 }) => {
   const { t } = useTranslation();
   const slideAnim = React.useRef(new Animated.Value(SCREEN_WIDTH)).current;
@@ -91,6 +95,7 @@ const HamburgerDrawer = ({
   }, [isOpen]);
 
   const menuItems = [
+    { icon: 'zap', label: t('drawer.betaInfo') || 'Beta Program', action: () => onOpenBetaInfo() },
     { icon: 'settings', label: t('drawer.settings') || 'Settings', action: () => {} },
     { icon: 'help-circle', label: t('drawer.help') || 'Help & Support', action: () => {} },
     { icon: 'star', label: t('drawer.rateApp') || 'Rate App', action: () => {} },
@@ -139,7 +144,7 @@ const HamburgerDrawer = ({
               <Text fontSize="$6" fontWeight="bold">
                 {t('drawer.menu') || 'Menu'}
               </Text>
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity onPress={onClose} accessibilityLabel="Close menu">
                 <Feather
                   name="x"
                   size={24}
@@ -156,16 +161,17 @@ const HamburgerDrawer = ({
                     item.action();
                     onClose();
                   }}
+                  accessibilityLabel={item.label}
                 >
                   <XStack alignItems="center" gap="$3">
                     <Feather
                       name={item.icon as any}
                       size={20}
                       color={
-                        item.danger ? '#FF4444' : colorScheme === 'dark' ? '#FFFFFF' : '#000000'
+                        (item as any).danger ? '#FF4444' : colorScheme === 'dark' ? '#FFFFFF' : '#000000'
                       }
                     />
-                    <Text fontSize="$4" color={item.danger ? '#FF4444' : undefined}>
+                    <Text fontSize="$4" color={(item as any).danger ? '#FF4444' : undefined}>
                       {item.label}
                     </Text>
                   </XStack>
@@ -219,6 +225,7 @@ export function TabNavigator() {
   const { showModal } = useModal();
   const createRouteContext = useCreateRoute();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isBetaInfoOpen, setIsBetaInfoOpen] = useState(false);
 
   // Get access to the parent (root) navigation to navigate to CreateRoute
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -246,71 +253,6 @@ export function TabNavigator() {
   }, [navigationState]);
 
   // Log tab navigator mount and set up global navigation handler
-  useEffect(() => {
-    logInfo('TabNavigator mounted', { colorScheme });
-
-    // Set up global navigation handler for route recording with context support
-    (global as any).navigateToCreateRoute = (routeData: any) => {
-      console.log('🌐 Global navigation handler called with route data from TabNavigator');
-      handleCreateRoute(routeData);
-    };
-
-    return () => {
-      logInfo('TabNavigator unmounted');
-      // Clean up global handler
-      delete (global as any).navigateToCreateRoute;
-    };
-  }, [colorScheme, handleCreateRoute]);
-
-  const tabBarStyle = {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: TOTAL_HEIGHT,
-    paddingTop: 8,
-    paddingBottom: BOTTOM_INSET,
-    paddingLeft: 20,
-    paddingRight: 20,
-    backgroundColor: colorScheme === 'dark' ? theme.background?.val || '#1A1A1A' : '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: colorScheme === 'dark' ? theme.borderColor?.val || '#333333' : '#E5E5E5',
-    borderTopRightRadius: 16,
-    borderTopLeftRadius: 16,
-    elevation: 8,
-    shadowColor: tokens.color.black,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    zIndex: 100,
-  } as const;
-
-  const screenOptions = {
-    headerShown: false,
-    tabBarStyle,
-    tabBarLabelStyle: {
-      fontSize: 10,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-      fontWeight: '500',
-    },
-    tabBarActiveTintColor: '#69e3c4',
-    tabBarInactiveTintColor: colorScheme === 'dark' ? '#8E8E93' : '#6B7280', // Better contrast for light mode
-    headerStyle: {
-      backgroundColor: tokens.color.background,
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.color.backgroundPress,
-      elevation: 0,
-      shadowOpacity: 0,
-    },
-    headerTitleStyle: {
-      fontSize: 17,
-      fontWeight: '600',
-      color: theme.primary?.val || '#007AFF',
-    },
-    tabBarButton: (props) => <CustomTabBarButton {...props} />,
-  };
-
-  // Handle Create Route from central button with context integration
   const handleCreateRoute = (routeData?: any) => {
     console.log('🎯 ==================== TAB NAVIGATOR - CREATE ROUTE ====================');
     console.log('🎯 Central button handleCreateRoute called with:', {
@@ -391,6 +333,72 @@ export function TabNavigator() {
       });
     }
   };
+
+  useEffect(() => {
+    logInfo('TabNavigator mounted', { colorScheme });
+
+    // Set up global navigation handler for route recording with context support
+    (global as any).navigateToCreateRoute = (routeData: any) => {
+      console.log('🌐 Global navigation handler called with route data from TabNavigator');
+      handleCreateRoute(routeData);
+    };
+
+    return () => {
+      logInfo('TabNavigator unmounted');
+      // Clean up global handler
+      delete (global as any).navigateToCreateRoute;
+    };
+  }, [colorScheme, handleCreateRoute]);
+
+  const tabBarStyle = {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: TOTAL_HEIGHT,
+    paddingTop: 8,
+    paddingBottom: BOTTOM_INSET,
+    paddingLeft: 20,
+    paddingRight: 20,
+    backgroundColor: colorScheme === 'dark' ? theme.background?.val || '#1A1A1A' : '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: colorScheme === 'dark' ? theme.borderColor?.val || '#333333' : '#E5E5E5',
+    borderTopRightRadius: 16,
+    borderTopLeftRadius: 16,
+    elevation: 8,
+    shadowColor: tokens.color.black,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    zIndex: 100,
+  } as const;
+
+  const screenOptions = {
+    headerShown: false,
+    tabBarStyle,
+    tabBarLabelStyle: {
+      fontSize: 10,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      fontWeight: '500',
+    },
+    tabBarActiveTintColor: '#69e3c4',
+    tabBarInactiveTintColor: colorScheme === 'dark' ? '#8E8E93' : '#6B7280', // Better contrast for light mode
+    headerStyle: {
+      backgroundColor: tokens.color.background,
+      borderBottomWidth: 1,
+      borderBottomColor: tokens.color.backgroundPress,
+      elevation: 0,
+      shadowOpacity: 0,
+    },
+    headerTitleStyle: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: theme.primary?.val || '#007AFF',
+    },
+    tabBarButton: (props) => <CustomTabBarButton {...props} />,
+  };
+
+
 
   return (
     <View style={{ flex: 1 }}>
@@ -543,7 +551,78 @@ export function TabNavigator() {
         onClose={() => setIsDrawerOpen(false)}
         colorScheme={colorScheme}
         navigation={navigation}
+        onOpenBetaInfo={() => setIsBetaInfoOpen(true)}
       />
+
+      {/* Beta Info Modal (vertically scrollable page with close) */}
+      <Modal
+        visible={isBetaInfoOpen}
+        animationType="slide"
+        onRequestClose={() => setIsBetaInfoOpen(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: colorScheme === 'dark' ? '#0F0F0F' : '#FFFFFF' }}>
+          {/* Header with Close */}
+          <XStack padding="$4" alignItems="center" justifyContent="space-between">
+            <Text fontSize="$6" fontWeight="700">
+              {t('beta.title') || 'Beta Information'}
+            </Text>
+            <TouchableOpacity onPress={() => setIsBetaInfoOpen(false)} accessibilityLabel="Close beta info">
+              <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+            </TouchableOpacity>
+          </XStack>
+
+          {/* Scrollable Content */}
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+            showsVerticalScrollIndicator
+          >
+            <YStack gap="$3">
+              <Card padding="$4" bordered>
+                <Text fontSize="$6" fontWeight="700">
+                  {t('beta.hero.title') || 'Help us test Vromm'}
+                </Text>
+                <Text marginTop="$2" color={colorScheme === 'dark' ? '#D1D5DB' : '#374151'}>
+                  {t('beta.hero.subtitle') || 'The future of driving education'}
+                </Text>
+              </Card>
+
+              <Card padding="$4" bordered>
+                <Text fontWeight="700">{t('beta.video.title') || 'Watch How It Works'}</Text>
+                <Text marginTop="$2" color={colorScheme === 'dark' ? '#D1D5DB' : '#374151'}>
+                  {t('beta.video.description') || 'Intro video coming soon.'}
+                </Text>
+              </Card>
+
+              <Card padding="$4" bordered>
+                <Text fontWeight="700">{t('beta.download.title') || 'Download'}</Text>
+                <YStack gap="$2" marginTop="$2">
+                  <Text>
+                    iOS TestFlight: https://testflight.apple.com/join/jq9znnrw
+                  </Text>
+                  <Text>
+                    Android Internal Test: https://play.google.com/apps/internaltest/4700291677340932601
+                  </Text>
+                </YStack>
+              </Card>
+
+              <Card padding="$4" bordered>
+                <Text fontWeight="700">{t('beta.roles.title') || 'Roles & Flows'}</Text>
+                <Text marginTop="$2" color={colorScheme === 'dark' ? '#D1D5DB' : '#374151'}>
+                  {t('beta.roles.description') || 'Student, Teacher, Supervisor, School, Contributor'}
+                </Text>
+              </Card>
+
+              <Card padding="$4" bordered>
+                <Text fontWeight="700">{t('beta.feedback.title') || 'Give Feedback'}</Text>
+                <Text marginTop="$2" color={colorScheme === 'dark' ? '#D1D5DB' : '#374151'}>
+                  {t('beta.feedback.description') || 'You will be able to submit feedback directly in the app.'}
+                </Text>
+              </Card>
+            </YStack>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }

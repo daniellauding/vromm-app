@@ -8,7 +8,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+
     "jsEngine": "hermes",
     "ios": {
       "bundleIdentifier": "com.vromm.app",
@@ -82,17 +82,18 @@
         }
       ],
       "expo-font",
-      "expo-web-browser",
-      "@react-native-firebase/app",
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ]
-    ],
+             "expo-web-browser",
+       "@react-native-firebase/app",
+       "@react-native-google-signin/google-signin",
+       [
+         "expo-build-properties",
+         {
+           "ios": {
+             "useFrameworks": "static"
+           }
+         }
+       ]
+     ],
     "experiments": {
       "typedRoutes": true
     },
