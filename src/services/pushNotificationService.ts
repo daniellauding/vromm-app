@@ -4,18 +4,43 @@ import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import Constants from 'expo-constants';
 
-// Configure notification behavior with dynamic sound settings
-Notifications.setNotificationHandler({
-  handleNotification: async () => {
-    const soundEnabled = await PushNotificationService.isSoundEnabled();
-    return {
-      shouldShowAlert: true,
-      shouldPlaySound: soundEnabled,
-      shouldSetBadge: true,
-    };
-  },
-});
+function hasNotificationsNativeModule(): boolean {
+  try {
+    // Always disable on web and check Platform first
+    if (Platform.OS === 'web') {
+      return false;
+    }
+    
+    // Check for ExpoPushTokenManager native module specifically
+    const { NativeModules } = require('react-native');
+    if (!NativeModules?.ExpoPushTokenManager) {
+      console.log('📱 Push notifications disabled (no ExpoPushTokenManager native module)');
+      return false;
+    }
+    
+    // @ts-ignore internal check
+    return !!(Notifications as any)?._setInitialNotification;
+  } catch (error) {
+    console.log('📱 Push notifications disabled due to error:', error);
+    return false;
+  }
+}
+
+// Configure notification behavior with dynamic sound settings (guarded)
+if (hasNotificationsNativeModule()) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => {
+      const soundEnabled = await PushNotificationService.isSoundEnabled();
+      return {
+        shouldShowAlert: true,
+        shouldPlaySound: soundEnabled,
+        shouldSetBadge: true,
+      };
+    },
+  });
+}
 
 class PushNotificationService {
   private expoPushToken: string | null = null;
@@ -23,6 +48,11 @@ class PushNotificationService {
 
   // Register for push notifications
   async registerForPushNotifications(): Promise<string | null> {
+    if (!hasNotificationsNativeModule()) {
+      console.log('[Notifications] Native module unavailable (Expo Go or web). Skipping registration.');
+      return null;
+    }
+
     if (!Device.isDevice) {
       console.log('Push notifications only work on physical devices');
       return null;
@@ -42,11 +72,13 @@ class PushNotificationService {
       return null;
     }
 
-    // Get the token
+    // Resolve projectId from Expo config if not hardcoded
+    const projectId = Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
+
     try {
-      const token = await Notifications.getExpoPushTokenAsync({
-        projectId: 'your-expo-project-id', // Replace with your Expo project ID
-      });
+      const token = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined as any,
+      );
 
       this.expoPushToken = token.data;
       console.log('Expo push token:', token.data);
@@ -200,7 +232,12 @@ class PushNotificationService {
   setupNotificationListeners(
     onNotificationReceived: (notification: Notifications.Notification) => void,
     onNotificationResponse: (response: Notifications.NotificationResponse) => void,
-  ): void {
+  ): void | (() => void) {
+    if (!hasNotificationsNativeModule()) {
+      console.log('[Notifications] Native module unavailable. Listeners not set.');
+      return;
+    }
+
     // Listen for notifications received while app is running
     const notificationListener =
       Notifications.addNotificationReceivedListener(onNotificationReceived);
@@ -223,6 +260,7 @@ class PushNotificationService {
     trigger?: Notifications.NotificationTriggerInput,
     data?: any,
   ): Promise<string> {
+    if (!hasNotificationsNativeModule()) return '';
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title,
@@ -237,22 +275,26 @@ class PushNotificationService {
 
   // Cancel scheduled notification
   async cancelScheduledNotification(identifier: string): Promise<void> {
+    if (!hasNotificationsNativeModule()) return;
     await Notifications.cancelScheduledNotificationAsync(identifier);
   }
 
   // Cancel all scheduled notifications
   async cancelAllScheduledNotifications(): Promise<void> {
+    if (!hasNotificationsNativeModule()) return;
     await Notifications.cancelAllScheduledNotificationsAsync();
   }
 
   // Get badge count
   async getBadgeCount(): Promise<number> {
+    if (!hasNotificationsNativeModule()) return 0;
     return await Notifications.getBadgeCountAsync();
   }
 
   // Set badge count
   async setBadgeCount(count: number): Promise<void> {
     try {
+      if (!hasNotificationsNativeModule()) return;
       await Notifications.setBadgeCountAsync(count);
       console.log('📱 Badge count set to:', count);
     } catch (error) {
@@ -364,6 +406,7 @@ class PushNotificationService {
   // Play system notification sound as fallback
   async playSystemSound(): Promise<void> {
     try {
+      if (!hasNotificationsNativeModule()) return;
       const soundEnabled = await PushNotificationService.isSoundEnabled();
       if (!soundEnabled) return;
 
@@ -385,6 +428,7 @@ class PushNotificationService {
 
   // Clear all notifications
   async clearAllNotifications(): Promise<void> {
+    if (!hasNotificationsNativeModule()) return;
     await Notifications.dismissAllNotificationsAsync();
   }
 

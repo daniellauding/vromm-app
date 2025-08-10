@@ -82,18 +82,20 @@
         }
       ],
       "expo-font",
-             "expo-web-browser",
-       "@react-native-firebase/app",
+      "expo-web-browser",
+      "@react-native-firebase/app",
        "@react-native-google-signin/google-signin",
-       [
-         "expo-build-properties",
-         {
-           "ios": {
-             "useFrameworks": "static"
-           }
-         }
-       ]
-     ],
+       "expo-notifications",
+       "expo-apple-authentication",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     },

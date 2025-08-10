@@ -514,8 +514,8 @@ export default function App() {
     const initializeGoogleSignIn = async () => {
       try {
         if (Platform.OS !== 'web' && (NativeModules as any)?.RNGoogleSignin) {
-          await googleSignInService.configure();
-          console.log('✅ Google Sign-In initialized successfully');
+        await googleSignInService.configure();
+        console.log('✅ Google Sign-In initialized successfully');
         } else {
           console.log('ℹ️ Google Sign-In not available (Expo Go or web). Skipping initialization.');
         }

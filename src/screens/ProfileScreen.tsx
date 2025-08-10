@@ -1308,35 +1308,7 @@ export function ProfileScreen() {
               <Card bordered padding="$4" marginVertical="$2">
                 <YStack gap="$2">
                   <XStack justifyContent="space-between" alignItems="center">
-                    <Text size="lg" weight="bold" color="$color">
-                      Supervised Students
-                    </Text>
-                    <XStack gap="$2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        backgroundColor="$green9"
-                        onPress={() => {
-                          fetchSupervisedStudents();
-                          setShowStudentSelector(true);
-                        }}
-                      >
-                        <Text color="white">
-                          {activeStudentId ? 'Switch Student' : 'Select Student'}
-                        </Text>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        backgroundColor="$blue9"
-                        onPress={() => {
-                          setInviteType('student');
-                          setShowInviteModal(true);
-                        }}
-                      >
-                        <Text color="white">Invite Students</Text>
-                      </Button>
-                    </XStack>
+                    ya
                   </XStack>
 
                   {activeStudentId ? (

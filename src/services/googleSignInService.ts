@@ -43,7 +43,7 @@ class GoogleSignInService {
 
     try {
       // ⚠️ IMPORTANT: Replace with your actual Web Client ID
-      //
+      // 
       // TO GET YOUR WEB CLIENT ID:
       // 1. Go to Firebase Console: https://console.firebase.google.com/
       // 2. Select your project (vromm-app or korvagen)
@@ -51,20 +51,20 @@ class GoogleSignInService {
       // 4. Scroll down to "Your apps" section
       // 5. Click on the Web app (not Android/iOS)
       // 6. Copy the "Web client ID" from Firebase SDK snippet
-      //
+      // 
       // It should look like: "123456789012-abcdefghijklmnopqrstuvwxyz1234567.apps.googleusercontent.com"
-
-      const WEB_CLIENT_ID = 'YOUR_WEB_CLIENT_ID_HERE.apps.googleusercontent.com';
-
+      
+      const WEB_CLIENT_ID = '380014826230-9oj2rnkcp2jgv6vr8o8erjfp5g5l7d8c.apps.googleusercontent.com';
+      
       if (WEB_CLIENT_ID === 'YOUR_WEB_CLIENT_ID_HERE.apps.googleusercontent.com') {
         throw new Error(
           '🚨 Google Sign-In not configured!\n\n' +
-            'Please replace WEB_CLIENT_ID in src/services/googleSignInService.ts\n' +
-            'with your actual Web Client ID from Firebase Console.\n\n' +
-            'See comments in the file for detailed instructions.'
+          'Please replace WEB_CLIENT_ID in src/services/googleSignInService.ts\n' +
+          'with your actual Web Client ID from Firebase Console.\n\n' +
+          'See comments in the file for detailed instructions.'
         );
       }
-
+      
       const { GoogleSignin } = await getGoogleSignInModule();
       GoogleSignin.configure({
         webClientId: WEB_CLIENT_ID, // From Firebase Console
@@ -109,7 +109,7 @@ class GoogleSignInService {
 
       // Perform the sign in
       const userInfo = await GoogleSignin.signIn();
-
+      
       if (!userInfo.data?.user) {
         throw new Error('No user data received from Google');
       }
@@ -146,28 +146,28 @@ class GoogleSignInService {
       };
     } catch (error: any) {
       console.error('❌ Google Sign-In failed:', error);
-
+      
       const fallbackMessage =
         error?.message?.includes('native module unavailable')
           ? 'Google Sign-In is unavailable in Expo Go. Please use a dev build.'
           : 'Google Sign-In failed';
-
+      
       let errorMessage = fallbackMessage;
 
       try {
         const mod = await getGoogleSignInModule();
-        if (error && typeof error === 'object' && 'code' in error) {
+      if (error && typeof error === 'object' && 'code' in error) {
           switch ((error as any).code) {
             case mod.statusCodes.SIGN_IN_CANCELLED:
-              errorMessage = 'Sign-in was cancelled';
-              break;
+            errorMessage = 'Sign-in was cancelled';
+            break;
             case mod.statusCodes.IN_PROGRESS:
-              errorMessage = 'Sign-in is already in progress';
-              break;
+            errorMessage = 'Sign-in is already in progress';
+            break;
             case mod.statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-              errorMessage = 'Google Play Services not available';
-              break;
-            default:
+            errorMessage = 'Google Play Services not available';
+            break;
+          default:
               errorMessage = error.message || fallbackMessage;
           }
         }
@@ -220,7 +220,7 @@ class GoogleSignInService {
       await this.ensureConfigured();
       const { GoogleSignin } = await getGoogleSignInModule();
       const userInfo = await GoogleSignin.getCurrentUser();
-
+      
       if (!userInfo?.user) return null;
 
       return {

@@ -12,6 +12,9 @@ import { Button } from '../components/Button';
 import { Text } from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { googleSignInService } from '../services/googleSignInService';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
+import { supabase } from '../lib/supabase';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -125,15 +128,40 @@ export function LoginScreen() {
 
   const handleAppleLogin = async () => {
     if (oauthLoading) return;
-    
     try {
       setOauthLoading(true);
       console.log('Apple login pressed');
       
-      // TODO: Implement Apple authentication
-      // Example: const result = await AppleAuthentication.signInAsync();
-      
-      Alert.alert('Info', 'Apple login will be implemented soon');
+      // 1) Create nonce and hash
+      const bytes = await Crypto.getRandomBytesAsync(16);
+      const rawNonce = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+      const hashedNonce = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        rawNonce,
+      );
+
+      // 2) Native Apple sign-in to obtain identity token
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+
+      if (!credential.identityToken) {
+        throw new Error('No identityToken from Apple');
+      }
+
+      // 3) Exchange with Supabase
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+        nonce: rawNonce,
+      });
+      if (error) throw error;
+
+      console.log('✅ Apple Sign-In successful (Supabase session set)');
     } catch (error) {
       console.error('Apple login error:', error);
       Alert.alert('Error', 'Apple login failed. Please try again.');

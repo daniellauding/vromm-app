@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { messageService } from '../services/messageService';
 import { notificationService } from '../services/notificationService';
-import { pushNotificationService } from '../services/pushNotificationService';
 import { supabase } from '../lib/supabase';
 
 interface MessagingContextType {
@@ -38,8 +37,19 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
       setUnreadMessageCount(messageCount);
       setUnreadNotificationCount(notificationCount);
 
-      // Update app badge count
-      await pushNotificationService.updateBadgeCount();
+      // Update app badge count (guarded, dynamic import)
+      try {
+        const { Platform, NativeModules } = require('react-native');
+        const hasNative = Platform.OS !== 'web' && !!NativeModules?.ExpoPushTokenManager;
+        if (hasNative) {
+          const { pushNotificationService } = await import('../services/pushNotificationService');
+          await pushNotificationService.updateBadgeCount();
+        } else {
+          // no-op on simulator or web
+        }
+      } catch (e) {
+        // no-op if unavailable
+      }
     } catch (error) {
       console.error('Error refreshing counts:', error);
     }
@@ -52,6 +62,17 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Only import and use push notifications when native module exists
+      const { Platform, NativeModules } = require('react-native');
+      const hasNative = Platform.OS !== 'web' && !!NativeModules?.ExpoPushTokenManager;
+      if (!hasNative) {
+        // Still refresh counts without push features
+        await refreshCounts();
+        return;
+      }
+
+      const { pushNotificationService } = await import('../services/pushNotificationService');
 
       // Register for push notifications
       await pushNotificationService.registerForPushNotifications();
@@ -85,7 +106,7 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
       return () => {
         messageSubscription.unsubscribe();
         notificationSubscription.unsubscribe();
-        cleanup();
+        cleanup && cleanup();
       };
     };
 

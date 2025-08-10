@@ -26,6 +26,7 @@ import { Feather } from '@expo/vector-icons';
 import { useModal } from '../contexts/ModalContext';
 import { useCreateRoute } from '../contexts/CreateRouteContext';
 import { ActionSheetModal } from './ActionSheet';
+import { BetaInfoModal } from './BetaInfoModal';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 // Import screens
@@ -433,9 +434,9 @@ export function TabNavigator() {
           component={HomeScreen}
           options={{
             title: t('navigation.home'),
-            tabBarIcon: ({ focused, color, size }) => (
-              <HomeIcon focused={focused} color={color} size={size} />
-            ),
+                          tabBarIcon: ({ color, size }) => (
+                <HomeIcon color={color} size={size} />
+              ),
           }}
           listeners={{
             tabPress: () => {
@@ -448,9 +449,9 @@ export function TabNavigator() {
           component={ProgressScreen}
           options={{
             title: t('navigation.progress'),
-            tabBarIcon: ({ focused, color, size }) => (
-              <PractiseIcon focused={focused} color={color} size={size} />
-            ),
+                          tabBarIcon: ({ color, size }) => (
+                <PractiseIcon color={color} size={size} />
+              ),
           }}
           listeners={{
             tabPress: () => {
@@ -463,9 +464,9 @@ export function TabNavigator() {
           component={MapScreen}
           options={{
             title: t('navigation.map'),
-            tabBarIcon: ({ focused, color, size }) => (
-              <MapIcon focused={focused} color={color} size={size} />
-            ),
+                          tabBarIcon: ({ color, size }) => (
+                <MapIcon color={color} size={size} />
+              ),
           }}
           listeners={{
             tabPress: () => {
@@ -477,9 +478,9 @@ export function TabNavigator() {
           name="ProfileTab"
           options={{
             title: t('navigation.profile'),
-            tabBarIcon: ({ focused, color, size }) => (
-              <ProfileIcon focused={focused} color={color} size={size} />
-            ),
+                          tabBarIcon: ({ color, size }) => (
+                <ProfileIcon color={color} size={size} />
+              ),
           }}
           listeners={{
             tabPress: () => {
@@ -554,75 +555,7 @@ export function TabNavigator() {
         onOpenBetaInfo={() => setIsBetaInfoOpen(true)}
       />
 
-      {/* Beta Info Modal (vertically scrollable page with close) */}
-      <Modal
-        visible={isBetaInfoOpen}
-        animationType="slide"
-        onRequestClose={() => setIsBetaInfoOpen(false)}
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: colorScheme === 'dark' ? '#0F0F0F' : '#FFFFFF' }}>
-          {/* Header with Close */}
-          <XStack padding="$4" alignItems="center" justifyContent="space-between">
-            <Text fontSize="$6" fontWeight="700">
-              {t('beta.title') || 'Beta Information'}
-            </Text>
-            <TouchableOpacity onPress={() => setIsBetaInfoOpen(false)} accessibilityLabel="Close beta info">
-              <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
-            </TouchableOpacity>
-          </XStack>
-
-          {/* Scrollable Content */}
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-            showsVerticalScrollIndicator
-          >
-            <YStack gap="$3">
-              <Card padding="$4" bordered>
-                <Text fontSize="$6" fontWeight="700">
-                  {t('beta.hero.title') || 'Help us test Vromm'}
-                </Text>
-                <Text marginTop="$2" color={colorScheme === 'dark' ? '#D1D5DB' : '#374151'}>
-                  {t('beta.hero.subtitle') || 'The future of driving education'}
-                </Text>
-              </Card>
-
-              <Card padding="$4" bordered>
-                <Text fontWeight="700">{t('beta.video.title') || 'Watch How It Works'}</Text>
-                <Text marginTop="$2" color={colorScheme === 'dark' ? '#D1D5DB' : '#374151'}>
-                  {t('beta.video.description') || 'Intro video coming soon.'}
-                </Text>
-              </Card>
-
-              <Card padding="$4" bordered>
-                <Text fontWeight="700">{t('beta.download.title') || 'Download'}</Text>
-                <YStack gap="$2" marginTop="$2">
-                  <Text>
-                    iOS TestFlight: https://testflight.apple.com/join/jq9znnrw
-                  </Text>
-                  <Text>
-                    Android Internal Test: https://play.google.com/apps/internaltest/4700291677340932601
-                  </Text>
-                </YStack>
-              </Card>
-
-              <Card padding="$4" bordered>
-                <Text fontWeight="700">{t('beta.roles.title') || 'Roles & Flows'}</Text>
-                <Text marginTop="$2" color={colorScheme === 'dark' ? '#D1D5DB' : '#374151'}>
-                  {t('beta.roles.description') || 'Student, Teacher, Supervisor, School, Contributor'}
-                </Text>
-              </Card>
-
-              <Card padding="$4" bordered>
-                <Text fontWeight="700">{t('beta.feedback.title') || 'Give Feedback'}</Text>
-                <Text marginTop="$2" color={colorScheme === 'dark' ? '#D1D5DB' : '#374151'}>
-                  {t('beta.feedback.description') || 'You will be able to submit feedback directly in the app.'}
-                </Text>
-              </Card>
-            </YStack>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      <BetaInfoModal visible={isBetaInfoOpen} onClose={() => setIsBetaInfoOpen(false)} />
     </View>
   );
 }
