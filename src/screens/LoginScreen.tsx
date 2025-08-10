@@ -11,10 +11,13 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
-import { googleSignInService } from '../services/googleSignInService';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { supabase } from '../lib/supabase';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -95,31 +98,32 @@ export function LoginScreen() {
     try {
       setOauthLoading(true);
       console.log('Google login pressed');
+      // Web OAuth flow via Supabase (works on iOS/Android/web with one Web Client ID in Supabase)
+      const redirectTo = makeRedirectUri({ scheme: 'myapp' });
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          scopes: 'openid email profile',
+        },
+      });
+      if (error) throw error;
 
-      // Guard for Expo Go / web where native module isn't available
-      // Avoid TurboModule errors by informing the user
-      // @ts-expect-error dynamic require for RN env
-      const { Platform, NativeModules } = require('react-native');
-      const hasNativeModule = Platform.OS !== 'web' && !!NativeModules?.RNGoogleSignin;
-      if (!hasNativeModule) {
-        Alert.alert(
-          'Unavailable in Expo Go',
-          'Google Sign-In requires a development build. Please run a dev client build to use Google login.'
-        );
+      const authUrl = data?.url;
+      if (!authUrl) throw new Error('No auth URL from Supabase');
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
+      if (result.type !== 'success') {
+        // Silent cancel/close
         return;
       }
-
-      const result = await googleSignInService.signIn();
-
-      if (result.success) {
-        console.log('✅ Google Sign-In successful:', result.user?.email);
-        // Navigation will be handled automatically by AuthContext
-        // when Supabase auth state changes
-      } else {
-        Alert.alert('Google Sign-In Failed', result.error || 'Please try again.');
-      }
+      // Session should be set by Supabase deep link handler
+      console.log('✅ Google OAuth initiated; waiting for Supabase session');
     } catch (error) {
       console.error('Google login error:', error);
+      const msg = (error as Error)?.message?.toLowerCase?.() || '';
+      if (msg.includes('cancel')) return; // Silent cancel
       Alert.alert('Error', 'Google login failed. Please try again.');
     } finally {
       setOauthLoading(false);
@@ -164,6 +168,8 @@ export function LoginScreen() {
       console.log('✅ Apple Sign-In successful (Supabase session set)');
     } catch (error) {
       console.error('Apple login error:', error);
+      const msg = (error as Error)?.message?.toLowerCase?.() || '';
+      if (msg.includes('canceled') || msg.includes('cancelled')) return; // Silent cancel
       Alert.alert('Error', 'Apple login failed. Please try again.');
     } finally {
       setOauthLoading(false);
@@ -176,13 +182,35 @@ export function LoginScreen() {
     try {
       setOauthLoading(true);
       console.log('Facebook login pressed');
-      
-      // TODO: Implement Facebook authentication
-      // Example: const result = await LoginManager.logInWithPermissions();
-      
-      Alert.alert('Info', 'Facebook login will be implemented soon');
+      const redirectTo = makeRedirectUri({ scheme: 'myapp' });
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error) throw error;
+
+      const authUrl = data?.url;
+      if (!authUrl) throw new Error('No auth URL from Supabase');
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
+      if (result.type !== 'success') {
+        // Silent cancel/close
+        return;
+      }
+
+      // Session should be set via deep link; optionally verify
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error('Facebook authentication did not complete');
+      }
+      console.log('✅ Facebook Sign-In successful');
     } catch (error) {
       console.error('Facebook login error:', error);
+      const msg = (error as Error)?.message?.toLowerCase?.() || '';
+      if (msg.includes('cancel')) return; // Silent cancel
       Alert.alert('Error', 'Facebook login failed. Please try again.');
     } finally {
       setOauthLoading(false);

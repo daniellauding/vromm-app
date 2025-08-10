@@ -9,6 +9,13 @@ import { Header } from '../components/Header';
 import { useTranslation } from '../contexts/TranslationContext';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
+import { TouchableOpacity, useColorScheme, Alert, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export function SignupScreen() {
   const [email, setEmail] = useState('');
@@ -19,6 +26,8 @@ export function SignupScreen() {
   const { signUp } = useAuth();
   const { t, clearCache } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
+  const colorScheme = useColorScheme();
+  const [oauthLoading, setOauthLoading] = useState(false);
 
   useEffect(() => {
     clearCache();
@@ -43,6 +52,60 @@ export function SignupScreen() {
       setError(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFacebookSignup = async () => {
+    if (oauthLoading) return;
+    try {
+      setOauthLoading(true);
+      const redirectTo = makeRedirectUri({ scheme: 'myapp' });
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          scopes: 'public_profile email',
+        },
+      });
+      if (error) throw error;
+      const authUrl = data?.url;
+      if (!authUrl) throw new Error('No auth URL from Supabase');
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
+      if (result.type !== 'success') return; // silent cancel
+    } catch (e) {
+      const msg = (e as Error)?.message?.toLowerCase?.() || '';
+      if (msg.includes('cancel')) return;
+      Alert.alert('Error', 'Facebook login failed. Please try again.');
+    } finally {
+      setOauthLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    if (oauthLoading) return;
+    try {
+      setOauthLoading(true);
+      const redirectTo = makeRedirectUri({ scheme: 'myapp' });
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          scopes: 'openid email profile',
+        },
+      });
+      if (error) throw error;
+      const authUrl = data?.url;
+      if (!authUrl) throw new Error('No auth URL from Supabase');
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
+      if (result.type !== 'success') return; // silent cancel
+    } catch (e) {
+      const msg = (e as Error)?.message?.toLowerCase?.() || '';
+      if (msg.includes('cancel')) return;
+      Alert.alert('Error', 'Google login failed. Please try again.');
+    } finally {
+      setOauthLoading(false);
     }
   };
 
@@ -114,6 +177,58 @@ export function SignupScreen() {
           >
             {t('auth.signUp.signInLink')}
           </Button>
+        </XStack>
+
+        {/* Social sign-up options */}
+        <XStack justifyContent="center" alignItems="center" gap={16} marginTop={16}>
+          <TouchableOpacity
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              backgroundColor: '#F5F5F5',
+              borderWidth: 1,
+              borderColor: '#E0E0E0',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            onPress={handleGoogleSignup}
+            accessibilityLabel="Continue with Google"
+          >
+            <Ionicons name="logo-google" size={24} color="#4285F4" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              backgroundColor: '#F5F5F5',
+              borderWidth: 1,
+              borderColor: '#E0E0E0',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            onPress={handleFacebookSignup}
+            accessibilityLabel="Continue with Facebook"
+          >
+            <Ionicons name="logo-facebook" size={24} color="#1877F2" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              backgroundColor: '#F5F5F5',
+              borderWidth: 1,
+              borderColor: '#E0E0E0',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            onPress={() => navigation.navigate('Login')}
+            accessibilityLabel="Continue with Apple"
+          >
+            <Ionicons name="logo-apple" size={24} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+          </TouchableOpacity>
         </XStack>
       </YStack>
     </Screen>
