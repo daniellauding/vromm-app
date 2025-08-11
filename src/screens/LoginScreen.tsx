@@ -16,6 +16,8 @@ import * as Crypto from 'expo-crypto';
 import { supabase } from '../lib/supabase';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
+import * as Linking from 'expo-linking';
+import { googleSignInService } from '../services/googleSignInService';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -27,12 +29,14 @@ export function LoginScreen() {
   const [passwordError, setPasswordError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [oauthLoading, setOauthLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
   const { t, clearCache } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
 
   // Note: Removed clearCache() call that was causing logger errors
+
+  // Navigation is handled globally in App.tsx after session is set
 
   const handleLogin = async () => {
     console.log('[LOGIN_DEBUG] Starting login process...');
@@ -94,37 +98,20 @@ export function LoginScreen() {
 
   const handleGoogleLogin = async () => {
     if (oauthLoading) return;
-
     try {
       setOauthLoading(true);
-      console.log('Google login pressed');
-      // Web OAuth flow via Supabase (works on iOS/Android/web with one Web Client ID in Supabase)
-      const redirectTo = makeRedirectUri({ scheme: 'myapp' });
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-          scopes: 'openid email profile',
-        },
-      });
-      if (error) throw error;
-
-      const authUrl = data?.url;
-      if (!authUrl) throw new Error('No auth URL from Supabase');
-
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
-      if (result.type !== 'success') {
-        // Silent cancel/close
+      console.log('[GOOGLE_NATIVE] Google login pressed');
+      const result = await googleSignInService.signIn();
+      if (!result.success) {
+        console.log('[GOOGLE_NATIVE] Sign-in failed:', result.error);
+        Alert.alert('Google Sign-In', result.error || 'Google sign-in failed');
         return;
       }
-      // Session should be set by Supabase deep link handler
-      console.log('✅ Google OAuth initiated; waiting for Supabase session');
-    } catch (error) {
-      console.error('Google login error:', error);
-      const msg = (error as Error)?.message?.toLowerCase?.() || '';
-      if (msg.includes('cancel')) return; // Silent cancel
-      Alert.alert('Error', 'Google login failed. Please try again.');
+      console.log('[GOOGLE_NATIVE] Google native sign-in completed for:', result.user?.email);
+      // App.tsx listens to Supabase SIGNED_IN and will remount the navigator
+    } catch (e) {
+      console.error('[GOOGLE_NATIVE] Error:', e);
+      Alert.alert('Error', 'Google sign-in failed. Use a development build (not Expo Go).');
     } finally {
       setOauthLoading(false);
     }
@@ -138,7 +125,9 @@ export function LoginScreen() {
       
       // 1) Create nonce and hash
       const bytes = await Crypto.getRandomBytesAsync(16);
-      const rawNonce = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+      const rawNonce = Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
       const hashedNonce = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         rawNonce,
@@ -182,31 +171,70 @@ export function LoginScreen() {
     try {
       setOauthLoading(true);
       console.log('Facebook login pressed');
-      const redirectTo = makeRedirectUri({ scheme: 'myapp' });
+      const redirectTo = makeRedirectUri({ scheme: 'myapp', path: 'redirect' });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
           redirectTo,
           skipBrowserRedirect: true,
+          scopes: 'public_profile email',
         },
       });
       if (error) throw error;
-
       const authUrl = data?.url;
+      console.log('[OAUTH][Facebook] redirectTo =', redirectTo);
+      console.log('[OAUTH][Facebook] authUrl =', authUrl);
       if (!authUrl) throw new Error('No auth URL from Supabase');
 
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
-      if (result.type !== 'success') {
-        // Silent cancel/close
-        return;
+      console.log('[OAUTH][Facebook] WebBrowser result =', result);
+      if (result.type !== 'success') return; // silent cancel
+      if (result.url) {
+        console.log('[OAUTH][Facebook] result.url =', result.url);
+        const parsed = Linking.parse(result.url);
+        console.log('[OAUTH][Facebook] parsed =', parsed);
+        const code = (parsed.queryParams?.code as string) || '';
+        console.log('[OAUTH][Facebook] code =', code ? '[present]' : '[missing]');
+        let didSetSession = false;
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          console.log('[OAUTH][Facebook] exchangeCode error =', error);
+          if (error) throw error;
+          // Ensure session object is available before navigating
+          await supabase.auth.getSession();
+          didSetSession = true;
+        } else {
+          const hashIndex = result.url.indexOf('#');
+          if (hashIndex >= 0) {
+            const fragment = result.url.substring(hashIndex + 1);
+            const sp = new URLSearchParams(fragment);
+            const access_token = sp.get('access_token') || '';
+            const refresh_token = sp.get('refresh_token') || '';
+            console.log('[OAUTH][Facebook] fragment tokens present =', Boolean(access_token));
+            if (access_token) {
+              const { error } = await supabase.auth.setSession({
+                access_token,
+                refresh_token: refresh_token || '',
+              });
+              console.log('[OAUTH][Facebook] setSession error =', error);
+              if (error) throw error;
+              // Ensure session object is available before navigating
+              await supabase.auth.getSession();
+              didSetSession = true;
+            }
+          }
+        }
+        try {
+          if (typeof WebBrowser.dismissAuthSession === 'function') {
+            await WebBrowser.dismissAuthSession();
+          } else if (typeof WebBrowser.dismissBrowser === 'function') {
+            await WebBrowser.dismissBrowser();
+          }
+        } catch (e) {
+          // ignore
+        }
+        // Navigation is centralized in App.tsx
       }
-
-      // Session should be set via deep link; optionally verify
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        throw new Error('Facebook authentication did not complete');
-      }
-      console.log('✅ Facebook Sign-In successful');
     } catch (error) {
       console.error('Facebook login error:', error);
       const msg = (error as Error)?.message?.toLowerCase?.() || '';
@@ -362,6 +390,13 @@ export function LoginScreen() {
             </View>
           </YStack>
         </YStack>
+
+        {/* Auth status debug */}
+        <XStack justifyContent="center" alignItems="center" gap={0} marginBottom={8}>
+          <Text size="sm" intent={user ? 'success' : 'muted'}>
+            {user ? `Signed in as ${user.email}` : 'Not signed in'}
+          </Text>
+        </XStack>
 
         <XStack justifyContent="center" alignItems="center" gap={0}>
           <Text size="md" intent="muted">

@@ -42,27 +42,15 @@ class GoogleSignInService {
     if (this.isConfigured) return;
 
     try {
-      // Web client ID used for backend verification with Supabase
-      const WEB_CLIENT_ID = '380014826230-9oj2rnkcp2jgv6vr8o8erjfp5g5l7d8c.apps.googleusercontent.com';
       // iOS OAuth client ID from GoogleService-Info.plist (CLIENT_ID)
       const IOS_CLIENT_ID = '380014826230-1tnnca8r2p14p3uo6ou1dhcank58lskc.apps.googleusercontent.com';
 
-      if (WEB_CLIENT_ID === 'YOUR_WEB_CLIENT_ID_HERE.apps.googleusercontent.com') {
-        throw new Error(
-          '🚨 Google Sign-In not configured!\n\n' +
-            'Please replace WEB_CLIENT_ID in src/services/googleSignInService.ts\n' +
-            'with your actual Web Client ID from Firebase Console.\n\n' +
-            'See comments in the file for detailed instructions.',
-        );
-      }
-
       const { GoogleSignin } = await getGoogleSignInModule();
       GoogleSignin.configure({
-        webClientId: WEB_CLIENT_ID,
-        // Ensure iOS issues tokens for the correct audience and allows AppAuth flow
+        webClientId:
+          '380014826230-9oj2214epv1b9vbsq3skeig0mfkh71nj.apps.googleusercontent.com',
+        // Only need idToken for Supabase; keep it simple to avoid invalid_audience
         iosClientId: IOS_CLIENT_ID,
-        offlineAccess: true,
-        forceCodeForRefreshToken: true,
         scopes: ['openid', 'email', 'profile'],
       } as any);
 

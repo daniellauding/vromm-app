@@ -59,7 +59,7 @@ export function SignupScreen() {
     if (oauthLoading) return;
     try {
       setOauthLoading(true);
-      const redirectTo = makeRedirectUri({ scheme: 'myapp' });
+      const redirectTo = makeRedirectUri({ scheme: 'myapp', path: 'redirect' });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
@@ -86,7 +86,7 @@ export function SignupScreen() {
     if (oauthLoading) return;
     try {
       setOauthLoading(true);
-      const redirectTo = makeRedirectUri({ scheme: 'myapp' });
+      const redirectTo = makeRedirectUri({ scheme: 'myapp', path: 'redirect' });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {

@@ -84,6 +84,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(session?.user || null);
         setLoading(false);
         setInitialized(true);
+        console.log('[AUTH_DEBUG_INIT] Initial session fetched', {
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          userId: session?.user?.id,
+          userEmail: session?.user?.email,
+        });
       } catch (error) {
         console.error('Error checking session:', error);
       }
@@ -110,7 +116,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Check if profile exists
           const { data: profile, error: fetchError } = await supabase
             .from('profiles')
-            .select('id')
+            .select('id, full_name, role')
             .eq('id', session.user.id)
             .single();
 
@@ -154,6 +160,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
       setInitialized(true);
       console.log('[AUTH_STATE_DEBUG] State updated successfully');
+
+      // Emit a global debug ping to help root navigation decide
+      try {
+        (global as any).__AUTH_LAST_EVENT__ = _event;
+        (global as any).__AUTH_LAST_USER__ = session?.user?.id;
+      } catch {}
     });
 
     return () => subscription.unsubscribe();

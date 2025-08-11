@@ -9,7 +9,7 @@ import { TranslationProvider } from './src/contexts/TranslationContext';
 import { RootStackParamList } from './src/types/navigation';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useColorScheme, Platform, NativeModules, View, AppState } from 'react-native';
+import { useColorScheme, Platform, NativeModules, View, AppState, DevSettings } from 'react-native';
 import * as Font from 'expo-font';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from './src/lib/supabase';
@@ -24,8 +24,16 @@ import { NetworkAlert } from './src/components/NetworkAlert';
 import { logInfo, logWarn, logError, logNavigation } from './src/utils/logger';
 import { pushNotificationService } from './src/services/pushNotificationService';
 import { googleSignInService } from './src/services/googleSignInService';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
+import * as Updates from 'expo-updates';
+import { CommonActions } from '@react-navigation/native';
+import type { NavigationContainerRef } from '@react-navigation/native';
 
 // Disable reanimated warnings about reading values during render
+
+// Ensure AuthSession can complete pending sessions on app launch
+WebBrowser.maybeCompleteAuthSession();
 
 // Use lazy import to prevent NativeEventEmitter errors
 let analyticsModule: any;
@@ -94,7 +102,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function AppContent() {
   const { user, loading: authLoading, initialized } = useAuth();
   const colorScheme = useColorScheme();
-  const navigationRef = useRef<any>();
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
 
   // Add app-level logging and crash monitoring
   useEffect(() => {
@@ -172,6 +180,123 @@ function AppContent() {
     return cleanup;
   }, []);
 
+  // Handle OAuth deep links (Google/Facebook via AuthSession)
+  useEffect(() => {
+    const handleUrl = async (event: { url: string }) => {
+      try {
+        const parsed = Linking.parse(event.url);
+        const code = (parsed.queryParams?.code as string) || '';
+        let didSetSession = false;
+
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            logError('OAuth exchange failed', error);
+          } else {
+            logInfo('OAuth code exchange succeeded');
+            didSetSession = true;
+          }
+        } else {
+          // Fallback for implicit flow: access_token in URL fragment
+          const hashIndex = event.url.indexOf('#');
+          if (hashIndex >= 0) {
+            const fragment = event.url.substring(hashIndex + 1);
+            const sp = new URLSearchParams(fragment);
+            const access_token = sp.get('access_token') || '';
+            const refresh_token = sp.get('refresh_token') || '';
+            if (access_token) {
+              const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+              if (error) {
+                logError('OAuth setSession (fragment) failed', error);
+              } else {
+                logInfo('OAuth session set from fragment tokens');
+                didSetSession = true;
+              }
+            }
+          }
+        }
+
+        if (didSetSession) {
+          // Close the in-app browser modal if still open
+          try {
+            if ((WebBrowser as any).dismissAuthSession) {
+              await (WebBrowser as any).dismissAuthSession();
+            } else if ((WebBrowser as any).dismissBrowser) {
+              await (WebBrowser as any).dismissBrowser();
+            }
+          } catch {}
+
+          // Ensure the session is visible to the app before navigating
+          try {
+            await supabase.auth.getSession();
+          } catch {}
+          // Do not force navigation here — let React re-render to the authenticated stack
+          logInfo('[OAUTH] Session set; waiting for navigator to remount with authenticated stack');
+        }
+      } catch (e) {
+        logError('Deep link handling error', e);
+      }
+    };
+
+    // Subscribe to future deep links
+    const sub = Linking.addEventListener('url', handleUrl);
+    // Also handle the case where the app was cold-started via a deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl({ url });
+    });
+    return () => {
+      sub.remove();
+    };
+  }, []);
+
+  // AGGRESSIVE DEBUG: Check for SIGNED_IN events and force navigation
+  useEffect(() => {
+    // Simple debug logging - let React handle everything
+    console.log('[AUTH_WATCHER] Monitoring auth state changes...');
+  }, []);
+
+  // Simple fallback: just dismiss browser and let React's conditional rendering handle navigation
+  useEffect(() => {
+    console.log('[NAV_FALLBACK] useEffect triggered', { initialized, hasUser: !!user, userId: user?.id });
+    if (initialized && user) {
+      console.log('[NAV_FALLBACK] User authenticated, dismissing OAuth browser and letting React handle stack switch');
+      
+      // Just dismiss the OAuth browser
+      (async () => {
+        try {
+          if ((WebBrowser as any).dismissAuthSession) {
+            await (WebBrowser as any).dismissAuthSession();
+          } else if ((WebBrowser as any).dismissBrowser) {
+            await (WebBrowser as any).dismissBrowser();
+          }
+        } catch {}
+      })();
+      
+      // Simple dev fallback if React doesn't switch stacks
+      if (__DEV__) {
+        setTimeout(() => {
+          const currentRoute = navigationRef.current?.getCurrentRoute?.()?.name;
+          console.log('[DEV_FALLBACK] Checking current route after React render:', currentRoute);
+          if (currentRoute === 'Login') {
+            console.log('[DEV_FALLBACK] Still on Login, triggering reload');
+            DevSettings.reload();
+          }
+        }, 2000);
+      }
+    }
+  }, [initialized, user]);
+
+  // Simple Supabase auth state logger 
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('[SUPABASE_AUTH]', _event, 'hasSession:', !!session, 'hasUser:', !!session?.user);
+      if (_event === 'SIGNED_IN') {
+        console.log('[SUPABASE_AUTH] Login successful, waiting for React to switch navigation stack...');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Check for database tables on startup
   useEffect(() => {
     const checkDatabaseTables = async () => {
@@ -228,6 +353,7 @@ function AppContent() {
     <>
       <NetworkAlert />
       <NavigationContainer
+        key={user ? 'nav-app' : 'nav-auth'}
         ref={navigationRef}
         onStateChange={(state) => {
           const currentRoute = state?.routes[state?.index || 0]?.name;
@@ -456,15 +582,6 @@ function AppContent() {
                 }}
               />
 
-              <Stack.Screen
-                name="CommunityFeedScreen"
-                component={CommunityFeedScreen}
-                options={{
-                  headerShown: false,
-                }}
-              />
-
-              {/* Exercise screens */}
               <Stack.Screen
                 name="RouteExercise"
                 component={RouteExerciseScreen}
