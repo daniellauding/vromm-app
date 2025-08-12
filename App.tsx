@@ -118,6 +118,7 @@ function AppContent() {
   const { user, loading: authLoading, initialized } = useAuth();
   const colorScheme = useColorScheme();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
+  const [authKey, setAuthKey] = useState(0);
 
   // Add app-level logging and crash monitoring
   useEffect(() => {
@@ -301,25 +302,21 @@ function AppContent() {
         }
       })();
 
-      // Simple dev fallback if React doesn't switch stacks
-      if (__DEV__) {
-        setTimeout(() => {
-          const currentRoute = navigationRef.current?.getCurrentRoute?.()?.name;
-          console.log('[DEV_FALLBACK] Checking current route after React render:', currentRoute);
-          if (currentRoute === 'Login') {
-            console.log('[DEV_FALLBACK] Still on Login, triggering reload');
-            DevSettings.reload();
-          }
-        }, 2000);
-      }
+      // Production-safe fallback: if React hasn't switched stacks shortly, force a full reload
+      setTimeout(() => {
+        const currentRoute = navigationRef.current?.getCurrentRoute?.()?.name;
+        console.log('[FALLBACK_CHECK] Current route after auth:', currentRoute);
+        if (currentRoute === 'Login' || currentRoute === 'SplashScreen' || currentRoute === 'Signup') {
+          console.log('[FALLBACK_CHECK] Still on auth route after sign-in, forcing app reload');
+          Updates.reloadAsync().catch((e) => console.warn('Updates.reloadAsync failed', e));
+        }
+      }, 1200);
     }
   }, [initialized, user]);
 
   // Simple Supabase auth state logger 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('[SUPABASE_AUTH]', _event, 'hasSession:', !!session, 'hasUser:', !!session?.user);
       if (_event === 'SIGNED_IN') {
         console.log('[SUPABASE_AUTH] Login successful, waiting for React to switch navigation stack...');
@@ -339,6 +336,12 @@ function AppContent() {
 
           // Do not navigate to AuthGate here; let React handle stack switching
         })();
+
+        // Force a clean remount of NavigationContainer to avoid any stale stacks
+        setAuthKey((k) => k + 1);
+      }
+      if (_event === 'SIGNED_OUT') {
+        setAuthKey((k) => k + 1);
       }
     });
     return () => subscription.unsubscribe();
@@ -400,7 +403,7 @@ function AppContent() {
     <>
       <NetworkAlert />
       <NavigationContainer
-        key={user ? 'nav-app' : 'nav-auth'}
+        key={`${user ? 'nav-app' : 'nav-auth'}-${authKey}`}
         ref={navigationRef}
         onStateChange={(state) => {
           const currentRoute = state?.routes[state?.index || 0]?.name;
