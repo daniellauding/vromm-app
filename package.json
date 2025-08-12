@@ -2,6 +2,7 @@
   "name": "vromm-app",
   "main": "index.js",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "start": "expo start",
     "start-clean": "expo start --clear",

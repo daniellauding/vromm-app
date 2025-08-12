@@ -118,6 +118,60 @@ export type Database = {
           },
         ];
       };
+      pending_invitations: {
+        Row: {
+          accepted_at: string | null;
+          accepted_by: string | null;
+          created_at: string;
+          email: string;
+          id: string;
+          invited_by: string | null;
+          metadata: Json | null;
+          role: Database['public']['Enums']['user_role'] | null;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          created_at?: string;
+          email: string;
+          id?: string;
+          invited_by?: string | null;
+          metadata?: Json | null;
+          role?: Database['public']['Enums']['user_role'] | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          created_at?: string;
+          email?: string;
+          id?: string;
+          invited_by?: string | null;
+          metadata?: Json | null;
+          role?: Database['public']['Enums']['user_role'] | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'pending_invitations_accepted_by_fkey';
+            columns: ['accepted_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pending_invitations_invited_by_fkey';
+            columns: ['invited_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;

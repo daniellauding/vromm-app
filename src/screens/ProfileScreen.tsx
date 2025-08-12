@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { YStack, XStack, Switch, useTheme, Card, Input } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
+import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { Database } from '../lib/database.types';
 import * as Location from 'expo-location';
 import {
@@ -33,6 +34,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
+import { inviteNewUser, inviteMultipleUsers, getPendingInvitations, cancelInvitation, resendInvitation } from '../services/invitationService';
 import { useScreenLogger } from '../hooks/useScreenLogger';
 import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
 import {
@@ -218,8 +220,10 @@ export function ProfileScreen() {
   const [supervisedStudents, setSupervisedStudents] = useState<
     Array<{ id: string; full_name: string; email: string }>
   >([]);
-  const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
   const [showStudentSelector, setShowStudentSelector] = useState(false);
+  
+  // Use StudentSwitchContext for managing active student
+  const { activeStudentId, setActiveStudent, clearActiveStudent } = useStudentSwitch();
 
   // Invitation system states
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -229,6 +233,9 @@ export function ProfileScreen() {
   >([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [inviteType, setInviteType] = useState<'supervisor' | 'student' | null>(null);
+  const [inviteEmails, setInviteEmails] = useState<string[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
+  const [showPendingInvites, setShowPendingInvites] = useState(false);
 
   // Sound settings
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -702,6 +709,87 @@ export function ProfileScreen() {
     }
   };
 
+  // Handle bulk email invitations for new users
+  const handleBulkInvite = async () => {
+    try {
+      const validEmails = inviteEmails.filter(email => email.includes('@'));
+      if (validEmails.length === 0) {
+        Alert.alert('Invalid Emails', 'Please enter valid email addresses');
+        return;
+      }
+
+      const role = inviteType === 'student' ? 'student' : 'instructor';
+      const result = await inviteMultipleUsers(
+        validEmails,
+        role,
+        profile?.id,
+        profile?.full_name || profile?.email
+      );
+
+      if (result.successful.length > 0) {
+        Alert.alert(
+          'Invitations Sent! 🎉',
+          `Successfully invited ${result.successful.length} ${inviteType}(s). They will receive an email to create their account.`,
+        );
+      }
+
+      if (result.failed.length > 0) {
+        Alert.alert(
+          'Some Invitations Failed',
+          `Failed to invite: ${result.failed.map(f => f.email).join(', ')}`,
+        );
+      }
+
+      setShowInviteModal(false);
+      setInviteEmails([]);
+      fetchPendingInvitations();
+    } catch (error) {
+      logError('Error sending bulk invitations', error as Error);
+      Alert.alert('Error', 'Failed to send invitations. Please try again.');
+    }
+  };
+
+  // Fetch pending invitations
+  const fetchPendingInvitations = async () => {
+    if (!profile?.id) return;
+    const invites = await getPendingInvitations(profile.id);
+    setPendingInvitations(invites);
+  };
+
+  // Resend an invitation
+  const handleResendInvite = async (invitationId: string) => {
+    const success = await resendInvitation(invitationId);
+    if (success) {
+      Alert.alert('Success', 'Invitation resent successfully');
+    } else {
+      Alert.alert('Error', 'Failed to resend invitation');
+    }
+  };
+
+  // Cancel an invitation
+  const handleCancelInvite = async (invitationId: string) => {
+    Alert.alert(
+      'Cancel Invitation',
+      'Are you sure you want to cancel this invitation?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            const success = await cancelInvitation(invitationId);
+            if (success) {
+              fetchPendingInvitations();
+              Alert.alert('Success', 'Invitation cancelled');
+            } else {
+              Alert.alert('Error', 'Failed to cancel invitation');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // Fix the fetchSupervisedStudents function with a simpler approach
   const fetchSupervisedStudents = useCallback(async () => {
     try {
@@ -785,11 +873,9 @@ export function ProfileScreen() {
 
   // Switch active student
   const switchActiveStudent = (studentId: string | null) => {
-    setActiveStudentId(studentId);
-    setShowStudentSelector(false);
-
     if (studentId) {
       const student = supervisedStudents.find((s) => s.id === studentId);
+      setActiveStudent(studentId, student?.full_name);
       logInfo('Switched to student view', {
         studentId,
         studentName: student?.full_name,
@@ -799,9 +885,11 @@ export function ProfileScreen() {
         `You are now viewing ${student?.full_name}'s progress and data.`,
       );
     } else {
+      clearActiveStudent();
       logInfo('Switched back to own view');
       Alert.alert('Own View Active', 'You are now viewing your own progress and data.');
     }
+    setShowStudentSelector(false);
   };
 
   // Fetch available schools from database
@@ -1308,7 +1396,35 @@ export function ProfileScreen() {
               <Card bordered padding="$4" marginVertical="$2">
                 <YStack gap="$2">
                   <XStack justifyContent="space-between" alignItems="center">
-                    ya
+                    <Text size="lg" weight="bold" color="$color">
+                      Supervised Students
+                    </Text>
+                    <XStack gap="$2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$green9"
+                        onPress={() => {
+                          fetchSupervisedStudents();
+                          setShowStudentSelector(true);
+                        }}
+                      >
+                        <Text color="white">
+                          {activeStudentId ? 'Switch Student' : 'Select Student'}
+                        </Text>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$blue9"
+                        onPress={() => {
+                          setInviteType('student');
+                          setShowInviteModal(true);
+                        }}
+                      >
+                        <Text color="white">Invite Students</Text>
+                      </Button>
+                    </XStack>
                   </XStack>
 
                   {activeStudentId ? (
@@ -2620,32 +2736,158 @@ ${
             </Text>
             <Text color="$gray11" size="sm">
               {inviteType === 'supervisor'
-                ? 'Find someone to supervise your learning progress'
-                : 'Find students you want to supervise and help with their learning'}
+                ? 'Search existing users or enter email addresses to invite new supervisors'
+                : 'Search existing users or enter email addresses to invite new students'}
             </Text>
-
-            <XStack gap="$2">
-              <Input
-                flex={1}
-                value={searchQuery}
-                onChangeText={(text) => {
-                  setSearchQuery(text);
-                  searchUsers(text);
-                }}
-                placeholder="Search by name or email..."
-              />
+            
+            {/* Toggle between search and email invite */}
+            <XStack gap="$2" justifyContent="center">
               <Button
-                onPress={() => searchUsers(searchQuery)}
-                disabled={searchLoading}
-                variant="secondary"
+                size="sm"
+                variant={inviteEmails.length === 0 ? 'primary' : 'secondary'}
+                onPress={() => setInviteEmails([])}
               >
-                <Feather name="search" size={16} />
+                <Text color={inviteEmails.length === 0 ? 'white' : '$color'}>Search Existing</Text>
+              </Button>
+              <Button
+                size="sm"
+                variant={inviteEmails.length > 0 ? 'primary' : 'secondary'}
+                onPress={() => {
+                  setInviteEmails(['']);
+                  setSearchResults([]);
+                }}
+              >
+                <Text color={inviteEmails.length > 0 ? 'white' : '$color'}>Invite New</Text>
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => {
+                  fetchPendingInvitations();
+                  setShowPendingInvites(!showPendingInvites);
+                }}
+              >
+                <Text color="$color">Pending ({pendingInvitations.length})</Text>
               </Button>
             </XStack>
 
+            {/* Email invite mode */}
+            {inviteEmails.length > 0 ? (
+              <YStack gap="$2">
+                <Text size="sm" color="$gray11">Enter email addresses to invite (one per line)</Text>
+                {inviteEmails.map((email, index) => (
+                  <XStack key={index} gap="$2">
+                    <Input
+                      flex={1}
+                      value={email}
+                      onChangeText={(text) => {
+                        const newEmails = [...inviteEmails];
+                        newEmails[index] = text;
+                        setInviteEmails(newEmails);
+                      }}
+                      placeholder="email@example.com"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => {
+                        const newEmails = inviteEmails.filter((_, i) => i !== index);
+                        setInviteEmails(newEmails.length > 0 ? newEmails : ['']);
+                      }}
+                    >
+                      <Feather name="x" size={16} />
+                    </Button>
+                  </XStack>
+                ))}
+                <XStack gap="$2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onPress={() => setInviteEmails([...inviteEmails, ''])}
+                  >
+                    <Text>Add Another Email</Text>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    backgroundColor="$green9"
+                    onPress={() => handleBulkInvite()}
+                    disabled={!inviteEmails.some(e => e.includes('@'))}
+                  >
+                    <Text color="white">Send {inviteEmails.filter(e => e.includes('@')).length} Invitation(s)</Text>
+                  </Button>
+                </XStack>
+              </YStack>
+            ) : (
+              /* Search existing users mode */
+              <XStack gap="$2">
+                <Input
+                  flex={1}
+                  value={searchQuery}
+                  onChangeText={(text) => {
+                    setSearchQuery(text);
+                    searchUsers(text);
+                  }}
+                  placeholder="Search by name or email..."
+                />
+                <Button
+                  onPress={() => searchUsers(searchQuery)}
+                  disabled={searchLoading}
+                  variant="secondary"
+                >
+                  <Feather name="search" size={16} />
+                </Button>
+              </XStack>
+            )}
+
+            {/* Show pending invitations */}
+            {showPendingInvites && pendingInvitations.length > 0 && (
+              <YStack gap="$2" marginBottom="$2">
+                <Text size="sm" weight="bold" color="$color">Pending Invitations</Text>
+                {pendingInvitations.map((inv) => (
+                  <Card key={inv.id} padding="$2">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <YStack flex={1}>
+                        <Text fontSize="$3">{inv.email}</Text>
+                        <Text fontSize="$2" color="$gray11">
+                          {inv.role} • Sent {new Date(inv.created_at).toLocaleDateString()}
+                        </Text>
+                      </YStack>
+                      <XStack gap="$1">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onPress={() => handleResendInvite(inv.id)}
+                        >
+                          <Feather name="send" size={14} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          backgroundColor="$red9"
+                          onPress={() => handleCancelInvite(inv.id)}
+                        >
+                          <Feather name="x" size={14} />
+                        </Button>
+                      </XStack>
+                    </XStack>
+                  </Card>
+                ))}
+              </YStack>
+            )}
+
             <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={true}>
               <YStack gap="$2">
-                {searchLoading ? (
+                {inviteEmails.length > 0 ? (
+                  /* Email invite preview */
+                  <Card padding="$4">
+                    <Text textAlign="center" color="$gray11" size="sm">
+                      Ready to invite {inviteEmails.filter(e => e.includes('@')).length} new {inviteType}(s)
+                    </Text>
+                  </Card>
+                ) : searchLoading ? (
                   <Card padding="$4">
                     <Text textAlign="center" color="$gray11">
                       Searching...

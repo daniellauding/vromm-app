@@ -76,7 +76,11 @@ function ProgressCircle({
   );
 }
 
-export function ProgressSection() {
+interface ProgressSectionProps {
+  activeUserId?: string | null;
+}
+
+export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const { language: lang, t } = useTranslation();
   const { profile } = useAuth();
   const [paths, setPaths] = useState<LearningPath[]>([]);
@@ -86,15 +90,18 @@ export function ProgressSection() {
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [user, setUser] = useState<{ id: string } | null>(null);
+  
+  // Use activeUserId if provided, otherwise use authenticated user
+  const effectiveUserId = activeUserId || user?.id;
 
   // Add useFocusEffect to refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log('ProgressSection: Screen focused, refreshing data');
-      if (user) {
+      if (effectiveUserId) {
         fetchCompletions();
       }
-    }, [user]),
+    }, [effectiveUserId]),
   );
 
   useEffect(() => {
@@ -114,9 +121,9 @@ export function ProgressSection() {
 
   // Set up real-time subscription for exercise completions
   useEffect(() => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
-    console.log('ProgressSection: Setting up real-time subscription', user.id);
+    console.log('ProgressSection: Setting up real-time subscription', effectiveUserId);
 
     // Fetch completions - extract as standalone function for reuse
     const fetchCompletions = async () => {
@@ -124,7 +131,7 @@ export function ProgressSection() {
         const { data, error } = await supabase
           .from('learning_path_exercise_completions')
           .select('exercise_id')
-          .eq('user_id', user.id);
+          .eq('user_id', effectiveUserId);
 
         if (!error && data) {
           // Use a function updater to ensure we're working with the latest state
@@ -157,7 +164,7 @@ export function ProgressSection() {
           event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'learning_path_exercise_completions',
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${effectiveUserId}`,
         },
         (payload) => {
           // Log payload for debugging
@@ -181,7 +188,7 @@ export function ProgressSection() {
       clearTimeout(debounceTimer);
       supabase.removeChannel(subscription);
     };
-  }, [user]);
+  }, [effectiveUserId]);
 
   useEffect(() => {
     // Fetch all exercises for each path
@@ -242,13 +249,13 @@ export function ProgressSection() {
 
   // Make fetchCompletions available at component level
   const fetchCompletions = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     try {
       const { data, error } = await supabase
         .from('learning_path_exercise_completions')
         .select('exercise_id')
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
 
       if (!error && data) {
         console.log(`ProgressSection: Fetched ${data.length} completions`);

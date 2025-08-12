@@ -5,6 +5,7 @@ import { TamaguiProvider, Theme } from 'tamagui';
 import config from './tamagui.config';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LocationProvider } from './src/context/LocationContext';
+import { StudentSwitchProvider } from './src/context/StudentSwitchContext';
 import { TranslationProvider } from './src/contexts/TranslationContext';
 import { RootStackParamList } from './src/types/navigation';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -722,15 +723,17 @@ export default function App() {
             <Theme>
               <TranslationProvider>
                 <AuthProvider>
-                  <LocationProvider>
-                    <CreateRouteProvider>
-                      <ModalProvider>
-                        <MessagingProvider>
-                          <AppContent />
-                        </MessagingProvider>
-                      </ModalProvider>
-                    </CreateRouteProvider>
-                  </LocationProvider>
+                  <StudentSwitchProvider>
+                    <LocationProvider>
+                      <CreateRouteProvider>
+                        <ModalProvider>
+                          <MessagingProvider>
+                            <AppContent />
+                          </MessagingProvider>
+                        </ModalProvider>
+                      </CreateRouteProvider>
+                    </LocationProvider>
+                  </StudentSwitchProvider>
                 </AuthProvider>
               </TranslationProvider>
             </Theme>

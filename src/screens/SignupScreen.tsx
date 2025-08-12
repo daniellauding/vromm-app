@@ -12,6 +12,7 @@ import { Text } from '../components/Text';
 import { TouchableOpacity, useColorScheme, Alert, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { acceptInvitation } from '../services/invitationService';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 
