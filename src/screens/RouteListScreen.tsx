@@ -7,24 +7,11 @@ import { Button } from '../components/Button';
 import type { Route } from '../hooks/useRoutes';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../types/navigation';
 
-type FilterCategory = {
-  id: string;
-  label: string;
-  value: string;
-  type: 'difficulty' | 'spot_type' | 'category';
-};
-
-type RouteListScreenProps = {
-  route: {
-    params: {
-      title: string;
-      routes: Route[];
-      type: 'saved' | 'driven' | 'difficulty' | 'spot_type' | 'category' | 'city';
-      activeFilter?: FilterCategory;
-    };
-  };
-};
+// Align with RootStackParamList types
+export type RouteListScreenProps = NativeStackScreenProps<RootStackParamList, 'RouteList'>;
 
 export function RouteListScreen({ route }: RouteListScreenProps) {
   const { title, routes: paramRoutes = [], type, activeFilter } = route.params;
@@ -35,12 +22,12 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
     if (!user && paramRoutes.length > 0) return;
     if (type === 'driven' && user) {
       const loadDrivenRoutes = async () => {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('driven_routes')
           .select('*')
           .eq('user_id', user.id);
 
-        setRoutes(data as Route[]);
+        setRoutes((data as unknown as Route[]) || []);
       };
       loadDrivenRoutes();
     }

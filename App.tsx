@@ -30,19 +30,33 @@ import * as Updates from 'expo-updates';
 import { CommonActions } from '@react-navigation/native';
 import type { NavigationContainerRef } from '@react-navigation/native';
 
+// Define a compatible type for WebBrowser dismiss helpers to avoid any-casts
+type WebBrowserCompat = typeof WebBrowser & {
+  dismissAuthSession?: () => Promise<void>;
+  dismissBrowser?: () => Promise<void>;
+};
+
 // Disable reanimated warnings about reading values during render
 
 // Ensure AuthSession can complete pending sessions on app launch
 WebBrowser.maybeCompleteAuthSession();
 
 // Use lazy import to prevent NativeEventEmitter errors
-let analyticsModule: any;
+interface AnalyticsModuleFactory {
+  (): {
+    setAnalyticsCollectionEnabled: (enabled: boolean) => Promise<void>;
+    logScreenView: (params: { screen_name: string; screen_class: string }) => Promise<void>;
+    app: unknown;
+  };
+}
+let analyticsModule: AnalyticsModuleFactory;
 try {
   if (NativeModules.RNFBAnalyticsModule) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     analyticsModule = require('@react-native-firebase/analytics').default;
   } else {
     analyticsModule = () => ({
-      setAnalyticsCollectionEnabled: async () => true,
+      setAnalyticsCollectionEnabled: async () => {},
       logScreenView: async () => {},
       app: null,
     });
@@ -50,7 +64,7 @@ try {
   }
 } catch (error) {
   analyticsModule = () => ({
-    setAnalyticsCollectionEnabled: async () => true,
+    setAnalyticsCollectionEnabled: async () => {},
     logScreenView: async () => {},
     app: null,
   });
@@ -80,6 +94,7 @@ import { RoleSelectionScreen } from './src/screens/RoleSelectionScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import { PublicProfileScreen } from './src/screens/PublicProfileScreen';
 import { UsersScreen } from './src/screens/UsersScreen';
+import { AuthGate } from './src/screens/AuthGate';
 
 // Messaging screens
 import { MessagesScreen } from './src/screens/MessagesScreen';
@@ -219,19 +234,24 @@ function AppContent() {
         if (didSetSession) {
           // Close the in-app browser modal if still open
           try {
-            if ((WebBrowser as any).dismissAuthSession) {
-              await (WebBrowser as any).dismissAuthSession();
-            } else if ((WebBrowser as any).dismissBrowser) {
-              await (WebBrowser as any).dismissBrowser();
+            const WB = WebBrowser as WebBrowserCompat;
+            if (WB.dismissAuthSession) {
+              await WB.dismissAuthSession();
+            } else if (WB.dismissBrowser) {
+              await WB.dismissBrowser();
             }
-          } catch {}
+          } catch (e) {
+            console.warn('Dismiss browser failed after OAuth', e);
+          }
 
           // Ensure the session is visible to the app before navigating
           try {
             await supabase.auth.getSession();
-          } catch {}
-          // Do not force navigation here — let React re-render to the authenticated stack
-          logInfo('[OAUTH] Session set; waiting for navigator to remount with authenticated stack');
+          } catch (e) {
+            console.warn('getSession after OAuth failed', e);
+          }
+
+          // Do not navigate here; let React remount the navigator based on user state
         }
       } catch (e) {
         logError('Deep link handling error', e);
@@ -257,21 +277,30 @@ function AppContent() {
 
   // Simple fallback: just dismiss browser and let React's conditional rendering handle navigation
   useEffect(() => {
-    console.log('[NAV_FALLBACK] useEffect triggered', { initialized, hasUser: !!user, userId: user?.id });
+    console.log('[NAV_FALLBACK] useEffect triggered', {
+      initialized,
+      hasUser: !!user,
+      userId: user?.id,
+    });
     if (initialized && user) {
-      console.log('[NAV_FALLBACK] User authenticated, dismissing OAuth browser and letting React handle stack switch');
-      
+      console.log(
+        '[NAV_FALLBACK] User authenticated, dismissing OAuth browser and letting React handle stack switch',
+      );
+
       // Just dismiss the OAuth browser
       (async () => {
         try {
-          if ((WebBrowser as any).dismissAuthSession) {
-            await (WebBrowser as any).dismissAuthSession();
-          } else if ((WebBrowser as any).dismissBrowser) {
-            await (WebBrowser as any).dismissBrowser();
+          const WB = WebBrowser as WebBrowserCompat;
+          if (WB.dismissAuthSession) {
+            await WB.dismissAuthSession();
+          } else if (WB.dismissBrowser) {
+            await WB.dismissBrowser();
           }
-        } catch {}
+        } catch {
+          // ignore dismissal errors
+        }
       })();
-      
+
       // Simple dev fallback if React doesn't switch stacks
       if (__DEV__) {
         setTimeout(() => {
@@ -288,10 +317,28 @@ function AppContent() {
 
   // Simple Supabase auth state logger 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('[SUPABASE_AUTH]', _event, 'hasSession:', !!session, 'hasUser:', !!session?.user);
       if (_event === 'SIGNED_IN') {
         console.log('[SUPABASE_AUTH] Login successful, waiting for React to switch navigation stack...');
+
+        // Dismiss any auth browser just in case
+        (async () => {
+          try {
+            const WB = WebBrowser as WebBrowserCompat;
+            if (WB.dismissAuthSession) {
+              await WB.dismissAuthSession();
+            } else if (WB.dismissBrowser) {
+              await WB.dismissBrowser();
+            }
+          } catch (e) {
+            console.warn('Dismiss browser after SIGNED_IN failed', e);
+          }
+
+          // Do not navigate to AuthGate here; let React handle stack switching
+        })();
       }
     });
     return () => subscription.unsubscribe();
@@ -379,7 +426,7 @@ function AppContent() {
                   screen_name,
                   screen_class,
                 })
-                .catch((err) => logWarn('Analytics error', err));
+                .catch((err: unknown) => logWarn('Analytics error', err as Error));
             }
           } catch (error) {
             logWarn('Analytics not available for screen view', error);
@@ -389,6 +436,7 @@ function AppContent() {
     >
       <ToastProvider>
         <Stack.Navigator
+          initialRouteName={user ? 'MainTabs' : 'SplashScreen'}
           screenOptions={{
             headerShown: false,
           }}
@@ -396,6 +444,7 @@ function AppContent() {
           {!user ? (
             // Auth stack
             <>
+              <Stack.Screen name="AuthGate" component={AuthGate} />
               <Stack.Screen
                 name="SplashScreen"
                 component={SplashScreen}
@@ -428,6 +477,7 @@ function AppContent() {
           ) : (
             // Main app stack - NOTE: MainTabs must come first, Onboarding second to prevent crashes
             <>
+              <Stack.Screen name="AuthGate" component={AuthGate} />
               <Stack.Screen
                 name="MainTabs"
                 component={TabNavigator}

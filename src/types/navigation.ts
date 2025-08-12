@@ -28,6 +28,7 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
+  AuthGate: undefined;
   RouteDetail: { routeId: string; shouldRefresh?: boolean; shouldRefreshReviews?: boolean };
   CreateRoute: {
     routeId?: string;
@@ -58,6 +59,7 @@ export type RootStackParamList = {
   AddReview: { routeId: string };
   OnboardingDemo: undefined;
   TranslationDemo: undefined;
+  ContentDemo: undefined;
   LicensePlanScreen: undefined;
   RoleSelectionScreen: undefined;
   PublicProfile: { userId: string };
