@@ -35,6 +35,8 @@ import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
 import { inviteNewUser, inviteMultipleUsers, getPendingInvitations, cancelInvitation, resendInvitation } from '../services/invitationService';
+import { RelationshipManagementModal } from '../components/RelationshipManagementModal';
+import { InvitationNotification } from '../components/InvitationNotification';
 import { useScreenLogger } from '../hooks/useScreenLogger';
 import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
 import {
@@ -225,7 +227,11 @@ export function ProfileScreen() {
   // Use StudentSwitchContext for managing active student
   const { activeStudentId, setActiveStudent, clearActiveStudent } = useStudentSwitch();
 
-  // Invitation system states
+  // Unified relationship management modal
+  const [showRelationshipModal, setShowRelationshipModal] = useState(false);
+  const [showInvitationNotification, setShowInvitationNotification] = useState(false);
+
+  // Invitation system states (keep for backward compatibility)
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<
@@ -1064,6 +1070,70 @@ export function ProfileScreen() {
     }
   };
 
+  // Check for pending invitations
+  const checkForPendingInvitations = useCallback(async () => {
+    if (!user?.email) return;
+
+    try {
+      const { data: invitations, error } = await supabase
+        .from('pending_invitations')
+        .select('id')
+        .eq('email', user.email)
+        .eq('status', 'pending')
+        .limit(1);
+
+      if (!error && invitations && invitations.length > 0) {
+        // Show invitation notification modal
+        setShowInvitationNotification(true);
+      }
+    } catch (error) {
+      console.error('Error checking for pending invitations:', error);
+    }
+  }, [user?.email]);
+
+  // Helper to get current user's role
+  const getUserRole = (): 'student' | 'supervisor' | 'teacher' | 'school' | 'admin' => {
+    return (profile?.role as any) || 'student';
+  };
+
+  // Handle unified relationship modal actions
+  const handleOpenRelationshipModal = () => {
+    // Prepare data based on user role
+    if (canSuperviseStudents()) {
+      fetchSupervisedStudents();
+    } else {
+      fetchAvailableSupervisors();
+    }
+    setShowRelationshipModal(true);
+  };
+
+  const handleStudentSelection = (studentId: string | null, studentName?: string) => {
+    if (studentId) {
+      setActiveStudent(studentId, studentName);
+      logInfo(`Switched to view student: ${studentName || studentId}`);
+      Alert.alert('Student View Active', `You are now viewing ${studentName || "this student"}'s progress and data.`);
+    } else {
+      clearActiveStudent();
+      logInfo('Switched back to own view');
+      Alert.alert('Own View Active', 'You are now viewing your own progress and data.');
+    }
+  };
+
+  const handleInviteUsers = async (emails: string[], role: string) => {
+    if (!profile?.id || !profile.full_name) return;
+
+    try {
+      await inviteMultipleUsers(emails, role as any, profile.id, profile.full_name);
+      
+      Alert.alert(
+        'Invitations Sent',
+        `${emails.length} invitation${emails.length > 1 ? 's' : ''} sent successfully!`,
+      );
+    } catch (error) {
+      throw error; // Let the modal handle the error
+    }
+  };
+
   // Load relationships when profile is available
   useEffect(() => {
     if (profile?.id) {
@@ -1077,6 +1147,9 @@ export function ProfileScreen() {
       if (canSuperviseStudents()) {
         fetchSupervisedStudents();
       }
+      
+      // Check for pending invitations
+      checkForPendingInvitations();
     }
   }, [
     profile?.id,
@@ -1085,6 +1158,7 @@ export function ProfileScreen() {
     fetchAvailableSchools,
     fetchSupervisedStudents,
     fetchDrivingStats,
+    checkForPendingInvitations,
   ]);
 
   // Load sound settings on component mount
@@ -1404,10 +1478,7 @@ export function ProfileScreen() {
                         size="sm"
                         variant="secondary"
                         backgroundColor="$green9"
-                        onPress={() => {
-                          fetchSupervisedStudents();
-                          setShowStudentSelector(true);
-                        }}
+                        onPress={handleOpenRelationshipModal}
                       >
                         <Text color="white">
                           {activeStudentId ? 'Switch Student' : 'Select Student'}
@@ -1417,10 +1488,7 @@ export function ProfileScreen() {
                         size="sm"
                         variant="secondary"
                         backgroundColor="$blue9"
-                        onPress={() => {
-                          setInviteType('student');
-                          setShowInviteModal(true);
-                        }}
+                        onPress={handleOpenRelationshipModal}
                       >
                         <Text color="white">Invite Students</Text>
                       </Button>
@@ -1482,10 +1550,7 @@ export function ProfileScreen() {
                       size="sm"
                       variant="secondary"
                       backgroundColor="$blue9"
-                      onPress={() => {
-                        fetchAvailableSupervisors();
-                        setShowSupervisorModal(true);
-                      }}
+                      onPress={handleOpenRelationshipModal}
                       disabled={relationshipsLoading}
                     >
                       <Text color="white">
@@ -1496,11 +1561,7 @@ export function ProfileScreen() {
                       size="sm"
                       variant="secondary"
                       backgroundColor="$green9"
-                      onPress={() => {
-                        // Role-aware invitation: Students invite supervisors, Supervisors invite students
-                        setInviteType(canSuperviseStudents() ? 'student' : 'supervisor');
-                        setShowInviteModal(true);
-                      }}
+                      onPress={handleOpenRelationshipModal}
                     >
                       <Text color="white">
                         {canSuperviseStudents() ? 'Invite Students' : 'Invite Supervisors'}
@@ -3037,6 +3098,39 @@ ${
           </YStack>
         </Pressable>
       </Modal>
+
+      {/* Unified Relationship Management Modal */}
+      <RelationshipManagementModal
+        visible={showRelationshipModal}
+        onClose={() => setShowRelationshipModal(false)}
+        userRole={getUserRole()}
+        supervisedStudents={supervisedStudents}
+        onStudentSelect={handleStudentSelection}
+        availableSupervisors={availableSupervisors}
+        selectedSupervisorIds={selectedSupervisorIds}
+        onSupervisorSelect={setSelectedSupervisorIds}
+        onAddSupervisors={addSupervisors}
+        onInviteUsers={handleInviteUsers}
+        onRefresh={async () => {
+          if (canSuperviseStudents()) {
+            await fetchSupervisedStudents();
+          } else {
+            await fetchAvailableSupervisors();
+          }
+        }}
+      />
+
+      {/* Invitation Notification Modal */}
+      <InvitationNotification
+        visible={showInvitationNotification}
+        onClose={() => setShowInvitationNotification(false)}
+        onInvitationHandled={() => {
+          // Refresh relationships after accepting/declining invitations
+          if (profile?.id) {
+            getUserProfileWithRelationships(profile.id);
+          }
+        }}
+      />
     </Screen>
   );
 }

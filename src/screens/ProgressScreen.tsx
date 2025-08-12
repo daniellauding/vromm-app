@@ -273,6 +273,12 @@ export function ProgressScreen() {
   const [exercises, setExercises] = useState<PathExercise[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<PathExercise | null>(null);
   const { user } = useAuth();
+  
+  // Debug logging for ProgressScreen
+  console.log('📚 [ProgressScreen] Current user:', user?.id, user?.email);
+  console.log('📚 [ProgressScreen] Profile:', profile);
+  console.log('📚 [ProgressScreen] Route params:', route.params);
+  
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [completionsLoading, setCompletionsLoading] = useState(false);

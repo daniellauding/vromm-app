@@ -94,6 +94,12 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   // Use activeUserId if provided, otherwise use authenticated user
   const effectiveUserId = activeUserId || user?.id;
 
+  // Debug logging for ProgressSection
+  console.log('📊 [ProgressSection] Props activeUserId:', activeUserId);
+  console.log('📊 [ProgressSection] Auth user ID:', user?.id);
+  console.log('📊 [ProgressSection] Effective user ID:', effectiveUserId);
+  console.log('📊 [ProgressSection] Profile:', profile);
+
   // Add useFocusEffect to refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -135,10 +141,11 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
 
         if (!error && data) {
           // Use a function updater to ensure we're working with the latest state
-          console.log(`ProgressSection: Fetched ${data.length} completions`);
+          console.log(`📊 [ProgressSection] Fetched ${data.length} completions for user:`, effectiveUserId);
+          console.log(`📊 [ProgressSection] Completion data:`, data);
           setCompletedIds(data.map((c: { exercise_id: string }) => c.exercise_id));
         } else {
-          console.log('ProgressSection: No completions or error', error);
+          console.log('📊 [ProgressSection] No completions or error for user:', effectiveUserId, error);
           setCompletedIds([]);
         }
       } catch (err) {
@@ -258,10 +265,11 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         .eq('user_id', effectiveUserId);
 
       if (!error && data) {
-        console.log(`ProgressSection: Fetched ${data.length} completions`);
+        console.log(`📊 [ProgressSection] Fetched ${data.length} completions for user:`, effectiveUserId);
+        console.log(`📊 [ProgressSection] Completion data:`, data);
         setCompletedIds(data.map((c: { exercise_id: string }) => c.exercise_id));
       } else {
-        console.log('ProgressSection: No completions or error', error);
+        console.log('📊 [ProgressSection] No completions or error for user:', effectiveUserId, error);
         setCompletedIds([]);
       }
     } catch (err) {

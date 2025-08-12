@@ -53,6 +53,13 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   // Use the effective user ID (either activeUserId prop, activeStudentId from context, or current user id)
   const effectiveUserId = activeUserId || getEffectiveUserId();
 
+  // Debug logging for HomeScreen
+  console.log('📱 [HomeScreen] Current user:', user?.id, user?.email);
+  console.log('📱 [HomeScreen] Active user ID prop:', activeUserId);
+  console.log('📱 [HomeScreen] Effective user ID:', effectiveUserId);
+  console.log('📱 [HomeScreen] Is viewing as student:', isViewingAsStudent);
+  console.log('📱 [HomeScreen] Active student name:', activeStudentName);
+
   // State declarations
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isFirstLogin, setIsFirstLogin] = useState(false);

@@ -9,7 +9,11 @@
       "Bash(supabase start:*)",
       "Bash(supabase stop:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(mv:*)",
+      "Bash(yarn start)",
+      "Bash(pkill:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
