@@ -188,7 +188,7 @@ const CustomBarChart = ({
 };
 
 export function ProfileScreen() {
-  const { profile, updateProfile, signOut } = useAuth();
+  const { user, profile, updateProfile, signOut } = useAuth();
   const { language, setLanguage, t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -220,6 +220,9 @@ export function ProfileScreen() {
 
   // Student selector for teachers/instructors
   const [supervisedStudents, setSupervisedStudents] = useState<
+    Array<{ id: string; full_name: string; email: string }>
+  >([]);
+  const [availableStudents, setAvailableStudents] = useState<
     Array<{ id: string; full_name: string; email: string }>
   >([]);
   const [showStudentSelector, setShowStudentSelector] = useState(false);
@@ -635,18 +638,67 @@ export function ProfileScreen() {
     }
   };
 
-  // Fetch available supervisors from database
+  // Fetch available supervisors from database (only users who can supervise)
   const fetchAvailableSupervisors = useCallback(async () => {
     try {
+      console.log('🔍 Fetching available supervisors...');
+      console.log('🔍 Current user profile:', profile);
+      
+      // Only fetch users with roles that can supervise
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, full_name, email, role')
+        .in('role', ['instructor', 'admin', 'school'])
+        .neq('id', profile?.id) // Exclude current user
         .order('full_name');
 
-      if (error) throw error;
+      console.log('🔍 Available supervisors query result:', { data, error });
+
+      if (error) {
+        console.error('🔍 Error fetching supervisors:', error);
+        throw error;
+      }
+      
+      console.log(`🔍 Found ${data?.length || 0} potential supervisors`);
+      if (data && data.length > 0) {
+        data.forEach(supervisor => {
+          console.log('🔍 Supervisor found:', { 
+            id: supervisor.id, 
+            name: supervisor.full_name, 
+            email: supervisor.email, 
+            role: supervisor.role 
+          });
+        });
+      }
       setAvailableSupervisors(data || []);
     } catch (error) {
       logError('Error fetching supervisors', error as Error);
+      Alert.alert('Error', 'Failed to load available supervisors');
+    }
+  }, [profile?.id, logError]);
+
+  // Fetch ALL available students for instructors to select
+  const fetchAvailableStudents = useCallback(async () => {
+    try {
+      console.log('🔍 Fetching available students...');
+      
+      // Fetch all students
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('role', 'student')
+        .order('full_name');
+
+      if (error) {
+        console.error('🔍 Error fetching students:', error);
+        throw error;
+      }
+      
+      console.log(`🔍 Found ${data?.length || 0} students`);
+      setAvailableStudents(data || []);
+    } catch (error) {
+      logError('Error fetching students', error as Error);
+      Alert.alert('Error', 'Failed to load available students');
     }
   }, [logError]);
 
@@ -724,25 +776,49 @@ export function ProfileScreen() {
         return;
       }
 
-      const role = inviteType === 'student' ? 'student' : 'instructor';
-      const result = await inviteMultipleUsers(
-        validEmails,
-        role,
-        profile?.id,
-        profile?.full_name || profile?.email
+      // Determine role and relationship type based on who's inviting
+      let role: UserRole;
+      let relationshipType: 'student_invites_supervisor' | 'supervisor_invites_student' | undefined;
+      
+      if (profile?.role === 'student') {
+        // Student can invite supervisors
+        role = inviteType === 'supervisor' ? 'instructor' : 'student';
+        relationshipType = inviteType === 'supervisor' ? 'student_invites_supervisor' : undefined;
+      } else if (canSuperviseStudents()) {
+        // Supervisors invite students
+        role = 'student';
+        relationshipType = 'supervisor_invites_student';
+      } else {
+        role = inviteType === 'student' ? 'student' : 'instructor';
+      }
+
+      // Send invitations with enhanced metadata
+      const promises = validEmails.map(email => 
+        inviteNewUser({
+          email,
+          role,
+          supervisorId: profile?.id,
+          supervisorName: profile?.full_name || profile?.email,
+          inviterRole: profile?.role as UserRole,
+          relationshipType,
+        })
       );
 
-      if (result.successful.length > 0) {
+      const results = await Promise.all(promises);
+      const successful = validEmails.filter((_, index) => results[index].success);
+      const failed = validEmails.filter((_, index) => !results[index].success);
+
+      if (successful.length > 0) {
         Alert.alert(
           'Invitations Sent! 🎉',
-          `Successfully invited ${result.successful.length} ${inviteType}(s). They will receive an email to create their account.`,
+          `Successfully invited ${successful.length} ${inviteType}(s). They will receive an email to create their account.`,
         );
       }
 
-      if (result.failed.length > 0) {
+      if (failed.length > 0) {
         Alert.alert(
           'Some Invitations Failed',
-          `Failed to invite: ${result.failed.map(f => f.email).join(', ')}`,
+          `Failed to invite: ${failed.join(', ')}`,
         );
       }
 
@@ -845,9 +921,9 @@ export function ProfileScreen() {
     }
   }, [profile?.id, logInfo, logError]);
 
-  // Check if current user can supervise students (is teacher/instructor/admin/supervisor)
+  // Check if current user can supervise students (instructor/school/admin roles have supervision capabilities)
   const canSuperviseStudents = () => {
-    const supervisorRoles = ['instructor', 'school', 'admin', 'teacher', 'supervisor'];
+    const supervisorRoles = ['instructor', 'school', 'admin'];
     return profile?.role && supervisorRoles.includes(profile.role);
   };
 
@@ -941,6 +1017,58 @@ export function ProfileScreen() {
       logError('Error fetching schools', error as Error);
     }
   }, [logError]);
+
+  // Add supervisors function for RelationshipManagementModal
+  const addSupervisors = async (supervisorIds: string[]) => {
+    try {
+      if (!profile?.id || supervisorIds.length === 0) return;
+
+      // Check for existing relationships and filter out duplicates
+      const { data: existingRelationships } = await supabase
+        .from('student_supervisor_relationships')
+        .select('supervisor_id')
+        .eq('student_id', profile.id)
+        .in('supervisor_id', supervisorIds);
+
+      const existingSupervisorIds = existingRelationships?.map((r) => r.supervisor_id) || [];
+      const newSupervisorIds = supervisorIds.filter(
+        (id) => !existingSupervisorIds.includes(id),
+      );
+
+      if (newSupervisorIds.length === 0) {
+        Alert.alert('Info', 'All selected supervisors are already assigned to you');
+        setSelectedSupervisorIds([]);
+        return;
+      }
+
+      // Insert only new supervisor relationships
+      const insertData = newSupervisorIds.map((supervisorId) => ({
+        student_id: profile.id,
+        supervisor_id: supervisorId,
+      }));
+
+      const { error } = await supabase.from('student_supervisor_relationships').insert(insertData);
+
+      if (error) throw error;
+
+      const addedCount = newSupervisorIds.length;
+      const skippedCount = supervisorIds.length - addedCount;
+
+      let message = `${addedCount} supervisor${addedCount !== 1 ? 's' : ''} added successfully`;
+      if (skippedCount > 0) {
+        message += `. ${skippedCount} already assigned.`;
+      }
+
+      Alert.alert('Success', message);
+
+      // Refresh relationships
+      await getUserProfileWithRelationships(profile.id);
+      setSelectedSupervisorIds([]);
+    } catch (error) {
+      console.error('Error adding supervisors:', error);
+      Alert.alert('Error', 'Failed to add supervisors');
+    }
+  };
 
   // Join supervisors - Using proper student_supervisor_relationships table
   const joinSupervisors = async () => {
@@ -1088,22 +1216,40 @@ export function ProfileScreen() {
       }
     } catch (error) {
       console.error('Error checking for pending invitations:', error);
+      
+      // For testing: If table doesn't exist and user is daniel@lauding.se, show notification anyway
+      if (error.message?.includes('relation "pending_invitations" does not exist') && 
+          user.email === 'daniel@lauding.se') {
+        console.log('🧪 Testing: Showing invitation notification for daniel@lauding.se');
+        setShowInvitationNotification(true);
+      }
     }
   }, [user?.email]);
 
   // Helper to get current user's role
-  const getUserRole = (): 'student' | 'supervisor' | 'teacher' | 'school' | 'admin' => {
+  // Supports legacy 'teacher' and 'supervisor' roles as well
+  const getUserRole = (): 'student' | 'instructor' | 'school' | 'admin' | 'teacher' | 'supervisor' => {
     return (profile?.role as any) || 'student';
   };
 
   // Handle unified relationship modal actions
   const handleOpenRelationshipModal = () => {
+    console.log('🎯 Opening relationship modal');
+    console.log('🎯 User role:', getUserRole());
+    console.log('🎯 Can supervise students?', canSuperviseStudents());
+    
     // Prepare data based on user role
     if (canSuperviseStudents()) {
+      console.log('🎯 User can supervise - fetching supervised students');
       fetchSupervisedStudents();
     } else {
+      console.log('🎯 User is student - fetching available supervisors');
       fetchAvailableSupervisors();
     }
+    
+    console.log('🎯 Current available supervisors:', availableSupervisors);
+    console.log('🎯 Current supervised students:', supervisedStudents);
+    
     setShowRelationshipModal(true);
   };
 
@@ -1119,17 +1265,62 @@ export function ProfileScreen() {
     }
   };
 
-  const handleInviteUsers = async (emails: string[], role: string) => {
+  const handleInviteUsers = async (emails: string[], inviteRole: string) => {
     if (!profile?.id || !profile.full_name) return;
 
     try {
-      await inviteMultipleUsers(emails, role as any, profile.id, profile.full_name);
+      // Determine role and relationship type based on who's inviting
+      let targetRole: UserRole = inviteRole as UserRole;
+      let relationshipType: 'student_invites_supervisor' | 'supervisor_invites_student' | undefined;
       
-      Alert.alert(
-        'Invitations Sent',
-        `${emails.length} invitation${emails.length > 1 ? 's' : ''} sent successfully!`,
+      if (profile?.role === 'student' && inviteRole === 'supervisor') {
+        // Student inviting supervisors
+        targetRole = 'instructor';
+        relationshipType = 'student_invites_supervisor';
+      } else if (canSuperviseStudents()) {
+        // Supervisor inviting students
+        targetRole = 'student';
+        relationshipType = 'supervisor_invites_student';
+      }
+
+      // Send invitations with enhanced metadata
+      const promises = emails.map(email => 
+        inviteNewUser({
+          email,
+          role: targetRole,
+          supervisorId: profile.id,
+          supervisorName: profile.full_name || profile.email,
+          inviterRole: profile.role as UserRole,
+          relationshipType,
+        })
       );
+
+      const results = await Promise.all(promises);
+      const successful = emails.filter((_, index) => results[index].success);
+      const failed = emails.filter((_, index) => !results[index].success);
+      
+      if (failed.length > 0) {
+        // Get error messages from failed invitations
+        const errors = results.filter(r => !r.success).map(r => r.error).join(', ');
+        throw new Error(`Failed to send ${failed.length} invitation(s): ${errors}`);
+      }
+      
+      // Check if any results have notes (fallback mode)
+      const hasNotes = results.some(r => r.note);
+      
+      if (hasNotes) {
+        Alert.alert(
+          'Invitations Processed',
+          `${successful.length} invitation${successful.length > 1 ? 's' : ''} processed. Note: Email delivery requires additional setup. Please contact the recipients directly to inform them.`,
+        );
+      } else {
+        Alert.alert(
+          'Invitations Sent',
+          `${successful.length} invitation${successful.length > 1 ? 's' : ''} sent successfully!`,
+        );
+      }
     } catch (error) {
+      console.error('Error in handleInviteUsers:', error);
       throw error; // Let the modal handle the error
     }
   };
@@ -1488,7 +1679,10 @@ export function ProfileScreen() {
                         size="sm"
                         variant="secondary"
                         backgroundColor="$blue9"
-                        onPress={handleOpenRelationshipModal}
+                        onPress={() => {
+                          setInviteType('student');
+                          setShowInviteModal(true);
+                        }}
                       >
                         <Text color="white">Invite Students</Text>
                       </Button>
@@ -1538,7 +1732,8 @@ export function ProfileScreen() {
               </Card>
             )}
 
-            {/* Supervisors Section - ALWAYS SHOW */}
+            {/* Supervisors Section - Show for students and instructors */}
+            {(profile?.role === 'student' || profile?.role === 'instructor') && (
             <Card bordered padding="$4" marginVertical="$2">
               <YStack gap="$2">
                 <XStack justifyContent="space-between" alignItems="center">
@@ -1557,16 +1752,19 @@ export function ProfileScreen() {
                         {supervisors.length > 0 ? 'Change' : 'Add Supervisors'}
                       </Text>
                     </Button>
+                    {profile?.role === 'student' && (
                     <Button
                       size="sm"
                       variant="secondary"
                       backgroundColor="$green9"
-                      onPress={handleOpenRelationshipModal}
+                      onPress={() => {
+                        setInviteType('supervisor');
+                        setShowInviteModal(true);
+                      }}
                     >
-                      <Text color="white">
-                        {canSuperviseStudents() ? 'Invite Students' : 'Invite Supervisors'}
-                      </Text>
+                      <Text color="white">Invite Supervisors</Text>
                     </Button>
+                    )}
                   </XStack>
                 </XStack>
 
@@ -1621,6 +1819,7 @@ export function ProfileScreen() {
                 )}
               </YStack>
             </Card>
+            )}
 
             {/* Schools Section - ALWAYS SHOW */}
             <Card bordered padding="$4" marginVertical="$2">
@@ -2892,6 +3091,7 @@ ${
                     searchUsers(text);
                   }}
                   placeholder="Search by name or email..."
+                  autoCapitalize="none"
                 />
                 <Button
                   onPress={() => searchUsers(searchQuery)}
@@ -2903,41 +3103,6 @@ ${
               </XStack>
             )}
 
-            {/* Show pending invitations */}
-            {showPendingInvites && pendingInvitations.length > 0 && (
-              <YStack gap="$2" marginBottom="$2">
-                <Text size="sm" weight="bold" color="$color">Pending Invitations</Text>
-                {pendingInvitations.map((inv) => (
-                  <Card key={inv.id} padding="$2">
-                    <XStack justifyContent="space-between" alignItems="center">
-                      <YStack flex={1}>
-                        <Text fontSize="$3">{inv.email}</Text>
-                        <Text fontSize="$2" color="$gray11">
-                          {inv.role} • Sent {new Date(inv.created_at).toLocaleDateString()}
-                        </Text>
-                      </YStack>
-                      <XStack gap="$1">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onPress={() => handleResendInvite(inv.id)}
-                        >
-                          <Feather name="send" size={14} />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          backgroundColor="$red9"
-                          onPress={() => handleCancelInvite(inv.id)}
-                        >
-                          <Feather name="x" size={14} />
-                        </Button>
-                      </XStack>
-                    </XStack>
-                  </Card>
-                ))}
-              </YStack>
-            )}
 
             <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={true}>
               <YStack gap="$2">
@@ -3106,7 +3271,7 @@ ${
         userRole={getUserRole()}
         supervisedStudents={supervisedStudents}
         onStudentSelect={handleStudentSelection}
-        availableSupervisors={availableSupervisors}
+        availableSupervisors={getUserRole() === 'student' ? availableSupervisors : availableStudents}
         selectedSupervisorIds={selectedSupervisorIds}
         onSupervisorSelect={setSelectedSupervisorIds}
         onAddSupervisors={addSupervisors}
@@ -3114,6 +3279,8 @@ ${
         onRefresh={async () => {
           if (canSuperviseStudents()) {
             await fetchSupervisedStudents();
+            await fetchAvailableStudents();
+            await fetchPendingInvitations();
           } else {
             await fetchAvailableSupervisors();
           }

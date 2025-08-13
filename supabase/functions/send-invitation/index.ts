@@ -12,11 +12,26 @@ serve(async (req) => {
   }
 
   try {
-    const { email, role = 'student', supervisorId, supervisorName } = await req.json()
+    const { 
+      email, 
+      role = 'student', 
+      supervisorId, 
+      supervisorName,
+      inviterRole,
+      relationshipType 
+    } = await req.json()
 
     if (!email) {
       return new Response(
         JSON.stringify({ error: 'Email is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Validate UUID format if supervisorId is provided
+    if (supervisorId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(supervisorId)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid supervisor ID format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -28,7 +43,7 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     )
 
-    // Create pending invitation record
+    // Create pending invitation record with enhanced metadata
     const { data: invitation, error: inviteError } = await supabaseAdmin
       .from('pending_invitations')
       .insert({
@@ -37,6 +52,8 @@ serve(async (req) => {
         invited_by: supervisorId,
         metadata: {
           supervisorName,
+          inviterRole,
+          relationshipType,
           invitedAt: new Date().toISOString(),
         },
         status: 'pending',
@@ -52,15 +69,27 @@ serve(async (req) => {
       )
     }
 
-    // Send invitation email using Supabase Auth Admin API
+    // Customize redirect URL based on relationship type
+    // For mobile app, use deep link; for web, use web URL
+    const isProduction = Deno.env.get('ENVIRONMENT') === 'production'
+    const webUrl = 'https://app.vromm.se'
+    const mobileScheme = 'myapp://signup'
+    
+    const redirectTo = relationshipType === 'student_invites_supervisor' 
+      ? `${mobileScheme}?role=instructor&invited_by=${supervisorId}`
+      : `${mobileScheme}?role=${role}`
+
+    // Send invitation email using Supabase Auth Admin API with enhanced data
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: {
         role,
         supervisorId,
         supervisorName,
+        inviterRole,
+        relationshipType,
         invitationId: invitation.id,
       },
-      redirectTo: `${Deno.env.get('SITE_URL') || 'http://localhost:3000'}/signup`
+      redirectTo
     })
 
     if (error) {

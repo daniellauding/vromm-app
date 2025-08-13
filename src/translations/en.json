@@ -123,7 +123,16 @@
     "unfollow": "Unfollow",
     "followers": "Followers",
     "following": "Following",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "learningPath": "Learning Path",
+    "viewDetails": "View Details",
+    "learningProgress": "Learning Progress",
+    "currentStep": "Current Step",
+    "learningPathNote": "Follow your personalized path to driving excellence",
+    "recentRoutes": "Recent Routes",
+    "viewAll": "View All",
+    "recentReviews": "Recent Reviews",
+    "edit": "Edit"
   },
   "toast": {
     "routeCreated": "Route Created!",

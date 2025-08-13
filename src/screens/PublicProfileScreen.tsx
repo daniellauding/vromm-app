@@ -43,7 +43,7 @@ export function PublicProfileScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
-  const { user } = useAuth();
+  const { user, profile: currentUserProfile } = useAuth();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
 
@@ -81,11 +81,17 @@ export function PublicProfileScreen() {
   const [schools, setSchools] = useState<
     Array<{ school_id: string; school_name: string; school_location: string }>
   >([]);
+  
+  // Instructor/Student relationship states
+  const [isInstructor, setIsInstructor] = useState(false);
+  const [isStudent, setIsStudent] = useState(false);
+  const [relationshipLoading, setRelationshipLoading] = useState(false);
 
   useEffect(() => {
     loadProfile();
     if (userId && user?.id && userId !== user.id) {
       loadFollowData();
+      checkRelationshipStatus();
     }
     if (userId) {
       loadUserRelationships();
@@ -527,6 +533,150 @@ export function PublicProfileScreen() {
     }
   };
 
+  // Check if current user has instructor/student relationship with this profile
+  const checkRelationshipStatus = async () => {
+    if (!user?.id || !userId) return;
+    
+    try {
+      // Check if this profile is supervising the current user
+      const { data: instructorData } = await supabase
+        .from('student_supervisor_relationships')
+        .select('id')
+        .eq('student_id', user.id)
+        .eq('supervisor_id', userId)
+        .single();
+      
+      setIsInstructor(!!instructorData);
+      
+      // Check if current user is supervising this profile
+      const { data: studentData } = await supabase
+        .from('student_supervisor_relationships')
+        .select('id')
+        .eq('supervisor_id', user.id)
+        .eq('student_id', userId)
+        .single();
+      
+      setIsStudent(!!studentData);
+    } catch (error) {
+      console.log('No existing relationship');
+    }
+  };
+  
+  // Handle set/unset as instructor
+  const handleInstructorToggle = async () => {
+    if (!user?.id || !userId || relationshipLoading) return;
+    
+    console.log('🎓 INSTRUCTOR TOGGLE - Starting');
+    console.log('🎓 Current user ID:', user.id);
+    console.log('🎓 Target user ID:', userId);
+    console.log('🎓 Current isInstructor state:', isInstructor);
+    console.log('🎓 Action:', isInstructor ? 'UNSET as instructor' : 'SET as instructor');
+    
+    try {
+      setRelationshipLoading(true);
+      
+      if (isInstructor) {
+        // Remove instructor relationship
+        console.log('🎓 REMOVING instructor relationship...');
+        console.log('🎓 DELETE WHERE student_id =', user.id, 'AND supervisor_id =', userId);
+        
+        const { error } = await supabase
+          .from('student_supervisor_relationships')
+          .delete()
+          .eq('student_id', user.id)
+          .eq('supervisor_id', userId);
+        
+        if (error) throw error;
+        
+        console.log('✅ INSTRUCTOR REMOVED successfully');
+        setIsInstructor(false);
+        Alert.alert('Success', 'Removed as your instructor');
+      } else {
+        // Add instructor relationship
+        console.log('🎓 ADDING instructor relationship...');
+        console.log('🎓 INSERT student_id:', user.id, 'supervisor_id:', userId);
+        
+        const { error } = await supabase
+          .from('student_supervisor_relationships')
+          .insert([{
+            student_id: user.id,
+            supervisor_id: userId
+          }]);
+        
+        if (error) throw error;
+        
+        console.log('✅ INSTRUCTOR ADDED successfully');
+        setIsInstructor(true);
+        Alert.alert('Success', 'Added as your instructor');
+      }
+      
+      // Reload relationships
+      loadUserRelationships();
+    } catch (error) {
+      console.error('❌ ERROR toggling instructor:', error);
+      Alert.alert('Error', 'Failed to update instructor status');
+    } finally {
+      setRelationshipLoading(false);
+      console.log('🎓 INSTRUCTOR TOGGLE - Complete');
+    }
+  };
+  
+  // Handle set/unset as student
+  const handleStudentToggle = async () => {
+    if (!user?.id || !userId || relationshipLoading) return;
+    
+    console.log('👨‍🎓 STUDENT TOGGLE - Starting');
+    console.log('👨‍🎓 Current user ID:', user.id);
+    console.log('👨‍🎓 Target user ID:', userId);
+    console.log('👨‍🎓 Current isStudent state:', isStudent);
+    console.log('👨‍🎓 Action:', isStudent ? 'UNSET as student' : 'SET as student');
+    
+    try {
+      setRelationshipLoading(true);
+      
+      if (isStudent) {
+        // Remove student relationship
+        console.log('👨‍🎓 REMOVING student relationship...');
+        console.log('👨‍🎓 DELETE WHERE supervisor_id =', user.id, 'AND student_id =', userId);
+        
+        const { error } = await supabase
+          .from('student_supervisor_relationships')
+          .delete()
+          .eq('supervisor_id', user.id)
+          .eq('student_id', userId);
+        
+        if (error) throw error;
+        
+        console.log('✅ STUDENT REMOVED successfully');
+        setIsStudent(false);
+        Alert.alert('Success', 'Removed as your student');
+      } else {
+        // Add student relationship
+        console.log('👨‍🎓 ADDING student relationship...');
+        console.log('👨‍🎓 INSERT supervisor_id:', user.id, 'student_id:', userId);
+        
+        const { error } = await supabase
+          .from('student_supervisor_relationships')
+          .insert([{
+            supervisor_id: user.id,
+            student_id: userId
+          }]);
+        
+        if (error) throw error;
+        
+        console.log('✅ STUDENT ADDED successfully');
+        setIsStudent(true);
+        Alert.alert('Success', 'Added as your student');
+      }
+    } catch (error) {
+      console.error('❌ ERROR toggling student:', error);
+      Alert.alert('Error', 'Failed to update student status');
+    } finally {
+      setRelationshipLoading(false);
+      console.log('👨‍🎓 STUDENT TOGGLE - Complete');
+    }
+  };
+  
   const handleFollow = async () => {
     try {
       if (!user?.id || !userId || followLoading) return;
@@ -707,6 +857,83 @@ export function PublicProfileScreen() {
                     )}
                   </XStack>
                 </Button>
+
+                {/* Instructor/Student Relationship Button */}
+                {currentUserProfile && (
+                  <>
+                    {/* Show Set as Instructor button for instructor/admin/school users viewing student profiles */}
+                    {['instructor', 'admin', 'school'].includes(currentUserProfile.role) && 
+                     profile?.role === 'student' && (
+                      <Button
+                        onPress={handleStudentToggle}
+                        disabled={relationshipLoading}
+                        variant={isStudent ? 'secondary' : 'primary'}
+                        backgroundColor={isStudent ? '$orange5' : '$green10'}
+                        size="sm"
+                        flexShrink={1}
+                      >
+                        <XStack gap="$1" alignItems="center">
+                          {relationshipLoading ? (
+                            <Text color={isStudent ? '$orange11' : 'white'} fontSize="$3">
+                              ...
+                            </Text>
+                          ) : (
+                            <>
+                              <Feather
+                                name={isStudent ? 'user-x' : 'user-check'}
+                                size={14}
+                                color={isStudent ? '#F97316' : 'white'}
+                              />
+                              <Text
+                                color={isStudent ? '$orange11' : 'white'}
+                                fontSize="$2"
+                                fontWeight="500"
+                              >
+                                {isStudent ? 'Unset as Student' : 'Set as Student'}
+                              </Text>
+                            </>
+                          )}
+                        </XStack>
+                      </Button>
+                    )}
+                    
+                    {/* Show Set as Instructor button for student users viewing instructor profiles */}
+                    {currentUserProfile.role === 'student' && 
+                     ['instructor', 'admin', 'school'].includes(profile?.role || '') && (
+                      <Button
+                        onPress={handleInstructorToggle}
+                        disabled={relationshipLoading}
+                        variant={isInstructor ? 'secondary' : 'primary'}
+                        backgroundColor={isInstructor ? '$purple5' : '$blue10'}
+                        size="sm"
+                        flexShrink={1}
+                      >
+                        <XStack gap="$1" alignItems="center">
+                          {relationshipLoading ? (
+                            <Text color={isInstructor ? '$purple11' : 'white'} fontSize="$3">
+                              ...
+                            </Text>
+                          ) : (
+                            <>
+                              <Feather
+                                name={isInstructor ? 'user-x' : 'user-check'}
+                                size={14}
+                                color={isInstructor ? '#A855F7' : 'white'}
+                              />
+                              <Text
+                                color={isInstructor ? '$purple11' : 'white'}
+                                fontSize="$2"
+                                fontWeight="500"
+                              >
+                                {isInstructor ? 'Unset as Instructor' : 'Set as Instructor'}
+                              </Text>
+                            </>
+                          )}
+                        </XStack>
+                      </Button>
+                    )}
+                  </>
+                )}
 
                 {/* Message Button */}
                 <Button

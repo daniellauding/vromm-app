@@ -119,6 +119,9 @@ export const NotificationsScreen: React.FC = () => {
 
         case 'supervisor_invitation':
         case 'student_invitation':
+        case 'school_invitation':
+        case 'teacher_invitation':
+        case 'admin_invitation':
           const inviterUserId = notification.data?.from_user_id || notification.actor_id;
           if (inviterUserId) {
             console.log('📍 Navigating to PublicProfile for invitation:', inviterUserId);
