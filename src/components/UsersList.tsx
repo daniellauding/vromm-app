@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Image, TouchableOpacity, useColorScheme } from 'react-native';
+import { Image, TouchableOpacity, useColorScheme, Alert } from 'react-native';
 import { XStack, YStack, ScrollView, View, Button } from 'tamagui';
 import { Text } from './Text';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { inviteNewUser } from '../services/invitationService';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ type User = {
   full_name?: string;
   avatar_url?: string;
   role?: string;
+  email?: string | null;
   location?: string;
   created_at?: string;
   isFollowing?: boolean;
@@ -26,6 +28,7 @@ export function UsersList() {
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const { user } = useAuth();
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -34,7 +37,7 @@ export function UsersList() {
 
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, role, location, created_at')
+          .select('id, full_name, avatar_url, role, location, created_at, email')
           .order('created_at', { ascending: false })
           .limit(10);
 
@@ -44,6 +47,14 @@ export function UsersList() {
 
         // If user is authenticated, check follow status for each user
         if (user?.id) {
+          // Load current user's role for invitation logic
+          const { data: me } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+          setCurrentUserRole(me?.role || null);
+
           const { data: followData } = await supabase
             .from('user_follows')
             .select('following_id')
@@ -68,6 +79,45 @@ export function UsersList() {
 
     fetchUsers();
   }, [user?.id]);
+
+  const handleInvite = async (target: User) => {
+    if (!user?.id) return;
+    if (!target.email) {
+      Alert.alert('Invite', 'This user has no email on file. Cannot send invitation.');
+      return;
+    }
+
+    const isStudentInvitingSupervisor = currentUserRole === 'student';
+    const relationshipText = isStudentInvitingSupervisor ? 'supervisor' : 'student';
+
+    Alert.alert(
+      'Send Invitation',
+      `Invite ${target.full_name || 'this user'} to be your ${relationshipText}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send',
+          onPress: async () => {
+            try {
+              const result = await inviteNewUser({
+                email: target.email!,
+                role: isStudentInvitingSupervisor ? 'instructor' : 'student',
+                supervisorId: isStudentInvitingSupervisor ? user.id : user.id,
+                supervisorName: undefined,
+                relationshipType: isStudentInvitingSupervisor
+                  ? 'student_invites_supervisor'
+                  : 'supervisor_invites_student',
+              });
+              if (!result.success) throw new Error(result.error || 'Failed to send');
+              Alert.alert('Invitation Sent', 'The invitation has been sent.');
+            } catch (e) {
+              Alert.alert('Error', 'Failed to send invitation.');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const navigateToProfile = (userId: string) => {
     navigation.navigate('PublicProfile', { userId });
@@ -139,6 +189,7 @@ export function UsersList() {
           <TouchableOpacity
             key={user.id}
             onPress={() => navigateToProfile(user.id)}
+            onLongPress={() => handleInvite(user)}
             activeOpacity={0.8}
           >
             <YStack

@@ -290,113 +290,65 @@ export function LoginScreen() {
             </Button>
 
             {/* OAuth Login Buttons */}
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-around',
-                alignItems: 'center',
-                marginTop: 20,
-                paddingHorizontal: 60,
-                width: '100%',
-              }}
+            <XStack 
+              justifyContent="space-around" 
+              alignItems="center" 
+              marginTop={20} 
+              paddingHorizontal={60}
+              width="100%"
             >
-              <TouchableOpacity 
-                style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: 25,
-                  backgroundColor: '#F5F5F5',
-                  borderWidth: 1,
-                  borderColor: '#E0E0E0',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  shadowColor: '#000',
-                  shadowOffset: {
-                    width: 0,
-                    height: 2,
-                  },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 3,
-                  elevation: 3,
-                }}
+              <Button
+                size="md"
+                radius="full"
+                variant="secondary"
                 onPress={handleGoogleLogin}
-                activeOpacity={0.7}
                 disabled={oauthLoading}
                 accessibilityLabel="Sign in with Google"
                 accessibilityRole="button"
+                pressStyle={{ scale: 0.95 }}
               >
                 <Ionicons name="logo-google" size={24} color="#4285F4" />
-              </TouchableOpacity>
+              </Button>
               
-              <TouchableOpacity 
-                style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: 25,
-                  backgroundColor: '#F5F5F5',
-                  borderWidth: 1,
-                  borderColor: '#E0E0E0',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  shadowColor: '#000',
-                  shadowOffset: {
-                    width: 0,
-                    height: 2,
-                  },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 3,
-                  elevation: 3,
-                }}
+              <Button
+                size="md"
+                radius="full"
+                variant="secondary"
                 onPress={handleAppleLogin}
-                activeOpacity={0.7}
                 disabled={oauthLoading}
                 accessibilityLabel="Sign in with Apple"
                 accessibilityRole="button"
+                pressStyle={{ scale: 0.95 }}
               >
                 <Ionicons 
                   name="logo-apple" 
                   size={24} 
                   color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
                 />
-              </TouchableOpacity>
+              </Button>
               
-              <TouchableOpacity 
-                style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: 25,
-                  backgroundColor: '#F5F5F5',
-                  borderWidth: 1,
-                  borderColor: '#E0E0E0',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  shadowColor: '#000',
-                  shadowOffset: {
-                    width: 0,
-                    height: 2,
-                  },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 3,
-                  elevation: 3,
-                }}
+              <Button
+                size="md"
+                radius="full"
+                variant="secondary"
                 onPress={handleFacebookLogin}
-                activeOpacity={0.7}
                 disabled={oauthLoading}
                 accessibilityLabel="Sign in with Facebook"
                 accessibilityRole="button"
+                pressStyle={{ scale: 0.95 }}
               >
                 <Ionicons name="logo-facebook" size={24} color="#1877F2" />
-              </TouchableOpacity>
-            </View>
+              </Button>
+            </XStack>
           </YStack>
         </YStack>
 
         {/* Auth status debug */}
-        <XStack justifyContent="center" alignItems="center" gap={0} marginBottom={8}>
+        {/* <XStack justifyContent="center" alignItems="center" gap={0} marginBottom={8}>
           <Text size="sm" intent={user ? 'success' : 'muted'}>
             {user ? `Signed in as ${user.email}` : 'Not signed in'}
           </Text>
-        </XStack>
+        </XStack> */}
 
         <XStack justifyContent="center" alignItems="center" gap={0}>
           <Text size="md" intent="muted">

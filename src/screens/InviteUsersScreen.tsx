@@ -162,7 +162,7 @@ export const InviteUsersScreen: React.FC<InviteUsersScreenProps> = ({ route }) =
 
       if (error) throw error;
 
-      // Create invitation notifications for each invited user
+      // Create invitation notifications for each invited user and send push
       for (const userId of selectedUserIds) {
         try {
           const { error: notificationError } = await supabase
@@ -178,6 +178,19 @@ export const InviteUsersScreen: React.FC<InviteUsersScreenProps> = ({ route }) =
 
           if (notificationError) {
             console.error('Error creating invitation notification:', notificationError);
+          }
+
+          // Best-effort push
+          try {
+            const { pushNotificationService } = await import('../services/pushNotificationService');
+            await pushNotificationService.sendPushNotification(
+              userId,
+              'Event Invitation 🎟️',
+              `You have been invited to ${eventTitle}`,
+              { event_id: eventId, action_url: 'vromm://notifications' },
+            );
+          } catch (e) {
+            console.log('Push send failed (event invite):', e);
           }
         } catch (error) {
           console.error('Error sending invitation notification:', error);

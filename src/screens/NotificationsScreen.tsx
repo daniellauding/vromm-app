@@ -15,6 +15,7 @@ import {
   X,
 } from '@tamagui/lucide-icons';
 import { notificationService, Notification } from '../services/notificationService';
+import { getIncomingInvitations, acceptInvitationById, rejectInvitation } from '../services/invitationService';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
@@ -199,25 +200,31 @@ export const NotificationsScreen: React.FC = () => {
 
   const handleAcceptInvitation = async (notification: Notification) => {
     try {
+      const invitationId = notification.data?.invitation_id || notification.metadata?.invitation_id;
+      const currentUserId = (await supabase.auth.getUser()).data.user?.id;
+      if (invitationId && currentUserId) {
+        const ok = await acceptInvitationById(invitationId, currentUserId);
+        if (ok) {
+          await notificationService.markAsRead(notification.id);
+          setNotifications(prev => prev.filter(n => n.id !== notification.id));
+          console.log('✅ Relationship invitation accepted');
+        }
+        return;
+      }
+
+      // Fallback: event invitation acceptance
       const eventId = notification.data?.event_id || notification.metadata?.event_id;
-      if (!eventId) return;
-
-      // Update event_attendees to accept invitation
-      const { error } = await supabase
-        .from('event_attendees')
-        .update({ status: 'accepted' })
-        .eq('event_id', eventId)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
-
-      if (error) throw error;
-
-      // Mark notification as read
-      await notificationService.markAsRead(notification.id);
-      
-      // Remove from notifications list
-      setNotifications(prev => prev.filter(n => n.id !== notification.id));
-      
-      console.log('✅ Event invitation accepted');
+      if (eventId && currentUserId) {
+        const { error } = await supabase
+          .from('event_attendees')
+          .update({ status: 'accepted' })
+          .eq('event_id', eventId)
+          .eq('user_id', currentUserId);
+        if (error) throw error;
+        await notificationService.markAsRead(notification.id);
+        setNotifications(prev => prev.filter(n => n.id !== notification.id));
+        console.log('✅ Event invitation accepted');
+      }
     } catch (error) {
       console.error('Error accepting invitation:', error);
     }
@@ -225,25 +232,30 @@ export const NotificationsScreen: React.FC = () => {
 
   const handleRejectInvitation = async (notification: Notification) => {
     try {
+      const invitationId = notification.data?.invitation_id || notification.metadata?.invitation_id;
+      if (invitationId) {
+        const ok = await rejectInvitation(invitationId);
+        if (ok) {
+          await notificationService.markAsRead(notification.id);
+          setNotifications(prev => prev.filter(n => n.id !== notification.id));
+          console.log('❌ Relationship invitation rejected');
+        }
+        return;
+      }
+
       const eventId = notification.data?.event_id || notification.metadata?.event_id;
-      if (!eventId) return;
-
-      // Update event_attendees to reject invitation
-      const { error } = await supabase
-        .from('event_attendees')
-        .update({ status: 'rejected' })
-        .eq('event_id', eventId)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
-
-      if (error) throw error;
-
-      // Mark notification as read
-      await notificationService.markAsRead(notification.id);
-      
-      // Remove from notifications list
-      setNotifications(prev => prev.filter(n => n.id !== notification.id));
-      
-      console.log('❌ Event invitation rejected');
+      const currentUserId = (await supabase.auth.getUser()).data.user?.id;
+      if (eventId && currentUserId) {
+        const { error } = await supabase
+          .from('event_attendees')
+          .update({ status: 'rejected' })
+          .eq('event_id', eventId)
+          .eq('user_id', currentUserId);
+        if (error) throw error;
+        await notificationService.markAsRead(notification.id);
+        setNotifications(prev => prev.filter(n => n.id !== notification.id));
+        console.log('❌ Event invitation rejected');
+      }
     } catch (error) {
       console.error('Error rejecting invitation:', error);
     }
@@ -316,8 +328,8 @@ export const NotificationsScreen: React.FC = () => {
               {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
             </Text>
 
-            {/* Event Invitation Action Buttons */}
-            {(item.type === 'event_invitation' || item.type === 'event_invite') && (
+            {/* Relationship or Event Invitation Action Buttons */}
+            {(item.type === 'event_invitation' || item.type === 'event_invite' || item.type === 'supervisor_invitation' || item.type === 'student_invitation') && (
               <XStack gap={8} marginTop={8}>
                 <TouchableOpacity
                   onPress={(e) => {

@@ -195,7 +195,19 @@ class NotificationService {
   // Create notification (for internal use)
   async createNotification(
     userId: string,
-    type: 'follow' | 'route_review' | 'message' | 'mention' | 'like' | 'comment' | 'system',
+    type:
+      | 'follow'
+      | 'route_review'
+      | 'message'
+      | 'mention'
+      | 'like'
+      | 'comment'
+      | 'system'
+      | 'student_invitation'
+      | 'supervisor_invitation'
+      | 'school_invitation'
+      | 'teacher_invitation'
+      | 'admin_invitation',
     message: string,
     targetId?: string,
     metadata?: any,

@@ -13,11 +13,13 @@ import { View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { Alert } from 'react-native';
+import { inviteNewUser } from '../services/invitationService';
 
 type User = {
   id: string;
   full_name?: string;
   avatar_url?: string;
+  email?: string | null;
   location?: string;
   created_at: string;
   role?: string;
@@ -49,6 +51,7 @@ export function UsersScreen() {
           id,
           full_name,
           avatar_url,
+          email,
           location,
           created_at,
           role
@@ -154,22 +157,20 @@ export function UsersScreen() {
         );
         Alert.alert('Success', 'Removed as your instructor');
       } else {
-        // Add instructor relationship
-        console.log('🎓 ADDING instructor relationship...');
-        const { error } = await supabase
-          .from('student_supervisor_relationships')
-          .insert([{
-            student_id: user.id,
-            supervisor_id: targetUserId
-          }]);
-        
-        if (error) throw error;
-        
-        console.log('✅ INSTRUCTOR ADDED successfully');
-        setUsers((prev) =>
-          prev.map((u) => (u.id === targetUserId ? { ...u, isInstructor: true } : u))
-        );
-        Alert.alert('Success', 'Added as your instructor');
+        // Send invitation to instructor instead of creating relationship
+        console.log('🎓 SENDING INSTRUCTOR INVITATION...');
+        const target = users.find((u) => u.id === targetUserId);
+        if (!target?.email) throw new Error('Target user has no email, cannot invite');
+        const result = await inviteNewUser({
+          email: target.email,
+          role: 'instructor',
+          supervisorId: user.id,
+          supervisorName: currentUserProfile?.full_name || undefined,
+          inviterRole: currentUserProfile?.role as any,
+          relationshipType: 'student_invites_supervisor',
+        });
+        if (!result.success) throw new Error(result.error || 'Failed to send invitation');
+        Alert.alert('Invitation Sent', 'They will appear once they accept.');
       }
     } catch (error) {
       console.error('❌ ERROR toggling instructor:', error);
@@ -209,22 +210,20 @@ export function UsersScreen() {
         );
         Alert.alert('Success', 'Removed as your student');
       } else {
-        // Add student relationship
-        console.log('👨‍🎓 ADDING student relationship...');
-        const { error } = await supabase
-          .from('student_supervisor_relationships')
-          .insert([{
-            supervisor_id: user.id,
-            student_id: targetUserId
-          }]);
-        
-        if (error) throw error;
-        
-        console.log('✅ STUDENT ADDED successfully');
-        setUsers((prev) =>
-          prev.map((u) => (u.id === targetUserId ? { ...u, isStudent: true } : u))
-        );
-        Alert.alert('Success', 'Added as your student');
+        // Send invitation to student instead of creating relationship
+        console.log('👨‍🎓 SENDING STUDENT INVITATION...');
+        const target = users.find((u) => u.id === targetUserId);
+        if (!target?.email) throw new Error('Target user has no email, cannot invite');
+        const result = await inviteNewUser({
+          email: target.email,
+          role: 'student',
+          supervisorId: user.id,
+          supervisorName: currentUserProfile?.full_name || undefined,
+          inviterRole: currentUserProfile?.role as any,
+          relationshipType: 'supervisor_invites_student',
+        });
+        if (!result.success) throw new Error(result.error || 'Failed to send invitation');
+        Alert.alert('Invitation Sent', 'They will appear once they accept.');
       }
     } catch (error) {
       console.error('❌ ERROR toggling student:', error);

@@ -181,55 +181,45 @@ export function SignupScreen() {
         </XStack>
 
         {/* Social sign-up options */}
-        <XStack justifyContent="center" alignItems="center" gap={16} marginTop={16}>
-          <TouchableOpacity
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: '#F5F5F5',
-              borderWidth: 1,
-              borderColor: '#E0E0E0',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+        <XStack justifyContent="space-around" alignItems="center" marginTop={16} paddingHorizontal={60} width="100%">
+          <Button
+            size="md"
+            radius="full"
+            variant="secondary"
             onPress={handleGoogleSignup}
+            disabled={oauthLoading}
             accessibilityLabel="Continue with Google"
+            accessibilityRole="button"
+            pressStyle={{ scale: 0.95 }}
           >
             <Ionicons name="logo-google" size={24} color="#4285F4" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: '#F5F5F5',
-              borderWidth: 1,
-              borderColor: '#E0E0E0',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+          </Button>
+          
+          <Button
+            size="md"
+            radius="full"
+            variant="secondary"
             onPress={handleFacebookSignup}
+            disabled={oauthLoading}
             accessibilityLabel="Continue with Facebook"
+            accessibilityRole="button"
+            pressStyle={{ scale: 0.95 }}
           >
             <Ionicons name="logo-facebook" size={24} color="#1877F2" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: '#F5F5F5',
-              borderWidth: 1,
-              borderColor: '#E0E0E0',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+          </Button>
+          
+          <Button
+            size="md"
+            radius="full"
+            variant="secondary"
             onPress={() => navigation.navigate('Login')}
+            disabled={oauthLoading}
             accessibilityLabel="Continue with Apple"
+            accessibilityRole="button"
+            pressStyle={{ scale: 0.95 }}
           >
             <Ionicons name="logo-apple" size={24} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
-          </TouchableOpacity>
+          </Button>
         </XStack>
       </YStack>
     </Screen>

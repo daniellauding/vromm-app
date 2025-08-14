@@ -17,6 +17,7 @@ import { ProfileButton } from '../components/ProfileButton';
 import { useFocusEffect } from '@react-navigation/native';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 import { messageService } from '../services/messageService';
+import { inviteNewUser } from '../services/invitationService';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   routes_created: number;
@@ -27,6 +28,7 @@ type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   total_distance_driven: number; // in km
   total_duration_driven: number; // in seconds
   recorded_routes_created: number; // routes created using recording
+  email: string | null;
   school: {
     name: string;
     id: string;
@@ -592,22 +594,27 @@ export function PublicProfileScreen() {
         setIsInstructor(false);
         Alert.alert('Success', 'Removed as your instructor');
       } else {
-        // Add instructor relationship
-        console.log('🎓 ADDING instructor relationship...');
-        console.log('🎓 INSERT student_id:', user.id, 'supervisor_id:', userId);
-        
-        const { error } = await supabase
-          .from('student_supervisor_relationships')
-          .insert([{
-            student_id: user.id,
-            supervisor_id: userId
-          }]);
-        
-        if (error) throw error;
-        
-        console.log('✅ INSTRUCTOR ADDED successfully');
-        setIsInstructor(true);
-        Alert.alert('Success', 'Added as your instructor');
+        // Invite instructor instead of creating relationship directly
+        console.log('🎓 SENDING INSTRUCTOR INVITATION...');
+        if (!profile?.email) {
+          throw new Error('Target user has no email on file. Cannot send invitation.');
+        }
+        const result = await inviteNewUser({
+          email: profile.email,
+          role: 'instructor',
+          supervisorId: user.id,
+          supervisorName: currentUserProfile?.full_name || undefined,
+          inviterRole: (currentUserProfile as any)?.role,
+          relationshipType: 'student_invites_supervisor',
+        });
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to send invitation');
+        }
+
+        console.log('✅ INSTRUCTOR INVITATION SENT');
+        // Do not set isInstructor yet; wait for acceptance
+        Alert.alert('Invitation Sent', 'An invitation has been sent to become your instructor.');
       }
       
       // Reload relationships
@@ -651,22 +658,27 @@ export function PublicProfileScreen() {
         setIsStudent(false);
         Alert.alert('Success', 'Removed as your student');
       } else {
-        // Add student relationship
-        console.log('👨‍🎓 ADDING student relationship...');
-        console.log('👨‍🎓 INSERT supervisor_id:', user.id, 'student_id:', userId);
-        
-        const { error } = await supabase
-          .from('student_supervisor_relationships')
-          .insert([{
-            supervisor_id: user.id,
-            student_id: userId
-          }]);
-        
-        if (error) throw error;
-        
-        console.log('✅ STUDENT ADDED successfully');
-        setIsStudent(true);
-        Alert.alert('Success', 'Added as your student');
+        // Invite student instead of creating relationship directly
+        console.log('👨‍🎓 SENDING STUDENT INVITATION...');
+        if (!profile?.email) {
+          throw new Error('Target user has no email on file. Cannot send invitation.');
+        }
+        const result = await inviteNewUser({
+          email: profile.email,
+          role: 'student',
+          supervisorId: user.id,
+          supervisorName: currentUserProfile?.full_name || undefined,
+          inviterRole: (currentUserProfile as any)?.role,
+          relationshipType: 'supervisor_invites_student',
+        });
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to send invitation');
+        }
+
+        console.log('✅ STUDENT INVITATION SENT');
+        // Do not set isStudent yet; wait for acceptance
+        Alert.alert('Invitation Sent', 'An invitation has been sent to add this user as your student.');
       }
     } catch (error) {
       console.error('❌ ERROR toggling student:', error);

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, ScrollView, Alert, TextInput, Dimensions } from 'react-native';
-import { YStack, XStack, Text } from 'tamagui';
+import { YStack, XStack } from 'tamagui';
+import { Text } from '../components/Text';
 import { Button } from './Button';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import { supabase } from '../lib/supabase';
-import { inviteMultipleUsers, getPendingInvitations, cancelInvitation, removeSupervisorRelationship, getStudentSupervisors } from '../services/invitationService';
+import { inviteMultipleUsers, getPendingInvitations, cancelInvitation, removeSupervisorRelationship, getStudentSupervisors, getIncomingInvitations, acceptInvitationById, rejectInvitation } from '../services/invitationService';
 import { Feather } from '@expo/vector-icons';
 
 interface RelationshipManagementModalProps {
@@ -44,7 +45,7 @@ export function RelationshipManagementModal({
   onInviteUsers,
   onRefresh
 }: RelationshipManagementModalProps) {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { activeStudentId } = useStudentSwitch();
   const { t } = useTranslation();
   
@@ -56,9 +57,10 @@ export function RelationshipManagementModal({
   // Invitation states
   const [inviteMode, setInviteMode] = useState<'search' | 'new'>('search');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; full_name: string; email: string; role?: string }>>([]);
   const [newUserEmails, setNewUserEmails] = useState('');
   const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
+  const [incomingInvitations, setIncomingInvitations] = useState<any[]>([]);
   const [currentSupervisors, setCurrentSupervisors] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -82,6 +84,7 @@ export function RelationshipManagementModal({
     if (visible) {
       if (activeTab === 'pending') {
         loadPendingInvitations();
+        loadIncomingInvitations();
       } else if (activeTab === 'manage' && userRole === 'student' && profile?.id) {
         loadCurrentSupervisors();
       }
@@ -96,6 +99,16 @@ export function RelationshipManagementModal({
       setPendingInvitations(invitations);
     } catch (error) {
       console.error('Error loading pending invitations:', error);
+    }
+  };
+
+  const loadIncomingInvitations = async () => {
+    if (!user?.email) return;
+    try {
+      const invitations = await getIncomingInvitations(user.email);
+      setIncomingInvitations(invitations);
+    } catch (error) {
+      console.error('Error loading incoming invitations:', error);
     }
   };
 
@@ -295,7 +308,7 @@ export function RelationshipManagementModal({
           <Button
             key={tab.key}
             onPress={() => setActiveTab(tab.key as any)}
-            variant={activeTab === tab.key ? 'primary' : 'outline'}
+            variant={activeTab === tab.key ? 'primary' : 'tertiary'}
             size="sm"
             flex={1}
           >
@@ -334,7 +347,7 @@ export function RelationshipManagementModal({
                     borderRadius="$3"
                   >
                     <YStack flex={1}>
-                      <Text weight="600" size="sm">{supervisor.supervisor_name}</Text>
+                      <Text weight="semibold" size="sm">{supervisor.supervisor_name}</Text>
                       <Text color="$gray11" size="xs">{supervisor.supervisor_email}</Text>
                     </YStack>
                     <Button
@@ -384,13 +397,13 @@ export function RelationshipManagementModal({
                     borderColor="$gray6"
                   >
                     <YStack flex={1}>
-                      <Text weight="600" size="sm" color="$color">{student.full_name}</Text>
+                      <Text weight="semibold" size="sm" color="$color">{student.full_name}</Text>
                       <Text color="$gray11" size="xs">{student.email}</Text>
                     </YStack>
                     <XStack gap="$2">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="tertiary"
                         onPress={() => {
                           onStudentSelect?.(student.id, student.full_name);
                           onClose();
@@ -400,7 +413,7 @@ export function RelationshipManagementModal({
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="tertiary"
                         theme="red"
                         onPress={() => handleRemoveStudent(student.id)}
                       >
@@ -454,10 +467,10 @@ export function RelationshipManagementModal({
                   const isSelected = localSelectedSupervisorIds.includes(supervisor.id);
                   console.log(`Rendering button for ${supervisor.full_name}, selected: ${isSelected}`);
                   return (
-                    <Button
+                      <Button
                       key={supervisor.id}
                       onPress={() => handleSupervisorToggle(supervisor.id)}
-                      variant={isSelected ? 'primary' : 'outline'}
+                        variant={isSelected ? 'primary' : 'tertiary'}
                       justifyContent="flex-start"
                       width="100%"
                       marginBottom="$2"
@@ -469,11 +482,11 @@ export function RelationshipManagementModal({
                           color={isSelected ? 'white' : '#999'}
                         />
                         <YStack flex={1} alignItems="flex-start">
-                          <Text weight="600" size="sm" color={isSelected ? 'white' : '$color'}>
+                          <Text weight="semibold" size="sm" color={isSelected ? 'white' : '$color'}>
                             {supervisor.full_name || 'Unnamed'}
                           </Text>
                           <Text color={isSelected ? '$gray3' : '$gray11'} size="xs">
-                            {supervisor.email || 'No email'} • {supervisor.role}
+                            {supervisor.email || 'No email'}
                           </Text>
                         </YStack>
                       </XStack>
@@ -516,12 +529,12 @@ export function RelationshipManagementModal({
             >
               <YStack gap="$3">
                 {/* Option to view own profile */}
-                <Button
+                  <Button
                   onPress={() => {
                     onStudentSelect?.(null);
                     onClose();
                   }}
-                  variant={activeStudentId === null ? 'primary' : 'outline'}
+                    variant={activeStudentId === null ? 'primary' : 'tertiary'}
                   backgroundColor={activeStudentId === null ? '$blue9' : '$gray3'}
                   borderWidth={1}
                   borderColor="$gray6"
@@ -531,7 +544,7 @@ export function RelationshipManagementModal({
                   <XStack alignItems="center" gap="$3" flex={1}>
                     <Feather name="user" size={16} color={activeStudentId === null ? 'white' : '$gray11'} />
                     <YStack alignItems="flex-start" flex={1}>
-                      <Text weight="600" size="sm" color={activeStudentId === null ? 'white' : '$color'}>
+                          <Text weight="semibold" size="sm" color={activeStudentId === null ? 'white' : '$color'}>
                         My Own Profile
                       </Text>
                       <Text color={activeStudentId === null ? '$gray3' : '$gray11'} size="xs">
@@ -550,7 +563,7 @@ export function RelationshipManagementModal({
                         onStudentSelect?.(student.id, student.full_name);
                         onClose();
                       }}
-                      variant={isActive ? 'primary' : 'outline'}
+                      variant={isActive ? 'primary' : 'tertiary'}
                       backgroundColor={isActive ? '$blue9' : '$gray3'}
                       borderWidth={1}
                       borderColor="$gray6"
@@ -560,7 +573,7 @@ export function RelationshipManagementModal({
                       <XStack alignItems="center" gap="$3" flex={1}>
                         <Feather name="user" size={16} color={isActive ? 'white' : '$gray11'} />
                         <YStack flex={1} alignItems="flex-start">
-                          <Text weight="600" size="sm" color={isActive ? 'white' : '$color'}>
+                          <Text weight="semibold" size="sm" color={isActive ? 'white' : '$color'}>
                             {student.full_name}
                           </Text>
                           <Text color={isActive ? '$gray3' : '$gray11'} size="xs">
@@ -581,7 +594,7 @@ export function RelationshipManagementModal({
 
   const renderInviteTab = () => {
     return (
-      <YStack gap="$4">
+      <YStack flex={1} gap="$4">
         <Text size="sm" color="$gray11">
           {userRole === 'student' 
             ? 'Search existing users or enter email addresses to invite new supervisors'
@@ -592,7 +605,7 @@ export function RelationshipManagementModal({
         <XStack gap="$2">
           <Button
             onPress={() => setInviteMode('search')}
-            variant={inviteMode === 'search' ? 'primary' : 'outline'}
+            variant={inviteMode === 'search' ? 'primary' : 'tertiary'}
             size="sm"
             flex={1}
           >
@@ -600,7 +613,7 @@ export function RelationshipManagementModal({
           </Button>
           <Button
             onPress={() => setInviteMode('new')}
-            variant={inviteMode === 'new' ? 'primary' : 'outline'}
+            variant={inviteMode === 'new' ? 'primary' : 'tertiary'}
             size="sm"
             flex={1}
           >
@@ -609,7 +622,7 @@ export function RelationshipManagementModal({
         </XStack>
 
         {inviteMode === 'search' ? (
-          <YStack gap="$3">
+          <YStack flex={1} gap="$3">
             <TextInput
               value={searchQuery}
               onChangeText={handleSearch}
@@ -627,19 +640,19 @@ export function RelationshipManagementModal({
 
             {loading ? (
               <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
-                <Text color="$gray11" textAlign="center">
+                <Text intent="muted" textAlign="center">
                   Searching...
                 </Text>
               </YStack>
             ) : searchResults.length === 0 && searchQuery.length >= 2 ? (
               <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
-                <Text color="$gray11" textAlign="center">
+                <Text intent="muted" textAlign="center">
                   No users found matching "{searchQuery}"
                 </Text>
               </YStack>
             ) : searchQuery.length < 2 ? (
               <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
-                <Text color="$gray11" textAlign="center">
+                <Text intent="muted" textAlign="center">
                   Type at least 2 characters to search
                 </Text>
               </YStack>
@@ -653,7 +666,7 @@ export function RelationshipManagementModal({
                   {searchResults.map((user) => (
                     <Button
                       key={user.id}
-                      variant="outline"
+                      variant="tertiary"
                       backgroundColor="$gray3"
                       borderWidth={1}
                       borderColor="$gray6"
@@ -663,13 +676,43 @@ export function RelationshipManagementModal({
                         // Handle adding existing user
                         Alert.alert('Add User', `Add ${user.full_name || user.email} as your ${userRole === 'student' ? 'supervisor' : 'student'}?`, [
                           { text: 'Cancel' },
-                          { text: 'Add', onPress: () => console.log('Add existing user logic here') }
+                          { 
+                            text: 'Add', 
+                            onPress: async () => {
+                              try {
+                                setLoading(true);
+                                
+                                if (userRole === 'student') {
+                                  // Student inviting a supervisor
+                                  const targetRole = 'instructor';
+                                  await onInviteUsers?.([user.email], targetRole);
+                                } else {
+                                  // Instructor inviting a student
+                                  const targetRole = 'student';
+                                  await onInviteUsers?.([user.email], targetRole);
+                                }
+                                
+                                // Clear search and switch to pending tab
+                                setSearchQuery('');
+                                setSearchResults([]);
+                                setActiveTab('pending');
+                                loadPendingInvitations();
+                                
+                                Alert.alert('Success', `Invitation sent to ${user.full_name || user.email}`);
+                              } catch (error) {
+                                console.error('Error sending invitation:', error);
+                                Alert.alert('Error', 'Failed to send invitation. Please try again.');
+                              } finally {
+                                setLoading(false);
+                              }
+                            }
+                          }
                         ]);
                       }}
                     >
                       <YStack alignItems="flex-start" flex={1}>
-                        <Text weight="600" size="sm" color="$color">{user.full_name || 'No name'}</Text>
-                        <Text color="$gray11" size="xs">{user.email || 'No email'} • {user.role}</Text>
+                        <Text weight="semibold" size="sm">{user.full_name || 'No name'}</Text>
+                        <Text intent="muted" size="xs">{user.email || 'No email'} • {user.role}</Text>
                       </YStack>
                     </Button>
                   ))}
@@ -709,49 +752,56 @@ export function RelationshipManagementModal({
   const renderPendingTab = () => {
     return (
       <YStack gap="$3">
-        <Text size="sm" color="$gray11">
-          Manage your pending invitations
-        </Text>
+        <Text size="sm" color="$gray11">Manage your pending invitations</Text>
 
         <ScrollView style={{ flex: 1 }}>
-          <YStack gap="$2">
-            {pendingInvitations.length === 0 ? (
-              <Text color="$gray11" textAlign="center">
-                No pending invitations
-              </Text>
-            ) : (
-              pendingInvitations.map((invitation) => (
-                <YStack
-                  key={invitation.id}
-                  backgroundColor="$backgroundStrong"
-                  padding="$3"
-                  borderRadius="$2"
-                  gap="$2"
-                >
-                  <XStack justifyContent="space-between" alignItems="center">
-                    <YStack flex={1}>
-                      <Text weight="600" size="sm">{invitation.email}</Text>
-                      <Text color="$gray11" size="xs">
-                        Role: {invitation.role} • Status: {invitation.status}
-                      </Text>
-                      <Text color="$gray11" size="xs">
-                        Sent: {new Date(invitation.created_at).toLocaleDateString()}
-                      </Text>
-                    </YStack>
-                    
-                    <XStack gap="$2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onPress={() => handleCancelInvitation(invitation.id)}
-                      >
-                        <Feather name="x" size={12} />
-                      </Button>
+          <YStack gap="$3">
+            <YStack gap="$2">
+              <Text size="sm" color="$gray11">Sent by you</Text>
+              {pendingInvitations.length === 0 ? (
+                <Text color="$gray11" textAlign="center">No pending invitations</Text>
+              ) : (
+                pendingInvitations.map((invitation) => (
+                  <YStack key={invitation.id} backgroundColor="$backgroundStrong" padding="$3" borderRadius="$2" gap="$2">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <YStack flex={1}>
+                        <Text weight="semibold" size="sm">{invitation.email}</Text>
+                        <Text color="$gray11" size="xs">Role: {invitation.role} • Status: {invitation.status}</Text>
+                        <Text color="$gray11" size="xs">Sent: {new Date(invitation.created_at).toLocaleDateString()}</Text>
+                      </YStack>
+                      <XStack gap="$2">
+                        <Button size="sm" variant="tertiary" onPress={() => handleCancelInvitation(invitation.id)}>
+                          <Feather name="x" size={12} />
+                        </Button>
+                      </XStack>
                     </XStack>
-                  </XStack>
-                </YStack>
-              ))
-            )}
+                  </YStack>
+                ))
+              )}
+            </YStack>
+
+            <YStack gap="$2">
+              <Text size="sm" color="$gray11">Received by you</Text>
+              {incomingInvitations.length === 0 ? (
+                <Text color="$gray11" textAlign="center">No incoming invitations</Text>
+              ) : (
+                incomingInvitations.map((invitation) => (
+                  <YStack key={invitation.id} backgroundColor="$backgroundStrong" padding="$3" borderRadius="$2" gap="$2">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <YStack flex={1}>
+                        <Text weight="semibold" size="sm">{invitation.email}</Text>
+                        <Text color="$gray11" size="xs">Role: {invitation.role} • Status: {invitation.status}</Text>
+                        <Text color="$gray11" size="xs">Sent: {new Date(invitation.created_at).toLocaleDateString()}</Text>
+                      </YStack>
+                      <XStack gap="$2">
+                        <Button size="sm" variant="primary" onPress={async () => { await acceptInvitationById(invitation.id, profile!.id); loadIncomingInvitations(); onRefresh?.(); }}>Accept</Button>
+                        <Button size="sm" variant="tertiary" onPress={async () => { await rejectInvitation(invitation.id); loadIncomingInvitations(); }}>Decline</Button>
+                      </XStack>
+                    </XStack>
+                  </YStack>
+                ))
+              )}
+            </YStack>
           </YStack>
         </ScrollView>
       </YStack>
@@ -790,13 +840,9 @@ export function RelationshipManagementModal({
             <Text size="xl" weight="bold" color="$color">
               {getModalTitle()}
             </Text>
-            <Button
-              onPress={onClose}
-              variant="ghost"
-              size="sm"
-              circular
-              icon={<Feather name="x" size={16} />}
-            />
+            <Button onPress={onClose} variant="link" size="sm">
+              <Feather name="x" size={16} />
+            </Button>
           </XStack>
 
           {/* Tabs */}
@@ -813,7 +859,7 @@ export function RelationshipManagementModal({
           {/* Footer */}
           <Button
             onPress={onClose}
-            variant="outline"
+            variant="tertiary"
             size="lg"
           >
             CANCEL

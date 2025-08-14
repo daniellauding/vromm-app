@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { pushNotificationService } from './pushNotificationService';
 import { Database } from '../lib/database.types';
 
 type UserRole = Database['public']['Enums']['user_role'];
@@ -22,7 +23,7 @@ interface BulkInvitationResult {
  * Send invitation to a new user using Supabase Auth
  * This will trigger Supabase's invitation email template
  */
-export async function inviteNewUser(data: InvitationData): Promise<{ success: boolean; error?: string }> {
+export async function inviteNewUser(data: InvitationData): Promise<{ success: boolean; error?: string; invitationId?: string; note?: string }> {
   try {
     const { 
       email, 
@@ -52,7 +53,7 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
     }
 
     // Try to create pending invitation record first
-    let invitation = null;
+    let invitation: any = null;
     const { data: invitationData, error: inviteError } = await supabase
       .from('pending_invitations')
       .insert({
@@ -105,7 +106,42 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
       }
 
       console.log('✅ Invitation sent successfully via Edge Function');
-      return { success: true };
+      // Try to notify existing users in-app (if email belongs to a profile)
+      try {
+        const { data: recipient } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email.toLowerCase())
+          .single();
+        if (recipient?.id && invitation?.id) {
+          await supabase.from('notifications').insert({
+            user_id: recipient.id,
+            actor_id: supervisorId,
+            type: relationshipType === 'student_invites_supervisor' ? 'supervisor_invitation' : 'student_invitation',
+            message:
+              relationshipType === 'student_invites_supervisor'
+                ? `${supervisorName || 'A student'} invited you to be their supervisor`
+                : `${supervisorName || 'An instructor'} invited you to be their student`,
+            metadata: { invitation_id: invitation.id },
+          });
+
+          // Fire push notification (best-effort)
+          try {
+            await pushNotificationService.sendInvitationNotification(
+              supervisorId || '',
+              recipient.id,
+              supervisorName || 'Someone',
+              inviterRole || 'user',
+              relationshipType === 'supervisor_invites_student' ? 'student' : 'supervisor',
+            );
+          } catch (e) {
+            console.warn('Push send failed (invite):', e);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not create in-app notification for invitation:', e);
+      }
+      return { success: true, invitationId: invitation?.id };
 
     } catch (functionError) {
       console.log('📧 Edge Function failed, using Supabase Auth fallback...');
@@ -114,9 +150,41 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
       // For now, we'll just return success for the invitation record creation
       if (invitation) {
         console.log('✅ Invitation record created successfully, email sending pending');
+        // create in-app notification if possible
+        try {
+          const { data: recipient } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', email.toLowerCase())
+            .single();
+          if (recipient?.id && invitationData?.id) {
+            await supabase.from('notifications').insert({
+              user_id: recipient.id,
+              actor_id: supervisorId,
+              type: relationshipType === 'student_invites_supervisor' ? 'supervisor_invitation' : 'student_invitation',
+              message:
+                relationshipType === 'student_invites_supervisor'
+                  ? `${supervisorName || 'A student'} invited you to be their supervisor`
+                  : `${supervisorName || 'An instructor'} invited you to be their student`,
+              metadata: { invitation_id: invitationData.id },
+            });
+
+            // Best-effort push
+            try {
+              await pushNotificationService.sendInvitationNotification(
+                supervisorId || '',
+                recipient.id,
+                supervisorName || 'Someone',
+                inviterRole || 'user',
+                relationshipType === 'supervisor_invites_student' ? 'student' : 'supervisor',
+              );
+            } catch {}
+          }
+        } catch {}
         return { 
           success: true, 
-          note: 'Invitation record created. Email sending requires Edge Function deployment or manual setup.' 
+          note: 'Invitation record created. Email sending requires Edge Function deployment or manual setup.',
+          invitationId: invitationData?.id
         };
       } else {
         console.log('⚠️ Creating basic invitation record without email...');
@@ -128,7 +196,7 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
       }
     }
 
-    return { success: true };
+    return { success: true, invitationId: invitation?.id };
   } catch (error) {
     console.error('Error inviting user:', error);
     return { 
@@ -221,6 +289,26 @@ export async function getPendingInvitations(userId: string) {
 }
 
 /**
+ * Get invitations received by an email (for the invitee inbox)
+ */
+export async function getIncomingInvitations(email: string) {
+  try {
+    const { data, error } = await supabase
+      .from('pending_invitations')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching incoming invitations:', error);
+    return [];
+  }
+}
+
+/**
  * Cancel a pending invitation
  */
 export async function cancelInvitation(invitationId: string): Promise<boolean> {
@@ -305,6 +393,64 @@ export async function acceptInvitation(email: string, userId: string): Promise<b
 }
 
 /**
+ * Accept a specific invitation by ID (preferred when you already listed invites)
+ */
+export async function acceptInvitationById(invitationId: string, userId: string): Promise<boolean> {
+  try {
+    const { data: invitation, error: findError } = await supabase
+      .from('pending_invitations')
+      .select('*')
+      .eq('id', invitationId)
+      .single();
+
+    if (findError || !invitation) return false;
+
+    const { error: updateError } = await supabase
+      .from('pending_invitations')
+      .update({ status: 'accepted', accepted_at: new Date().toISOString(), accepted_by: userId })
+      .eq('id', invitationId);
+
+    if (updateError) return false;
+
+    if (invitation.invited_by) {
+      const { error: relError } = await supabase
+        .from('student_supervisor_relationships')
+        .insert({ student_id: userId, supervisor_id: invitation.invited_by });
+      if (relError) console.error('Error creating supervisor relationship:', relError);
+    }
+
+    if (invitation.role) {
+      const { error: roleError } = await supabase
+        .from('profiles')
+        .update({ role: invitation.role })
+        .eq('id', userId);
+      if (roleError) console.error('Error updating user role:', roleError);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error accepting invitation by id:', error);
+    return false;
+  }
+}
+
+/**
+ * Reject an invitation by ID
+ */
+export async function rejectInvitation(invitationId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('pending_invitations')
+      .update({ status: 'rejected' })
+      .eq('id', invitationId);
+    return !error;
+  } catch (error) {
+    console.error('Error rejecting invitation:', error);
+    return false;
+  }
+}
+
+/**
  * Resend an invitation
  */
 export async function resendInvitation(invitationId: string): Promise<boolean> {
@@ -365,22 +511,33 @@ export async function removeSupervisorRelationship(studentId: string, supervisor
  */
 export async function getStudentSupervisors(studentId: string) {
   try {
-    const { data, error } = await supabase
+    // Step 1: fetch relationships
+    const { data: rels, error: relErr } = await supabase
       .from('student_supervisor_relationships')
-      .select(`
-        supervisor_id,
-        created_at,
-        profiles!student_supervisor_relationships_supervisor_id_fkey(
-          id,
-          full_name,
-          email,
-          role
-        )
-      `)
+      .select('supervisor_id, created_at')
       .eq('student_id', studentId);
 
-    if (error) throw error;
-    return data || [];
+    if (relErr) throw relErr;
+    if (!rels || rels.length === 0) return [];
+
+    // Step 2: fetch supervisor profiles
+    const supervisorIds = rels.map((r) => r.supervisor_id);
+    const { data: profiles, error: profErr } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, role')
+      .in('id', supervisorIds);
+
+    if (profErr) throw profErr;
+
+    // Step 3: merge
+    const profileById = new Map((profiles || []).map((p) => [p.id, p]));
+    const merged = rels.map((r) => ({
+      supervisor_id: r.supervisor_id,
+      created_at: r.created_at,
+      profiles: profileById.get(r.supervisor_id) || null,
+    }));
+
+    return merged;
   } catch (error) {
     console.error('Error fetching student supervisors:', error);
     return [];
