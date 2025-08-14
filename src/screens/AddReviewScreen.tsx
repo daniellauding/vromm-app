@@ -203,11 +203,31 @@ export function AddReviewScreen({ route }: Props) {
         throw drivenError;
       }
 
+      try {
+        // Notify route creator that route was completed (in-app + push), best-effort
+        if (user?.id) {
+          const { data: routeRow } = await supabase
+            .from('routes')
+            .select('id, name, creator_id')
+            .eq('id', routeId)
+            .single();
+          if (routeRow?.creator_id && routeRow.creator_id !== user.id) {
+            const { pushNotificationService } = await import('../services/pushNotificationService');
+            await pushNotificationService.sendRouteCompletedNotification(
+              routeId,
+              routeRow.name || 'Route',
+              user.id,
+              (user as any)?.full_name || (user as any)?.email || 'Someone',
+              routeRow.creator_id,
+            );
+          }
+        }
+      } catch (notifyError) {
+        console.log('Route completion notification failed (best-effort):', notifyError);
+      }
+
       // Navigate back and ensure reviews are refreshed immediately
-      navigation.navigate('RouteDetail', {
-        routeId,
-        shouldRefreshReviews: true,
-      });
+      navigation.navigate('RouteDetail', { routeId, shouldRefreshReviews: true });
     } catch (err) {
       console.error('Submit review error:', err);
       setError(err instanceof Error ? err.message : t('review.uploadError'));

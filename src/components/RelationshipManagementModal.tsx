@@ -88,6 +88,14 @@ export function RelationshipManagementModal({
       } else if (activeTab === 'manage' && userRole === 'student' && profile?.id) {
         loadCurrentSupervisors();
       }
+      // Ensure sent invites are available to highlight in the student "Add" list
+      if (userRole === 'student') {
+        loadPendingInvitations();
+      }
+      // Supervisors: show incoming invitations also on the Add (view) tab for symmetry
+      if (userRole !== 'student' && activeTab === 'view') {
+        loadIncomingInvitations();
+      }
     }
   }, [visible, activeTab]);
 
@@ -369,6 +377,61 @@ export function RelationshipManagementModal({
       // Show supervised students for instructors with ability to remove
       return (
         <YStack gap="$4" flex={1}>
+          {/* Incoming invitations for supervisors (symmetry with student Add tab) */}
+          {incomingInvitations.length > 0 && (
+            <YStack gap="$2">
+              <Text size="sm" color="$gray11">Incoming invitations</Text>
+              {incomingInvitations.map((invitation) => (
+                <XStack
+                  key={invitation.id}
+                  justifyContent="space-between"
+                  alignItems="center"
+                  backgroundColor="$backgroundStrong"
+                  padding="$3"
+                  borderRadius="$2"
+                >
+                  <YStack flex={1}>
+                    <Text weight="semibold" size="sm">{invitation.email}</Text>
+                    <Text color="$gray11" size="xs">Role: {invitation.role} • Status: {invitation.status}</Text>
+                  </YStack>
+                  <XStack gap="$2">
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onPress={async () => {
+                        await acceptInvitationById(invitation.id, profile!.id);
+                        // Try to auto-select the student in the list by email
+                        try {
+                          const { data: student } = await supabase
+                            .from('profiles')
+                            .select('id, full_name')
+                            .eq('email', invitation.email.toLowerCase())
+                            .single();
+                          if (student?.id) {
+                            onStudentSelect?.(student.id, student.full_name);
+                          }
+                        } catch {}
+                        loadIncomingInvitations();
+                        onRefresh?.();
+                      }}
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="tertiary"
+                      onPress={async () => {
+                        await rejectInvitation(invitation.id);
+                        loadIncomingInvitations();
+                      }}
+                    >
+                      Decline
+                    </Button>
+                  </XStack>
+                </XStack>
+              ))}
+            </YStack>
+          )}
           <Text size="sm" color="$gray11">
             Students you are currently supervising
           </Text>
@@ -465,28 +528,33 @@ export function RelationshipManagementModal({
               ) : (
                 availableSupervisors.map((supervisor) => {
                   const isSelected = localSelectedSupervisorIds.includes(supervisor.id);
+                  const hasPendingInvite = pendingInvitations.some((inv) => inv.email?.toLowerCase() === (supervisor.email || '').toLowerCase() && inv.status === 'pending');
                   console.log(`Rendering button for ${supervisor.full_name}, selected: ${isSelected}`);
                   return (
                       <Button
                       key={supervisor.id}
-                      onPress={() => handleSupervisorToggle(supervisor.id)}
-                        variant={isSelected ? 'primary' : 'tertiary'}
+                      onPress={() => { if (!hasPendingInvite) handleSupervisorToggle(supervisor.id); }}
+                        variant={hasPendingInvite ? 'secondary' : isSelected ? 'primary' : 'tertiary'}
                       justifyContent="flex-start"
                       width="100%"
                       marginBottom="$2"
                     >
                       <XStack alignItems="center" gap="$2" flex={1} width="100%">
-                        <Feather 
-                          name={isSelected ? 'check-circle' : 'circle'} 
-                          size={16} 
-                          color={isSelected ? 'white' : '#999'}
-                        />
+                        {hasPendingInvite ? (
+                          <Feather name="clock" size={16} color="#F59E0B" />
+                        ) : (
+                          <Feather 
+                            name={isSelected ? 'check-circle' : 'circle'} 
+                            size={16} 
+                            color={isSelected ? 'white' : '#999'}
+                          />
+                        )}
                         <YStack flex={1} alignItems="flex-start">
                           <Text weight="semibold" size="sm" color={isSelected ? 'white' : '$color'}>
                             {supervisor.full_name || 'Unnamed'}
                           </Text>
                           <Text color={isSelected ? '$gray3' : '$gray11'} size="xs">
-                            {supervisor.email || 'No email'}
+                            {supervisor.email || 'No email'}{hasPendingInvite ? ' • Invitation pending' : ''}
                           </Text>
                         </YStack>
                       </XStack>
@@ -752,7 +820,7 @@ export function RelationshipManagementModal({
   const renderPendingTab = () => {
     return (
       <YStack gap="$3">
-        <Text size="sm" color="$gray11">Manage your pending invitations</Text>
+            <Text size="sm" color="$gray11">Manage your pending invitations</Text>
 
         <ScrollView style={{ flex: 1 }}>
           <YStack gap="$3">

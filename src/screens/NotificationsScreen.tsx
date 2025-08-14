@@ -97,13 +97,40 @@ export const NotificationsScreen: React.FC = () => {
         case 'route_driven':
         case 'route_completed':
         case 'route_reviewed':
-        case 'route_liked':
-          if (notification.data?.route_id || notification.metadata?.route_id) {
-            const routeId = notification.data?.route_id || notification.metadata?.route_id;
+        case 'route_liked': {
+          // Try multiple locations for route id
+          const routeId =
+            notification.data?.route_id ||
+            notification.metadata?.route_id ||
+            (notification as any).target_id;
+
+          if (routeId) {
             console.log('📍 Navigating to RouteDetail:', routeId);
             (navigation as any).navigate('RouteDetail', { routeId });
+            break;
+          }
+
+          // Fallback: attempt lookup by route_name if provided (best-effort)
+          const routeName = notification.metadata?.route_name || notification.data?.route_name;
+          if (routeName) {
+            try {
+              const { data } = await supabase
+                .from('routes')
+                .select('id')
+                .ilike('name', routeName)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+              if (data?.id) {
+                console.log('📍 Navigating to RouteDetail (resolved by name):', data.id);
+                (navigation as any).navigate('RouteDetail', { routeId: data.id });
+              }
+            } catch (e) {
+              console.log('No route found by name for notification');
+            }
           }
           break;
+        }
 
         case 'follow':
         case 'user_follow':

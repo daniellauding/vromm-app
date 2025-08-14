@@ -59,12 +59,9 @@ export function InvitationNotification({
           invited_by,
           metadata,
           created_at,
-          profiles!pending_invitations_invited_by_fkey (
+          inviter:profiles!pending_invitations_invited_by_fkey (
             full_name,
-            role,
-            school_profiles (
-              school_name
-            )
+            role
           )
         `)
         .eq('email', user.email)
@@ -78,9 +75,9 @@ export function InvitationNotification({
       const processedInvitations = invitations?.map((inv: any) => ({
         ...inv,
         inviter_details: {
-          full_name: inv.profiles?.full_name || 'Unknown User',
-          role: inv.profiles?.role || 'unknown',
-          school_name: inv.profiles?.school_profiles?.[0]?.school_name
+          full_name: inv.inviter?.full_name || 'Unknown User',
+          role: inv.inviter?.role || 'unknown',
+          school_name: undefined
         }
       })) || [];
 
