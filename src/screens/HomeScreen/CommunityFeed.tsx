@@ -241,15 +241,16 @@ export const CommunityFeed = () => {
     }
 
     // Add media attachments
-    const validAttachments = route.media_attachments?.filter((m: any) => 
-      m.url && (
-        m.url.startsWith('http://') || 
-        m.url.startsWith('https://') || 
+    const mediaAttachmentsArray = Array.isArray(route.media_attachments) ? route.media_attachments : [];
+    const validAttachments = mediaAttachmentsArray.filter((m: any) =>
+      m?.url && (
+        m.url.startsWith('http://') ||
+        m.url.startsWith('https://') ||
         m.url.startsWith('file://') ||
         m.url.startsWith('data:') ||
         m.url.startsWith('content://')
       )
-    ) || [];
+    );
 
     const media = validAttachments.map((m: any) => ({
       type: m.type as const,
@@ -339,10 +340,11 @@ export const CommunityFeed = () => {
     }
 
     // Add media attachments
-    const media = event.media?.map((m: any) => ({
+    const mediaArray = Array.isArray(event.media) ? event.media : [];
+    const media = mediaArray.map((m: any) => ({
       type: m.type,
       data: { url: m.url, description: m.description },
-    })) || [];
+    }));
 
     return [...items, ...media];
   };

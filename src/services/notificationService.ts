@@ -207,7 +207,10 @@ class NotificationService {
       | 'supervisor_invitation'
       | 'school_invitation'
       | 'teacher_invitation'
-      | 'admin_invitation',
+      | 'admin_invitation'
+      | 'event_invitation'
+      | 'event_updated'
+      | 'event_invite',
     message: string,
     targetId?: string,
     metadata?: any,
@@ -233,6 +236,22 @@ class NotificationService {
 
     if (error) throw error;
     return notification;
+  }
+
+  // Convenience helper for event invitations
+  async createEventInvitationNotification(
+    invitedUserId: string,
+    eventId: string,
+    eventTitle: string,
+    inviterUserId?: string,
+  ): Promise<void> {
+    await this.createNotification(
+      invitedUserId,
+      'event_invitation',
+      `You've been invited to "${eventTitle}"`,
+      undefined,
+      { event_id: eventId, event_title: eventTitle, inviter_id: inviterUserId },
+    );
   }
 
   // Subscribe to notification updates

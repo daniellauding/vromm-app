@@ -103,7 +103,7 @@ export const EventsScreen: React.FC = () => {
           )
         `)
         .eq('user_id', user.id)
-        .eq('status', 'pending');
+        .eq('status', 'invited');
 
       if (error) throw error;
 
