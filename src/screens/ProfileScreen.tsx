@@ -1058,7 +1058,7 @@ export function ProfileScreen() {
     }
   }, [logError]);
 
-  // Add supervisors function for RelationshipManagementModal
+  // Send invitations to supervisors (requires their acceptance)
   const addSupervisors = async (supervisorIds: string[]) => {
     try {
       if (!profile?.id || supervisorIds.length === 0) return;
@@ -1081,36 +1081,107 @@ export function ProfileScreen() {
         return;
       }
 
-      // Insert only new supervisor relationships
-      const insertData = newSupervisorIds.map((supervisorId) => ({
-        student_id: profile.id,
-        supervisor_id: supervisorId,
-      }));
+      // Send invitations to each supervisor instead of directly creating relationships
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const supervisorId of newSupervisorIds) {
+        try {
+          // Get supervisor details
+          const { data: supervisorProfile } = await supabase
+            .from('profiles')
+            .select('email, full_name')
+            .eq('id', supervisorId)
+            .single();
+            
+          if (!supervisorProfile?.email) {
+            failCount++;
+            continue;
+          }
 
-      const { error } = await supabase.from('student_supervisor_relationships').insert(insertData);
+          // Create pending invitation that requires supervisor's acceptance
+          const { data: invitationData, error: inviteError } = await supabase
+            .from('pending_invitations')
+            .insert({
+              email: supervisorProfile.email.toLowerCase(),
+              role: 'instructor',
+              invited_by: profile.id,
+              metadata: {
+                supervisorName: profile.full_name || profile.email,
+                inviterRole: 'student',
+                relationshipType: 'student_invites_supervisor',
+                invitedAt: new Date().toISOString(),
+                targetUserId: supervisorId,
+                targetUserName: supervisorProfile.full_name,
+              },
+              status: 'pending',
+            })
+            .select()
+            .single();
 
-      if (error) throw error;
+          if (inviteError) {
+            console.error('Error creating supervisor invitation:', inviteError);
+            failCount++;
+            continue;
+          }
 
-      const addedCount = newSupervisorIds.length;
-      const skippedCount = supervisorIds.length - addedCount;
+          // CRITICAL: Ensure invitation was created successfully
+          if (!invitationData || !invitationData.id) {
+            console.error('❌ Invitation creation failed - no data returned for:', supervisorProfile.email);
+            failCount++;
+            continue;
+          }
 
-      let message = `${addedCount} supervisor${addedCount !== 1 ? 's' : ''} added successfully`;
-      if (skippedCount > 0) {
-        message += `. ${skippedCount} already assigned.`;
+          console.log('✅ Invitation created successfully with ID:', invitationData.id);
+
+          // Create notification for the supervisor with invitation ID
+          await supabase.from('notifications').insert({
+            user_id: supervisorId,
+            actor_id: profile.id,
+            type: 'supervisor_invitation',
+            title: 'New Supervision Request',
+            message: `${profile.full_name || profile.email || 'A student'} wants you to be their supervisor`,
+            metadata: {
+              relationship_type: 'student_invites_supervisor',
+              from_user_id: profile.id,
+              from_user_name: profile.full_name || profile.email,
+              target_user_id: supervisorId,
+              invitation_id: invitationData.id, // Now guaranteed to exist
+            },
+            action_url: 'vromm://notifications',
+            priority: 'high',
+            is_read: false,
+          });
+
+          successCount++;
+        } catch (error) {
+          console.error('Error sending supervisor invitation:', error);
+          failCount++;
+        }
       }
 
-      Alert.alert('Success', message);
+      if (successCount > 0) {
+        Alert.alert(
+          'Invitations Sent! 📤',
+          `${successCount} supervision request${successCount !== 1 ? 's' : ''} sent. Supervisors will need to accept before the relationship is created.`
+        );
+      }
 
-      // Refresh relationships
+      if (failCount > 0) {
+        Alert.alert('Some Invitations Failed', `Failed to send ${failCount} invitation(s).`);
+      }
+
+      // Refresh data
       await getUserProfileWithRelationships(profile.id);
+      fetchPendingInvitations(); // Refresh pending invitations
       setSelectedSupervisorIds([]);
     } catch (error) {
-      console.error('Error adding supervisors:', error);
-      Alert.alert('Error', 'Failed to add supervisors');
+      console.error('Error sending supervisor invitations:', error);
+      Alert.alert('Error', 'Failed to send supervisor invitations');
     }
   };
 
-  // Join supervisors - Using proper student_supervisor_relationships table
+  // Send supervisor invitations (requires their acceptance) - same as addSupervisors
   const joinSupervisors = async () => {
     try {
       if (!profile?.id || selectedSupervisorIds.length === 0) return;
@@ -1134,33 +1205,104 @@ export function ProfileScreen() {
         return;
       }
 
-      // Insert only new supervisor relationships
-      const insertData = newSupervisorIds.map((supervisorId) => ({
-        student_id: profile.id,
-        supervisor_id: supervisorId,
-      }));
+      // Send invitations to each supervisor instead of directly creating relationships
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const supervisorId of newSupervisorIds) {
+        try {
+          // Get supervisor details
+          const { data: supervisorProfile } = await supabase
+            .from('profiles')
+            .select('email, full_name')
+            .eq('id', supervisorId)
+            .single();
+            
+          if (!supervisorProfile?.email) {
+            failCount++;
+            continue;
+          }
 
-      const { error } = await supabase.from('student_supervisor_relationships').insert(insertData);
+          // Create pending invitation that requires supervisor's acceptance
+          const { data: invitationData, error: inviteError } = await supabase
+            .from('pending_invitations')
+            .insert({
+              email: supervisorProfile.email.toLowerCase(),
+              role: 'instructor',
+              invited_by: profile.id,
+              metadata: {
+                supervisorName: profile.full_name || profile.email,
+                inviterRole: 'student',
+                relationshipType: 'student_invites_supervisor',
+                invitedAt: new Date().toISOString(),
+                targetUserId: supervisorId,
+                targetUserName: supervisorProfile.full_name,
+              },
+              status: 'pending',
+            })
+            .select()
+            .single();
 
-      if (error) throw error;
+          if (inviteError) {
+            console.error('Error creating supervisor invitation:', inviteError);
+            failCount++;
+            continue;
+          }
 
-      const addedCount = newSupervisorIds.length;
-      const skippedCount = selectedSupervisorIds.length - addedCount;
+          // CRITICAL: Ensure invitation was created successfully
+          if (!invitationData || !invitationData.id) {
+            console.error('❌ Invitation creation failed - no data returned for:', supervisorProfile.email);
+            failCount++;
+            continue;
+          }
 
-      let message = `${addedCount} supervisor${addedCount !== 1 ? 's' : ''} added successfully`;
-      if (skippedCount > 0) {
-        message += `. ${skippedCount} already assigned.`;
+          console.log('✅ Invitation created successfully with ID:', invitationData.id);
+
+          // Create notification for the supervisor with invitation ID
+          await supabase.from('notifications').insert({
+            user_id: supervisorId,
+            actor_id: profile.id,
+            type: 'supervisor_invitation',
+            title: 'New Supervision Request',
+            message: `${profile.full_name || profile.email || 'A student'} wants you to be their supervisor`,
+            metadata: {
+              relationship_type: 'student_invites_supervisor',
+              from_user_id: profile.id,
+              from_user_name: profile.full_name || profile.email,
+              target_user_id: supervisorId,
+              invitation_id: invitationData.id, // Now guaranteed to exist
+            },
+            action_url: 'vromm://notifications',
+            priority: 'high',
+            is_read: false,
+          });
+
+          successCount++;
+        } catch (error) {
+          console.error('Error sending supervisor invitation:', error);
+          failCount++;
+        }
       }
 
-      Alert.alert('Success', message);
+      if (successCount > 0) {
+        Alert.alert(
+          'Supervision Requests Sent! 📤',
+          `${successCount} request${successCount !== 1 ? 's' : ''} sent. Supervisors will receive notifications and need to accept before becoming your supervisor.`
+        );
+      }
+
+      if (failCount > 0) {
+        Alert.alert('Some Requests Failed', `Failed to send ${failCount} request(s).`);
+      }
 
       // Refresh relationships and close modal
       await getUserProfileWithRelationships(profile.id);
+      fetchPendingInvitations(); // Refresh pending invitations
       setShowSupervisorModal(false);
       setSelectedSupervisorIds([]);
     } catch (error) {
-      logError('Error joining supervisors', error as Error);
-      Alert.alert('Error', 'Failed to add supervisors');
+      logError('Error sending supervisor requests', error as Error);
+      Alert.alert('Error', 'Failed to send supervisor requests');
     }
   };
 
@@ -1222,6 +1364,7 @@ export function ProfileScreen() {
           fetchAvailableSupervisors(),
           fetchAvailableSchools(),
           fetchDrivingStats(), // Add stats fetch to refresh
+          fetchPendingInvitations(), // Add pending invitations to refresh
         ];
 
         // Add supervised students fetch for teachers/instructors
@@ -1243,28 +1386,47 @@ export function ProfileScreen() {
     if (!user?.email) return;
 
     try {
+      // Get pending invitations, but filter out ones where relationship already exists
       const { data: invitations, error } = await supabase
         .from('pending_invitations')
-        .select('id')
+        .select('id, invited_by')
         .eq('email', user.email)
-        .eq('status', 'pending')
-        .limit(1);
+        .eq('status', 'pending');
 
-      if (!error && invitations && invitations.length > 0) {
-        // Show invitation notification modal
-        setShowInvitationNotification(true);
+      if (error) throw error;
+
+      if (invitations && invitations.length > 0) {
+        // Check if any of these invitations don't already have relationships
+        let hasValidInvitation = false;
+        
+        for (const inv of invitations) {
+          const { data: existingRelationship } = await supabase
+            .from('student_supervisor_relationships')
+            .select('id')
+            .or(`and(student_id.eq.${user.id},supervisor_id.eq.${inv.invited_by}),and(student_id.eq.${inv.invited_by},supervisor_id.eq.${user.id})`)
+            .limit(1);
+
+          if (!existingRelationship || existingRelationship.length === 0) {
+            hasValidInvitation = true;
+            break;
+          }
+        }
+
+        if (hasValidInvitation) {
+          setShowInvitationNotification(true);
+        }
       }
     } catch (error) {
       console.error('Error checking for pending invitations:', error);
       
       // For testing: If table doesn't exist and user is daniel@lauding.se, show notification anyway
-      if (error.message?.includes('relation "pending_invitations" does not exist') && 
+      if ((error as any).message?.includes('relation "pending_invitations" does not exist') && 
           user.email === 'daniel@lauding.se') {
         console.log('🧪 Testing: Showing invitation notification for daniel@lauding.se');
         setShowInvitationNotification(true);
       }
     }
-  }, [user?.email]);
+  }, [user?.email, user?.id]);
 
   // Helper to get current user's role
   // Supports legacy 'teacher' and 'supervisor' roles as well
@@ -1367,6 +1529,44 @@ export function ProfileScreen() {
       
       // Check for pending invitations
       checkForPendingInvitations();
+      
+      // Load pending invitations for display
+      fetchPendingInvitations();
+
+      // Set up real-time subscription for relationship changes
+      const relationshipSubscription = supabase
+        .channel('student_supervisor_relationships')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'student_supervisor_relationships',
+          filter: `student_id=eq.${profile.id}`,
+        }, (payload) => {
+          console.log('🔄 Student relationship changed:', payload);
+          // Refresh relationships when they change
+          getUserProfileWithRelationships(profile.id);
+          if (canSuperviseStudents()) {
+            fetchSupervisedStudents();
+          }
+        })
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'student_supervisor_relationships',
+          filter: `supervisor_id=eq.${profile.id}`,
+        }, (payload) => {
+          console.log('🔄 Supervisor relationship changed:', payload);
+          // Refresh relationships when they change
+          getUserProfileWithRelationships(profile.id);
+          if (canSuperviseStudents()) {
+            fetchSupervisedStudents();
+          }
+        })
+        .subscribe();
+
+      return () => {
+        relationshipSubscription.unsubscribe();
+      };
     }
   }, [
     profile?.id,
@@ -1775,7 +1975,7 @@ export function ProfileScreen() {
                       disabled={relationshipsLoading}
                     >
                       <Text color="white">
-                        {supervisors.length > 0 ? 'Change' : 'Add Supervisors'}
+                        {supervisors.length > 0 ? 'Manage' : 'Request Supervisors'}
                       </Text>
                     </Button>
                     {profile?.role === 'student' && (
@@ -3322,7 +3522,11 @@ ${
       {/* Unified Relationship Management Modal */}
       <RelationshipManagementModal
         visible={showRelationshipModal}
-        onClose={() => setShowRelationshipModal(false)}
+        onClose={() => {
+          setShowRelationshipModal(false);
+          // Refresh pending invitations when modal closes
+          fetchPendingInvitations();
+        }}
         userRole={getUserRole()}
         supervisedStudents={supervisedStudents}
         onStudentSelect={handleStudentSelection}
@@ -3338,6 +3542,7 @@ ${
             await fetchPendingInvitations();
           } else {
             await fetchAvailableSupervisors();
+            await fetchPendingInvitations(); // Also fetch for students
           }
         }}
       />

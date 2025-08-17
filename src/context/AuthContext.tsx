@@ -128,6 +128,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const { error: createError } = await supabase.from('profiles').insert([
               {
                 id: session.user.id,
+                email: session.user.email, // FIX: Always save email to profiles
                 full_name: metadata.full_name || session.user.email?.split('@')[0] || 'Unknown',
                 role: metadata.role || 'student',
                 location: metadata.location || 'Unknown',

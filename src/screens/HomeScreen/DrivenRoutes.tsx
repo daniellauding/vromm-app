@@ -1,6 +1,7 @@
 import { RouteCard } from '@/src/components/RouteCard';
 import { SectionHeader } from '@/src/components/SectionHeader';
 import { useAuth } from '@/src/context/AuthContext';
+import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
@@ -58,18 +59,25 @@ const isValidRoute = (route: any): route is Route => {
 export const DrivenRoutes = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const [drivenRoutes, setDrivenRoutes] = React.useState<Route[]>([]);
   const colorScheme = useColorScheme();
+  
+  // Use effective user ID (student if viewing as student, otherwise current user)
+  const effectiveUserId = getEffectiveUserId();
   React.useEffect(() => {
-    if (!user) return;
+    if (!effectiveUserId) return;
+    
     const loadDrivenRoutes = async () => {
-      if (!user) return;
+      console.log('🚗 [DrivenRoutes] Loading driven routes for user:', effectiveUserId);
+      console.log('🚗 [DrivenRoutes] Is viewing as student:', isViewingAsStudent);
+      
       try {
         const { data: drivenData, error: drivenError } = await supabase
           .from('driven_routes')
           .select('*, routes(*, creator:creator_id(id, full_name))')
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .not('driven_at', 'is', null)
           .order('driven_at', { ascending: false });
 

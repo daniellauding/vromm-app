@@ -114,16 +114,16 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
           .eq('email', email.toLowerCase())
           .single();
         if (recipient?.id && invitation?.id) {
-          await supabase.from('notifications').insert({
-            user_id: recipient.id,
-            actor_id: supervisorId,
-            type: relationshipType === 'student_invites_supervisor' ? 'supervisor_invitation' : 'student_invitation',
-            message:
-              relationshipType === 'student_invites_supervisor'
-                ? `${supervisorName || 'A student'} invited you to be their supervisor`
-                : `${supervisorName || 'An instructor'} invited you to be their student`,
-            metadata: { invitation_id: invitation.id },
-          });
+                      await supabase.from('notifications').insert({
+              user_id: recipient.id,
+              actor_id: supervisorId,
+              type: (relationshipType === 'student_invites_supervisor' ? 'supervisor_invitation' : 'student_invitation') as Database['public']['Enums']['notification_type'],
+              message:
+                relationshipType === 'student_invites_supervisor'
+                  ? `${supervisorName || 'A student'} invited you to be their supervisor`
+                  : `${supervisorName || 'An instructor'} invited you to be their student`,
+              metadata: { invitation_id: invitation.id },
+            });
 
           // Fire push notification (best-effort)
           try {
@@ -161,7 +161,7 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
             await supabase.from('notifications').insert({
               user_id: recipient.id,
               actor_id: supervisorId,
-              type: relationshipType === 'student_invites_supervisor' ? 'supervisor_invitation' : 'student_invitation',
+              type: (relationshipType === 'student_invites_supervisor' ? 'supervisor_invitation' : 'student_invitation') as Database['public']['Enums']['notification_type'],
               message:
                 relationshipType === 'student_invites_supervisor'
                   ? `${supervisorName || 'A student'} invited you to be their supervisor`
@@ -360,11 +360,38 @@ export async function acceptInvitation(email: string, userId: string): Promise<b
 
     // Create supervisor relationship if invited by someone
     if (invitation.invited_by) {
+      // Determine the correct relationship direction based on invitation metadata
+      const relationshipType = invitation.metadata?.relationshipType;
+      let studentId, supervisorId;
+      
+      if (relationshipType === 'student_invites_supervisor') {
+        // Student invited supervisor, so student is the inviter and supervisor is accepting
+        studentId = invitation.invited_by;  // The inviter (student)
+        supervisorId = userId;              // The accepter (supervisor)
+      } else if (relationshipType === 'supervisor_invites_student') {
+        // Supervisor invited student, so supervisor is the inviter and student is accepting
+        studentId = userId;                 // The accepter (student)
+        supervisorId = invitation.invited_by; // The inviter (supervisor)
+      } else {
+        // Fallback to old logic for backward compatibility
+        studentId = userId;
+        supervisorId = invitation.invited_by;
+      }
+      
+      console.log('Creating relationship with correct direction:', {
+        relationshipType,
+        studentId,
+        supervisorId,
+        invitedBy: invitation.invited_by,
+        acceptingUserId: userId
+      });
+      
       const { error: relError } = await supabase
         .from('student_supervisor_relationships')
         .insert({
-          student_id: userId,
-          supervisor_id: invitation.invited_by,
+          student_id: studentId,
+          supervisor_id: supervisorId,
+          status: 'active'
         });
 
       if (relError) {
@@ -397,25 +424,69 @@ export async function acceptInvitation(email: string, userId: string): Promise<b
  */
 export async function acceptInvitationById(invitationId: string, userId: string): Promise<boolean> {
   try {
+    console.log('🎯 acceptInvitationById: Looking for invitation:', { invitationId, userId });
+    
     const { data: invitation, error: findError } = await supabase
       .from('pending_invitations')
       .select('*')
       .eq('id', invitationId)
       .single();
 
-    if (findError || !invitation) return false;
+    console.log('🎯 acceptInvitationById: Query result:', { invitation, findError });
+
+    if (findError || !invitation) {
+      console.log('🎯 acceptInvitationById: No invitation found or error:', findError);
+      return false;
+    }
 
     const { error: updateError } = await supabase
       .from('pending_invitations')
       .update({ status: 'accepted', accepted_at: new Date().toISOString(), accepted_by: userId })
       .eq('id', invitationId);
 
-    if (updateError) return false;
+    console.log('🎯 acceptInvitationById: Update result:', { updateError });
+
+    if (updateError) {
+      console.log('🎯 acceptInvitationById: Failed to update invitation:', updateError);
+      return false;
+    }
 
     if (invitation.invited_by) {
+      // Determine the correct relationship direction based on invitation metadata
+      const relationshipType = invitation.metadata?.relationshipType;
+      let studentId, supervisorId;
+      
+      if (relationshipType === 'student_invites_supervisor') {
+        // Student invited supervisor, so student is the inviter and supervisor is accepting
+        studentId = invitation.invited_by;  // The inviter (student)
+        supervisorId = userId;              // The accepter (supervisor)
+      } else if (relationshipType === 'supervisor_invites_student') {
+        // Supervisor invited student, so supervisor is the inviter and student is accepting
+        studentId = userId;                 // The accepter (student)
+        supervisorId = invitation.invited_by; // The inviter (supervisor)
+      } else {
+        // Fallback to old logic for backward compatibility
+        studentId = userId;
+        supervisorId = invitation.invited_by;
+      }
+      
+      console.log('Creating relationship with correct direction:', {
+        relationshipType,
+        studentId,
+        supervisorId,
+        invitedBy: invitation.invited_by,
+        acceptingUserId: userId
+      });
+      
       const { error: relError } = await supabase
         .from('student_supervisor_relationships')
-        .insert({ student_id: userId, supervisor_id: invitation.invited_by });
+        .insert({ 
+          student_id: studentId, 
+          supervisor_id: supervisorId,
+          status: 'active'
+        });
+      
+      console.log('🎯 acceptInvitationById: Relationship creation result:', { relError });
       if (relError) console.error('Error creating supervisor relationship:', relError);
     }
 
@@ -424,9 +495,47 @@ export async function acceptInvitationById(invitationId: string, userId: string)
         .from('profiles')
         .update({ role: invitation.role })
         .eq('id', userId);
+      console.log('🎯 acceptInvitationById: Role update result:', { roleError });
       if (roleError) console.error('Error updating user role:', roleError);
     }
 
+    // Send notification to the sender that their invitation was accepted
+    try {
+      const relationshipType = invitation.metadata?.relationshipType;
+      const senderName = invitation.metadata?.supervisorName || 'Someone';
+      const accepterName = invitation.metadata?.targetUserName || 'User';
+      
+      let notificationMessage;
+      if (relationshipType === 'student_invites_supervisor') {
+        notificationMessage = `${accepterName} accepted your request to be your supervisor`;
+      } else {
+        notificationMessage = `${accepterName} accepted your invitation to be supervised`;
+      }
+      
+      await supabase.from('notifications').insert({
+        user_id: invitation.invited_by,
+        actor_id: userId,
+        type: 'new_message', // Using existing enum value for acceptance notifications
+        title: 'Invitation Accepted! 🎉',
+        message: notificationMessage,
+        metadata: {
+          invitation_id: invitationId,
+          relationship_type: relationshipType,
+          accepted_by_id: userId,
+          accepted_by_name: accepterName,
+          notification_subtype: 'invitation_accepted', // Store the actual type in metadata
+        },
+        action_url: 'vromm://profile',
+        priority: 'high',
+        is_read: false,
+      });
+      
+      console.log('✅ Acceptance notification sent to sender');
+    } catch (notifError) {
+      console.warn('Failed to send acceptance notification:', notifError);
+    }
+
+    console.log('🎯 acceptInvitationById: SUCCESS - returning true');
     return true;
   } catch (error) {
     console.error('Error accepting invitation by id:', error);
@@ -484,10 +593,29 @@ export async function resendInvitation(invitationId: string): Promise<boolean> {
 }
 
 /**
- * Remove a supervisor relationship
+ * Remove a supervisor relationship with notification
  */
-export async function removeSupervisorRelationship(studentId: string, supervisorId: string): Promise<boolean> {
+export async function removeSupervisorRelationship(
+  studentId: string, 
+  supervisorId: string, 
+  removalMessage?: string,
+  removedByUserId?: string
+): Promise<boolean> {
   try {
+    // Get user details for notification
+    const { data: studentProfile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', studentId)
+      .single();
+      
+    const { data: supervisorProfile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', supervisorId)
+      .single();
+
+    // Remove the relationship
     const { error } = await supabase
       .from('student_supervisor_relationships')
       .delete()
@@ -497,6 +625,42 @@ export async function removeSupervisorRelationship(studentId: string, supervisor
     if (error) {
       console.error('Error removing supervisor relationship:', error);
       return false;
+    }
+
+    // Send notification to the other party
+    const removedByStudent = removedByUserId === studentId;
+    const notificationRecipientId = removedByStudent ? supervisorId : studentId;
+    const removerName = removedByStudent 
+      ? (studentProfile?.full_name || studentProfile?.email || 'Student')
+      : (supervisorProfile?.full_name || supervisorProfile?.email || 'Supervisor');
+    
+    const notificationMessage = removedByStudent
+      ? `${removerName} is no longer your student`
+      : `${removerName} is no longer your supervisor`;
+
+    try {
+      await supabase.from('notifications').insert({
+        user_id: notificationRecipientId,
+        actor_id: removedByUserId || (removedByStudent ? studentId : supervisorId),
+        type: 'new_message',
+        title: 'Relationship Ended',
+        message: notificationMessage,
+        metadata: {
+          relationship_type: 'relationship_removed',
+          removed_by_id: removedByUserId,
+          removed_by_name: removerName,
+          removal_message: removalMessage,
+          notification_subtype: 'relationship_removed',
+        },
+        action_url: 'vromm://profile',
+        priority: 'normal',
+        is_read: false,
+      });
+      
+      console.log('✅ Relationship removal notification sent');
+    } catch (notificationError) {
+      console.warn('Failed to send relationship removal notification:', notificationError);
+      // Don't fail the whole operation for notification errors
     }
 
     return true;

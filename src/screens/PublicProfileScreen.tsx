@@ -17,7 +17,7 @@ import { ProfileButton } from '../components/ProfileButton';
 import { useFocusEffect } from '@react-navigation/native';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 import { messageService } from '../services/messageService';
-import { inviteNewUser } from '../services/invitationService';
+import { inviteNewUser, removeSupervisorRelationship } from '../services/invitationService';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   routes_created: number;
@@ -89,12 +89,17 @@ export function PublicProfileScreen() {
   const [isInstructor, setIsInstructor] = useState(false);
   const [isStudent, setIsStudent] = useState(false);
   const [relationshipLoading, setRelationshipLoading] = useState(false);
+  
+  // Pending invitation states
+  const [hasPendingInvitation, setHasPendingInvitation] = useState(false);
+  const [pendingInvitationType, setPendingInvitationType] = useState<'sent' | 'received' | null>(null);
 
   useEffect(() => {
     loadProfile();
     if (userId && user?.id && userId !== user.id) {
       loadFollowData();
       checkRelationshipStatus();
+      checkPendingInvitations();
     }
     if (userId) {
       loadUserRelationships();
@@ -566,6 +571,44 @@ export function PublicProfileScreen() {
       console.log('No existing relationship');
     }
   };
+
+  // Check for pending invitations between current user and this profile
+  const checkPendingInvitations = async () => {
+    if (!user?.id || !userId || !profile?.email || !user.email) return;
+    
+    try {
+      // Check if current user sent invitation to this profile
+      const { data: sentInvitations } = await supabase
+        .from('pending_invitations')
+        .select('id, email, status')
+        .eq('invited_by', user.id)
+        .eq('email', profile.email.toLowerCase())
+        .eq('status', 'pending');
+      
+      // Check if this profile sent invitation to current user
+      const { data: receivedInvitations } = await supabase
+        .from('pending_invitations')
+        .select('id, email, status')
+        .eq('invited_by', userId)
+        .eq('email', user.email.toLowerCase())
+        .eq('status', 'pending');
+      
+      if (sentInvitations && sentInvitations.length > 0) {
+        setHasPendingInvitation(true);
+        setPendingInvitationType('sent');
+        console.log('📤 Found sent invitation to this user');
+      } else if (receivedInvitations && receivedInvitations.length > 0) {
+        setHasPendingInvitation(true);
+        setPendingInvitationType('received');
+        console.log('📥 Found received invitation from this user');
+      } else {
+        setHasPendingInvitation(false);
+        setPendingInvitationType(null);
+      }
+    } catch (error) {
+      console.error('Error checking pending invitations:', error);
+    }
+  };
   
   // Handle set/unset as instructor
   const handleInstructorToggle = async () => {
@@ -645,17 +688,17 @@ export function PublicProfileScreen() {
       setRelationshipLoading(true);
       
       if (isStudent) {
-        // Remove student relationship
+        // Remove student relationship with notification
         console.log('👨‍🎓 REMOVING student relationship...');
-        console.log('👨‍🎓 DELETE WHERE supervisor_id =', user.id, 'AND student_id =', userId);
         
-        const { error } = await supabase
-          .from('student_supervisor_relationships')
-          .delete()
-          .eq('supervisor_id', user.id)
-          .eq('student_id', userId);
+        const success = await removeSupervisorRelationship(
+          userId, // studentId
+          user.id, // supervisorId
+          undefined, // no message for now
+          user.id // removedByUserId
+        );
         
-        if (error) throw error;
+        if (!success) throw new Error('Failed to remove relationship');
         
         console.log('✅ STUDENT REMOVED successfully');
         setIsStudent(false);

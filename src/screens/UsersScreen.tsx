@@ -194,15 +194,18 @@ export function UsersScreen() {
       setRelationshipLoading((prev) => ({ ...prev, [targetUserId]: true }));
       
       if (isCurrentlyStudent) {
-        // Remove student relationship
+        // Remove student relationship with notification
         console.log('👨‍🎓 REMOVING student relationship...');
-        const { error } = await supabase
-          .from('student_supervisor_relationships')
-          .delete()
-          .eq('supervisor_id', user.id)
-          .eq('student_id', targetUserId);
         
-        if (error) throw error;
+        const { removeSupervisorRelationship } = await import('../services/invitationService');
+        const success = await removeSupervisorRelationship(
+          targetUserId, // studentId
+          user.id, // supervisorId
+          undefined, // no message for now
+          user.id // removedByUserId
+        );
+        
+        if (!success) throw new Error('Failed to remove relationship');
         
         console.log('✅ STUDENT REMOVED successfully');
         setUsers((prev) =>

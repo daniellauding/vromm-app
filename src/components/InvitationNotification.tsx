@@ -49,7 +49,7 @@ export function InvitationNotification({
     try {
       setLoading(true);
       
-      // Get pending invitations for current user's email
+      // Get pending invitations for current user's email, excluding already handled ones
       const { data: invitations, error } = await supabase
         .from('pending_invitations')
         .select(`
@@ -65,22 +65,52 @@ export function InvitationNotification({
           )
         `)
         .eq('email', user.email)
-        .eq('status', 'pending');
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error loading invitations:', error);
         return;
       }
 
-      const processedInvitations = invitations?.map((inv: any) => ({
+      // Filter out invitations where relationship already exists
+      const filteredInvitations = [];
+      for (const inv of invitations || []) {
+        // Check if relationship already exists
+        const { data: existingRelationship } = await supabase
+          .from('student_supervisor_relationships')
+          .select('id')
+          .or(`and(student_id.eq.${user.id},supervisor_id.eq.${inv.invited_by}),and(student_id.eq.${inv.invited_by},supervisor_id.eq.${user.id})`)
+          .limit(1);
+
+        if (!existingRelationship || existingRelationship.length === 0) {
+          filteredInvitations.push(inv);
+        } else {
+          console.log('🔄 Skipping invitation - relationship already exists:', inv.id);
+        }
+      }
+
+      // Deduplicate by invited_by (keep only the latest from each inviter)
+      const deduplicatedInvitations = filteredInvitations.reduce((acc: any[], inv: any) => {
+        const existingIndex = acc.findIndex(existing => existing.invited_by === inv.invited_by);
+        if (existingIndex === -1) {
+          acc.push(inv);
+        } else if (new Date(inv.created_at) > new Date(acc[existingIndex].created_at)) {
+          acc[existingIndex] = inv;
+        }
+        return acc;
+      }, []);
+
+      const processedInvitations = deduplicatedInvitations.map((inv: any) => ({
         ...inv,
         inviter_details: {
           full_name: inv.inviter?.full_name || 'Unknown User',
           role: inv.inviter?.role || 'unknown',
           school_name: undefined
         }
-      })) || [];
+      }));
 
+      console.log('📥 Processed invitations:', processedInvitations.length, 'out of', invitations?.length || 0);
       setPendingInvitations(processedInvitations);
       
       // Show first invitation
@@ -100,45 +130,16 @@ export function InvitationNotification({
     try {
       setLoading(true);
 
-      // Accept the invitation
-      const { error: acceptError } = await supabase.rpc('accept_invitation', {
-        invitation_id: invitation.id,
-        user_id: user.id
-      });
+      console.log('🎯 Accepting invitation:', invitation);
 
-      if (acceptError) {
-        console.error('Error accepting invitation:', acceptError);
+      // Use the acceptInvitationById function from invitation service
+      const { acceptInvitationById } = await import('../services/invitationService');
+      const success = await acceptInvitationById(invitation.id, user.id);
+
+      if (!success) {
+        console.error('Failed to accept invitation');
         Alert.alert('Error', 'Failed to accept invitation. Please try again.');
         return;
-      }
-
-      // Create the appropriate relationship based on roles
-      if (invitation.role === 'student') {
-        // Create student-supervisor relationship
-        const { error: relationError } = await supabase
-          .from('student_supervisor_relationships')
-          .insert({
-            student_id: user.id,
-            supervisor_id: invitation.invited_by,
-            status: 'active'
-          });
-
-        if (relationError) {
-          console.error('Error creating student-supervisor relationship:', relationError);
-        }
-      } else if (['supervisor', 'teacher', 'school'].includes(invitation.role)) {
-        // Create supervisor-student relationship (reverse)
-        const { error: relationError } = await supabase
-          .from('student_supervisor_relationships')
-          .insert({
-            student_id: invitation.invited_by,
-            supervisor_id: user.id,
-            status: 'active'
-          });
-
-        if (relationError) {
-          console.error('Error creating supervisor-student relationship:', relationError);
-        }
       }
 
       Alert.alert(

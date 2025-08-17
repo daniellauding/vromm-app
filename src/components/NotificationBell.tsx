@@ -20,16 +20,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   useEffect(() => {
     loadUnreadCount();
 
-    // Subscribe to real-time updates with enhanced handling
+    // Subscribe to real-time updates with immediate refresh
     const subscription = notificationService.subscribeToNotifications(() => {
-      console.log('📡 NotificationBell: New notification detected, refreshing count');
+      console.log('📡 NotificationBell: New notification detected, refreshing count immediately');
+      // Immediate refresh for real-time feel
       loadUnreadCount();
     });
 
-    // Set up periodic refresh for real-time feel
+    // Set up periodic refresh as backup (reduced frequency since we have real-time)
     const refreshInterval = setInterval(() => {
       loadUnreadCount();
-    }, 15000); // Refresh every 15 seconds
+    }, 30000); // Refresh every 30 seconds as backup
 
     return () => {
       if (subscription?.unsubscribe) {

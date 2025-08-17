@@ -1,33 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, ScrollView, Alert, TextInput, Dimensions } from 'react-native';
+import { Modal, ScrollView, Alert, TextInput } from 'react-native';
 import { YStack, XStack } from 'tamagui';
 import { Text } from '../components/Text';
 import { Button } from './Button';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
-import { useTranslation } from '../contexts/TranslationContext';
 import { supabase } from '../lib/supabase';
-import { inviteMultipleUsers, getPendingInvitations, cancelInvitation, removeSupervisorRelationship, getStudentSupervisors, getIncomingInvitations, acceptInvitationById, rejectInvitation } from '../services/invitationService';
+import { Database } from '../lib/database.types';
+import {
+  getPendingInvitations,
+  cancelInvitation,
+  removeSupervisorRelationship,
+  getStudentSupervisors,
+  getIncomingInvitations,
+  acceptInvitationById,
+  rejectInvitation,
+} from '../services/invitationService';
+import { getPendingInvitations as getPendingInvitationsV2 } from '../services/invitationService_v2';
 import { Feather } from '@expo/vector-icons';
 
 interface RelationshipManagementModalProps {
   visible: boolean;
   onClose: () => void;
   userRole: 'student' | 'supervisor' | 'teacher' | 'school' | 'admin';
-  
   // Student viewing functionality
   supervisedStudents?: Array<{ id: string; full_name: string; email: string }>;
   onStudentSelect?: (studentId: string | null, studentName?: string) => void;
-  
   // Supervisor selection functionality
   availableSupervisors?: Array<{ id: string; full_name: string; email: string }>;
   selectedSupervisorIds?: string[];
   onSupervisorSelect?: (supervisorIds: string[]) => void;
   onAddSupervisors?: (supervisorIds: string[]) => Promise<void>;
-  
   // Invitation functionality
   onInviteUsers?: (emails: string[], role: string) => Promise<void>;
-  
   // Refresh data
   onRefresh?: () => Promise<void>;
 }
@@ -43,31 +48,42 @@ export function RelationshipManagementModal({
   onSupervisorSelect,
   onAddSupervisors,
   onInviteUsers,
-  onRefresh
+  onRefresh,
 }: RelationshipManagementModalProps) {
   const { profile, user } = useAuth();
   const { activeStudentId } = useStudentSwitch();
-  const { t } = useTranslation();
   
   // Modal tabs/modes - default to 'manage' for instructors
   const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'invite' | 'pending'>(
-    ['instructor', 'school', 'admin'].includes(userRole) ? 'manage' : 'view'
+    ['instructor', 'school', 'admin'].includes(userRole) ? 'manage' : 'view',
   );
   
   // Invitation states
   const [inviteMode, setInviteMode] = useState<'search' | 'new'>('search');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{ id: string; full_name: string; email: string; role?: string }>>([]);
+  const [searchResults, setSearchResults] = useState<
+    Array<{ id: string; full_name: string; email: string; role?: string }>
+  >([]);
   const [newUserEmails, setNewUserEmails] = useState('');
-  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
-  const [incomingInvitations, setIncomingInvitations] = useState<any[]>([]);
-  const [currentSupervisors, setCurrentSupervisors] = useState<any[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<
+    Array<{ id: string; email: string; role: string; status: string; created_at: string }>
+  >([]);
+  const [incomingInvitations, setIncomingInvitations] = useState<
+    Array<{ id: string; email: string; role: string; status: string; created_at: string }>
+  >([]);
+  const [currentSupervisors, setCurrentSupervisors] = useState<
+    Array<{ 
+      supervisor_id: string; 
+      created_at: string; 
+      profiles: { id: string; full_name: string; email: string; role: string } | null;
+    }>
+  >([]);
   const [loading, setLoading] = useState(false);
   
   // Local state for supervisor selection
-  const [localSelectedSupervisorIds, setLocalSelectedSupervisorIds] = useState<string[]>(selectedSupervisorIds);
-
-  const screenHeight = Dimensions.get('window').height;
+  const [localSelectedSupervisorIds, setLocalSelectedSupervisorIds] = useState<string[]>(
+    selectedSupervisorIds,
+  );
 
   useEffect(() => {
     setLocalSelectedSupervisorIds(selectedSupervisorIds);
@@ -75,76 +91,171 @@ export function RelationshipManagementModal({
 
   useEffect(() => {
     if (visible) {
-      console.log('RelationshipManagementModal opened with data:');
-      console.log('User Role:', userRole);
-      console.log('Available Supervisors:', availableSupervisors);
-      console.log('Supervised Students:', supervisedStudents);
-      console.log('Active Tab:', activeTab);
+      console.log('🚪 RelationshipManagementModal opened with data:');
+      console.log('👤 User Role:', userRole);
+      console.log('🔍 Available Supervisors:', availableSupervisors);
+      console.log('👨‍🎓 Supervised Students:', supervisedStudents);
+      console.log('📑 Active Tab:', activeTab);
+      console.log('🆔 Current User ID:', user?.id);
+      console.log('📧 Current User Email:', user?.email);
+      console.log('👤 Profile ID:', profile?.id);
     }
     if (visible) {
       if (activeTab === 'pending') {
+        console.log('📋 Loading pending invitations...');
         loadPendingInvitations();
-        loadIncomingInvitations();
+        loadIncomingInvitations(); // Load for all user types in pending tab
       } else if (activeTab === 'manage' && userRole === 'student' && profile?.id) {
+        console.log('👨‍🎓 Loading current supervisors for student...');
         loadCurrentSupervisors();
       }
       // Ensure sent invites are available to highlight in the student "Add" list
       if (userRole === 'student') {
+        console.log('👩‍🎓 Loading pending invitations for student...');
         loadPendingInvitations();
       }
-      // Supervisors: show incoming invitations also on the Add (view) tab for symmetry
-      if (userRole !== 'student' && activeTab === 'view') {
+      // Load incoming invitations for all user types when needed
+      if (activeTab === 'view' || (activeTab === 'manage' && userRole !== 'student')) {
+        console.log('👨‍🏫 Loading incoming invitations...');
         loadIncomingInvitations();
       }
     }
   }, [visible, activeTab]);
 
+  // Add real-time subscription for pending invitations updates
+  useEffect(() => {
+    if (!visible || !profile?.id) return;
+
+    console.log('🔔 Setting up real-time subscription for pending invitations');
+    const subscription = supabase
+      .channel('pending_invitations_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'pending_invitations',
+        filter: `invited_by=eq.${profile.id}`,
+      }, (payload) => {
+        console.log('🔄 Pending invitation changed:', payload);
+        // Refresh pending invitations when they change
+        loadPendingInvitations();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'pending_invitations',
+        filter: `email=eq.${user?.email}`,
+      }, (payload) => {
+        console.log('🔄 Incoming invitation changed:', payload);
+        // Refresh incoming invitations when they change
+        loadIncomingInvitations();
+      })
+      .subscribe();
+
+    return () => {
+      console.log('🔕 Unsubscribing from pending invitations changes');
+      subscription.unsubscribe();
+    };
+  }, [visible, profile?.id, user?.email]);
+
   const loadPendingInvitations = async () => {
-    if (!profile?.id) return;
+    if (!profile?.id) {
+      console.log('❌ No profile ID for loading pending invitations');
+      return;
+    }
     
+    console.log('📤 Loading pending invitations for user:', profile.id);
     try {
-      const invitations = await getPendingInvitations(profile.id);
-      setPendingInvitations(invitations);
+      const invitations = await getPendingInvitationsV2(profile.id);
+      console.log('📤 Loaded pending invitations:', invitations);
+      console.log('📤 Setting pending invitations state with', invitations.length, 'items');
+      
+      // Filter out old accepted invitations (older than 24 hours) and clean them up
+      const now = new Date();
+      const filteredInvitations = [];
+      const toCleanup = [];
+      
+      for (const invitation of invitations) {
+        if (invitation.status === 'accepted') {
+          const acceptedAt = new Date(invitation.accepted_at || invitation.updated_at);
+          const hoursOld = (now.getTime() - acceptedAt.getTime()) / (1000 * 60 * 60);
+          
+          if (hoursOld > 24) {
+            toCleanup.push(invitation.id);
+          } else {
+            filteredInvitations.push(invitation);
+          }
+        } else {
+          filteredInvitations.push(invitation);
+        }
+      }
+      
+      // Clean up old accepted invitations
+      if (toCleanup.length > 0) {
+        console.log('🧹 Cleaning up', toCleanup.length, 'old accepted invitations');
+        await supabase
+          .from('pending_invitations')
+          .delete()
+          .in('id', toCleanup);
+      }
+      
+      setPendingInvitations(filteredInvitations);
     } catch (error) {
-      console.error('Error loading pending invitations:', error);
+      console.error('❌ Error loading pending invitations:', error);
     }
   };
 
   const loadIncomingInvitations = async () => {
-    if (!user?.email) return;
+    if (!user?.email) {
+      console.log('❌ No user email for loading incoming invitations');
+      return;
+    }
+    
+    console.log('📥 Loading incoming invitations for email:', user.email);
     try {
       const invitations = await getIncomingInvitations(user.email);
+      console.log('📥 Loaded incoming invitations:', invitations);
       setIncomingInvitations(invitations);
     } catch (error) {
-      console.error('Error loading incoming invitations:', error);
+      console.error('❌ Error loading incoming invitations:', error);
     }
   };
 
   const loadCurrentSupervisors = async () => {
-    if (!profile?.id) return;
+    if (!profile?.id) {
+      console.log('❌ No profile ID for loading current supervisors');
+      return;
+    }
     
+    console.log('👨‍🏫 Loading current supervisors for student:', profile.id);
     try {
       const supervisors = await getStudentSupervisors(profile.id);
+      console.log('👨‍🏫 Loaded current supervisors:', supervisors);
       setCurrentSupervisors(supervisors);
     } catch (error) {
-      console.error('Error loading current supervisors:', error);
+      console.error('❌ Error loading current supervisors:', error);
     }
   };
 
   const handleRemoveSupervisor = async (supervisorId: string) => {
     if (!profile?.id) return;
     
-    Alert.alert(
+    // Show input dialog for removal message
+    Alert.prompt(
       'Remove Supervisor',
-      'Are you sure you want to remove this supervisor? They will no longer be able to view your progress.',
+      'Are you sure you want to remove this supervisor? They will no longer be able to view your progress.\n\nOptional: Add a message explaining why:',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: async () => {
+          onPress: async (message) => {
             try {
-              const success = await removeSupervisorRelationship(profile.id, supervisorId);
+              const success = await removeSupervisorRelationship(
+                profile.id, 
+                supervisorId, 
+                message?.trim() || undefined,
+                profile.id
+              );
               if (success) {
                 Alert.alert('Success', 'Supervisor removed successfully');
                 loadCurrentSupervisors();
@@ -157,30 +268,34 @@ export function RelationshipManagementModal({
             }
           }
         }
-      ]
+      ],
+      'plain-text',
+      '',
+      'default'
     );
   };
 
   const handleRemoveStudent = async (studentId: string) => {
     if (!profile?.id) return;
     
-    Alert.alert(
+    // Show input dialog for removal message
+    Alert.prompt(
       'Remove Student',
-      'Are you sure you want to stop supervising this student?',
+      'Are you sure you want to stop supervising this student?\n\nOptional: Add a message explaining why:',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: async () => {
+          onPress: async (message) => {
             try {
-              const { error } = await supabase
-                .from('student_supervisor_relationships')
-                .delete()
-                .eq('supervisor_id', profile.id)
-                .eq('student_id', studentId);
-              
-              if (!error) {
+              const success = await removeSupervisorRelationship(
+                studentId, 
+                profile.id, 
+                message?.trim() || undefined,
+                profile.id
+              );
+              if (success) {
                 Alert.alert('Success', 'Student removed successfully');
                 onRefresh?.();
               } else {
@@ -191,24 +306,41 @@ export function RelationshipManagementModal({
             }
           }
         }
-      ]
+      ],
+      'plain-text',
+      '',
+      'default'
     );
   };
 
   const handleSearch = async (query: string) => {
+    console.log('🔍 handleSearch called with query:', query);
     setSearchQuery(query);
     if (query.length < 2) {
+      console.log('❌ Query too short, clearing results');
       setSearchResults([]);
       return;
     }
 
     try {
       setLoading(true);
+      console.log('⏳ Starting search...');
       
       // Search for existing users based on role
-      const targetRole = userRole === 'student' ? ['instructor', 'admin', 'school'] : ['student'];
-      console.log('Searching for users with query:', query);
-      console.log('Target roles:', targetRole);
+      const targetRole = userRole === 'student' ? ['instructor', 'admin', 'school', 'supervisor', 'teacher'] : ['student'];
+      console.log('🎯 Searching for users with query:', query);
+      console.log('🎭 Target roles:', targetRole);
+      console.log('👤 Current user role:', userRole);
+      
+      // First, let's see what roles exist for this query
+      const { data: allMatchingUsers, error: allError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .limit(10);
+        
+      console.log('🔍 All users matching query (before role filter):', allMatchingUsers);
+      console.log('❌ All users error:', allError);
       
       const { data, error } = await supabase
         .from('profiles')
@@ -217,14 +349,29 @@ export function RelationshipManagementModal({
         .in('role', targetRole)
         .limit(10);
 
-      console.log('Search results:', data);
-      console.log('Search error:', error);
+      console.log('📊 Search results raw:', data);
+      console.log('❌ Search error:', error);
+      console.log('🔢 Results count:', data?.length || 0);
 
       if (!error && data) {
-        setSearchResults(data);
-        data.forEach(user => {
-          console.log('Found user:', { id: user.id, name: user.full_name, email: user.email, role: user.role });
+        // Filter out users without emails and log the issue
+        const usersWithEmails = data.filter(user => {
+          if (!user.email) {
+            console.warn('User found without email:', { id: user.id, name: user.full_name, role: user.role });
+            return false;
+          }
+          return true;
         });
+        
+        console.log('📋 Setting search results to:', usersWithEmails);
+        setSearchResults(usersWithEmails);
+        usersWithEmails.forEach(user => {
+          console.log('👤 Found user:', { id: user.id, name: user.full_name, email: user.email, role: user.role });
+        });
+        
+        if (data.length > usersWithEmails.length) {
+          console.warn(`Filtered out ${data.length - usersWithEmails.length} users without email addresses`);
+        }
       }
     } catch (error) {
       console.error('Search error:', error);
@@ -261,19 +408,206 @@ export function RelationshipManagementModal({
     }
   };
 
+  // Handle invitation for existing users - always create pending invitation that requires acceptance
+  const handleInviteExistingUserDirectly = async (targetUser: {
+    id: string;
+    full_name: string;
+    email: string | null;
+    role?: string;
+  }) => {
+    console.log('🚀🚀🚀 handleInviteExistingUserDirectly STARTED');
+    console.log('🚀 handleInviteExistingUserDirectly called with:', {
+      targetUser,
+      userRole,
+      currentUserId: user?.id,
+      currentUserEmail: user?.email,
+    });
+    
+    if (!user?.id || !targetUser.id || !targetUser.email) {
+      console.error('❌ Missing required data:', {
+        userId: user?.id,
+        targetUserId: targetUser.id,
+        targetEmail: targetUser.email,
+      });
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      console.log('📝 Creating pending invitation...');
+      
+      // Check for existing invitation first - only block if it's recent (within 24 hours)
+      const { data: existingInvitation } = await supabase
+        .from('pending_invitations')
+        .select('id, status, created_at')
+        .eq('email', targetUser.email.toLowerCase())
+        .eq('invited_by', user.id)
+        .eq('status', 'pending')
+        .single();
+      
+      if (existingInvitation) {
+        const invitationAge = Date.now() - new Date(existingInvitation.created_at).getTime();
+        const hoursOld = invitationAge / (1000 * 60 * 60);
+        
+        if (hoursOld < 24) {
+          console.log('ℹ️ Recent invitation already exists (', hoursOld.toFixed(1), 'hours old)');
+          Alert.alert('Info', `An invitation was sent ${hoursOld < 1 ? 'less than an hour' : Math.round(hoursOld) + ' hours'} ago. Please wait for the user to respond.`);
+          return;
+        } else {
+          console.log('🗑️ Old invitation exists (', hoursOld.toFixed(1), 'hours old) - will cancel and create new');
+          // Cancel the old invitation
+          await supabase
+            .from('pending_invitations')
+            .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+            .eq('id', existingInvitation.id);
+        }
+      }
+      
+      // Determine relationship type and target role
+      const relationshipType = userRole === 'student' 
+        ? 'student_invites_supervisor' 
+        : 'supervisor_invites_student';
+      const targetRole = userRole === 'student' ? 'instructor' : 'student';
+      
+      // Create pending invitation that requires acceptance
+      const { data: invitationData, error: inviteError } = await supabase
+        .from('pending_invitations')
+        .insert({
+          email: targetUser.email.toLowerCase(),
+          role: targetRole,
+          invited_by: user.id,
+          metadata: {
+            supervisorName: profile?.full_name || user.email,
+            inviterRole: userRole,
+            relationshipType,
+            invitedAt: new Date().toISOString(),
+            targetUserId: targetUser.id, // Store target user ID for existing users
+            targetUserName: targetUser.full_name,
+          },
+          status: 'pending',
+        })
+        .select()
+        .single();
+        
+      console.log('📤 Invitation creation result:', {
+        data: invitationData,
+        error: inviteError,
+      });
+        
+      if (inviteError) {
+        if (inviteError.code === '23505') {
+          console.log('ℹ️ Invitation already exists (duplicate key)');
+          Alert.alert('Info', 'An invitation has already been sent to this user.');
+          return;
+        } else {
+          console.error('❌ Error creating invitation:', inviteError);
+          throw new Error('Failed to create invitation');
+        }
+      }
+      
+      // CRITICAL: Ensure invitation was created successfully before proceeding
+      if (!invitationData || !invitationData.id) {
+        console.error('❌ Invitation creation failed - no data returned');
+        throw new Error('Failed to create invitation - no data returned');
+      }
+      
+      console.log('✅ Invitation created successfully with ID:', invitationData.id);
+      
+      // Create in-app notification for the target user about the invitation
+      console.log('📢 Creating invitation notification for target user...');
+      const notificationType = userRole === 'student' 
+        ? 'supervisor_invitation' 
+        : 'student_invitation';
+      const message = userRole === 'student' 
+        ? `${profile?.full_name || user.email || 'Someone'} wants you to be their supervisor`
+        : `${profile?.full_name || user.email || 'Someone'} wants you to be their student`;
+      
+      console.log('📧 Invitation notification details:', {
+        user_id: targetUser.id,
+        actor_id: user.id,
+        type: notificationType,
+        title: 'New Invitation',
+        message,
+      });
+      
+      const { data: notificationData, error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: targetUser.id,
+          actor_id: user.id,
+          type: notificationType as Database['public']['Enums']['notification_type'],
+          title: 'New Supervision Request',
+          message,
+          metadata: {
+            relationship_type: relationshipType,
+            from_user_id: user.id,
+            from_user_name: profile?.full_name || user.email,
+            invitation_id: invitationData.id, // Now guaranteed to exist
+          },
+          action_url: 'vromm://notifications',
+          priority: 'high',
+          is_read: false,
+        })
+        .select()
+        .single();
+        
+      console.log('📢 Invitation notification creation result:', {
+        data: notificationData,
+        error: notificationError,
+      });
+        
+      if (notificationError) {
+        console.warn('⚠️ Failed to create invitation notification:', notificationError);
+        // Don't fail the whole operation for notification errors
+      } else {
+        console.log('✅ Invitation notification created successfully');
+      }
+      
+      console.log('🎉 Showing success alert...');
+      Alert.alert(
+        'Invitation Sent! 📤',
+        `An invitation has been sent to ${targetUser.full_name || 'the user'}. They will need to accept it before the relationship is created.`,
+      );
+      
+      // Clear search and refresh
+      console.log('🔄 Clearing search and refreshing data...');
+      setSearchQuery('');
+      setSearchResults([]);
+      onRefresh?.();
+      
+    } catch (error) {
+      console.error('❌ Error creating invitation:', error);
+      Alert.alert(
+        'Error',
+        `Failed to send invitation: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    } finally {
+      console.log('🏁 Setting loading to false');
+      setLoading(false);
+    }
+  };
+
   const handleCancelInvitation = async (invitationId: string) => {
     try {
       await cancelInvitation(invitationId);
+      
+      // Also remove any related notifications
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('metadata->invitation_id', invitationId);
+      
       loadPendingInvitations();
       Alert.alert('Success', 'Invitation cancelled');
     } catch (error) {
+      console.error('Error cancelling invitation:', error);
       Alert.alert('Error', 'Failed to cancel invitation');
     }
   };
 
   const handleSupervisorToggle = (supervisorId: string) => {
     const newSelection = localSelectedSupervisorIds.includes(supervisorId)
-      ? localSelectedSupervisorIds.filter(id => id !== supervisorId)
+      ? localSelectedSupervisorIds.filter((id) => id !== supervisorId)
       : [...localSelectedSupervisorIds, supervisorId];
     
     setLocalSelectedSupervisorIds(newSelection);
@@ -296,9 +630,9 @@ export function RelationshipManagementModal({
     
     if (userRole === 'student') {
       tabs.push(
-        { key: 'view', label: 'Add', icon: 'user-plus' },
-        { key: 'manage', label: 'Manage', icon: 'users' },
-        { key: 'invite', label: 'Invite', icon: 'send' }
+        { key: 'view', label: 'Request', icon: 'user-plus' },
+        { key: 'manage', label: 'Current', icon: 'users' },
+        { key: 'invite', label: 'Invite New', icon: 'send' }
       );
     } else if (['instructor', 'school', 'admin'].includes(userRole)) {
       tabs.push(
@@ -355,8 +689,12 @@ export function RelationshipManagementModal({
                     borderRadius="$3"
                   >
                     <YStack flex={1}>
-                      <Text weight="semibold" size="sm">{supervisor.supervisor_name}</Text>
-                      <Text color="$gray11" size="xs">{supervisor.supervisor_email}</Text>
+                      <Text weight="semibold" size="sm">
+                        {supervisor.profiles?.full_name || 'Unknown'}
+                      </Text>
+                      <Text color="$gray11" size="xs">
+                        {supervisor.profiles?.email || 'No email'}
+                      </Text>
                     </YStack>
                     <Button
                       size="sm"
@@ -741,41 +1079,51 @@ export function RelationshipManagementModal({
                       justifyContent="flex-start"
                       padding="$3"
                       onPress={() => {
-                        // Handle adding existing user
-                        Alert.alert('Add User', `Add ${user.full_name || user.email} as your ${userRole === 'student' ? 'supervisor' : 'student'}?`, [
-                          { text: 'Cancel' },
-                          { 
-                            text: 'Add', 
-                            onPress: async () => {
-                              try {
-                                setLoading(true);
-                                
-                                if (userRole === 'student') {
-                                  // Student inviting a supervisor
-                                  const targetRole = 'instructor';
-                                  await onInviteUsers?.([user.email], targetRole);
-                                } else {
-                                  // Instructor inviting a student
-                                  const targetRole = 'student';
-                                  await onInviteUsers?.([user.email], targetRole);
+                        console.log('🔍 Search result button pressed for user:', user);
+                        console.log('📋 Current context:', { userRole, currentUserId: profile?.id });
+                        
+                        // Handle sending invitation to existing user
+                        console.log('🚨 About to show Alert.alert for user:', user);
+                        
+                        // Check if there's already a pending invitation
+                        const hasPendingInvite = pendingInvitations.some(
+                          (inv) => inv.email?.toLowerCase() === (user.email || '').toLowerCase()
+                        );
+                        
+                        if (hasPendingInvite) {
+                          Alert.alert(
+                            'Resend Invitation?', 
+                            `There's already a pending invitation to ${user.full_name || user.email}. Would you like to resend it?`, 
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { 
+                                text: 'Resend Invitation', 
+                                onPress: () => {
+                                  console.log('🔄 User confirmed resending invitation:', user);
+                                  handleInviteExistingUserDirectly(user);
                                 }
-                                
-                                // Clear search and switch to pending tab
-                                setSearchQuery('');
-                                setSearchResults([]);
-                                setActiveTab('pending');
-                                loadPendingInvitations();
-                                
-                                Alert.alert('Success', `Invitation sent to ${user.full_name || user.email}`);
-                              } catch (error) {
-                                console.error('Error sending invitation:', error);
-                                Alert.alert('Error', 'Failed to send invitation. Please try again.');
-                              } finally {
-                                setLoading(false);
                               }
-                            }
-                          }
-                        ]);
+                            ]
+                          );
+                        } else {
+                          Alert.alert(
+                            'Send Invitation', 
+                            `Send an invitation to ${user.full_name || user.id} to become your ${userRole === 'student' ? 'supervisor' : 'student'}? They will need to accept it.`, 
+                            [
+                              { 
+                                text: 'Cancel',
+                                onPress: () => console.log('❌ User cancelled invitation')
+                              },
+                              { 
+                                text: 'Send Invitation', 
+                                onPress: () => {
+                                  console.log('✅ User confirmed sending invitation:', user);
+                                  handleInviteExistingUserDirectly(user);
+                                }
+                              }
+                            ]
+                          );
+                        }
                       }}
                     >
                       <YStack alignItems="flex-start" flex={1}>
@@ -820,27 +1168,71 @@ export function RelationshipManagementModal({
   const renderPendingTab = () => {
     return (
       <YStack gap="$3">
-            <Text size="sm" color="$gray11">Manage your pending invitations</Text>
+        <Text size="sm" color="$gray11">
+          Manage your pending invitations
+        </Text>
 
         <ScrollView style={{ flex: 1 }}>
           <YStack gap="$3">
             <YStack gap="$2">
-              <Text size="sm" color="$gray11">Sent by you</Text>
+              <Text size="sm" color="$gray11">
+                Sent by you
+              </Text>
               {pendingInvitations.length === 0 ? (
-                <Text color="$gray11" textAlign="center">No pending invitations</Text>
+                <Text color="$gray11" textAlign="center">
+                  No pending invitations
+                </Text>
               ) : (
                 pendingInvitations.map((invitation) => (
-                  <YStack key={invitation.id} backgroundColor="$backgroundStrong" padding="$3" borderRadius="$2" gap="$2">
+                  <YStack
+                    key={invitation.id}
+                    backgroundColor="$backgroundStrong"
+                    padding="$3"
+                    borderRadius="$2"
+                    gap="$2"
+                    borderWidth={1}
+                    borderColor={invitation.status === 'accepted' ? '$green8' : '$blue8'}
+                  >
                     <XStack justifyContent="space-between" alignItems="center">
                       <YStack flex={1}>
-                        <Text weight="semibold" size="sm">{invitation.email}</Text>
-                        <Text color="$gray11" size="xs">Role: {invitation.role} • Status: {invitation.status}</Text>
-                        <Text color="$gray11" size="xs">Sent: {new Date(invitation.created_at).toLocaleDateString()}</Text>
+                        <Text weight="semibold" size="sm">
+                          {invitation.email}
+                        </Text>
+                        <Text color="$gray11" size="xs">
+                          Role: {invitation.role} • Status: {invitation.status}
+                        </Text>
+                        <Text color="$gray11" size="xs">
+                          Sent: {new Date(invitation.created_at).toLocaleDateString()}
+                        </Text>
+                        {invitation.status === 'accepted' && (
+                          <Text color="$green11" size="xs" fontWeight="bold">
+                            ✅ Invitation accepted!
+                          </Text>
+                        )}
                       </YStack>
                       <XStack gap="$2">
-                        <Button size="sm" variant="tertiary" onPress={() => handleCancelInvitation(invitation.id)}>
-                          <Feather name="x" size={12} />
-                        </Button>
+                        {invitation.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            backgroundColor="$red9"
+                            onPress={() => handleCancelInvitation(invitation.id)}
+                          >
+                            <Feather name="x" size={12} color="white" />
+                            <Text color="white" ml="$1" fontSize="$2">Cancel</Text>
+                          </Button>
+                        )}
+                        {invitation.status === 'accepted' && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            backgroundColor="$gray7"
+                            onPress={() => handleCancelInvitation(invitation.id)}
+                          >
+                            <Feather name="trash-2" size={12} />
+                            <Text ml="$1" fontSize="$2">Clear</Text>
+                          </Button>
+                        )}
                       </XStack>
                     </XStack>
                   </YStack>
@@ -849,21 +1241,60 @@ export function RelationshipManagementModal({
             </YStack>
 
             <YStack gap="$2">
-              <Text size="sm" color="$gray11">Received by you</Text>
+              <Text size="sm" color="$gray11">
+                Received by you
+              </Text>
               {incomingInvitations.length === 0 ? (
-                <Text color="$gray11" textAlign="center">No incoming invitations</Text>
+                <Text color="$gray11" textAlign="center">
+                  No incoming invitations
+                </Text>
               ) : (
                 incomingInvitations.map((invitation) => (
-                  <YStack key={invitation.id} backgroundColor="$backgroundStrong" padding="$3" borderRadius="$2" gap="$2">
+                  <YStack
+                    key={invitation.id}
+                    backgroundColor="$backgroundStrong"
+                    padding="$3"
+                    borderRadius="$2"
+                    gap="$2"
+                  >
                     <XStack justifyContent="space-between" alignItems="center">
                       <YStack flex={1}>
-                        <Text weight="semibold" size="sm">{invitation.email}</Text>
-                        <Text color="$gray11" size="xs">Role: {invitation.role} • Status: {invitation.status}</Text>
-                        <Text color="$gray11" size="xs">Sent: {new Date(invitation.created_at).toLocaleDateString()}</Text>
+                        <Text weight="semibold" size="sm">
+                          {invitation.email}
+                        </Text>
+                        <Text color="$gray11" size="xs">
+                          Role: {invitation.role} • Status: {invitation.status}
+                        </Text>
+                        <Text color="$gray11" size="xs">
+                          Sent: {new Date(invitation.created_at).toLocaleDateString()}
+                        </Text>
                       </YStack>
                       <XStack gap="$2">
-                        <Button size="sm" variant="primary" onPress={async () => { await acceptInvitationById(invitation.id, profile!.id); loadIncomingInvitations(); onRefresh?.(); }}>Accept</Button>
-                        <Button size="sm" variant="tertiary" onPress={async () => { await rejectInvitation(invitation.id); loadIncomingInvitations(); }}>Decline</Button>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onPress={async () => {
+                            console.log('🎯 PENDING TAB - Accepting invitation:', invitation.id);
+                            const success = await acceptInvitationById(invitation.id, profile!.id);
+                            console.log('🎯 PENDING TAB - Accept result:', success);
+                            if (success) {
+                              loadIncomingInvitations();
+                              onRefresh?.();
+                            }
+                          }}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="tertiary"
+                          onPress={async () => {
+                            await rejectInvitation(invitation.id);
+                            loadIncomingInvitations();
+                          }}
+                        >
+                          Decline
+                        </Button>
                       </XStack>
                     </XStack>
                   </YStack>

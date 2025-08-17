@@ -3,6 +3,7 @@ import { Database } from '../lib/database.types';
 
 export type Notification = Database['public']['Tables']['notifications']['Row'] & {
   actor?: Database['public']['Tables']['profiles']['Row'];
+  data?: Record<string, unknown>; // Add data field for compatibility
 };
 
 export type Follow = Database['public']['Tables']['user_follows']['Row'] & {
@@ -12,13 +13,18 @@ export type Follow = Database['public']['Tables']['user_follows']['Row'] & {
 
 class NotificationService {
   // Get all notifications for current user
-  async getNotifications(limit: number = 50, offset: number = 0): Promise<Notification[]> {
+  async getNotifications(limit: number = 50, offset: number = 0, includeArchived: boolean = false): Promise<Notification[]> {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      console.error('❌ User not authenticated for notifications');
+      throw new Error('User not authenticated');
+    }
 
-    const { data, error } = await supabase
+    console.log('📬 Fetching notifications for user:', user.id);
+
+    let query = supabase
       .from('notifications')
       .select(
         `
@@ -26,9 +32,23 @@ class NotificationService {
         actor:profiles!notifications_actor_id_fkey(*)
       `,
       )
-      .eq('user_id', user.id)
+      .eq('user_id', user.id);
+      
+    // Filter by archived status if column exists
+    if (!includeArchived) {
+      // Try to filter out archived notifications, but gracefully handle if column doesn't exist
+      query = query.or('archived.is.null,archived.eq.false');
+    }
+    
+    const { data, error } = await query
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
+
+    console.log('📊 Notifications query result:', { 
+      count: data?.length || 0, 
+      error,
+      firstFew: data?.slice(0, 3).map(n => ({ id: n.id, type: n.type, message: n.message }))
+    });
 
     if (error) throw error;
     return data || [];
@@ -58,6 +78,28 @@ class NotificationService {
       .eq('is_read', false);
 
     if (error) throw error;
+  }
+
+  // Archive notification (hide without deleting)
+  async archiveNotification(notificationId: string): Promise<void> {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ archived: true })
+      .eq('id', notificationId);
+
+    if (error) {
+      // If archived column doesn't exist, we'll gracefully handle this
+      if (error.message.includes('column "archived" of relation "notifications" does not exist')) {
+        console.warn('Archived column does not exist yet, skipping archive operation');
+        return;
+      }
+      throw error;
+    }
+  }
+
+  // Get archived notifications
+  async getArchivedNotifications(limit: number = 50, offset: number = 0): Promise<Notification[]> {
+    return this.getNotifications(limit, offset, true);
   }
 
   // Get unread notification count - Alternative implementation without database function
@@ -213,7 +255,7 @@ class NotificationService {
       | 'event_invite',
     message: string,
     targetId?: string,
-    metadata?: any,
+    metadata?: Record<string, unknown>,
     actorId?: string,
   ): Promise<Notification> {
     const { data: notification, error } = await supabase
@@ -256,6 +298,7 @@ class NotificationService {
 
   // Subscribe to notification updates
   subscribeToNotifications(callback: (notification: Notification) => void) {
+    console.log('🔔 Setting up notification subscription channel...');
     return supabase
       .channel('notifications')
       .on(
@@ -266,10 +309,13 @@ class NotificationService {
           table: 'notifications',
         },
         (payload) => {
+          console.log('📡 Real-time notification received:', payload);
           callback(payload.new as Notification);
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Notification subscription status:', status);
+      });
   }
 
   // Subscribe to follow updates

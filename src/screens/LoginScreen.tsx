@@ -75,6 +75,27 @@ export function LoginScreen() {
       console.log('[LOGIN_DEBUG] Calling signIn function...');
       await signIn(email, password);
       console.log('[LOGIN_DEBUG] signIn completed successfully');
+      
+      // Check if user account is deleted after successful auth
+      console.log('[LOGIN_DEBUG] Checking user account status...');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('account_status, full_name')
+          .eq('id', user.id)
+          .single();
+          
+        if (profileError) {
+          console.log('[LOGIN_DEBUG] Error checking profile:', profileError);
+        } else if (profile?.account_status === 'deleted') {
+          console.log('[LOGIN_DEBUG] User account is deleted, signing out...');
+          await supabase.auth.signOut();
+          setError('This account has been deleted. Please contact support if you believe this is an error.');
+          return;
+        }
+        console.log('[LOGIN_DEBUG] User account status:', profile?.account_status);
+      }
     } catch (err) {
       const error = err as Error;
       console.log('[LOGIN_DEBUG] signIn failed with error:', error.message);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { FlatList, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { YStack, XStack, Text, Avatar, Spinner } from 'tamagui';
 import {
   Bell,
@@ -13,6 +13,8 @@ import {
   Calendar,
   Users,
   X,
+  Archive,
+  ArchiveRestore,
 } from '@tamagui/lucide-icons';
 import { notificationService, Notification } from '../services/notificationService';
 import { getIncomingInvitations, acceptInvitationById, rejectInvitation } from '../services/invitationService';
@@ -24,13 +26,28 @@ export const NotificationsScreen: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const navigation = useNavigation();
+
+  // Helper function to safely get data from notification
+  const getNotificationData = (notification: Notification): Record<string, unknown> => {
+    return (notification as any).data || (notification.metadata as Record<string, unknown>) || {};
+  };
 
   useEffect(() => {
     loadNotifications();
 
     // Subscribe to real-time updates with sound
+    console.log('🔔 Setting up notification subscription...');
     const subscription = notificationService.subscribeToNotifications(async (notification) => {
+      console.log('📨 New notification received:', {
+        id: notification.id,
+        type: notification.type,
+        message: notification.message,
+        actor_id: notification.actor_id,
+        data: notification.data || notification.metadata
+      });
+      
       setNotifications((prev) => [notification, ...prev]);
 
       // Play sound for new notifications
@@ -47,13 +64,31 @@ export const NotificationsScreen: React.FC = () => {
     };
   }, []);
 
+  // Reload notifications when showArchived changes
+  useEffect(() => {
+    loadNotifications();
+  }, [showArchived]);
+
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      const data = await notificationService.getNotifications();
+      console.log('🔔 Loading notifications...', showArchived ? '(including archived)' : '(active only)');
+      const data = await notificationService.getNotifications(50, 0, showArchived);
+      console.log('📬 Loaded notifications:', {
+        count: data?.length || 0,
+        showArchived,
+        notifications: data?.map(n => ({
+          id: n.id,
+          type: n.type,
+          message: n.message,
+          is_read: n.is_read,
+          actor_id: n.actor_id,
+          created_at: n.created_at
+        }))
+      });
       setNotifications(data);
     } catch (error) {
-      console.error('Error loading notifications:', error);
+      console.error('❌ Error loading notifications:', error);
     } finally {
       setLoading(false);
     }
@@ -77,32 +112,28 @@ export const NotificationsScreen: React.FC = () => {
 
       console.log('🔔 Handling notification press:', {
         type: notification.type,
-        data: notification.data,
+        data: (notification as any).data || notification.metadata,
         metadata: notification.metadata,
         actorId: notification.actor_id,
         hasNavigator: !!navigation,
       });
 
       // Navigate based on notification type
-      switch (notification.type) {
-        case 'message':
-        case 'message_received':
+      switch (notification.type as string) {
+        case 'new_message':
           console.log('📍 Navigating to Messages');
           (navigation as any).navigate('Messages');
           break;
 
-        case 'route_review':
-        case 'route_uploaded':
         case 'route_saved':
         case 'route_driven':
-        case 'route_completed':
-        case 'route_reviewed':
-        case 'route_liked': {
+        case 'route_reviewed': {
           // Try multiple locations for route id
+          const notificationData = getNotificationData(notification);
           const routeId =
-            notification.data?.route_id ||
-            notification.metadata?.route_id ||
-            (notification as any).target_id;
+            notificationData.route_id ||
+            (notification.metadata as any)?.route_id ||
+            notification.target_id;
 
           if (routeId) {
             console.log('📍 Navigating to RouteDetail:', routeId);
@@ -111,7 +142,7 @@ export const NotificationsScreen: React.FC = () => {
           }
 
           // Fallback: attempt lookup by route_name if provided (best-effort)
-          const routeName = notification.metadata?.route_name || notification.data?.route_name;
+          const routeName = (notification.metadata as any)?.route_name || notificationData.route_name;
           if (routeName) {
             try {
               const { data } = await supabase
@@ -132,42 +163,43 @@ export const NotificationsScreen: React.FC = () => {
           break;
         }
 
-        case 'follow':
-        case 'user_follow':
-        case 'new_follower':
+        case 'new_follower': {
+          const notificationData = getNotificationData(notification);
           const userId =
             notification.actor_id ||
-            notification.data?.follower_id ||
-            notification.data?.from_user_id;
+            notificationData.follower_id ||
+            notificationData.from_user_id;
           if (userId) {
             console.log('📍 Navigating to PublicProfile:', userId);
             (navigation as any).navigate('PublicProfile', { userId });
           }
           break;
+        }
 
         case 'supervisor_invitation':
-        case 'student_invitation':
-        case 'school_invitation':
-        case 'teacher_invitation':
-        case 'admin_invitation':
-          const inviterUserId = notification.data?.from_user_id || notification.actor_id;
+        case 'student_invitation': {
+          const notificationData = getNotificationData(notification);
+          const inviterUserId = notificationData.from_user_id || notification.actor_id;
           if (inviterUserId) {
             console.log('📍 Navigating to PublicProfile for invitation:', inviterUserId);
             (navigation as any).navigate('PublicProfile', { userId: inviterUserId });
           }
           break;
+        }
 
-        case 'conversation_created':
-          if (notification.data?.conversation_id) {
-            console.log('📍 Navigating to Conversation:', notification.data.conversation_id);
+        case 'conversation_created': {
+          const notificationData = getNotificationData(notification);
+          if (notificationData.conversation_id) {
+            console.log('📍 Navigating to Conversation:', notificationData.conversation_id);
             (navigation as any).navigate('Conversation', {
-              conversationId: notification.data.conversation_id,
+              conversationId: notificationData.conversation_id,
             });
           } else {
             console.log('📍 Navigating to Messages (no conversation ID)');
             (navigation as any).navigate('Messages');
           }
           break;
+        }
 
         case 'exercise_completed':
         case 'learning_path_completed':
@@ -177,31 +209,52 @@ export const NotificationsScreen: React.FC = () => {
           break;
 
         case 'event_invitation':
-        case 'event_invite':
-          if (notification.data?.event_id || notification.metadata?.event_id) {
-            const eventId = notification.data?.event_id || notification.metadata?.event_id;
+        case 'event_invite': {
+          const notificationData = getNotificationData(notification);
+          if (notificationData.event_id || (notification.metadata as any)?.event_id) {
+            const eventId = notificationData.event_id || (notification.metadata as any)?.event_id;
             console.log('📍 Navigating to EventDetail for invitation:', eventId);
             (navigation as any).navigate('EventDetail', { eventId });
           }
           break;
+        }
 
         case 'event_reminder':
-        case 'event_updated':
-          if (notification.data?.event_id || notification.metadata?.event_id) {
-            const eventId = notification.data?.event_id || notification.metadata?.event_id;
+        case 'event_updated': {
+          const notificationData = getNotificationData(notification);
+          if (notificationData.event_id || (notification.metadata as any)?.event_id) {
+            const eventId = notificationData.event_id || (notification.metadata as any)?.event_id;
             console.log('📍 Navigating to EventDetail:', eventId);
             (navigation as any).navigate('EventDetail', { eventId });
           }
           break;
+        }
 
-        case 'like':
+        case 'route_liked': {
           // If it's a route like, navigate to the route
-          if (notification.data?.route_id || notification.metadata?.route_id) {
-            const routeId = notification.data?.route_id || notification.metadata?.route_id;
+          const notificationData = getNotificationData(notification);
+          if (notificationData.route_id || (notification.metadata as any)?.route_id) {
+            const routeId = notificationData.route_id || (notification.metadata as any)?.route_id;
             console.log('📍 Navigating to RouteDetail for like:', routeId);
             (navigation as any).navigate('RouteDetail', { routeId });
           }
           break;
+        }
+
+        case 'new_message': {
+          // Check if this is actually an invitation acceptance notification
+          const notificationData = getNotificationData(notification);
+          if (notificationData.notification_subtype === 'invitation_accepted') {
+            // Navigate to profile to see the new relationship
+            console.log('📍 Navigating to Profile for accepted invitation');
+            (navigation as any).navigate('MainTabs', { screen: 'ProfileTab' });
+          } else {
+            // Regular message notification
+            console.log('📍 Navigating to Messages');
+            (navigation as any).navigate('Messages');
+          }
+          break;
+        }
 
         default:
           console.log('❓ Unhandled notification type:', notification.type);
@@ -227,20 +280,96 @@ export const NotificationsScreen: React.FC = () => {
 
   const handleAcceptInvitation = async (notification: Notification) => {
     try {
-      const invitationId = notification.data?.invitation_id || notification.metadata?.invitation_id;
+      console.log('🎯 ACCEPT INVITATION - Starting:', notification);
+      const notificationData = getNotificationData(notification);
+      console.log('🎯 Notification data:', notificationData);
+      
+      const invitationId = notificationData.invitation_id || (notification.metadata as any)?.invitation_id;
       const currentUserId = (await supabase.auth.getUser()).data.user?.id;
+      
+      console.log('🎯 Invitation ID:', invitationId);
+      console.log('🎯 Current User ID:', currentUserId);
+      
       if (invitationId && currentUserId) {
+        console.log('🎯 Calling acceptInvitationById...');
         const ok = await acceptInvitationById(invitationId, currentUserId);
+        console.log('🎯 Accept result:', ok);
+        
         if (ok) {
+          // Mark notification as read and remove from list
           await notificationService.markAsRead(notification.id);
-          setNotifications(prev => prev.filter(n => n.id !== notification.id));
+          
+          // Also delete the notification to prevent it from reappearing
+          try {
+            await supabase
+              .from('notifications')
+              .delete()
+              .eq('id', notification.id);
+          } catch (deleteError) {
+            console.warn('Could not delete notification:', deleteError);
+          }
+          
+          setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
           console.log('✅ Relationship invitation accepted');
+        } else {
+          console.error('❌ Accept invitation returned false');
         }
         return;
+      } else if (!invitationId && currentUserId && notificationData.from_user_id) {
+        // Fallback: Try to find invitation by from_user_id and current user email
+        console.log('🔍 Missing invitation_id, trying to find invitation by from_user_id...');
+        try {
+          const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', currentUserId)
+            .single();
+            
+          if (userProfile?.email) {
+            const { data: foundInvitation } = await supabase
+              .from('pending_invitations')
+              .select('id')
+              .eq('email', userProfile.email.toLowerCase())
+              .eq('invited_by', notificationData.from_user_id)
+              .eq('status', 'pending')
+              .single();
+              
+            if (foundInvitation?.id) {
+              console.log('✅ Found invitation by email/inviter:', foundInvitation.id);
+              const ok = await acceptInvitationById(foundInvitation.id, currentUserId);
+              
+              if (ok) {
+                await notificationService.markAsRead(notification.id);
+                try {
+                  await supabase
+                    .from('notifications')
+                    .delete()
+                    .eq('id', notification.id);
+                } catch (deleteError) {
+                  console.warn('Could not delete notification:', deleteError);
+                }
+                setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+                console.log('✅ Relationship invitation accepted via fallback');
+                return;
+              }
+            }
+          }
+        } catch (fallbackError) {
+          console.error('❌ Fallback invitation lookup failed:', fallbackError);
+        }
+        
+        console.error('❌ Missing invitation ID or user ID:', {
+          currentUserId,
+          invitationId,
+        });
+        Alert.alert('Error', 'Cannot accept invitation - missing required information. Please try refreshing the app.');
+      } else {
+        console.error('❌ Missing invitation ID or user ID:', { invitationId, currentUserId });
+        Alert.alert('Error', 'Cannot accept invitation - missing required information');
       }
 
       // Fallback: event invitation acceptance
-      const eventId = notification.data?.event_id || notification.metadata?.event_id;
+      const eventId = notificationData.event_id || (notification.metadata as any)?.event_id;
       if (eventId && currentUserId) {
         const { error } = await supabase
           .from('event_attendees')
@@ -248,8 +377,20 @@ export const NotificationsScreen: React.FC = () => {
           .eq('event_id', eventId)
           .eq('user_id', currentUserId);
         if (error) throw error;
+        
         await notificationService.markAsRead(notification.id);
-        setNotifications(prev => prev.filter(n => n.id !== notification.id));
+        
+        // Also delete the notification to prevent it from reappearing
+        try {
+          await supabase
+            .from('notifications')
+            .delete()
+            .eq('id', notification.id);
+        } catch (deleteError) {
+          console.warn('Could not delete event notification:', deleteError);
+        }
+        
+        setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
         console.log('✅ Event invitation accepted');
       }
     } catch (error) {
@@ -259,18 +400,30 @@ export const NotificationsScreen: React.FC = () => {
 
   const handleRejectInvitation = async (notification: Notification) => {
     try {
-      const invitationId = notification.data?.invitation_id || notification.metadata?.invitation_id;
+      const notificationData = getNotificationData(notification);
+      const invitationId = notificationData.invitation_id || (notification.metadata as any)?.invitation_id;
       if (invitationId) {
         const ok = await rejectInvitation(invitationId);
         if (ok) {
           await notificationService.markAsRead(notification.id);
-          setNotifications(prev => prev.filter(n => n.id !== notification.id));
+          
+          // Also delete the notification to prevent it from reappearing
+          try {
+            await supabase
+              .from('notifications')
+              .delete()
+              .eq('id', notification.id);
+          } catch (deleteError) {
+            console.warn('Could not delete notification:', deleteError);
+          }
+          
+          setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
           console.log('❌ Relationship invitation rejected');
         }
         return;
       }
 
-      const eventId = notification.data?.event_id || notification.metadata?.event_id;
+      const eventId = notificationData.event_id || (notification.metadata as any)?.event_id;
       const currentUserId = (await supabase.auth.getUser()).data.user?.id;
       if (eventId && currentUserId) {
         const { error } = await supabase
@@ -279,8 +432,20 @@ export const NotificationsScreen: React.FC = () => {
           .eq('event_id', eventId)
           .eq('user_id', currentUserId);
         if (error) throw error;
+        
         await notificationService.markAsRead(notification.id);
-        setNotifications(prev => prev.filter(n => n.id !== notification.id));
+        
+        // Also delete the notification to prevent it from reappearing
+        try {
+          await supabase
+            .from('notifications')
+            .delete()
+            .eq('id', notification.id);
+        } catch (deleteError) {
+          console.warn('Could not delete event notification:', deleteError);
+        }
+        
+        setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
         console.log('❌ Event invitation rejected');
       }
     } catch (error) {
@@ -288,11 +453,28 @@ export const NotificationsScreen: React.FC = () => {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
+  const handleArchiveNotification = async (notification: Notification) => {
+    try {
+      await notificationService.archiveNotification(notification.id);
+      setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+      console.log('📁 Notification archived');
+    } catch (error) {
+      console.error('Error archiving notification:', error);
+      Alert.alert('Error', 'Failed to archive notification');
+    }
+  };
+
+  const getNotificationIcon = (type: string, metadata?: any) => {
+    // Check for invitation acceptance notifications
+    if (type === 'new_message' && metadata?.notification_subtype === 'invitation_accepted') {
+      return <Check size={20} color="#10B981" />;
+    }
+    
     switch (type) {
       case 'follow':
         return <User size={20} color="#00FFBC" />;
       case 'message':
+      case 'new_message':
         return <MessageCircle size={20} color="#00FFBC" />;
       case 'route_review':
         return <Star size={20} color="#00FFBC" />;
@@ -307,6 +489,8 @@ export const NotificationsScreen: React.FC = () => {
       case 'event_reminder':
       case 'event_updated':
         return <Calendar size={20} color="#8B5CF6" />;
+      case 'invitation_accepted':
+        return <Check size={20} color="#10B981" />;
       default:
         return <Bell size={20} color="#00FFBC" />;
     }
@@ -336,13 +520,27 @@ export const NotificationsScreen: React.FC = () => {
 
           <YStack flex={1} gap={4}>
             <XStack alignItems="center" gap={8}>
-              {getNotificationIcon(item.type)}
+              {getNotificationIcon(item.type, item.metadata)}
               <Text fontSize={14} fontWeight="bold" color="$color" flex={1}>
                 {item.message}
               </Text>
-              {!item.is_read && (
-                <YStack width={8} height={8} borderRadius={4} backgroundColor="#00FFBC" />
-              )}
+              
+              <XStack alignItems="center" gap={8}>
+                {!showArchived && (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleArchiveNotification(item);
+                    }}
+                    style={{ padding: 4 }}
+                  >
+                    <Archive size={16} color="#666" />
+                  </TouchableOpacity>
+                )}
+                {!item.is_read && (
+                  <YStack width={8} height={8} borderRadius={4} backgroundColor="#00FFBC" />
+                )}
+              </XStack>
             </XStack>
 
             {item.metadata && Object.keys(item.metadata).length > 0 && (
@@ -352,11 +550,14 @@ export const NotificationsScreen: React.FC = () => {
             )}
 
             <Text fontSize={12} color="$gray11">
-              {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+              {item.created_at ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true }) : 'Unknown time'}
             </Text>
 
             {/* Relationship or Event Invitation Action Buttons */}
-            {(item.type === 'event_invitation' || item.type === 'event_invite' || item.type === 'supervisor_invitation' || item.type === 'student_invitation') && (
+            {(item.type === 'event_invitation' ||
+              item.type === 'event_invite' ||
+              item.type === 'supervisor_invitation' ||
+              item.type === 'student_invitation') && (
               <XStack gap={8} marginTop={8}>
                 <TouchableOpacity
                   onPress={(e) => {
@@ -436,29 +637,54 @@ export const NotificationsScreen: React.FC = () => {
           <Text fontSize={24} fontWeight="bold" color="$color">
             Notifications
           </Text>
-        </XStack>
-
-        {notifications.some((n) => !n.is_read) && (
-          <TouchableOpacity onPress={handleMarkAllAsRead}>
+          
+          <TouchableOpacity 
+            onPress={() => setShowArchived(!showArchived)}
+            style={{ marginLeft: 8 }}
+          >
             <XStack alignItems="center" gap={4}>
-              <Check size={16} color="#00FFBC" />
-              <Text fontSize={14} color="#00FFBC">
-                Mark all read
+              {showArchived ? (
+                <ArchiveRestore size={16} color="#00FFBC" />
+              ) : (
+                <Archive size={16} color="#666" />
+              )}
+              <Text fontSize={12} color={showArchived ? "#00FFBC" : "#666"}>
+                {showArchived ? 'Active' : 'Archived'}
               </Text>
             </XStack>
           </TouchableOpacity>
-        )}
+        </XStack>
+
+        <XStack alignItems="center" gap={8}>
+          {notifications.some((n) => !n.is_read) && !showArchived && (
+            <TouchableOpacity onPress={handleMarkAllAsRead}>
+              <XStack alignItems="center" gap={4}>
+                <Check size={16} color="#00FFBC" />
+                <Text fontSize={14} color="#00FFBC">
+                  Mark all read
+                </Text>
+              </XStack>
+            </TouchableOpacity>
+          )}
+        </XStack>
       </XStack>
 
       {/* Notifications List */}
       {notifications.length === 0 ? (
         <YStack flex={1} justifyContent="center" alignItems="center" padding={24}>
-          <Bell size={48} color="rgba(255, 255, 255, 0.3)" />
+          {showArchived ? (
+            <Archive size={48} color="rgba(255, 255, 255, 0.3)" />
+          ) : (
+            <Bell size={48} color="rgba(255, 255, 255, 0.3)" />
+          )}
           <Text fontSize={18} color="$gray11" textAlign="center" marginTop={16}>
-            No notifications yet
+            {showArchived ? 'No archived notifications' : 'No notifications yet'}
           </Text>
           <Text fontSize={14} color="$gray11" textAlign="center" marginTop={8}>
-            You'll see notifications here when you receive them
+            {showArchived 
+              ? 'Archived notifications will appear here when you archive them'
+              : 'You\'ll see notifications here when you receive them'
+            }
           </Text>
         </YStack>
       ) : (
