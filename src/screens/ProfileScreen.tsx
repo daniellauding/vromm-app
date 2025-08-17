@@ -38,6 +38,7 @@ import { inviteNewUser, inviteMultipleUsers, inviteUsersWithPasswords, getPendin
 import { RelationshipManagementModal } from '../components/RelationshipManagementModal';
 
 import { RelationshipReviewSection } from '../components/RelationshipReviewSection';
+import { RelationshipReviewModal } from '../components/RelationshipReviewModal';
 import { ProfileRatingBadge } from '../components/ProfileRatingBadge';
 import { RelationshipReviewService } from '../services/relationshipReviewService';
 import { useScreenLogger } from '../hooks/useScreenLogger';
@@ -271,6 +272,14 @@ export function ProfileScreen() {
   const [userRating, setUserRating] = useState({ averageRating: 0, reviewCount: 0, canReview: false, alreadyReviewed: false });
   const [relationshipReviews, setRelationshipReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  
+  // Removal review modal state
+  const [showRemovalReviewModal, setShowRemovalReviewModal] = useState(false);
+  const [removalTargetSupervisor, setRemovalTargetSupervisor] = useState<{
+    id: string;
+    name: string;
+    email: string;
+  } | null>(null);
 
   // Add comprehensive logging
   const { logAction, logAsyncAction, logRenderIssue, logMemoryWarning } = useScreenLogger({
@@ -1528,6 +1537,36 @@ export function ProfileScreen() {
     }
   };
 
+  // Handle supervisor removal after review
+  const handleRemovalComplete = async () => {
+    if (!removalTargetSupervisor || !profile?.id) return;
+
+    try {
+      const { removeSupervisorRelationship } = await import('../services/invitationService');
+      const success = await removeSupervisorRelationship(
+        profile.id, // studentId
+        removalTargetSupervisor.id, // supervisorId
+        'Review submitted', // removalMessage
+        profile.id // removedByUserId
+      );
+      
+      if (success) {
+        Alert.alert('Success', 'You have removed your supervisor and submitted your review');
+        if (profile?.id) {
+          await getUserProfileWithRelationships(profile.id);
+        }
+      } else {
+        Alert.alert('Error', 'Failed to remove supervisor');
+      }
+    } catch (error) {
+      console.error('Error removing supervisor:', error);
+      Alert.alert('Error', 'Failed to remove supervisor');
+    } finally {
+      setRemovalTargetSupervisor(null);
+      setShowRemovalReviewModal(false);
+    }
+  };
+
   // Load relationships when profile is available
   useEffect(() => {
     if (profile?.id) {
@@ -2091,39 +2130,12 @@ export function ProfileScreen() {
                         variant="secondary"
                         backgroundColor="$red9"
                         onPress={() => {
-                          Alert.prompt(
-                            'Leave Supervisor',
-                            `Are you sure you want to leave ${supervisor.supervisor_name}?\n\nOptional: Add a message explaining why:`,
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Leave',
-                                style: 'destructive',
-                                onPress: async (message) => {
-                                  // Use the enhanced removeSupervisorRelationship function
-                                  const { removeSupervisorRelationship } = await import('../services/invitationService');
-                                  const success = await removeSupervisorRelationship(
-                                    profile?.id || '', // studentId
-                                    supervisor.supervisor_id, // supervisorId
-                                    message?.trim() || undefined, // removalMessage
-                                    profile?.id // removedByUserId
-                                  );
-                                  
-                                  if (success) {
-                                    Alert.alert('Success', 'You have left your supervisor');
-                                    if (profile?.id) {
-                                      await getUserProfileWithRelationships(profile.id);
-                                    }
-                                  } else {
-                                    Alert.alert('Error', 'Failed to leave supervisor');
-                                  }
-                                },
-                              },
-                            ],
-                            'plain-text',
-                            '',
-                            'default'
-                          );
+                          setRemovalTargetSupervisor({
+                            id: supervisor.supervisor_id,
+                            name: supervisor.supervisor_name || 'Unknown Supervisor',
+                            email: supervisor.supervisor_email || '',
+                          });
+                          setShowRemovalReviewModal(true);
                         }}
                         disabled={relationshipsLoading}
                       >
@@ -3750,6 +3762,27 @@ ${
           </Card>
         </View>
       </Modal>
+
+      {/* Removal Review Modal */}
+      {removalTargetSupervisor && (
+        <RelationshipReviewModal
+          visible={showRemovalReviewModal}
+          onClose={() => {
+            setShowRemovalReviewModal(false);
+            setRemovalTargetSupervisor(null);
+          }}
+          profileUserId={removalTargetSupervisor.id}
+          profileUserRole="instructor"
+          profileUserName={removalTargetSupervisor.name}
+          canReview={true}
+          reviews={[]}
+          onReviewAdded={loadRelationshipReviews}
+          title={`Review ${removalTargetSupervisor.name}`}
+          subtitle="Please share your experience before ending this supervisory relationship"
+          isRemovalContext={true}
+          onRemovalComplete={handleRemovalComplete}
+        />
+      )}
     </Screen>
   );
 }

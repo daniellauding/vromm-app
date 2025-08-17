@@ -50,7 +50,7 @@ export class RelationshipReviewService {
       if (currentUser && currentUser.id !== userId) {
         // Check if they have a relationship
         const { data: relationship } = await supabase
-          .from('supervisor_student_relationships')
+          .from('student_supervisor_relationships')
           .select('*')
           .or(`and(student_id.eq.${currentUser.id},supervisor_id.eq.${userId}),and(student_id.eq.${userId},supervisor_id.eq.${currentUser.id})`)
           .single();

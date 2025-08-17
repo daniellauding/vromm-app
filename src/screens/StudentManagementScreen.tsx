@@ -34,10 +34,12 @@ export function StudentManagementScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showRelationshipModal, setShowRelationshipModal] = useState(false);
-  const [availableStudents, setAvailableStudents] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  const [availableStudents, setAvailableStudents] = useState<
+    Array<{ id: string; full_name: string; email: string }>
+  >([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
-  const loadStudents = async () => {
+  const loadStudents = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -49,7 +51,7 @@ export function StudentManagementScreen() {
         .select(`
           student_id,
           created_at,
-          profiles:student_id (
+          profiles:student_id!inner (
             id,
             full_name,
             email,
@@ -63,15 +65,12 @@ export function StudentManagementScreen() {
 
       // Get ratings for each student
       const studentsWithRatings = await Promise.all(
-        (relationships || []).map(async (rel) => {
+        (relationships || []).map(async (rel: { profiles: any; created_at: string; student_id: string }) => {
           const student = rel.profiles;
           if (!student) return null;
 
           try {
-            const rating = await RelationshipReviewService.getUserRating(
-              student.id,
-              'student'
-            );
+            const rating = await RelationshipReviewService.getUserRating(student.id, 'student');
 
             return {
               id: student.id,
@@ -109,61 +108,7 @@ export function StudentManagementScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    loadStudents();
-    fetchAvailableStudents();
-  }, [user?.id, fetchAvailableStudents]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadStudents();
-  };
-
-  const handleRemoveStudent = async (studentId: string, studentName: string) => {
-    Alert.alert(
-      'Remove Student',
-      `Are you sure you want to stop supervising ${studentName}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('student_supervisor_relationships')
-                .delete()
-                .eq('student_id', studentId)
-                .eq('supervisor_id', user?.id);
-
-              if (error) throw error;
-
-              setStudents(prev => prev.filter(s => s.id !== studentId));
-              Alert.alert('Success', 'Student removed successfully');
-            } catch (error) {
-              console.error('Error removing student:', error);
-              Alert.alert('Error', 'Failed to remove student');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleViewStudent = (studentId: string) => {
-    navigation.navigate('PublicProfile', { userId: studentId });
-  };
-
-  const handleReviewStudent = (studentId: string, studentName: string) => {
-    // Navigate to review modal or screen
-    // This could open the RelationshipReviewSection in a modal
-    navigation.navigate('PublicProfile', { 
-      userId: studentId,
-      openReviewModal: true 
-    });
-  };
+  }, [user?.id]);
 
   // Fetch available students for invitation
   const fetchAvailableStudents = useCallback(async () => {
@@ -182,8 +127,57 @@ export function StudentManagementScreen() {
     }
   }, []);
 
+  useEffect(() => {
+    loadStudents();
+    fetchAvailableStudents();
+  }, [loadStudents, fetchAvailableStudents]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadStudents();
+  };
+
+  const handleRemoveStudent = async (studentId: string, studentName: string) => {
+    Alert.alert('Remove Student', `Are you sure you want to stop supervising ${studentName}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { error } = await supabase
+              .from('student_supervisor_relationships')
+              .delete()
+              .eq('student_id', studentId)
+              .eq('supervisor_id', user?.id);
+
+            if (error) throw error;
+
+            setStudents((prev) => prev.filter((s) => s.id !== studentId));
+            Alert.alert('Success', 'Student removed successfully');
+          } catch (error) {
+            console.error('Error removing student:', error);
+            Alert.alert('Error', 'Failed to remove student');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleViewStudent = (studentId: string) => {
+    navigation.navigate('PublicProfile', { userId: studentId });
+  };
+
+  const handleReviewStudent = (studentId: string, _studentName: string) => {
+    // Navigate to review modal or screen
+    // This could open the RelationshipReviewSection in a modal
+    navigation.navigate('PublicProfile', {
+      userId: studentId
+    });
+  };
+
   // Handle inviting new users
-  const handleInviteUsers = async (emails: string[], inviteRole: string) => {
+  const handleInviteUsers = async (emails: string[], _inviteRole: string) => {
     if (!profile?.id || !profile.full_name) return;
 
     try {
@@ -191,7 +185,7 @@ export function StudentManagementScreen() {
       const { inviteUsersWithPasswords } = await import('../services/invitationService_v2');
       
       // Create invitation entries
-      const invitations = emails.map(email => ({ email }));
+      const invitations = emails.map((email) => ({ email }));
 
       // Send invitations for students
       const result = await inviteUsersWithPasswords(
@@ -199,18 +193,18 @@ export function StudentManagementScreen() {
         'student',
         profile.id,
         profile.full_name || profile.email || undefined,
-        profile.role as any,
+        profile.role as 'instructor' | 'admin' | 'teacher',
         'supervisor_invites_student'
       );
       
       if (result.failed.length > 0) {
-        const errors = result.failed.map(f => `${f.email}: ${f.error}`).join(', ');
+        const errors = result.failed.map((f) => `${f.email}: ${f.error}`).join(', ');
         throw new Error(`Failed to send ${result.failed.length} invitation(s): ${errors}`);
       }
       
       Alert.alert(
         'Invitations Sent! 🎉',
-        `${result.successful.length} invitation${result.successful.length > 1 ? 's' : ''} sent successfully! Students can login immediately with auto-generated passwords.`,
+        `${result.successful.length} invitation${result.successful.length > 1 ? 's' : ''} sent successfully! Students can login immediately with auto-generated passwords.`
       );
       
       // Refresh the student list
@@ -221,9 +215,10 @@ export function StudentManagementScreen() {
     }
   };
 
-  const filteredStudents = students.filter(student =>
-    student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredStudents = students.filter(
+    (student) =>
+      student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const renderStudentCard = (student: Student) => (
@@ -270,11 +265,7 @@ export function StudentManagementScreen() {
 
         {/* Action Buttons */}
         <XStack space="$2" justifyContent="flex-end">
-          <Button
-            size="sm"
-            variant="secondary"
-            onPress={() => handleViewStudent(student.id)}
-          >
+          <Button size="sm" variant="outlined" onPress={() => handleViewStudent(student.id)}>
             <XStack alignItems="center" space="$1">
               <Feather name="eye" size={14} />
               <Text size="sm">View</Text>
@@ -283,7 +274,7 @@ export function StudentManagementScreen() {
 
           <Button
             size="sm"
-            variant="secondary"
+            variant="outlined"
             backgroundColor="$blue10"
             onPress={() => handleReviewStudent(student.id, student.full_name)}
           >
@@ -295,7 +286,7 @@ export function StudentManagementScreen() {
 
           <Button
             size="sm"
-            variant="secondary"
+            variant="outlined"
             backgroundColor="$red10"
             onPress={() => handleRemoveStudent(student.id, student.full_name)}
           >
@@ -312,15 +303,11 @@ export function StudentManagementScreen() {
   return (
     <Screen>
       <YStack flex={1}>
-        <Header 
-          title="My Students" 
-          showBack 
+        <Header
+          title="My Students"
+          showBack
           rightElement={
-            <Button
-              size="sm"
-              variant="secondary"
-              onPress={() => setShowRelationshipModal(true)}
-            >
+            <Button size="sm" variant="outlined" onPress={() => setShowRelationshipModal(true)}>
               <XStack alignItems="center" space="$1">
                 <Feather name="user-plus" size={16} />
                 <Text size="sm">Invite</Text>
@@ -351,7 +338,7 @@ export function StudentManagementScreen() {
               </YStack>
               <YStack alignItems="center">
                 <Text size="xl" weight="bold" color="$green11">
-                  {students.filter(s => s.review_count > 0).length}
+                  {students.filter((s) => s.review_count > 0).length}
                 </Text>
                 <Text size="sm" color="$gray11">
                   With Reviews
@@ -359,10 +346,9 @@ export function StudentManagementScreen() {
               </YStack>
               <YStack alignItems="center">
                 <Text size="xl" weight="bold" color="$orange11">
-                  {students.length > 0 
+                  {students.length > 0
                     ? (students.reduce((sum, s) => sum + s.average_rating, 0) / students.length).toFixed(1)
-                    : '0.0'
-                  }
+                    : '0.0'}
                 </Text>
                 <Text size="sm" color="$gray11">
                   Avg Rating
@@ -376,32 +362,24 @@ export function StudentManagementScreen() {
         <ScrollView
           flex={1}
           padding="$4"
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           {loading && !refreshing ? (
             <YStack padding="$4" alignItems="center">
               <Text>Loading students...</Text>
             </YStack>
           ) : filteredStudents.length > 0 ? (
-            <YStack>
-              {filteredStudents.map(renderStudentCard)}
-            </YStack>
+            <YStack>{filteredStudents.map(renderStudentCard)}</YStack>
           ) : (
             <YStack padding="$4" alignItems="center" space="$3">
               <Feather name="users" size={48} color="$gray11" />
               <Text color="$gray11" textAlign="center">
-                {searchQuery 
+                {searchQuery
                   ? `No students found matching "${searchQuery}"`
-                  : 'No students yet. Start by inviting students to supervise.'
-                }
+                  : 'No students yet. Start by inviting students to supervise.'}
               </Text>
               {!searchQuery && (
-                <Button
-                  variant="primary"
-                  onPress={() => setShowRelationshipModal(true)}
-                >
+                <Button variant="outlined" onPress={() => setShowRelationshipModal(true)}>
                   <XStack alignItems="center" space="$2">
                     <Feather name="user-plus" size={16} color="white" />
                     <Text color="white">Invite Students</Text>
@@ -423,7 +401,7 @@ export function StudentManagementScreen() {
         availableSupervisors={availableStudents}
         selectedSupervisorIds={selectedStudentIds}
         onSupervisorSelect={setSelectedStudentIds}
-        onAddSupervisors={() => {}}
+        onAddSupervisors={async () => {}}
         onInviteUsers={handleInviteUsers}
         onRefresh={async () => {
           await fetchAvailableStudents();

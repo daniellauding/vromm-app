@@ -18,6 +18,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 import { messageService } from '../services/messageService';
 import { inviteNewUser, removeSupervisorRelationship } from '../services/invitationService';
+import { RelationshipReviewSection } from '../components/RelationshipReviewSection';
+import { RelationshipReviewService } from '../services/relationshipReviewService';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   routes_created: number;
@@ -94,6 +96,15 @@ export function PublicProfileScreen() {
   const [hasPendingInvitation, setHasPendingInvitation] = useState(false);
   const [pendingInvitationType, setPendingInvitationType] = useState<'sent' | 'received' | null>(null);
 
+  // Relationship reviews state
+  const [relationshipReviews, setRelationshipReviews] = useState<any[]>([]);
+  const [userRating, setUserRating] = useState({
+    averageRating: 0,
+    reviewCount: 0,
+    canReview: false,
+    alreadyReviewed: false,
+  });
+
   useEffect(() => {
     loadProfile();
     if (userId && user?.id && userId !== user.id) {
@@ -103,8 +114,10 @@ export function PublicProfileScreen() {
     }
     if (userId) {
       loadUserRelationships();
+      loadRelationshipReviews();
+      loadUserRating();
     }
-  }, [userId, route.params?.refresh, user?.id]);
+  }, [userId, route.params?.refresh, user?.id, loadRelationshipReviews, loadUserRating]);
 
   // Check if this is the current user's profile
   useEffect(() => {
@@ -824,6 +837,30 @@ export function PublicProfileScreen() {
       ],
     );
   };
+
+  // Load relationship reviews
+  const loadRelationshipReviews = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const reviews = await RelationshipReviewService.getReviewsForUser(userId);
+      setRelationshipReviews(reviews);
+    } catch (error) {
+      console.error('Error loading relationship reviews:', error);
+    }
+  }, [userId]);
+
+  // Load user rating data
+  const loadUserRating = useCallback(async () => {
+    if (!userId || !profile?.role) return;
+
+    try {
+      const rating = await RelationshipReviewService.getUserRating(userId, profile.role);
+      setUserRating(rating);
+    } catch (error) {
+      console.error('Error loading user rating:', error);
+    }
+  }, [userId, profile?.role]);
 
   if (loading) {
     return (
@@ -1587,6 +1624,18 @@ export function PublicProfileScreen() {
               ))}
             </YStack>
           </Card>
+        )}
+
+        {/* Relationship Reviews Section */}
+        {profile && !isCurrentUser && (
+          <RelationshipReviewSection
+            profileUserId={profile.id}
+            profileUserRole={profile.role as any}
+            profileUserName={profile.full_name || profile.email || 'Unknown User'}
+            canReview={userRating.canReview}
+            reviews={relationshipReviews}
+            onReviewAdded={loadRelationshipReviews}
+          />
         )}
       </YStack>
 

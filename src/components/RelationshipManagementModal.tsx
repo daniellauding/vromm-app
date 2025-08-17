@@ -18,6 +18,7 @@ import {
 } from '../services/invitationService';
 import { getPendingInvitations as getPendingInvitationsV2 } from '../services/invitationService_v2';
 import { Feather } from '@expo/vector-icons';
+import { RelationshipReviewModal } from './RelationshipReviewModal';
 
 interface RelationshipManagementModalProps {
   visible: boolean;
@@ -85,6 +86,15 @@ export function RelationshipManagementModal({
   const [localSelectedSupervisorIds, setLocalSelectedSupervisorIds] = useState<string[]>(
     selectedSupervisorIds,
   );
+  
+  // Removal review modal state
+  const [showRemovalReviewModal, setShowRemovalReviewModal] = useState(false);
+  const [removalTarget, setRemovalTarget] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null>(null);
 
   useEffect(() => {
     setLocalSelectedSupervisorIds(selectedSupervisorIds);
@@ -298,40 +308,45 @@ export function RelationshipManagementModal({
   const handleRemoveSupervisor = async (supervisorId: string) => {
     if (!profile?.id) return;
     
-    // Show input dialog for removal message
-    Alert.prompt(
-      'Remove Supervisor',
-      'Are you sure you want to remove this supervisor? They will no longer be able to view your progress.\n\nOptional: Add a message explaining why:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async (message) => {
-            try {
-              const success = await removeSupervisorRelationship(
-                profile.id, 
-                supervisorId, 
-                message?.trim() || undefined,
-                profile.id
-              );
-              if (success) {
-                Alert.alert('Success', 'Supervisor removed successfully');
-                loadCurrentSupervisors();
-                onRefresh?.();
-              } else {
-                Alert.alert('Error', 'Failed to remove supervisor');
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to remove supervisor');
-            }
-          }
-        }
-      ],
-      'plain-text',
-      '',
-      'default'
-    );
+    // Find the supervisor details
+    const supervisor = currentSupervisors.find(s => s.supervisor_id === supervisorId);
+    if (!supervisor) return;
+    
+    setRemovalTarget({
+      id: supervisorId,
+      name: supervisor.profiles?.full_name || 'Unknown Supervisor',
+      email: supervisor.profiles?.email || '',
+      role: supervisor.profiles?.role || 'instructor',
+    });
+    setShowRemovalReviewModal(true);
+  };
+
+  // Handle removal completion after review
+  const handleRemovalComplete = async () => {
+    if (!removalTarget || !profile?.id) return;
+
+    try {
+      const success = await removeSupervisorRelationship(
+        profile.id, // studentId
+        removalTarget.id, // supervisorId
+        'Review submitted', // removalMessage
+        profile.id // removedByUserId
+      );
+      
+      if (success) {
+        Alert.alert('Success', 'Supervisor removed successfully and review submitted');
+        loadCurrentSupervisors();
+        onRefresh?.();
+      } else {
+        Alert.alert('Error', 'Failed to remove supervisor');
+      }
+    } catch (error) {
+      console.error('Error removing supervisor:', error);
+      Alert.alert('Error', 'Failed to remove supervisor');
+    } finally {
+      setRemovalTarget(null);
+      setShowRemovalReviewModal(false);
+    }
   };
 
   const handleRemoveStudent = async (studentId: string) => {
@@ -761,18 +776,24 @@ export function RelationshipManagementModal({
     if (userRole === 'student') {
       // Show current supervisors for students
       return (
-        <YStack gap="$2">
+        <YStack gap="$2" flex={1}>
           <Text size="sm" color="$gray11">
-            Your current supervisors
+            Your current supervisors ({currentSupervisors.length})
           </Text>
-          <ScrollView style={{ flex: 1 }}>
-            <YStack gap="$2">
-              {currentSupervisors.length === 0 ? (
-                <Text color="$gray11" textAlign="center" padding="$4">
-                  No supervisors assigned yet
-                </Text>
-              ) : (
-                currentSupervisors.map((supervisor) => (
+          {/* Debug info */}
+          {__DEV__ && (
+            <Text size="xs" color="$blue11">
+              Debug: Found {currentSupervisors.length} supervisors
+            </Text>
+          )}
+          {currentSupervisors.length === 0 ? (
+            <Text color="$gray11" textAlign="center" padding="$4">
+              No supervisors assigned yet
+            </Text>
+          ) : (
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true}>
+              <YStack gap="$2" padding="$2">
+                {currentSupervisors.map((supervisor) => (
                   <XStack
                     key={supervisor.supervisor_id}
                     justifyContent="space-between"
@@ -798,10 +819,10 @@ export function RelationshipManagementModal({
                       <Text color="white">Remove</Text>
                     </Button>
                   </XStack>
-                ))
-              )}
-            </YStack>
-          </ScrollView>
+                ))}
+              </YStack>
+            </ScrollView>
+          )}
         </YStack>
       );
     } else {
@@ -1658,6 +1679,27 @@ export function RelationshipManagementModal({
           </Button>
         </YStack>
       </YStack>
+
+      {/* Removal Review Modal */}
+      {removalTarget && (
+        <RelationshipReviewModal
+          visible={showRemovalReviewModal}
+          onClose={() => {
+            setShowRemovalReviewModal(false);
+            setRemovalTarget(null);
+          }}
+          profileUserId={removalTarget.id}
+          profileUserRole={removalTarget.role as any}
+          profileUserName={removalTarget.name}
+          canReview={true}
+          reviews={[]}
+          onReviewAdded={() => {}} // We handle this in handleRemovalComplete
+          title={`Review ${removalTarget.name}`}
+          subtitle="Please share your experience before ending this supervisory relationship"
+          isRemovalContext={true}
+          onRemovalComplete={handleRemovalComplete}
+        />
+      )}
     </Modal>
   );
 }

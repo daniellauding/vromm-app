@@ -86,7 +86,46 @@ export const NotificationsScreen: React.FC = () => {
           created_at: n.created_at
         }))
       });
-      setNotifications(data);
+
+      // Clean up old accepted invitation notifications (older than 24 hours)
+      if (!showArchived && data) {
+        const now = new Date();
+        const invitationNotifications = data.filter(n => 
+          (n.type === 'supervisor_invitation' || n.type === 'student_invitation') &&
+          n.message?.includes('accepted')
+        );
+
+        const toDelete = [];
+        for (const notification of invitationNotifications) {
+          const createdAt = new Date(notification.created_at);
+          const hoursOld = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          
+          if (hoursOld > 24) {
+            toDelete.push(notification.id);
+          }
+        }
+
+        if (toDelete.length > 0) {
+          console.log('🧹 Cleaning up', toDelete.length, 'old accepted invitation notifications');
+          try {
+            await supabase
+              .from('notifications')
+              .delete()
+              .in('id', toDelete);
+            
+            // Filter out deleted notifications from the display
+            const filteredData = data.filter(n => !toDelete.includes(n.id));
+            setNotifications(filteredData);
+          } catch (cleanupError) {
+            console.warn('⚠️ Could not clean up old notifications:', cleanupError);
+            setNotifications(data);
+          }
+        } else {
+          setNotifications(data);
+        }
+      } else {
+        setNotifications(data);
+      }
     } catch (error) {
       console.error('❌ Error loading notifications:', error);
     } finally {
