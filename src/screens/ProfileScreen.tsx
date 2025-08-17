@@ -36,7 +36,10 @@ import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
 import { inviteNewUser, inviteMultipleUsers, inviteUsersWithPasswords, getPendingInvitations, cancelInvitation, resendInvitation } from '../services/invitationService_v2';
 import { RelationshipManagementModal } from '../components/RelationshipManagementModal';
-import { InvitationNotification } from '../components/InvitationNotification';
+
+import { RelationshipReviewSection } from '../components/RelationshipReviewSection';
+import { ProfileRatingBadge } from '../components/ProfileRatingBadge';
+import { RelationshipReviewService } from '../services/relationshipReviewService';
 import { useScreenLogger } from '../hooks/useScreenLogger';
 import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
 import {
@@ -242,7 +245,6 @@ export function ProfileScreen() {
 
   // Unified relationship management modal
   const [showRelationshipModal, setShowRelationshipModal] = useState(false);
-  const [showInvitationNotification, setShowInvitationNotification] = useState(false);
 
   // Invitation system states (keep for backward compatibility)
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -263,6 +265,11 @@ export function ProfileScreen() {
   // Add driving stats state
   const [drivingStats, setDrivingStats] = useState<DrivingStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  
+  // Relationship reviews state
+  const [userRating, setUserRating] = useState({ averageRating: 0, reviewCount: 0, canReview: false, alreadyReviewed: false });
+  const [relationshipReviews, setRelationshipReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // Add comprehensive logging
   const { logAction, logAsyncAction, logRenderIssue, logMemoryWarning } = useScreenLogger({
@@ -1365,6 +1372,7 @@ export function ProfileScreen() {
           fetchAvailableSchools(),
           fetchDrivingStats(), // Add stats fetch to refresh
           fetchPendingInvitations(), // Add pending invitations to refresh
+          loadRelationshipReviews(), // Add relationship reviews to refresh
         ];
 
         // Add supervised students fetch for teachers/instructors
@@ -1413,7 +1421,7 @@ export function ProfileScreen() {
         }
 
         if (hasValidInvitation) {
-          setShowInvitationNotification(true);
+          console.log('📱 ProfileScreen: Found valid invitations (global modal should handle this)');
         }
       }
     } catch (error) {
@@ -1422,8 +1430,7 @@ export function ProfileScreen() {
       // For testing: If table doesn't exist and user is daniel@lauding.se, show notification anyway
       if ((error as any).message?.includes('relation "pending_invitations" does not exist') && 
           user.email === 'daniel@lauding.se') {
-        console.log('🧪 Testing: Showing invitation notification for daniel@lauding.se');
-        setShowInvitationNotification(true);
+        console.log('🧪 Testing: Table does not exist - global modal should handle this');
       }
     }
   }, [user?.email, user?.id]);
@@ -1570,6 +1577,7 @@ export function ProfileScreen() {
     }
   }, [
     profile?.id,
+    user?.email,
     getUserProfileWithRelationships,
     fetchAvailableSupervisors,
     fetchAvailableSchools,
@@ -1710,6 +1718,33 @@ export function ProfileScreen() {
     }
   }, [profile?.id, activeStudentId, logInfo, logError]);
 
+  // Load relationship reviews
+  const loadRelationshipReviews = useCallback(async () => {
+    if (!profile?.id) return;
+
+    try {
+      setReviewsLoading(true);
+      
+      // Get user's rating and review data
+      const rating = await RelationshipReviewService.getUserRating(profile.id, profile.role || 'student');
+      setUserRating(rating);
+      
+      // Get all reviews for this user
+      const reviews = await RelationshipReviewService.getReviewsForUser(profile.id);
+      setRelationshipReviews(reviews);
+      
+    } catch (error) {
+      logError('Error loading relationship reviews', error as Error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [profile?.id, profile?.role, logError]);
+
+  // Load reviews on mount and when profile changes
+  useEffect(() => {
+    loadRelationshipReviews();
+  }, [loadRelationshipReviews]);
+
   return (
     <Screen
       scroll
@@ -1816,6 +1851,23 @@ export function ProfileScreen() {
                   <Text ml={4}>Take Photo</Text>
                 </Button>
               </XStack>
+              
+              {/* Display rating badge if user has reviews */}
+              {userRating.reviewCount > 0 && (
+                <YStack alignItems="center" marginTop="$3">
+                  <ProfileRatingBadge 
+                    averageRating={userRating.averageRating}
+                    reviewCount={userRating.reviewCount}
+                    size="md"
+                    showPreview={true}
+                    recentReviews={relationshipReviews.slice(0, 2).map(r => ({
+                      content: r.content || '',
+                      rating: r.rating,
+                      created_at: r.created_at
+                    }))}
+                  />
+                </YStack>
+              )}
             </YStack>
 
             <YStack>
@@ -1900,6 +1952,14 @@ export function ProfileScreen() {
                         <Text color="white">
                           {activeStudentId ? 'Switch Student' : 'Select Student'}
                         </Text>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$purple9"
+                        onPress={() => navigation.navigate('StudentManagementScreen')}
+                      >
+                        <Text color="white">Manage Students</Text>
                       </Button>
                       <Button
                         size="sm"
@@ -2023,17 +2083,38 @@ export function ProfileScreen() {
                         variant="secondary"
                         backgroundColor="$red9"
                         onPress={() => {
-                          Alert.alert(
+                          Alert.prompt(
                             'Leave Supervisor',
-                            `Are you sure you want to leave ${supervisor.supervisor_name}?`,
+                            `Are you sure you want to leave ${supervisor.supervisor_name}?\n\nOptional: Add a message explaining why:`,
                             [
                               { text: 'Cancel', style: 'cancel' },
                               {
                                 text: 'Leave',
                                 style: 'destructive',
-                                onPress: () => leaveSupervisor(supervisor.supervisor_id),
+                                onPress: async (message) => {
+                                  // Use the enhanced removeSupervisorRelationship function
+                                  const { removeSupervisorRelationship } = await import('../services/invitationService');
+                                  const success = await removeSupervisorRelationship(
+                                    profile?.id || '', // studentId
+                                    supervisor.supervisor_id, // supervisorId
+                                    message?.trim() || undefined, // removalMessage
+                                    profile?.id // removedByUserId
+                                  );
+                                  
+                                  if (success) {
+                                    Alert.alert('Success', 'You have left your supervisor');
+                                    if (profile?.id) {
+                                      await getUserProfileWithRelationships(profile.id);
+                                    }
+                                  } else {
+                                    Alert.alert('Error', 'Failed to leave supervisor');
+                                  }
+                                },
                               },
                             ],
+                            'plain-text',
+                            '',
+                            'default'
                           );
                         }}
                         disabled={relationshipsLoading}
@@ -2628,6 +2709,18 @@ export function ProfileScreen() {
               </Button>
             </XStack>
 
+            {/* Relationship Reviews Section */}
+            {profile && (
+              <RelationshipReviewSection
+                profileUserId={profile.id}
+                profileUserRole={profile.role as any}
+                profileUserName={profile.full_name || profile.email || 'Unknown User'}
+                canReview={userRating.canReview}
+                reviews={relationshipReviews}
+                onReviewAdded={loadRelationshipReviews}
+              />
+            )}
+
             <Card bordered padding="$4" marginTop="$4">
               <YStack gap={8}>
                 <Text size="lg" weight="bold" mb="$2" color="$color">
@@ -2796,6 +2889,35 @@ ${
                   marginBottom="$2"
                 >
                   System Health Check
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      console.log('🔍 Manual invitation check triggered');
+                      await checkForPendingInvitations();
+                      Alert.alert('Invitation Check', 'Checked for pending invitations. See console for details.');
+                    } catch (error) {
+                      logError('Failed to check invitations', error as Error);
+                      Alert.alert('Error', 'Failed to check for invitations');
+                    }
+                  }}
+                  marginBottom="$2"
+                >
+                  📥 Check for Invitations
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={() => {
+                    console.log('🧪 Force showing global invitation modal for testing');
+                    // This will be handled by the global modal in App.tsx
+                    Alert.alert('Test Info', 'Global invitation modal is now handled at app level. Check for real invitations.');
+                  }}
+                  marginBottom="$2"
+                >
+                  🧪 Test Global Invitations
                 </Button>
                 <Button
                   variant="secondary"
@@ -3547,17 +3669,7 @@ ${
         }}
       />
 
-      {/* Invitation Notification Modal */}
-      <InvitationNotification
-        visible={showInvitationNotification}
-        onClose={() => setShowInvitationNotification(false)}
-        onInvitationHandled={() => {
-          // Refresh relationships after accepting/declining invitations
-          if (profile?.id) {
-            getUserProfileWithRelationships(profile.id);
-          }
-        }}
-      />
+
 
       {/* Delete Account Dialog */}
       <Modal

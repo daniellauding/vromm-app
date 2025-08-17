@@ -129,18 +129,26 @@ export function InvitationNotification({
 
     try {
       setLoading(true);
-
-      console.log('🎯 Accepting invitation:', invitation);
+      console.log('✅ Accepting invitation:', invitation.id, 'from:', invitation.inviter_details?.full_name);
 
       // Use the acceptInvitationById function from invitation service
       const { acceptInvitationById } = await import('../services/invitationService');
       const success = await acceptInvitationById(invitation.id, user.id);
 
       if (!success) {
-        console.error('Failed to accept invitation');
+        console.error('❌ Failed to accept invitation');
         Alert.alert('Error', 'Failed to accept invitation. Please try again.');
         return;
       }
+
+      console.log('🎉 Invitation accepted successfully');
+
+      // Remove the accepted invitation from local state
+      setPendingInvitations(prev => {
+        const updated = prev.filter(inv => inv.id !== invitation.id);
+        console.log('📝 Updated pending invitations count:', updated.length);
+        return updated;
+      });
 
       Alert.alert(
         'Success', 
@@ -150,7 +158,7 @@ export function InvitationNotification({
 
       onInvitationHandled();
     } catch (error) {
-      console.error('Error accepting invitation:', error);
+      console.error('❌ Error accepting invitation:', error);
       Alert.alert('Error', 'Failed to accept invitation. Please try again.');
     } finally {
       setLoading(false);
@@ -160,20 +168,28 @@ export function InvitationNotification({
   const handleDeclineInvitation = async (invitation: PendingInvitation) => {
     try {
       setLoading(true);
+      console.log('🚫 Declining invitation:', invitation.id, 'from:', invitation.inviter_details?.full_name);
 
+      // Instead of updating status, delete the invitation to avoid constraint conflicts
       const { error } = await supabase
         .from('pending_invitations')
-        .update({ 
-          status: 'rejected',
-          updated_at: new Date().toISOString()
-        })
+        .delete()
         .eq('id', invitation.id);
 
       if (error) {
-        console.error('Error declining invitation:', error);
-        Alert.alert('Error', 'Failed to decline invitation.');
+        console.error('❌ Error declining invitation:', error);
+        Alert.alert('Error', `Failed to decline invitation: ${error.message}`);
         return;
       }
+
+      console.log('✅ Invitation declined successfully');
+      
+      // Remove the declined invitation from local state
+      setPendingInvitations(prev => {
+        const updated = prev.filter(inv => inv.id !== invitation.id);
+        console.log('📝 Updated pending invitations count:', updated.length);
+        return updated;
+      });
 
       Alert.alert(
         'Invitation Declined', 
@@ -183,18 +199,17 @@ export function InvitationNotification({
 
       onInvitationHandled();
     } catch (error) {
-      console.error('Error declining invitation:', error);
+      console.error('❌ Error declining invitation:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleNextInvitation = () => {
-    const currentIndex = pendingInvitations.findIndex(inv => inv.id === currentInvitation?.id);
-    const nextIndex = currentIndex + 1;
-    
-    if (nextIndex < pendingInvitations.length) {
-      setCurrentInvitation(pendingInvitations[nextIndex]);
+    // Since we remove invitations from state when they're handled,
+    // just show the first remaining invitation
+    if (pendingInvitations.length > 0) {
+      setCurrentInvitation(pendingInvitations[0]);
     } else {
       // No more invitations, close modal
       setCurrentInvitation(null);

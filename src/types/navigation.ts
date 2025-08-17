@@ -105,6 +105,7 @@ export type RootStackParamList = {
     activeFilter?: FilterCategory;
   };
   CommunityFeedScreen: undefined;
+  StudentManagementScreen: undefined;
 };
 
 export type TabParamList = {

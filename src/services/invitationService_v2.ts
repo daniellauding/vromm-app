@@ -222,9 +222,13 @@ async function createInvitationNotification(
     const { error: notifError } = await supabase.from('notifications').insert({
       user_id: recipientId,
       actor_id: inviterId,
-      type: notificationType,
+      type: notificationType as Database['public']['Enums']['notification_type'],
+      title: relationshipType === 'student_invites_supervisor' ? 'New Supervision Request' : 'New Student Invitation',
       message,
-      metadata: { relationshipType, inviterName }
+      metadata: { relationshipType, inviterName },
+      action_url: 'vromm://notifications',
+      priority: 'high',
+      is_read: false,
     });
 
     if (notifError && !notifError.message.includes('does not exist')) {

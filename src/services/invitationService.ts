@@ -634,15 +634,20 @@ export async function removeSupervisorRelationship(
       ? (studentProfile?.full_name || studentProfile?.email || 'Student')
       : (supervisorProfile?.full_name || supervisorProfile?.email || 'Supervisor');
     
-    const notificationMessage = removedByStudent
+    let notificationMessage = removedByStudent
       ? `${removerName} is no longer your student`
       : `${removerName} is no longer your supervisor`;
+      
+    // Add removal message if provided
+    if (removalMessage && removalMessage.trim()) {
+      notificationMessage += `\n\nMessage: "${removalMessage.trim()}"`;
+    }
 
     try {
       await supabase.from('notifications').insert({
         user_id: notificationRecipientId,
         actor_id: removedByUserId || (removedByStudent ? studentId : supervisorId),
-        type: 'new_message',
+        type: 'new_message' as Database['public']['Enums']['notification_type'],
         title: 'Relationship Ended',
         message: notificationMessage,
         metadata: {

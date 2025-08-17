@@ -15,3 +15,7 @@ export { RouteExerciseViewer } from './RouteExerciseViewer';
 export { RouteExerciseList } from './RouteExerciseList';
 export { AdvancedExerciseCreator } from './AdvancedExerciseCreator';
 export { ExerciseDetailModal } from './ExerciseDetailModal';
+
+// Relationship review components
+export { RelationshipReviewSection } from './RelationshipReviewSection';
+export { ProfileRatingBadge } from './ProfileRatingBadge';

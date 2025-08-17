@@ -65,6 +65,7 @@ export function RelationshipManagementModal({
     Array<{ id: string; full_name: string; email: string; role?: string }>
   >([]);
   const [newUserEmails, setNewUserEmails] = useState('');
+  const [customMessage, setCustomMessage] = useState('');
   const [pendingInvitations, setPendingInvitations] = useState<
     Array<{ id: string; email: string; role: string; status: string; created_at: string }>
   >([]);
@@ -101,23 +102,20 @@ export function RelationshipManagementModal({
       console.log('👤 Profile ID:', profile?.id);
     }
     if (visible) {
-      if (activeTab === 'pending') {
-        console.log('📋 Loading pending invitations...');
-        loadPendingInvitations();
-        loadIncomingInvitations(); // Load for all user types in pending tab
-      } else if (activeTab === 'manage' && userRole === 'student' && profile?.id) {
+      console.log('🔄 Modal opened, loading data for tab:', activeTab, 'userRole:', userRole);
+      
+      // Always load pending invitations (sent by user) for all roles
+      console.log('📋 Loading pending invitations (sent by user)...');
+      loadPendingInvitations();
+      
+      // Always load incoming invitations (received by user) for all roles
+      console.log('📥 Loading incoming invitations (received by user)...');
+      loadIncomingInvitations();
+      
+      // Load role-specific data
+      if (activeTab === 'manage' && userRole === 'student' && profile?.id) {
         console.log('👨‍🎓 Loading current supervisors for student...');
         loadCurrentSupervisors();
-      }
-      // Ensure sent invites are available to highlight in the student "Add" list
-      if (userRole === 'student') {
-        console.log('👩‍🎓 Loading pending invitations for student...');
-        loadPendingInvitations();
-      }
-      // Load incoming invitations for all user types when needed
-      if (activeTab === 'view' || (activeTab === 'manage' && userRole !== 'student')) {
-        console.log('👨‍🏫 Loading incoming invitations...');
-        loadIncomingInvitations();
       }
     }
   }, [visible, activeTab]);
@@ -212,9 +210,62 @@ export function RelationshipManagementModal({
     
     console.log('📥 Loading incoming invitations for email:', user.email);
     try {
-      const invitations = await getIncomingInvitations(user.email);
-      console.log('📥 Loaded incoming invitations:', invitations);
-      setIncomingInvitations(invitations);
+      // Use direct query instead of service function for more control
+      const { data: invitations, error } = await supabase
+        .from('pending_invitations')
+        .select(`
+          id, 
+          email, 
+          role, 
+          status, 
+          created_at, 
+          invited_by, 
+          metadata,
+          inviter:profiles!pending_invitations_invited_by_fkey (
+            full_name,
+            email,
+            role
+          )
+        `)
+        .eq('email', user.email.toLowerCase())
+        .in('status', ['pending', 'accepted']) // Show both pending and recently accepted
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error loading incoming invitations:', error);
+        return;
+      }
+
+      console.log('📥 Raw incoming invitations:', invitations);
+      
+      // Filter out invitations where relationship already exists (unless recently accepted)
+      const filteredInvitations = [];
+      for (const inv of invitations || []) {
+        if (inv.status === 'accepted') {
+          // Show recently accepted invitations (within 24 hours)
+          const acceptedTime = new Date(inv.created_at).getTime();
+          const now = Date.now();
+          const hoursOld = (now - acceptedTime) / (1000 * 60 * 60);
+          
+          if (hoursOld <= 24) {
+            filteredInvitations.push(inv);
+          }
+        } else {
+          // For pending invitations, check if relationship already exists
+          const { data: existingRelationship } = await supabase
+            .from('student_supervisor_relationships')
+            .select('id')
+            .or(`and(student_id.eq.${user.id},supervisor_id.eq.${inv.invited_by}),and(student_id.eq.${inv.invited_by},supervisor_id.eq.${user.id})`)
+            .limit(1);
+
+          if (!existingRelationship || existingRelationship.length === 0) {
+            filteredInvitations.push(inv);
+          }
+        }
+      }
+
+      console.log('📥 Filtered incoming invitations:', filteredInvitations);
+      setIncomingInvitations(filteredInvitations);
     } catch (error) {
       console.error('❌ Error loading incoming invitations:', error);
     }
@@ -436,30 +487,37 @@ export function RelationshipManagementModal({
       setLoading(true);
       console.log('📝 Creating pending invitation...');
       
-      // Check for existing invitation first - only block if it's recent (within 24 hours)
-      const { data: existingInvitation } = await supabase
+      // Check for ANY existing invitation from this user to this email (regardless of status)
+      const { data: existingInvitations } = await supabase
         .from('pending_invitations')
         .select('id, status, created_at')
         .eq('email', targetUser.email.toLowerCase())
         .eq('invited_by', user.id)
-        .eq('status', 'pending')
-        .single();
-      
-      if (existingInvitation) {
-        const invitationAge = Date.now() - new Date(existingInvitation.created_at).getTime();
-        const hoursOld = invitationAge / (1000 * 60 * 60);
+        .in('status', ['pending', 'accepted']);
+
+      if (existingInvitations && existingInvitations.length > 0) {
+        const pendingInvitation = existingInvitations.find(inv => inv.status === 'pending');
+        const acceptedInvitation = existingInvitations.find(inv => inv.status === 'accepted');
         
-        if (hoursOld < 24) {
-          console.log('ℹ️ Recent invitation already exists (', hoursOld.toFixed(1), 'hours old)');
-          Alert.alert('Info', `An invitation was sent ${hoursOld < 1 ? 'less than an hour' : Math.round(hoursOld) + ' hours'} ago. Please wait for the user to respond.`);
+        if (pendingInvitation) {
+          const invitationAge = Date.now() - new Date(pendingInvitation.created_at).getTime();
+          const hoursOld = invitationAge / (1000 * 60 * 60);
+          
+          console.log('ℹ️ Pending invitation already exists (', hoursOld.toFixed(1), 'hours old)');
+          Alert.alert(
+            'Invitation Already Sent',
+            `You already sent an invitation to ${targetUser.full_name || targetUser.email} ${hoursOld < 1 ? 'less than an hour' : Math.round(hoursOld) + ' hours'} ago. Please wait for them to respond.`,
+          );
           return;
-        } else {
-          console.log('🗑️ Old invitation exists (', hoursOld.toFixed(1), 'hours old) - will cancel and create new');
-          // Cancel the old invitation
-          await supabase
-            .from('pending_invitations')
-            .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-            .eq('id', existingInvitation.id);
+        }
+        
+        if (acceptedInvitation) {
+          console.log('ℹ️ Invitation already accepted - relationship should exist');
+          Alert.alert(
+            'Invitation Already Accepted',
+            `${targetUser.full_name || targetUser.email} has already accepted your invitation. The relationship should be active.`,
+          );
+          return;
         }
       }
       
@@ -483,6 +541,7 @@ export function RelationshipManagementModal({
             invitedAt: new Date().toISOString(),
             targetUserId: targetUser.id, // Store target user ID for existing users
             targetUserName: targetUser.full_name,
+            customMessage: customMessage.trim() || undefined, // Add custom message
           },
           status: 'pending',
         })
@@ -1043,6 +1102,24 @@ export function RelationshipManagementModal({
                 borderColor: '#444',
               }}
             />
+            
+            <TextInput
+              value={customMessage}
+              onChangeText={setCustomMessage}
+              placeholder="Optional: Add a personal message..."
+              multiline
+              autoCapitalize="sentences"
+              style={{
+                backgroundColor: '#2A2A2A',
+                padding: 12,
+                borderRadius: 8,
+                color: 'white',
+                borderWidth: 1,
+                borderColor: '#444',
+                minHeight: 60,
+                textAlignVertical: 'top',
+              }}
+            />
 
             {loading ? (
               <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
@@ -1166,21 +1243,41 @@ export function RelationshipManagementModal({
   };
 
   const renderPendingTab = () => {
+    console.log('🎭 Rendering Pending tab with data:');
+    console.log('📤 Pending invitations (sent):', pendingInvitations.length);
+    console.log('📥 Incoming invitations (received):', incomingInvitations.length);
+    
     return (
       <YStack gap="$3">
-        <Text size="sm" color="$gray11">
-          Manage your pending invitations
-        </Text>
+        <XStack justifyContent="space-between" alignItems="center">
+          <Text size="sm" color="$gray11">
+            Manage your pending invitations ({pendingInvitations.length} sent, {incomingInvitations.length} received)
+          </Text>
+          <Button
+            size="sm"
+            variant="tertiary"
+            onPress={() => {
+              console.log('🔄 Manual refresh of pending invitations');
+              loadPendingInvitations();
+              loadIncomingInvitations();
+            }}
+          >
+            <Feather name="refresh-cw" size={14} />
+          </Button>
+        </XStack>
 
         <ScrollView style={{ flex: 1 }}>
           <YStack gap="$3">
             <YStack gap="$2">
-              <Text size="sm" color="$gray11">
-                Sent by you
-              </Text>
+              <XStack alignItems="center" gap="$2">
+                <Feather name="send" size={16} color="#10B981" />
+                <Text size="sm" color="$gray11" fontWeight="600">
+                  Sent by you ({pendingInvitations.length})
+                </Text>
+              </XStack>
               {pendingInvitations.length === 0 ? (
-                <Text color="$gray11" textAlign="center">
-                  No pending invitations
+                <Text color="$gray11" textAlign="center" padding="$3">
+                  No invitations sent yet
                 </Text>
               ) : (
                 pendingInvitations.map((invitation) => (
@@ -1241,64 +1338,113 @@ export function RelationshipManagementModal({
             </YStack>
 
             <YStack gap="$2">
-              <Text size="sm" color="$gray11">
-                Received by you
-              </Text>
+              <XStack alignItems="center" gap="$2">
+                <Feather name="inbox" size={16} color="#3B82F6" />
+                <Text size="sm" color="$gray11" fontWeight="600">
+                  Received by you ({incomingInvitations.length})
+                </Text>
+              </XStack>
               {incomingInvitations.length === 0 ? (
-                <Text color="$gray11" textAlign="center">
-                  No incoming invitations
+                <Text color="$gray11" textAlign="center" padding="$3">
+                  No invitations received yet
                 </Text>
               ) : (
-                incomingInvitations.map((invitation) => (
-                  <YStack
-                    key={invitation.id}
-                    backgroundColor="$backgroundStrong"
-                    padding="$3"
-                    borderRadius="$2"
-                    gap="$2"
-                  >
-                    <XStack justifyContent="space-between" alignItems="center">
-                      <YStack flex={1}>
-                        <Text weight="semibold" size="sm">
-                          {invitation.email}
-                        </Text>
-                        <Text color="$gray11" size="xs">
-                          Role: {invitation.role} • Status: {invitation.status}
-                        </Text>
-                        <Text color="$gray11" size="xs">
-                          Sent: {new Date(invitation.created_at).toLocaleDateString()}
-                        </Text>
-                      </YStack>
-                      <XStack gap="$2">
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          onPress={async () => {
-                            console.log('🎯 PENDING TAB - Accepting invitation:', invitation.id);
-                            const success = await acceptInvitationById(invitation.id, profile!.id);
-                            console.log('🎯 PENDING TAB - Accept result:', success);
-                            if (success) {
-                              loadIncomingInvitations();
-                              onRefresh?.();
-                            }
-                          }}
-                        >
-                          Accept
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="tertiary"
-                          onPress={async () => {
-                            await rejectInvitation(invitation.id);
-                            loadIncomingInvitations();
-                          }}
-                        >
-                          Decline
-                        </Button>
+                incomingInvitations.map((invitation: any) => {
+                  const metadata = invitation.metadata || {};
+                  const inviterName = metadata.supervisorName || metadata.inviterName || invitation.inviter?.full_name || 'Unknown User';
+                  const relationshipType = metadata.relationshipType || 'unknown';
+                  
+                  return (
+                    <YStack
+                      key={invitation.id}
+                      backgroundColor="$backgroundStrong"
+                      padding="$3"
+                      borderRadius="$2"
+                      gap="$2"
+                      borderWidth={1}
+                      borderColor={invitation.status === 'accepted' ? '$green8' : '$blue8'}
+                    >
+                      <XStack justifyContent="space-between" alignItems="center">
+                        <YStack flex={1}>
+                          <XStack alignItems="center" gap="$2">
+                            <Feather 
+                              name={relationshipType === 'student_invites_supervisor' ? 'user-plus' : 'users'} 
+                              size={14} 
+                              color={invitation.status === 'accepted' ? '#10B981' : '#3B82F6'} 
+                            />
+                            <Text weight="semibold" size="sm">
+                              {inviterName}
+                            </Text>
+                            {invitation.status === 'accepted' && (
+                              <Text color="$green11" size="xs" fontWeight="bold">✅</Text>
+                            )}
+                          </XStack>
+                          <Text color="$gray11" size="xs">
+                            Wants you as their {relationshipType === 'student_invites_supervisor' ? 'supervisor' : 'student'}
+                          </Text>
+                          <Text color="$gray11" size="xs">
+                            {invitation.email} • {new Date(invitation.created_at).toLocaleDateString()}
+                          </Text>
+                        </YStack>
+                        <XStack gap="$2">
+                          {invitation.status === 'pending' && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                backgroundColor="$green9"
+                                onPress={async () => {
+                                  console.log('🎯 PENDING TAB - Accepting invitation:', invitation.id);
+                                  const success = await acceptInvitationById(invitation.id, profile!.id);
+                                  console.log('🎯 PENDING TAB - Accept result:', success);
+                                  if (success) {
+                                    Alert.alert('Success', 'Invitation accepted! Relationship created.');
+                                    loadIncomingInvitations();
+                                    loadPendingInvitations();
+                                    onRefresh?.();
+                                  }
+                                }}
+                              >
+                                <Text color="white">Accept</Text>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                backgroundColor="$red9"
+                                onPress={async () => {
+                                  console.log('🚫 PENDING TAB - Declining invitation:', invitation.id);
+                                  
+                                  // Delete the invitation instead of updating status to avoid constraint issues
+                                  const { error } = await supabase
+                                    .from('pending_invitations')
+                                    .delete()
+                                    .eq('id', invitation.id);
+                                  
+                                  if (error) {
+                                    console.error('❌ Error declining invitation:', error);
+                                    Alert.alert('Error', 'Failed to decline invitation');
+                                  } else {
+                                    console.log('✅ Invitation declined successfully');
+                                    Alert.alert('Success', 'Invitation declined');
+                                    loadIncomingInvitations();
+                                    loadPendingInvitations();
+                                  }
+                                }}
+                              >
+                                <Text color="white">Decline</Text>
+                              </Button>
+                            </>
+                          )}
+                          {invitation.status === 'accepted' && (
+                            <Text color="$green11" size="xs" fontWeight="bold">
+                              Recently Accepted
+                            </Text>
+                          )}
+                        </XStack>
                       </XStack>
-                    </XStack>
-                  </YStack>
-                ))
+                    </YStack>
+                  );
+                })
               )}
             </YStack>
           </YStack>
