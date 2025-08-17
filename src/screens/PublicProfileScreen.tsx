@@ -70,6 +70,7 @@ export function PublicProfileScreen() {
   });
   const [showAdminControls, setShowAdminControls] = useState(false);
 
+
   // Follow/Unfollow system state
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
@@ -379,8 +380,10 @@ export function PublicProfileScreen() {
 
   const handleEditProfile = () => {
     // Navigate to the edit screen within the nested stack
-    navigation.navigate('ProfileScreen');
+    navigation.push('ProfileScreen');
   };
+
+
 
   const handleViewAllRoutes = () => {
     navigation.navigate('RouteList', {
@@ -1011,6 +1014,18 @@ export function PublicProfileScreen() {
             {profile.full_name || t('profile.unnamed')}
           </Text>
 
+          {profile.is_trusted && (
+            <Card padding="$1" marginTop="$1" backgroundColor="$green5" borderRadius="$3">
+              <Text color="$green11" fontSize="$2">{t('profile.verifiedBadge') || 'Verified'}</Text>
+            </Card>
+          )}
+
+          {!profile.is_trusted && (
+            <Card padding="$1" marginTop="$1" backgroundColor="$red5" borderRadius="$3">
+              <Text color="$red11" fontSize="$2">{t('profile.notVerifiedBadge') || 'Not verified yet'}</Text>
+            </Card>
+          )}
+
           {profile.location && (
             <XStack alignItems="center" gap="$1">
               <Feather name="map-pin" size={16} color={iconColor} />
@@ -1401,6 +1416,8 @@ export function PublicProfileScreen() {
           onClose={() => setShowReportDialog(false)}
         />
       )}
+
+
     </Screen>
   );
 }

@@ -34,7 +34,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
-import { inviteNewUser, inviteMultipleUsers, getPendingInvitations, cancelInvitation, resendInvitation } from '../services/invitationService';
+import { inviteNewUser, inviteMultipleUsers, inviteUsersWithPasswords, getPendingInvitations, cancelInvitation, resendInvitation } from '../services/invitationService_v2';
 import { RelationshipManagementModal } from '../components/RelationshipManagementModal';
 import { InvitationNotification } from '../components/InvitationNotification';
 import { useScreenLogger } from '../hooks/useScreenLogger';
@@ -196,6 +196,16 @@ export function ProfileScreen() {
   const [showExperienceModal, setShowExperienceModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  
+  // Delete account modal state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [optDeletePrivate, setOptDeletePrivate] = useState(false);
+  const [optDeletePublic, setOptDeletePublic] = useState(false);
+  const [optDeleteEvents, setOptDeleteEvents] = useState(false);
+  const [optDeleteExercises, setOptDeleteExercises] = useState(false);
+  const [optDeleteReviews, setOptDeleteReviews] = useState(false);
+  const [optTransferPublic, setOptTransferPublic] = useState(true);
+  
   const theme = useTheme();
   const colorScheme = useColorScheme();
   const navigation = useNavigation<RootStackNavigationProp>();
@@ -243,6 +253,7 @@ export function ProfileScreen() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [inviteType, setInviteType] = useState<'supervisor' | 'student' | null>(null);
   const [inviteEmails, setInviteEmails] = useState<string[]>([]);
+  const [invitePasswords, setInvitePasswords] = useState<string[]>([]); // NEW: Store passwords for each email
   const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [showPendingInvites, setShowPendingInvites] = useState(false);
 
@@ -318,6 +329,32 @@ export function ProfileScreen() {
       setError(err instanceof Error ? err.message : 'Failed to sign out');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const SYSTEM_PROFILE_UUID = '22f2bccb-efb5-4f67-85fd-8078a25acebc';
+
+  const handleConfirmDeleteAccount = async () => {
+    try {
+      if (!user?.id) return;
+      const { error } = await supabase.rpc('process_user_account_deletion', {
+        p_user_id: user.id,
+        p_delete_private_routes: optDeletePrivate,
+        p_delete_public_routes: optDeletePublic,
+        p_delete_events: optDeleteEvents,
+        p_delete_exercises: optDeleteExercises,
+        p_delete_reviews: optDeleteReviews,
+        p_transfer_public_to: optTransferPublic ? SYSTEM_PROFILE_UUID : null,
+      });
+      if (error) throw error;
+
+      await supabase.auth.signOut();
+      Alert.alert(t('deleteAccount.successTitle') || 'Account deleted', t('deleteAccount.successMessage') || 'Your account was deleted.');
+    } catch (err) {
+      console.error('Delete account error:', err);
+      Alert.alert('Error', (err as any)?.message || 'Failed to delete account');
+    } finally {
+      setShowDeleteDialog(false);
     }
   };
 
@@ -767,7 +804,7 @@ export function ProfileScreen() {
     }
   };
 
-  // Handle bulk email invitations for new users
+  // Handle bulk email invitations for new users with custom passwords
   const handleBulkInvite = async () => {
     try {
       const validEmails = inviteEmails.filter(email => email.includes('@'));
@@ -792,38 +829,41 @@ export function ProfileScreen() {
         role = inviteType === 'student' ? 'student' : 'instructor';
       }
 
-      // Send invitations with enhanced metadata
-      const promises = validEmails.map(email => 
-        inviteNewUser({
-          email,
-          role,
-          supervisorId: profile?.id,
-          supervisorName: profile?.full_name || profile?.email,
-          inviterRole: profile?.role as UserRole,
-          relationshipType,
-        })
+      // Create invitation entries with custom passwords
+      const invitations = validEmails.map((email, index) => ({
+        email,
+        password: invitePasswords[index] && invitePasswords[index].trim() 
+          ? invitePasswords[index].trim() 
+          : undefined // Use auto-generated password if not provided
+      }));
+
+      // Send invitations with custom passwords
+      const result = await inviteUsersWithPasswords(
+        invitations,
+        role,
+        profile?.id,
+        profile?.full_name || profile?.email || undefined,
+        profile?.role as UserRole,
+        relationshipType
       );
 
-      const results = await Promise.all(promises);
-      const successful = validEmails.filter((_, index) => results[index].success);
-      const failed = validEmails.filter((_, index) => !results[index].success);
-
-      if (successful.length > 0) {
+      if (result.successful.length > 0) {
         Alert.alert(
           'Invitations Sent! 🎉',
-          `Successfully invited ${successful.length} ${inviteType}(s). They will receive an email to create their account.`,
+          `Successfully invited ${result.successful.length} ${inviteType}(s). They can login immediately with their assigned passwords.`,
         );
       }
 
-      if (failed.length > 0) {
+      if (result.failed.length > 0) {
         Alert.alert(
           'Some Invitations Failed',
-          `Failed to invite: ${failed.join(', ')}`,
+          `Failed to invite: ${result.failed.map(f => f.email).join(', ')}`,
         );
       }
 
       setShowInviteModal(false);
       setInviteEmails([]);
+      setInvitePasswords([]); // Clear passwords
       fetchPendingInvitations();
     } catch (error) {
       logError('Error sending bulk invitations', error as Error);
@@ -1283,42 +1323,28 @@ export function ProfileScreen() {
         relationshipType = 'supervisor_invites_student';
       }
 
-      // Send invitations with enhanced metadata
-      const promises = emails.map(email => 
-        inviteNewUser({
-          email,
-          role: targetRole,
-          supervisorId: profile.id,
-          supervisorName: profile.full_name || profile.email,
-          inviterRole: profile.role as UserRole,
-          relationshipType,
-        })
-      );
+      // Create invitation entries (no custom passwords for this flow - use auto-generated)
+      const invitations = emails.map(email => ({ email }));
 
-      const results = await Promise.all(promises);
-      const successful = emails.filter((_, index) => results[index].success);
-      const failed = emails.filter((_, index) => !results[index].success);
+      // Send invitations using the new function with auto-generated passwords
+      const result = await inviteUsersWithPasswords(
+        invitations,
+        targetRole,
+        profile.id,
+        profile.full_name || profile.email || undefined,
+        profile.role as UserRole,
+        relationshipType
+      );
       
-      if (failed.length > 0) {
-        // Get error messages from failed invitations
-        const errors = results.filter(r => !r.success).map(r => r.error).join(', ');
-        throw new Error(`Failed to send ${failed.length} invitation(s): ${errors}`);
+      if (result.failed.length > 0) {
+        const errors = result.failed.map(f => `${f.email}: ${f.error}`).join(', ');
+        throw new Error(`Failed to send ${result.failed.length} invitation(s): ${errors}`);
       }
       
-      // Check if any results have notes (fallback mode)
-      const hasNotes = results.some(r => r.note);
-      
-      if (hasNotes) {
-        Alert.alert(
-          'Invitations Processed',
-          `${successful.length} invitation${successful.length > 1 ? 's' : ''} processed. Note: Email delivery requires additional setup. Please contact the recipients directly to inform them.`,
-        );
-      } else {
-        Alert.alert(
-          'Invitations Sent',
-          `${successful.length} invitation${successful.length > 1 ? 's' : ''} sent successfully!`,
-        );
-      }
+      Alert.alert(
+        'Invitations Sent! 🎉',
+        `${result.successful.length} invitation${result.successful.length > 1 ? 's' : ''} sent successfully! Users can login immediately with auto-generated passwords.`,
+      );
     } catch (error) {
       console.error('Error in handleInviteUsers:', error);
       throw error; // Let the modal handle the error
@@ -2388,9 +2414,19 @@ export function ProfileScreen() {
               {loading ? t('profile.updating') : t('profile.updateProfile')}
             </Button>
 
-            <Button onPress={handleSignOut} disabled={loading} variant="secondary" size="lg">
-              {t('profile.signOut')}
-            </Button>
+            <XStack gap="$2">
+              <Button onPress={handleSignOut} disabled={loading} variant="secondary" size="lg">
+                {t('profile.signOut')}
+              </Button>
+              <Button
+                onPress={() => setShowDeleteDialog(true)}
+                disabled={loading}
+                variant="secondary"
+                size="lg"
+              >
+                {t('settings.deleteAccount') || 'Delete Account'}
+              </Button>
+            </XStack>
 
             <Card bordered padding="$4" marginTop="$4">
               <YStack gap={8}>
@@ -3014,6 +3050,7 @@ ${
                 variant={inviteEmails.length > 0 ? 'primary' : 'secondary'}
                 onPress={() => {
                   setInviteEmails(['']);
+                  setInvitePasswords(['']);
                   setSearchResults([]);
                 }}
               >
@@ -3034,38 +3071,56 @@ ${
             {/* Email invite mode */}
             {inviteEmails.length > 0 ? (
               <YStack gap="$2">
-                <Text size="sm" color="$gray11">Enter email addresses to invite (one per line)</Text>
+                <Text size="sm" color="$gray11">Enter email addresses and passwords (leave password blank for auto-generated)</Text>
                 {inviteEmails.map((email, index) => (
-                  <XStack key={index} gap="$2">
+                  <YStack key={index} gap="$1">
+                    <XStack gap="$2">
+                      <Input
+                        flex={1}
+                        value={email}
+                        onChangeText={(text) => {
+                          const newEmails = [...inviteEmails];
+                          newEmails[index] = text;
+                          setInviteEmails(newEmails);
+                        }}
+                        placeholder="email@example.com"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onPress={() => {
+                          const newEmails = inviteEmails.filter((_, i) => i !== index);
+                          const newPasswords = invitePasswords.filter((_, i) => i !== index);
+                          setInviteEmails(newEmails.length > 0 ? newEmails : ['']);
+                          setInvitePasswords(newPasswords.length > 0 ? newPasswords : ['']);
+                        }}
+                      >
+                        <Feather name="x" size={16} />
+                      </Button>
+                    </XStack>
                     <Input
-                      flex={1}
-                      value={email}
+                      value={invitePasswords[index] || ''}
                       onChangeText={(text) => {
-                        const newEmails = [...inviteEmails];
-                        newEmails[index] = text;
-                        setInviteEmails(newEmails);
+                        const newPasswords = [...invitePasswords];
+                        newPasswords[index] = text;
+                        setInvitePasswords(newPasswords);
                       }}
-                      placeholder="email@example.com"
-                      keyboardType="email-address"
+                      placeholder="Custom password (optional)"
+                      secureTextEntry
                       autoCapitalize="none"
                     />
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onPress={() => {
-                        const newEmails = inviteEmails.filter((_, i) => i !== index);
-                        setInviteEmails(newEmails.length > 0 ? newEmails : ['']);
-                      }}
-                    >
-                      <Feather name="x" size={16} />
-                    </Button>
-                  </XStack>
+                  </YStack>
                 ))}
                 <XStack gap="$2">
                   <Button
                     size="sm"
                     variant="secondary"
-                    onPress={() => setInviteEmails([...inviteEmails, ''])}
+                    onPress={() => {
+                      setInviteEmails([...inviteEmails, '']);
+                      setInvitePasswords([...invitePasswords, '']);
+                    }}
                   >
                     <Text>Add Another Email</Text>
                   </Button>
@@ -3298,6 +3353,65 @@ ${
           }
         }}
       />
+
+      {/* Delete Account Dialog */}
+      <Modal
+        visible={showDeleteDialog}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDeleteDialog(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 16 }}>
+          <Card padding="$4" backgroundColor="$background" borderRadius="$4">
+            <YStack gap="$3">
+              <Text fontSize="$6" fontWeight="bold">{t('deleteAccount.title') || 'Delete account'}</Text>
+              <Text>
+                {t('deleteAccount.description') ||
+                  'Deleting your account will anonymize your profile. Your content remains unless you choose to remove it below.'}
+              </Text>
+
+              <XStack ai="center" jc="space-between">
+                <Text>{t('deleteAccount.deletePrivateRoutes') || 'Delete my private routes'}</Text>
+                <Switch value={optDeletePrivate} onValueChange={setOptDeletePrivate} />
+              </XStack>
+              <XStack ai="center" jc="space-between">
+                <Text>{t('deleteAccount.deletePublicRoutes') || 'Delete my public routes'}</Text>
+                <Switch value={optDeletePublic} onValueChange={setOptDeletePublic} />
+              </XStack>
+              <XStack ai="center" jc="space-between">
+                <Text>{t('deleteAccount.deleteEvents') || 'Delete my events'}</Text>
+                <Switch value={optDeleteEvents} onValueChange={setOptDeleteEvents} />
+              </XStack>
+              <XStack ai="center" jc="space-between">
+                <Text>{t('deleteAccount.deleteExercises') || 'Delete my user exercises'}</Text>
+                <Switch value={optDeleteExercises} onValueChange={setOptDeleteExercises} />
+              </XStack>
+              <XStack ai="center" jc="space-between">
+                <Text>{t('deleteAccount.deleteReviews') || 'Delete my reviews'}</Text>
+                <Switch value={optDeleteReviews} onValueChange={setOptDeleteReviews} />
+              </XStack>
+
+              <XStack ai="center" jc="space-between">
+                <Text>{t('deleteAccount.transferToggle') || 'Transfer public content to system account'}</Text>
+                <Switch value={optTransferPublic} onValueChange={setOptTransferPublic} />
+              </XStack>
+              <Text color="$gray11">
+                {t('deleteAccount.transferHelp') ||
+                  'If off, public content will be deleted if that option is selected.'}
+              </Text>
+
+              <XStack gap="$2" mt="$2" jc="flex-end">
+                <Button variant="secondary" onPress={() => setShowDeleteDialog(false)}>
+                  {t('deleteAccount.cancel') || 'Cancel'}
+                </Button>
+                <Button variant="primary" onPress={handleConfirmDeleteAccount}>
+                  {t('deleteAccount.confirm') || 'Delete my account'}
+                </Button>
+              </XStack>
+            </YStack>
+          </Card>
+        </View>
+      </Modal>
     </Screen>
   );
 }

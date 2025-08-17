@@ -212,36 +212,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         console.log('Signup successful for user:', authData.user.id);
 
-        // Show confirmation alert
-        Alert.alert(
-          'Registration Successful',
-          'Please check your email to confirm your account. The confirmation email might take a few minutes to arrive.',
-          [
-            {
-              text: 'Resend Email',
-              onPress: async () => {
-                try {
-                  const { error } = await supabase.auth.resend({
-                    type: 'signup',
-                    email: email,
-                  });
-                  if (error) throw error;
-                  Alert.alert('Success', 'Confirmation email resent. Please check your inbox.');
-                } catch (err) {
-                  console.error('Error resending confirmation:', err);
-                  Alert.alert('Error', 'Failed to resend confirmation email. Please try again.');
-                }
-              },
-            },
-            {
-              text: 'OK',
-              onPress: () => {
-                // Call the success callback if provided
-                onSuccess?.();
-              },
-            },
-          ],
-        );
+        // Email confirmation is disabled in the dashboard, so we do not show any
+        // confirmation dialog here. Invoke optional success callback directly.
+        onSuccess?.();
       } catch (error) {
         console.error('Signup process failed:', error);
         throw error;
