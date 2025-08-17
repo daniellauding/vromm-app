@@ -196,6 +196,7 @@ export function RelationshipManagementModal({
           .in('id', toCleanup);
       }
       
+      console.log('📤 Setting pending invitations state:', filteredInvitations);
       setPendingInvitations(filteredInvitations);
     } catch (error) {
       console.error('❌ Error loading pending invitations:', error);
@@ -264,7 +265,7 @@ export function RelationshipManagementModal({
         }
       }
 
-      console.log('📥 Filtered incoming invitations:', filteredInvitations);
+      console.log('📥 Setting incoming invitations state:', filteredInvitations);
       setIncomingInvitations(filteredInvitations);
     } catch (error) {
       console.error('❌ Error loading incoming invitations:', error);
@@ -447,8 +448,18 @@ export function RelationshipManagementModal({
     try {
       setLoading(true);
       const targetRole = userRole === 'student' ? 'supervisor' : 'student';
+      
+      // Create invitations with custom message
+      const invitationsWithMessage = emails.map(email => ({ 
+        email, 
+        customMessage: customMessage.trim() || undefined 
+      }));
+      
+      // For now, call the existing function - we'll need to update it to handle custom messages
       await onInviteUsers(emails, targetRole);
+      
       setNewUserEmails('');
+      setCustomMessage(''); // Clear custom message
       setActiveTab('pending');
       loadPendingInvitations();
     } catch (error) {
@@ -632,6 +643,7 @@ export function RelationshipManagementModal({
       console.log('🔄 Clearing search and refreshing data...');
       setSearchQuery('');
       setSearchResults([]);
+      setCustomMessage(''); // Clear custom message
       onRefresh?.();
       
     } catch (error) {
@@ -1232,6 +1244,24 @@ export function RelationshipManagementModal({
                 textAlignVertical: 'top',
               }}
             />
+            
+            <TextInput
+              value={customMessage}
+              onChangeText={setCustomMessage}
+              placeholder="Optional: Add a personal message..."
+              multiline
+              autoCapitalize="sentences"
+              style={{
+                backgroundColor: '#2A2A2A',
+                padding: 12,
+                borderRadius: 8,
+                color: 'white',
+                borderWidth: 1,
+                borderColor: '#444',
+                minHeight: 60,
+                textAlignVertical: 'top',
+              }}
+            />
 
             <Button onPress={handleInviteNewUsers} variant="primary" disabled={loading}>
               {loading ? 'Sending...' : `Send Invitation${newUserEmails.split(/[,;\n]/).filter(e => e.trim().includes('@')).length > 1 ? 's' : ''}`}
@@ -1244,8 +1274,8 @@ export function RelationshipManagementModal({
 
   const renderPendingTab = () => {
     console.log('🎭 Rendering Pending tab with data:');
-    console.log('📤 Pending invitations (sent):', pendingInvitations.length);
-    console.log('📥 Incoming invitations (received):', incomingInvitations.length);
+    console.log('📤 Pending invitations (sent):', pendingInvitations.length, pendingInvitations);
+    console.log('📥 Incoming invitations (received):', incomingInvitations.length, incomingInvitations);
     
     return (
       <YStack gap="$3">
@@ -1382,6 +1412,11 @@ export function RelationshipManagementModal({
                           <Text color="$gray11" size="xs">
                             Wants you as their {relationshipType === 'student_invites_supervisor' ? 'supervisor' : 'student'}
                           </Text>
+                          {metadata.customMessage && (
+                            <Text color="$blue11" size="xs" fontStyle="italic">
+                              💬 "{metadata.customMessage}"
+                            </Text>
+                          )}
                           <Text color="$gray11" size="xs">
                             {invitation.email} • {new Date(invitation.created_at).toLocaleDateString()}
                           </Text>

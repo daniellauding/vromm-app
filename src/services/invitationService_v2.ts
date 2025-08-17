@@ -23,6 +23,7 @@ interface BulkInvitationResult {
 interface InvitationEntry {
   email: string;
   password?: string; // Optional custom password
+  customMessage?: string; // Optional custom message
 }
 
 /**
@@ -310,7 +311,8 @@ export async function inviteUsersWithPasswords(
   supervisorId?: string,
   supervisorName?: string,
   inviterRole?: UserRole,
-  relationshipType?: 'student_invites_supervisor' | 'supervisor_invites_student'
+  relationshipType?: 'student_invites_supervisor' | 'supervisor_invites_student',
+  globalCustomMessage?: string
 ): Promise<BulkInvitationResult> {
   const successful: string[] = [];
   const failed: Array<{ email: string; error: string }> = [];
@@ -330,6 +332,9 @@ export async function inviteUsersWithPasswords(
           inviterRole,
           relationshipType,
           customPassword: invitation.password, // Use custom password if provided
+          metadata: {
+            customMessage: invitation.customMessage || globalCustomMessage, // Use per-invitation or global message
+          },
         });
         
         if (result.success) {

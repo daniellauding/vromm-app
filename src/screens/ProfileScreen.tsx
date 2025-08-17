@@ -256,6 +256,7 @@ export function ProfileScreen() {
   const [inviteType, setInviteType] = useState<'supervisor' | 'student' | null>(null);
   const [inviteEmails, setInviteEmails] = useState<string[]>([]);
   const [invitePasswords, setInvitePasswords] = useState<string[]>([]); // NEW: Store passwords for each email
+  const [inviteCustomMessage, setInviteCustomMessage] = useState(''); // Custom message for invitations
   const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [showPendingInvites, setShowPendingInvites] = useState(false);
 
@@ -836,12 +837,13 @@ export function ProfileScreen() {
         role = inviteType === 'student' ? 'student' : 'instructor';
       }
 
-      // Create invitation entries with custom passwords
+      // Create invitation entries with custom passwords and message
       const invitations = validEmails.map((email, index) => ({
         email,
         password: invitePasswords[index] && invitePasswords[index].trim() 
           ? invitePasswords[index].trim() 
-          : undefined // Use auto-generated password if not provided
+          : undefined, // Use auto-generated password if not provided
+        customMessage: inviteCustomMessage.trim() || undefined, // Add custom message
       }));
 
       // Send invitations with custom passwords
@@ -851,7 +853,8 @@ export function ProfileScreen() {
         profile?.id,
         profile?.full_name || profile?.email || undefined,
         profile?.role as UserRole,
-        relationshipType
+        relationshipType,
+        inviteCustomMessage.trim() || undefined, // Pass global custom message
       );
 
       if (result.successful.length > 0) {
@@ -871,6 +874,7 @@ export function ProfileScreen() {
       setShowInviteModal(false);
       setInviteEmails([]);
       setInvitePasswords([]); // Clear passwords
+      setInviteCustomMessage(''); // Clear custom message
       fetchPendingInvitations();
     } catch (error) {
       logError('Error sending bulk invitations', error as Error);
@@ -1493,7 +1497,10 @@ export function ProfileScreen() {
       }
 
       // Create invitation entries (no custom passwords for this flow - use auto-generated)
-      const invitations = emails.map(email => ({ email }));
+      const invitations = emails.map(email => ({ 
+        email,
+        customMessage: inviteCustomMessage.trim() || undefined, // Add custom message
+      }));
 
       // Send invitations using the new function with auto-generated passwords
       const result = await inviteUsersWithPasswords(
@@ -1502,7 +1509,8 @@ export function ProfileScreen() {
         profile.id,
         profile.full_name || profile.email || undefined,
         profile.role as UserRole,
-        relationshipType
+        relationshipType,
+        inviteCustomMessage.trim() || undefined, // Pass global custom message
       );
       
       if (result.failed.length > 0) {
@@ -3394,6 +3402,19 @@ ${
             {inviteEmails.length > 0 ? (
               <YStack gap="$2">
                 <Text size="sm" color="$gray11">Enter email addresses and passwords (leave password blank for auto-generated)</Text>
+                
+                {/* Custom message field */}
+                <YStack gap="$1">
+                  <Text size="sm" color="$gray11">Optional personal message:</Text>
+                  <Input
+                    value={inviteCustomMessage}
+                    onChangeText={setInviteCustomMessage}
+                    placeholder="Add a personal message to your invitation..."
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+                </YStack>
                 {inviteEmails.map((email, index) => (
                   <YStack key={index} gap="$1">
                     <XStack gap="$2">

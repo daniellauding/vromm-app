@@ -232,12 +232,18 @@ export function InvitationNotification({
     const inviterRole = getRoleDisplayName(invitation.inviter_details?.role || 'user');
     const yourRole = getRoleDisplayName(invitation.role);
     const schoolName = invitation.inviter_details?.school_name;
+    const customMessage = invitation.metadata?.customMessage;
 
     let message = `${inviterName} (${inviterRole}`;
     if (schoolName) {
       message += ` at ${schoolName}`;
     }
     message += `) has invited you to join as a ${yourRole}.`;
+
+    // Add custom message if provided
+    if (customMessage) {
+      message += `\n\n💬 Personal message:\n"${customMessage}"`;
+    }
 
     if (invitation.role === 'student') {
       message += '\n\nAccepting will allow them to view your learning progress and help guide your development.';

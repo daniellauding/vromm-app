@@ -129,6 +129,20 @@ function AppContent() {
   
   // Global invitation notification state
   const [showGlobalInvitationNotification, setShowGlobalInvitationNotification] = useState(false);
+  
+  // Debug: Force show global modal (remove in production)
+  useEffect(() => {
+    const handleShake = () => {
+      console.log('🧪 Debug: Force showing global invitation modal');
+      setShowGlobalInvitationNotification(true);
+    };
+    
+    // Add shake gesture listener for debug (iOS only)
+    if (__DEV__ && Platform.OS === 'ios') {
+      const { DeviceMotion } = require('expo-sensors');
+      // This is just for debug - you can remove this
+    }
+  }, []);
 
   // Global invitation checking function
   const checkForGlobalInvitations = async () => {
@@ -202,7 +216,10 @@ function AppContent() {
         filter: `email=eq.${user.email}`,
       }, (payload) => {
         console.log('🌍 Global: New invitation received:', payload);
-        checkForGlobalInvitations();
+        // Add a small delay to ensure the invitation is fully processed
+        setTimeout(() => {
+          checkForGlobalInvitations();
+        }, 500);
       })
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -211,7 +228,9 @@ function AppContent() {
         filter: `email=eq.${user.email}`,
       }, (payload) => {
         console.log('🌍 Global: Invitation updated:', payload);
-        checkForGlobalInvitations();
+        setTimeout(() => {
+          checkForGlobalInvitations();
+        }, 500);
       })
       .subscribe();
 
