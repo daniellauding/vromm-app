@@ -400,25 +400,34 @@ export const NotificationsScreen: React.FC = () => {
 
   const handleRejectInvitation = async (notification: Notification) => {
     try {
+      console.log('🚫 NotificationsScreen - Rejecting invitation notification:', notification.id);
       const notificationData = getNotificationData(notification);
       const invitationId = notificationData.invitation_id || (notification.metadata as any)?.invitation_id;
+      
       if (invitationId) {
+        console.log('🚫 Found invitation ID:', invitationId, 'rejecting...');
         const ok = await rejectInvitation(invitationId);
+        
         if (ok) {
+          console.log('✅ Invitation rejected successfully, cleaning up notification');
           await notificationService.markAsRead(notification.id);
           
-          // Also delete the notification to prevent it from reappearing
+          // Delete the notification to prevent it from reappearing
           try {
             await supabase
               .from('notifications')
               .delete()
               .eq('id', notification.id);
+            console.log('🗑️ Notification deleted from NotificationsScreen');
           } catch (deleteError) {
             console.warn('Could not delete notification:', deleteError);
           }
           
           setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
-          console.log('❌ Relationship invitation rejected');
+          console.log('❌ Relationship invitation rejected and removed from UI');
+        } else {
+          console.error('❌ Failed to reject invitation');
+          Alert.alert('Error', 'Failed to reject invitation');
         }
         return;
       }
@@ -543,7 +552,29 @@ export const NotificationsScreen: React.FC = () => {
               </XStack>
             </XStack>
 
-            {item.metadata && Object.keys(item.metadata).length > 0 && (
+            {/* Show custom message if it's an invitation with custom message */}
+            {(item.type === 'supervisor_invitation' || item.type === 'student_invitation') && 
+             item.metadata?.customMessage && (
+              <YStack 
+                backgroundColor="rgba(0, 123, 255, 0.15)" 
+                padding={12} 
+                borderRadius={8} 
+                marginTop={8}
+                borderLeftWidth={4}
+                borderLeftColor="#007BFF"
+              >
+                <XStack alignItems="center" gap={6} marginBottom={4}>
+                  <Text fontSize={14} color="#007BFF" fontWeight="700">💬 Personal Message</Text>
+                </XStack>
+                <Text fontSize={14} color="$color" fontStyle="italic" lineHeight={18}>
+                  "{item.metadata.customMessage}"
+                </Text>
+              </YStack>
+            )}
+            
+            {/* Show other metadata for debugging (but hide for invitations with custom messages) */}
+            {item.metadata && Object.keys(item.metadata).length > 0 && 
+             !(item.type === 'supervisor_invitation' || item.type === 'student_invitation') && (
               <Text fontSize={12} color="$gray11" lineHeight={16}>
                 {JSON.stringify(item.metadata)}
               </Text>

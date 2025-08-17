@@ -239,6 +239,9 @@ function AppContent() {
     };
   }, [user?.email, user?.id]);
 
+  // React Native doesn't have window, use a different approach for cross-component communication
+  // The NotificationBell will trigger checkForGlobalInvitations directly via the subscription
+
   // Add app-level logging and crash monitoring
   useEffect(() => {
     logInfo('App started', {

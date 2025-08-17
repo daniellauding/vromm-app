@@ -144,6 +144,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           } else {
             console.log('[AUTH_STATE_DEBUG] Profile already exists');
+            
+            // Check if user account is deleted
+            if (profile?.account_status === 'deleted') {
+              console.log('🚫 Deleted user attempted login:', session.user.email);
+              await supabase.auth.signOut();
+              Alert.alert(
+                'Account Deleted', 
+                'This account has been deleted. Please contact support if you believe this is an error.',
+                [{ text: 'OK' }]
+              );
+              return;
+            }
           }
         } catch (err) {
           console.error('[AUTH_STATE_DEBUG] Error handling profile creation:', err);

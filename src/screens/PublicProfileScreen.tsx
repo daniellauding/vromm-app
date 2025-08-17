@@ -572,7 +572,9 @@ export function PublicProfileScreen() {
     }
   };
 
-  // Check for pending invitations between current user and this profile
+  // Enhanced pending invitation check with custom messages
+  const [pendingInvitationData, setPendingInvitationData] = useState<any>(null);
+  
   const checkPendingInvitations = async () => {
     if (!user?.id || !userId || !profile?.email || !user.email) return;
     
@@ -580,7 +582,7 @@ export function PublicProfileScreen() {
       // Check if current user sent invitation to this profile
       const { data: sentInvitations } = await supabase
         .from('pending_invitations')
-        .select('id, email, status')
+        .select('id, email, status, metadata, created_at')
         .eq('invited_by', user.id)
         .eq('email', profile.email.toLowerCase())
         .eq('status', 'pending');
@@ -588,7 +590,7 @@ export function PublicProfileScreen() {
       // Check if this profile sent invitation to current user
       const { data: receivedInvitations } = await supabase
         .from('pending_invitations')
-        .select('id, email, status')
+        .select('id, email, status, metadata, created_at')
         .eq('invited_by', userId)
         .eq('email', user.email.toLowerCase())
         .eq('status', 'pending');
@@ -596,14 +598,17 @@ export function PublicProfileScreen() {
       if (sentInvitations && sentInvitations.length > 0) {
         setHasPendingInvitation(true);
         setPendingInvitationType('sent');
-        console.log('📤 Found sent invitation to this user');
+        setPendingInvitationData(sentInvitations[0]);
+        console.log('📤 Found sent invitation to this user with data:', sentInvitations[0]);
       } else if (receivedInvitations && receivedInvitations.length > 0) {
         setHasPendingInvitation(true);
         setPendingInvitationType('received');
-        console.log('📥 Found received invitation from this user');
+        setPendingInvitationData(receivedInvitations[0]);
+        console.log('📥 Found received invitation from this user with data:', receivedInvitations[0]);
       } else {
         setHasPendingInvitation(false);
         setPendingInvitationType(null);
+        setPendingInvitationData(null);
       }
     } catch (error) {
       console.error('Error checking pending invitations:', error);
@@ -916,10 +921,10 @@ export function PublicProfileScreen() {
                   </XStack>
                 </Button>
 
-                {/* Instructor/Student Relationship Button */}
-                {currentUserProfile && (
+                {/* Instructor/Student Relationship Button - Only show if no pending invitation */}
+                {currentUserProfile && !hasPendingInvitation && (
                   <>
-                    {/* Show Set as Instructor button for instructor/admin/school users viewing student profiles */}
+                    {/* Show Set as Student button for instructor/admin/school users viewing student profiles */}
                     {['instructor', 'admin', 'school'].includes(currentUserProfile.role) && 
                      profile?.role === 'student' && (
                       <Button
@@ -947,7 +952,7 @@ export function PublicProfileScreen() {
                                 fontSize="$2"
                                 fontWeight="500"
                               >
-                                {isStudent ? 'Unset as Student' : 'Set as Student'}
+                                {isStudent ? 'Remove Student' : 'Add as Student'}
                               </Text>
                             </>
                           )}
@@ -983,7 +988,7 @@ export function PublicProfileScreen() {
                                 fontSize="$2"
                                 fontWeight="500"
                               >
-                                {isInstructor ? 'Unset as Instructor' : 'Set as Instructor'}
+                                {isInstructor ? 'Remove Instructor' : 'Add as Instructor'}
                               </Text>
                             </>
                           )}
@@ -1302,6 +1307,140 @@ export function PublicProfileScreen() {
                   </XStack>
                 )}
               </YStack>
+            </YStack>
+          </Card>
+        )}
+
+        {/* Pending Invitation Status */}
+        {hasPendingInvitation && pendingInvitationData && (
+          <Card padding="$4" bordered backgroundColor="$blue2" borderColor="$blue6">
+            <YStack gap="$3">
+              <XStack alignItems="center" gap="$2">
+                <Feather name="clock" size={20} color="#3B82F6" />
+                <Text fontSize="$5" fontWeight="bold" color="$blue11">
+                  {pendingInvitationType === 'sent' ? 'Invitation Sent' : 'Invitation Received'}
+                </Text>
+              </XStack>
+
+              <Text color="$blue12" fontSize="$4">
+                {pendingInvitationType === 'sent' 
+                  ? `You sent an invitation to ${profile.full_name}`
+                  : `${profile.full_name} sent you an invitation`}
+              </Text>
+
+              {/* Show custom message if available */}
+              {pendingInvitationData.metadata?.customMessage && (
+                <YStack 
+                  backgroundColor="rgba(59, 130, 246, 0.1)" 
+                  padding={12} 
+                  borderRadius={8} 
+                  borderLeftWidth={4}
+                  borderLeftColor="#3B82F6"
+                >
+                  <Text fontSize={12} color="#3B82F6" fontWeight="600" marginBottom={4}>
+                    💬 Personal Message:
+                  </Text>
+                  <Text fontSize={14} color="$color" fontStyle="italic" lineHeight={18}>
+                    "{pendingInvitationData.metadata.customMessage}"
+                  </Text>
+                </YStack>
+              )}
+
+              <Text color="$gray11" fontSize="$3">
+                Sent: {new Date(pendingInvitationData.created_at).toLocaleDateString()}
+              </Text>
+
+              {/* Action buttons */}
+              <XStack gap="$2">
+                {pendingInvitationType === 'received' && (
+                  <>
+                    <Button
+                      variant="primary"
+                      backgroundColor="$green9"
+                      onPress={async () => {
+                        try {
+                          const { acceptInvitationById } = await import('../services/invitationService');
+                          const success = await acceptInvitationById(pendingInvitationData.id, user?.id || '');
+                          
+                          if (success) {
+                            Alert.alert('Success', 'Invitation accepted! Relationship created.');
+                            // Refresh data
+                            checkPendingInvitations();
+                            checkRelationshipStatus();
+                            loadUserRelationships();
+                          }
+                        } catch (error) {
+                          console.error('Error accepting invitation:', error);
+                          Alert.alert('Error', 'Failed to accept invitation');
+                        }
+                      }}
+                      size="sm"
+                      flex={1}
+                    >
+                      <XStack alignItems="center" gap="$1">
+                        <Feather name="check" size={14} color="white" />
+                        <Text color="white">Accept</Text>
+                      </XStack>
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      backgroundColor="$red9"
+                      onPress={async () => {
+                        try {
+                          const { error } = await supabase
+                            .from('pending_invitations')
+                            .delete()
+                            .eq('id', pendingInvitationData.id);
+                          
+                          if (error) throw error;
+                          
+                          Alert.alert('Success', 'Invitation declined');
+                          checkPendingInvitations();
+                        } catch (error) {
+                          console.error('Error declining invitation:', error);
+                          Alert.alert('Error', 'Failed to decline invitation');
+                        }
+                      }}
+                      size="sm"
+                      flex={1}
+                    >
+                      <XStack alignItems="center" gap="$1">
+                        <Feather name="x" size={14} color="white" />
+                        <Text color="white">Decline</Text>
+                      </XStack>
+                    </Button>
+                  </>
+                )}
+                {pendingInvitationType === 'sent' && (
+                  <Button
+                    variant="secondary"
+                    backgroundColor="$gray7"
+                    onPress={async () => {
+                      try {
+                        const { error } = await supabase
+                          .from('pending_invitations')
+                          .delete()
+                          .eq('id', pendingInvitationData.id);
+                        
+                        if (error) throw error;
+                        
+                        Alert.alert('Success', 'Invitation cancelled');
+                        checkPendingInvitations();
+                      } catch (error) {
+                        console.error('Error cancelling invitation:', error);
+                        Alert.alert('Error', 'Failed to cancel invitation');
+                      }
+                    }}
+                    size="sm"
+                    flex={1}
+                  >
+                    <XStack alignItems="center" gap="$1">
+                      <Feather name="trash-2" size={14} color="white" />
+                      <Text color="white">Cancel</Text>
+                    </XStack>
+                  </Button>
+                )}
+              </XStack>
             </YStack>
           </Card>
         )}

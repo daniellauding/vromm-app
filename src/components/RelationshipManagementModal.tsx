@@ -22,7 +22,7 @@ import { Feather } from '@expo/vector-icons';
 interface RelationshipManagementModalProps {
   visible: boolean;
   onClose: () => void;
-  userRole: 'student' | 'supervisor' | 'teacher' | 'school' | 'admin';
+  userRole: 'student' | 'supervisor' | 'teacher' | 'school' | 'admin' | 'instructor';
   // Student viewing functionality
   supervisedStudents?: Array<{ id: string; full_name: string; email: string }>;
   onStudentSelect?: (studentId: string | null, studentName?: string) => void;
@@ -267,8 +267,15 @@ export function RelationshipManagementModal({
 
       console.log('📥 Setting incoming invitations state:', filteredInvitations);
       setIncomingInvitations(filteredInvitations);
+      
+      // Force a re-render by updating a dummy state if we have invitations but they're not showing
+      if (filteredInvitations.length > 0) {
+        console.log('📥 Force updating state to ensure render...');
+        setTimeout(() => setIncomingInvitations([...filteredInvitations]), 100);
+      }
     } catch (error) {
       console.error('❌ Error loading incoming invitations:', error);
+      setIncomingInvitations([]); // Ensure state is reset on error
     }
   };
 
@@ -378,8 +385,8 @@ export function RelationshipManagementModal({
       setLoading(true);
       console.log('⏳ Starting search...');
       
-      // Search for existing users based on role
-      const targetRole = userRole === 'student' ? ['instructor', 'admin', 'school', 'supervisor', 'teacher'] : ['student'];
+      // Search for existing users based on role (only use valid database enum values)
+      const targetRole = userRole === 'student' ? ['instructor', 'admin', 'school'] : ['student'];
       console.log('🎯 Searching for users with query:', query);
       console.log('🎭 Target roles:', targetRole);
       console.log('👤 Current user role:', userRole);
@@ -688,7 +695,12 @@ export function RelationshipManagementModal({
   const handleAddSupervisors = async () => {
     if (onAddSupervisors && localSelectedSupervisorIds.length > 0) {
       try {
+        // TODO: Pass custom message to onAddSupervisors function
+        console.log('📧 Adding supervisors with custom message:', customMessage);
         await onAddSupervisors(localSelectedSupervisorIds);
+        
+        // Clear custom message after successful addition
+        setCustomMessage('');
         onClose();
       } catch (error) {
         console.error('Error adding supervisors:', error);
@@ -705,7 +717,7 @@ export function RelationshipManagementModal({
         { key: 'manage', label: 'Current', icon: 'users' },
         { key: 'invite', label: 'Invite New', icon: 'send' }
       );
-    } else if (['instructor', 'school', 'admin'].includes(userRole)) {
+    } else if (['instructor', 'school', 'admin', 'supervisor', 'teacher'].includes(userRole)) {
       tabs.push(
         { key: 'manage', label: 'My Students', icon: 'users' },
         { key: 'view', label: 'Select Student', icon: 'eye' },
@@ -720,7 +732,17 @@ export function RelationshipManagementModal({
         {tabs.map((tab) => (
           <Button
             key={tab.key}
-            onPress={() => setActiveTab(tab.key as any)}
+            onPress={() => {
+              setActiveTab(tab.key as any);
+              // Force refresh data when Pending tab is clicked
+              if (tab.key === 'pending') {
+                console.log('📋 Pending tab clicked - force refreshing data');
+                setTimeout(() => {
+                  loadPendingInvitations();
+                  loadIncomingInvitations();
+                }, 100);
+              }
+            }}
             variant={activeTab === tab.key ? 'primary' : 'tertiary'}
             size="sm"
             flex={1}
@@ -916,6 +938,27 @@ export function RelationshipManagementModal({
           <Text size="sm" color="$gray11">
             Select supervisors who can view your progress and help with your learning
           </Text>
+          
+          {/* Custom message field for Request tab */}
+          <YStack gap="$1">
+            <Text size="sm" color="$gray11">Optional personal message:</Text>
+            <TextInput
+              value={customMessage}
+              onChangeText={setCustomMessage}
+              placeholder="Add a personal message to your request..."
+              multiline
+              style={{
+                backgroundColor: '#2A2A2A',
+                padding: 12,
+                borderRadius: 8,
+                color: 'white',
+                borderWidth: 1,
+                borderColor: '#444',
+                minHeight: 60,
+                textAlignVertical: 'top',
+              }}
+            />
+          </YStack>
           
           <ScrollView 
             style={{ 
@@ -1296,7 +1339,17 @@ export function RelationshipManagementModal({
           </Button>
         </XStack>
 
-        <ScrollView style={{ flex: 1 }}>
+        {/* Debug info */}
+        <YStack padding="$2" backgroundColor="$backgroundHover" borderRadius="$2" marginBottom="$2">
+          <Text color="$gray11" fontSize="$1">
+            Debug: Pending={pendingInvitations.length}, Incoming={incomingInvitations.length}
+          </Text>
+          <Text color="$gray11" fontSize="$1">
+            Incoming IDs: {incomingInvitations.map(inv => inv.id).join(', ')}
+          </Text>
+        </YStack>
+
+        <ScrollView style={{ flex: 1, minHeight: 300 }} showsVerticalScrollIndicator={true}>
           <YStack gap="$3">
             <YStack gap="$2">
               <XStack alignItems="center" gap="$2">
@@ -1328,6 +1381,11 @@ export function RelationshipManagementModal({
                         <Text color="$gray11" size="xs">
                           Role: {invitation.role} • Status: {invitation.status}
                         </Text>
+                        {invitation.metadata?.customMessage && (
+                          <Text color="$blue11" size="xs" fontStyle="italic">
+                            💬 "{invitation.metadata.customMessage}"
+                          </Text>
+                        )}
                         <Text color="$gray11" size="xs">
                           Sent: {new Date(invitation.created_at).toLocaleDateString()}
                         </Text>
@@ -1367,22 +1425,37 @@ export function RelationshipManagementModal({
               )}
             </YStack>
 
-            <YStack gap="$2">
+            <YStack gap="$2" minHeight={200}>
               <XStack alignItems="center" gap="$2">
                 <Feather name="inbox" size={16} color="#3B82F6" />
                 <Text size="sm" color="$gray11" fontWeight="600">
                   Received by you ({incomingInvitations.length})
                 </Text>
+                <Button
+                  size="sm"
+                  variant="tertiary"
+                  onPress={() => {
+                    console.log('🔄 Force refresh incoming invitations');
+                    loadIncomingInvitations();
+                  }}
+                >
+                  <Feather name="refresh-cw" size={12} />
+                </Button>
               </XStack>
               {incomingInvitations.length === 0 ? (
                 <Text color="$gray11" textAlign="center" padding="$3">
                   No invitations received yet
                 </Text>
               ) : (
-                incomingInvitations.map((invitation: any) => {
-                  const metadata = invitation.metadata || {};
-                  const inviterName = metadata.supervisorName || metadata.inviterName || invitation.inviter?.full_name || 'Unknown User';
-                  const relationshipType = metadata.relationshipType || 'unknown';
+                <>
+                  <Text color="$blue11" fontSize="$2" marginBottom="$2">
+                    📋 Rendering {incomingInvitations.length} invitations...
+                  </Text>
+                  {incomingInvitations.map((invitation: any) => {
+                    console.log('🎭 Rendering incoming invitation:', invitation.id, invitation);
+                    const metadata = invitation.metadata || {};
+                    const inviterName = metadata.supervisorName || metadata.inviterName || invitation.inviter?.full_name || 'Unknown User';
+                    const relationshipType = metadata.relationshipType || 'unknown';
                   
                   return (
                     <YStack
@@ -1430,13 +1503,32 @@ export function RelationshipManagementModal({
                                 backgroundColor="$green9"
                                 onPress={async () => {
                                   console.log('🎯 PENDING TAB - Accepting invitation:', invitation.id);
-                                  const success = await acceptInvitationById(invitation.id, profile!.id);
-                                  console.log('🎯 PENDING TAB - Accept result:', success);
-                                  if (success) {
-                                    Alert.alert('Success', 'Invitation accepted! Relationship created.');
-                                    loadIncomingInvitations();
-                                    loadPendingInvitations();
-                                    onRefresh?.();
+                                  
+                                  try {
+                                    const success = await acceptInvitationById(invitation.id, profile!.id);
+                                    console.log('🎯 PENDING TAB - Accept result:', success);
+                                    
+                                    if (success) {
+                                      // Also clean up any related notifications
+                                      const { error: notificationError } = await supabase
+                                        .from('notifications')
+                                        .delete()
+                                        .eq('metadata->>invitation_id', invitation.id);
+                                      
+                                      if (notificationError) {
+                                        console.warn('⚠️ Could not delete related notification:', notificationError);
+                                      } else {
+                                        console.log('🗑️ Related notification deleted after acceptance');
+                                      }
+                                      
+                                      Alert.alert('Success', 'Invitation accepted! Relationship created.');
+                                      loadIncomingInvitations();
+                                      loadPendingInvitations();
+                                      onRefresh?.();
+                                    }
+                                  } catch (error) {
+                                    console.error('❌ Error accepting invitation:', error);
+                                    Alert.alert('Error', 'Failed to accept invitation');
                                   }
                                 }}
                               >
@@ -1449,20 +1541,39 @@ export function RelationshipManagementModal({
                                 onPress={async () => {
                                   console.log('🚫 PENDING TAB - Declining invitation:', invitation.id);
                                   
-                                  // Delete the invitation instead of updating status to avoid constraint issues
-                                  const { error } = await supabase
-                                    .from('pending_invitations')
-                                    .delete()
-                                    .eq('id', invitation.id);
-                                  
-                                  if (error) {
-                                    console.error('❌ Error declining invitation:', error);
-                                    Alert.alert('Error', 'Failed to decline invitation');
-                                  } else {
+                                  try {
+                                    // Delete the invitation instead of updating status to avoid constraint issues
+                                    const { error: inviteError } = await supabase
+                                      .from('pending_invitations')
+                                      .delete()
+                                      .eq('id', invitation.id);
+                                    
+                                    if (inviteError) {
+                                      console.error('❌ Error declining invitation:', inviteError);
+                                      Alert.alert('Error', 'Failed to decline invitation');
+                                      return;
+                                    }
+                                    
+                                    // Also delete any related notifications to keep NotificationsScreen in sync
+                                    const { error: notificationError } = await supabase
+                                      .from('notifications')
+                                      .delete()
+                                      .eq('metadata->>invitation_id', invitation.id);
+                                    
+                                    if (notificationError) {
+                                      console.warn('⚠️ Could not delete related notification:', notificationError);
+                                      // Don't fail the whole operation for this
+                                    } else {
+                                      console.log('🗑️ Related notification deleted successfully');
+                                    }
+                                    
                                     console.log('✅ Invitation declined successfully');
                                     Alert.alert('Success', 'Invitation declined');
                                     loadIncomingInvitations();
                                     loadPendingInvitations();
+                                  } catch (error) {
+                                    console.error('❌ Error in decline process:', error);
+                                    Alert.alert('Error', 'Failed to decline invitation');
                                   }
                                 }}
                               >
@@ -1479,7 +1590,8 @@ export function RelationshipManagementModal({
                       </XStack>
                     </YStack>
                   );
-                })
+                  })}
+                </>
               )}
             </YStack>
           </YStack>
@@ -1491,7 +1603,7 @@ export function RelationshipManagementModal({
   const getModalTitle = () => {
     if (userRole === 'student') {
       return 'Supervisor Management';
-    } else if (['supervisor', 'teacher', 'school'].includes(userRole)) {
+    } else if (['supervisor', 'teacher', 'school', 'instructor', 'admin'].includes(userRole)) {
       return 'Student Management';
     } else {
       return 'Relationship Management';

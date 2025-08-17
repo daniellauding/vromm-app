@@ -10,6 +10,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { useCallback } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../context/AuthContext';
+import { useStudentSwitch } from '../context/StudentSwitchContext';
 
 interface LearningPath {
   id: string;
@@ -82,7 +83,8 @@ interface ProgressSectionProps {
 
 export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const { language: lang, t } = useTranslation();
-  const { profile } = useAuth();
+  const { profile, user: authUser } = useAuth();
+  const { activeStudentId } = useStudentSwitch();
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [activePath, setActivePath] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -91,14 +93,16 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [user, setUser] = useState<{ id: string } | null>(null);
   
-  // Use activeUserId if provided, otherwise use authenticated user
-  const effectiveUserId = activeUserId || user?.id;
+  // Use activeStudentId from context, then activeUserId prop, then authenticated user
+  const effectiveUserId = activeStudentId || activeUserId || authUser?.id || user?.id;
 
   // Debug logging for ProgressSection
   console.log('📊 [ProgressSection] Props activeUserId:', activeUserId);
+  console.log('📊 [ProgressSection] StudentSwitch activeStudentId:', activeStudentId);
   console.log('📊 [ProgressSection] Auth user ID:', user?.id);
   console.log('📊 [ProgressSection] Effective user ID:', effectiveUserId);
   console.log('📊 [ProgressSection] Profile:', profile);
+  console.log('📊 [ProgressSection] Is viewing student data?', !!activeStudentId);
 
   // Add useFocusEffect to refresh data when screen comes into focus
   useFocusEffect(
@@ -240,9 +244,12 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const handlePathPress = (path: LearningPath) => {
     setActivePath(path.id);
     // Navigate to ProgressTab with the specific path details and showDetail flag
+    // Pass activeUserId so ProgressScreen knows which user's data to show
+    console.log('📊 [ProgressSection] Navigating to ProgressTab with effectiveUserId:', effectiveUserId);
     navigation.navigate('ProgressTab', {
       selectedPathId: path.id,
       showDetail: true,
+      activeUserId: effectiveUserId, // Pass the active user ID (includes StudentSwitch context)
     });
   };
 

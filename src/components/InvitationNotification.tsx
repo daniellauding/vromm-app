@@ -143,6 +143,22 @@ export function InvitationNotification({
 
       console.log('🎉 Invitation accepted successfully');
 
+      // Also clean up any related notifications
+      try {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .delete()
+          .eq('metadata->>invitation_id', invitation.id);
+        
+        if (notificationError) {
+          console.warn('⚠️ Could not delete related notification:', notificationError);
+        } else {
+          console.log('🗑️ Related notification deleted after acceptance');
+        }
+      } catch (notificationCleanupError) {
+        console.warn('⚠️ Error cleaning up notification:', notificationCleanupError);
+      }
+
       // Remove the accepted invitation from local state
       setPendingInvitations(prev => {
         const updated = prev.filter(inv => inv.id !== invitation.id);
@@ -183,6 +199,22 @@ export function InvitationNotification({
       }
 
       console.log('✅ Invitation declined successfully');
+      
+      // Also clean up any related notifications
+      try {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .delete()
+          .eq('metadata->>invitation_id', invitation.id);
+        
+        if (notificationError) {
+          console.warn('⚠️ Could not delete related notification:', notificationError);
+        } else {
+          console.log('🗑️ Related notification deleted after decline');
+        }
+      } catch (notificationCleanupError) {
+        console.warn('⚠️ Error cleaning up notification:', notificationCleanupError);
+      }
       
       // Remove the declined invitation from local state
       setPendingInvitations(prev => {
@@ -315,31 +347,41 @@ export function InvitationNotification({
               gap="$2"
             >
               <XStack justifyContent="space-between">
-                <Text color="$gray11" size="xs">Invited by:</Text>
-                <Text color="$color" size="xs" weight="600">
+                <Text color="$gray11" fontSize={12}>Invited by:</Text>
+                <Text color="$color" fontSize={12} fontWeight="600">
                   {currentInvitation.inviter_details?.full_name}
                 </Text>
               </XStack>
               <XStack justifyContent="space-between">
-                <Text color="$gray11" size="xs">Role:</Text>
-                <Text color="$color" size="xs" weight="600">
+                <Text color="$gray11" fontSize={12}>Role:</Text>
+                <Text color="$color" fontSize={12} fontWeight="600">
                   {getRoleDisplayName(currentInvitation.inviter_details?.role || 'user')}
                 </Text>
               </XStack>
               {currentInvitation.inviter_details?.school_name && (
                 <XStack justifyContent="space-between">
-                  <Text color="$gray11" size="xs">School:</Text>
-                  <Text color="$color" size="xs" weight="600">
+                  <Text color="$gray11" fontSize={12}>School:</Text>
+                  <Text color="$color" fontSize={12} fontWeight="600">
                     {currentInvitation.inviter_details.school_name}
                   </Text>
                 </XStack>
               )}
               <XStack justifyContent="space-between">
-                <Text color="$gray11" size="xs">Your role:</Text>
-                <Text color="$blue11" size="xs" weight="600">
+                <Text color="$gray11" fontSize={12}>Your role:</Text>
+                <Text color="$blue11" fontSize={12} fontWeight="600">
                   {getRoleDisplayName(currentInvitation.role)}
                 </Text>
               </XStack>
+              
+              {/* Show custom message if available */}
+              {currentInvitation.metadata?.customMessage && (
+                <YStack gap="$1" marginTop="$2" padding="$2" backgroundColor="$blue3" borderRadius="$2">
+                  <Text color="$blue11" fontSize={12} fontWeight="600">💬 Personal Message:</Text>
+                  <Text color="$blue12" fontSize={12} fontStyle="italic">
+                    "{currentInvitation.metadata.customMessage}"
+                  </Text>
+                </YStack>
+              )}
             </YStack>
           </YStack>
 

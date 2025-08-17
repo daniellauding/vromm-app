@@ -141,11 +141,33 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
           .single();
         
         if (existingProfile) {
-          console.log('📝 User already exists in profiles table');
-          return { 
-            success: false, 
-            error: `User with email ${email} already exists. Cannot create duplicate account.`
-          };
+          console.log('📝 User already exists in profiles table - sending invitation instead');
+          
+          // Send invitation to existing user instead of creating new account
+          try {
+            const inviteResult = await inviteExistingUser({
+              email,
+              role,
+              supervisorId,
+              supervisorName,
+              inviterRole,
+              relationshipType,
+              metadata,
+            });
+            
+            return { 
+              success: true, 
+              message: `Invitation sent to existing user ${email}`,
+              userId: existingProfile.id,
+              password: null, // No password needed for existing users
+            };
+          } catch (inviteError) {
+            console.error('Error sending invitation to existing user:', inviteError);
+            return { 
+              success: false, 
+              error: `Failed to send invitation to existing user ${email}: ${inviteError}`
+            };
+          }
         }
 
         // Admin API not available or has permission issues

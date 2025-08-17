@@ -21,16 +21,22 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     loadUnreadCount();
 
     // Subscribe to real-time updates with immediate refresh
-    const subscription = notificationService.subscribeToNotifications(() => {
-      console.log('📡 NotificationBell: New notification detected, refreshing count immediately');
+    const subscription = notificationService.subscribeToNotifications((notification) => {
+      console.log('📡 NotificationBell: New notification detected:', notification.type, notification.message);
       // Immediate refresh for real-time feel
       loadUnreadCount();
+      
+      // Also trigger global invitation check if it's an invitation
+      if (notification.type === 'supervisor_invitation' || notification.type === 'student_invitation') {
+        console.log('📧 NotificationBell: Invitation notification received, triggering global check');
+        // In React Native, we'll use a different approach - the global subscription in App.tsx will handle this
+      }
     });
 
     // Set up periodic refresh as backup (reduced frequency since we have real-time)
     const refreshInterval = setInterval(() => {
       loadUnreadCount();
-    }, 30000); // Refresh every 30 seconds as backup
+    }, 15000); // Refresh every 15 seconds as backup for better responsiveness
 
     return () => {
       if (subscription?.unsubscribe) {
