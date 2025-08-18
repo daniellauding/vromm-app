@@ -145,23 +145,146 @@ interface SupervisorsTabSections {
 
 ### **1. RelationshipManagementPanel.tsx** (New)
 ```typescript
+import React, { useState, useEffect } from 'react';
+import { Alert } from 'react-native'; // or web equivalent
+
 interface RelationshipManagementPanelProps {
   userRole: 'student' | 'instructor' | 'admin' | 'school';
   supervisedStudents?: Array<{ id: string; full_name: string; email: string; relationship_created?: string }>;
   onStudentSelect?: (studentId: string | null) => void;
   availableSupervisors?: Array<{ id: string; full_name: string; email: string }>;
+  selectedSupervisorIds?: string[];
+  onSupervisorSelect?: (supervisorIds: string[]) => void;
+  onAddSupervisors?: (supervisorIds: string[]) => Promise<void>;
+  onInviteUsers?: (emails: string[], role: string) => Promise<void>;
   onRefresh?: () => Promise<void>;
 }
 
-// Four main tabs:
-// 1. Request/View Tab - Request supervisors (students) or select students (instructors)
-// 2. Current/Manage Tab - Current relationships with removal options
-// 3. Invite Tab - Search existing users or invite new ones with custom messages
-// 4. Pending Tab - Sent/received invitations with accept/reject actions
+export function RelationshipManagementPanel({
+  userRole,
+  supervisedStudents = [],
+  availableSupervisors = [],
+  selectedSupervisorIds = [],
+  onSupervisorSelect,
+  onAddSupervisors,
+  onInviteUsers,
+  onRefresh,
+}: RelationshipManagementPanelProps) {
+  // Modal tabs/modes - default to 'manage' for instructors
+  const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'invite' | 'pending'>(
+    ['instructor', 'school', 'admin'].includes(userRole) ? 'manage' : 'view'
+  );
+  
+  // Invitation states
+  const [inviteMode, setInviteMode] = useState<'search' | 'new'>('search');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<
+    Array<{ id: string; full_name: string; email: string; role?: string }>
+  >([]);
+  const [newUserEmails, setNewUserEmails] = useState('');
+  const [customMessage, setCustomMessage] = useState('');
+  const [pendingInvitations, setPendingInvitations] = useState<
+    Array<{ id: string; email: string; role: string; status: string; created_at: string; metadata?: any }>
+  >([]);
+  const [incomingInvitations, setIncomingInvitations] = useState<
+    Array<{ id: string; email: string; role: string; status: string; created_at: string; metadata?: any; inviter?: any }>
+  >([]);
+  const [currentSupervisors, setCurrentSupervisors] = useState<
+    Array<{ 
+      supervisor_id: string; 
+      created_at: string; 
+      profiles: { id: string; full_name: string; email: string; role: string } | null;
+    }>
+  >([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Local state for supervisor selection
+  const [localSelectedSupervisorIds, setLocalSelectedSupervisorIds] = useState<string[]>(
+    selectedSupervisorIds
+  );
+
+  // Four main tabs:
+  // 1. Request/View Tab - Request supervisors (students) or select students (instructors)
+  // 2. Current/Manage Tab - Current relationships with removal options
+  // 3. Invite Tab - Search existing users or invite new ones with custom messages
+  // 4. Pending Tab - Sent/received invitations with accept/reject actions
+
+  const renderTabs = () => {
+    const tabs = [];
+    
+    if (userRole === 'student') {
+      tabs.push(
+        { key: 'view', label: 'Request', icon: 'user-plus' },
+        { key: 'manage', label: 'Current', icon: 'users' },
+        { key: 'invite', label: 'Invite New', icon: 'send' }
+      );
+    } else if (['instructor', 'school', 'admin'].includes(userRole)) {
+      tabs.push(
+        { key: 'manage', label: 'My Students', icon: 'users' },
+        { key: 'view', label: 'Select Student', icon: 'eye' },
+        { key: 'invite', label: 'Invite', icon: 'user-plus' }
+      );
+    }
+    
+    tabs.push({ key: 'pending', label: 'Pending', icon: 'clock' });
+
+    return (
+      <div className="flex gap-2 mb-4">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key as any)}
+            className={`flex-1 px-3 py-2 text-sm rounded-md transition-colors ${
+              activeTab === tab.key 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-1">
+              <span className="text-sm">{tab.label}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {renderTabs()}
+      <div className="flex-1 bg-gray-50 p-3 rounded-md">
+        {activeTab === 'manage' && renderManageTab()}
+        {activeTab === 'view' && renderViewTab()}
+        {activeTab === 'invite' && renderInviteTab()}
+        {activeTab === 'pending' && renderPendingTab()}
+      </div>
+    </div>
+  );
+}
 ```
 
 ### **2. RelationshipReviewSection.tsx** (Port from mobile)
 ```typescript
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+
+type RelationshipReview = {
+  id: string;
+  student_id: string;
+  supervisor_id: string;
+  reviewer_id: string;
+  rating: number;
+  content: string;
+  review_type: 'student_reviews_supervisor' | 'supervisor_reviews_student';
+  is_anonymous: boolean;
+  created_at: string;
+  is_reported: boolean;
+  report_count: number;
+  reviewer_profile?: {
+    full_name: string;
+  };
+};
+
 interface RelationshipReviewSectionProps {
   profileUserId: string;
   profileUserRole: 'student' | 'instructor' | 'supervisor' | 'school';
@@ -171,12 +294,293 @@ interface RelationshipReviewSectionProps {
   onReviewAdded: () => void;
 }
 
+export function RelationshipReviewSection({ 
+  profileUserId, 
+  profileUserRole, 
+  profileUserName,
+  canReview,
+  reviews, 
+  onReviewAdded 
+}: RelationshipReviewSectionProps) {
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [newReview, setNewReview] = useState({
+    rating: 0,
+    content: '',
+    isAnonymous: false,
+  });
+  const [canReviewBack, setCanReviewBack] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if user can review back
+  useEffect(() => {
+    const checkReviewBackCapability = async () => {
+      if (!currentUser?.id || !profileUserId) return;
+      
+      // Profile user reviewed current user
+      const profileUserReviewedMe = reviews.some(review => 
+        review.reviewer_id === profileUserId && 
+        (review.student_id === currentUser.id || review.supervisor_id === currentUser.id)
+      );
+      
+      // Current user hasn't reviewed profile user back
+      const iHaveReviewedThem = reviews.some(review => 
+        review.reviewer_id === currentUser.id && 
+        (review.student_id === profileUserId || review.supervisor_id === profileUserId)
+      );
+      
+      setCanReviewBack(profileUserReviewedMe && !iHaveReviewedThem);
+    };
+
+    checkReviewBackCapability();
+  }, [reviews, currentUser?.id, profileUserId]);
+
+  const handleSubmitReview = async () => {
+    if (!currentUser) {
+      alert('Please sign in to submit a review');
+      return;
+    }
+
+    if (!newReview.rating) {
+      alert('Please select a rating');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Determine review type and relationship IDs
+      const reviewType = profileUserRole === 'student' 
+        ? 'supervisor_reviews_student' 
+        : 'student_reviews_supervisor';
+      
+      const studentId = profileUserRole === 'student' ? profileUserId : currentUser.id;
+      const supervisorId = profileUserRole === 'student' ? currentUser.id : profileUserId;
+
+      // Create relationship review
+      const reviewData = {
+        student_id: studentId,
+        supervisor_id: supervisorId,
+        reviewer_id: currentUser.id,
+        rating: newReview.rating,
+        content: newReview.content,
+        review_type: reviewType,
+        is_anonymous: newReview.isAnonymous,
+      };
+
+      const { error: reviewError } = await supabase
+        .from('relationship_reviews')
+        .insert(reviewData);
+
+      if (reviewError) throw reviewError;
+
+      // Create notification for reviewed user
+      await supabase.from('notifications').insert({
+        user_id: profileUserId,
+        actor_id: newReview.isAnonymous ? null : currentUser.id,
+        type: 'new_message',
+        title: 'New Review!',
+        message: `${newReview.isAnonymous ? 'Someone' : currentUser.full_name} left you a ${newReview.rating}-star review`,
+        metadata: {
+          notification_subtype: 'relationship_review',
+          reviewer_id: currentUser.id,
+          reviewed_user_id: profileUserId,
+          rating: newReview.rating
+        }
+      });
+
+      // Reset form and close
+      setNewReview({
+        rating: 0,
+        content: '',
+        isAnonymous: false,
+      });
+      setShowReviewForm(false);
+      onReviewAdded();
+
+      alert(`Review submitted for ${profileUserName}`);
+    } catch (err) {
+      console.error('Error submitting relationship review:', err);
+      alert('Failed to submit review');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate average rating for display
+  const averageRating = reviews.length > 0 
+    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
+    : 0;
+
+  const getRatingBadge = (averageRating: number, reviewCount: number) => {
+    if (reviewCount === 0) return null;
+    
+    const badgeColor = averageRating >= 4.5 ? 'bg-green-500' : 
+                      averageRating >= 4.0 ? 'bg-blue-500' : 
+                      averageRating >= 3.0 ? 'bg-orange-500' : 'bg-red-500';
+    
+    const badgeText = averageRating >= 4.5 ? 'Excellent' : 
+                     averageRating >= 4.0 ? 'Very Good' : 
+                     averageRating >= 3.0 ? 'Good' : 'Needs Improvement';
+
+    return (
+      <div className="flex items-center space-x-2">
+        <div className={`flex items-center space-x-1 ${badgeColor} text-white px-2 py-1 rounded text-sm`}>
+          <span>⭐</span>
+          <span>{averageRating.toFixed(1)}</span>
+        </div>
+        <span className="text-gray-600 text-sm">
+          {badgeText} ({reviewCount} review{reviewCount !== 1 ? 's' : ''})
+        </span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="border rounded-lg p-4">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h3 className="text-lg font-medium">Reviews for {profileUserName}</h3>
+          {getRatingBadge(averageRating, reviews.length)}
+        </div>
+        {(canReview || canReviewBack) && !showReviewForm && (
+          <button
+            onClick={() => setShowReviewForm(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center space-x-2"
+          >
+            <span>➕</span>
+            <span>{canReviewBack ? 'Review Back' : 'Write Review'}</span>
+          </button>
+        )}
+      </div>
+
+      {showReviewForm ? (
+        <div className="border rounded-lg p-4 mb-4">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="text-lg font-medium">Review {profileUserName}</h4>
+            <button
+              onClick={() => {
+                setShowReviewForm(false);
+                setNewReview({ rating: 0, content: '', isAnonymous: false });
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Rating Section */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Overall Rating</label>
+            <div className="flex justify-center space-x-2">
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <button
+                  key={rating}
+                  onClick={() => setNewReview((prev) => ({ ...prev, rating }))}
+                  className={`p-2 rounded ${
+                    newReview.rating >= rating 
+                      ? 'bg-yellow-500 text-white' 
+                      : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  ⭐
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Content Section */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Your Review</label>
+            <textarea
+              value={newReview.content}
+              onChange={(e) => setNewReview((prev) => ({ ...prev, content: e.target.value }))}
+              placeholder={`Share your experience with ${profileUserName}...`}
+              rows={4}
+              className="w-full p-3 border rounded-md"
+            />
+          </div>
+
+          {/* Anonymous Option */}
+          <div className="flex items-center space-x-2 mb-4">
+            <input
+              type="checkbox"
+              id="anonymous"
+              checked={newReview.isAnonymous}
+              onChange={(e) => setNewReview((prev) => ({ ...prev, isAnonymous: e.target.checked }))}
+              className="rounded"
+            />
+            <label htmlFor="anonymous" className="text-sm">Submit anonymously</label>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            onClick={handleSubmitReview}
+            disabled={loading || !newReview.rating}
+            className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50"
+          >
+            {loading ? 'Submitting...' : 'Submit Review'}
+          </button>
+
+          {error && (
+            <p className="text-red-600 text-sm text-center mt-2">{error}</p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reviews.length === 0 ? (
+            <p className="text-gray-600 text-center py-4">
+              No reviews yet. Be the first to review {profileUserName}!
+            </p>
+          ) : (
+            reviews.map((review) => (
+              <div key={review.id} className="border rounded-lg p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h5 className="font-medium">
+                      {review.is_anonymous ? 'Anonymous' : review.reviewer_profile?.full_name || 'Unknown User'}
+                    </h5>
+                    <p className="text-sm text-gray-600">
+                      {new Date(review.created_at).toLocaleDateString()} • 
+                      {review.review_type === 'student_reviews_supervisor' ? 'Student → Supervisor' : 'Supervisor → Student'}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {/* Report and Admin buttons would go here */}
+                  </div>
+                </div>
+
+                {/* Star Rating Display */}
+                <div className="flex items-center space-x-2 mb-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span key={i} className={i < review.rating ? 'text-yellow-500' : 'text-gray-300'}>
+                      ⭐
+                    </span>
+                  ))}
+                  <span className="text-sm text-gray-600">{review.rating}/5</span>
+                </div>
+
+                {/* Review Content */}
+                {review.content && (
+                  <p className="text-gray-800">{review.content}</p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Features:
 // - 5-star rating system
-// - Text review with image uploads
+// - Text review with image uploads (simplified for web)
 // - Anonymous review option
 // - "Review Back" functionality
-// - Admin moderation (report/delete)
+// - Admin moderation (report/delete) - can be added
 ```
 
 ### **3. RelationshipReviewModal.tsx** (Port from mobile)
@@ -482,7 +886,7 @@ interface RemovalNotification {
 
 ### **Relationship Action Buttons**
 ```typescript
-// In UserListModal, PublicProfileDialog, etc.
+// Complete relationship button logic with state management
 interface RelationshipButtonState {
   // No relationship, no pending invitation
   default: 'Set as Student' | 'Set as Instructor';
@@ -498,6 +902,205 @@ interface RelationshipButtonState {
   
   // Loading state
   loading: 'Loading...';
+}
+
+// Complete relationship button component
+export function RelationshipActionButton({ 
+  targetUser, 
+  currentUser, 
+  onRelationshipChange 
+}: {
+  targetUser: { id: string; full_name: string; email: string; role: string };
+  currentUser: { id: string; role: string; full_name: string; email: string };
+  onRelationshipChange?: () => void;
+}) {
+  const [relationshipState, setRelationshipState] = useState<{
+    hasRelationship: boolean;
+    relationshipType?: string;
+    pendingInvitation?: any;
+    canInvite: boolean;
+  }>({ hasRelationship: false, canInvite: true });
+  const [loading, setLoading] = useState(false);
+
+  // Check relationship status
+  useEffect(() => {
+    const checkRelationshipStatus = async () => {
+      try {
+        // Check active relationship
+        const { data: relationship } = await supabase
+          .from('student_supervisor_relationships')
+          .select('*')
+          .or(`and(student_id.eq.${currentUser.id},supervisor_id.eq.${targetUser.id}),and(student_id.eq.${targetUser.id},supervisor_id.eq.${currentUser.id})`)
+          .single();
+          
+        // Check pending invitations
+        const { data: pendingInvitations } = await supabase
+          .from('pending_invitations')
+          .select('*')
+          .or(`and(invited_by.eq.${currentUser.id},email.eq.${targetUser.email}),and(invited_by.eq.${targetUser.id},email.eq.${currentUser.email})`)
+          .eq('status', 'pending');
+        
+        setRelationshipState({
+          hasRelationship: !!relationship,
+          relationshipType: relationship ? determineRelationshipType(relationship, currentUser.id) : undefined,
+          pendingInvitation: pendingInvitations?.[0],
+          canInvite: !relationship && !pendingInvitations?.length
+        });
+      } catch (error) {
+        console.error('Error checking relationship status:', error);
+      }
+    };
+
+    checkRelationshipStatus();
+  }, [currentUser.id, targetUser.id, targetUser.email]);
+
+  const handleInviteUser = async () => {
+    if (!canInviteUser(currentUser.role, targetUser.role)) return;
+    
+    setLoading(true);
+    try {
+      const relationshipType = currentUser.role === 'student' 
+        ? 'student_invites_supervisor' 
+        : 'supervisor_invites_student';
+      const targetRole = currentUser.role === 'student' ? 'instructor' : 'student';
+      
+      // Create pending invitation
+      const { data: invitationData, error: inviteError } = await supabase
+        .from('pending_invitations')
+        .insert({
+          email: targetUser.email.toLowerCase(),
+          role: targetRole,
+          invited_by: currentUser.id,
+          metadata: {
+            supervisorName: currentUser.full_name,
+            inviterRole: currentUser.role,
+            relationshipType,
+            targetUserId: targetUser.id,
+            targetUserName: targetUser.full_name,
+          },
+          status: 'pending',
+        })
+        .select()
+        .single();
+        
+      if (inviteError) throw inviteError;
+      
+      // Create notification
+      const notificationType = currentUser.role === 'student' 
+        ? 'supervisor_invitation' 
+        : 'student_invitation';
+      const message = currentUser.role === 'student' 
+        ? `${currentUser.full_name} wants you to be their supervisor`
+        : `${currentUser.full_name} wants you to be their student`;
+      
+      await supabase.from('notifications').insert({
+        user_id: targetUser.id,
+        actor_id: currentUser.id,
+        type: notificationType,
+        title: 'New Supervision Request',
+        message,
+        metadata: {
+          relationship_type: relationshipType,
+          from_user_id: currentUser.id,
+          from_user_name: currentUser.full_name,
+          invitation_id: invitationData.id,
+        },
+        is_read: false,
+      });
+      
+      alert(`Invitation sent to ${targetUser.full_name}!`);
+      onRelationshipChange?.();
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      alert('Failed to send invitation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveRelationship = async () => {
+    if (!confirm(`Remove ${targetUser.full_name} from your ${currentUser.role === 'student' ? 'supervisors' : 'students'}?`)) return;
+    
+    setLoading(true);
+    try {
+      // Remove relationship (bidirectional)
+      await supabase
+        .from('student_supervisor_relationships')
+        .delete()
+        .or(`and(student_id.eq.${currentUser.id},supervisor_id.eq.${targetUser.id}),and(student_id.eq.${targetUser.id},supervisor_id.eq.${currentUser.id})`);
+        
+      // Clean up pending invitations
+      await supabase
+        .from('pending_invitations')
+        .delete()
+        .or(`and(invited_by.eq.${currentUser.id},email.eq.${targetUser.email}),and(invited_by.eq.${targetUser.id},email.eq.${currentUser.email})`);
+        
+      alert('Relationship removed successfully');
+      onRelationshipChange?.();
+    } catch (error) {
+      console.error('Error removing relationship:', error);
+      alert('Failed to remove relationship');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const canInviteUser = (currentRole: string, targetRole: string) => {
+    return (currentRole === 'student' && ['instructor', 'admin', 'school'].includes(targetRole)) ||
+           (['instructor', 'admin', 'school'].includes(currentRole) && targetRole === 'student');
+  };
+
+  const getButtonState = () => {
+    if (loading) return { text: 'Loading...', variant: 'secondary', disabled: true };
+    
+    if (relationshipState.hasRelationship) {
+      return {
+        text: currentUser.role === 'student' ? 'Remove Supervisor' : 'Remove Student',
+        variant: 'destructive',
+        onClick: handleRemoveRelationship
+      };
+    }
+    
+    if (relationshipState.pendingInvitation) {
+      const isSentByMe = relationshipState.pendingInvitation.invited_by === currentUser.id;
+      return {
+        text: isSentByMe ? 'Invitation Sent' : 'Invitation Received',
+        variant: 'secondary',
+        disabled: isSentByMe
+      };
+    }
+    
+    if (relationshipState.canInvite && canInviteUser(currentUser.role, targetUser.role)) {
+      return {
+        text: currentUser.role === 'student' ? 'Set as Supervisor' : 'Set as Student',
+        variant: 'primary',
+        onClick: handleInviteUser
+      };
+    }
+    
+    return null;
+  };
+
+  const buttonState = getButtonState();
+  if (!buttonState) return null;
+
+  return (
+    <button
+      onClick={buttonState.onClick}
+      disabled={buttonState.disabled || loading}
+      className={`px-3 py-1 text-sm rounded transition-colors ${
+        buttonState.variant === 'primary' ? 'bg-blue-600 text-white hover:bg-blue-700' :
+        buttonState.variant === 'destructive' ? 'bg-red-600 text-white hover:bg-red-700' :
+        'bg-gray-200 text-gray-700'
+      } disabled:opacity-50 disabled:cursor-not-allowed`}
+    >
+      {buttonState.text}
+    </button>
+  );
+}
+
+function determineRelationshipType(relationship: any, currentUserId: string) {
+  return relationship.student_id === currentUserId ? 'student' : 'supervisor';
 }
 
 // Button color coding:
@@ -964,25 +1567,395 @@ try {
 
 ## 📚 **Reference Files**
 
-### **Mobile App Files to Reference**
+### **Complete Service Functions Reference**
+
+#### **invitationService.ts** - Core invitation functions
+```typescript
+// Send invitation to existing user
+export async function sendInvitationToExistingUser(
+  targetUser: { id: string; full_name: string; email: string },
+  currentUser: { id: string; role: string; full_name: string; email: string },
+  customMessage?: string
+) {
+  const relationshipType = currentUser.role === 'student' 
+    ? 'student_invites_supervisor' 
+    : 'supervisor_invites_student';
+  const targetRole = currentUser.role === 'student' ? 'instructor' : 'student';
+  
+  // Check for existing invitations
+  const { data: existingInvitations } = await supabase
+    .from('pending_invitations')
+    .select('id, status')
+    .eq('email', targetUser.email.toLowerCase())
+    .eq('invited_by', currentUser.id)
+    .in('status', ['pending', 'accepted']);
+
+  if (existingInvitations?.length > 0) {
+    throw new Error('Invitation already exists');
+  }
+  
+  // Create invitation
+  const { data: invitationData, error: inviteError } = await supabase
+    .from('pending_invitations')
+    .insert({
+      email: targetUser.email.toLowerCase(),
+      role: targetRole,
+      invited_by: currentUser.id,
+      metadata: {
+        supervisorName: currentUser.full_name,
+        inviterRole: currentUser.role,
+        relationshipType,
+        targetUserId: targetUser.id,
+        targetUserName: targetUser.full_name,
+        customMessage: customMessage?.trim() || undefined,
+      },
+      status: 'pending',
+    })
+    .select()
+    .single();
+    
+  if (inviteError) throw inviteError;
+  
+  // Create notification
+  const notificationType = currentUser.role === 'student' 
+    ? 'supervisor_invitation' 
+    : 'student_invitation';
+  const message = currentUser.role === 'student' 
+    ? `${currentUser.full_name} wants you to be their supervisor`
+    : `${currentUser.full_name} wants you to be their student`;
+  
+  await supabase.from('notifications').insert({
+    user_id: targetUser.id,
+    actor_id: currentUser.id,
+    type: notificationType,
+    title: 'New Supervision Request',
+    message,
+    metadata: {
+      relationship_type: relationshipType,
+      from_user_id: currentUser.id,
+      from_user_name: currentUser.full_name,
+      invitation_id: invitationData.id,
+      customMessage
+    },
+    is_read: false,
+  });
+  
+  return invitationData;
+}
+
+// Accept invitation
+export async function acceptInvitationById(invitationId: string, userId: string) {
+  try {
+    // Get invitation details
+    const { data: invitation, error: findError } = await supabase
+      .from('pending_invitations')
+      .select('*')
+      .eq('id', invitationId)
+      .single();
+      
+    if (findError || !invitation) {
+      throw new Error('Invitation not found');
+    }
+    
+    // Update invitation status
+    const { error: updateError } = await supabase
+      .from('pending_invitations')
+      .update({ 
+        status: 'accepted', 
+        accepted_at: new Date().toISOString(),
+        accepted_by: userId 
+      })
+      .eq('id', invitationId);
+      
+    if (updateError) throw updateError;
+    
+    // Determine relationship direction
+    const metadata = invitation.metadata || {};
+    const relationshipType = metadata.relationshipType || 'unknown';
+    
+    let studentId, supervisorId;
+    if (relationshipType === 'student_invites_supervisor') {
+      studentId = invitation.invited_by;
+      supervisorId = userId;
+    } else {
+      studentId = userId;
+      supervisorId = invitation.invited_by;
+    }
+    
+    // Create relationship (handle duplicate gracefully)
+    const { error: relError } = await supabase
+      .from('student_supervisor_relationships')
+      .insert({ student_id: studentId, supervisor_id: supervisorId });
+      
+    if (relError && relError.code !== '23505') { // Ignore duplicate key errors
+      throw relError;
+    }
+    
+    // Send acceptance notification
+    await supabase.from('notifications').insert({
+      user_id: invitation.invited_by,
+      actor_id: userId,
+      type: 'new_message',
+      title: 'Invitation Accepted!',
+      message: `${metadata.targetUserName || 'Someone'} accepted your supervision request`,
+      metadata: {
+        notification_subtype: 'invitation_accepted',
+        relationship_type: relationshipType,
+        invitation_id: invitationId
+      },
+      is_read: false,
+    });
+    
+    // Clean up invitation notification
+    await supabase
+      .from('notifications')
+      .delete()
+      .eq('metadata->>invitation_id', invitationId);
+    
+    return true;
+  } catch (error) {
+    console.error('Error accepting invitation:', error);
+    return false;
+  }
+}
+
+// Reject invitation
+export async function rejectInvitation(invitationId: string) {
+  try {
+    // Delete invitation completely
+    const { error } = await supabase
+      .from('pending_invitations')
+      .delete()
+      .eq('id', invitationId);
+      
+    if (error) throw error;
+    
+    // Clean up related notifications
+    await supabase
+      .from('notifications')
+      .delete()
+      .eq('metadata->>invitation_id', invitationId);
+      
+    return true;
+  } catch (error) {
+    console.error('Error rejecting invitation:', error);
+    return false;
+  }
+}
+
+// Remove relationship with review
+export async function removeRelationshipWithReview(
+  currentUserId: string,
+  targetUserId: string,
+  reviewData?: { rating: number; content: string; isAnonymous: boolean }
+) {
+  try {
+    // Submit review first if provided
+    if (reviewData) {
+      await submitRelationshipReview({
+        ...reviewData,
+        reviewedUserId: targetUserId,
+        reviewerUserId: currentUserId
+      });
+    }
+    
+    // Remove relationship (bidirectional)
+    await supabase
+      .from('student_supervisor_relationships')
+      .delete()
+      .or(`and(student_id.eq.${currentUserId},supervisor_id.eq.${targetUserId}),and(student_id.eq.${targetUserId},supervisor_id.eq.${currentUserId})`);
+      
+    // Clean up pending invitations
+    const { data: targetUser } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', targetUserId)
+      .single();
+      
+    const { data: currentUser } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', currentUserId)
+      .single();
+      
+    if (targetUser?.email && currentUser?.email) {
+      await supabase
+        .from('pending_invitations')
+        .delete()
+        .or(`and(invited_by.eq.${currentUserId},email.eq.${targetUser.email}),and(invited_by.eq.${targetUserId},email.eq.${currentUser.email})`);
+    }
+    
+    // Send notifications to both parties
+    await supabase.from('notifications').insert([
+      {
+        user_id: targetUserId,
+        actor_id: currentUserId,
+        type: 'new_message',
+        title: 'Relationship Ended',
+        message: 'Your supervisory relationship has ended',
+        metadata: {
+          notification_subtype: 'relationship_removed',
+          removed_by_id: currentUserId,
+          other_party_id: targetUserId
+        }
+      },
+      {
+        user_id: currentUserId,
+        actor_id: currentUserId,
+        type: 'new_message', 
+        title: 'Relationship Ended',
+        message: 'You ended the supervisory relationship',
+        metadata: {
+          notification_subtype: 'relationship_removed',
+          removed_by_id: currentUserId,
+          other_party_id: targetUserId
+        }
+      }
+    ]);
+    
+    return true;
+  } catch (error) {
+    console.error('Error removing relationship:', error);
+    return false;
+  }
+}
+
+// Get pending invitations
+export async function getPendingInvitations(userId: string) {
+  const { data, error } = await supabase
+    .from('pending_invitations')
+    .select('*')
+    .eq('invited_by', userId)
+    .order('created_at', { ascending: false });
+    
+  if (error) throw error;
+  return data || [];
+}
+
+// Get incoming invitations
+export async function getIncomingInvitations(email: string) {
+  const { data, error } = await supabase
+    .from('pending_invitations')
+    .select(`
+      id, email, role, status, created_at, metadata,
+      inviter:profiles!pending_invitations_invited_by_fkey (
+        full_name, email, role
+      )
+    `)
+    .eq('email', email.toLowerCase())
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+    
+  if (error) throw error;
+  return data || [];
+}
 ```
-Core Logic:
-- src/components/RelationshipManagementModal.tsx (4-tab interface)
-- src/components/RelationshipReviewSection.tsx (review system)
-- src/components/RelationshipReviewModal.tsx (removal flow)
-- src/services/invitationService.ts (invitation CRUD)
-- src/services/relationshipReviewService.ts (review CRUD)
 
-UI Patterns:
-- src/screens/ProfileScreen.tsx (relationship buttons)
-- src/screens/PublicProfileScreen.tsx (relationship actions)
-- src/screens/UsersScreen.tsx (user list buttons)
-- src/screens/NotificationsScreen.tsx (notification handling)
-- src/components/UsersList.tsx (compact user actions)
+#### **relationshipReviewService.ts** - Review system functions
+```typescript
+export class RelationshipReviewService {
+  static async getUserRating(userId: string, userRole: string) {
+    const { data: reviews, error } = await supabase
+      .from('relationship_reviews')
+      .select('rating')
+      .or(`student_id.eq.${userId},supervisor_id.eq.${userId}`);
+      
+    if (error) throw error;
+    
+    const reviewCount = reviews?.length || 0;
+    const averageRating = reviewCount > 0 
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount 
+      : 0;
+      
+    return { averageRating, reviewCount };
+  }
+  
+  static async getReviewsForUser(userId: string) {
+    const { data: reviews, error } = await supabase
+      .from('relationship_reviews')
+      .select(`
+        *,
+        reviewer_profile:profiles!relationship_reviews_reviewer_id_fkey (
+          full_name
+        )
+      `)
+      .or(`student_id.eq.${userId},supervisor_id.eq.${userId}`);
+      
+    if (error) throw error;
+    return reviews || [];
+  }
+  
+  static async submitReview(reviewData: {
+    studentId: string;
+    supervisorId: string;
+    reviewerId: string;
+    rating: number;
+    content: string;
+    reviewType: string;
+    isAnonymous: boolean;
+  }) {
+    const { error } = await supabase
+      .from('relationship_reviews')
+      .insert(reviewData);
+      
+    if (error) throw error;
+    return true;
+  }
+}
+```
 
-Database:
-- supabase/migrations/20250112_pending_invitations.sql
-- supabase/migrations/20250113_enhance_invitation_system_safe.sql
+#### **Database Schema Reference**
+```sql
+-- Main relationship table
+CREATE TABLE student_supervisor_relationships (
+  student_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  supervisor_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  status TEXT DEFAULT 'active',
+  PRIMARY KEY (student_id, supervisor_id)
+);
+
+-- Invitation system
+CREATE TABLE pending_invitations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL,
+  role user_role NOT NULL,
+  invited_by UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'pending',
+  metadata JSONB DEFAULT '{}',
+  accepted_at TIMESTAMP WITH TIME ZONE,
+  accepted_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Review system
+CREATE TABLE relationship_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  supervisor_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  reviewer_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  content TEXT,
+  review_type TEXT NOT NULL,
+  is_anonymous BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_reported BOOLEAN DEFAULT FALSE,
+  report_count INTEGER DEFAULT 0
+);
+
+-- Notifications
+CREATE TABLE notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  type notification_type NOT NULL,
+  title TEXT,
+  message TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}',
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 ```
 
 ### **Web Project Target Files**

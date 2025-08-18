@@ -487,7 +487,15 @@ export async function acceptInvitationById(invitationId: string, userId: string)
         });
       
       console.log('🎯 acceptInvitationById: Relationship creation result:', { relError });
-      if (relError) console.error('Error creating supervisor relationship:', relError);
+      
+      // Handle duplicate key error gracefully (relationship already exists)
+      if (relError && relError.code === '23505') {
+        console.log('🎯 acceptInvitationById: Relationship already exists - this is OK');
+      } else if (relError) {
+        console.error('Error creating supervisor relationship:', relError);
+        // Don't fail the entire operation for relationship creation errors
+        // The invitation acceptance is still valid
+      }
     }
 
     if (invitation.role) {

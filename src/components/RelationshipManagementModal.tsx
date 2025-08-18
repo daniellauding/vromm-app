@@ -68,7 +68,7 @@ export function RelationshipManagementModal({
   const [newUserEmails, setNewUserEmails] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [pendingInvitations, setPendingInvitations] = useState<
-    Array<{ id: string; email: string; role: string; status: string; created_at: string }>
+    Array<{ id: string; email: string; role: string; status: string; created_at: string; metadata?: any }>
   >([]);
   const [incomingInvitations, setIncomingInvitations] = useState<
     Array<{ id: string; email: string; role: string; status: string; created_at: string }>
@@ -250,7 +250,16 @@ export function RelationshipManagementModal({
       console.log('📥 Raw incoming invitations:', invitations);
       
       // Filter out invitations where relationship already exists (unless recently accepted)
-      const filteredInvitations = [];
+      const filteredInvitations: Array<{
+        id: string;
+        email: string;
+        role: string;
+        status: string;
+        created_at: string;
+        invited_by: string;
+        metadata?: any;
+        inviter?: any;
+      }> = [];
       for (const inv of invitations || []) {
         if (inv.status === 'accepted') {
           // Show recently accepted invitations (within 24 hours)
@@ -832,101 +841,7 @@ export function RelationshipManagementModal({
       // Show supervised students for instructors with ability to remove
       return (
         <YStack gap="$4" flex={1}>
-          {/* Incoming invitations for supervisors (symmetry with student Add tab) */}
-          {incomingInvitations.length > 0 && (
-            <YStack gap="$2">
-              <Text size="sm" color="$gray11">Incoming invitations</Text>
-              {incomingInvitations.map((invitation) => (
-                <XStack
-                  key={invitation.id}
-                  justifyContent="space-between"
-                  alignItems="center"
-                  backgroundColor="$backgroundStrong"
-                  padding="$3"
-                  borderRadius="$2"
-                >
-                  <YStack flex={1}>
-                    <Text weight="semibold" size="sm">{invitation.email}</Text>
-                    <Text color="$gray11" size="xs">Role: {invitation.role} • Status: {invitation.status}</Text>
-                  </YStack>
-                  <XStack gap="$2">
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      onPress={async () => {
-                        console.log('🎯 MANAGE TAB - Accepting invitation:', invitation.id);
-                        
-                        try {
-                          const success = await acceptInvitationById(invitation.id, profile!.id);
-                          console.log('🎯 MANAGE TAB - Accept result:', success);
-                          
-                          if (success) {
-                            // Try to auto-select the student in the list by email
-                            try {
-                              const { data: student } = await supabase
-                                .from('profiles')
-                                .select('id, full_name')
-                                .eq('email', invitation.email.toLowerCase())
-                                .single();
-                              if (student?.id) {
-                                onStudentSelect?.(student.id, student.full_name);
-                              }
-                            } catch {}
-                            
-                            Alert.alert('Success', 'Invitation accepted! Relationship created.');
-                            
-                            // Force refresh the UI immediately
-                            setTimeout(() => {
-                              loadIncomingInvitations();
-                              loadPendingInvitations();
-                              onRefresh?.();
-                            }, 100);
-                          } else {
-                            Alert.alert('Error', 'Failed to accept invitation - please try again');
-                          }
-                        } catch (error) {
-                          console.error('❌ Error accepting invitation:', error);
-                          Alert.alert('Error', 'Failed to accept invitation');
-                        }
-                      }}
-                    >
-                      Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="tertiary"
-                      onPress={async () => {
-                        console.log('🚫 MANAGE TAB - Declining invitation:', invitation.id);
-                        
-                        try {
-                          const success = await rejectInvitation(invitation.id);
-                          console.log('🚫 MANAGE TAB - Decline result:', success);
-                          
-                          if (success) {
-                            Alert.alert('Success', 'Invitation declined');
-                            
-                            // Force refresh the UI immediately
-                            setTimeout(() => {
-                              loadIncomingInvitations();
-                              loadPendingInvitations();
-                              onRefresh?.();
-                            }, 100);
-                          } else {
-                            Alert.alert('Error', 'Failed to decline invitation - please try again');
-                          }
-                        } catch (error) {
-                          console.error('❌ Error declining invitation:', error);
-                          Alert.alert('Error', 'Failed to decline invitation');
-                        }
-                      }}
-                    >
-                      Decline
-                    </Button>
-                  </XStack>
-                </XStack>
-              ))}
-            </YStack>
-          )}
+          {/* Removed duplicate incoming invitations section - they appear in Pending tab */}
           <Text size="sm" color="$gray11">
             Students you are currently supervising
           </Text>
@@ -974,14 +889,26 @@ export function RelationshipManagementModal({
                       >
                         View
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="tertiary"
-                        theme="red"
-                        onPress={() => handleRemoveStudent(student.id)}
-                      >
-                        Remove
-                      </Button>
+                                <Button
+            size="sm"
+            variant="tertiary"
+            backgroundColor="$red9"
+            onPress={() => {
+              // Find the student details for removal review
+              const studentToRemove = supervisedStudents.find(s => s.id === student.id);
+              if (!studentToRemove) return;
+              
+              setRemovalTarget({
+                id: student.id,
+                name: studentToRemove.full_name,
+                email: studentToRemove.email,
+                role: 'student',
+              });
+              setShowRemovalReviewModal(true);
+            }}
+          >
+                                    <Text color="white">Remove</Text>
+          </Button>
                     </XStack>
                   </XStack>
                 ))}
