@@ -5,6 +5,7 @@ import { TamaguiProvider, Theme } from 'tamagui';
 import config from './tamagui.config';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LocationProvider } from './src/context/LocationContext';
+import { StudentSwitchProvider } from './src/context/StudentSwitchContext';
 import { TranslationProvider } from './src/contexts/TranslationContext';
 import { RootStackParamList } from './src/types/navigation';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -112,6 +113,12 @@ import { CommunityFeedScreen } from './src/screens/CommunityFeedScreen';
 // Exercise screens
 import { RouteExerciseScreen } from './src/screens/RouteExerciseScreen';
 
+// Student Management
+import { StudentManagementScreen } from './src/screens/StudentManagementScreen';
+
+// Global Invitation Notification
+import { InvitationNotification } from './src/components/InvitationNotification';
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppContent() {
@@ -119,6 +126,121 @@ function AppContent() {
   const colorScheme = useColorScheme();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
   const [authKey, setAuthKey] = useState(0);
+  
+  // Global invitation notification state
+  const [showGlobalInvitationNotification, setShowGlobalInvitationNotification] = useState(false);
+  
+  // Debug: Force show global modal (remove in production)
+  useEffect(() => {
+    const handleShake = () => {
+      console.log('🧪 Debug: Force showing global invitation modal');
+      setShowGlobalInvitationNotification(true);
+    };
+    
+    // Add shake gesture listener for debug (iOS only)
+    if (__DEV__ && Platform.OS === 'ios') {
+      const { DeviceMotion } = require('expo-sensors');
+      // This is just for debug - you can remove this
+    }
+  }, []);
+
+  // Global invitation checking function
+  const checkForGlobalInvitations = async () => {
+    if (!user?.email) return;
+
+    try {
+      console.log('🌍 Checking for global invitations for:', user.email);
+      
+      const { data: invitations, error } = await supabase
+        .from('pending_invitations')
+        .select('id, invited_by, created_at')
+        .eq('email', user.email.toLowerCase())
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('🌍 Global invitation check error:', error);
+        return;
+      }
+
+      console.log('🌍 Found pending invitations:', invitations?.length || 0);
+
+      if (invitations && invitations.length > 0) {
+        // Check if any of these invitations don't already have relationships
+        let hasValidInvitation = false;
+        
+        for (const inv of invitations) {
+          const { data: existingRelationship } = await supabase
+            .from('student_supervisor_relationships')
+            .select('id')
+            .or(`and(student_id.eq.${user.id},supervisor_id.eq.${inv.invited_by}),and(student_id.eq.${inv.invited_by},supervisor_id.eq.${user.id})`)
+            .limit(1);
+
+          if (!existingRelationship || existingRelationship.length === 0) {
+            hasValidInvitation = true;
+            console.log('🌍 Valid invitation found:', inv.id);
+            break;
+          } else {
+            console.log('🌍 Skipping invitation - relationship exists:', inv.id);
+          }
+        }
+
+        if (hasValidInvitation && !showGlobalInvitationNotification) {
+          console.log('🌍 Global invitation check: Found valid invitations, showing modal');
+          setShowGlobalInvitationNotification(true);
+        } else if (!hasValidInvitation) {
+          console.log('🌍 No valid invitations found');
+        } else {
+          console.log('🌍 Modal already showing, not triggering again');
+        }
+      }
+    } catch (error) {
+      console.error('🌍 Global invitation check error:', error);
+    }
+  };
+
+  // Set up global invitation subscription
+  useEffect(() => {
+    if (!user?.email) return;
+
+    // Check immediately when user is available
+    checkForGlobalInvitations();
+
+    // Set up real-time subscription
+    const invitationSubscription = supabase
+      .channel('global_pending_invitations')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'pending_invitations',
+        filter: `email=eq.${user.email}`,
+      }, (payload) => {
+        console.log('🌍 Global: New invitation received:', payload);
+        // Add a small delay to ensure the invitation is fully processed
+        setTimeout(() => {
+          checkForGlobalInvitations();
+        }, 500);
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'pending_invitations',
+        filter: `email=eq.${user.email}`,
+      }, (payload) => {
+        console.log('🌍 Global: Invitation updated:', payload);
+        setTimeout(() => {
+          checkForGlobalInvitations();
+        }, 500);
+      })
+      .subscribe();
+
+    return () => {
+      invitationSubscription.unsubscribe();
+    };
+  }, [user?.email, user?.id]);
+
+  // React Native doesn't have window, use a different approach for cross-component communication
+  // The NotificationBell will trigger checkForGlobalInvitations directly via the subscription
 
   // Add app-level logging and crash monitoring
   useEffect(() => {
@@ -642,10 +764,33 @@ function AppContent() {
                   headerShown: false,
                 }}
               />
+              <Stack.Screen
+                name="StudentManagementScreen"
+                component={StudentManagementScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
             </>
           )}
         </Stack.Navigator>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        
+        {/* Global Invitation Notification Modal */}
+        <InvitationNotification
+          visible={showGlobalInvitationNotification}
+          onClose={() => {
+            console.log('🌍 Global invitation modal closed');
+            setShowGlobalInvitationNotification(false);
+          }}
+          onInvitationHandled={() => {
+            console.log('🌍 Global invitation handled - checking for more');
+            // Check for more invitations after handling one
+            setTimeout(() => {
+              checkForGlobalInvitations();
+            }, 1000);
+          }}
+        />
       </ToastProvider>
           </NavigationContainer>
     </>
@@ -722,15 +867,17 @@ export default function App() {
             <Theme>
               <TranslationProvider>
                 <AuthProvider>
-                  <LocationProvider>
-                    <CreateRouteProvider>
-                      <ModalProvider>
-                        <MessagingProvider>
-                          <AppContent />
-                        </MessagingProvider>
-                      </ModalProvider>
-                    </CreateRouteProvider>
-                  </LocationProvider>
+                  <StudentSwitchProvider>
+                    <LocationProvider>
+                      <CreateRouteProvider>
+                        <ModalProvider>
+                          <MessagingProvider>
+                            <AppContent />
+                          </MessagingProvider>
+                        </ModalProvider>
+                      </CreateRouteProvider>
+                    </LocationProvider>
+                  </StudentSwitchProvider>
                 </AuthProvider>
               </TranslationProvider>
             </Theme>

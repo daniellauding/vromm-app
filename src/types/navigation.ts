@@ -105,6 +105,7 @@ export type RootStackParamList = {
     activeFilter?: FilterCategory;
   };
   CommunityFeedScreen: undefined;
+  StudentManagementScreen: undefined;
 };
 
 export type TabParamList = {
@@ -112,6 +113,7 @@ export type TabParamList = {
   ProgressTab: {
     selectedPathId?: string;
     showDetail?: boolean;
+    activeUserId?: string; // Add activeUserId for student switching
   };
   MapTab: undefined;
   ProfileTab: undefined;

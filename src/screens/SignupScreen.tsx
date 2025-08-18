@@ -9,11 +9,12 @@ import { Header } from '../components/Header';
 import { useTranslation } from '../contexts/TranslationContext';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
-import { TouchableOpacity, useColorScheme, Alert, View } from 'react-native';
+import { useColorScheme, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
+import { useToast } from '../contexts/ToastContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -28,11 +29,12 @@ export function SignupScreen() {
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const [oauthLoading, setOauthLoading] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     clearCache();
     console.log('[SIGNUP] Forcing translation refresh');
-  }, []);
+  }, [clearCache]);
 
   const handleSignup = async () => {
     if (!email || !password || !confirmPassword) {
@@ -73,6 +75,13 @@ export function SignupScreen() {
       if (!authUrl) throw new Error('No auth URL from Supabase');
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
       if (result.type !== 'success') return; // silent cancel
+
+      // Inform user about the known issue requiring app restart
+      const title = t('auth.facebookLoginKnownIssueTitle') || 'Login Notice';
+      const message =
+        t('auth.facebookLoginKnownIssueMessage') ||
+        'Facebook login succeeded. Due to a temporary issue, please restart the app to complete the login.';
+      showToast({ title, message, type: 'info', duration: 6000 });
     } catch (e) {
       const msg = (e as Error)?.message?.toLowerCase?.() || '';
       if (msg.includes('cancel')) return;
@@ -180,55 +189,55 @@ export function SignupScreen() {
         </XStack>
 
         {/* Social sign-up options */}
-        <XStack justifyContent="center" alignItems="center" gap={16} marginTop={16}>
-          <TouchableOpacity
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: '#F5F5F5',
-              borderWidth: 1,
-              borderColor: '#E0E0E0',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+        <XStack
+          justifyContent="space-around"
+          alignItems="center"
+          marginTop={16}
+          paddingHorizontal={60}
+          width="100%"
+        >
+          <Button
+            size="md"
+            radius="full"
+            variant="secondary"
             onPress={handleGoogleSignup}
+            disabled={oauthLoading}
             accessibilityLabel="Continue with Google"
+            accessibilityRole="button"
+            pressStyle={{ scale: 0.95 }}
           >
             <Ionicons name="logo-google" size={24} color="#4285F4" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: '#F5F5F5',
-              borderWidth: 1,
-              borderColor: '#E0E0E0',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+          </Button>
+
+          <Button
+            size="md"
+            radius="full"
+            variant="secondary"
             onPress={handleFacebookSignup}
+            disabled={oauthLoading}
             accessibilityLabel="Continue with Facebook"
+            accessibilityRole="button"
+            pressStyle={{ scale: 0.95 }}
           >
             <Ionicons name="logo-facebook" size={24} color="#1877F2" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: '#F5F5F5',
-              borderWidth: 1,
-              borderColor: '#E0E0E0',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+          </Button>
+
+          <Button
+            size="md"
+            radius="full"
+            variant="secondary"
             onPress={() => navigation.navigate('Login')}
+            disabled={oauthLoading}
             accessibilityLabel="Continue with Apple"
+            accessibilityRole="button"
+            pressStyle={{ scale: 0.95 }}
           >
-            <Ionicons name="logo-apple" size={24} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
-          </TouchableOpacity>
+            <Ionicons
+              name="logo-apple"
+              size={24}
+              color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+            />
+          </Button>
         </XStack>
       </YStack>
     </Screen>

@@ -128,6 +128,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const { error: createError } = await supabase.from('profiles').insert([
               {
                 id: session.user.id,
+                email: session.user.email, // FIX: Always save email to profiles
                 full_name: metadata.full_name || session.user.email?.split('@')[0] || 'Unknown',
                 role: metadata.role || 'student',
                 location: metadata.location || 'Unknown',
@@ -143,6 +144,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           } else {
             console.log('[AUTH_STATE_DEBUG] Profile already exists');
+            
+            // Check if user account is deleted
+            if (profile?.account_status === 'deleted') {
+              console.log('🚫 Deleted user attempted login:', session.user.email);
+              await supabase.auth.signOut();
+              Alert.alert(
+                'Account Deleted', 
+                'This account has been deleted. Please contact support if you believe this is an error.',
+                [{ text: 'OK' }]
+              );
+              return;
+            }
           }
         } catch (err) {
           console.error('[AUTH_STATE_DEBUG] Error handling profile creation:', err);
@@ -212,36 +225,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         console.log('Signup successful for user:', authData.user.id);
 
-        // Show confirmation alert
-        Alert.alert(
-          'Registration Successful',
-          'Please check your email to confirm your account. The confirmation email might take a few minutes to arrive.',
-          [
-            {
-              text: 'Resend Email',
-              onPress: async () => {
-                try {
-                  const { error } = await supabase.auth.resend({
-                    type: 'signup',
-                    email: email,
-                  });
-                  if (error) throw error;
-                  Alert.alert('Success', 'Confirmation email resent. Please check your inbox.');
-                } catch (err) {
-                  console.error('Error resending confirmation:', err);
-                  Alert.alert('Error', 'Failed to resend confirmation email. Please try again.');
-                }
-              },
-            },
-            {
-              text: 'OK',
-              onPress: () => {
-                // Call the success callback if provided
-                onSuccess?.();
-              },
-            },
-          ],
-        );
+        // Email confirmation is disabled in the dashboard, so we do not show any
+        // confirmation dialog here. Invoke optional success callback directly.
+        onSuccess?.();
       } catch (error) {
         console.error('Signup process failed:', error);
         throw error;

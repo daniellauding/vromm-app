@@ -21,7 +21,7 @@ export function ProfileButton({ userId, isCurrentUser, size = 'md' }: ProfileBut
   const handlePress = () => {
     if (isCurrentUser) {
       // Navigate to edit profile
-      navigation.navigate('ProfileScreen');
+      navigation.push('ProfileScreen');
     } else {
       // Navigate to view someone else's profile
       navigation.navigate('PublicProfile', { userId });

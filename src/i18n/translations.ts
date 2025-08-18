@@ -203,6 +203,9 @@ export const translations = {
       processingError: 'Kunde inte behandla bild',
       uploadError: 'Kunde inte ladda upp recension',
       invalidCredentials: 'Felaktig e-post eller lösenord',
+      facebookLoginKnownIssueTitle: 'Inloggningsinformation',
+      facebookLoginKnownIssueMessage:
+        'Facebook-inloggningen lyckades. På grund av ett tillfälligt problem behöver du starta om appen för att bli inloggad.',
     },
     // Profile screen
     profile: {
@@ -215,6 +218,7 @@ export const translations = {
       updateProfile: 'Uppdatera profil',
       updating: 'Uppdaterar...',
       signOut: 'Logga ut',
+      following: 'Följer',
       experienceLevels: {
         title: 'Välj erfarenhetsnivå',
         beginner: 'Nybörjare',
@@ -236,6 +240,10 @@ export const translations = {
       refreshConfirm:
         'Detta kommer att rensa översättningscachen och hämta nya översättningar från servern. Fortsätta?',
       refreshSuccess: 'Översättningar uppdaterades framgångsrikt',
+    },
+    // Settings
+    settings: {
+      deleteAccount: 'Ta bort konto',
     },
     // Content components
     content: {
@@ -287,6 +295,9 @@ export const translations = {
       verifyEmailResendSuccess: 'Verifieringsmail har skickats igen',
       verifyEmailResendError: 'Det gick inte att skicka verifieringsmail igen',
       invalidCredentials: 'Felaktig e-post eller lösenord',
+      facebookLoginKnownIssueTitle: 'Inloggningsinformation',
+      facebookLoginKnownIssueMessage:
+        'Facebook-inloggningen lyckades. På grund av ett tillfälligt problem behöver du starta om appen för att bli inloggad.',
     },
     // Settings
     settings: {
@@ -561,6 +572,9 @@ export const translations = {
       processingError: 'Failed to process image',
       uploadError: 'Failed to submit review',
       invalidCredentials: 'Invalid email or password',
+      facebookLoginKnownIssueTitle: 'Login Notice',
+      facebookLoginKnownIssueMessage:
+        'Facebook login succeeded. Due to a temporary issue, please restart the app to complete the login.',
     },
     // Profile screen
     profile: {
@@ -573,6 +587,7 @@ export const translations = {
       updateProfile: 'Update Profile',
       updating: 'Updating...',
       signOut: 'Sign Out',
+      following: 'Following',
       experienceLevels: {
         title: 'Select Experience Level',
         beginner: 'Beginner',
@@ -594,6 +609,10 @@ export const translations = {
       refreshConfirm:
         'This will clear the translation cache and fetch fresh translations from the server. Continue?',
       refreshSuccess: 'Translations refreshed successfully',
+    },
+    // Settings
+    settings: {
+      deleteAccount: 'Delete Account',
     },
     // Content components
     content: {
@@ -645,6 +664,9 @@ export const translations = {
       verifyEmailResendSuccess: 'Verification email resent successfully',
       verifyEmailResendError: 'Failed to resend verification email',
       invalidCredentials: 'Invalid email or password',
+      facebookLoginKnownIssueTitle: 'Login Notice',
+      facebookLoginKnownIssueMessage:
+        'Facebook login succeeded. Due to a temporary issue, please restart the app to complete the login.',
     },
     // Settings
     settings: {

@@ -253,13 +253,14 @@ export function EventCard({ event }: EventCardProps) {
     }
 
     // Add media attachments
-    const media = event.media?.map((m) => ({
+    const mediaArray = Array.isArray(event.media) ? event.media : [];
+    const media = mediaArray.map((m) => ({
       type: m.type,
       data: {
         url: m.url,
         description: m.description,
       },
-    })) || [];
+    }));
 
     return [...items, ...media];
   }, [event.media, event.location]);

@@ -1,7 +1,8 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
-import { YStack, ScrollView } from 'tamagui';
+import { YStack, ScrollView, Text } from 'tamagui';
 import { useAuth } from '../../context/AuthContext';
+import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../../types/navigation';
 import { Screen } from '../../components/Screen';
@@ -39,10 +40,25 @@ type Route = {
   // Rest of the route properties...
 };
 
-export function HomeScreen() {
+interface HomeScreenProps {
+  activeUserId?: string;
+}
+
+export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   const { user } = useAuth();
+  const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
+  
+  // Use the effective user ID (either activeUserId prop, activeStudentId from context, or current user id)
+  const effectiveUserId = activeUserId || getEffectiveUserId();
+
+  // Debug logging for HomeScreen
+  console.log('📱 [HomeScreen] Current user:', user?.id, user?.email);
+  console.log('📱 [HomeScreen] Active user ID prop:', activeUserId);
+  console.log('📱 [HomeScreen] Effective user ID:', effectiveUserId);
+  console.log('📱 [HomeScreen] Is viewing as student:', isViewingAsStudent);
+  console.log('📱 [HomeScreen] Active student name:', activeStudentName);
 
   // State declarations
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -105,8 +121,15 @@ export function HomeScreen() {
       >
         <YStack f={1}>
           <HomeHeader />
+          {isViewingAsStudent && (
+            <YStack backgroundColor="$blue3" padding="$2" marginHorizontal="$4" marginBottom="$2" borderRadius="$2">
+              <Text color="$blue11" textAlign="center">
+                Viewing as: {activeStudentName || 'Student'}
+              </Text>
+            </YStack>
+          )}
           <GettingStarted />
-          <ProgressSection />
+          <ProgressSection activeUserId={effectiveUserId} />
           <SavedRoutes />
           <CommunityFeed />
           <QuickFilters handleFilterPress={handleFilterPress} />

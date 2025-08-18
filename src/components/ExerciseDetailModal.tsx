@@ -16,6 +16,7 @@ import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { Exercise } from '../types/route';
 import { WebView } from 'react-native-webview';
 import { useAuth } from '../context/AuthContext';
+import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { supabase } from '../lib/supabase';
 import { ExerciseProgressService } from '../services/exerciseProgressService';
 
@@ -80,9 +81,13 @@ export function ExerciseDetailModal({
   onExerciseComplete,
 }: ExerciseDetailModalProps) {
   const { user } = useAuth();
+  const { activeStudentId } = useStudentSwitch();
   const colorScheme = useColorScheme();
   const [isCompleted, setIsCompleted] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Use activeStudentId if available (for instructor viewing student data)
+  const effectiveUserId = activeStudentId || user?.id;
 
   // Quiz state management (copied from ProgressScreen)
   const [showQuiz, setShowQuiz] = useState(false);
@@ -98,19 +103,20 @@ export function ExerciseDetailModal({
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
 
   useEffect(() => {
-    if (exercise && user) {
+    if (exercise && effectiveUserId) {
       checkCompletion();
     }
-  }, [exercise, user]);
+  }, [exercise, effectiveUserId]);
 
   const checkCompletion = async () => {
-    if (!exercise || !user) return;
+    if (!exercise || !effectiveUserId) return;
 
     try {
+      console.log('🔍 [ExerciseDetailModal] Checking completion for user:', effectiveUserId, 'exercise:', exercise.id);
       const { data, error } = await supabase
         .from('route_exercise_completions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .eq('exercise_id', exercise.id)
         .single();
 
@@ -133,7 +139,7 @@ export function ExerciseDetailModal({
     timeSpentSeconds: number,
     pointsEarned: number,
   ) => {
-    if (!user || !currentQuizAttempt) return;
+    if (!effectiveUserId || !currentQuizAttempt) return;
 
     try {
       const { error } = await supabase.from('quiz_question_attempts').insert({
@@ -154,14 +160,14 @@ export function ExerciseDetailModal({
   };
 
   const startQuizAttempt = async (exerciseId: string) => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     try {
       // Get the latest attempt number for this user and exercise
       const { data: latestAttempt } = await supabase
         .from('quiz_attempts')
         .select('attempt_number')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .eq('exercise_id', exerciseId)
         .order('attempt_number', { ascending: false })
         .limit(1)
@@ -172,7 +178,7 @@ export function ExerciseDetailModal({
       const { data, error } = await supabase
         .from('quiz_attempts')
         .insert({
-          user_id: user.id,
+          user_id: effectiveUserId,
           exercise_id: exerciseId,
           attempt_number: attemptNumber,
           total_questions: quizQuestions.length,
@@ -375,15 +381,16 @@ export function ExerciseDetailModal({
   };
 
   const handleMarkComplete = async () => {
-    if (!exercise || !user) return;
+    if (!exercise || !effectiveUserId) return;
 
     setLoading(true);
     try {
+      console.log('✅ [ExerciseDetailModal] Marking complete for user:', effectiveUserId, 'exercise:', exercise.id);
       // Create session first
       const { data: session, error: sessionError } = await supabase
         .from('route_exercise_sessions')
         .insert({
-          user_id: user.id,
+          user_id: effectiveUserId,
           route_id: routeId,
           exercise_id: exercise.id,
           status: 'completed',
@@ -400,7 +407,7 @@ export function ExerciseDetailModal({
       // Create completion record
       const { error: completionError } = await supabase.from('route_exercise_completions').insert({
         session_id: session.id,
-        user_id: user.id,
+        user_id: effectiveUserId,
         exercise_id: exercise.id,
         completed_at: new Date().toISOString(),
       });
@@ -413,7 +420,7 @@ export function ExerciseDetailModal({
       // Update learning path progress if connected
       if (exercise.id.startsWith('lpe_')) {
         const learningPathExerciseId = exercise.id;
-        await ExerciseProgressService.completeExercise(user.id, learningPathExerciseId);
+        await ExerciseProgressService.completeExercise(effectiveUserId, learningPathExerciseId);
       }
 
       setIsCompleted(true);

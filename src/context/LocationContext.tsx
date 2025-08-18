@@ -23,12 +23,37 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     checkLocationPermission();
   }, []);
 
+  const getSafeCurrentLocation = async (): Promise<Location.LocationObject | null> => {
+    try {
+      const provider = await Location.getProviderStatusAsync();
+      if (!provider.locationServicesEnabled) {
+        // Location services are off (common on simulator) – don't spam errors
+        return null;
+      }
+
+      const lastKnown = await Location.getLastKnownPositionAsync();
+      if (lastKnown) return lastKnown;
+
+      return await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    } catch (e) {
+      if (__DEV__) {
+        // Reduce noise in production builds
+        // eslint-disable-next-line no-console
+        console.warn('Location: fallback failed, proceeding without location');
+      }
+      return null;
+    }
+  };
+
   const checkLocationPermission = async () => {
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
       setLocationPermission(status === 'granted');
     } catch (err) {
-      console.error('Error checking location permission:', err);
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn('Error checking location permission');
+      }
       setError('Failed to check location permission');
     } finally {
       setLoading(false);
@@ -44,11 +69,14 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
 
       if (status === 'granted') {
         // Get initial location if permission is granted
-        const location = await Location.getCurrentPositionAsync({});
-        setCurrentLocation(location);
+        const location = await getSafeCurrentLocation();
+        if (location) setCurrentLocation(location);
       }
     } catch (err) {
-      console.error('Error requesting location permission:', err);
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn('Error requesting location permission');
+      }
       setError('Failed to request location permission');
     } finally {
       setLoading(false);
@@ -64,12 +92,17 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const location = await Location.getCurrentPositionAsync({});
-      setCurrentLocation(location);
+      const location = await getSafeCurrentLocation();
+      if (location) {
+        setCurrentLocation(location);
+      }
       return location;
     } catch (err) {
-      console.error('Error getting current location:', err);
-      setError('Failed to get current location');
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn('Error getting current location');
+      }
+      setError('Unable to get current location');
       return null;
     } finally {
       setLoading(false);

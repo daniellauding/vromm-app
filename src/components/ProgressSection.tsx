@@ -10,6 +10,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { useCallback } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../context/AuthContext';
+import { useStudentSwitch } from '../context/StudentSwitchContext';
 
 interface LearningPath {
   id: string;
@@ -76,9 +77,14 @@ function ProgressCircle({
   );
 }
 
-export function ProgressSection() {
+interface ProgressSectionProps {
+  activeUserId?: string | null;
+}
+
+export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const { language: lang, t } = useTranslation();
-  const { profile } = useAuth();
+  const { profile, user: authUser } = useAuth();
+  const { activeStudentId } = useStudentSwitch();
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [activePath, setActivePath] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -86,15 +92,26 @@ export function ProgressSection() {
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [user, setUser] = useState<{ id: string } | null>(null);
+  
+  // Use activeStudentId from context, then activeUserId prop, then authenticated user
+  const effectiveUserId = activeStudentId || activeUserId || authUser?.id || user?.id;
+
+  // Debug logging for ProgressSection
+  console.log('📊 [ProgressSection] Props activeUserId:', activeUserId);
+  console.log('📊 [ProgressSection] StudentSwitch activeStudentId:', activeStudentId);
+  console.log('📊 [ProgressSection] Auth user ID:', user?.id);
+  console.log('📊 [ProgressSection] Effective user ID:', effectiveUserId);
+  console.log('📊 [ProgressSection] Profile:', profile);
+  console.log('📊 [ProgressSection] Is viewing student data?', !!activeStudentId);
 
   // Add useFocusEffect to refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log('ProgressSection: Screen focused, refreshing data');
-      if (user) {
+      if (effectiveUserId) {
         fetchCompletions();
       }
-    }, [user]),
+    }, [effectiveUserId]),
   );
 
   useEffect(() => {
@@ -114,9 +131,9 @@ export function ProgressSection() {
 
   // Set up real-time subscription for exercise completions
   useEffect(() => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
-    console.log('ProgressSection: Setting up real-time subscription', user.id);
+    console.log('ProgressSection: Setting up real-time subscription', effectiveUserId);
 
     // Fetch completions - extract as standalone function for reuse
     const fetchCompletions = async () => {
@@ -124,14 +141,15 @@ export function ProgressSection() {
         const { data, error } = await supabase
           .from('learning_path_exercise_completions')
           .select('exercise_id')
-          .eq('user_id', user.id);
+          .eq('user_id', effectiveUserId);
 
         if (!error && data) {
           // Use a function updater to ensure we're working with the latest state
-          console.log(`ProgressSection: Fetched ${data.length} completions`);
+          console.log(`📊 [ProgressSection] Fetched ${data.length} completions for user:`, effectiveUserId);
+          console.log(`📊 [ProgressSection] Completion data:`, data);
           setCompletedIds(data.map((c: { exercise_id: string }) => c.exercise_id));
         } else {
-          console.log('ProgressSection: No completions or error', error);
+          console.log('📊 [ProgressSection] No completions or error for user:', effectiveUserId, error);
           setCompletedIds([]);
         }
       } catch (err) {
@@ -157,7 +175,7 @@ export function ProgressSection() {
           event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'learning_path_exercise_completions',
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${effectiveUserId}`,
         },
         (payload) => {
           // Log payload for debugging
@@ -181,7 +199,7 @@ export function ProgressSection() {
       clearTimeout(debounceTimer);
       supabase.removeChannel(subscription);
     };
-  }, [user]);
+  }, [effectiveUserId]);
 
   useEffect(() => {
     // Fetch all exercises for each path
@@ -226,9 +244,12 @@ export function ProgressSection() {
   const handlePathPress = (path: LearningPath) => {
     setActivePath(path.id);
     // Navigate to ProgressTab with the specific path details and showDetail flag
+    // Pass activeUserId so ProgressScreen knows which user's data to show
+    console.log('📊 [ProgressSection] Navigating to ProgressTab with effectiveUserId:', effectiveUserId);
     navigation.navigate('ProgressTab', {
       selectedPathId: path.id,
       showDetail: true,
+      activeUserId: effectiveUserId, // Pass the active user ID (includes StudentSwitch context)
     });
   };
 
@@ -242,19 +263,20 @@ export function ProgressSection() {
 
   // Make fetchCompletions available at component level
   const fetchCompletions = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     try {
       const { data, error } = await supabase
         .from('learning_path_exercise_completions')
         .select('exercise_id')
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
 
       if (!error && data) {
-        console.log(`ProgressSection: Fetched ${data.length} completions`);
+        console.log(`📊 [ProgressSection] Fetched ${data.length} completions for user:`, effectiveUserId);
+        console.log(`📊 [ProgressSection] Completion data:`, data);
         setCompletedIds(data.map((c: { exercise_id: string }) => c.exercise_id));
       } else {
-        console.log('ProgressSection: No completions or error', error);
+        console.log('📊 [ProgressSection] No completions or error for user:', effectiveUserId, error);
         setCompletedIds([]);
       }
     } catch (err) {

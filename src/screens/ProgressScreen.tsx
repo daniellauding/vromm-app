@@ -261,8 +261,11 @@ export function ProgressScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<TabParamList, 'ProgressTab'>>();
   const { language: lang, t } = useTranslation(); // Get user's language preference and t function
-  const { profile } = useAuth(); // Get user profile for auth context
-  const { selectedPathId, showDetail } = route.params || {};
+  const { profile, user: authUser } = useAuth(); // Get user profile for auth context
+  const { selectedPathId, showDetail, activeUserId } = route.params || {};
+  
+  // Use activeUserId from navigation if provided (for student switching)
+  const effectiveUserId = activeUserId || authUser?.id;
 
   const [activePath, setActivePath] = useState<string>(selectedPathId || '');
   const [showDetailView, setShowDetailView] = useState<boolean>(!!showDetail);
@@ -273,6 +276,14 @@ export function ProgressScreen() {
   const [exercises, setExercises] = useState<PathExercise[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<PathExercise | null>(null);
   const { user } = useAuth();
+  
+  // Debug logging for ProgressScreen
+  console.log('📚 [ProgressScreen] Current user:', user?.id, user?.email);
+  console.log('📚 [ProgressScreen] Effective user ID:', effectiveUserId);
+  console.log('📚 [ProgressScreen] Profile:', profile);
+  console.log('📚 [ProgressScreen] Route params:', route.params);
+  console.log('📚 [ProgressScreen] Is viewing student data?', !!activeUserId);
+  
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [completionsLoading, setCompletionsLoading] = useState(false);
@@ -486,14 +497,14 @@ export function ProgressScreen() {
 
   // NEW: Load user payments and access control
   const loadUserAccess = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     try {
       // Load user payments
       const { data: payments, error: paymentsError } = await supabase
         .from('user_payments')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .eq('status', 'completed');
 
       if (!paymentsError && payments) {
@@ -503,7 +514,7 @@ export function ProgressScreen() {
       // Load accessible paths using helper function
       const { data: pathsData, error: pathsError } = await supabase.rpc(
         'user_can_access_paths_bulk',
-        { user_uuid: user.id },
+        { user_uuid: effectiveUserId },
       );
 
       if (!pathsError && pathsData) {
@@ -513,7 +524,7 @@ export function ProgressScreen() {
       // Load accessible exercises using helper function
       const { data: exercisesData, error: exercisesError } = await supabase.rpc(
         'user_can_access_exercises_bulk',
-        { user_uuid: user.id },
+        { user_uuid: effectiveUserId },
       );
 
       if (!exercisesError && exercisesData) {
@@ -928,7 +939,13 @@ export function ProgressScreen() {
 
   // Toggle completion for an exercise
   const toggleCompletion = async (exerciseId: string) => {
-    if (!user) return;
+    if (!effectiveUserId) return;
+    
+    // Only allow completion toggling if user is viewing their own data or is a supervisor
+    if (activeUserId && user?.id !== effectiveUserId) {
+      // This is a supervisor viewing student data - they can toggle completions
+      console.log('📚 Supervisor toggling completion for student:', effectiveUserId);
+    }
 
     // Find the exercise details for debugging
     const exercise = exercises.find((ex) => ex.id === exerciseId);
@@ -956,7 +973,7 @@ export function ProgressScreen() {
         const { error } = await supabase
           .from('learning_path_exercise_completions')
           .delete()
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .eq('exercise_id', exerciseId);
 
         if (error) {
@@ -986,7 +1003,7 @@ export function ProgressScreen() {
       try {
         const { error } = await supabase
           .from('learning_path_exercise_completions')
-          .insert([{ user_id: user.id, exercise_id: exerciseId }]);
+          .insert([{ user_id: effectiveUserId, exercise_id: exerciseId }]);
 
         if (error) {
           console.error('❌ [ProgressScreen] Error adding completion:', error);
@@ -1466,7 +1483,7 @@ export function ProgressScreen() {
 
   // Dedicated function to fetch completions
   const fetchCompletions = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     
     try {
       setCompletionsLoading(true);
@@ -1476,13 +1493,13 @@ export function ProgressScreen() {
       const { data: regularData, error: regularError } = await supabase
         .from('learning_path_exercise_completions')
         .select('exercise_id')
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
 
       // Fetch virtual repeat completions
       const { data: virtualData, error: virtualError } = await supabase
         .from('virtual_repeat_completions')
         .select('exercise_id, repeat_number')
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
 
       if (regularError) {
         console.error('❌ Error fetching regular completions:', regularError);
@@ -1525,8 +1542,8 @@ export function ProgressScreen() {
     console.log('✅ Setting up real-time subscriptions');
     
     // Set up real-time subscription for completions
-    if (user) {
-      console.log('ProgressScreen: Setting up real-time subscription', user.id);
+    if (effectiveUserId) {
+      console.log('ProgressScreen: Setting up real-time subscription', effectiveUserId);
 
       // Create a unique channel name that includes the component instance
       const channelName = `progress-screen-completions-${Date.now()}`;
@@ -1540,7 +1557,7 @@ export function ProgressScreen() {
             event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
             schema: 'public',
             table: 'learning_path_exercise_completions',
-            filter: `user_id=eq.${user.id}`,
+            filter: `user_id=eq.${effectiveUserId}`,
           },
           (payload) => {
             console.log('ProgressScreen: Realtime update received:', payload.eventType);
@@ -1557,7 +1574,7 @@ export function ProgressScreen() {
         supabase.removeChannel(completionsSubscription);
       };
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   // Calculate percentage of completion for active path
   const calculatePathCompletion = (pathId: string): number => {

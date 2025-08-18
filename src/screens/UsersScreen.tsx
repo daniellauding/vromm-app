@@ -12,16 +12,21 @@ import { format } from 'date-fns';
 import { View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { Alert } from 'react-native';
+import { inviteNewUser } from '../services/invitationService';
 
 type User = {
   id: string;
   full_name?: string;
   avatar_url?: string;
+  email?: string | null;
   location?: string;
   created_at: string;
   role?: string;
   isFollowing?: boolean;
   isCurrentUser?: boolean;
+  isInstructor?: boolean;
+  isStudent?: boolean;
 };
 
 export function UsersScreen() {
@@ -29,10 +34,11 @@ export function UsersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [followLoading, setFollowLoading] = useState<{ [key: string]: boolean }>({});
+  const [relationshipLoading, setRelationshipLoading] = useState<{ [key: string]: boolean }>({});
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
-  const { user } = useAuth();
+  const { user, profile: currentUserProfile } = useAuth();
 
   const fetchUsers = async () => {
     try {
@@ -45,6 +51,7 @@ export function UsersScreen() {
           id,
           full_name,
           avatar_url,
+          email,
           location,
           created_at,
           role
@@ -57,7 +64,7 @@ export function UsersScreen() {
 
       let usersWithFollowStatus = data || [];
 
-      // If user is authenticated, check follow status for each user
+      // If user is authenticated, check follow status and relationships for each user
       if (user?.id) {
         const { data: followData } = await supabase
           .from('user_follows')
@@ -65,11 +72,29 @@ export function UsersScreen() {
           .eq('follower_id', user.id);
 
         const followingIds = new Set(followData?.map((f) => f.following_id) || []);
+        
+        // Check instructor relationships (users that are instructors for current user)
+        const { data: instructorData } = await supabase
+          .from('student_supervisor_relationships')
+          .select('supervisor_id')
+          .eq('student_id', user.id);
+        
+        const instructorIds = new Set(instructorData?.map((r) => r.supervisor_id) || []);
+        
+        // Check student relationships (users that are students of current user)
+        const { data: studentData } = await supabase
+          .from('student_supervisor_relationships')
+          .select('student_id')
+          .eq('supervisor_id', user.id);
+        
+        const studentIds = new Set(studentData?.map((r) => r.student_id) || []);
 
         usersWithFollowStatus = (data || []).map((userData) => ({
           ...userData,
           isFollowing: followingIds.has(userData.id),
           isCurrentUser: userData.id === user.id,
+          isInstructor: instructorIds.has(userData.id),
+          isStudent: studentIds.has(userData.id),
         }));
       }
 
@@ -101,6 +126,115 @@ export function UsersScreen() {
 
   const navigateToProfile = (userId: string) => {
     navigation.navigate('PublicProfile', { userId });
+  };
+
+  const handleInstructorToggle = async (targetUserId: string, isCurrentlyInstructor: boolean) => {
+    if (!user?.id || relationshipLoading[targetUserId]) return;
+    
+    console.log('🎓 INSTRUCTOR TOGGLE (UsersScreen) - Starting');
+    console.log('🎓 Current user ID:', user.id);
+    console.log('🎓 Target user ID:', targetUserId);
+    console.log('🎓 Current isInstructor state:', isCurrentlyInstructor);
+    console.log('🎓 Action:', isCurrentlyInstructor ? 'UNSET as instructor' : 'SET as instructor');
+    
+    try {
+      setRelationshipLoading((prev) => ({ ...prev, [targetUserId]: true }));
+      
+      if (isCurrentlyInstructor) {
+        // Remove instructor relationship
+        console.log('🎓 REMOVING instructor relationship...');
+        const { error } = await supabase
+          .from('student_supervisor_relationships')
+          .delete()
+          .eq('student_id', user.id)
+          .eq('supervisor_id', targetUserId);
+        
+        if (error) throw error;
+        
+        console.log('✅ INSTRUCTOR REMOVED successfully');
+        setUsers((prev) =>
+          prev.map((u) => (u.id === targetUserId ? { ...u, isInstructor: false } : u))
+        );
+        Alert.alert('Success', 'Removed as your instructor');
+      } else {
+        // Send invitation to instructor instead of creating relationship
+        console.log('🎓 SENDING INSTRUCTOR INVITATION...');
+        const target = users.find((u) => u.id === targetUserId);
+        if (!target?.email) throw new Error('Target user has no email, cannot invite');
+        const result = await inviteNewUser({
+          email: target.email,
+          role: 'instructor',
+          supervisorId: user.id,
+          supervisorName: currentUserProfile?.full_name || undefined,
+          inviterRole: currentUserProfile?.role as any,
+          relationshipType: 'student_invites_supervisor',
+        });
+        if (!result.success) throw new Error(result.error || 'Failed to send invitation');
+        Alert.alert('Invitation Sent', 'They will appear once they accept.');
+      }
+    } catch (error) {
+      console.error('❌ ERROR toggling instructor:', error);
+      Alert.alert('Error', 'Failed to update instructor status');
+    } finally {
+      setRelationshipLoading((prev) => ({ ...prev, [targetUserId]: false }));
+      console.log('🎓 INSTRUCTOR TOGGLE (UsersScreen) - Complete');
+    }
+  };
+  
+  const handleStudentToggle = async (targetUserId: string, isCurrentlyStudent: boolean) => {
+    if (!user?.id || relationshipLoading[targetUserId]) return;
+    
+    console.log('👨‍🎓 STUDENT TOGGLE (UsersScreen) - Starting');
+    console.log('👨‍🎓 Current user ID:', user.id);
+    console.log('👨‍🎓 Target user ID:', targetUserId);
+    console.log('👨‍🎓 Current isStudent state:', isCurrentlyStudent);
+    console.log('👨‍🎓 Action:', isCurrentlyStudent ? 'UNSET as student' : 'SET as student');
+    
+    try {
+      setRelationshipLoading((prev) => ({ ...prev, [targetUserId]: true }));
+      
+      if (isCurrentlyStudent) {
+        // Remove student relationship with notification
+        console.log('👨‍🎓 REMOVING student relationship...');
+        
+        const { removeSupervisorRelationship } = await import('../services/invitationService');
+        const success = await removeSupervisorRelationship(
+          targetUserId, // studentId
+          user.id, // supervisorId
+          undefined, // no message for now
+          user.id // removedByUserId
+        );
+        
+        if (!success) throw new Error('Failed to remove relationship');
+        
+        console.log('✅ STUDENT REMOVED successfully');
+        setUsers((prev) =>
+          prev.map((u) => (u.id === targetUserId ? { ...u, isStudent: false } : u))
+        );
+        Alert.alert('Success', 'Removed as your student');
+      } else {
+        // Send invitation to student instead of creating relationship
+        console.log('👨‍🎓 SENDING STUDENT INVITATION...');
+        const target = users.find((u) => u.id === targetUserId);
+        if (!target?.email) throw new Error('Target user has no email, cannot invite');
+        const result = await inviteNewUser({
+          email: target.email,
+          role: 'student',
+          supervisorId: user.id,
+          supervisorName: currentUserProfile?.full_name || undefined,
+          inviterRole: currentUserProfile?.role as any,
+          relationshipType: 'supervisor_invites_student',
+        });
+        if (!result.success) throw new Error(result.error || 'Failed to send invitation');
+        Alert.alert('Invitation Sent', 'They will appear once they accept.');
+      }
+    } catch (error) {
+      console.error('❌ ERROR toggling student:', error);
+      Alert.alert('Error', 'Failed to update student status');
+    } finally {
+      setRelationshipLoading((prev) => ({ ...prev, [targetUserId]: false }));
+      console.log('👨‍🎓 STUDENT TOGGLE (UsersScreen) - Complete');
+    }
   };
 
   const handleFollow = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
@@ -239,32 +373,34 @@ export function UsersScreen() {
               </Card>
             )}
 
-            {/* Follow/Unfollow Button */}
+            {/* Action Buttons */}
             {!user.isCurrentUser && (
-              <Button
-                size="sm"
-                variant={user.isFollowing ? 'secondary' : 'primary'}
-                backgroundColor={user.isFollowing ? '$red5' : '$blue10'}
-                onPress={() => handleFollow(user.id, user.isFollowing || false)}
-                disabled={followLoading[user.id]}
-                minWidth={80}
-              >
-                <XStack gap="$1" alignItems="center">
-                  {followLoading[user.id] ? (
-                    <Text color={user.isFollowing ? '$red11' : 'white'} fontSize="$2">
-                      ...
-                    </Text>
-                  ) : (
-                    <>
-                      <Feather
-                        name={user.isFollowing ? 'user-minus' : 'user-plus'}
-                        size={12}
-                        color={user.isFollowing ? '#EF4444' : 'white'}
-                      />
-                      <Text
-                        color={user.isFollowing ? '$red11' : 'white'}
-                        fontSize="$2"
-                        fontWeight="500"
+              <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
+                {/* Follow/Unfollow Button */}
+                <Button
+                  size="sm"
+                  variant={user.isFollowing ? 'secondary' : 'primary'}
+                  backgroundColor={user.isFollowing ? '$red5' : '$blue10'}
+                  onPress={() => handleFollow(user.id, user.isFollowing || false)}
+                  disabled={followLoading[user.id]}
+                  minWidth={80}
+                >
+                  <XStack gap="$1" alignItems="center">
+                    {followLoading[user.id] ? (
+                      <Text color={user.isFollowing ? '$red11' : 'white'} fontSize="$2">
+                        ...
+                      </Text>
+                    ) : (
+                      <>
+                        <Feather
+                          name={user.isFollowing ? 'user-minus' : 'user-plus'}
+                          size={12}
+                          color={user.isFollowing ? '#EF4444' : 'white'}
+                        />
+                        <Text
+                          color={user.isFollowing ? '$red11' : 'white'}
+                          fontSize="$2"
+                          fontWeight="500"
                       >
                         {user.isFollowing ? 'Unfollow' : 'Follow'}
                       </Text>
@@ -272,6 +408,84 @@ export function UsersScreen() {
                   )}
                 </XStack>
               </Button>
+              
+              {/* Instructor/Student Relationship Buttons */}
+              {currentUserProfile && (
+                <>
+                  {/* Set as Instructor button for instructor/admin/school users viewing student profiles */}
+                  {['instructor', 'admin', 'school'].includes(currentUserProfile.role) && 
+                   user.role === 'student' && (
+                    <Button
+                      size="sm"
+                      variant={user.isStudent ? 'secondary' : 'primary'}
+                      backgroundColor={user.isStudent ? '$orange5' : '$green10'}
+                      onPress={() => handleStudentToggle(user.id, user.isStudent || false)}
+                      disabled={relationshipLoading[user.id]}
+                      minWidth={80}
+                    >
+                      <XStack gap="$1" alignItems="center">
+                        {relationshipLoading[user.id] ? (
+                          <Text color={user.isStudent ? '$orange11' : 'white'} fontSize="$2">
+                            ...
+                          </Text>
+                        ) : (
+                          <>
+                            <Feather
+                              name={user.isStudent ? 'user-x' : 'user-check'}
+                              size={12}
+                              color={user.isStudent ? '#F97316' : 'white'}
+                            />
+                            <Text
+                              color={user.isStudent ? '$orange11' : 'white'}
+                              fontSize="$2"
+                              fontWeight="500"
+                            >
+                              {user.isStudent ? 'Unset Student' : 'Set Student'}
+                            </Text>
+                          </>
+                        )}
+                      </XStack>
+                    </Button>
+                  )}
+                  
+                  {/* Set as Instructor button for student users viewing instructor profiles */}
+                  {currentUserProfile.role === 'student' && 
+                   ['instructor', 'admin', 'school'].includes(user.role || '') && (
+                    <Button
+                      size="sm"
+                      variant={user.isInstructor ? 'secondary' : 'primary'}
+                      backgroundColor={user.isInstructor ? '$purple5' : '$blue10'}
+                      onPress={() => handleInstructorToggle(user.id, user.isInstructor || false)}
+                      disabled={relationshipLoading[user.id]}
+                      minWidth={80}
+                    >
+                      <XStack gap="$1" alignItems="center">
+                        {relationshipLoading[user.id] ? (
+                          <Text color={user.isInstructor ? '$purple11' : 'white'} fontSize="$2">
+                            ...
+                          </Text>
+                        ) : (
+                          <>
+                            <Feather
+                              name={user.isInstructor ? 'user-x' : 'user-check'}
+                              size={12}
+                              color={user.isInstructor ? '#A855F7' : 'white'}
+                            />
+                            <Text
+                              color={user.isInstructor ? '$purple11' : 'white'}
+                              fontSize="$2"
+                              fontWeight="500"
+                            >
+                              {user.isInstructor ? 'Unset Instructor' : 'Set Instructor'}
+                            </Text>
+                          </>
+                        )}
+                      </XStack>
+                    </Button>
+                  )}
+                </>
+              )}
+              </XStack>
             )}
           </YStack>
         </XStack>

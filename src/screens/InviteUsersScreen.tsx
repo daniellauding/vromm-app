@@ -162,22 +162,29 @@ export const InviteUsersScreen: React.FC<InviteUsersScreenProps> = ({ route }) =
 
       if (error) throw error;
 
-      // Create invitation notifications for each invited user
+      // Create invitation notifications for each invited user and send push
       for (const userId of selectedUserIds) {
         try {
-          const { error: notificationError } = await supabase
-            .from('notifications')
-            .insert({
-              user_id: userId,
-              type: 'event_invitation',
-              message: `You've been invited to "${eventTitle}"`,
-              data: { event_id: eventId, event_title: eventTitle },
-              metadata: { event_id: eventId, inviter_id: user?.id },
-              actor_id: user?.id,
-            });
+          // Use central service helper to create notification (triggers realtime)
+          const { notificationService } = await import('../services/notificationService');
+          await notificationService.createEventInvitationNotification(
+            userId,
+            eventId,
+            eventTitle,
+            user?.id,
+          );
 
-          if (notificationError) {
-            console.error('Error creating invitation notification:', notificationError);
+          // Best-effort push
+          try {
+            const { pushNotificationService } = await import('../services/pushNotificationService');
+            await pushNotificationService.sendPushNotification(
+              userId,
+              'Event Invitation 🎟️',
+              `You have been invited to ${eventTitle}`,
+              { event_id: eventId, action_url: 'vromm://notifications' },
+            );
+          } catch (e) {
+            console.log('Push send failed (event invite):', e);
           }
         } catch (error) {
           console.error('Error sending invitation notification:', error);

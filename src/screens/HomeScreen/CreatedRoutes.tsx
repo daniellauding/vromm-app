@@ -1,6 +1,7 @@
 import { RouteCard } from '@/src/components/RouteCard';
 import { SectionHeader } from '@/src/components/SectionHeader';
 import { useAuth } from '@/src/context/AuthContext';
+import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
@@ -12,42 +13,55 @@ import { supabase } from '../../lib/supabase';
 export const CreatedRoutes = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const [createdRoutes, setCreatedRoutes] = React.useState<Route[]>([]);
+  
+  // Use effective user ID (student if viewing as student, otherwise current user)
+  const effectiveUserId = getEffectiveUserId();
 
   React.useEffect(() => {
-    if (!user) return;
+    if (!effectiveUserId) return;
+    
     const loadCreatedRoutes = async () => {
-      if (!user) return;
+      console.log('🗺️ [CreatedRoutes] Loading created routes for user:', effectiveUserId);
+      console.log('🗺️ [CreatedRoutes] Is viewing as student:', isViewingAsStudent);
+      
       try {
         const { data: createdData, error: createdError } = await supabase
           .from('routes')
           .select('*')
-          .eq('creator_id', user.id)
+          .eq('creator_id', effectiveUserId)
           .order('created_at', { ascending: false });
 
         if (createdError) throw createdError;
 
+        console.log('🗺️ [CreatedRoutes] Loaded created routes:', createdData?.length || 0);
         setCreatedRoutes(createdData as Route[]);
       } catch (err) {
-        console.error('Error loading created routes:', err);
+        console.error('❌ [CreatedRoutes] Error loading created routes:', err);
       }
     };
     loadCreatedRoutes();
-  }, [user]);
+  }, [effectiveUserId]);
 
   const onNavigateToRouteList = React.useCallback(() => {
     navigation.navigate('RouteList', {
       type: 'created',
-      title: t('home.createdRoutes'),
+      title: isViewingAsStudent 
+        ? `${activeStudentName || 'Student'}'s Created Routes`
+        : t('home.createdRoutes'),
       routes: createdRoutes,
     });
-  }, [createdRoutes, navigation, t]);
+  }, [createdRoutes, navigation, t, isViewingAsStudent, activeStudentName]);
 
   return (
     <YStack space="$4">
       <SectionHeader
-        title={t('home.createdRoutes')}
+        title={isViewingAsStudent 
+          ? `${activeStudentName || 'Student'}'s Created Routes`
+          : t('home.createdRoutes')
+        }
         variant="chevron"
         onAction={onNavigateToRouteList}
         actionLabel={t('common.seeAll')}

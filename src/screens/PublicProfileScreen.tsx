@@ -17,6 +17,9 @@ import { ProfileButton } from '../components/ProfileButton';
 import { useFocusEffect } from '@react-navigation/native';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 import { messageService } from '../services/messageService';
+import { inviteNewUser, removeSupervisorRelationship } from '../services/invitationService';
+import { RelationshipReviewSection } from '../components/RelationshipReviewSection';
+import { RelationshipReviewService } from '../services/relationshipReviewService';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   routes_created: number;
@@ -27,6 +30,7 @@ type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   total_distance_driven: number; // in km
   total_duration_driven: number; // in seconds
   recorded_routes_created: number; // routes created using recording
+  email: string | null;
   school: {
     name: string;
     id: string;
@@ -43,7 +47,7 @@ export function PublicProfileScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
-  const { user } = useAuth();
+  const { user, profile: currentUserProfile } = useAuth();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
 
@@ -68,6 +72,7 @@ export function PublicProfileScreen() {
   });
   const [showAdminControls, setShowAdminControls] = useState(false);
 
+
   // Follow/Unfollow system state
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
@@ -81,16 +86,38 @@ export function PublicProfileScreen() {
   const [schools, setSchools] = useState<
     Array<{ school_id: string; school_name: string; school_location: string }>
   >([]);
+  
+  // Instructor/Student relationship states
+  const [isInstructor, setIsInstructor] = useState(false);
+  const [isStudent, setIsStudent] = useState(false);
+  const [relationshipLoading, setRelationshipLoading] = useState(false);
+  
+  // Pending invitation states
+  const [hasPendingInvitation, setHasPendingInvitation] = useState(false);
+  const [pendingInvitationType, setPendingInvitationType] = useState<'sent' | 'received' | null>(null);
+
+  // Relationship reviews state
+  const [relationshipReviews, setRelationshipReviews] = useState<any[]>([]);
+  const [userRating, setUserRating] = useState({
+    averageRating: 0,
+    reviewCount: 0,
+    canReview: false,
+    alreadyReviewed: false,
+  });
 
   useEffect(() => {
     loadProfile();
     if (userId && user?.id && userId !== user.id) {
       loadFollowData();
+      checkRelationshipStatus();
+      checkPendingInvitations();
     }
     if (userId) {
       loadUserRelationships();
+      loadRelationshipReviews();
+      loadUserRating();
     }
-  }, [userId, route.params?.refresh, user?.id]);
+  }, [userId, route.params?.refresh, user?.id, loadRelationshipReviews, loadUserRating]);
 
   // Check if this is the current user's profile
   useEffect(() => {
@@ -371,8 +398,10 @@ export function PublicProfileScreen() {
 
   const handleEditProfile = () => {
     // Navigate to the edit screen within the nested stack
-    navigation.navigate('ProfileScreen');
+    navigation.push('ProfileScreen');
   };
+
+
 
   const handleViewAllRoutes = () => {
     navigation.navigate('RouteList', {
@@ -527,6 +556,203 @@ export function PublicProfileScreen() {
     }
   };
 
+  // Check if current user has instructor/student relationship with this profile
+  const checkRelationshipStatus = async () => {
+    if (!user?.id || !userId) return;
+    
+    try {
+      // Check if this profile is supervising the current user
+      const { data: instructorData } = await supabase
+        .from('student_supervisor_relationships')
+        .select('id')
+        .eq('student_id', user.id)
+        .eq('supervisor_id', userId)
+        .single();
+      
+      setIsInstructor(!!instructorData);
+      
+      // Check if current user is supervising this profile
+      const { data: studentData } = await supabase
+        .from('student_supervisor_relationships')
+        .select('id')
+        .eq('supervisor_id', user.id)
+        .eq('student_id', userId)
+        .single();
+      
+      setIsStudent(!!studentData);
+    } catch (error) {
+      console.log('No existing relationship');
+    }
+  };
+
+  // Enhanced pending invitation check with custom messages
+  const [pendingInvitationData, setPendingInvitationData] = useState<any>(null);
+  
+  const checkPendingInvitations = async () => {
+    if (!user?.id || !userId || !profile?.email || !user.email) return;
+    
+    try {
+      // Check if current user sent invitation to this profile
+      const { data: sentInvitations } = await supabase
+        .from('pending_invitations')
+        .select('id, email, status, metadata, created_at')
+        .eq('invited_by', user.id)
+        .eq('email', profile.email.toLowerCase())
+        .eq('status', 'pending');
+      
+      // Check if this profile sent invitation to current user
+      const { data: receivedInvitations } = await supabase
+        .from('pending_invitations')
+        .select('id, email, status, metadata, created_at')
+        .eq('invited_by', userId)
+        .eq('email', user.email.toLowerCase())
+        .eq('status', 'pending');
+      
+      if (sentInvitations && sentInvitations.length > 0) {
+        setHasPendingInvitation(true);
+        setPendingInvitationType('sent');
+        setPendingInvitationData(sentInvitations[0]);
+        console.log('📤 Found sent invitation to this user with data:', sentInvitations[0]);
+      } else if (receivedInvitations && receivedInvitations.length > 0) {
+        setHasPendingInvitation(true);
+        setPendingInvitationType('received');
+        setPendingInvitationData(receivedInvitations[0]);
+        console.log('📥 Found received invitation from this user with data:', receivedInvitations[0]);
+      } else {
+        setHasPendingInvitation(false);
+        setPendingInvitationType(null);
+        setPendingInvitationData(null);
+      }
+    } catch (error) {
+      console.error('Error checking pending invitations:', error);
+    }
+  };
+  
+  // Handle set/unset as instructor
+  const handleInstructorToggle = async () => {
+    if (!user?.id || !userId || relationshipLoading) return;
+    
+    console.log('🎓 INSTRUCTOR TOGGLE - Starting');
+    console.log('🎓 Current user ID:', user.id);
+    console.log('🎓 Target user ID:', userId);
+    console.log('🎓 Current isInstructor state:', isInstructor);
+    console.log('🎓 Action:', isInstructor ? 'UNSET as instructor' : 'SET as instructor');
+    
+    try {
+      setRelationshipLoading(true);
+      
+      if (isInstructor) {
+        // Remove instructor relationship
+        console.log('🎓 REMOVING instructor relationship...');
+        console.log('🎓 DELETE WHERE student_id =', user.id, 'AND supervisor_id =', userId);
+        
+        const { error } = await supabase
+          .from('student_supervisor_relationships')
+          .delete()
+          .eq('student_id', user.id)
+          .eq('supervisor_id', userId);
+        
+        if (error) throw error;
+        
+        console.log('✅ INSTRUCTOR REMOVED successfully');
+        setIsInstructor(false);
+        Alert.alert('Success', 'Removed as your instructor');
+      } else {
+        // Invite instructor instead of creating relationship directly
+        console.log('🎓 SENDING INSTRUCTOR INVITATION...');
+        if (!profile?.email) {
+          throw new Error('Target user has no email on file. Cannot send invitation.');
+        }
+        const result = await inviteNewUser({
+          email: profile.email,
+          role: 'instructor',
+          supervisorId: user.id,
+          supervisorName: currentUserProfile?.full_name || undefined,
+          inviterRole: (currentUserProfile as any)?.role,
+          relationshipType: 'student_invites_supervisor',
+        });
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to send invitation');
+        }
+
+        console.log('✅ INSTRUCTOR INVITATION SENT');
+        // Do not set isInstructor yet; wait for acceptance
+        Alert.alert('Invitation Sent', 'An invitation has been sent to become your instructor.');
+      }
+      
+      // Reload relationships
+      loadUserRelationships();
+    } catch (error) {
+      console.error('❌ ERROR toggling instructor:', error);
+      Alert.alert('Error', 'Failed to update instructor status');
+    } finally {
+      setRelationshipLoading(false);
+      console.log('🎓 INSTRUCTOR TOGGLE - Complete');
+    }
+  };
+  
+  // Handle set/unset as student
+  const handleStudentToggle = async () => {
+    if (!user?.id || !userId || relationshipLoading) return;
+    
+    console.log('👨‍🎓 STUDENT TOGGLE - Starting');
+    console.log('👨‍🎓 Current user ID:', user.id);
+    console.log('👨‍🎓 Target user ID:', userId);
+    console.log('👨‍🎓 Current isStudent state:', isStudent);
+    console.log('👨‍🎓 Action:', isStudent ? 'UNSET as student' : 'SET as student');
+    
+    try {
+      setRelationshipLoading(true);
+      
+      if (isStudent) {
+        // Remove student relationship with notification
+        console.log('👨‍🎓 REMOVING student relationship...');
+        
+        const success = await removeSupervisorRelationship(
+          userId, // studentId
+          user.id, // supervisorId
+          undefined, // no message for now
+          user.id // removedByUserId
+        );
+        
+        if (!success) throw new Error('Failed to remove relationship');
+        
+        console.log('✅ STUDENT REMOVED successfully');
+        setIsStudent(false);
+        Alert.alert('Success', 'Removed as your student');
+      } else {
+        // Invite student instead of creating relationship directly
+        console.log('👨‍🎓 SENDING STUDENT INVITATION...');
+        if (!profile?.email) {
+          throw new Error('Target user has no email on file. Cannot send invitation.');
+        }
+        const result = await inviteNewUser({
+          email: profile.email,
+          role: 'student',
+          supervisorId: user.id,
+          supervisorName: currentUserProfile?.full_name || undefined,
+          inviterRole: (currentUserProfile as any)?.role,
+          relationshipType: 'supervisor_invites_student',
+        });
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to send invitation');
+        }
+
+        console.log('✅ STUDENT INVITATION SENT');
+        // Do not set isStudent yet; wait for acceptance
+        Alert.alert('Invitation Sent', 'An invitation has been sent to add this user as your student.');
+      }
+    } catch (error) {
+      console.error('❌ ERROR toggling student:', error);
+      Alert.alert('Error', 'Failed to update student status');
+    } finally {
+      setRelationshipLoading(false);
+      console.log('👨‍🎓 STUDENT TOGGLE - Complete');
+    }
+  };
+  
   const handleFollow = async () => {
     try {
       if (!user?.id || !userId || followLoading) return;
@@ -611,6 +837,30 @@ export function PublicProfileScreen() {
       ],
     );
   };
+
+  // Load relationship reviews
+  const loadRelationshipReviews = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const reviews = await RelationshipReviewService.getReviewsForUser(userId);
+      setRelationshipReviews(reviews);
+    } catch (error) {
+      console.error('Error loading relationship reviews:', error);
+    }
+  }, [userId]);
+
+  // Load user rating data
+  const loadUserRating = useCallback(async () => {
+    if (!userId || !profile?.role) return;
+
+    try {
+      const rating = await RelationshipReviewService.getUserRating(userId, profile.role);
+      setUserRating(rating);
+    } catch (error) {
+      console.error('Error loading user rating:', error);
+    }
+  }, [userId, profile?.role]);
 
   if (loading) {
     return (
@@ -708,6 +958,83 @@ export function PublicProfileScreen() {
                   </XStack>
                 </Button>
 
+                {/* Instructor/Student Relationship Button - Only show if no pending invitation */}
+                {currentUserProfile && !hasPendingInvitation && (
+                  <>
+                    {/* Show Set as Student button for instructor/admin/school users viewing student profiles */}
+                    {['instructor', 'admin', 'school'].includes(currentUserProfile.role) && 
+                     profile?.role === 'student' && (
+                      <Button
+                        onPress={handleStudentToggle}
+                        disabled={relationshipLoading}
+                        variant={isStudent ? 'secondary' : 'primary'}
+                        backgroundColor={isStudent ? '$orange5' : '$green10'}
+                        size="sm"
+                        flexShrink={1}
+                      >
+                        <XStack gap="$1" alignItems="center">
+                          {relationshipLoading ? (
+                            <Text color={isStudent ? '$orange11' : 'white'} fontSize="$3">
+                              ...
+                            </Text>
+                          ) : (
+                            <>
+                              <Feather
+                                name={isStudent ? 'user-x' : 'user-check'}
+                                size={14}
+                                color={isStudent ? '#F97316' : 'white'}
+                              />
+                              <Text
+                                color={isStudent ? '$orange11' : 'white'}
+                                fontSize="$2"
+                                fontWeight="500"
+                              >
+                                {isStudent ? 'Remove Student' : 'Add as Student'}
+                              </Text>
+                            </>
+                          )}
+                        </XStack>
+                      </Button>
+                    )}
+                    
+                    {/* Show Set as Instructor button for student users viewing instructor profiles */}
+                    {currentUserProfile.role === 'student' && 
+                     ['instructor', 'admin', 'school'].includes(profile?.role || '') && (
+                      <Button
+                        onPress={handleInstructorToggle}
+                        disabled={relationshipLoading}
+                        variant={isInstructor ? 'secondary' : 'primary'}
+                        backgroundColor={isInstructor ? '$purple5' : '$blue10'}
+                        size="sm"
+                        flexShrink={1}
+                      >
+                        <XStack gap="$1" alignItems="center">
+                          {relationshipLoading ? (
+                            <Text color={isInstructor ? '$purple11' : 'white'} fontSize="$3">
+                              ...
+                            </Text>
+                          ) : (
+                            <>
+                              <Feather
+                                name={isInstructor ? 'user-x' : 'user-check'}
+                                size={14}
+                                color={isInstructor ? '#A855F7' : 'white'}
+                              />
+                              <Text
+                                color={isInstructor ? '$purple11' : 'white'}
+                                fontSize="$2"
+                                fontWeight="500"
+                              >
+                                {isInstructor ? 'Remove Instructor' : 'Add as Instructor'}
+                              </Text>
+                            </>
+                          )}
+                        </XStack>
+                      </Button>
+                    )}
+                  </>
+                )}
+
                 {/* Message Button */}
                 <Button
                   onPress={handleMessage}
@@ -771,6 +1098,18 @@ export function PublicProfileScreen() {
           <Text fontSize="$6" fontWeight="bold">
             {profile.full_name || t('profile.unnamed')}
           </Text>
+
+          {profile.is_trusted && (
+            <Card padding="$1" marginTop="$1" backgroundColor="$green5" borderRadius="$3">
+              <Text color="$green11" fontSize="$2">{t('profile.verifiedBadge') || 'Verified'}</Text>
+            </Card>
+          )}
+
+          {!profile.is_trusted && (
+            <Card padding="$1" marginTop="$1" backgroundColor="$red5" borderRadius="$3">
+              <Text color="$red11" fontSize="$2">{t('profile.notVerifiedBadge') || 'Not verified yet'}</Text>
+            </Card>
+          )}
 
           {profile.location && (
             <XStack alignItems="center" gap="$1">
@@ -1009,6 +1348,140 @@ export function PublicProfileScreen() {
           </Card>
         )}
 
+        {/* Pending Invitation Status */}
+        {hasPendingInvitation && pendingInvitationData && (
+          <Card padding="$4" bordered backgroundColor="$blue2" borderColor="$blue6">
+            <YStack gap="$3">
+              <XStack alignItems="center" gap="$2">
+                <Feather name="clock" size={20} color="#3B82F6" />
+                <Text fontSize="$5" fontWeight="bold" color="$blue11">
+                  {pendingInvitationType === 'sent' ? 'Invitation Sent' : 'Invitation Received'}
+                </Text>
+              </XStack>
+
+              <Text color="$blue12" fontSize="$4">
+                {pendingInvitationType === 'sent' 
+                  ? `You sent an invitation to ${profile.full_name}`
+                  : `${profile.full_name} sent you an invitation`}
+              </Text>
+
+              {/* Show custom message if available */}
+              {pendingInvitationData.metadata?.customMessage && (
+                <YStack 
+                  backgroundColor="rgba(59, 130, 246, 0.1)" 
+                  padding={12} 
+                  borderRadius={8} 
+                  borderLeftWidth={4}
+                  borderLeftColor="#3B82F6"
+                >
+                  <Text fontSize={12} color="#3B82F6" fontWeight="600" marginBottom={4}>
+                    💬 Personal Message:
+                  </Text>
+                  <Text fontSize={14} color="$color" fontStyle="italic" lineHeight={18}>
+                    "{pendingInvitationData.metadata.customMessage}"
+                  </Text>
+                </YStack>
+              )}
+
+              <Text color="$gray11" fontSize="$3">
+                Sent: {new Date(pendingInvitationData.created_at).toLocaleDateString()}
+              </Text>
+
+              {/* Action buttons */}
+              <XStack gap="$2">
+                {pendingInvitationType === 'received' && (
+                  <>
+                    <Button
+                      variant="primary"
+                      backgroundColor="$green9"
+                      onPress={async () => {
+                        try {
+                          const { acceptInvitationById } = await import('../services/invitationService');
+                          const success = await acceptInvitationById(pendingInvitationData.id, user?.id || '');
+                          
+                          if (success) {
+                            Alert.alert('Success', 'Invitation accepted! Relationship created.');
+                            // Refresh data
+                            checkPendingInvitations();
+                            checkRelationshipStatus();
+                            loadUserRelationships();
+                          }
+                        } catch (error) {
+                          console.error('Error accepting invitation:', error);
+                          Alert.alert('Error', 'Failed to accept invitation');
+                        }
+                      }}
+                      size="sm"
+                      flex={1}
+                    >
+                      <XStack alignItems="center" gap="$1">
+                        <Feather name="check" size={14} color="white" />
+                        <Text color="white">Accept</Text>
+                      </XStack>
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      backgroundColor="$red9"
+                      onPress={async () => {
+                        try {
+                          const { error } = await supabase
+                            .from('pending_invitations')
+                            .delete()
+                            .eq('id', pendingInvitationData.id);
+                          
+                          if (error) throw error;
+                          
+                          Alert.alert('Success', 'Invitation declined');
+                          checkPendingInvitations();
+                        } catch (error) {
+                          console.error('Error declining invitation:', error);
+                          Alert.alert('Error', 'Failed to decline invitation');
+                        }
+                      }}
+                      size="sm"
+                      flex={1}
+                    >
+                      <XStack alignItems="center" gap="$1">
+                        <Feather name="x" size={14} color="white" />
+                        <Text color="white">Decline</Text>
+                      </XStack>
+                    </Button>
+                  </>
+                )}
+                {pendingInvitationType === 'sent' && (
+                  <Button
+                    variant="secondary"
+                    backgroundColor="$gray7"
+                    onPress={async () => {
+                      try {
+                        const { error } = await supabase
+                          .from('pending_invitations')
+                          .delete()
+                          .eq('id', pendingInvitationData.id);
+                        
+                        if (error) throw error;
+                        
+                        Alert.alert('Success', 'Invitation cancelled');
+                        checkPendingInvitations();
+                      } catch (error) {
+                        console.error('Error cancelling invitation:', error);
+                        Alert.alert('Error', 'Failed to cancel invitation');
+                      }
+                    }}
+                    size="sm"
+                    flex={1}
+                  >
+                    <XStack alignItems="center" gap="$1">
+                      <Feather name="trash-2" size={14} color="white" />
+                      <Text color="white">Cancel</Text>
+                    </XStack>
+                  </Button>
+                )}
+              </XStack>
+            </YStack>
+          </Card>
+        )}
+
         {/* Connections */}
         {(schools.length > 0 || supervisors.length > 0) && (
           <Card padding="$4" bordered>
@@ -1152,6 +1625,18 @@ export function PublicProfileScreen() {
             </YStack>
           </Card>
         )}
+
+        {/* Relationship Reviews Section */}
+        {profile && !isCurrentUser && (
+          <RelationshipReviewSection
+            profileUserId={profile.id}
+            profileUserRole={profile.role as any}
+            profileUserName={profile.full_name || profile.email || 'Unknown User'}
+            canReview={userRating.canReview}
+            reviews={relationshipReviews}
+            onReviewAdded={loadRelationshipReviews}
+          />
+        )}
       </YStack>
 
       {/* Report dialog */}
@@ -1162,6 +1647,8 @@ export function PublicProfileScreen() {
           onClose={() => setShowReportDialog(false)}
         />
       )}
+
+
     </Screen>
   );
 }
