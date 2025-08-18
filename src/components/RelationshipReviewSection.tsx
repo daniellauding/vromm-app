@@ -58,6 +58,7 @@ export function RelationshipReviewSection({
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [canReviewBack, setCanReviewBack] = useState(false);
   const [newReview, setNewReview] = useState({
     rating: 0,
     content: '',
@@ -88,6 +89,40 @@ export function RelationshipReviewSection({
 
     checkAdminStatus();
   }, [user]);
+
+  // Check if current user can review back (profile user reviewed them but they haven't reviewed back)
+  useEffect(() => {
+    const checkReviewBackStatus = async () => {
+      if (!user?.id || !profileUserId || user.id === profileUserId) {
+        setCanReviewBack(false);
+        return;
+      }
+
+      try {
+        // Check if profile user has reviewed current user
+        const profileUserReviewedMe = reviews.some(review => 
+          review.reviewer_id === profileUserId && 
+          ((review.review_type === 'supervisor_reviews_student' && review.student_id === user.id) ||
+           (review.review_type === 'student_reviews_supervisor' && review.supervisor_id === user.id))
+        );
+
+        // Check if current user has already reviewed profile user back
+        const iHaveReviewedThem = reviews.some(review => 
+          review.reviewer_id === user.id && 
+          ((review.review_type === 'supervisor_reviews_student' && review.student_id === profileUserId) ||
+           (review.review_type === 'student_reviews_supervisor' && review.supervisor_id === profileUserId))
+        );
+
+        // Can review back if they reviewed me but I haven't reviewed them back
+        setCanReviewBack(profileUserReviewedMe && !iHaveReviewedThem && !canReview);
+      } catch (error) {
+        console.error('Error checking review back status:', error);
+        setCanReviewBack(false);
+      }
+    };
+
+    checkReviewBackStatus();
+  }, [user?.id, profileUserId, reviews, canReview]);
 
   const handlePickImages = async () => {
     try {
@@ -130,6 +165,12 @@ export function RelationshipReviewSection({
 
     if (!newReview.rating) {
       Alert.alert(t('common.error'), 'Please select a rating');
+      return;
+    }
+
+    // Allow review submission if either canReview or canReviewBack is true
+    if (!canReview && !canReviewBack) {
+      Alert.alert(t('common.error'), 'You cannot review this user');
       return;
     }
 
@@ -204,6 +245,36 @@ export function RelationshipReviewSection({
         .insert(reviewData);
 
       if (reviewError) throw reviewError;
+
+      // Create notification for the reviewed user
+      try {
+        const notificationMessage = newReview.isAnonymous 
+          ? `Someone left you a ${newReview.rating}-star review`
+          : `${user.profile?.full_name || user.email || 'Someone'} left you a ${newReview.rating}-star review`;
+        
+        await supabase.from('notifications').insert({
+          user_id: profileUserId,
+          actor_id: newReview.isAnonymous ? null : user.id,
+          type: 'new_message',
+          title: 'New Review!',
+          message: notificationMessage,
+          metadata: {
+            notification_subtype: 'relationship_review',
+            review_type: reviewType,
+            reviewer_id: user.id,
+            reviewer_name: newReview.isAnonymous ? 'Anonymous' : (user.email || 'Unknown'),
+            rating: newReview.rating,
+            reviewed_user_id: profileUserId,
+            reviewed_user_name: profileUserName,
+          },
+          action_url: `vromm://profile/${profileUserId}`,
+          priority: 'normal',
+          is_read: false,
+        });
+      } catch (notificationError) {
+        console.warn('Failed to create review notification:', notificationError);
+        // Don't fail the review submission for notification errors
+      }
 
       // Reset form and close
       setNewReview({
@@ -348,17 +419,30 @@ export function RelationshipReviewSection({
             </Text>
             {getRatingBadge(averageRating, reviews.length)}
           </YStack>
-          {canReview && !showReviewForm && (
-            <Button
-              onPress={() => setShowReviewForm(true)}
-              variant="outlined"
-              size="md"
-              backgroundColor="$blue10"
-              icon={<Feather name="plus" size={18} color="white" />}
-            >
-              Write Review
-            </Button>
-          )}
+          <XStack space="$2">
+            {canReview && !showReviewForm && (
+              <Button
+                onPress={() => setShowReviewForm(true)}
+                variant="outlined"
+                size="md"
+                backgroundColor="$blue10"
+                icon={<Feather name="plus" size={18} color="white" />}
+              >
+                Write Review
+              </Button>
+            )}
+            {canReviewBack && !showReviewForm && (
+              <Button
+                onPress={() => setShowReviewForm(true)}
+                variant="outlined"
+                size="md"
+                backgroundColor="$green10"
+                icon={<Feather name="arrow-left" size={18} color="white" />}
+              >
+                Review Back
+              </Button>
+            )}
+          </XStack>
         </XStack>
 
         {showReviewForm ? (

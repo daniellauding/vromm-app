@@ -25,7 +25,7 @@ interface RelationshipManagementModalProps {
   onClose: () => void;
   userRole: 'student' | 'supervisor' | 'teacher' | 'school' | 'admin' | 'instructor';
   // Student viewing functionality
-  supervisedStudents?: Array<{ id: string; full_name: string; email: string }>;
+  supervisedStudents?: Array<{ id: string; full_name: string; email: string; relationship_created?: string }>;
   onStudentSelect?: (studentId: string | null, studentName?: string) => void;
   // Supervisor selection functionality
   availableSupervisors?: Array<{ id: string; full_name: string; email: string }>;
@@ -809,6 +809,9 @@ export function RelationshipManagementModal({
                       <Text color="$gray11" size="xs">
                         {supervisor.profiles?.email || 'No email'}
                       </Text>
+                      <Text color="$gray11" size="xs">
+                        Supervising since {new Date(supervisor.created_at).toLocaleDateString()} at {new Date(supervisor.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
                     </YStack>
                     <Button
                       size="sm"
@@ -851,20 +854,40 @@ export function RelationshipManagementModal({
                       size="sm"
                       variant="primary"
                       onPress={async () => {
-                        await acceptInvitationById(invitation.id, profile!.id);
-                        // Try to auto-select the student in the list by email
+                        console.log('🎯 MANAGE TAB - Accepting invitation:', invitation.id);
+                        
                         try {
-                          const { data: student } = await supabase
-                            .from('profiles')
-                            .select('id, full_name')
-                            .eq('email', invitation.email.toLowerCase())
-                            .single();
-                          if (student?.id) {
-                            onStudentSelect?.(student.id, student.full_name);
+                          const success = await acceptInvitationById(invitation.id, profile!.id);
+                          console.log('🎯 MANAGE TAB - Accept result:', success);
+                          
+                          if (success) {
+                            // Try to auto-select the student in the list by email
+                            try {
+                              const { data: student } = await supabase
+                                .from('profiles')
+                                .select('id, full_name')
+                                .eq('email', invitation.email.toLowerCase())
+                                .single();
+                              if (student?.id) {
+                                onStudentSelect?.(student.id, student.full_name);
+                              }
+                            } catch {}
+                            
+                            Alert.alert('Success', 'Invitation accepted! Relationship created.');
+                            
+                            // Force refresh the UI immediately
+                            setTimeout(() => {
+                              loadIncomingInvitations();
+                              loadPendingInvitations();
+                              onRefresh?.();
+                            }, 100);
+                          } else {
+                            Alert.alert('Error', 'Failed to accept invitation - please try again');
                           }
-                        } catch {}
-                        loadIncomingInvitations();
-                        onRefresh?.();
+                        } catch (error) {
+                          console.error('❌ Error accepting invitation:', error);
+                          Alert.alert('Error', 'Failed to accept invitation');
+                        }
                       }}
                     >
                       Accept
@@ -873,8 +896,28 @@ export function RelationshipManagementModal({
                       size="sm"
                       variant="tertiary"
                       onPress={async () => {
-                        await rejectInvitation(invitation.id);
-                        loadIncomingInvitations();
+                        console.log('🚫 MANAGE TAB - Declining invitation:', invitation.id);
+                        
+                        try {
+                          const success = await rejectInvitation(invitation.id);
+                          console.log('🚫 MANAGE TAB - Decline result:', success);
+                          
+                          if (success) {
+                            Alert.alert('Success', 'Invitation declined');
+                            
+                            // Force refresh the UI immediately
+                            setTimeout(() => {
+                              loadIncomingInvitations();
+                              loadPendingInvitations();
+                              onRefresh?.();
+                            }, 100);
+                          } else {
+                            Alert.alert('Error', 'Failed to decline invitation - please try again');
+                          }
+                        } catch (error) {
+                          console.error('❌ Error declining invitation:', error);
+                          Alert.alert('Error', 'Failed to decline invitation');
+                        }
                       }}
                     >
                       Decline
@@ -914,6 +957,11 @@ export function RelationshipManagementModal({
                     <YStack flex={1}>
                       <Text weight="semibold" size="sm" color="$color">{student.full_name}</Text>
                       <Text color="$gray11" size="xs">{student.email}</Text>
+                      {student.relationship_created && (
+                        <Text color="$gray11" size="xs">
+                          Student since {new Date(student.relationship_created).toLocaleDateString()} at {new Date(student.relationship_created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      )}
                     </YStack>
                     <XStack gap="$2">
                       <Button
@@ -1543,9 +1591,15 @@ export function RelationshipManagementModal({
                                       }
                                       
                                       Alert.alert('Success', 'Invitation accepted! Relationship created.');
-                                      loadIncomingInvitations();
-                                      loadPendingInvitations();
-                                      onRefresh?.();
+                                      
+                                      // Force refresh the UI immediately
+                                      setTimeout(() => {
+                                        loadIncomingInvitations();
+                                        loadPendingInvitations();
+                                        onRefresh?.();
+                                      }, 100);
+                                    } else {
+                                      Alert.alert('Error', 'Failed to accept invitation - please try again');
                                     }
                                   } catch (error) {
                                     console.error('❌ Error accepting invitation:', error);
@@ -1590,8 +1644,13 @@ export function RelationshipManagementModal({
                                     
                                     console.log('✅ Invitation declined successfully');
                                     Alert.alert('Success', 'Invitation declined');
-                                    loadIncomingInvitations();
-                                    loadPendingInvitations();
+                                    
+                                    // Force refresh the UI immediately
+                                    setTimeout(() => {
+                                      loadIncomingInvitations();
+                                      loadPendingInvitations();
+                                      onRefresh?.();
+                                    }, 100);
                                   } catch (error) {
                                     console.error('❌ Error in decline process:', error);
                                     Alert.alert('Error', 'Failed to decline invitation');

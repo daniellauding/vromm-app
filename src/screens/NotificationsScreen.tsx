@@ -281,8 +281,19 @@ export const NotificationsScreen: React.FC = () => {
         }
 
         case 'new_message': {
-          // Check if this is actually an invitation acceptance notification
+          // Check if this is actually a relationship review notification
           const notificationData = getNotificationData(notification);
+          if (notificationData.notification_subtype === 'relationship_review') {
+            // Navigate to the profile where the review was left
+            const reviewedUserId = notificationData.reviewed_user_id || notification.target_id;
+            if (reviewedUserId) {
+              console.log('📍 Navigating to PublicProfile for relationship review:', reviewedUserId);
+              (navigation as any).navigate('PublicProfile', { userId: reviewedUserId });
+              break;
+            }
+          }
+          
+          // Check if this is actually an invitation acceptance notification
           if (notificationData.notification_subtype === 'invitation_accepted') {
             // Navigate to profile to see the new relationship
             console.log('📍 Navigating to Profile for accepted invitation');

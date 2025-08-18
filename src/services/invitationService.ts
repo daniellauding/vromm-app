@@ -593,7 +593,8 @@ export async function resendInvitation(invitationId: string): Promise<boolean> {
 }
 
 /**
- * Remove a supervisor relationship with notification
+ * Remove a supervisor relationship completely (bidirectional) with notification
+ * This removes the entire relationship and allows both parties to start fresh
  */
 export async function removeSupervisorRelationship(
   studentId: string, 
@@ -615,7 +616,7 @@ export async function removeSupervisorRelationship(
       .eq('id', supervisorId)
       .single();
 
-    // Remove the relationship
+    // Remove the relationship (this is already bidirectional - one record represents both directions)
     const { error } = await supabase
       .from('student_supervisor_relationships')
       .delete()
@@ -627,12 +628,25 @@ export async function removeSupervisorRelationship(
       return false;
     }
 
-    // Send notification to the other party
+    console.log('✅ Relationship removed completely - both parties can now invite each other again');
+
+    // Clean up any pending invitations between these users
+    await supabase
+      .from('pending_invitations')
+      .delete()
+      .or(`and(invited_by.eq.${studentId},email.eq.${supervisorProfile?.email}),and(invited_by.eq.${supervisorId},email.eq.${studentProfile?.email})`);
+
+    // Send notification to BOTH parties about the relationship ending
     const removedByStudent = removedByUserId === studentId;
-    const notificationRecipientId = removedByStudent ? supervisorId : studentId;
     const removerName = removedByStudent 
       ? (studentProfile?.full_name || studentProfile?.email || 'Student')
       : (supervisorProfile?.full_name || supervisorProfile?.email || 'Supervisor');
+    
+    // Notify the other party
+    const notificationRecipientId = removedByStudent ? supervisorId : studentId;
+    const recipientName = removedByStudent 
+      ? (supervisorProfile?.full_name || supervisorProfile?.email || 'Supervisor')
+      : (studentProfile?.full_name || studentProfile?.email || 'Student');
     
     let notificationMessage = removedByStudent
       ? `${removerName} is no longer your student`
@@ -662,12 +676,35 @@ export async function removeSupervisorRelationship(
         is_read: false,
       });
       
-      console.log('✅ Relationship removal notification sent');
+      console.log('✅ Relationship removal notification sent to other party');
+      
+      // Also send a confirmation notification to the person who initiated the removal
+      await supabase.from('notifications').insert({
+        user_id: removedByUserId || (removedByStudent ? studentId : supervisorId),
+        actor_id: null, // System notification
+        type: 'new_message' as Database['public']['Enums']['notification_type'],
+        title: 'Relationship Ended',
+        message: `You have ended your supervisory relationship with ${recipientName}. You can invite each other again anytime.`,
+        metadata: {
+          relationship_type: 'relationship_removed',
+          removed_by_id: removedByUserId,
+          removed_by_name: removerName,
+          other_party_id: notificationRecipientId,
+          other_party_name: recipientName,
+          notification_subtype: 'relationship_removed',
+        },
+        action_url: 'vromm://profile',
+        priority: 'normal',
+        is_read: false,
+      });
+      
+      console.log('✅ Confirmation notification sent to remover');
     } catch (notificationError) {
-      console.warn('Failed to send relationship removal notification:', notificationError);
+      console.warn('Failed to send relationship removal notifications:', notificationError);
       // Don't fail the whole operation for notification errors
     }
 
+    console.log(`✅ Supervisor relationship removed completely - both parties can invite each other again`);
     return true;
   } catch (error) {
     console.error('Error removing supervisor relationship:', error);

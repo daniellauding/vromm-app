@@ -51,7 +51,7 @@ export function StudentManagementScreen() {
         .select(`
           student_id,
           created_at,
-          profiles:student_id!inner (
+          profiles!fk_student_supervisor_relationships_student_id (
             id,
             full_name,
             email,

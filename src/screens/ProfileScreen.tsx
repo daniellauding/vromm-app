@@ -215,7 +215,7 @@ export function ProfileScreen() {
   const navigation = useNavigation<RootStackNavigationProp>();
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [supervisors, setSupervisors] = useState<
-    Array<{ supervisor_id: string; supervisor_name: string; supervisor_email: string }>
+    Array<{ supervisor_id: string; supervisor_name: string; supervisor_email: string; relationship_created?: string }>
   >([]);
   const [schools, setSchools] = useState<
     Array<{ school_id: string; school_name: string; school_location: string }>
@@ -234,7 +234,7 @@ export function ProfileScreen() {
 
   // Student selector for teachers/instructors
   const [supervisedStudents, setSupervisedStudents] = useState<
-    Array<{ id: string; full_name: string; email: string }>
+    Array<{ id: string; full_name: string; email: string; relationship_created?: string }>
   >([]);
   const [availableStudents, setAvailableStudents] = useState<
     Array<{ id: string; full_name: string; email: string }>
@@ -591,11 +591,28 @@ export function ProfileScreen() {
       try {
         setRelationshipsLoading(true);
 
-        // Get supervisors using the RPC function
-        const { data: supervisorsData, error: supervisorsError } = await supabase.rpc(
-          'get_user_supervisor_details',
-          { target_user_id: userId },
-        );
+        // Get supervisors using direct query to include relationship dates
+        const { data: supervisorsData, error: supervisorsError } = await supabase
+          .from('student_supervisor_relationships')
+          .select(`
+            supervisor_id,
+            created_at,
+            profiles!ssr_supervisor_id_fkey (
+              id,
+              full_name,
+              email,
+              role
+            )
+          `)
+          .eq('student_id', userId);
+
+        // Transform supervisor data to match expected format
+        const transformedSupervisors = supervisorsData?.map(rel => ({
+          supervisor_id: rel.supervisor_id,
+          supervisor_name: rel.profiles?.full_name || 'Unknown Supervisor',
+          supervisor_email: rel.profiles?.email || '',
+          relationship_created: rel.created_at,
+        })) || [];
 
         // Get schools using direct table query since the function doesn't exist
         const { data: schoolsData, error: schoolsError } = await supabase
@@ -615,7 +632,7 @@ export function ProfileScreen() {
         if (supervisorsError) {
           console.error('Error fetching supervisors:', supervisorsError);
         } else {
-          setSupervisors(supervisorsData || []);
+          setSupervisors(transformedSupervisors);
         }
 
         // Transform school data to match expected format
@@ -940,7 +957,7 @@ export function ProfileScreen() {
       // Get student relationships first, then fetch profile details separately
       const { data: relationships, error: relError } = await supabase
         .from('student_supervisor_relationships')
-        .select('student_id')
+        .select('student_id, created_at')
         .eq('supervisor_id', profile.id);
 
       if (relError) {
@@ -968,11 +985,15 @@ export function ProfileScreen() {
       }
 
       const students =
-        profiles?.map((profile) => ({
-          id: profile.id,
-          full_name: profile.full_name || 'Unknown Student',
-          email: profile.email || '',
-        })) || [];
+        profiles?.map((profile) => {
+          const relationship = relationships.find(rel => rel.student_id === profile.id);
+          return {
+            id: profile.id,
+            full_name: profile.full_name || 'Unknown Student',
+            email: profile.email || '',
+            relationship_created: relationship?.created_at || '',
+          };
+        }) || [];
 
       setSupervisedStudents(students);
       logInfo('Supervised students loaded', { studentCount: students.length });
@@ -2122,6 +2143,11 @@ export function ProfileScreen() {
                         {supervisor.supervisor_email && (
                           <Text color="$gray11" size="sm">
                             {supervisor.supervisor_email}
+                          </Text>
+                        )}
+                        {supervisor.relationship_created && (
+                          <Text color="$gray11" size="xs">
+                            Supervising since {new Date(supervisor.relationship_created).toLocaleDateString()} at {new Date(supervisor.relationship_created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </Text>
                         )}
                       </YStack>
