@@ -327,7 +327,7 @@ export const MessagesScreen: React.FC = () => {
       )}
 
       {reportConversationId && (
-        <ReportDialog reportableId={reportConversationId} reportableType="route" onClose={() => setReportConversationId(null)} />
+        <ReportDialog reportableId={reportConversationId} reportableType="conversation" onClose={() => setReportConversationId(null)} />
       )}
     </YStack>
   );

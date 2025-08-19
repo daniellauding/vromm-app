@@ -3863,6 +3863,21 @@ export function ProgressScreen() {
             </ScrollView>
           </YStack>
         </RNModal>
+        {/* Ensure report dialogs render at this screen level to avoid being hidden */}
+        {reportPath && detailPath && (
+          <ReportDialog
+            reportableId={detailPath.id}
+            reportableType="learning_path"
+            onClose={() => setReportPath(false)}
+          />
+        )}
+        {reportExerciseId && (
+          <ReportDialog
+            reportableId={reportExerciseId}
+            reportableType="exercise"
+            onClose={() => setReportExerciseId(null)}
+          />
+        )}
       </YStack>
     );
   }
