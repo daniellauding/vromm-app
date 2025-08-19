@@ -1287,7 +1287,7 @@ export function ProgressScreen() {
 
   // Toggle completion for virtual repeat exercises (save to new table)
   const toggleVirtualRepeatCompletion = async (virtualId: string) => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     // Parse virtualId: "exerciseId-virtual-2" -> exerciseId="exerciseId", repeatNumber=2
     const parts = virtualId.split('-virtual-');
@@ -1332,7 +1332,7 @@ export function ProgressScreen() {
         const { error } = await supabase
           .from('virtual_repeat_completions')
           .delete()
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .eq('exercise_id', exerciseId)
           .eq('repeat_number', repeatNumber);
 
@@ -1370,7 +1370,7 @@ export function ProgressScreen() {
       try {
         const { error } = await supabase.from('virtual_repeat_completions').insert([
           {
-            user_id: user.id,
+            user_id: effectiveUserId,
             exercise_id: exerciseId, // Use the original exercise ID (not virtual ID)
             repeat_number: repeatNumber,
           },
@@ -1407,7 +1407,7 @@ export function ProgressScreen() {
 
   // Mark all exercises as complete or incomplete
   const handleMarkAllExercises = async (isComplete: boolean) => {
-    if (!user || !detailPath) return;
+    if (!detailPath || !effectiveUserId) return;
     console.log(
       `ProgressScreen: Marking all exercises as ${isComplete ? 'complete' : 'incomplete'}`,
     );
@@ -1438,7 +1438,7 @@ export function ProgressScreen() {
 
           // Insert all completions at once
           const completions = exercisesToComplete.map((exercise_id) => ({
-            user_id: user.id,
+            user_id: effectiveUserId,
             exercise_id,
           }));
 
@@ -1461,7 +1461,7 @@ export function ProgressScreen() {
         const { error } = await supabase
           .from('learning_path_exercise_completions')
           .delete()
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .in('exercise_id', exerciseIds);
 
         if (error) {

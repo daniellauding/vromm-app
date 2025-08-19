@@ -206,36 +206,56 @@ function AppContent() {
     // Check immediately when user is available
     checkForGlobalInvitations();
 
-    // Set up real-time subscription
+    // Set up real-time subscription to pending invitations
     const invitationSubscription = supabase
       .channel('global_pending_invitations')
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'pending_invitations',
-        filter: `email=eq.${user.email}`,
+        filter: `email=eq.${user.email.toLowerCase()}`,
       }, (payload) => {
         console.log('🌍 Global: New invitation received:', payload);
-        // Add a small delay to ensure the invitation is fully processed
         setTimeout(() => {
-          checkForGlobalInvitations();
-        }, 500);
+          console.log('🌍 Setting invitation modal visible = true (pending insert)');
+          setShowGlobalInvitationNotification(true);
+        }, 200);
       })
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'pending_invitations',
-        filter: `email=eq.${user.email}`,
+        filter: `email=eq.${user.email.toLowerCase()}`,
       }, (payload) => {
         console.log('🌍 Global: Invitation updated:', payload);
         setTimeout(() => {
           checkForGlobalInvitations();
-        }, 500);
+        }, 300);
+      })
+      .subscribe();
+
+    // Fallback: open modal if a notification insert arrives for invitation types
+    const notifSubscription = supabase
+      .channel('global_invitation_notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, (payload: any) => {
+        try {
+          const row = payload?.new;
+          if (row?.type === 'supervisor_invitation' || row?.type === 'student_invitation') {
+            console.log('🌍 Fallback: Invitation notification inserted, opening modal');
+            setShowGlobalInvitationNotification(true);
+          }
+        } catch {}
       })
       .subscribe();
 
     return () => {
       invitationSubscription.unsubscribe();
+      notifSubscription.unsubscribe();
     };
   }, [user?.email, user?.id]);
 
@@ -785,6 +805,8 @@ function AppContent() {
           }}
           onInvitationHandled={() => {
             console.log('🌍 Global invitation handled - checking for more');
+            // Close modal immediately; if more invites exist, we'll reopen
+            setShowGlobalInvitationNotification(false);
             // Check for more invitations after handling one
             setTimeout(() => {
               checkForGlobalInvitations();

@@ -5,6 +5,7 @@ import { Button } from './Button';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
+import { relLog } from '../utils/relationshipDebug';
 
 interface PendingInvitation {
   id: string;
@@ -64,7 +65,7 @@ export function InvitationNotification({
             role
           )
         `)
-        .eq('email', user.email)
+        .eq('email', user.email.toLowerCase())
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
@@ -111,11 +112,13 @@ export function InvitationNotification({
       }));
 
       console.log('📥 Processed invitations:', processedInvitations.length, 'out of', invitations?.length || 0);
+      relLog.incomingLoaded(processedInvitations.length);
       setPendingInvitations(processedInvitations);
       
       // Show first invitation
       if (processedInvitations.length > 0) {
         setCurrentInvitation(processedInvitations[0]);
+        relLog.modalShow(processedInvitations[0].id);
       }
     } catch (error) {
       console.error('Error loading pending invitations:', error);
@@ -142,6 +145,7 @@ export function InvitationNotification({
       }
 
       console.log('🎉 Invitation accepted successfully');
+      relLog.modalAccept(invitation.id);
 
       // Also clean up any related notifications
       try {
@@ -199,6 +203,7 @@ export function InvitationNotification({
       }
 
       console.log('✅ Invitation declined successfully');
+      relLog.modalDecline(invitation.id);
       
       // Also clean up any related notifications
       try {
@@ -245,6 +250,7 @@ export function InvitationNotification({
     } else {
       // No more invitations, close modal
       setCurrentInvitation(null);
+      relLog.modalClose();
       onClose();
     }
   };
@@ -322,10 +328,10 @@ export function InvitationNotification({
               <Feather name="users" size={24} color="#0EA5E9" />
             </YStack>
             <YStack flex={1}>
-              <Text size="lg" weight="bold" color="$color">
+              <Text fontSize={18} fontWeight="bold" color="$color">
                 Invitation Received
               </Text>
-              <Text size="sm" color="$gray11">
+              <Text fontSize={12} color="$gray11">
                 {pendingInvitations.length > 1 && 
                   `${pendingInvitations.findIndex(inv => inv.id === currentInvitation.id) + 1} of ${pendingInvitations.length}`
                 }
@@ -335,7 +341,7 @@ export function InvitationNotification({
 
           {/* Content */}
           <YStack gap="$3">
-            <Text color="$color" size="sm" lineHeight={20}>
+            <Text color="$color" fontSize={12} lineHeight={20}>
               {getInvitationMessage(currentInvitation)}
             </Text>
 
@@ -401,7 +407,7 @@ export function InvitationNotification({
 
             <Button
               onPress={() => handleDeclineInvitation(currentInvitation)}
-              variant="outline"
+              variant="tertiary"
               size="lg"
               disabled={loading}
             >
@@ -414,7 +420,7 @@ export function InvitationNotification({
             {pendingInvitations.length > 1 && (
               <Button
                 onPress={handleNextInvitation}
-                variant="ghost"
+                variant="tertiary"
                 size="sm"
               >
                 Skip for now ({pendingInvitations.length - pendingInvitations.findIndex(inv => inv.id === currentInvitation.id) - 1} remaining)
@@ -424,7 +430,7 @@ export function InvitationNotification({
 
           <Button
             onPress={onClose}
-            variant="ghost"
+            variant="tertiary"
             size="sm"
           >
             Close

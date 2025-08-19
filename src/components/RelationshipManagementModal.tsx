@@ -151,7 +151,7 @@ export function RelationshipManagementModal({
         event: '*',
         schema: 'public',
         table: 'pending_invitations',
-        filter: `email=eq.${user?.email}`,
+        filter: `email=eq.${(user?.email || '').toLowerCase()}`,
       }, (payload) => {
         console.log('🔄 Incoming invitation changed:', payload);
         // Refresh incoming invitations when they change

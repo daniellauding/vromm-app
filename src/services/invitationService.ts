@@ -114,18 +114,7 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
           .eq('email', email.toLowerCase())
           .single();
         if (recipient?.id && invitation?.id) {
-                      await supabase.from('notifications').insert({
-              user_id: recipient.id,
-              actor_id: supervisorId,
-              type: (relationshipType === 'student_invites_supervisor' ? 'supervisor_invitation' : 'student_invitation') as Database['public']['Enums']['notification_type'],
-              message:
-                relationshipType === 'student_invites_supervisor'
-                  ? `${supervisorName || 'A student'} invited you to be their supervisor`
-                  : `${supervisorName || 'An instructor'} invited you to be their student`,
-              metadata: { invitation_id: invitation.id },
-            });
-
-          // Fire push notification (best-effort)
+          // Use centralized push service (stores DB notification via RPC) to avoid duplicates
           try {
             await pushNotificationService.sendInvitationNotification(
               supervisorId || '',
@@ -139,7 +128,7 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
           }
         }
       } catch (e) {
-        console.warn('Could not create in-app notification for invitation:', e);
+        console.warn('Could not notify invitee in-app:', e);
       }
       return { success: true, invitationId: invitation?.id };
 
@@ -150,7 +139,7 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
       // For now, we'll just return success for the invitation record creation
       if (invitation) {
         console.log('✅ Invitation record created successfully, email sending pending');
-        // create in-app notification if possible
+        // Notify invitee (centralized push service stores DB notification) if profile exists
         try {
           const { data: recipient } = await supabase
             .from('profiles')
@@ -158,18 +147,6 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
             .eq('email', email.toLowerCase())
             .single();
           if (recipient?.id && invitationData?.id) {
-            await supabase.from('notifications').insert({
-              user_id: recipient.id,
-              actor_id: supervisorId,
-              type: (relationshipType === 'student_invites_supervisor' ? 'supervisor_invitation' : 'student_invitation') as Database['public']['Enums']['notification_type'],
-              message:
-                relationshipType === 'student_invites_supervisor'
-                  ? `${supervisorName || 'A student'} invited you to be their supervisor`
-                  : `${supervisorName || 'An instructor'} invited you to be their student`,
-              metadata: { invitation_id: invitationData.id },
-            });
-
-            // Best-effort push
             try {
               await pushNotificationService.sendInvitationNotification(
                 supervisorId || '',

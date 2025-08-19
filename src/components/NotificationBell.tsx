@@ -3,6 +3,7 @@ import { TouchableOpacity, View } from 'react-native';
 import { Text } from 'tamagui';
 import { Bell } from '@tamagui/lucide-icons';
 import { notificationService } from '../services/notificationService';
+import { relLog } from '../utils/relationshipDebug';
 import { useNavigation } from '@react-navigation/native';
 
 interface NotificationBellProps {
@@ -25,6 +26,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       console.log('📡 NotificationBell: New notification detected:', notification.type, notification.message);
       // Immediate refresh for real-time feel
       loadUnreadCount();
+      relLog.notificationNew(notification.type, notification.id);
       
       // Also trigger global invitation check if it's an invitation
       if (notification.type === 'supervisor_invitation' || notification.type === 'student_invitation') {
@@ -50,6 +52,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     try {
       const count = await notificationService.getUnreadCount();
       setUnreadCount(count);
+      relLog.badgeUpdate(count);
     } catch (error) {
       console.error('Error loading unread count:', error);
     }

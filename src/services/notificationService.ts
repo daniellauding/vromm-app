@@ -56,12 +56,14 @@ class NotificationService {
 
   // Mark notification as read
   async markAsRead(notificationId: string): Promise<void> {
+    console.log('🔖 markAsRead called for notification:', notificationId);
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('id', notificationId);
 
     if (error) throw error;
+    console.log('🔖 markAsRead completed for:', notificationId);
   }
 
   // Mark all notifications as read

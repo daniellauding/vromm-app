@@ -14,6 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { Alert } from 'react-native';
 import { inviteNewUser } from '../services/invitationService';
+import { relLog } from '../utils/relationshipDebug';
 
 type User = {
   id: string;
@@ -27,6 +28,7 @@ type User = {
   isCurrentUser?: boolean;
   isInstructor?: boolean;
   isStudent?: boolean;
+  pendingInvited?: boolean; // optimistic UI flag
 };
 
 export function UsersScreen() {
@@ -161,6 +163,7 @@ export function UsersScreen() {
         console.log('🎓 SENDING INSTRUCTOR INVITATION...');
         const target = users.find((u) => u.id === targetUserId);
         if (!target?.email) throw new Error('Target user has no email, cannot invite');
+        relLog.inviteStart(user.id, targetUserId, 'student_invites_supervisor');
         const result = await inviteNewUser({
           email: target.email,
           role: 'instructor',
@@ -171,6 +174,10 @@ export function UsersScreen() {
         });
         if (!result.success) throw new Error(result.error || 'Failed to send invitation');
         Alert.alert('Invitation Sent', 'They will appear once they accept.');
+        relLog.inviteSuccess(result.invitationId);
+        setUsers((prev) => prev.map((u) => (
+          u.id === targetUserId ? { ...u, pendingInvited: true } as any : u
+        )));
       }
     } catch (error) {
       console.error('❌ ERROR toggling instructor:', error);
@@ -217,6 +224,7 @@ export function UsersScreen() {
         console.log('👨‍🎓 SENDING STUDENT INVITATION...');
         const target = users.find((u) => u.id === targetUserId);
         if (!target?.email) throw new Error('Target user has no email, cannot invite');
+        relLog.inviteStart(user.id, targetUserId, 'supervisor_invites_student');
         const result = await inviteNewUser({
           email: target.email,
           role: 'student',
@@ -227,6 +235,10 @@ export function UsersScreen() {
         });
         if (!result.success) throw new Error(result.error || 'Failed to send invitation');
         Alert.alert('Invitation Sent', 'They will appear once they accept.');
+        relLog.inviteSuccess(result.invitationId);
+        setUsers((prev) => prev.map((u) => (
+          u.id === targetUserId ? { ...u, pendingInvited: true } as any : u
+        )));
       }
     } catch (error) {
       console.error('❌ ERROR toggling student:', error);
@@ -370,6 +382,16 @@ export function UsersScreen() {
                 >
                   {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                 </Text>
+              </Card>
+            )}
+
+            {/* Invited badge (optimistic) */}
+            {user.pendingInvited && (
+              <Card padding="$1" backgroundColor="$orange5" borderRadius="$4">
+                <XStack alignItems="center" gap="$1">
+                  <Feather name="clock" size={12} color="#7C2D12" />
+                  <Text color="#7C2D12" fontSize="$2">Invited</Text>
+                </XStack>
               </Card>
             )}
 

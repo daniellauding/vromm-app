@@ -68,7 +68,7 @@ export const DrivenRoutes = () => {
   const effectiveUserId = getEffectiveUserId();
   React.useEffect(() => {
     if (!effectiveUserId) return;
-    
+
     const loadDrivenRoutes = async () => {
       console.log('🚗 [DrivenRoutes] Loading driven routes for user:', effectiveUserId);
       console.log('🚗 [DrivenRoutes] Is viewing as student:', isViewingAsStudent);
@@ -111,20 +111,25 @@ export const DrivenRoutes = () => {
       }
     };
     loadDrivenRoutes();
-  }, [user]);
+  }, [effectiveUserId]);
 
   const onNavigateToRouteList = React.useCallback(() => {
     navigation.navigate('RouteList', {
-      title: t('home.drivenRoutes'),
+      title: isViewingAsStudent 
+        ? `${activeStudentName || 'Student'}'s Driven Routes`
+        : t('home.drivenRoutes'),
       routes: drivenRoutes,
       type: 'driven',
     });
-  }, [drivenRoutes, navigation, t]);
+  }, [drivenRoutes, navigation, t, isViewingAsStudent, activeStudentName]);
 
   return (
     <YStack gap="$2">
       <SectionHeader
-        title={t('home.drivenRoutes')}
+        title={isViewingAsStudent 
+          ? `${activeStudentName || 'Student'}'s Driven Routes`
+          : t('home.drivenRoutes')
+        }
         variant="chevron"
         onAction={onNavigateToRouteList}
         actionLabel={t('common.seeAll')}

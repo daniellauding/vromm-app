@@ -36,6 +36,53 @@ LEFT JOIN public.profiles p ON p.id = pi.invited_by
 ORDER BY pi.created_at DESC
 LIMIT 30;
 
+-- =============================
+-- EXTRA: Instructor Audit & RLS Helpers (learning paths/exercises)
+-- =============================
+
+-- A) Preview completions for a given user (student)
+--   Replace :student_id
+--
+-- SELECT lpec.*, e.title, p.full_name AS student_name
+-- FROM public.learning_path_exercise_completions lpec
+-- LEFT JOIN public.learning_path_exercises e ON e.id = lpec.exercise_id
+-- LEFT JOIN public.profiles p ON p.id = lpec.user_id
+-- WHERE lpec.user_id = :student_id
+-- ORDER BY lpec.created_at DESC;
+
+-- B) Preview virtual repeat completions for a given user (student)
+--
+-- SELECT vrc.*, e.title, p.full_name AS student_name
+-- FROM public.virtual_repeat_completions vrc
+-- LEFT JOIN public.learning_path_exercises e ON e.id = vrc.exercise_id
+-- LEFT JOIN public.profiles p ON p.id = vrc.user_id
+-- WHERE vrc.user_id = :student_id
+-- ORDER BY vrc.completed_at DESC;
+
+-- C) Suggested RLS policy sketch (implement in SQL migrations):
+--   Allow supervisors to manage a student's completions if they have a relationship
+--   and record audit metadata via triggers.
+--
+-- Example policy condition (sketch):
+--   EXISTS (
+--     SELECT 1 FROM public.student_supervisor_relationships rel
+--     WHERE rel.student_id = learning_path_exercise_completions.user_id
+--       AND rel.supervisor_id = auth.uid()
+--   )
+--
+-- D) Suggested audit trigger fields (add columns if missing):
+--   ALTER TABLE public.learning_path_exercise_completions
+--     ADD COLUMN IF NOT EXISTS updated_by uuid,
+--     ADD COLUMN IF NOT EXISTS updated_by_name text,
+--     ADD COLUMN IF NOT EXISTS updated_at timestamptz;
+--
+--   ALTER TABLE public.virtual_repeat_completions
+--     ADD COLUMN IF NOT EXISTS updated_by uuid,
+--     ADD COLUMN IF NOT EXISTS updated_by_name text,
+--     ADD COLUMN IF NOT EXISTS updated_at timestamptz;
+--
+--   Create trigger to populate updated_* columns on insert/update with auth.uid() and now().
+
 -- 6) Mark one invite accepted and create relationship (manual backfill)
 -- UPDATE public.pending_invitations
 -- SET status='accepted', accepted_at=now(), accepted_by='INVITEE_USER_ID'

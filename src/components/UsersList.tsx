@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { inviteNewUser } from '../services/invitationService';
 import { useNavigation } from '@react-navigation/native';
+import { relLog } from '../utils/relationshipDebug';
 import { NavigationProp } from '../types/navigation';
 import { useAuth } from '../context/AuthContext';
 
@@ -99,6 +100,7 @@ export function UsersList() {
           text: 'Send',
           onPress: async () => {
             try {
+              relLog.inviteStart(user.id, target.id, isStudentInvitingSupervisor ? 'student_invites_supervisor' : 'supervisor_invites_student');
               const result = await inviteNewUser({
                 email: target.email!,
                 role: isStudentInvitingSupervisor ? 'instructor' : 'student',
@@ -110,7 +112,13 @@ export function UsersList() {
               });
               if (!result.success) throw new Error(result.error || 'Failed to send');
               Alert.alert('Invitation Sent', 'The invitation has been sent.');
+              relLog.inviteSuccess(result.invitationId);
+              // Optimistic UI: mark as invited (disabled button)
+              setUsers((prev) => prev.map((u) => (
+                u.id === target.id ? { ...u, invited: true } as any : u
+              )));
             } catch (e) {
+              relLog.inviteError(e instanceof Error ? e.message : 'unknown error');
               Alert.alert('Error', 'Failed to send invitation.');
             }
           },
@@ -279,14 +287,14 @@ export function UsersList() {
                 </XStack>
               )}
 
-              {/* Follow/Unfollow Button */}
+              {/* Follow/Unfollow or Invited indicator */}
               {!user.isCurrentUser && (
                 <Button
                   size="xs"
-                  variant={user.isFollowing ? 'secondary' : 'primary'}
-                  backgroundColor={user.isFollowing ? '$red5' : '$blue10'}
+                  variant={(user as any).invited ? 'secondary' : user.isFollowing ? 'secondary' : 'primary'}
+                  backgroundColor={(user as any).invited ? '$gray7' : user.isFollowing ? '$red5' : '$blue10'}
                   onPress={() => handleFollow(user.id, user.isFollowing || false)}
-                  disabled={followLoading[user.id]}
+                  disabled={followLoading[user.id] || (user as any).invited}
                   marginTop="$2"
                   width="100%"
                 >
@@ -296,18 +304,27 @@ export function UsersList() {
                     </Text>
                   ) : (
                     <XStack gap="$1" alignItems="center">
-                      <Feather
-                        name={user.isFollowing ? 'user-minus' : 'user-plus'}
-                        size={10}
-                        color={user.isFollowing ? '#EF4444' : 'white'}
-                      />
-                      <Text
-                        color={user.isFollowing ? '$red11' : 'white'}
-                        fontSize="$1"
-                        fontWeight="500"
-                      >
-                        {user.isFollowing ? 'Unfollow' : 'Follow'}
-                      </Text>
+                      {(user as any).invited ? (
+                        <>
+                          <Feather name="clock" size={10} color="#F59E0B" />
+                          <Text color="#F59E0B" fontSize="$1" fontWeight="500">Invited</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Feather
+                            name={user.isFollowing ? 'user-minus' : 'user-plus'}
+                            size={10}
+                            color={user.isFollowing ? '#EF4444' : 'white'}
+                          />
+                          <Text
+                            color={user.isFollowing ? '$red11' : 'white'}
+                            fontSize="$1"
+                            fontWeight="500"
+                          >
+                            {user.isFollowing ? 'Unfollow' : 'Follow'}
+                          </Text>
+                        </>
+                      )}
                     </XStack>
                   )}
                 </Button>

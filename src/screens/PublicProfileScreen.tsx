@@ -20,6 +20,7 @@ import { messageService } from '../services/messageService';
 import { inviteNewUser, removeSupervisorRelationship } from '../services/invitationService';
 import { RelationshipReviewSection } from '../components/RelationshipReviewSection';
 import { RelationshipReviewService } from '../services/relationshipReviewService';
+import { relLog } from '../utils/relationshipDebug';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   routes_created: number;
@@ -613,15 +614,21 @@ export function PublicProfileScreen() {
         setPendingInvitationType('sent');
         setPendingInvitationData(sentInvitations[0]);
         console.log('📤 Found sent invitation to this user with data:', sentInvitations[0]);
+        relLog.pendingLoaded(1);
+        relLog.publicProfileButtonState(String(userId), 'pending-sent');
       } else if (receivedInvitations && receivedInvitations.length > 0) {
         setHasPendingInvitation(true);
         setPendingInvitationType('received');
         setPendingInvitationData(receivedInvitations[0]);
         console.log('📥 Found received invitation from this user with data:', receivedInvitations[0]);
+        relLog.incomingLoaded(1);
+        relLog.publicProfileButtonState(String(userId), 'pending-received');
       } else {
         setHasPendingInvitation(false);
         setPendingInvitationType(null);
         setPendingInvitationData(null);
+        relLog.pendingLoaded(0);
+        relLog.publicProfileButtonState(String(userId), 'none');
       }
     } catch (error) {
       console.error('Error checking pending invitations:', error);
@@ -663,6 +670,7 @@ export function PublicProfileScreen() {
         if (!profile?.email) {
           throw new Error('Target user has no email on file. Cannot send invitation.');
         }
+        relLog.inviteStart(user.id, String(userId), 'student_invites_supervisor');
         const result = await inviteNewUser({
           email: profile.email,
           role: 'instructor',
@@ -677,8 +685,11 @@ export function PublicProfileScreen() {
         }
 
         console.log('✅ INSTRUCTOR INVITATION SENT');
+        relLog.inviteSuccess(result.invitationId);
         // Do not set isInstructor yet; wait for acceptance
         Alert.alert('Invitation Sent', 'An invitation has been sent to become your instructor.');
+        // Refresh pending immediately for UI
+        checkPendingInvitations();
       }
       
       // Reload relationships
@@ -727,6 +738,7 @@ export function PublicProfileScreen() {
         if (!profile?.email) {
           throw new Error('Target user has no email on file. Cannot send invitation.');
         }
+        relLog.inviteStart(user.id, String(userId), 'supervisor_invites_student');
         const result = await inviteNewUser({
           email: profile.email,
           role: 'student',
@@ -741,8 +753,11 @@ export function PublicProfileScreen() {
         }
 
         console.log('✅ STUDENT INVITATION SENT');
+        relLog.inviteSuccess(result.invitationId);
         // Do not set isStudent yet; wait for acceptance
         Alert.alert('Invitation Sent', 'An invitation has been sent to add this user as your student.');
+        // Refresh pending immediately for UI
+        checkPendingInvitations();
       }
     } catch (error) {
       console.error('❌ ERROR toggling student:', error);
@@ -752,6 +767,28 @@ export function PublicProfileScreen() {
       console.log('👨‍🎓 STUDENT TOGGLE - Complete');
     }
   };
+
+  // Realtime: update pending banner instantly for this profile
+  useEffect(() => {
+    if (!user?.id || !user?.email || !userId) return;
+
+    const channel = supabase
+      .channel(`public_profile_pending_${user.id}_${userId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'pending_invitations',
+        filter: `or(and(invited_by.eq.${user.id},email.eq.${(profile?.email || '').toLowerCase()}),and(invited_by.eq.${userId},email.eq.${user.email.toLowerCase()}))`,
+      }, () => {
+        // Refresh the pending status for this profile pair
+        checkPendingInvitations();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, user?.email, userId, profile?.email]);
   
   const handleFollow = async () => {
     try {

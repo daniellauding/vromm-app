@@ -3,7 +3,7 @@
   "main": "index.js",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
+    "start": "node --max-old-space-size=4096 node_modules/.bin/expo start",
     "start-clean": "expo start --clear",
     "start-jsc": "EXPO_USE_JSC=1 expo start --clear",
     "reset-project": "node ./scripts/reset-project.js",
