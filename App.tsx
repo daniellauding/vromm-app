@@ -29,6 +29,7 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import * as Updates from 'expo-updates';
 import { CommonActions } from '@react-navigation/native';
+import { registerInvitationModalOpener } from './src/utils/invitationModalBridge';
 import type { NavigationContainerRef } from '@react-navigation/native';
 
 // Define a compatible type for WebBrowser dismiss helpers to avoid any-casts
@@ -168,6 +169,7 @@ function AppContent() {
       if (invitations && invitations.length > 0) {
         // Check if any of these invitations don't already have relationships
         let hasValidInvitation = false;
+        const toCleanup: string[] = [];
         
         for (const inv of invitations) {
           const { data: existingRelationship } = await supabase
@@ -179,9 +181,23 @@ function AppContent() {
           if (!existingRelationship || existingRelationship.length === 0) {
             hasValidInvitation = true;
             console.log('🌍 Valid invitation found:', inv.id);
-            break;
           } else {
-            console.log('🌍 Skipping invitation - relationship exists:', inv.id);
+            console.log('🌍 Skipping invitation - relationship exists (will cleanup):', inv.id);
+            toCleanup.push(inv.id);
+          }
+        }
+
+        // Cleanup any pending invites that already have relationships
+        if (toCleanup.length > 0) {
+          try {
+            await supabase.from('pending_invitations').delete().in('id', toCleanup);
+            await supabase
+              .from('notifications')
+              .delete()
+              .in('metadata->>invitation_id', toCleanup);
+            console.log('🧹 Cleaned up stale invitations and related notifications:', toCleanup.length);
+          } catch (cleanupErr) {
+            console.warn('⚠️ Cleanup of stale invitations failed:', cleanupErr);
           }
         }
 
@@ -198,6 +214,11 @@ function AppContent() {
       console.error('🌍 Global invitation check error:', error);
     }
   };
+
+  // Register opener so other parts can open modal instantly without prop drilling
+  useEffect(() => {
+    registerInvitationModalOpener(() => setShowGlobalInvitationNotification(true));
+  }, []);
 
   // Set up global invitation subscription
   useEffect(() => {

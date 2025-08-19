@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
 import { relLog } from '../utils/relationshipDebug';
+import { openInvitationModal } from '../utils/invitationModalBridge';
 
 interface PendingInvitation {
   id: string;
@@ -43,6 +44,13 @@ export function InvitationNotification({
       loadPendingInvitations();
     }
   }, [visible, user?.email]);
+
+  // If invitations arrive while modal currently hidden, open it
+  useEffect(() => {
+    if (!visible && pendingInvitations.length > 0) {
+      openInvitationModal();
+    }
+  }, [pendingInvitations.length, visible]);
 
   const loadPendingInvitations = async () => {
     if (!user?.email) return;

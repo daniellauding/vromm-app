@@ -556,6 +556,7 @@ export const NotificationsScreen: React.FC = () => {
   };
 
   const renderNotification = ({ item }: { item: Notification }) => {
+    const allData: any = getNotificationData(item);
     return (
       <TouchableOpacity onPress={() => handleNotificationPress(item)}>
         <XStack
@@ -603,8 +604,8 @@ export const NotificationsScreen: React.FC = () => {
             </XStack>
 
             {/* Show custom message if it's an invitation with custom message */}
-            {(item.type === 'supervisor_invitation' || item.type === 'student_invitation') && 
-             item.metadata?.customMessage && (
+            {(item.type === 'supervisor_invitation' || item.type === 'student_invitation') &&
+             !!allData?.customMessage && (
               <YStack 
                 backgroundColor="rgba(0, 123, 255, 0.15)" 
                 padding={12} 
@@ -617,7 +618,7 @@ export const NotificationsScreen: React.FC = () => {
                   <Text fontSize={14} color="#007BFF" fontWeight="700">💬 Personal Message</Text>
                 </XStack>
                 <Text fontSize={14} color="$color" fontStyle="italic" lineHeight={18}>
-                  "{item.metadata.customMessage}"
+                  "{allData.customMessage}"
                 </Text>
               </YStack>
             )}
