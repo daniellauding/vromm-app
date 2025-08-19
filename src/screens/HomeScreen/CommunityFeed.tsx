@@ -90,7 +90,6 @@ const ActivityMediaPreview = ({ mediaItems }: { mediaItems: ActivityItem['data']
     return null;
   }
 
-  console.log('Carousle render');
   return (
     <View style={{ height: 120, borderRadius: 8 }}>
       {/*<Carousel
@@ -108,11 +107,11 @@ const ActivityMediaPreview = ({ mediaItems }: { mediaItems: ActivityItem['data']
         showsHorizontalScrollIndicator={false}
         data={mediaItems}
         renderItem={({ item }) => (
-          <View style={{ width: 205, height: 120, marginRight: 16 }} key={item.id}>
+          <View style={{ width: 205, height: 120, marginRight: 16 }}>
             <ActivityMediaPreviewItem item={item} />
           </View>
         )}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => index.toString()}
         contentContainerStyle={{ paddingHorizontal: 16 }}
       />
     </View>
@@ -692,7 +691,7 @@ export const CommunityFeed = () => {
           showsHorizontalScrollIndicator={false}
           data={activities}
           renderItem={({ item }) => (
-            <View style={{ width: 260, marginRight: 16 }}>
+            <View style={{ width: 260, marginRight: 16 }} key={item.id}>
               <ActivityItem activity={item} />
             </View>
           )}

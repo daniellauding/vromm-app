@@ -137,7 +137,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
           <GettingStarted />
 
           <ProgressSection activeUserId={effectiveUserId} />
-          {/*<SavedRoutes />*/}
+          <SavedRoutes />
           <CommunityFeed />
           <QuickFilters handleFilterPress={handleFilterPress} />
           <Button
