@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { commentService, CommentTargetType } from '../services/commentService';
 import WebView from 'react-native-webview';
+import { ImageWithFallback } from './ImageWithFallback';
 import Constants from 'expo-constants';
 import { ReportDialog } from './report/ReportDialog';
 
@@ -49,6 +50,16 @@ export const CommentsSection: React.FC<Props> = ({ targetType, targetId }) => {
       } catch {}
     })();
   }, []);
+
+  // Preload trending when GIF modal opens
+  useEffect(() => {
+    if (gifOpen) {
+      console.log('💬 [GIF] modal opened');
+      if (gifResults.length === 0) {
+        loadTrendingGifs().catch((e) => console.log('💬 [GIF] trending error', e));
+      }
+    }
+  }, [gifOpen]);
 
   const load = async (silent = false) => {
     if (!silent) console.log('💬 [CommentsSection] load', { targetType, targetId });
@@ -236,6 +247,56 @@ export const CommentsSection: React.FC<Props> = ({ targetType, targetId }) => {
     }
   };
 
+  const loadTrendingGifs = async () => {
+    try {
+      setGifLoading(true);
+      setGifError(null);
+      const apiKey = (process as any)?.env?.EXPO_PUBLIC_GIPHY_KEY || (Constants as any)?.expoConfig?.extra?.EXPO_PUBLIC_GIPHY_KEY;
+      console.log('💬 [GIF] trending', { hasKey: !!apiKey });
+      if (!apiKey) {
+        setGifError('Missing EXPO_PUBLIC_GIPHY_KEY');
+        setGifResults([]);
+        return;
+      }
+      const url = `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=24&rating=g`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const txt = await res.text();
+        console.log('💬 [GIF] trending failed', res.status, txt);
+        setGifError(`GIPHY error ${res.status}`);
+        setGifResults([]);
+        return;
+      }
+      const json = await res.json();
+      const items = (json.data || []).map((d: any) => ({ id: d.id, url: d.images.original.url, thumb: d.images.preview_gif?.url || d.images.fixed_width_small_still.url }));
+      console.log('💬 [GIF] trending results', items.length);
+      setGifResults(items);
+    } catch (e) {
+      console.error('💬 [CommentsSection] giphy trending error', e);
+      setGifError('Failed to load trending GIFs');
+    } finally {
+      setGifLoading(false);
+    }
+  };
+
+  const loadRandomGif = async () => {
+    try {
+      const apiKey = (process as any)?.env?.EXPO_PUBLIC_GIPHY_KEY || (Constants as any)?.expoConfig?.extra?.EXPO_PUBLIC_GIPHY_KEY;
+      if (!apiKey) return;
+      const url = `https://api.giphy.com/v1/gifs/random?api_key=${apiKey}&rating=g`;
+      const res = await fetch(url);
+      const json = await res.json();
+      const d = json.data;
+      if (d?.id) {
+        const item = { id: d.id, url: d.images?.original?.url || d.image_url, thumb: d.images?.preview_gif?.url || d.images?.fixed_width_small_still?.url || d.image_url };
+        setGifResults((prev) => [item, ...prev]);
+        console.log('💬 [GIF] random add', item.id);
+      }
+    } catch (e) {
+      console.log('💬 [GIF] random error', e);
+    }
+  };
+
   return (
     <YStack gap={12} marginTop={16}>
       <Text fontSize={18} fontWeight="bold" color="$color">Comments</Text>
@@ -264,7 +325,9 @@ export const CommentsSection: React.FC<Props> = ({ targetType, targetId }) => {
                   <Text fontSize={11} color="$gray11">{new Date(c.created_at).toLocaleString()}</Text>
                 </XStack>
 
-                <Text color="$color" marginTop={2}>{c.body}</Text>
+                {!(c.body === '(attachment)' && (c.comment_attachments?.length || 0) > 0) && (
+                  <Text color="$color" marginTop={2}>{c.body}</Text>
+                )}
                 {editingId === c.id && (
                   <YStack gap={8} marginTop={8}>
                     <TextInput
@@ -284,7 +347,11 @@ export const CommentsSection: React.FC<Props> = ({ targetType, targetId }) => {
                   <View key={a.id} style={{ marginTop: 8 }}>
                     {(() => { console.log('💬 [render] attachment', {id:a.id,type:a.type,url:a.url}); return null; })()}
                     {a.type === 'image' || a.type === 'gif' ? (
-                      <Image source={{ uri: a.url }} style={{ width: '100%', height: 160, borderRadius: 8 }} />
+                      <ImageWithFallback
+                        source={{ uri: a.url.includes('/storage/v1/object/public/') ? `${a.url}?download=1` : a.url }}
+                        style={{ width: Dimensions.get('window').width - 48, height: 160, borderRadius: 8 }}
+                        resizeMode="cover"
+                      />
                     ) : a.type === 'youtube' ? (
                       (() => {
                         const vid = getYouTubeId(a.url);
@@ -451,9 +518,17 @@ export const CommentsSection: React.FC<Props> = ({ targetType, targetId }) => {
             style={{ backgroundColor: '#222', color: 'white', padding: 12, borderRadius: 8 }}
             onSubmitEditing={searchGifs}
           />
-          <TouchableOpacity onPress={searchGifs} style={{ alignSelf: 'flex-end', backgroundColor: '#333', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
-            <Text color="#fff">Search</Text>
-          </TouchableOpacity>
+          <XStack gap={8} justifyContent="flex-end">
+            <TouchableOpacity onPress={loadTrendingGifs} style={{ alignSelf: 'flex-end', backgroundColor: '#333', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
+              <Text color="#fff">Trending</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={loadRandomGif} style={{ alignSelf: 'flex-end', backgroundColor: '#333', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
+              <Text color="#fff">Random</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={searchGifs} style={{ alignSelf: 'flex-end', backgroundColor: '#333', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
+              <Text color="#fff">Search</Text>
+            </TouchableOpacity>
+          </XStack>
           {gifLoading ? (
             <YStack flex={1} alignItems="center" justifyContent="center">
               <ActivityIndicator color="#00E6C3" />
@@ -469,13 +544,16 @@ export const CommentsSection: React.FC<Props> = ({ targetType, targetId }) => {
                     key={g.id}
                     onPress={async () => {
                       try {
-                        console.log('💬 [GIF] pick', g.id);
+                        console.log('💬 [GIF] pick', g.id, g.url);
                         const id = await createCommentForAttachment();
                         if (!id) return;
+                        // Use type 'image' to satisfy enum; mark metadata.format='gif'
+                        const insertPayload = { comment_id: id, type: 'image', url: g.url, metadata: { source: 'giphy', id: g.id, format: 'gif' } } as any;
                         const { error } = await supabase
                           .from('comment_attachments')
-                          .insert({ comment_id: id, type: 'gif', url: g.url, metadata: { source: 'giphy', id: g.id } });
+                          .insert(insertPayload);
                         if (error) console.log('💬 [GIF] insert error', error);
+                        else console.log('💬 [GIF] insert ok', insertPayload);
                       } catch (e) {
                         console.log('💬 [GIF] exception', e);
                       } finally {

@@ -2945,6 +2945,10 @@ export function ProgressScreen() {
             </Text>
           )}
 
+          <TouchableOpacity onPress={() => { console.log('🧾 [ProgressScreen] open report exercise', selectedExercise.id); setReportExerciseId(selectedExercise.id); }} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
+            <Text color="#EF4444">Report Exercise</Text>
+          </TouchableOpacity>
+
           {/* NEW: Quiz Section */}
           {hasQuizQuestions[selectedExercise.id] && (
             <YStack marginBottom={24}>
@@ -3388,6 +3392,10 @@ export function ProgressScreen() {
         </ScrollView>
         {/* Add Quiz Interface */}
         <QuizInterface />
+
+        {reportExerciseId && (
+          <ReportDialog reportableId={reportExerciseId} reportableType="exercise" onClose={() => setReportExerciseId(null)} />
+        )}
       </YStack>
     );
   }
@@ -3484,7 +3492,7 @@ export function ProgressScreen() {
             {detailPath.description[lang]}
           </Text>
 
-          <TouchableOpacity onPress={() => setReportPath(true)} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
+          <TouchableOpacity onPress={() => { console.log('🧾 [ProgressScreen] open report path', detailPath.id); setReportPath(true); }} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
             <Text color="#EF4444">Report Learning Path</Text>
           </TouchableOpacity>
 
