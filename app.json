@@ -105,7 +105,8 @@
       },
       "eas": {
         "projectId": "fa6c9622-c436-45f8-a238-abeb7b4b4c13"
-      }
+      },
+      "EXPO_PUBLIC_GIPHY_KEY": "qy7cPb9DNZHFnccpdAtDcm2CrjZUuH4L"
     },
     "runtimeVersion": "1.0.0",
     "updates": {

@@ -31,8 +31,11 @@ export const HomeHeader = () => {
   const [students, setStudents] = React.useState<Array<{ id: string; full_name: string; email: string; created_at?: string }>>([]);
   const isSupervisorRole = ['instructor', 'admin', 'school'].includes((profile as any)?.role || '');
 
-  const loadSupervisedStudents = React.useCallback(async () => {
-    if (!profile?.id) return;
+  const loadSupervisedStudents = React.useCallback(async (): Promise<Array<{ id: string; full_name: string; email: string; created_at?: string }>> => {
+    if (!profile?.id) {
+      setStudents([]);
+      return [];
+    }
     try {
       // Step 1: fetch relationships
       const { data: rels, error: relErr } = await supabase
@@ -45,7 +48,7 @@ export const HomeHeader = () => {
       const studentIds = (rels || []).map((r: any) => r.student_id);
       if (studentIds.length === 0) {
         setStudents([]);
-        return;
+        return [];
       }
 
       // Step 2: fetch profile details
@@ -56,22 +59,39 @@ export const HomeHeader = () => {
       if (profErr) throw profErr;
 
       const createdAtById = Object.fromEntries((rels || []).map((r: any) => [r.student_id, r.created_at]));
-      const list = (profs || []).map((p: any) => ({
+      const list: Array<{ id: string; full_name: string; email: string; created_at?: string }> = (profs || []).map((p: any) => ({
         id: p.id,
         full_name: p.full_name || 'Unknown',
         email: p.email || '',
         created_at: createdAtById[p.id],
       }));
       setStudents(list);
+      return list;
     } catch (e) {
       console.warn('Failed to load supervised students', e);
+      setStudents([]);
+      return [];
     }
   }, [profile?.id]);
 
-  const onPressAvatar = () => {
-    if (!isSupervisorRole) return;
-    // Load first to ensure list is ready, then open
-    loadSupervisedStudents().finally(() => setShowStudentPicker(true));
+  const onPressAvatar = async () => {
+    // If user is not a supervisor (i.e., student), go to their public profile
+    if (!isSupervisorRole) {
+      if (profile?.id) (navigation as any).navigate('PublicProfile', { userId: profile.id });
+      return;
+    }
+    // For instructors/admin/school: load students, if fewer than 2, go to own public profile; else open modal
+    try {
+      const list = (await loadSupervisedStudents()) || [];
+      if ((list?.length || 0) < 2) {
+        if (profile?.id) (navigation as any).navigate('PublicProfile', { userId: profile.id });
+      } else {
+        setShowStudentPicker(true);
+      }
+    } catch {
+      // Fallback: open the picker as before
+      setShowStudentPicker(true);
+    }
   };
   return (
     <YStack
@@ -125,11 +145,11 @@ export const HomeHeader = () => {
             size="sm"
             variant="secondary"
             onPress={() => navigation.navigate('UsersScreen')}
-            icon={
-              <Feather name="users" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />
-            }
           >
-            Users
+            <XStack alignItems="center" gap={6}>
+              <Feather name="users" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />
+              <Text>Users</Text>
+            </XStack>
           </Button>
         </XStack>
       </XStack>

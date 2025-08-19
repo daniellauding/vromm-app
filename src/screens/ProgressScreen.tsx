@@ -27,6 +27,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { useScreenLogger } from '../hooks/useScreenLogger';
 import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
+import { CommentsSection } from '../components/CommentsSection';
+import { ReportDialog } from '../components/report/ReportDialog';
 
 // Define LearningPath type based on the learning_paths table with all fields
 interface LearningPath {
@@ -336,6 +338,10 @@ export function ProgressScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [viewingUserName, setViewingUserName] = useState<string | null>(null);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [pathCommentCount, setPathCommentCount] = useState<number>(0);
+  const [reportPath, setReportPath] = useState(false);
+  const [reportExerciseId, setReportExerciseId] = useState<string | null>(null);
 
   // NEW: Payment and access control state
   const [userPayments, setUserPayments] = useState<UserPayment[]>([]);
@@ -1830,6 +1836,27 @@ export function ProgressScreen() {
           // Just use the exercises as they come from the database
           // Don't create fake repeat exercises - only work with real database entries
           setExercises(data || []);
+          try {
+            const ids = (data || []).map((e: any) => e.id);
+            if (ids.length > 0) {
+              const { data: cc } = await supabase
+                .from('comment_counts')
+                .select('target_type,target_id,count')
+                .eq('target_type', 'exercise')
+                .in('target_id', ids);
+              const map: Record<string, number> = {};
+              (cc || []).forEach((r: any) => (map[r.target_id] = r.count || 0));
+              setCommentCounts(map);
+              const total = ids.reduce((sum: number, id: string) => sum + (map[id] || 0), 0);
+              setPathCommentCount(total);
+            } else {
+              setCommentCounts({});
+              setPathCommentCount(0);
+            }
+          } catch {
+            setCommentCounts({});
+            setPathCommentCount(0);
+          }
         } else {
           setExercises([]);
         }
@@ -2918,6 +2945,10 @@ export function ProgressScreen() {
             </Text>
           )}
 
+          <TouchableOpacity onPress={() => { console.log('🧾 [ProgressScreen] open report exercise', selectedExercise.id); setReportExerciseId(selectedExercise.id); }} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
+            <Text color="#EF4444">Report Exercise</Text>
+          </TouchableOpacity>
+
           {/* NEW: Quiz Section */}
           {hasQuizQuestions[selectedExercise.id] && (
             <YStack marginBottom={24}>
@@ -3348,11 +3379,23 @@ export function ProgressScreen() {
                 <Text color="$gray11">Created: {selectedExercise.created_at}</Text>
                 <Text color="$gray11">Updated: {selectedExercise.updated_at}</Text>
               </YStack>
+
+              {/* Comments moved to bottom to be less prominent */}
+              <YStack marginTop={24}>
+                <Text fontSize={18} fontWeight="bold" color="$color" marginBottom={8}>
+                  Comments
+                </Text>
+                <CommentsSection targetType="exercise" targetId={selectedExercise.id} />
+              </YStack>
             </>
           )}
         </ScrollView>
         {/* Add Quiz Interface */}
         <QuizInterface />
+
+        {reportExerciseId && (
+          <ReportDialog reportableId={reportExerciseId} reportableType="exercise" onClose={() => setReportExerciseId(null)} />
+        )}
       </YStack>
     );
   }
@@ -3425,9 +3468,17 @@ export function ProgressScreen() {
                 />
               </View>
             )}
-            <Text fontSize={28} fontWeight="bold" color="$color">
-              {detailPath.title[lang]}
-            </Text>
+            <XStack alignItems="center" gap={8}>
+              <Text fontSize={28} fontWeight="bold" color="$color">
+                {detailPath.title[lang]}
+              </Text>
+              {pathCommentCount > 0 && (
+                <XStack alignItems="center" gap={4} backgroundColor="#1f2937" paddingHorizontal={8} paddingVertical={4} borderRadius={12}>
+                  <Feather name="message-circle" size={14} color="#00E6C3" />
+                  <Text fontSize={12} color="#00E6C3">{pathCommentCount}</Text>
+                </XStack>
+              )}
+            </XStack>
 
             {/* Show appropriate icon for path state */}
             {isPasswordLocked ? (
@@ -3440,6 +3491,10 @@ export function ProgressScreen() {
           <Text color="$gray11" marginBottom={16}>
             {detailPath.description[lang]}
           </Text>
+
+          <TouchableOpacity onPress={() => { console.log('🧾 [ProgressScreen] open report path', detailPath.id); setReportPath(true); }} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
+            <Text color="#EF4444">Report Learning Path</Text>
+          </TouchableOpacity>
 
           {/* Locked Path State - ALWAYS takes precedence over Unavailable */}
           {isPasswordLocked ? (
@@ -3623,6 +3678,12 @@ export function ProgressScreen() {
                                     {displayIndex}.{' '}
                                     {main.title?.[lang] || main.title?.en || 'Untitled'}
                                   </Text>
+                                  {!!commentCounts[main.id] && commentCounts[main.id] > 0 && (
+                                    <XStack alignItems="center" gap={4} backgroundColor="#1f2937" paddingHorizontal={6} paddingVertical={2} borderRadius={10}>
+                                      <Feather name="message-circle" size={12} color="#00E6C3" />
+                                      <Text fontSize={10} color="#00E6C3">{commentCounts[main.id]}</Text>
+                                    </XStack>
+                                  )}
 
                                   {/* Show repeat count if it has repeats */}
                                   {main.repeat_count && main.repeat_count > 1 && (
@@ -3672,6 +3733,9 @@ export function ProgressScreen() {
                                   {main.description[lang]}
                                 </Text>
                               )}
+                              <TouchableOpacity onPress={() => setReportExerciseId(main.id)} style={{ alignSelf: 'flex-end', marginTop: 6 }}>
+                                <Text color="#EF4444" fontSize={12}>Report Exercise</Text>
+                              </TouchableOpacity>
                               <RepeatProgressBar exercise={main} />
                               {lastAuditByExercise[main.id] && (
                                 <Text color="$gray11" marginTop={4} fontSize={12}>
@@ -3799,6 +3863,21 @@ export function ProgressScreen() {
             </ScrollView>
           </YStack>
         </RNModal>
+        {/* Ensure report dialogs render at this screen level to avoid being hidden */}
+        {reportPath && detailPath && (
+          <ReportDialog
+            reportableId={detailPath.id}
+            reportableType="learning_path"
+            onClose={() => setReportPath(false)}
+          />
+        )}
+        {reportExerciseId && (
+          <ReportDialog
+            reportableId={reportExerciseId}
+            reportableType="exercise"
+            onClose={() => setReportExerciseId(null)}
+          />
+        )}
       </YStack>
     );
   }
@@ -4226,6 +4305,12 @@ export function ProgressScreen() {
           </>
         )}
       </ScrollView>
+      {reportPath && detailPath && (
+        <ReportDialog reportableId={detailPath.id} reportableType="learning_path" onClose={() => setReportPath(false)} />
+      )}
+      {reportExerciseId && (
+        <ReportDialog reportableId={reportExerciseId} reportableType="exercise" onClose={() => setReportExerciseId(null)} />
+      )}
     </YStack>
   );
 }

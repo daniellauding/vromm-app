@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { supabase } from '../lib/supabase';
 import { ExerciseProgressService } from '../services/exerciseProgressService';
+import { CommentsSection } from './CommentsSection';
 
 // Helper function to extract text from multilingual fields
 const getDisplayText = (
@@ -462,7 +463,7 @@ export function ExerciseDetailModal({
       // Update learning path progress if connected
       if (exercise.id.startsWith('lpe_')) {
         const learningPathExerciseId = exercise.id;
-        await ExerciseProgressService.completeExercise(effectiveUserId, learningPathExerciseId);
+        await ExerciseProgressService.completeExerciseFromRoute(learningPathExerciseId, routeId);
       }
 
       setIsCompleted(true);
@@ -900,6 +901,9 @@ export function ExerciseDetailModal({
 
             {/* Media Content */}
             {renderExerciseMedia(exercise)}
+
+            {/* Comments */}
+            <CommentsSection targetType="exercise" targetId={exercise.id} />
 
             {/* Quiz Section */}
             {exercise.has_quiz && (
