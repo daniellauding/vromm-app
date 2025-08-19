@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
 import { XStack, YStack, Text } from 'tamagui';
-import { Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
@@ -30,6 +29,13 @@ interface LearningPath {
   user_profile?: string;
   created_at: string;
   updated_at: string;
+  learning_path_exercises: {
+    id: string;
+    learning_path_id: string;
+    order_index: number;
+    created_at: string;
+    updated_at: string;
+  }[];
 }
 
 interface ProgressCircleProps {
@@ -81,106 +87,118 @@ interface ProgressSectionProps {
   activeUserId?: string | null;
 }
 
+const loadLastAudit = async (effectiveUserId: string | null): Promise<any> => {
+  if (!effectiveUserId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('exercise_completion_audit')
+      .select('action, actor_name, created_at')
+      .eq('student_id', effectiveUserId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!error && data) {
+      return data;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const fetchCompletions = async (effectiveUserId: string | null): Promise<string[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('learning_path_exercise_completions')
+      .select('exercise_id')
+      .eq('user_id', effectiveUserId);
+
+    if (!error && data) {
+      return data.map((c: { exercise_id: string }) => c.exercise_id);
+    } else {
+      console.log('📊 [ProgressSection] No completions or error for user:', effectiveUserId, error);
+      return [];
+    }
+  } catch (err) {
+    console.error('Error fetching completions:', err);
+    return [];
+  }
+};
+
+const fetchLearningPaths = async (): Promise<LearningPath[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('learning_paths')
+      .select('* , learning_path_exercises(*)')
+      .eq('active', true)
+      .order('order_index', { ascending: true });
+
+    if (error) return [];
+    return data || [];
+  } catch (err) {
+    console.error('Error fetching learning paths:', err);
+    return [];
+  }
+};
+
 export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const { language: lang, t } = useTranslation();
-  const { profile, user: authUser } = useAuth();
+  const { user: authUser } = useAuth();
   const { activeStudentId } = useStudentSwitch();
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [activePath, setActivePath] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation<NavigationProp>();
   const [completedIds, setCompletedIds] = useState<string[]>([]);
-  const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
-  const [user, setUser] = useState<{ id: string } | null>(null);
-  const [lastAudit, setLastAudit] = useState<{ action: string; actor_name: string | null; created_at: string } | null>(null);
-  
-  // Use activeStudentId from context, then activeUserId prop, then authenticated user
-  const effectiveUserId = activeStudentId || activeUserId || authUser?.id || user?.id;
+  const [lastAudit, setLastAudit] = useState<{
+    action: string;
+    actor_name: string | null;
+    created_at: string;
+  } | null>(null);
 
-  // Debug logging for ProgressSection
-  console.log('📊 [ProgressSection] Props activeUserId:', activeUserId);
-  console.log('📊 [ProgressSection] StudentSwitch activeStudentId:', activeStudentId);
-  console.log('📊 [ProgressSection] Auth user ID:', user?.id);
-  console.log('📊 [ProgressSection] Effective user ID:', effectiveUserId);
-  console.log('📊 [ProgressSection] Profile:', profile);
-  console.log('📊 [ProgressSection] Is viewing student data?', !!activeStudentId);
+  // Use activeStudentId from context, then activeUserId prop, then authenticated user
+  const effectiveUserId: string | null = activeStudentId || activeUserId || authUser?.id || null;
+
+  console.log('ProgressSection: Render');
+
+  // Fetch learning paths when the component mounts
+  useEffect(() => {
+    console.log('ProgressSection: Fetching learning paths');
+    setLoading(true);
+    const fetch = async () => {
+      const data = await fetchLearningPaths();
+      if (data && data.length > 0) {
+        setPaths(data);
+        setActivePath(data[0].id);
+      }
+      setLoading(false);
+    };
+    fetch();
+  }, []);
 
   // Add useFocusEffect to refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log('ProgressSection: Screen focused, refreshing data');
       if (effectiveUserId) {
-        fetchCompletions();
+        fetchCompletions(effectiveUserId);
       }
     }, [effectiveUserId]),
   );
 
   useEffect(() => {
-    fetchLearningPaths();
-  }, []);
+    const fetch = async () => {
+      const [lastAudit, completions] = await Promise.all([
+        loadLastAudit(effectiveUserId),
+        fetchCompletions(effectiveUserId),
+      ]);
 
-  // Load latest audit entry for quick info line
-  useEffect(() => {
-    const loadLastAudit = async () => {
-      if (!effectiveUserId) return;
-      try {
-        const { data, error } = await supabase
-          .from('exercise_completion_audit')
-          .select('action, actor_name, created_at')
-          .eq('student_id', effectiveUserId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        if (!error && data) setLastAudit(data as any);
-        else setLastAudit(null);
-      } catch {
-        setLastAudit(null);
-      }
+      setLastAudit(lastAudit);
+      setCompletedIds(completions);
     };
-    loadLastAudit();
-  }, [effectiveUserId]);
-
-  useEffect(() => {
-    // Fetch user from supabase auth
-    const fetchUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    fetchUser();
-  }, []);
-
-  // Set up real-time subscription for exercise completions
-  useEffect(() => {
-    if (!effectiveUserId) return;
-
-    console.log('ProgressSection: Setting up real-time subscription', effectiveUserId);
-
-    // Fetch completions - extract as standalone function for reuse
-    const fetchCompletions = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('learning_path_exercise_completions')
-          .select('exercise_id')
-          .eq('user_id', effectiveUserId);
-
-        if (!error && data) {
-          // Use a function updater to ensure we're working with the latest state
-          console.log(`📊 [ProgressSection] Fetched ${data.length} completions for user:`, effectiveUserId);
-          console.log(`📊 [ProgressSection] Completion data:`, data);
-          setCompletedIds(data.map((c: { exercise_id: string }) => c.exercise_id));
-        } else {
-          console.log('📊 [ProgressSection] No completions or error for user:', effectiveUserId, error);
-          setCompletedIds([]);
-        }
-      } catch (err) {
-        console.error('Error fetching completions:', err);
-        setCompletedIds([]);
-      }
-    };
-
-    fetchCompletions();
+    fetch();
 
     // Set up real-time subscription with a debounce mechanism
     let debounceTimer: ReturnType<typeof setTimeout>;
@@ -207,7 +225,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
             console.log('ProgressSection: Executing debounced fetch');
-            fetchCompletions();
+            fetchCompletions(effectiveUserId);
           }, 200); // Short delay to batch multiple rapid changes
         },
       )
@@ -223,104 +241,42 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
             console.log('ProgressSection: Executing debounced fetch (virtual repeats)');
-            fetchCompletions();
+            fetchCompletions(effectiveUserId);
           }, 200);
         },
-      )
-      .subscribe((status) => {
-        console.log(`ProgressSection: Subscription status: ${status}`);
-      });
+      );
 
     // Clean up subscription and timer on unmount
     return () => {
-      console.log(`ProgressSection: Cleaning up subscription ${channelName}`);
       clearTimeout(debounceTimer);
       supabase.removeChannel(subscription);
     };
   }, [effectiveUserId]);
 
-  useEffect(() => {
-    // Fetch all exercises for each path
-    const fetchAllExercises = async () => {
-      const map: { [pathId: string]: string[] } = {};
-      for (const path of paths) {
-        const { data } = await supabase
-          .from('learning_path_exercises')
-          .select('id')
-          .eq('learning_path_id', path.id);
-        map[path.id] = data ? data.map((e: { id: string }) => e.id) : [];
-      }
-      setExercisesByPath(map);
-    };
-    if (paths.length > 0) fetchAllExercises();
-  }, [paths]);
-
-  const fetchLearningPaths = async () => {
-    try {
-      setLoading(true);
-
-          // Simple query to show all active learning paths 
-    const { data, error } = await supabase
-      .from('learning_paths')
-      .select('*')
-      .eq('active', true)
-      .order('order_index', { ascending: true });
-
-      if (error) throw error;
-      setPaths(data || []);
-      // Set the first path as active by default
-      if (data && data.length > 0) {
-        setActivePath(data[0].id);
-      }
-    } catch (err) {
-      console.error('Error fetching learning paths:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePathPress = (path: LearningPath) => {
-    setActivePath(path.id);
-    // Navigate to ProgressTab with the specific path details and showDetail flag
-    // Pass activeUserId so ProgressScreen knows which user's data to show
-    console.log('📊 [ProgressSection] Navigating to ProgressTab with effectiveUserId:', effectiveUserId);
-    navigation.navigate('ProgressTab', {
-      selectedPathId: path.id,
-      showDetail: true,
-      activeUserId: effectiveUserId, // Pass the active user ID (includes StudentSwitch context)
-    });
-  };
+  const handlePathPress = React.useCallback(
+    (path: LearningPath) => {
+      setActivePath(path.id);
+      // Navigate to ProgressTab with the specific path details and showDetail flag
+      // Pass activeUserId so ProgressScreen knows which user's data to show
+      console.log(
+        '📊 [ProgressSection] Navigating to ProgressTab with effectiveUserId:',
+        effectiveUserId,
+      );
+      navigation.navigate('ProgressTab', {
+        selectedPathId: path.id,
+        showDetail: true,
+        activeUserId: effectiveUserId, // Pass the active user ID (includes StudentSwitch context)
+      });
+    },
+    [effectiveUserId, navigation],
+  );
 
   // Calculate progress for each path
-  const getPathProgress = (pathId: string) => {
-    const ids = exercisesByPath[pathId] || [];
+  const getPathProgress = (path: LearningPath) => {
+    const ids = path.learning_path_exercises.map((exercise) => exercise.id);
     if (ids.length === 0) return 0;
     const completed = ids.filter((id) => completedIds.includes(id)).length;
     return completed / ids.length;
-  };
-
-  // Make fetchCompletions available at component level
-  const fetchCompletions = async () => {
-    if (!effectiveUserId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('learning_path_exercise_completions')
-        .select('exercise_id')
-        .eq('user_id', effectiveUserId);
-
-      if (!error && data) {
-        console.log(`📊 [ProgressSection] Fetched ${data.length} completions for user:`, effectiveUserId);
-        console.log(`📊 [ProgressSection] Completion data:`, data);
-        setCompletedIds(data.map((c: { exercise_id: string }) => c.exercise_id));
-      } else {
-        console.log('📊 [ProgressSection] No completions or error for user:', effectiveUserId, error);
-        setCompletedIds([]);
-      }
-    } catch (err) {
-      console.error('Error fetching completions:', err);
-      setCompletedIds([]);
-    }
   };
 
   if (loading || paths.length === 0) {
@@ -342,7 +298,8 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       {lastAudit && (
         <YStack paddingHorizontal="$4" marginBottom={4}>
           <Text color="$gray11" fontSize={12}>
-            Last: {lastAudit.action.replace('_',' ')} by {lastAudit.actor_name || 'Unknown'} at {new Date(lastAudit.created_at).toLocaleString()}
+            Last: {lastAudit.action.replace('_', ' ')} by {lastAudit.actor_name || 'Unknown'} at{' '}
+            {new Date(lastAudit.created_at).toLocaleString()}
           </Text>
         </YStack>
       )}
@@ -350,7 +307,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         <XStack space="$3" paddingHorizontal="$4">
           {paths.map((path, idx) => {
             const isActive = activePath === path.id;
-            const percent = getPathProgress(path.id);
+            const percent = getPathProgress(path);
             // Allow all paths to be clickable - no order restriction
             const isEnabled = true;
             // Visual highlight for paths with progress
