@@ -85,6 +85,8 @@ export function ExerciseDetailModal({
   const colorScheme = useColorScheme();
   const [isCompleted, setIsCompleted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [lastAudit, setLastAudit] = useState<{ actor_name: string | null; created_at: string; action: string } | null>(null);
+  const [viewingUserName, setViewingUserName] = useState<string | null>(null);
   
   // Use activeStudentId if available (for instructor viewing student data)
   const effectiveUserId = activeStudentId || user?.id;
@@ -105,8 +107,48 @@ export function ExerciseDetailModal({
   useEffect(() => {
     if (exercise && effectiveUserId) {
       checkCompletion();
+      loadLastAudit();
     }
   }, [exercise, effectiveUserId]);
+
+  // Load "Viewing as" display
+  useEffect(() => {
+    const loadViewingUser = async () => {
+      try {
+        if (!effectiveUserId) {
+          setViewingUserName(null);
+          return;
+        }
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', effectiveUserId)
+          .single();
+        setViewingUserName(data?.full_name || data?.email || null);
+      } catch {
+        setViewingUserName(null);
+      }
+    };
+    loadViewingUser();
+  }, [effectiveUserId]);
+
+  const loadLastAudit = async () => {
+    if (!exercise || !effectiveUserId) return;
+    try {
+      const { data, error } = await supabase
+        .from('exercise_completion_audit')
+        .select('actor_name, created_at, action')
+        .eq('student_id', effectiveUserId)
+        .eq('exercise_id', exercise.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (!error && data) setLastAudit(data as any);
+      else setLastAudit(null);
+    } catch {
+      setLastAudit(null);
+    }
+  };
 
   const checkCompletion = async () => {
     if (!exercise || !effectiveUserId) return;
@@ -834,6 +876,13 @@ export function ExerciseDetailModal({
           </XStack>
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+            {viewingUserName && (
+              <YStack marginBottom={12} padding={10} backgroundColor={colorScheme === 'dark' ? '#162023' : '#E6FFFA'} borderRadius={12}>
+                <Text color={colorScheme === 'dark' ? '#00E6C3' : '#0F766E'} fontSize={12}>
+                  Viewing as: {viewingUserName}
+                </Text>
+              </YStack>
+            )}
             {/* Exercise Title */}
             <XStack alignItems="center" gap="$3" marginBottom="$4">
               <Feather name="book-open" size={24} color="#00E6C3" />
@@ -938,6 +987,12 @@ export function ExerciseDetailModal({
                   {isCompleted ? 'Completed' : 'Not Completed'}
                 </Text>
               </XStack>
+
+              {lastAudit && (
+                <Text color="$gray11" size="sm" marginBottom="$2">
+                  Last action: {lastAudit.action.replace('_', ' ')} by {lastAudit.actor_name || 'Unknown'} at {new Date(lastAudit.created_at).toLocaleString()}
+                </Text>
+              )}
 
               {!isCompleted && (
                 <Button

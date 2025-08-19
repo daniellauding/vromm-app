@@ -262,7 +262,8 @@ export function ProgressScreen() {
   const route = useRoute<RouteProp<TabParamList, 'ProgressTab'>>();
   const { language: lang, t } = useTranslation(); // Get user's language preference and t function
   const { profile, user: authUser } = useAuth(); // Get user profile for auth context
-  const { selectedPathId, showDetail, activeUserId } = route.params || {};
+  const { selectedPathId, showDetail, activeUserId } = (route.params || {}) as any;
+  const focusExerciseId: string | undefined = (route.params as any)?.focusExerciseId;
   
   // Use activeUserId from navigation if provided (for student switching)
   const effectiveUserId = activeUserId || authUser?.id;
@@ -333,6 +334,8 @@ export function ProgressScreen() {
     exercises: string[];
   }>({ paths: [], exercises: [] });
   const [refreshing, setRefreshing] = useState(false);
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [viewingUserName, setViewingUserName] = useState<string | null>(null);
 
   // NEW: Payment and access control state
   const [userPayments, setUserPayments] = useState<UserPayment[]>([]);
@@ -367,6 +370,7 @@ export function ProgressScreen() {
   const [quizHistory, setQuizHistory] = useState<QuizAttempt[]>([]);
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
   const [hasQuizQuestions, setHasQuizQuestions] = useState<{ [exerciseId: string]: boolean }>({});
+  const [lastAuditByExercise, setLastAuditByExercise] = useState<Record<string, { action: string; actor_name: string | null; created_at: string }>>({});
 
     // Load categories from Supabase - RESTORED with proper error handling
   useEffect(() => {
@@ -858,6 +862,27 @@ export function ProgressScreen() {
     };
     loadQuizInfo();
   }, [exercises]);
+
+  // Load the display name/email for the user whose progress is being viewed
+  useEffect(() => {
+    const loadViewingUser = async () => {
+      try {
+        if (!effectiveUserId) {
+          setViewingUserName(null);
+          return;
+        }
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', effectiveUserId)
+          .single();
+        setViewingUserName(data?.full_name || data?.email || null);
+      } catch {
+        setViewingUserName(null);
+      }
+    };
+    loadViewingUser();
+  }, [effectiveUserId]);
 
   // Refresh function for pull-to-refresh
   const handleRefresh = async () => {
@@ -1564,6 +1589,19 @@ export function ProgressScreen() {
             fetchCompletions();
           },
         )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'virtual_repeat_completions',
+            filter: `user_id=eq.${effectiveUserId}`,
+          },
+          () => {
+            console.log('ProgressScreen: Realtime update received (virtual repeats)');
+            fetchCompletions();
+          },
+        )
         .subscribe((status) => {
           console.log(`ProgressScreen: Subscription status: ${status}`);
         });
@@ -1575,6 +1613,50 @@ export function ProgressScreen() {
       };
     }
   }, [effectiveUserId]);
+
+  // History (audit) list support
+  const [auditEntries, setAuditEntries] = useState<Array<{ exercise_id: string; repeat_number: number | null; action: string; actor_name: string | null; created_at: string }>>([]);
+  const [exerciseInfoById, setExerciseInfoById] = useState<Record<string, { title: { en: string; sv: string }; repeat_count?: number; learning_path_id: string }>>({});
+
+  const loadAudit = async () => {
+    if (!effectiveUserId) return;
+    try {
+      const { data, error } = await supabase
+        .from('exercise_completion_audit')
+        .select('exercise_id, repeat_number, action, actor_name, created_at')
+        .eq('student_id', effectiveUserId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (!error && data) {
+        setAuditEntries(data as any);
+        // Load exercise titles and repeat counts for context
+        const ids = Array.from(new Set((data as any[]).map((d) => d.exercise_id)));
+        if (ids.length > 0) {
+          const { data: exData } = await supabase
+            .from('learning_path_exercises')
+            .select('id, title, repeat_count, learning_path_id')
+            .in('id', ids);
+          const map: Record<string, { title: { en: string; sv: string }; repeat_count?: number; learning_path_id: string }> = {};
+          (exData || []).forEach((row: any) => {
+            map[row.id] = {
+              title: row.title || { en: 'Untitled', sv: 'Namnlös' },
+              repeat_count: row.repeat_count || 1,
+              learning_path_id: row.learning_path_id,
+            };
+          });
+          setExerciseInfoById(map);
+        } else {
+          setExerciseInfoById({});
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (historyModalVisible) {
+      loadAudit();
+    }
+  }, [historyModalVisible, effectiveUserId]);
 
   // Calculate percentage of completion for active path
   const calculatePathCompletion = (pathId: string): number => {
@@ -1696,6 +1778,10 @@ export function ProgressScreen() {
             .order('order_index', { ascending: true });
           if (data) {
             setExercises(data);
+            if (focusExerciseId) {
+              const found = (data as any[]).find((ex) => ex.id === focusExerciseId);
+              if (found) setSelectedExercise(found as any);
+            }
           }
         };
         refreshExercises();
@@ -3306,9 +3392,27 @@ export function ProgressScreen() {
             />
           }
         >
-          <TouchableOpacity onPress={() => setShowDetailView(false)} style={{ marginBottom: 24 }}>
-            <Feather name="arrow-left" size={28} color="#fff" />
-          </TouchableOpacity>
+          {/* Back + History Header Row */}
+          <XStack justifyContent="space-between" alignItems="center" marginBottom={8}>
+            <TouchableOpacity onPress={() => setShowDetailView(false)}>
+              <Feather name="arrow-left" size={28} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setHistoryModalVisible(true);
+                loadAudit();
+              }}
+              style={{ backgroundColor: '#333', padding: 8, borderRadius: 16 }}
+            >
+              <Feather name="clock" size={20} color="#fff" />
+            </TouchableOpacity>
+          </XStack>
+
+          {viewingUserName && (
+            <YStack marginBottom={12} padding={10} backgroundColor="#162023" borderRadius={12}>
+              <Text color="#00E6C3" fontSize={12}>Viewing as: {viewingUserName}</Text>
+            </YStack>
+          )}
 
           {/* Path header with icon if available */}
           <XStack alignItems="center" gap={12} marginBottom={16}>
@@ -3569,6 +3673,21 @@ export function ProgressScreen() {
                                 </Text>
                               )}
                               <RepeatProgressBar exercise={main} />
+                              {lastAuditByExercise[main.id] && (
+                                <Text color="$gray11" marginTop={4} fontSize={12}>
+                                  {(() => {
+                                    const a = lastAuditByExercise[main.id] as any;
+                                    let verb = a.action;
+                                    if (verb === 'completed') verb = 'Marked complete';
+                                    if (verb === 'uncompleted') verb = 'Marked incomplete';
+                                    if (verb.includes('virtual')) {
+                                      const rep = a.repeat_number ? `Repetition ${a.repeat_number}` : 'Repetition';
+                                      verb = `${rep} completed`;
+                                    }
+                                    return `Last: ${verb} by ${a.actor_name || 'Unknown'} at ${new Date(a.created_at).toLocaleString()}`;
+                                  })()}
+                                </Text>
+                              )}
                             </Card>
                           </XStack>
                         </TouchableOpacity>
@@ -3580,6 +3699,106 @@ export function ProgressScreen() {
             </>
           )}
         </ScrollView>
+        {/* History Modal */}
+        <RNModal
+          visible={historyModalVisible}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setHistoryModalVisible(false)}
+        >
+          <YStack flex={1} backgroundColor="$background">
+            <XStack justifyContent="space-between" alignItems="center" padding={16}>
+              <TouchableOpacity onPress={() => setHistoryModalVisible(false)}>
+                <Feather name="arrow-left" size={28} color="#fff" />
+              </TouchableOpacity>
+              <Text fontSize={18} fontWeight="bold" color="$color">History</Text>
+              <View style={{ width: 28 }} />
+            </XStack>
+            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+              {auditEntries.length === 0 ? (
+                <Text color="$gray11">No recent activity.</Text>
+              ) : (
+                auditEntries.map((e, idx) => {
+                  const info = exerciseInfoById[e.exercise_id];
+                  const title = info?.title?.[lang] || info?.title?.en || 'Untitled';
+                  const totalRepeats = info?.repeat_count || 1;
+                  const mainDone = completedIds.includes(e.exercise_id);
+                  const isVirtual = !!e.repeat_number && e.repeat_number > 1;
+                  const virtualId = isVirtual ? `${e.exercise_id}-virtual-${e.repeat_number}` : '';
+                  const virtualDone = isVirtual ? virtualRepeatCompletions.includes(virtualId) : false;
+                  const isChecked = isVirtual ? virtualDone : mainDone;
+                  const progress = getRepeatProgress({
+                    id: e.exercise_id,
+                    learning_path_id: info?.learning_path_id || '',
+                    title: info?.title || { en: 'Untitled', sv: 'Namnlös' },
+                    description: { en: '', sv: '' },
+                    order_index: 0,
+                    repeat_count: totalRepeats,
+                  }).percent;
+
+                  return (
+                    <TouchableOpacity
+                      key={`${e.exercise_id}-${e.created_at}-${idx}`}
+                      onPress={() => {
+                        const ex = exercises.find((x) => x.id === e.exercise_id) || null;
+                        if (ex) setSelectedExercise(ex);
+                      }}
+                      style={{ paddingVertical: 10 }}
+                    >
+                      <XStack alignItems="center" gap={10}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (isVirtual && virtualId) {
+                              toggleVirtualRepeatCompletion(virtualId);
+                            } else {
+                              toggleCompletion(e.exercise_id);
+                            }
+                          }}
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 6,
+                            borderWidth: 2,
+                            borderColor: isChecked ? '#00E6C3' : '#888',
+                            backgroundColor: isChecked ? '#00E6C3' : 'transparent',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {isChecked && <Feather name="check" size={14} color="#fff" />}
+                        </TouchableOpacity>
+                        <YStack flex={1}>
+                          <Text color="$color" numberOfLines={2} fontWeight="600">
+                            {title}
+                            {totalRepeats > 1 && e.repeat_number
+                              ? ` — Repetition ${e.repeat_number}/${totalRepeats}`
+                              : ''}
+                            {' '}
+                            — {(() => {
+                              let verb = e.action;
+                              if (verb === 'completed') verb = 'Marked complete';
+                              if (verb === 'uncompleted') verb = 'Marked incomplete';
+                              if (verb.includes('virtual')) verb = 'Marked complete';
+                              return `${verb} by ${e.actor_name || 'Unknown'}`;
+                            })()}
+                          </Text>
+                          <XStack alignItems="center" gap={6}>
+                            <View style={{ width: 60, height: 4, backgroundColor: '#333', borderRadius: 2, overflow: 'hidden' }}>
+                              <View style={{ width: `${Math.round(progress * 100)}%`, height: '100%', backgroundColor: '#00E6C3' }} />
+                            </View>
+                            <Text color="$gray11" fontSize={12}>
+                              {new Date(e.created_at).toLocaleString()}
+                            </Text>
+                          </XStack>
+                        </YStack>
+                      </XStack>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </YStack>
+        </RNModal>
       </YStack>
     );
   }
@@ -3598,6 +3817,18 @@ export function ProgressScreen() {
           />
         }
       >
+        {/* Global History Button */}
+        <XStack justifyContent="flex-end" marginBottom={8}>
+          <TouchableOpacity
+            onPress={() => {
+              setHistoryModalVisible(true);
+              loadAudit();
+            }}
+            style={{ backgroundColor: '#333', padding: 10, borderRadius: 16 }}
+          >
+            <Feather name="clock" size={18} color="#fff" />
+          </TouchableOpacity>
+        </XStack>
         {/* Category filters */}
         <YStack
           space={12}

@@ -1838,20 +1838,36 @@ export function ProfileScreen() {
         <Header
           title={t('profile.title')}
           rightElement={
-            <Button
-              onPress={() => {
-                if (profile?.id) {
-                  navigation.navigate('PublicProfile', { userId: profile.id });
-                }
-              }}
-              variant="secondary"
-              size="sm"
-            >
-              <XStack alignItems="center" gap="$2">
-                <Feather name="eye" size={16} color={colorScheme === 'dark' ? 'white' : 'black'} />
-                <Text>View Profile</Text>
-              </XStack>
-            </Button>
+            <XStack gap="$2">
+              {!!activeStudentId && (
+                <Button
+                  onPress={() => {
+                    navigation.navigate('PublicProfile', { userId: activeStudentId! });
+                  }}
+                  variant="secondary"
+                  size="sm"
+                >
+                  <XStack alignItems="center" gap="$2">
+                    <Feather name="user" size={16} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                    <Text>View Student</Text>
+                  </XStack>
+                </Button>
+              )}
+              <Button
+                onPress={() => {
+                  if (profile?.id) {
+                    navigation.navigate('PublicProfile', { userId: profile.id });
+                  }
+                }}
+                variant="secondary"
+                size="sm"
+              >
+                <XStack alignItems="center" gap="$2">
+                  <Feather name="eye" size={16} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                  <Text>View Profile</Text>
+                </XStack>
+              </Button>
+            </XStack>
           }
         />
         <YStack gap={24}>

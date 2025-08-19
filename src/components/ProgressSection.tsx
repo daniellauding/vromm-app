@@ -92,6 +92,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [user, setUser] = useState<{ id: string } | null>(null);
+  const [lastAudit, setLastAudit] = useState<{ action: string; actor_name: string | null; created_at: string } | null>(null);
   
   // Use activeStudentId from context, then activeUserId prop, then authenticated user
   const effectiveUserId = activeStudentId || activeUserId || authUser?.id || user?.id;
@@ -117,6 +118,27 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   useEffect(() => {
     fetchLearningPaths();
   }, []);
+
+  // Load latest audit entry for quick info line
+  useEffect(() => {
+    const loadLastAudit = async () => {
+      if (!effectiveUserId) return;
+      try {
+        const { data, error } = await supabase
+          .from('exercise_completion_audit')
+          .select('action, actor_name, created_at')
+          .eq('student_id', effectiveUserId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        if (!error && data) setLastAudit(data as any);
+        else setLastAudit(null);
+      } catch {
+        setLastAudit(null);
+      }
+    };
+    loadLastAudit();
+  }, [effectiveUserId]);
 
   useEffect(() => {
     // Fetch user from supabase auth
@@ -187,6 +209,22 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
             console.log('ProgressSection: Executing debounced fetch');
             fetchCompletions();
           }, 200); // Short delay to batch multiple rapid changes
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'virtual_repeat_completions',
+          filter: `user_id=eq.${effectiveUserId}`,
+        },
+        () => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            console.log('ProgressSection: Executing debounced fetch (virtual repeats)');
+            fetchCompletions();
+          }, 200);
         },
       )
       .subscribe((status) => {
@@ -295,10 +333,19 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         title={t('home.yourProgress') || 'Your Progress'}
         variant="chevron"
         onAction={() =>
-          navigation.navigate('ProgressTab', { selectedPathId: paths[0]?.id, showDetail: true })
+          navigation.navigate('ProgressTab', {
+            activeUserId: effectiveUserId,
+          })
         }
         actionLabel={t('common.seeAll') || 'See All'}
       />
+      {lastAudit && (
+        <YStack paddingHorizontal="$4" marginBottom={4}>
+          <Text color="$gray11" fontSize={12}>
+            Last: {lastAudit.action.replace('_',' ')} by {lastAudit.actor_name || 'Unknown'} at {new Date(lastAudit.created_at).toLocaleString()}
+          </Text>
+        </YStack>
+      )}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <XStack space="$3" paddingHorizontal="$4">
           {paths.map((path, idx) => {
