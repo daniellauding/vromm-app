@@ -49,7 +49,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
-  
+
   // Use the effective user ID (either activeUserId prop, activeStudentId from context, or current user id)
   const effectiveUserId = activeUserId || getEffectiveUserId();
 
@@ -122,19 +122,24 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         <YStack f={1}>
           <HomeHeader />
           {isViewingAsStudent && (
-            <YStack backgroundColor="$blue3" padding="$2" marginHorizontal="$4" marginBottom="$2" borderRadius="$2">
+            <YStack
+              backgroundColor="$blue3"
+              padding="$2"
+              marginHorizontal="$4"
+              marginBottom="$2"
+              borderRadius="$2"
+            >
               <Text color="$blue11" textAlign="center">
                 Viewing as: {activeStudentName || 'Student'}
               </Text>
             </YStack>
           )}
           <GettingStarted />
+
           <ProgressSection activeUserId={effectiveUserId} />
-          <SavedRoutes />
+          {/*<SavedRoutes />*/}
           <CommunityFeed />
           <QuickFilters handleFilterPress={handleFilterPress} />
-
-          {/* Create Route Button */}
           <Button
             onPress={() => navigation.navigate('CreateRoute', {})}
             variant="primary"
@@ -142,17 +147,13 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
           >
             {t('home.createNewRoute')}
           </Button>
-
-          {/* City Routes - Now with dropdown and full-width cards */}
-          <YStack gap="$4">
+          {/*<YStack gap="$4">
             <CityRoutes />
 
             <CreatedRoutes />
             <NearByRoutes />
             <DrivenRoutes />
-          </YStack>
-
-          {/* Users Section */}
+          </YStack>*/}
           <YStack gap="$4" marginTop="$6" marginBottom="$6">
             <SectionHeader
               title="Users"

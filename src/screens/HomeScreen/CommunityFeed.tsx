@@ -15,6 +15,7 @@ import { Play } from '@tamagui/lucide-icons';
 import { formatDistanceToNow } from 'date-fns';
 import Carousel from 'react-native-reanimated-carousel';
 import { FlatList } from 'react-native-gesture-handler';
+import { StaticMap } from '@/src/components/Map/static';
 
 interface ActivityItem {
   id: string;
@@ -37,18 +38,12 @@ const ActivityMediaPreviewItem = ({ item }: { item: ActivityItem['data'] }) => {
   return (
     <View style={{ flex: 1 }}>
       {item.type === 'map' ? (
-        <Map
+        <StaticMap
           waypoints={item.data.waypoints}
           region={item.data.region}
-          scrollEnabled={false}
-          zoomEnabled={false}
-          pitchEnabled={false}
-          rotateEnabled={false}
           style={{ width: '100%', height: '100%' }}
           routePath={item.data.routePath}
           showStartEndMarkers={item.data.showStartEndMarkers}
-          drawingMode={item.data.drawingMode}
-          penDrawingCoordinates={item.data.penDrawingCoordinates}
         />
       ) : item.type === 'video' ? (
         <TouchableOpacity
