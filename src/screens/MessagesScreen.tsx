@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FlatList, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { YStack, XStack, Text, Avatar, Spinner } from 'tamagui';
+import { ReportDialog } from '../components/report/ReportDialog';
 import { Plus, Search, ArrowLeft, User, Trash2 } from '@tamagui/lucide-icons';
 import { messageService, Conversation } from '../services/messageService';
 import { useNavigation } from '@react-navigation/native';
@@ -13,6 +14,7 @@ export const MessagesScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
   const { user } = useAuth();
+  const [reportConversationId, setReportConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     loadConversations();
@@ -126,14 +128,16 @@ export const MessagesScreen: React.FC = () => {
   };
 
   const getConversationDisplayName = (conversation: Conversation) => {
-    const otherParticipant = conversation.participants?.find((p) => p.user_id !== user?.id);
+    const otherParticipant = conversation.participants?.find((p) => p.user_id !== user?.id) as any;
 
-    if (otherParticipant?.profile?.full_name?.trim()) {
-      return otherParticipant.profile.full_name.trim();
+    const prof = otherParticipant ? (otherParticipant.profiles || otherParticipant.profile) : null;
+
+    if (prof?.full_name?.trim()) {
+      return prof.full_name.trim();
     }
 
-    if (otherParticipant?.profile?.email?.trim()) {
-      return otherParticipant.profile.email.trim();
+    if (prof?.email?.trim()) {
+      return prof.email.trim();
     }
 
     if (otherParticipant?.user_id) {
@@ -153,6 +157,11 @@ export const MessagesScreen: React.FC = () => {
         onPress: () => handleViewProfile(conversation),
       },
       {
+        text: 'Report Conversation',
+        style: 'destructive',
+        onPress: () => setReportConversationId(conversation.id),
+      },
+      {
         text: 'Delete Conversation',
         style: 'destructive',
         onPress: () => handleDeleteConversation(conversation),
@@ -167,7 +176,7 @@ export const MessagesScreen: React.FC = () => {
     }
 
     // Find the other participant (not the current user)
-    const otherParticipant = item.participants?.find((p) => p.user_id !== user?.id);
+    const otherParticipant = item.participants?.find((p) => p.user_id !== user?.id) as any;
     const lastMessage = item.last_message;
     const displayName = getConversationDisplayName(item);
     const safeDisplayName = String(displayName || 'Unknown User');
@@ -179,7 +188,7 @@ export const MessagesScreen: React.FC = () => {
       otherParticipant: otherParticipant
         ? {
             userId: String(otherParticipant.user_id || ''),
-            profile: otherParticipant.profile || null,
+            profile: (otherParticipant.profiles || otherParticipant.profile) || null,
             displayName: safeDisplayName,
           }
         : null,
@@ -315,6 +324,10 @@ export const MessagesScreen: React.FC = () => {
           }
           showsVerticalScrollIndicator={false}
         />
+      )}
+
+      {reportConversationId && (
+        <ReportDialog reportableId={reportConversationId} reportableType="route" onClose={() => setReportConversationId(null)} />
       )}
     </YStack>
   );
