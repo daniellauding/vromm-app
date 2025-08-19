@@ -456,7 +456,18 @@ export const NotificationsScreen: React.FC = () => {
       
       if (invitationId) {
         console.log('🚫 Found invitation ID:', invitationId, 'rejecting...');
-        const ok = await rejectInvitation(invitationId);
+        let ok = await rejectInvitation(invitationId);
+        
+        // Fallback: if updating to rejected failed (RLS), try hard-delete the invite
+        if (!ok) {
+          try {
+            const { error: delErr } = await supabase
+              .from('pending_invitations')
+              .delete()
+              .eq('id', invitationId);
+            if (!delErr) ok = true;
+          } catch {}
+        }
         
         if (ok) {
           console.log('✅ Invitation rejected successfully, cleaning up notification');
@@ -469,6 +480,11 @@ export const NotificationsScreen: React.FC = () => {
               .delete()
               .eq('id', notification.id);
             console.log('🗑️ Notification deleted from NotificationsScreen');
+            // Also delete any other notifications tied to this invitation id
+            await supabase
+              .from('notifications')
+              .delete()
+              .eq('metadata->>invitation_id', invitationId);
           } catch (deleteError) {
             console.warn('Could not delete notification:', deleteError);
           }

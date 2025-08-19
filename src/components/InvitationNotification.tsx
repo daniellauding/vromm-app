@@ -229,20 +229,23 @@ export function InvitationNotification({
         console.warn('⚠️ Error cleaning up notification:', notificationCleanupError);
       }
       
+      // Immediately remove from local state and close modal if none left
+      setPendingInvitations((prev) => prev.filter((inv) => inv.id !== invitation.id));
+      setTimeout(() => {
+        if (pendingInvitations.length <= 1) {
+          setCurrentInvitation(null);
+          onInvitationHandled();
+          onClose();
+        } else {
+          handleNextInvitation();
+        }
+      }, 50);
+
       // Remove the declined invitation from local state
-      setPendingInvitations(prev => {
-        const updated = prev.filter(inv => inv.id !== invitation.id);
-        console.log('📝 Updated pending invitations count:', updated.length);
-        return updated;
-      });
-
-      Alert.alert(
-        'Invitation Declined', 
-        'You have declined the invitation.',
-        [{ text: 'OK', onPress: () => handleNextInvitation() }]
-      );
-
-      onInvitationHandled();
+      // Keep previous alert but don't block modal flow
+      try {
+        Alert.alert('Invitation Declined', 'You have declined the invitation.');
+      } catch {}
     } catch (error) {
       console.error('❌ Error declining invitation:', error);
     } finally {
