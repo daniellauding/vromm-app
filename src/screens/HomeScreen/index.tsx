@@ -147,13 +147,13 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
           >
             {t('home.createNewRoute')}
           </Button>
-          {/*<YStack gap="$4">
+          <YStack gap="$4">
             <CityRoutes />
 
             <CreatedRoutes />
             <NearByRoutes />
             <DrivenRoutes />
-          </YStack>*/}
+          </YStack>
           <YStack gap="$4" marginTop="$6" marginBottom="$6">
             <SectionHeader
               title="Users"
