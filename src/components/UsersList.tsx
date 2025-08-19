@@ -20,15 +20,272 @@ type User = {
   created_at?: string;
   isFollowing?: boolean;
   isCurrentUser?: boolean;
+  invited?: boolean;
 };
+
+function UserItem({
+  user,
+  currentUser,
+  currentUserRole,
+}: {
+  user: User;
+  currentUser: User | null;
+  currentUserRole: string | null;
+}) {
+  const navigation = useNavigation<NavigationProp>();
+  const [isInvited, setIsInvited] = useState(user.invited);
+  const [isFollowing, setIsFollowing] = useState(user.isFollowing);
+  const [isFollowLoading, setIsFollowLoading] = useState<boolean>(false);
+  const colorScheme = useColorScheme();
+  const navigateToProfile = React.useCallback(() => {
+    navigation.navigate('PublicProfile', { userId: user.id });
+  }, [navigation, user.id]);
+
+  const handleInvite = React.useCallback(async () => {
+    if (!currentUser?.id) return;
+    if (!user.email) {
+      Alert.alert('Invite', 'This user has no email on file. Cannot send invitation.');
+      return;
+    }
+
+    const isStudentInvitingSupervisor = currentUserRole === 'student';
+    const relationshipText = isStudentInvitingSupervisor ? 'supervisor' : 'student';
+
+    Alert.alert(
+      'Send Invitation',
+      `Invite ${user.full_name || 'this user'} to be your ${relationshipText}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send',
+          onPress: async () => {
+            try {
+              relLog.inviteStart(
+                currentUser.id,
+                user.id,
+                isStudentInvitingSupervisor
+                  ? 'student_invites_supervisor'
+                  : 'supervisor_invites_student',
+              );
+              // Optional personal message
+              let customMessage: string | undefined;
+              try {
+                // @ts-ignore Alert.prompt exists in RN
+                customMessage = await new Promise<string | undefined>((resolve) => {
+                  Alert.prompt(
+                    'Add a personal message (optional)',
+                    'This will be shown in the invitation modal and notification.',
+                    [
+                      { text: 'Skip', style: 'cancel', onPress: () => resolve(undefined) },
+                      { text: 'Send', onPress: (text) => resolve(text?.trim() || undefined) },
+                    ],
+                    'plain-text',
+                  );
+                });
+              } catch {}
+              const result = await inviteNewUser({
+                email: user.email!,
+                role: isStudentInvitingSupervisor ? 'instructor' : 'student',
+                supervisorId: isStudentInvitingSupervisor ? currentUser.id : currentUser.id,
+                supervisorName: undefined,
+                relationshipType: isStudentInvitingSupervisor
+                  ? 'student_invites_supervisor'
+                  : 'supervisor_invites_student',
+                metadata: customMessage ? { customMessage } : undefined,
+              });
+              if (!result.success) throw new Error(result.error || 'Failed to send');
+              Alert.alert('Invitation Sent', 'The invitation has been sent.');
+              relLog.inviteSuccess(result.invitationId);
+              // Optimistic UI: mark as invited (disabled button)
+              setIsInvited(true);
+            } catch (e) {
+              relLog.inviteError(e instanceof Error ? e.message : 'unknown error');
+              Alert.alert('Error', 'Failed to send invitation.');
+            }
+          },
+        },
+      ],
+    );
+  }, [currentUser.id, currentUserRole, user.id, user.email, user.full_name]);
+
+  const handleFollow = React.useCallback(async () => {
+    try {
+      if (!currentUser?.id || isFollowLoading) return;
+
+      setIsFollowLoading(true);
+
+      if (isFollowing) {
+        // Unfollow
+        const { error } = await supabase
+          .from('user_follows')
+          .delete()
+          .eq('follower_id', currentUser.id)
+          .eq('following_id', user.id);
+
+        if (error) throw error;
+
+        setIsFollowing(false);
+        console.log('👤 User unfollowed');
+      } else {
+        // Follow
+        const { error } = await supabase.from('user_follows').insert([
+          {
+            follower_id: currentUser.id,
+            following_id: user.id,
+          },
+        ]);
+
+        if (error) throw error;
+
+        setIsFollowing(true);
+        console.log('👤 User followed');
+      }
+    } catch (error) {
+      console.error('Error following/unfollowing user:', error);
+    } finally {
+      setIsFollowLoading(false);
+    }
+  }, [currentUser.id, user.id, isFollowing, isFollowLoading]);
+
+  return (
+    <TouchableOpacity
+      key={user.id}
+      onPress={navigateToProfile}
+      onLongPress={handleInvite}
+      activeOpacity={0.8}
+    >
+      <YStack
+        width={130}
+        borderRadius={16}
+        backgroundColor="$backgroundStrong"
+        padding="$3"
+        alignItems="center"
+        gap="$2"
+        borderWidth={1}
+        borderColor="$borderColor"
+      >
+        {/* Avatar */}
+        {user.avatar_url ? (
+          <Image
+            source={{ uri: user.avatar_url }}
+            style={{ width: 70, height: 70, borderRadius: 35 }}
+          />
+        ) : (
+          <View
+            style={{
+              width: 70,
+              height: 70,
+              borderRadius: 35,
+              backgroundColor: colorScheme === 'dark' ? '#444' : '#eee',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Feather name="user" size={30} color={colorScheme === 'dark' ? '#ddd' : '#666'} />
+          </View>
+        )}
+
+        {/* Name */}
+        <Text
+          textAlign="center"
+          fontWeight="bold"
+          fontSize="$3"
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {user.full_name || 'Unknown'}
+        </Text>
+
+        {/* Role badge */}
+        {user.role && (
+          <View
+            style={{
+              backgroundColor:
+                user.role === 'student'
+                  ? '#4B6BFF33'
+                  : user.role === 'instructor'
+                    ? '#34C75933'
+                    : '#AF52DE33',
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 12,
+            }}
+          >
+            <Text
+              fontSize="$2"
+              color={
+                user.role === 'student'
+                  ? '#4B6BFF'
+                  : user.role === 'instructor'
+                    ? '#34C759'
+                    : '#AF52DE'
+              }
+              fontWeight="bold"
+            >
+              {user.role.toUpperCase()}
+            </Text>
+          </View>
+        )}
+
+        {/* Location (if available) */}
+        {user.location && (
+          <XStack alignItems="center" gap="$1">
+            <Feather name="map-pin" size={10} color={colorScheme === 'dark' ? '#ddd' : '#666'} />
+            <Text fontSize="$2" color="$gray11" numberOfLines={1} ellipsizeMode="tail">
+              {user.location}
+            </Text>
+          </XStack>
+        )}
+
+        {/* Follow/Unfollow or Invited indicator */}
+        {!user.isCurrentUser && (
+          <Button
+            size="xs"
+            variant={isInvited ? 'secondary' : isFollowing ? 'secondary' : 'primary'}
+            backgroundColor={isInvited ? '$gray7' : isFollowing ? '$red5' : '$blue10'}
+            onPress={handleFollow}
+            disabled={isFollowLoading || isInvited}
+            marginTop="$2"
+            width="100%"
+          >
+            {isFollowLoading ? (
+              <Text color={isFollowing ? '$red11' : 'white'} fontSize="$1">
+                ...
+              </Text>
+            ) : (
+              <XStack gap="$1" alignItems="center">
+                {isInvited ? (
+                  <>
+                    <Feather name="clock" size={10} color="#F59E0B" />
+                    <Text color="#F59E0B" fontSize="$1" fontWeight="500">
+                      Invited
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Feather
+                      name={isFollowing ? 'user-minus' : 'user-plus'}
+                      size={10}
+                      color={isFollowing ? '#EF4444' : 'white'}
+                    />
+                    <Text color={isFollowing ? '$red11' : 'white'} fontSize="$1" fontWeight="500">
+                      {isFollowing ? 'Unfollow' : 'Follow'}
+                    </Text>
+                  </>
+                )}
+              </XStack>
+            )}
+          </Button>
+        )}
+      </YStack>
+    </TouchableOpacity>
+  );
+}
 
 export function UsersList() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [followLoading, setFollowLoading] = useState<{ [key: string]: boolean }>({});
-  const navigation = useNavigation<NavigationProp>();
-  const colorScheme = useColorScheme();
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,26 +304,26 @@ export function UsersList() {
         let usersWithFollowStatus = data || [];
 
         // If user is authenticated, check follow status for each user
-        if (user?.id) {
+        if (currentUser?.id) {
           // Load current user's role for invitation logic
           const { data: me } = await supabase
             .from('profiles')
             .select('role')
-            .eq('id', user.id)
+            .eq('id', currentUser.id)
             .single();
           setCurrentUserRole(me?.role || null);
 
           const { data: followData } = await supabase
             .from('user_follows')
             .select('following_id')
-            .eq('follower_id', user.id);
+            .eq('follower_id', currentUser.id);
 
           const followingIds = new Set(followData?.map((f) => f.following_id) || []);
 
           usersWithFollowStatus = (data || []).map((userData) => ({
             ...userData,
             isFollowing: followingIds.has(userData.id),
-            isCurrentUser: userData.id === user.id,
+            isCurrentUser: userData.id === currentUser.id,
           }));
         }
 
@@ -79,117 +336,7 @@ export function UsersList() {
     };
 
     fetchUsers();
-  }, [user?.id]);
-
-  const handleInvite = async (target: User) => {
-    if (!user?.id) return;
-    if (!target.email) {
-      Alert.alert('Invite', 'This user has no email on file. Cannot send invitation.');
-      return;
-    }
-
-    const isStudentInvitingSupervisor = currentUserRole === 'student';
-    const relationshipText = isStudentInvitingSupervisor ? 'supervisor' : 'student';
-
-    Alert.alert(
-      'Send Invitation',
-      `Invite ${target.full_name || 'this user'} to be your ${relationshipText}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send',
-          onPress: async () => {
-            try {
-              relLog.inviteStart(user.id, target.id, isStudentInvitingSupervisor ? 'student_invites_supervisor' : 'supervisor_invites_student');
-              // Optional personal message
-              let customMessage: string | undefined;
-              try {
-                // @ts-ignore Alert.prompt exists in RN
-                customMessage = await new Promise<string | undefined>((resolve) => {
-                  Alert.prompt(
-                    'Add a personal message (optional)',
-                    'This will be shown in the invitation modal and notification.',
-                    [
-                      { text: 'Skip', style: 'cancel', onPress: () => resolve(undefined) },
-                      { text: 'Send', onPress: (text) => resolve(text?.trim() || undefined) },
-                    ],
-                    'plain-text',
-                  );
-                });
-              } catch {}
-              const result = await inviteNewUser({
-                email: target.email!,
-                role: isStudentInvitingSupervisor ? 'instructor' : 'student',
-                supervisorId: isStudentInvitingSupervisor ? user.id : user.id,
-                supervisorName: undefined,
-                relationshipType: isStudentInvitingSupervisor
-                  ? 'student_invites_supervisor'
-                  : 'supervisor_invites_student',
-                metadata: customMessage ? { customMessage } : undefined,
-              });
-              if (!result.success) throw new Error(result.error || 'Failed to send');
-              Alert.alert('Invitation Sent', 'The invitation has been sent.');
-              relLog.inviteSuccess(result.invitationId);
-              // Optimistic UI: mark as invited (disabled button)
-              setUsers((prev) => prev.map((u) => (
-                u.id === target.id ? { ...u, invited: true } as any : u
-              )));
-            } catch (e) {
-              relLog.inviteError(e instanceof Error ? e.message : 'unknown error');
-              Alert.alert('Error', 'Failed to send invitation.');
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  const navigateToProfile = (userId: string) => {
-    navigation.navigate('PublicProfile', { userId });
-  };
-
-  const handleFollow = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
-    try {
-      if (!user?.id || followLoading[targetUserId]) return;
-
-      setFollowLoading((prev) => ({ ...prev, [targetUserId]: true }));
-
-      if (isCurrentlyFollowing) {
-        // Unfollow
-        const { error } = await supabase
-          .from('user_follows')
-          .delete()
-          .eq('follower_id', user.id)
-          .eq('following_id', targetUserId);
-
-        if (error) throw error;
-
-        setUsers((prev) =>
-          prev.map((u) => (u.id === targetUserId ? { ...u, isFollowing: false } : u)),
-        );
-        console.log('👤 User unfollowed');
-      } else {
-        // Follow
-        const { error } = await supabase.from('user_follows').insert([
-          {
-            follower_id: user.id,
-            following_id: targetUserId,
-          },
-        ]);
-
-        if (error) throw error;
-
-        setUsers((prev) =>
-          prev.map((u) => (u.id === targetUserId ? { ...u, isFollowing: true } : u)),
-        );
-        console.log('👤 User followed');
-      }
-    } catch (error) {
-      console.error('Error following/unfollowing user:', error);
-    } finally {
-      setFollowLoading((prev) => ({ ...prev, [targetUserId]: false }));
-    }
-  };
+  }, [currentUser?.id]);
 
   if (loading) {
     return (
@@ -211,143 +358,12 @@ export function UsersList() {
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       <XStack space="$4" paddingHorizontal="$4">
         {users.map((user) => (
-          <TouchableOpacity
+          <UserItem
             key={user.id}
-            onPress={() => navigateToProfile(user.id)}
-            onLongPress={() => handleInvite(user)}
-            activeOpacity={0.8}
-          >
-            <YStack
-              width={130}
-              borderRadius={16}
-              backgroundColor="$backgroundStrong"
-              padding="$3"
-              alignItems="center"
-              gap="$2"
-              borderWidth={1}
-              borderColor="$borderColor"
-            >
-              {/* Avatar */}
-              {user.avatar_url ? (
-                <Image
-                  source={{ uri: user.avatar_url }}
-                  style={{ width: 70, height: 70, borderRadius: 35 }}
-                />
-              ) : (
-                <View
-                  style={{
-                    width: 70,
-                    height: 70,
-                    borderRadius: 35,
-                    backgroundColor: colorScheme === 'dark' ? '#444' : '#eee',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Feather name="user" size={30} color={colorScheme === 'dark' ? '#ddd' : '#666'} />
-                </View>
-              )}
-
-              {/* Name */}
-              <Text
-                textAlign="center"
-                fontWeight="bold"
-                fontSize="$3"
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {user.full_name || 'Unknown'}
-              </Text>
-
-              {/* Role badge */}
-              {user.role && (
-                <View
-                  style={{
-                    backgroundColor:
-                      user.role === 'student'
-                        ? '#4B6BFF33'
-                        : user.role === 'instructor'
-                          ? '#34C75933'
-                          : '#AF52DE33',
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 12,
-                  }}
-                >
-                  <Text
-                    fontSize="$2"
-                    color={
-                      user.role === 'student'
-                        ? '#4B6BFF'
-                        : user.role === 'instructor'
-                          ? '#34C759'
-                          : '#AF52DE'
-                    }
-                    fontWeight="bold"
-                  >
-                    {user.role.toUpperCase()}
-                  </Text>
-                </View>
-              )}
-
-              {/* Location (if available) */}
-              {user.location && (
-                <XStack alignItems="center" gap="$1">
-                  <Feather
-                    name="map-pin"
-                    size={10}
-                    color={colorScheme === 'dark' ? '#ddd' : '#666'}
-                  />
-                  <Text fontSize="$2" color="$gray11" numberOfLines={1} ellipsizeMode="tail">
-                    {user.location}
-                  </Text>
-                </XStack>
-              )}
-
-              {/* Follow/Unfollow or Invited indicator */}
-              {!user.isCurrentUser && (
-                <Button
-                  size="xs"
-                  variant={(user as any).invited ? 'secondary' : user.isFollowing ? 'secondary' : 'primary'}
-                  backgroundColor={(user as any).invited ? '$gray7' : user.isFollowing ? '$red5' : '$blue10'}
-                  onPress={() => handleFollow(user.id, user.isFollowing || false)}
-                  disabled={followLoading[user.id] || (user as any).invited}
-                  marginTop="$2"
-                  width="100%"
-                >
-                  {followLoading[user.id] ? (
-                    <Text color={user.isFollowing ? '$red11' : 'white'} fontSize="$1">
-                      ...
-                    </Text>
-                  ) : (
-                    <XStack gap="$1" alignItems="center">
-                      {(user as any).invited ? (
-                        <>
-                          <Feather name="clock" size={10} color="#F59E0B" />
-                          <Text color="#F59E0B" fontSize="$1" fontWeight="500">Invited</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Feather
-                            name={user.isFollowing ? 'user-minus' : 'user-plus'}
-                            size={10}
-                            color={user.isFollowing ? '#EF4444' : 'white'}
-                          />
-                          <Text
-                            color={user.isFollowing ? '$red11' : 'white'}
-                            fontSize="$1"
-                            fontWeight="500"
-                          >
-                            {user.isFollowing ? 'Unfollow' : 'Follow'}
-                          </Text>
-                        </>
-                      )}
-                    </XStack>
-                  )}
-                </Button>
-              )}
-            </YStack>
-          </TouchableOpacity>
+            user={user}
+            currentUser={currentUser}
+            currentUserRole={currentUserRole}
+          />
         ))}
       </XStack>
     </ScrollView>

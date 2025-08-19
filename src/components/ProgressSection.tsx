@@ -161,8 +161,6 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   // Use activeStudentId from context, then activeUserId prop, then authenticated user
   const effectiveUserId: string | null = activeStudentId || activeUserId || authUser?.id || null;
 
-  console.log('ProgressSection: Render');
-
   // Fetch learning paths when the component mounts
   useEffect(() => {
     console.log('ProgressSection: Fetching learning paths');
