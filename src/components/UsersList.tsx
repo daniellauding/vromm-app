@@ -101,6 +101,22 @@ export function UsersList() {
           onPress: async () => {
             try {
               relLog.inviteStart(user.id, target.id, isStudentInvitingSupervisor ? 'student_invites_supervisor' : 'supervisor_invites_student');
+              // Optional personal message
+              let customMessage: string | undefined;
+              try {
+                // @ts-ignore Alert.prompt exists in RN
+                customMessage = await new Promise<string | undefined>((resolve) => {
+                  Alert.prompt(
+                    'Add a personal message (optional)',
+                    'This will be shown in the invitation modal and notification.',
+                    [
+                      { text: 'Skip', style: 'cancel', onPress: () => resolve(undefined) },
+                      { text: 'Send', onPress: (text) => resolve(text?.trim() || undefined) },
+                    ],
+                    'plain-text',
+                  );
+                });
+              } catch {}
               const result = await inviteNewUser({
                 email: target.email!,
                 role: isStudentInvitingSupervisor ? 'instructor' : 'student',
@@ -109,6 +125,7 @@ export function UsersList() {
                 relationshipType: isStudentInvitingSupervisor
                   ? 'student_invites_supervisor'
                   : 'supervisor_invites_student',
+                metadata: customMessage ? { customMessage } : undefined,
               });
               if (!result.success) throw new Error(result.error || 'Failed to send');
               Alert.alert('Invitation Sent', 'The invitation has been sent.');

@@ -671,6 +671,23 @@ export function PublicProfileScreen() {
           throw new Error('Target user has no email on file. Cannot send invitation.');
         }
         relLog.inviteStart(user.id, String(userId), 'student_invites_supervisor');
+        // Optional personal message prompt
+        let customMessage: string | undefined;
+        try {
+          // @ts-ignore Alert.prompt exists in RN
+          customMessage = await new Promise<string | undefined>((resolve) => {
+            Alert.prompt(
+              'Add a personal message (optional)',
+              'This will be shown in the invitation modal and notification.',
+              [
+                { text: 'Skip', style: 'cancel', onPress: () => resolve(undefined) },
+                { text: 'Send', onPress: (text) => resolve(text?.trim() || undefined) },
+              ],
+              'plain-text',
+            );
+          });
+        } catch {}
+
         const result = await inviteNewUser({
           email: profile.email,
           role: 'instructor',
@@ -678,6 +695,7 @@ export function PublicProfileScreen() {
           supervisorName: currentUserProfile?.full_name || undefined,
           inviterRole: (currentUserProfile as any)?.role,
           relationshipType: 'student_invites_supervisor',
+          metadata: customMessage ? { customMessage } : undefined,
         });
 
         if (!result.success) {
@@ -739,6 +757,23 @@ export function PublicProfileScreen() {
           throw new Error('Target user has no email on file. Cannot send invitation.');
         }
         relLog.inviteStart(user.id, String(userId), 'supervisor_invites_student');
+        // Optional personal message prompt
+        let customMessage: string | undefined;
+        try {
+          // @ts-ignore Alert.prompt exists in RN
+          customMessage = await new Promise<string | undefined>((resolve) => {
+            Alert.prompt(
+              'Add a personal message (optional)',
+              'This will be shown in the invitation modal and notification.',
+              [
+                { text: 'Skip', style: 'cancel', onPress: () => resolve(undefined) },
+                { text: 'Send', onPress: (text) => resolve(text?.trim() || undefined) },
+              ],
+              'plain-text',
+            );
+          });
+        } catch {}
+
         const result = await inviteNewUser({
           email: profile.email,
           role: 'student',
@@ -746,6 +781,7 @@ export function PublicProfileScreen() {
           supervisorName: currentUserProfile?.full_name || undefined,
           inviterRole: (currentUserProfile as any)?.role,
           relationshipType: 'supervisor_invites_student',
+          metadata: customMessage ? { customMessage } : undefined,
         });
 
         if (!result.success) {

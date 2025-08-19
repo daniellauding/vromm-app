@@ -122,6 +122,7 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
               supervisorName || 'Someone',
               inviterRole || 'user',
               relationshipType === 'supervisor_invites_student' ? 'student' : 'supervisor',
+              (metadata as any)?.customMessage,
             );
           } catch (e) {
             console.warn('Push send failed (invite):', e);
@@ -154,6 +155,7 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
                 supervisorName || 'Someone',
                 inviterRole || 'user',
                 relationshipType === 'supervisor_invites_student' ? 'student' : 'supervisor',
+                (metadata as any)?.customMessage,
               );
             } catch {}
           }
@@ -516,6 +518,35 @@ export async function acceptInvitationById(invitationId: string, userId: string)
       });
       
       console.log('✅ Acceptance notification sent to sender');
+
+      // Also notify the accepter for confirmation
+      let confirmationMessage: string;
+      if (relationshipType === 'student_invites_supervisor') {
+        // Supervisor accepted student's request → confirmation to supervisor (accepter)
+        confirmationMessage = `You are now supervising ${senderName}.`;
+      } else {
+        // Student accepted supervisor's invite → confirmation to student (accepter)
+        confirmationMessage = `You are now being supervised by ${senderName}.`;
+      }
+
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        actor_id: invitation.invited_by,
+        type: 'new_message',
+        title: 'Relationship Confirmed ✅',
+        message: confirmationMessage,
+        metadata: {
+          invitation_id: invitationId,
+          relationship_type: relationshipType,
+          inviter_id: invitation.invited_by,
+          inviter_name: senderName,
+          notification_subtype: 'invitation_accepted',
+        },
+        action_url: 'vromm://profile',
+        priority: 'normal',
+        is_read: false,
+      });
+      console.log('✅ Acceptance confirmation sent to accepter');
     } catch (notifError) {
       console.warn('Failed to send acceptance notification:', notifError);
     }

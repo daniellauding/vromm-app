@@ -164,6 +164,23 @@ export function UsersScreen() {
         const target = users.find((u) => u.id === targetUserId);
         if (!target?.email) throw new Error('Target user has no email, cannot invite');
         relLog.inviteStart(user.id, targetUserId, 'student_invites_supervisor');
+        // Optional custom message prompt
+        let customMessage: string | undefined;
+        try {
+          // @ts-ignore - simple prompt for RN
+          customMessage = await new Promise<string | undefined>((resolve) => {
+            Alert.prompt(
+              'Add a personal message (optional)',
+              'This will be shown in the invitation modal and notification.',
+              [
+                { text: 'Skip', style: 'cancel', onPress: () => resolve(undefined) },
+                { text: 'Send', onPress: (text) => resolve(text?.trim() || undefined) },
+              ],
+              'plain-text',
+            );
+          });
+        } catch {}
+
         const result = await inviteNewUser({
           email: target.email,
           role: 'instructor',
@@ -171,6 +188,7 @@ export function UsersScreen() {
           supervisorName: currentUserProfile?.full_name || undefined,
           inviterRole: currentUserProfile?.role as any,
           relationshipType: 'student_invites_supervisor',
+          metadata: customMessage ? { customMessage } : undefined,
         });
         if (!result.success) throw new Error(result.error || 'Failed to send invitation');
         Alert.alert('Invitation Sent', 'They will appear once they accept.');
@@ -225,6 +243,23 @@ export function UsersScreen() {
         const target = users.find((u) => u.id === targetUserId);
         if (!target?.email) throw new Error('Target user has no email, cannot invite');
         relLog.inviteStart(user.id, targetUserId, 'supervisor_invites_student');
+        // Optional custom message prompt
+        let customMessage: string | undefined;
+        try {
+          // @ts-ignore - simple prompt for RN
+          customMessage = await new Promise<string | undefined>((resolve) => {
+            Alert.prompt(
+              'Add a personal message (optional)',
+              'This will be shown in the invitation modal and notification.',
+              [
+                { text: 'Skip', style: 'cancel', onPress: () => resolve(undefined) },
+                { text: 'Send', onPress: (text) => resolve(text?.trim() || undefined) },
+              ],
+              'plain-text',
+            );
+          });
+        } catch {}
+
         const result = await inviteNewUser({
           email: target.email,
           role: 'student',
@@ -232,6 +267,7 @@ export function UsersScreen() {
           supervisorName: currentUserProfile?.full_name || undefined,
           inviterRole: currentUserProfile?.role as any,
           relationshipType: 'supervisor_invites_student',
+          metadata: customMessage ? { customMessage } : undefined,
         });
         if (!result.success) throw new Error(result.error || 'Failed to send invitation');
         Alert.alert('Invitation Sent', 'They will appear once they accept.');

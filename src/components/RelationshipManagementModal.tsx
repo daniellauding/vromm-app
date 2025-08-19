@@ -157,6 +157,16 @@ export function RelationshipManagementModal({
         // Refresh incoming invitations when they change
         loadIncomingInvitations();
       })
+      // Realtime: when relationships change, ask parent to refresh lists so instructor sees new students instantly
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'student_supervisor_relationships',
+        filter: `supervisor_id=eq.${profile.id}`,
+      }, (payload) => {
+        console.log('🧩 Relationship row changed for supervisor, requesting refresh:', payload?.eventType);
+        onRefresh?.();
+      })
       .subscribe();
 
     return () => {

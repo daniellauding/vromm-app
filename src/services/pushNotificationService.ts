@@ -596,6 +596,7 @@ class PushNotificationService {
     fromUserName: string,
     fromUserRole: string,
     invitationType: 'supervisor' | 'student',
+    customMessage?: string,
   ) {
     const isStudentInvite = invitationType === 'student';
 
@@ -611,6 +612,7 @@ class PushNotificationService {
         from_user_name: fromUserName,
         from_user_role: fromUserRole,
         invitation_type: invitationType,
+        customMessage: customMessage || undefined,
       },
       actionUrl: 'vromm://notifications',
       priority: 'high',

@@ -213,24 +213,35 @@ function AppContent() {
         event: 'INSERT',
         schema: 'public',
         table: 'pending_invitations',
-        filter: `email=eq.${user.email.toLowerCase()}`,
-      }, (payload) => {
-        console.log('🌍 Global: New invitation received:', payload);
-        setTimeout(() => {
-          console.log('🌍 Setting invitation modal visible = true (pending insert)');
-          setShowGlobalInvitationNotification(true);
-        }, 200);
+      }, (payload: any) => {
+        try {
+          const row = payload?.new;
+          const targetEmail = (row?.email || '').toLowerCase();
+          if (targetEmail === (user.email || '').toLowerCase() && row?.status === 'pending') {
+            console.log('🌍 Global: Pending invitation INSERT matches current user → opening modal');
+            setTimeout(() => setShowGlobalInvitationNotification(true), 150);
+          } else {
+            console.log('🌍 Global: Invitation INSERT ignored (different email or status)', row?.email, row?.status);
+          }
+        } catch (e) {
+          console.log('🌍 Global: INSERT handler error', e);
+        }
       })
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'pending_invitations',
-        filter: `email=eq.${user.email.toLowerCase()}`,
-      }, (payload) => {
-        console.log('🌍 Global: Invitation updated:', payload);
-        setTimeout(() => {
-          checkForGlobalInvitations();
-        }, 300);
+      }, (payload: any) => {
+        try {
+          const row = payload?.new;
+          const targetEmail = (row?.email || '').toLowerCase();
+          if (targetEmail === (user.email || '').toLowerCase()) {
+            console.log('🌍 Global: Invitation UPDATE for current user, rechecking...');
+            setTimeout(() => checkForGlobalInvitations(), 250);
+          }
+        } catch (e) {
+          console.log('🌍 Global: UPDATE handler error', e);
+        }
       })
       .subscribe();
 
@@ -544,6 +555,25 @@ function AppContent() {
   return (
     <>
       <NetworkAlert />
+
+      {/* Global Invitation Notification Modal (outside navigator for top-most priority) */}
+      <InvitationNotification
+        visible={showGlobalInvitationNotification}
+        onClose={() => {
+          console.log('🌍 Global invitation modal closed');
+          setShowGlobalInvitationNotification(false);
+        }}
+        onInvitationHandled={() => {
+          console.log('🌍 Global invitation handled - checking for more');
+          // Close modal immediately; if more invites exist, we'll reopen
+          setShowGlobalInvitationNotification(false);
+          // Check for more invitations after handling one
+          setTimeout(() => {
+            checkForGlobalInvitations();
+          }, 1000);
+        }}
+      />
+
       <NavigationContainer
         key={`${user ? 'nav-app' : 'nav-auth'}-${authKey}`}
         ref={navigationRef}
@@ -795,24 +825,6 @@ function AppContent() {
           )}
         </Stack.Navigator>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        
-        {/* Global Invitation Notification Modal */}
-        <InvitationNotification
-          visible={showGlobalInvitationNotification}
-          onClose={() => {
-            console.log('🌍 Global invitation modal closed');
-            setShowGlobalInvitationNotification(false);
-          }}
-          onInvitationHandled={() => {
-            console.log('🌍 Global invitation handled - checking for more');
-            // Close modal immediately; if more invites exist, we'll reopen
-            setShowGlobalInvitationNotification(false);
-            // Check for more invitations after handling one
-            setTimeout(() => {
-              checkForGlobalInvitations();
-            }, 1000);
-          }}
-        />
       </ToastProvider>
           </NavigationContainer>
     </>
