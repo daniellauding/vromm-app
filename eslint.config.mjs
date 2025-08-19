@@ -39,8 +39,8 @@ export default [
       'react/prop-types': 'off',
 
       // React Native
-      'react-native/no-inline-styles': 'warn',
-      'react-native/no-color-literals': 'warn',
+      'react-native/no-inline-styles': 'off',
+      'react-native/no-color-literals': 'off',
       'react-native/no-raw-text': ['warn', { skip: ['Text'] }],
 
       // Hooks
