@@ -125,6 +125,16 @@ export const ConversationScreen: React.FC = () => {
 
     try {
       setSending(true);
+      const optimistic: any = {
+        id: `tmp_${Date.now()}`,
+        conversation_id: conversationId,
+        sender_id: currentUserId,
+        content: newMessage.trim(),
+        created_at: new Date().toISOString(),
+        read_by: [],
+        sender: (conversation as any)?.participants?.find((p: any) => p.user_id === currentUserId)?.profile,
+      };
+      setMessages((prev) => [optimistic, ...prev]);
       await messageService.sendMessage(conversationId, newMessage.trim());
       setNewMessage('');
 
@@ -151,7 +161,17 @@ export const ConversationScreen: React.FC = () => {
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('comment_attachments').getPublicUrl(upload.path);
       const url = pub.publicUrl;
-      await messageService.sendMessage(conversationId, url);
+      const optimistic: any = {
+        id: `tmp_${Date.now()}`,
+        conversation_id: conversationId,
+        sender_id: currentUserId,
+        content: url,
+        message_type: 'image',
+        created_at: new Date().toISOString(),
+        read_by: [],
+      };
+      setMessages((prev) => [optimistic, ...prev]);
+      await messageService.sendMessage(conversationId, url, 'image', { source: 'storage', path: upload.path });
       setTimeout(() => {
         try {
           if ((messages?.length || 0) > 0) {
@@ -178,7 +198,17 @@ export const ConversationScreen: React.FC = () => {
       const { data: upload, error: upErr } = await supabase.storage.from('comment_attachments').upload(fileName, file, { upsert: true, contentType: 'image/jpeg' });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('comment_attachments').getPublicUrl(upload.path);
-      await messageService.sendMessage(conversationId, pub.publicUrl);
+      const url = pub.publicUrl;
+      const optimistic: any = {
+        id: `tmp_${Date.now()}`,
+        conversation_id: conversationId,
+        sender_id: currentUserId,
+        content: url,
+        message_type: 'image',
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [optimistic, ...prev]);
+      await messageService.sendMessage(conversationId, url, 'image', { source: 'camera', path: upload.path });
     } catch (e) {
       console.error('📷 [DM] camera error', e);
       Alert.alert('Error', 'Failed to take photo');
@@ -198,7 +228,17 @@ export const ConversationScreen: React.FC = () => {
       const { data: upload, error: upErr } = await supabase.storage.from('comment_attachments').upload(fileName, file, { upsert: true, contentType: 'video/mp4' });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('comment_attachments').getPublicUrl(upload.path);
-      await messageService.sendMessage(conversationId, pub.publicUrl);
+      const url = pub.publicUrl;
+      const optimistic: any = {
+        id: `tmp_${Date.now()}`,
+        conversation_id: conversationId,
+        sender_id: currentUserId,
+        content: url,
+        message_type: 'file',
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [optimistic, ...prev]);
+      await messageService.sendMessage(conversationId, url, 'file', { kind: 'video', path: upload.path });
     } catch (e) {
       console.error('🎥 [DM] pick video error', e);
       Alert.alert('Error', 'Failed to send video');
@@ -638,7 +678,7 @@ export const ConversationScreen: React.FC = () => {
       </KeyboardAvoidingView>
 
       {showReport && (
-        <ReportDialog reportableId={conversationId} reportableType="user" onClose={() => setShowReport(false)} />
+        <ReportDialog reportableId={conversationId} reportableType="conversation" onClose={() => setShowReport(false)} />
       )}
 
       {/* GIF Picker Modal */}
@@ -679,7 +719,7 @@ export const ConversationScreen: React.FC = () => {
               {gifError && <Text color="#EF4444">{gifError}</Text>}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {gifResults.map((g) => (
-                  <TouchableOpacity key={g.id} onPress={async () => { await messageService.sendMessage(conversationId, g.url); setGifOpen(false); setGifResults([]); setGifQuery(''); }} style={{ marginRight: 8, marginBottom: 8 }}>
+                  <TouchableOpacity key={g.id} onPress={async () => { const optimistic: any = { id: `tmp_${Date.now()}`, conversation_id: conversationId, sender_id: currentUserId, content: g.url, message_type: 'image', created_at: new Date().toISOString() }; setMessages((prev) => [optimistic, ...prev]); await messageService.sendMessage(conversationId, g.url, 'image', { source: 'giphy', id: g.id }); setGifOpen(false); setGifResults([]); setGifQuery(''); }} style={{ marginRight: 8, marginBottom: 8 }}>
                     <Image source={{ uri: g.thumb }} style={{ width: 104, height: 104, borderRadius: 8, backgroundColor: '#111' }} />
                   </TouchableOpacity>
                 ))}

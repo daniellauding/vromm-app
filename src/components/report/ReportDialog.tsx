@@ -14,6 +14,7 @@ interface ReportDialogProps {
     | 'event'
     | 'learning_path'
     | 'exercise'
+    | 'conversation'
     | 'comment'
     | 'route_comment'
     | 'event_comment'
@@ -77,6 +78,10 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
         ) {
           return reportableType;
         }
+        if (reportableType === 'conversation') {
+          // DB enum currently lacks 'conversation'; map to 'user' but keep original subtype in content
+          return 'user';
+        }
         if (
           reportableType === 'exercise' ||
           reportableType === 'learning_path' ||
@@ -101,6 +106,33 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
         `\n[type:${reportableType}]`
       ).trim();
 
+      // Build structured context for deterministic routing
+      const context: any = (() => {
+        const base = { subtype: reportableType } as any;
+        const dl = (p: string) => `vromm://${p}`;
+        switch (reportableType) {
+          case 'conversation':
+            return { ...base, conversation_id: reportableId, deeplink: dl(`conversation/${reportableId}`) };
+          case 'user':
+            return { ...base, user_id: reportableId, deeplink: dl(`user/${reportableId}`) };
+          case 'route':
+            return { ...base, route_id: reportableId, deeplink: dl(`route/${reportableId}`) };
+          case 'event':
+            return { ...base, event_id: reportableId, deeplink: dl(`event/${reportableId}`) };
+          case 'learning_path':
+            return { ...base, learning_path_id: reportableId, deeplink: dl(`learning-path/${reportableId}`) };
+          case 'exercise':
+            return { ...base, exercise_id: reportableId, deeplink: dl(`exercise/${reportableId}`) };
+          case 'route_comment':
+          case 'event_comment':
+          case 'exercise_comment':
+          case 'learning_path_comment':
+            return { ...base, comment_id: reportableId, deeplink: dl(`comment/${reportableId}`) };
+          default:
+            return base;
+        }
+      })();
+
       // Check if user has already reported this item
       const { data: existingReport } = await supabase
         .from('reports')
@@ -115,14 +147,17 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
       }
 
       // Submit the report
-      const { error: reportError } = await supabase.from('reports').insert({
+      const insertPayload: any = {
         reportable_id: reportableId,
         reportable_type: normalizedType,
         reporter_id: user.id,
         report_type: reportType,
         content: finalContent || undefined,
         status: 'pending',
-      });
+        context,
+      };
+
+      const { error: reportError } = await supabase.from('reports').insert(insertPayload as any);
 
       if (reportError) throw reportError;
 
@@ -139,7 +174,7 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
   const selectedType = REPORT_TYPES.find((type) => type.value === reportType);
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible transparent animationType="slide" onRequestClose={onClose} presentationStyle="overFullScreen" statusBarTranslucent>
       <YStack flex={1} backgroundColor="rgba(0,0,0,0.5)" justifyContent="center" padding="$4">
         <Card elevate bordered backgroundColor="$background" padding="$4">
           <YStack gap="$4">
