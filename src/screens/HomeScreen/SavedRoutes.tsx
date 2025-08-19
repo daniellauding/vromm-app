@@ -45,19 +45,15 @@ const getRouteImage: (route: Route) => string | null = (route) => {
 export const SavedRoutes = () => {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
-  const { user } = useAuth();
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const [savedRoutes, setSavedRoutes] = React.useState<SavedRoute[]>([]);
-  
+
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
 
   const loadSavedRoutes = React.useCallback(async () => {
     if (!effectiveUserId) return;
-    
-    console.log('💾 [SavedRoutes] Loading saved routes for user:', effectiveUserId);
-    console.log('💾 [SavedRoutes] Is viewing as student:', isViewingAsStudent);
-    
+
     try {
       const { data: savedData, error: savedError } = await supabase
         .from('saved_routes')
@@ -125,12 +121,13 @@ export const SavedRoutes = () => {
   if (savedRoutes.length === 0) {
     return (
       <YStack px="$4" mt="$4">
-        <EmptyState 
-          title="No Saved Routes" 
-          message={isViewingAsStudent 
-            ? `${activeStudentName || 'This student'} hasn't saved any routes yet`
-            : "Save routes to access them quickly"
-          } 
+        <EmptyState
+          title="No Saved Routes"
+          message={
+            isViewingAsStudent
+              ? `${activeStudentName || 'This student'} hasn't saved any routes yet`
+              : 'Save routes to access them quickly'
+          }
         />
       </YStack>
     );
@@ -139,14 +136,15 @@ export const SavedRoutes = () => {
   return (
     <YStack gap="$6">
       <SectionHeader
-        title={isViewingAsStudent 
-          ? `${activeStudentName || 'Student'}'s Saved Routes`
-          : t('home.savedRoutes')
+        title={
+          isViewingAsStudent
+            ? `${activeStudentName || 'Student'}'s Saved Routes`
+            : t('home.savedRoutes')
         }
         variant="chevron"
         onAction={() => {
           navigation.navigate('RouteList', {
-            title: isViewingAsStudent 
+            title: isViewingAsStudent
               ? `${activeStudentName || 'Student'}'s Saved Routes`
               : t('home.savedRoutes'),
             routes: savedRoutes,
