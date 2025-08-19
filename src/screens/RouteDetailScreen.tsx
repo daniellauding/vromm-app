@@ -27,6 +27,7 @@ import { ImageWithFallback } from '../components/ImageWithFallback';
 import { format } from 'date-fns';
 import { Database } from '../lib/database.types';
 import { ReviewSection } from '../components/ReviewSection';
+import { CommentsSection } from '../components/CommentsSection';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { AppAnalytics } from '../utils/analytics';
@@ -1682,6 +1683,12 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
             {/* Reviews Section */}
             <ReviewSection routeId={routeId} reviews={reviews} onReviewAdded={loadReviews} />
+
+            {/* Comments Section for this Route */}
+            <YStack gap="$2">
+              <Text fontSize="$6" fontWeight="600" color="$color">Comments</Text>
+              <CommentsSection targetType="route" targetId={routeId} />
+            </YStack>
           </YStack>
         </ScrollView>
       </YStack>
