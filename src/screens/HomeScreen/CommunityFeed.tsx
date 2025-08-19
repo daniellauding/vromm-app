@@ -108,8 +108,8 @@ const ActivityMediaPreview = ({ mediaItems }: { mediaItems: ActivityItem['data']
         showsHorizontalScrollIndicator={false}
         data={mediaItems}
         renderItem={({ item }) => (
-          <View style={{ width: 205, height: 120, marginRight: 16 }}>
-            <ActivityMediaPreviewItem item={item} key={item.id} />
+          <View style={{ width: 205, height: 120, marginRight: 16 }} key={item.id}>
+            <ActivityMediaPreviewItem item={item} />
           </View>
         )}
         keyExtractor={(item) => item.id}
