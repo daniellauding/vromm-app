@@ -9,7 +9,18 @@ type ReportType = Database['public']['Enums']['report_type'];
 
 interface ReportDialogProps {
   reportableId: string;
-  reportableType: 'route' | 'comment' | 'review' | 'user';
+  reportableType:
+    | 'route'
+    | 'event'
+    | 'learning_path'
+    | 'exercise'
+    | 'comment'
+    | 'route_comment'
+    | 'event_comment'
+    | 'exercise_comment'
+    | 'learning_path_comment'
+    | 'review'
+    | 'user';
   onClose: () => void;
 }
 
@@ -56,6 +67,40 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
     try {
       setLoading(true);
 
+      // Map extended types to current DB enum (route | comment | review | user)
+      const normalizedType: ReportType = ((): any => {
+        if (
+          reportableType === 'route' ||
+          reportableType === 'comment' ||
+          reportableType === 'review' ||
+          reportableType === 'user'
+        ) {
+          return reportableType;
+        }
+        if (
+          reportableType === 'exercise' ||
+          reportableType === 'learning_path' ||
+          reportableType === 'event'
+        ) {
+          return 'route';
+        }
+        if (
+          reportableType === 'route_comment' ||
+          reportableType === 'event_comment' ||
+          reportableType === 'exercise_comment' ||
+          reportableType === 'learning_path_comment'
+        ) {
+          return 'comment';
+        }
+        return 'route';
+      })();
+
+      // Prefix subtype metadata into content so backend can see original type
+      const finalContent = (
+        (content?.trim() ? `${content.trim()}` : '') +
+        `\n[type:${reportableType}]`
+      ).trim();
+
       // Check if user has already reported this item
       const { data: existingReport } = await supabase
         .from('reports')
@@ -72,10 +117,10 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
       // Submit the report
       const { error: reportError } = await supabase.from('reports').insert({
         reportable_id: reportableId,
-        reportable_type: reportableType,
+        reportable_type: normalizedType,
         reporter_id: user.id,
         report_type: reportType,
-        content: content.trim() || undefined,
+        content: finalContent || undefined,
         status: 'pending',
       });
 

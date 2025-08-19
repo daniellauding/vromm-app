@@ -25,6 +25,8 @@ import { db, supabase } from '../lib/supabase';
 import { RouteCard } from '../components/RouteCard';
 import { Map as MapComponent } from '../components/Map';
 import { CalendarService } from '../services/calendarService';
+import { CommentsSection } from '../components/CommentsSection';
+import { ReportDialog } from '../components/report/ReportDialog';
 
 interface Event {
   id: string;
@@ -73,10 +75,26 @@ export const EventDetailScreen: React.FC = () => {
   const route = useRoute();
   const { eventId } = route.params as { eventId: string };
   const colorScheme = useColorScheme();
+  const [commentCount, setCommentCount] = useState<number>(0);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     loadEvent();
     getCurrentUser();
+    const loadCommentsCount = async () => {
+      try {
+        const { data } = await supabase
+          .from('comment_counts')
+          .select('count')
+          .eq('target_type', 'event')
+          .eq('target_id', eventId)
+          .single();
+        setCommentCount(data?.count || 0);
+      } catch {
+        setCommentCount(0);
+      }
+    };
+    loadCommentsCount();
   }, [eventId]);
 
   const getCurrentUser = async () => {
@@ -373,9 +391,17 @@ export const EventDetailScreen: React.FC = () => {
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
 
-        <Text fontSize={20} fontWeight="bold" color="$color" flex={1} textAlign="center">
-          Event Details
-        </Text>
+        <XStack alignItems="center" gap={8}>
+          <Text fontSize={20} fontWeight="bold" color="$color" textAlign="center">
+            Event Details
+          </Text>
+          {commentCount > 0 && (
+            <XStack alignItems="center" gap={4} backgroundColor="#1f2937" paddingHorizontal={8} paddingVertical={2} borderRadius={10}>
+              <Users size={12} color="#00FFBC" />
+              <Text fontSize={12} color="#00FFBC">{commentCount}</Text>
+            </XStack>
+          )}
+        </XStack>
 
         {canEdit && (
           <TouchableOpacity onPress={handleEdit}>
@@ -388,6 +414,9 @@ export const EventDetailScreen: React.FC = () => {
         <YStack padding={16} gap={24}>
           {/* Event Info */}
           <YStack gap={16}>
+            <TouchableOpacity onPress={() => setShowReport(true)} style={{ alignSelf: 'flex-end' }}>
+              <Text color="#EF4444">Report Event</Text>
+            </TouchableOpacity>
             <XStack justifyContent="space-between" alignItems="flex-start">
               <Text fontSize={24} fontWeight="bold" color="$color" flex={1}>
                 {event.title}
@@ -844,8 +873,20 @@ export const EventDetailScreen: React.FC = () => {
               Created {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
             </Text>
           </YStack>
+
+          {/* Comments for this Event */}
+          <YStack gap={12}>
+            <Text fontSize={18} fontWeight="bold" color="$color">
+              Comments
+            </Text>
+            <CommentsSection targetType="event" targetId={event.id} />
+          </YStack>
         </YStack>
       </ScrollView>
+
+      {showReport && (
+        <ReportDialog reportableId={event.id} reportableType="event" onClose={() => setShowReport(false)} />
+      )}
     </YStack>
   );
 };
