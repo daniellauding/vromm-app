@@ -15,6 +15,7 @@ import {
   SafeAreaView,
   ScrollView,
   ColorSchemeName,
+  TextStyle,
 } from 'react-native';
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
@@ -28,6 +29,7 @@ import { useCreateRoute } from '../contexts/CreateRouteContext';
 import { ActionSheetModal } from './ActionSheet';
 import { BetaInfoModal } from './BetaInfoModal';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import CustomWebView from './CustomWebView';
 
 // Import screens
 import { HomeScreen } from '../screens/HomeScreen';
@@ -62,8 +64,32 @@ const HamburgerDrawer = ({
   onOpenBetaInfo: () => void;
 }) => {
   const { t } = useTranslation();
+  const { signOut } = useAuth();
   const slideAnim = React.useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const overlayOpacity = React.useRef(new Animated.Value(0)).current;
+
+  const [showBuyCoffee, setShowBuyCoffee] = useState(false);
+  const [showBetaWebView, setShowBetaWebView] = useState(false);
+
+  const onOpenBuyCoffee = () => {
+    console.log('[Drawer] Open Buy Me a Coffee tapped');
+    setShowBuyCoffee(true);
+  };
+
+  const onOpenBetaWebView = () => {
+    console.log('[Drawer] Open Beta Website tapped');
+    setShowBetaWebView(true);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      console.log('[Drawer] Logout tapped');
+      await signOut();
+      console.log('[Drawer] Logout success');
+    } catch (e) {
+      console.error('Error during sign out from drawer:', e);
+    }
+  };
 
   React.useEffect(() => {
     if (isOpen) {
@@ -97,12 +123,14 @@ const HamburgerDrawer = ({
 
   const menuItems = [
     { icon: 'zap', label: t('drawer.betaInfo') || 'Beta Program', action: () => onOpenBetaInfo() },
+    { icon: 'globe', label: t('drawer.betaWebsite') || 'Beta Website', action: () => onOpenBetaWebView() },
+    { icon: 'coffee', label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee', action: () => onOpenBuyCoffee() },
     { icon: 'settings', label: t('drawer.settings') || 'Settings', action: () => {} },
     { icon: 'help-circle', label: t('drawer.help') || 'Help & Support', action: () => {} },
     { icon: 'star', label: t('drawer.rateApp') || 'Rate App', action: () => {} },
     { icon: 'share', label: t('drawer.shareApp') || 'Share App', action: () => {} },
     { icon: 'info', label: t('drawer.about') || 'About', action: () => {} },
-    { icon: 'log-out', label: t('drawer.logout') || 'Logout', action: () => {}, danger: true },
+    { icon: 'log-out', label: t('drawer.logout') || 'Logout', action: () => handleSignOut(), danger: true },
   ];
 
   return (
@@ -159,8 +187,16 @@ const HamburgerDrawer = ({
               <Card key={index} padding="$3" marginBottom="$1" pressStyle={{ opacity: 0.7 }}>
                 <TouchableOpacity
                   onPress={() => {
-                    item.action();
-                    onClose();
+                    try {
+                      item.action();
+                      // Keep drawer open for WebViews so user can close them with the X and return here
+                      if ((item as any).danger) {
+                        // Logout should close the drawer
+                        onClose();
+                      }
+                    } catch (err) {
+                      console.error('[Drawer] Menu item error:', err);
+                    }
                   }}
                   accessibilityLabel={item.label}
                 >
@@ -182,6 +218,20 @@ const HamburgerDrawer = ({
           </YStack>
         </SafeAreaView>
       </Animated.View>
+
+      {/* Embedded WebViews */}
+      <CustomWebView
+        isVisible={showBuyCoffee}
+        onClose={() => setShowBuyCoffee(false)}
+        url="https://app.vromm.se/buymeacoffee"
+        title="Buy Me a Coffee ☕"
+      />
+      <CustomWebView
+        isVisible={showBetaWebView}
+        onClose={() => setShowBetaWebView(false)}
+        url="https://vromm.se/beta-test"
+        title="Beta Program"
+      />
     </Modal>
   );
 };
@@ -374,29 +424,17 @@ export function TabNavigator() {
     zIndex: 100,
   } as const;
 
-  const screenOptions = {
+  const screenOptions: import('@react-navigation/bottom-tabs').BottomTabNavigationOptions = {
     headerShown: false,
     tabBarStyle,
     tabBarLabelStyle: {
       fontSize: 10,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-      fontWeight: '500',
+      fontWeight: '500' as TextStyle['fontWeight'],
     },
     tabBarActiveTintColor: '#69e3c4',
     tabBarInactiveTintColor: colorScheme === 'dark' ? '#8E8E93' : '#6B7280', // Better contrast for light mode
-    headerStyle: {
-      backgroundColor: tokens.color.background,
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.color.backgroundPress,
-      elevation: 0,
-      shadowOpacity: 0,
-    },
-    headerTitleStyle: {
-      fontSize: 17,
-      fontWeight: '600',
-      color: theme.primary?.val || '#007AFF',
-    },
-    tabBarButton: (props) => <CustomTabBarButton {...props} />,
+    tabBarButton: (props: BottomTabBarButtonProps) => <CustomTabBarButton {...props} />,
   };
 
 
