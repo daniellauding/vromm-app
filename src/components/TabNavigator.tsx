@@ -18,6 +18,7 @@ import {
   TextStyle,
   Image,
   Share,
+  ActivityIndicator,
 } from 'react-native';
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
@@ -64,6 +65,7 @@ import { RouteListScreen } from '../screens/RouteListScreen';
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
+const MenuStack = createNativeStackNavigator();
 
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 const TAB_BAR_HEIGHT = 64;
@@ -94,6 +96,19 @@ const HomeStackNavigator = () => (
   </HomeStack.Navigator>
 );
 
+// Stack for Menu tab so drawer destinations live here (keeps Menu tab active)
+const MenuStackNavigator = () => (
+  <MenuStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+    <MenuStack.Screen name="MenuRoot" component={NoopScreen} />
+    <MenuStack.Screen name="PublicProfile" component={PublicProfileScreen} />
+    <MenuStack.Screen name="ProfileScreen" component={ProfileScreen} />
+    <MenuStack.Screen name="UsersScreen" component={UsersScreen} />
+    <MenuStack.Screen name="Messages" component={MessagesScreen} />
+    <MenuStack.Screen name="Events" component={EventsScreen} />
+    <MenuStack.Screen name="Notifications" component={NotificationsScreen} />
+  </MenuStack.Navigator>
+);
+
 // Hamburger Drawer Component
 const HamburgerDrawer = ({
   isOpen,
@@ -101,6 +116,8 @@ const HamburgerDrawer = ({
   colorScheme,
   navigation,
   onNavigateHome,
+  onBeginNavigate,
+  activeMenuScreen,
   onOpenBetaInfo,
   onOpenBetaWebView,
   onOpenBuyCoffee,
@@ -114,6 +131,8 @@ const HamburgerDrawer = ({
   colorScheme: ColorSchemeName;
   navigation: any;
   onNavigateHome: (screen: string, params?: any) => void;
+  onBeginNavigate: () => void;
+  activeMenuScreen: string | null;
   onOpenBetaInfo: () => void;
   onOpenBetaWebView: () => void;
   onOpenBuyCoffee: () => void;
@@ -218,27 +237,27 @@ const HamburgerDrawer = ({
   }, [isOpen]);
 
   const menuItems = [
-    { icon: 'user', label: t('drawer.myProfile') || 'My Profile', action: () => { if (user?.id) { onNavigateHome('PublicProfile', { userId: user.id }); } onClose(); } },
-    { icon: 'settings', label: t('drawer.settings') || 'Settings', action: () => { onNavigateHome('ProfileScreen'); onClose(); } },
-    { icon: 'users', label: t('drawer.users') || 'Users', action: () => { onNavigateHome('UsersScreen'); onClose(); } },
+    { icon: 'user', target: 'PublicProfile', label: t('drawer.myProfile') || 'My Profile', action: () => { onBeginNavigate(); if (user?.id) { onNavigateHome('PublicProfile', { userId: user.id }); } onClose(); } },
+    { icon: 'settings', target: 'ProfileScreen', label: t('drawer.settings') || 'Settings', action: () => { onBeginNavigate(); onNavigateHome('ProfileScreen'); onClose(); } },
+    { icon: 'users', target: 'UsersScreen', label: t('drawer.users') || 'Users', action: () => { onBeginNavigate(); onNavigateHome('UsersScreen'); onClose(); } },
     { 
-      icon: 'message-circle', 
+      icon: 'message-circle', target: 'Messages',
       label: t('drawer.messages') || 'Messages', 
-      action: () => { onNavigateHome('Messages'); onClose(); },
+      action: () => { onBeginNavigate(); onNavigateHome('Messages'); onClose(); },
       badge: unreadMessageCount,
       badgeColor: '#EF4444'
     },
     { 
-      icon: 'calendar', 
+      icon: 'calendar', target: 'Events',
       label: t('drawer.events') || 'Events', 
-      action: () => { onNavigateHome('Events'); onClose(); },
+      action: () => { onBeginNavigate(); onNavigateHome('Events'); onClose(); },
       badge: unreadEventCount,
       badgeColor: '#EF4444'
     },
     { 
-      icon: 'bell', 
+      icon: 'bell', target: 'Notifications',
       label: t('drawer.notifications') || 'Notifications', 
-      action: () => { onNavigateHome('Notifications'); onClose(); },
+      action: () => { onBeginNavigate(); onNavigateHome('Notifications'); onClose(); },
       badge: unreadNotificationCount,
       badgeColor: '#EF4444'
     },
@@ -323,7 +342,17 @@ const HamburgerDrawer = ({
 
             {/* Menu Items */}
             {menuItems.map((item, index) => (
-              <Card key={index} padding="$3" marginBottom="$1" pressStyle={{ opacity: 0.7 }}>
+              <Card
+                key={index}
+                padding="$3"
+                marginBottom="$1"
+                pressStyle={{ opacity: 0.7 }}
+                backgroundColor={
+                  activeMenuScreen && (item as any).target && activeMenuScreen === (item as any).target
+                    ? (colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(105,227,196,0.12)')
+                    : undefined
+                }
+              >
                 <TouchableOpacity
                   onPress={() => {
                     try {
@@ -340,10 +369,18 @@ const HamburgerDrawer = ({
                         name={item.icon as any}
                         size={20}
                         color={
-                          (item as any).danger ? '#FF4444' : colorScheme === 'dark' ? '#FFFFFF' : '#000000'
+                          (item as any).danger
+                            ? '#FF4444'
+                            : activeMenuScreen && (item as any).target && activeMenuScreen === (item as any).target
+                              ? '#69e3c4'
+                              : (colorScheme === 'dark' ? '#FFFFFF' : '#000000')
                         }
                       />
-                      <Text fontSize="$4" color={(item as any).danger ? '#FF4444' : undefined}>
+                      <Text
+                        fontSize="$4"
+                        color={(item as any).danger ? '#FF4444' : (activeMenuScreen && (item as any).target && activeMenuScreen === (item as any).target ? '#69e3c4' : undefined)}
+                        fontWeight={activeMenuScreen && (item as any).target && activeMenuScreen === (item as any).target ? '700' : undefined}
+                      >
                         {item.label}
                       </Text>
                     </XStack>
@@ -425,6 +462,11 @@ export function TabNavigator() {
   const [showBuyCoffee, setShowBuyCoffee] = useState(false);
   const [showBetaWebView, setShowBetaWebView] = useState(false);
   const [showAboutWebView, setShowAboutWebView] = useState(false);
+  const [isNavigatingFromDrawer, setIsNavigatingFromDrawer] = useState(false);
+  const [activeMenuScreen, setActiveMenuScreen] = useState<string | null>(null);
+  const [homeTabKey, setHomeTabKey] = useState(0);
+  const [progressTabKey, setProgressTabKey] = useState(0);
+  const [mapTabKey, setMapTabKey] = useState(0);
 
   // Badge counts state for menu icon
   const [totalBadgeCount, setTotalBadgeCount] = useState(0);
@@ -615,6 +657,22 @@ export function TabNavigator() {
     }
   }, [navigationState]);
 
+  // Clear brief loader after drawer navigation completes
+  useEffect(() => {
+    if (!isDrawerOpen && isNavigatingFromDrawer) {
+      const t = setTimeout(() => setIsNavigatingFromDrawer(false), 350);
+      return () => clearTimeout(t);
+    }
+  }, [isDrawerOpen, isNavigatingFromDrawer]);
+
+  // Fallback: clear loader on any nav state change shortly after
+  useEffect(() => {
+    if (isNavigatingFromDrawer) {
+      const t = setTimeout(() => setIsNavigatingFromDrawer(false), 400);
+      return () => clearTimeout(t);
+    }
+  }, [navigationState, isNavigatingFromDrawer]);
+
   // Log tab navigator mount and set up global navigation handler
   const handleCreateRoute = (routeData?: any) => {
     console.log('🎯 ==================== TAB NAVIGATOR - CREATE ROUTE ====================');
@@ -727,10 +785,20 @@ export function TabNavigator() {
 
   const navigateHomeStack = useCallback((screen: string, params?: any) => {
     try {
-      (navigation as any).navigate('MainTabs', {
-        screen: 'HomeTab',
-        params: { screen, params },
-      });
+      // If destination is a drawer item, keep MenuTab active; else use HomeTab
+      const menuScreens = new Set(['PublicProfile', 'ProfileScreen', 'UsersScreen', 'Messages', 'Events', 'Notifications']);
+      if (menuScreens.has(screen)) {
+        setActiveMenuScreen(screen);
+        (navigation as any).navigate('MainTabs', {
+          screen: 'MenuTab',
+          params: { screen, params },
+        });
+      } else {
+        (navigation as any).navigate('MainTabs', {
+          screen: 'HomeTab',
+          params: { screen, params },
+        });
+      }
     } catch (e) {
       console.error('[Drawer] navigateHomeStack error:', e);
     }
@@ -782,34 +850,49 @@ export function TabNavigator() {
       <Tab.Navigator screenOptions={screenOptions}>
         <Tab.Screen
           name="HomeTab"
-          component={HomeStackNavigator}
           options={{
             title: t('navigation.home'),
-                          tabBarIcon: ({ color, size }) => (
-                <HomeIcon color={color} size={size} />
-              ),
+            tabBarIcon: ({ color, size }) => (
+              <HomeIcon color={color} size={size} />
+            ),
           }}
-          listeners={{
+          listeners={({ navigation }) => ({
             tabPress: () => {
-              logInfo('Home tab pressed');
+              if ((navigation as any).isFocused && (navigation as any).isFocused()) {
+                logInfo('Home tab reselected → refreshing');
+                setHomeTabKey((k) => k + 1);
+                try {
+                  (navigation as any).navigate('HomeTab', { screen: 'HomeScreen' });
+                } catch {}
+              } else {
+                logInfo('Home tab pressed');
+              }
             },
-          }}
-        />
+          })}
+        >
+          {() => <HomeStackNavigator key={`home-${homeTabKey}`} />}
+        </Tab.Screen>
         <Tab.Screen
           name="ProgressTab"
-          component={ProgressScreen}
           options={{
             title: t('navigation.progress'),
-                          tabBarIcon: ({ color, size }) => (
-                <PractiseIcon color={color} size={size} />
-              ),
+            tabBarIcon: ({ color, size }) => (
+              <PractiseIcon color={color} size={size} />
+            ),
           }}
-          listeners={{
+          listeners={({ navigation }) => ({
             tabPress: () => {
-              logInfo('Progress tab pressed');
+              if ((navigation as any).isFocused && (navigation as any).isFocused()) {
+                logInfo('Progress tab reselected → refreshing');
+                setProgressTabKey((k) => k + 1);
+              } else {
+                logInfo('Progress tab pressed');
+              }
             },
-          }}
-        />
+          })}
+        >
+          {(props: any) => <ProgressScreen key={`progress-${progressTabKey}`} {...props} />}
+        </Tab.Screen>
         {/* Central Create Route tab - custom button inside tab bar */}
         <Tab.Screen
           name="CreateRouteTab"
@@ -850,24 +933,30 @@ export function TabNavigator() {
         />
         <Tab.Screen
           name="MapTab"
-          component={MapScreen}
           options={{
             title: t('navigation.map'),
-                          tabBarIcon: ({ color, size }) => (
-                <MapIcon color={color} size={size} />
-              ),
+            tabBarIcon: ({ color, size }) => (
+              <MapIcon color={color} size={size} />
+            ),
           }}
-          listeners={{
+          listeners={({ navigation }) => ({
             tabPress: () => {
-              logInfo('Map tab pressed');
+              if ((navigation as any).isFocused && (navigation as any).isFocused()) {
+                logInfo('Map tab reselected → refreshing');
+                setMapTabKey((k) => k + 1);
+              } else {
+                logInfo('Map tab pressed');
+              }
             },
-          }}
-        />
+          })}
+        >
+          {(props: any) => <MapScreen key={`map-${mapTabKey}`} {...props} />}
+        </Tab.Screen>
         {/* Profile removed from tabs; accessible via drawer */}
         {/* Rightmost tab: opens the hamburger drawer */}
         <Tab.Screen
           name="MenuTab"
-          component={NoopScreen}
+          component={MenuStackNavigator}
           options={{
             title: '',
             tabBarLabel: '',
@@ -905,7 +994,16 @@ export function TabNavigator() {
                     position: 'relative',
                   }}
                 >
-                  <Feather name="menu" size={22} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                  <Feather
+                    name="menu"
+                    size={22}
+                    color={
+                      // Consider the menu tab active when drawer is open or a menu screen is active
+                      (isDrawerOpen || !!activeMenuScreen)
+                        ? '#69e3c4'
+                        : (colorScheme === 'dark' ? '#FFFFFF' : '#000000')
+                    }
+                  />
                   
                   {/* Combined badge for menu icon */}
                   {totalBadgeCount > 0 && (
@@ -958,6 +1056,8 @@ export function TabNavigator() {
         colorScheme={colorScheme}
         navigation={navigation}
         onNavigateHome={navigateHomeStack}
+        onBeginNavigate={() => setIsNavigatingFromDrawer(true)}
+        activeMenuScreen={activeMenuScreen}
         onOpenBetaInfo={() => setIsBetaInfoOpen(true)}
         onOpenBetaWebView={() => setShowBetaWebView(true)}
         onOpenBuyCoffee={() => setShowBuyCoffee(true)}
@@ -987,6 +1087,25 @@ export function TabNavigator() {
         url="https://vromm.se/"
         title="Vromm"
       />
+
+      {/* Lightweight navigation spinner overlay when launching drawer destinations */}
+      {isNavigatingFromDrawer && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.15)'
+          }}
+          pointerEvents="none"
+        >
+          <ActivityIndicator size="small" color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+        </View>
+      )}
     </View>
   );
 }
