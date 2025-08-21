@@ -1,5 +1,6 @@
 import React from 'react';
-import { YStack } from 'tamagui';
+import { YStack, XStack } from 'tamagui';
+import { FlatList } from 'react-native';
 
 import { HeroCarousel } from '../../components/HeroCarousel';
 import { NavigationProp } from '@/src/types/navigation';
@@ -153,12 +154,23 @@ export const SavedRoutes = () => {
         }}
         actionLabel={t('common.seeAll')}
       />
-      <HeroCarousel
-        title={t('home.savedRoutes')}
-        items={savedRoutes}
-        getImageUrl={getRouteImage}
-        showTitle={false}
-        showMapPreview={true}
+      <FlatList
+        horizontal
+        data={savedRoutes}
+        keyExtractor={(item) => item.id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        renderItem={({ item }) => (
+          <XStack marginRight="$4">
+            <HeroCarousel
+              title={t('home.savedRoutes')}
+              items={[item]}
+              getImageUrl={getRouteImage}
+              showTitle={false}
+              showMapPreview={true}
+            />
+          </XStack>
+        )}
       />
     </YStack>
   );

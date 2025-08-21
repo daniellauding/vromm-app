@@ -1,6 +1,7 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
-import { YStack, ScrollView, Text } from 'tamagui';
+import { YStack, Text } from 'tamagui';
+import { FlatList } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useNavigation } from '@react-navigation/native';
@@ -104,7 +105,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   };
 
   return (
-    <Screen edges={[]} padding={false} hideStatusBar>
+    <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
       {/* Onboarding Modal */}
       <OnboardingModal
         visible={showOnboarding}
@@ -112,60 +113,58 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         forceShow={isFirstLogin}
       />
 
-      <ScrollView
-        contentContainerStyle={{ paddingTop: 72 }}
+      <FlatList
+        data={[1]}
+        keyExtractor={() => 'home-content'}
+        contentContainerStyle={{ paddingTop: 72, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
-        nestedScrollEnabled={true}
-        keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16}
-      >
-        <YStack f={1}>
-          <HomeHeader />
-          {isViewingAsStudent && (
-            <YStack
-              backgroundColor="$blue3"
-              padding="$2"
-              marginHorizontal="$4"
-              marginBottom="$2"
-              borderRadius="$2"
+        renderItem={() => (
+          <YStack f={1}>
+            <HomeHeader />
+            {isViewingAsStudent && (
+              <YStack
+                backgroundColor="$blue3"
+                padding="$2"
+                marginHorizontal="$4"
+                marginBottom="$2"
+                borderRadius="$2"
+              >
+                <Text color="$blue11" textAlign="center">
+                  Viewing as: {activeStudentName || 'Student'}
+                </Text>
+              </YStack>
+            )}
+            <GettingStarted />
+
+            <ProgressSection activeUserId={effectiveUserId} />
+            <SavedRoutes />
+            <CommunityFeed />
+            <QuickFilters handleFilterPress={handleFilterPress} />
+            <Button
+              onPress={() => navigation.navigate('CreateRoute', {})}
+              variant="primary"
+              size="lg"
             >
-              <Text color="$blue11" textAlign="center">
-                Viewing as: {activeStudentName || 'Student'}
-              </Text>
+              {t('home.createNewRoute')}
+            </Button>
+            <YStack gap="$4">
+              <CityRoutes />
+              <CreatedRoutes />
+              <NearByRoutes />
+              <DrivenRoutes />
             </YStack>
-          )}
-          <GettingStarted />
-
-          <ProgressSection activeUserId={effectiveUserId} />
-          <SavedRoutes />
-          <CommunityFeed />
-          <QuickFilters handleFilterPress={handleFilterPress} />
-          <Button
-            onPress={() => navigation.navigate('CreateRoute', {})}
-            variant="primary"
-            size="lg"
-          >
-            {t('home.createNewRoute')}
-          </Button>
-          <YStack gap="$4">
-            <CityRoutes />
-
-            <CreatedRoutes />
-            <NearByRoutes />
-            <DrivenRoutes />
+            <YStack gap="$4" marginTop="$6" marginBottom="$6">
+              <SectionHeader
+                title="Users"
+                variant="chevron"
+                onAction={() => navigation.navigate('UsersScreen')}
+                actionLabel={t('common.seeAll')}
+              />
+              <UsersList />
+            </YStack>
           </YStack>
-          <YStack gap="$4" marginTop="$6" marginBottom="$6">
-            <SectionHeader
-              title="Users"
-              variant="chevron"
-              onAction={() => navigation.navigate('UsersScreen')}
-              actionLabel={t('common.seeAll')}
-            />
-
-            <UsersList />
-          </YStack>
-        </YStack>
-      </ScrollView>
+        )}
+      />
     </Screen>
   );
 }

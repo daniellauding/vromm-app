@@ -5,7 +5,8 @@ import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
-import { YStack, XStack, ScrollView, Card } from 'tamagui';
+import { YStack, XStack, Card } from 'tamagui';
+import { FlatList } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
@@ -135,13 +136,17 @@ export const DrivenRoutes = () => {
         actionLabel={t('common.seeAll')}
       />
       {drivenRoutes.length > 0 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
-          <XStack gap="$3" paddingVertical="$2">
-            {drivenRoutes.map((route) => {
-              const imageUrl = getRouteImage(route);
-              return (
+        <FlatList
+          horizontal
+          data={drivenRoutes}
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingVertical: 8 }}
+          renderItem={({ item: route }) => {
+            const imageUrl = getRouteImage(route);
+            return (
+              <XStack marginRight="$3">
                 <Card
-                  key={route.id}
                   bordered
                   elevate
                   backgroundColor="$backgroundStrong"
@@ -205,10 +210,10 @@ export const DrivenRoutes = () => {
                     </YStack>
                   </YStack>
                 </Card>
-              );
-            })}
-          </XStack>
-        </ScrollView>
+              </XStack>
+            );
+          }}
+        />
       ) : (
         <EmptyState title="No Driven Routes" message="Complete routes to see them here" />
       )}

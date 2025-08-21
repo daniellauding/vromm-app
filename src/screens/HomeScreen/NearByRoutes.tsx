@@ -4,7 +4,8 @@ import { useAuth } from '@/src/context/AuthContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
-import { YStack, XStack, ScrollView } from 'tamagui';
+import { YStack, XStack } from 'tamagui';
+import { FlatList } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
@@ -52,13 +53,18 @@ export const NearByRoutes = () => {
         onAction={onNavigateToRouteList}
         actionLabel={t('common.seeAll')}
       />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <XStack space="$4" paddingHorizontal="$4">
-          {nearbyRoutes.slice(0, 3).map((route) => (
-            <RouteCard key={route.id} route={route} />
-          ))}
-        </XStack>
-      </ScrollView>
+      <FlatList
+        horizontal
+        data={nearbyRoutes.slice(0, 3)}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <XStack paddingHorizontal="$4" marginRight="$4">
+            <RouteCard route={item} />
+          </XStack>
+        )}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+      />
     </YStack>
   );
 };

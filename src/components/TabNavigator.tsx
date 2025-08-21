@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { tokens } from '../tokens';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -17,7 +17,6 @@ import {
   ColorSchemeName,
   TextStyle,
   Image,
-  Linking,
   Share,
 } from 'react-native';
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
@@ -26,6 +25,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme, YStack, XStack, Text, Card } from 'tamagui';
 import { logNavigation, logInfo, logError } from '../utils/logger';
 import { useNavigationState, useNavigation, CommonActions } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
 import { useModal } from '../contexts/ModalContext';
 import { useCreateRoute } from '../contexts/CreateRouteContext';
@@ -47,9 +47,23 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { PublicProfileScreen } from '../screens/PublicProfileScreen';
 import { ProgressScreen } from '../screens/ProgressScreen';
 import { useAuth } from '../context/AuthContext';
+import { UsersScreen } from '../screens/UsersScreen';
+import { RouteDetailScreen } from '../screens/RouteDetailScreen';
+import { MessagesScreen } from '../screens/MessagesScreen';
+import { EventsScreen } from '../screens/EventsScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { CreateEventScreen } from '../screens/CreateEventScreen';
+import { CreateRouteScreen } from '../screens/CreateRouteScreen';
+import { SavedRoutes } from '../screens/HomeScreen/SavedRoutes';
+import { CommunityFeedScreen } from '../screens/CommunityFeedScreen';
+import { CreatedRoutes } from '../screens/HomeScreen/CreatedRoutes';
+import { NearByRoutes } from '../screens/HomeScreen/NearByRoutes';
+import { DrivenRoutes } from '../screens/HomeScreen/DrivenRoutes';
+import { RouteListScreen } from '../screens/RouteListScreen';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator();
+const HomeStack = createNativeStackNavigator();
 
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 const TAB_BAR_HEIGHT = 64;
@@ -58,15 +72,39 @@ const TOTAL_HEIGHT = TAB_BAR_HEIGHT + BOTTOM_INSET;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.7; // 70% of screen width
 
+// Nested stack under Home tab to keep tab bar visible across app screens
+const HomeStackNavigator = () => (
+  <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+    <HomeStack.Screen name="HomeScreen" component={HomeScreen} />
+    <HomeStack.Screen name="PublicProfile" component={PublicProfileScreen} />
+    <HomeStack.Screen name="ProfileScreen" component={ProfileScreen} />
+    <HomeStack.Screen name="UsersScreen" component={UsersScreen} />
+    <HomeStack.Screen name="RouteDetail" component={RouteDetailScreen as any} />
+    <HomeStack.Screen name="Messages" component={MessagesScreen} />
+    <HomeStack.Screen name="Events" component={EventsScreen} />
+    <HomeStack.Screen name="Notifications" component={NotificationsScreen} />
+    <HomeStack.Screen name="CreateEvent" component={CreateEventScreen} />
+    <HomeStack.Screen name="CreateRoute" component={CreateRouteScreen} />
+    <HomeStack.Screen name="RouteList" component={RouteListScreen as any} />
+    <HomeStack.Screen name="SavedRoutes" component={SavedRoutes} />
+    <HomeStack.Screen name="CommunityFeedScreen" component={CommunityFeedScreen} />
+    <HomeStack.Screen name="CreatedRoutes" component={CreatedRoutes} />
+    <HomeStack.Screen name="NearByRoutes" component={NearByRoutes} />
+    <HomeStack.Screen name="DrivenRoutes" component={DrivenRoutes} />
+  </HomeStack.Navigator>
+);
+
 // Hamburger Drawer Component
 const HamburgerDrawer = ({
   isOpen,
   onClose,
   colorScheme,
   navigation,
+  onNavigateHome,
   onOpenBetaInfo,
   onOpenBetaWebView,
   onOpenBuyCoffee,
+  onOpenAbout,
   unreadMessageCount,
   unreadNotificationCount,
   unreadEventCount,
@@ -75,9 +113,11 @@ const HamburgerDrawer = ({
   onClose: () => void;
   colorScheme: ColorSchemeName;
   navigation: any;
+  onNavigateHome: (screen: string, params?: any) => void;
   onOpenBetaInfo: () => void;
   onOpenBetaWebView: () => void;
   onOpenBuyCoffee: () => void;
+  onOpenAbout: () => void;
   unreadMessageCount: number;
   unreadNotificationCount: number;
   unreadEventCount: number;
@@ -106,15 +146,10 @@ const HamburgerDrawer = ({
     onClose();
   };
 
-  const onOpenAbout = async () => {
+  const onOpenAboutLocal = () => {
     console.log('[Drawer] About tapped');
-    try {
-      await Linking.openURL('https://www.vromm.se');
-    } catch (e) {
-      console.error('Failed to open About URL', e);
-    } finally {
-      onClose();
-    }
+    onOpenAbout();
+    onClose();
   };
 
   const onShareApp = async () => {
@@ -141,8 +176,6 @@ const HamburgerDrawer = ({
       console.error('Error during sign out from drawer:', e);
     }
   };
-
-
 
   React.useEffect(() => {
     if (isOpen) {
@@ -185,37 +218,34 @@ const HamburgerDrawer = ({
   }, [isOpen]);
 
   const menuItems = [
-    { icon: 'user', label: t('drawer.myProfile') || 'My Profile', action: () => { user?.id && navigation.navigate('PublicProfile', { userId: user.id }); onClose(); } },
-    { icon: 'settings', label: t('drawer.settings') || 'Settings', action: () => { navigation.navigate('ProfileScreen'); onClose(); } },
-    { icon: 'users', label: t('drawer.users') || 'Users', action: () => { navigation.navigate('UsersScreen'); onClose(); } },
+    { icon: 'user', label: t('drawer.myProfile') || 'My Profile', action: () => { if (user?.id) { onNavigateHome('PublicProfile', { userId: user.id }); } onClose(); } },
+    { icon: 'settings', label: t('drawer.settings') || 'Settings', action: () => { onNavigateHome('ProfileScreen'); onClose(); } },
+    { icon: 'users', label: t('drawer.users') || 'Users', action: () => { onNavigateHome('UsersScreen'); onClose(); } },
     { 
       icon: 'message-circle', 
       label: t('drawer.messages') || 'Messages', 
-      action: () => { navigation.navigate('Messages'); onClose(); },
+      action: () => { onNavigateHome('Messages'); onClose(); },
       badge: unreadMessageCount,
       badgeColor: '#EF4444'
     },
     { 
       icon: 'calendar', 
       label: t('drawer.events') || 'Events', 
-      action: () => { navigation.navigate('Events'); onClose(); },
+      action: () => { onNavigateHome('Events'); onClose(); },
       badge: unreadEventCount,
       badgeColor: '#EF4444'
     },
     { 
       icon: 'bell', 
       label: t('drawer.notifications') || 'Notifications', 
-      action: () => { navigation.navigate('Notifications'); onClose(); },
+      action: () => { onNavigateHome('Notifications'); onClose(); },
       badge: unreadNotificationCount,
       badgeColor: '#EF4444'
     },
-    // { icon: 'zap', label: t('drawer.betaInfo') || 'Beta Program', action: () => onOpenBetaInfo() },
     { icon: 'globe', label: t('drawer.betaWebsite') || 'Beta Website', action: () => onOpenBetaWebViewLocal() },
     { icon: 'coffee', label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee', action: () => onOpenBuyCoffeeLocal() },
-    // { icon: 'help-circle', label: t('drawer.help') || 'Help & Support', action: () => {} },
-    // { icon: 'star', label: t('drawer.rateApp') || 'Rate App', action: () => {} },
     { icon: 'share', label: t('drawer.shareApp') || 'Share App', action: () => onShareApp() },
-    { icon: 'info', label: t('drawer.about') || 'About', action: () => onOpenAbout() },
+    { icon: 'info', label: t('drawer.about') || 'About', action: () => onOpenAboutLocal() },
     { icon: 'log-out', label: t('drawer.logout') || 'Logout', action: () => handleSignOut(), danger: true },
   ];
 
@@ -258,7 +288,7 @@ const HamburgerDrawer = ({
             <Card padding="$3" marginBottom="$2">
               <TouchableOpacity
                 onPress={() => { 
-                  user?.id && navigation.navigate('PublicProfile', { userId: user.id });
+                  if (user?.id) { onNavigateHome('PublicProfile', { userId: user.id }); }
                   onClose();
                 }}
                 accessibilityLabel="View public profile"
@@ -394,6 +424,7 @@ export function TabNavigator() {
   const [isBetaInfoOpen, setIsBetaInfoOpen] = useState(false);
   const [showBuyCoffee, setShowBuyCoffee] = useState(false);
   const [showBetaWebView, setShowBetaWebView] = useState(false);
+  const [showAboutWebView, setShowAboutWebView] = useState(false);
 
   // Badge counts state for menu icon
   const [totalBadgeCount, setTotalBadgeCount] = useState(0);
@@ -414,8 +445,9 @@ export function TabNavigator() {
     events: 'menu_seen_event_count',
   } as const;
 
-  // Get access to the parent (root) navigation to navigate to CreateRoute
+  // Root stack navigation (for global actions) and tab navigation (to switch tabs / nested screens)
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
 
   // Track navigation state changes
   const navigationState = useNavigationState((state) => state);
@@ -631,13 +663,20 @@ export function TabNavigator() {
             console.log('🎯 State merged and marked for restoration');
           }
 
-          // Navigate back to CreateRoute - it will restore the merged state
-          navigation.navigate('CreateRoute', {});
+          // Navigate to nested CreateRoute via root (keeps tab bar visible)
+          (navigation as any).navigate('MainTabs', {
+            screen: 'HomeTab',
+            params: { screen: 'CreateRoute' },
+          });
           console.log('🎯 ✅ Navigated to CreateRoute for state restoration');
         } else {
           // Fresh recording, not from CreateRoute context
           console.log('🎯 Fresh recording - navigating with route data directly');
-          navigation.navigate('CreateRoute', {
+          (navigation as any).navigate('MainTabs', {
+            screen: 'HomeTab',
+            params: {
+              screen: 'CreateRoute',
+              params: {
             routeId: undefined,
             initialWaypoints: routeData.waypoints,
             initialName: routeData.name,
@@ -646,6 +685,8 @@ export function TabNavigator() {
             initialRoutePath: routeData.routePath,
             initialStartPoint: routeData.startPoint,
             initialEndPoint: routeData.endPoint,
+              },
+            },
           });
           console.log('🎯 ✅ Navigation to CreateRoute completed with direct route data');
         }
@@ -653,7 +694,10 @@ export function TabNavigator() {
         // No route data - fresh CreateRoute
         console.log('🎯 Navigating to empty CreateRoute screen...');
         createRouteContext.clearState(); // Clear any existing state
-        navigation.navigate('CreateRoute', { routeId: undefined });
+        (navigation as any).navigate('MainTabs', {
+          screen: 'HomeTab',
+          params: { screen: 'CreateRoute', params: { routeId: undefined } },
+        });
         console.log('🎯 ✅ Navigation to CreateRoute completed without route data');
       }
     } catch (error) {
@@ -680,6 +724,18 @@ export function TabNavigator() {
       delete (global as any).navigateToCreateRoute;
     };
   }, [colorScheme, handleCreateRoute]);
+
+  const navigateHomeStack = useCallback((screen: string, params?: any) => {
+    try {
+      // Guard: only try switching to HomeTab if it exists in this navigator
+      if ((tabNavigation as any)?.navigate) {
+        (tabNavigation as any).navigate('HomeTab');
+      }
+      (navigation as any).navigate(screen, params);
+    } catch (e) {
+      console.error('[Drawer] navigateHomeStack error:', e);
+    }
+  }, [tabNavigation, navigation]);
 
   const tabBarStyle = {
     position: 'absolute',
@@ -719,13 +775,15 @@ export function TabNavigator() {
 
 
 
+  // (moved to top-level to avoid recreation on every render)
+
   return (
     <View style={{ flex: 1 }}>
 
       <Tab.Navigator screenOptions={screenOptions}>
         <Tab.Screen
           name="HomeTab"
-          component={HomeScreen}
+          component={HomeStackNavigator}
           options={{
             title: t('navigation.home'),
                           tabBarIcon: ({ color, size }) => (
@@ -900,9 +958,11 @@ export function TabNavigator() {
         }}
         colorScheme={colorScheme}
         navigation={navigation}
+        onNavigateHome={navigateHomeStack}
         onOpenBetaInfo={() => setIsBetaInfoOpen(true)}
         onOpenBetaWebView={() => setShowBetaWebView(true)}
         onOpenBuyCoffee={() => setShowBuyCoffee(true)}
+        onOpenAbout={() => setShowAboutWebView(true)}
         unreadMessageCount={unreadMessageCount}
         unreadNotificationCount={unreadNotificationCount}
         unreadEventCount={unreadEventCount}
@@ -921,6 +981,12 @@ export function TabNavigator() {
         onClose={() => setShowBetaWebView(false)}
         url="https://vromm.se/beta-test"
         title="Beta Program"
+      />
+      <CustomWebView
+        isVisible={showAboutWebView}
+        onClose={() => setShowAboutWebView(false)}
+        url="https://vromm.se/"
+        title="Vromm"
       />
     </View>
   );

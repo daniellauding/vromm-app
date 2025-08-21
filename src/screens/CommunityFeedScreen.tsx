@@ -766,6 +766,7 @@ export const CommunityFeedScreen: React.FC = () => {
           data={activities}
           renderItem={renderActivityItem}
           keyExtractor={(item) => item.id}
+          nestedScrollEnabled
           refreshControl={
             <RefreshControl 
               refreshing={refreshing} 
