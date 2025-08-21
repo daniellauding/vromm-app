@@ -110,6 +110,37 @@ const safeAnalytics = {
       }
     }
   },
+
+  async setUserId(userId: string) {
+    try {
+      if (!this.isInitialized) {
+        this.isInitialized = await initializeAnalytics();
+      }
+      if (this.isInitialized && isFirebaseAvailable()) {
+        await analytics().setUserId(userId);
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('Failed to set user ID:', error);
+      }
+    }
+  },
+
+  async setUserRole(role: string) {
+    await this.setUserProperties({ user_role: role });
+  },
+
+  async setUserExperienceLevel(level: string) {
+    await this.setUserProperties({ experience_level: level });
+  },
+
+  async setUserLocation(location: string) {
+    await this.setUserProperties({ user_location: location });
+  },
+
+  async setUserSubscriptionStatus(hasSubscription: boolean) {
+    await this.setUserProperties({ has_subscription: hasSubscription });
+  },
 };
 
 export { safeAnalytics as Analytics };

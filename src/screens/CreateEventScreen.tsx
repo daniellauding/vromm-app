@@ -136,6 +136,7 @@ export const CreateEventScreen: React.FC = () => {
   const { eventId } = (route.params as { eventId?: string }) || {};
   const { fetchRoutes } = useRoutes();
   const { showEventCreatedToast } = useToast();
+  const { user } = useAuth();
 
   // Request location permission
   const requestLocationPermission = async (): Promise<boolean> => {
@@ -399,9 +400,19 @@ export const CreateEventScreen: React.FC = () => {
       let createdEventId = eventId;
       if (isEditing && eventId) {
         await db.events.update(eventId, eventData);
+        
+        // Track event edit analytics
+        AppAnalytics.trackEventEdit(eventId).catch((err) => {
+          console.warn('Event edit analytics failed:', err);
+        });
       } else {
         const newEvent = await db.events.create(eventData);
         createdEventId = newEvent.id;
+        
+        // Track event creation analytics
+        AppAnalytics.trackEventCreate('custom', formData.visibility).catch((err) => {
+          console.warn('Event creation analytics failed:', err);
+        });
       }
       
       // Show toast notification instead of alert

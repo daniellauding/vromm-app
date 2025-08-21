@@ -3,7 +3,7 @@ import { supabase, db } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { Database } from '../lib/database.types';
 import { Platform, Alert } from 'react-native';
-import { AppAnalytics } from '../utils/analytics';
+import { AppAnalytics, trackUserProperties } from '../utils/analytics';
 import { clearContentCache } from '../services/contentService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -219,6 +219,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           AppAnalytics.trackSignUp('email').catch((err) => {
             console.warn('Analytics tracking failed:', err);
           });
+
+          // Set user properties for analytics
+          if (user.user) {
+            trackUserProperties({
+              id: user.user.id,
+              role: profile?.role,
+              experience_level: profile?.experience_level,
+              location: profile?.location,
+              has_active_subscription: profile?.has_active_subscription,
+            }).catch((err) => {
+              console.warn('User properties tracking failed:', err);
+            });
+          }
         } catch (analyticsError) {
           console.warn('Analytics tracking failed:', analyticsError);
         }
@@ -295,6 +308,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           AppAnalytics.trackSignIn('email').catch((err) => {
             console.warn('Analytics tracking failed:', err);
           });
+
+          // Set user properties for analytics
+          if (data?.user) {
+            trackUserProperties({
+              id: data.user.id,
+              role: profile?.role,
+              experience_level: profile?.experience_level,
+              location: profile?.location,
+              has_active_subscription: profile?.has_active_subscription,
+            }).catch((err) => {
+              console.warn('User properties tracking failed:', err);
+            });
+          }
         } catch (analyticsError) {
           console.warn('Analytics tracking failed:', analyticsError);
         }
@@ -313,6 +339,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = React.useCallback(async () => {
     try {
       setLoading(true);
+
+      // Track sign out analytics
+      AppAnalytics.trackSignOut().catch((err) => {
+        console.warn('Sign out analytics failed:', err);
+      });
 
       // Clear content cache before signout
       await clearContentCache();
