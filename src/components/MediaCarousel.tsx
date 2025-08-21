@@ -4,7 +4,7 @@ import { Map } from './Map';
 import Carousel from 'react-native-reanimated-carousel';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Region } from 'react-native-maps';
+import { Region } from '../types/maps';
 import { MediaItem as RouteMediaItem } from '../types/route';
 
 export type CarouselMediaItem = {

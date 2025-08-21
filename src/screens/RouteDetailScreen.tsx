@@ -32,7 +32,7 @@ import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { AppAnalytics } from '../utils/analytics';
 import { MediaCarousel, CarouselMediaItem } from '../components/MediaCarousel';
-import { Region } from 'react-native-maps';
+import { Region } from '../types/maps';
 import { ReportDialog } from '../components/report/ReportDialog';
 import { useTranslation } from '../contexts/TranslationContext';
 import {

@@ -5,7 +5,7 @@ import { NavigationProp } from '../types/navigation';
 import { Feather } from '@expo/vector-icons';
 import { Map } from './Map';
 import Carousel from 'react-native-reanimated-carousel';
-import { Region } from 'react-native-maps';
+import { Region } from '../types/maps';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 import type { Route, WaypointData } from '../hooks/useRoutes';
 import { useCallback, useState, useMemo } from 'react';

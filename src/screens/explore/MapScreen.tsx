@@ -11,7 +11,7 @@ import { Screen } from '../../components/Screen';
 import { useRoutes } from '../../hooks/useRoutes';
 import type { Route as RouteType, WaypointData } from '../../hooks/useRoutes';
 import { RoutesDrawer } from './RoutesDrawer';
-import MapView from 'react-native-maps';
+import MapView from '../../components/MapView';
 import { AppHeader } from '../../components/AppHeader';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';

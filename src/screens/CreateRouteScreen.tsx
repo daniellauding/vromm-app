@@ -25,7 +25,7 @@ import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
-import MapView, { Marker, Polyline, Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, Region } from '../components/MapView';
 import { decode } from 'base64-arraybuffer';
 import { useLocation } from '../context/LocationContext';
 import { AppAnalytics } from '../utils/analytics';

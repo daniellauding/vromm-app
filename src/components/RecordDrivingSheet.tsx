@@ -16,7 +16,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { CreateRouteModal } from './CreateRouteModal';
-import MapView, { Polyline, Marker } from 'react-native-maps';
+import MapView, { Polyline, Marker } from './MapView';
 
 // Enhanced Haversine formula for accurate distance calculation
 const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {

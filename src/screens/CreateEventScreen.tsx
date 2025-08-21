@@ -30,7 +30,7 @@ import { db, supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { MediaCarousel, CarouselMediaItem } from '../components/MediaCarousel';
 import { Waypoint } from '../components/Map';
-import MapView, { Marker, Polyline, Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, Region } from '../components/MapView';
 import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector';
 import { RouteSelector } from '../components/RouteSelector';
 import { RouteCard } from '../components/RouteCard';
