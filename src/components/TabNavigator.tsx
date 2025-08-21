@@ -16,6 +16,7 @@ import {
   ScrollView,
   ColorSchemeName,
   TextStyle,
+  Image,
 } from 'react-native';
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
@@ -64,7 +65,7 @@ const HamburgerDrawer = ({
   onOpenBetaInfo: () => void;
 }) => {
   const { t } = useTranslation();
-  const { signOut } = useAuth();
+  const { signOut, user, profile } = useAuth();
   const slideAnim = React.useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const overlayOpacity = React.useRef(new Animated.Value(0)).current;
 
@@ -122,12 +123,13 @@ const HamburgerDrawer = ({
   }, [isOpen]);
 
   const menuItems = [
-    { icon: 'zap', label: t('drawer.betaInfo') || 'Beta Program', action: () => onOpenBetaInfo() },
+    { icon: 'user', label: t('drawer.myProfile') || 'My profile', action: () => user?.id && navigation.navigate('PublicProfile', { userId: user.id }) },
+    { icon: 'settings', label: t('drawer.settings') || 'Settings', action: () => navigation.navigate('ProfileScreen') },
+    // { icon: 'zap', label: t('drawer.betaInfo') || 'Beta Program', action: () => onOpenBetaInfo() },
     { icon: 'globe', label: t('drawer.betaWebsite') || 'Beta Website', action: () => onOpenBetaWebView() },
     { icon: 'coffee', label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee', action: () => onOpenBuyCoffee() },
-    { icon: 'settings', label: t('drawer.settings') || 'Settings', action: () => {} },
-    { icon: 'help-circle', label: t('drawer.help') || 'Help & Support', action: () => {} },
-    { icon: 'star', label: t('drawer.rateApp') || 'Rate App', action: () => {} },
+    // { icon: 'help-circle', label: t('drawer.help') || 'Help & Support', action: () => {} },
+    // { icon: 'star', label: t('drawer.rateApp') || 'Rate App', action: () => {} },
     { icon: 'share', label: t('drawer.shareApp') || 'Share App', action: () => {} },
     { icon: 'info', label: t('drawer.about') || 'About', action: () => {} },
     { icon: 'log-out', label: t('drawer.logout') || 'Logout', action: () => handleSignOut(), danger: true },
@@ -181,6 +183,40 @@ const HamburgerDrawer = ({
                 />
               </TouchableOpacity>
             </XStack>
+
+            {/* Profile Header */}
+            <Card padding="$3" marginBottom="$2">
+              <XStack alignItems="center" gap="$3">
+                <TouchableOpacity
+                  onPress={() => user?.id && navigation.navigate('PublicProfile', { userId: user.id })}
+                  accessibilityLabel="View public profile"
+                >
+                  {profile?.avatar_url ? (
+                    <Image
+                      source={{ uri: profile.avatar_url }}
+                      style={{ width: 48, height: 48, borderRadius: 24 }}
+                    />
+                  ) : (
+                    <View
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#EEEEEE',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Feather name="user" size={22} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <YStack>
+                  <Text fontSize="$5" fontWeight="600">{profile?.full_name || user?.email || 'User'}</Text>
+                  <Text fontSize="$2" color="$gray10">{user?.email}</Text>
+                </YStack>
+              </XStack>
+            </Card>
 
             {/* Menu Items */}
             {menuItems.map((item, index) => (
@@ -529,40 +565,7 @@ export function TabNavigator() {
             },
           }}
         />
-        <Tab.Screen
-          name="ProfileTab"
-          options={{
-            title: t('navigation.profile'),
-                          tabBarIcon: ({ color, size }) => (
-                <ProfileIcon color={color} size={size} />
-              ),
-          }}
-          listeners={{
-            tabPress: () => {
-              logInfo('Profile tab pressed');
-            },
-          }}
-        >
-          {() => {
-            const { user } = useAuth();
-
-            if (!user?.id) {
-              return <ProfileScreen />;
-            }
-
-            // Create a nested stack navigator for profile-related screens
-            return (
-              <Stack.Navigator screenOptions={{ headerShown: false }}>
-                <Stack.Screen
-                  name="PublicProfile"
-                  component={PublicProfileScreen}
-                  initialParams={{ userId: user.id }}
-                />
-                <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
-              </Stack.Navigator>
-            );
-          }}
-        </Tab.Screen>
+        {/* Profile removed from tabs; accessible via drawer */}
         {/* Rightmost tab: opens the hamburger drawer */}
         <Tab.Screen
           name="MenuTab"

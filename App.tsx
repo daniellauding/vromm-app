@@ -95,6 +95,7 @@ import { LicensePlanScreen } from './src/screens/LicensePlanScreen';
 import { RoleSelectionScreen } from './src/screens/RoleSelectionScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import { PublicProfileScreen } from './src/screens/PublicProfileScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
 import { UsersScreen } from './src/screens/UsersScreen';
 import { AuthGate } from './src/screens/AuthGate';
 
@@ -756,6 +757,13 @@ function AppContent() {
               <Stack.Screen
                 name="PublicProfile"
                 component={PublicProfileScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="ProfileScreen"
+                component={ProfileScreen}
                 options={{
                   headerShown: false,
                 }}
