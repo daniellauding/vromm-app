@@ -1,0 +1,39 @@
+[build]
+  command = "npm install --legacy-peer-deps && npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+  EXPO_PUBLIC_SUPABASE_URL = "https://wbimxxrbzgynigwolcnk.supabase.co"
+  EXPO_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaW14eHJiemd5bmlnd29sY25rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY0MDg1OTYsImV4cCI6MjA1MTk4NDU5Nn0.0kM04sBRE9x0pGMpubUjfkbXgp-c1aRoRdsCAz2cPV0"
+  EXPO_PUBLIC_GIPHY_KEY = "qy7cPb9DNZHFnccpdAtDcm2CrjZUuH4L"
+  EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = "AIzaSyDOtXSGBNx6ZNdQoGpdLuQUjguyRm8bke4"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
