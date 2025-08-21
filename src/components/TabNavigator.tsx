@@ -727,15 +727,14 @@ export function TabNavigator() {
 
   const navigateHomeStack = useCallback((screen: string, params?: any) => {
     try {
-      // Guard: only try switching to HomeTab if it exists in this navigator
-      if ((tabNavigation as any)?.navigate) {
-        (tabNavigation as any).navigate('HomeTab');
-      }
-      (navigation as any).navigate(screen, params);
+      (navigation as any).navigate('MainTabs', {
+        screen: 'HomeTab',
+        params: { screen, params },
+      });
     } catch (e) {
       console.error('[Drawer] navigateHomeStack error:', e);
     }
-  }, [tabNavigation, navigation]);
+  }, [navigation]);
 
   const tabBarStyle = {
     position: 'absolute',

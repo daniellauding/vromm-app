@@ -19,6 +19,7 @@ type ScreenProps = {
   edges?: Edge[];
   hideStatusBar?: boolean;
   refreshControl?: React.ReactElement<typeof RefreshControl>;
+  bottomInset?: number; // extra bottom padding for tab bar spacing
 };
 
 export function Screen({
@@ -28,6 +29,7 @@ export function Screen({
   edges = ['top'],
   hideStatusBar = false,
   refreshControl,
+  bottomInset = 0,
 }: ScreenProps) {
   return (
     <YStack f={1} backgroundColor="$background">
@@ -41,7 +43,7 @@ export function Screen({
             {scroll ? (
               <ScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={{ flexGrow: 1 }}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: bottomInset }}
                 keyboardShouldPersistTaps="handled"
                 refreshControl={refreshControl}
               >

@@ -2007,7 +2007,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   };
 
   return (
-    <Screen edges={[]} padding={false} hideStatusBar>
+    <Screen edges={[]} padding={false} hideStatusBar bottomInset={120}>
       <ScrollView
         style={{ flex: 1 }}
         scrollEnabled={drawingMode !== 'pen'}
