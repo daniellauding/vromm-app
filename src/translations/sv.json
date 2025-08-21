@@ -98,11 +98,84 @@
     "refreshSuccess": "Översättningar uppdaterade framgångsrikt",
     "roles": {
       "title": "Välj roll",
+  },
+  "beta": {
+    "title": "Beta-program",
+    "hero": {
+      "title": "Välkommen till Vromm Beta! 🚗",
+      "subtitle": "Du är en del av vårt exklusiva betatestningsprogram. Hjälp oss att forma framtiden för körutbildning."
+    },
+    "video": {
+      "title": "📹 Beta-video",
+      "description": "Titta på våra senaste beta-funktioner och uppdateringar i aktion."
+    },
+    "download": {
+      "title": "📱 Ladda ner beta-appar",
+      "description": "Få de senaste beta-versionerna för att testa nya funktioner."
+    },
+    "roles": {
+      "title": "🎯 Beta-roller",
+      "description": "Testa olika användarroller och ge feedback om upplevelsen."
+    },
+    "feedback": {
+      "title": "💬 Beta-feedback",
+      "description": "Dela dina tankar och hjälp oss att förbättra appen."
+    }
+  },
+  "drawer": {
+    "myProfile": "Min profil",
+    "settings": "Inställningar",
+    "users": "Användare",
+    "messages": "Meddelanden",
+    "events": "Händelser",
+    "notifications": "Aviseringar",
+    "betaInfo": "Beta-program",
+    "betaWebsite": "Beta-webbplats",
+    "buyMeCoffee": "Köp mig en kaffe",
+    "help": "Hjälp & support",
+    "rateApp": "Betygsätt app",
+    "shareApp": "Dela app",
+    "about": "Om",
+    "logout": "Logga ut"
+  },
+  "navigation": {
+    "home": "Hem",
+    "progress": "Framsteg",
+    "map": "Karta"
+  },
+  "profile": {
+    "title": "Profil",
+    "selectSchool": "Välj skola",
+    "selectSupervisors": "Välj handledare",
+    "addSelected": "Lägg till valda",
+    "supervisors": "Handledare",
+    "schools": "Skolor",
+    "connections": "Anslutningar",
+    "enrolledAt": "Registrerad vid",
+    "fullName": "Fullständigt namn",
+    "fullNamePlaceholder": "Ange ditt fullständiga namn",
+    "location": "Plats",
+    "locationPlaceholder": "Ange din plats",
+    "privateProfile": "Privat profil",
+    "onboardingTour": "Visa introduktionsguide",
+    "contentUpdatesDemo": "Demo för innehållsuppdateringar",
+    "translationDemo": "Översättningssystemdemo",
+    "updating": "Uppdaterar...",
+    "updateProfile": "Uppdatera profil",
+    "signOut": "Logga ut",
+    "developerOptions": "Utvecklaralternativ",
+    "resetOnboarding": "Återställ introduktionsguide",
+    "refreshTranslations": "Uppdatera översättningar",
+    "refreshConfirm": "Är du säker på att du vill uppdatera alla översättningar?",
+    "refreshSuccess": "Översättningar uppdaterades framgångsrikt",
+    "roles": {
+      "title": "Välj roll",
       "student": "Elev",
       "instructor": "Instruktör",
       "supervisor": "Handledare",
       "school": "Skola",
       "admin": "Admin"
+    },
     },
     "experienceLevels": {
       "title": "Erfarenhetsnivå",

@@ -5,6 +5,10 @@ import { supabase } from '../lib/supabase';
 import { clearAllTranslationCaches } from '../services/translationService';
 import { LoadingScreen } from '../components/LoadingScreen';
 
+// Import local JSON files as fallback
+import enTranslations from '../translations/en.json';
+import svTranslations from '../translations/sv.json';
+
 // Types
 export type Language = 'en' | 'sv';
 export interface Translation {
@@ -57,6 +61,30 @@ const logger = {
   },
 };
 
+// Helper function to flatten nested JSON objects
+const flattenTranslations = (obj: any, prefix = ''): Record<string, string> => {
+  const result: Record<string, string> = {};
+  
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      if (typeof obj[key] === 'object' && obj[key] !== null) {
+        Object.assign(result, flattenTranslations(obj[key], newKey));
+      } else {
+        result[newKey] = obj[key];
+      }
+    }
+  }
+  
+  return result;
+};
+
+// Get local fallback translations
+const getLocalTranslations = (language: Language): Record<string, string> => {
+  const localTranslations = language === 'en' ? enTranslations : svTranslations;
+  return flattenTranslations(localTranslations);
+};
+
 export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [language, setLanguageState] = useState<Language>('en');
@@ -87,6 +115,9 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         if (error) {
           logger.error('Error fetching translations:', error);
+          // Fall back to local translations on error
+          const localTranslations = getLocalTranslations(lang);
+          setTranslations(localTranslations);
           setIsLoading(false);
           return;
         }
@@ -97,18 +128,28 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const fetchedTranslations: Record<string, string> = {};
         data?.forEach((item) => {
           fetchedTranslations[item.key] = item.value;
-          logger.debug(`Translation: ${item.key} = ${item.value} (updated ${item.updated_at})`);
+          // Disabled debug logging for individual translations to reduce console spam
+          // logger.debug(`Translation: ${item.key} = ${item.value} (updated ${item.updated_at})`);
         });
 
-        // Cache the translations
-        await cacheTranslations(lang, fetchedTranslations);
+        // Get local translations as fallback
+        const localTranslations = getLocalTranslations(lang);
+        
+        // Merge database translations with local fallbacks
+        const mergedTranslations = { ...localTranslations, ...fetchedTranslations };
+        
+        // Cache the merged translations
+        await cacheTranslations(lang, mergedTranslations);
 
         // Update state
-        setTranslations(fetchedTranslations);
+        setTranslations(mergedTranslations);
         setLastFetchTime(now);
         setIsLoading(false);
       } catch (error) {
         logger.error('Error fetching translations:', error);
+        // Fall back to local translations on error
+        const localTranslations = getLocalTranslations(lang);
+        setTranslations(localTranslations);
         setIsLoading(false);
       }
     },

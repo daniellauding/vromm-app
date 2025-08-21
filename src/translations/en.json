@@ -98,9 +98,77 @@
     "refreshSuccess": "Translations refreshed successfully",
     "roles": {
       "title": "Select Role",
+  },
+  "beta": {
+    "title": "Beta Program",
+    "hero": {
+      "title": "Welcome to Vromm Beta! 🚗",
+      "subtitle": "You're part of our exclusive beta testing program. Help us shape the future of driving education."
+    },
+    "video": {
+      "title": "📹 Beta Video",
+      "description": "Watch our latest beta features and updates in action."
+    },
+    "download": {
+      "title": "📱 Download Beta Apps",
+      "description": "Get the latest beta versions for testing new features."
+    },
+    "roles": {
+      "title": "🎯 Beta Roles",
+      "description": "Test different user roles and provide feedback on the experience."
+    },
+    "feedback": {
+      "title": "💬 Beta Feedback",
+      "description": "Share your thoughts and help us improve the app."
+    }
+  },
+  "drawer": {
+    "myProfile": "My Profile",
+    "settings": "Settings",
+    "users": "Users",
+    "messages": "Messages",
+    "events": "Events",
+    "notifications": "Notifications",
+    "betaInfo": "Beta Program",
+    "betaWebsite": "Beta Website",
+    "buyMeCoffee": "Buy Me a Coffee",
+    "help": "Help & Support",
+    "rateApp": "Rate App",
+    "shareApp": "Share App",
+    "about": "About",
+    "logout": "Logout"
+  },
+  "profile": {
+    "title": "Profile",
+    "selectSchool": "Select School",
+    "selectSupervisors": "Select Supervisors",
+    "addSelected": "Add Selected",
+    "supervisors": "Supervisors",
+    "schools": "Schools",
+    "connections": "Connections",
+    "enrolledAt": "Enrolled at",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "Enter your full name",
+    "location": "Location",
+    "locationPlaceholder": "Enter your location",
+    "privateProfile": "Private Profile",
+    "onboardingTour": "Take Onboarding Tour",
+    "contentUpdatesDemo": "Content Updates Demo",
+    "translationDemo": "Translation Demo",
+    "updating": "Updating...",
+    "updateProfile": "Update Profile",
+    "signOut": "Sign Out",
+    "developerOptions": "Developer Options",
+    "resetOnboarding": "Reset Onboarding",
+    "refreshTranslations": "Refresh Translations",
+    "refreshConfirm": "Are you sure you want to refresh all translations?",
+    "refreshSuccess": "Translations refreshed successfully",
+    "roles": {
+      "title": "Select Role",
       "student": "Student",
       "instructor": "Instructor",
       "school": "School"
+    },
     },
     "experienceLevels": {
       "title": "Experience Level",
@@ -141,14 +209,10 @@
     "routeUpdatedMessage": "has been updated successfully",
     "viewButton": "View"
   },
-  "drawer": {
-    "menu": "Menu",
-    "settings": "Settings",
-    "help": "Help & Support",
-    "rateApp": "Rate App",
-    "shareApp": "Share App",
-    "about": "About",
-    "logout": "Logout"
+  "navigation": {
+    "home": "Home",
+    "progress": "Progress",
+    "map": "Map"
   },
   "createRoute": {
     "unsavedChanges": "Unsaved Changes",

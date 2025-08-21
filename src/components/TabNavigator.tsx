@@ -17,6 +17,8 @@ import {
   ColorSchemeName,
   TextStyle,
   Image,
+  Linking,
+  Share,
 } from 'react-native';
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
@@ -31,6 +33,12 @@ import { ActionSheetModal } from './ActionSheet';
 import { BetaInfoModal } from './BetaInfoModal';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import CustomWebView from './CustomWebView';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Import services for badge counts
+import { messageService } from '../services/messageService';
+import { notificationService } from '../services/notificationService';
+import { supabase } from '../lib/supabase';
 
 // Import screens
 import { HomeScreen } from '../screens/HomeScreen';
@@ -57,29 +65,71 @@ const HamburgerDrawer = ({
   colorScheme,
   navigation,
   onOpenBetaInfo,
+  onOpenBetaWebView,
+  onOpenBuyCoffee,
+  unreadMessageCount,
+  unreadNotificationCount,
+  unreadEventCount,
 }: {
   isOpen: boolean;
   onClose: () => void;
   colorScheme: ColorSchemeName;
   navigation: any;
   onOpenBetaInfo: () => void;
+  onOpenBetaWebView: () => void;
+  onOpenBuyCoffee: () => void;
+  unreadMessageCount: number;
+  unreadNotificationCount: number;
+  unreadEventCount: number;
 }) => {
   const { t } = useTranslation();
   const { signOut, user, profile } = useAuth();
   const slideAnim = React.useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const overlayOpacity = React.useRef(new Animated.Value(0)).current;
 
-  const [showBuyCoffee, setShowBuyCoffee] = useState(false);
-  const [showBetaWebView, setShowBetaWebView] = useState(false);
+  // WebViews are handled at TabNavigator level
 
-  const onOpenBuyCoffee = () => {
+  // Track what was seen when drawer was last opened (for menu badge only)
+  const [seenMessageCount, setSeenMessageCount] = useState(0);
+  const [seenNotificationCount, setSeenNotificationCount] = useState(0);
+  const [seenEventCount, setSeenEventCount] = useState(0);
+
+  const onOpenBuyCoffeeLocal = () => {
     console.log('[Drawer] Open Buy Me a Coffee tapped');
-    setShowBuyCoffee(true);
+    onOpenBuyCoffee();
+    onClose();
   };
 
-  const onOpenBetaWebView = () => {
+  const onOpenBetaWebViewLocal = () => {
     console.log('[Drawer] Open Beta Website tapped');
-    setShowBetaWebView(true);
+    onOpenBetaWebView();
+    onClose();
+  };
+
+  const onOpenAbout = async () => {
+    console.log('[Drawer] About tapped');
+    try {
+      await Linking.openURL('https://www.vromm.se');
+    } catch (e) {
+      console.error('Failed to open About URL', e);
+    } finally {
+      onClose();
+    }
+  };
+
+  const onShareApp = async () => {
+    console.log('[Drawer] Share App tapped');
+    try {
+      await Share.share({
+        message: 'Check out Vromm – smarter driving practice: https://www.vromm.se',
+        url: 'https://www.vromm.se',
+        title: 'Vromm',
+      });
+    } catch (e) {
+      console.error('Failed to share app', e);
+    } finally {
+      onClose();
+    }
   };
 
   const handleSignOut = async () => {
@@ -91,6 +141,8 @@ const HamburgerDrawer = ({
       console.error('Error during sign out from drawer:', e);
     }
   };
+
+
 
   React.useEffect(() => {
     if (isOpen) {
@@ -106,6 +158,16 @@ const HamburgerDrawer = ({
           useNativeDriver: false,
         }),
       ]).start();
+
+      // Update "seen" counts when drawer opens (for menu badge tracking)
+      setSeenMessageCount(unreadMessageCount);
+      setSeenNotificationCount(unreadNotificationCount);
+      setSeenEventCount(unreadEventCount);
+      console.log('📬 Updated seen counts when drawer opened:', {
+        messages: unreadMessageCount,
+        notifications: unreadNotificationCount,
+        events: unreadEventCount
+      });
     } else {
       Animated.parallel([
         Animated.timing(slideAnim, {
@@ -123,15 +185,37 @@ const HamburgerDrawer = ({
   }, [isOpen]);
 
   const menuItems = [
-    { icon: 'user', label: t('drawer.myProfile') || 'My profile', action: () => user?.id && navigation.navigate('PublicProfile', { userId: user.id }) },
-    { icon: 'settings', label: t('drawer.settings') || 'Settings', action: () => navigation.navigate('ProfileScreen') },
+    { icon: 'user', label: t('drawer.myProfile') || 'My Profile', action: () => { user?.id && navigation.navigate('PublicProfile', { userId: user.id }); onClose(); } },
+    { icon: 'settings', label: t('drawer.settings') || 'Settings', action: () => { navigation.navigate('ProfileScreen'); onClose(); } },
+    { icon: 'users', label: t('drawer.users') || 'Users', action: () => { navigation.navigate('UsersScreen'); onClose(); } },
+    { 
+      icon: 'message-circle', 
+      label: t('drawer.messages') || 'Messages', 
+      action: () => { navigation.navigate('Messages'); onClose(); },
+      badge: unreadMessageCount,
+      badgeColor: '#EF4444'
+    },
+    { 
+      icon: 'calendar', 
+      label: t('drawer.events') || 'Events', 
+      action: () => { navigation.navigate('Events'); onClose(); },
+      badge: unreadEventCount,
+      badgeColor: '#EF4444'
+    },
+    { 
+      icon: 'bell', 
+      label: t('drawer.notifications') || 'Notifications', 
+      action: () => { navigation.navigate('Notifications'); onClose(); },
+      badge: unreadNotificationCount,
+      badgeColor: '#EF4444'
+    },
     // { icon: 'zap', label: t('drawer.betaInfo') || 'Beta Program', action: () => onOpenBetaInfo() },
-    { icon: 'globe', label: t('drawer.betaWebsite') || 'Beta Website', action: () => onOpenBetaWebView() },
-    { icon: 'coffee', label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee', action: () => onOpenBuyCoffee() },
+    { icon: 'globe', label: t('drawer.betaWebsite') || 'Beta Website', action: () => onOpenBetaWebViewLocal() },
+    { icon: 'coffee', label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee', action: () => onOpenBuyCoffeeLocal() },
     // { icon: 'help-circle', label: t('drawer.help') || 'Help & Support', action: () => {} },
     // { icon: 'star', label: t('drawer.rateApp') || 'Rate App', action: () => {} },
-    { icon: 'share', label: t('drawer.shareApp') || 'Share App', action: () => {} },
-    { icon: 'info', label: t('drawer.about') || 'About', action: () => {} },
+    { icon: 'share', label: t('drawer.shareApp') || 'Share App', action: () => onShareApp() },
+    { icon: 'info', label: t('drawer.about') || 'About', action: () => onOpenAbout() },
     { icon: 'log-out', label: t('drawer.logout') || 'Logout', action: () => handleSignOut(), danger: true },
   ];
 
@@ -170,27 +254,16 @@ const HamburgerDrawer = ({
       >
         <SafeAreaView style={{ flex: 1 }}>
           <YStack flex={1} padding="$4" gap="$2">
-            {/* Drawer Header */}
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-              <Text fontSize="$6" fontWeight="bold">
-                {t('drawer.menu') || 'Menu'}
-              </Text>
-              <TouchableOpacity onPress={onClose} accessibilityLabel="Close menu">
-                <Feather
-                  name="x"
-                  size={24}
-                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
-                />
-              </TouchableOpacity>
-            </XStack>
-
             {/* Profile Header */}
             <Card padding="$3" marginBottom="$2">
-              <XStack alignItems="center" gap="$3">
-                <TouchableOpacity
-                  onPress={() => user?.id && navigation.navigate('PublicProfile', { userId: user.id })}
-                  accessibilityLabel="View public profile"
-                >
+              <TouchableOpacity
+                onPress={() => { 
+                  user?.id && navigation.navigate('PublicProfile', { userId: user.id });
+                  onClose();
+                }}
+                accessibilityLabel="View public profile"
+              >
+                <XStack alignItems="center" gap="$3">
                   {profile?.avatar_url ? (
                     <Image
                       source={{ uri: profile.avatar_url }}
@@ -210,12 +283,12 @@ const HamburgerDrawer = ({
                       <Feather name="user" size={22} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
                     </View>
                   )}
-                </TouchableOpacity>
-                <YStack>
-                  <Text fontSize="$5" fontWeight="600">{profile?.full_name || user?.email || 'User'}</Text>
-                  <Text fontSize="$2" color="$gray10">{user?.email}</Text>
-                </YStack>
-              </XStack>
+                  <YStack>
+                    <Text fontSize="$5" fontWeight="600">{profile?.full_name || user?.email || 'User'}</Text>
+                    <Text fontSize="$2" color="$gray10">{user?.email}</Text>
+                  </YStack>
+                </XStack>
+              </TouchableOpacity>
             </Card>
 
             {/* Menu Items */}
@@ -225,28 +298,43 @@ const HamburgerDrawer = ({
                   onPress={() => {
                     try {
                       item.action();
-                      // Keep drawer open for WebViews so user can close them with the X and return here
-                      if ((item as any).danger) {
-                        // Logout should close the drawer
-                        onClose();
-                      }
                     } catch (err) {
                       console.error('[Drawer] Menu item error:', err);
                     }
                   }}
                   accessibilityLabel={item.label}
                 >
-                  <XStack alignItems="center" gap="$3">
-                    <Feather
-                      name={item.icon as any}
-                      size={20}
-                      color={
-                        (item as any).danger ? '#FF4444' : colorScheme === 'dark' ? '#FFFFFF' : '#000000'
-                      }
-                    />
-                    <Text fontSize="$4" color={(item as any).danger ? '#FF4444' : undefined}>
-                      {item.label}
-                    </Text>
+                  <XStack alignItems="center" gap="$3" justifyContent="space-between">
+                    <XStack alignItems="center" gap="$3">
+                      <Feather
+                        name={item.icon as any}
+                        size={20}
+                        color={
+                          (item as any).danger ? '#FF4444' : colorScheme === 'dark' ? '#FFFFFF' : '#000000'
+                        }
+                      />
+                      <Text fontSize="$4" color={(item as any).danger ? '#FF4444' : undefined}>
+                        {item.label}
+                      </Text>
+                    </XStack>
+                    {/* Badge for items with unread counts */}
+                    {(item as any).badge > 0 && (
+                      <View
+                        style={{
+                          backgroundColor: (item as any).badgeColor || '#EF4444',
+                          borderRadius: 10,
+                          minWidth: 20,
+                          height: 20,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          paddingHorizontal: 6,
+                        }}
+                      >
+                        <Text fontSize={10} fontWeight="bold" color="#FFFFFF" textAlign="center">
+                          {(item as any).badge > 99 ? '99+' : (item as any).badge}
+                        </Text>
+                      </View>
+                    )}
                   </XStack>
                 </TouchableOpacity>
               </Card>
@@ -255,19 +343,7 @@ const HamburgerDrawer = ({
         </SafeAreaView>
       </Animated.View>
 
-      {/* Embedded WebViews */}
-      <CustomWebView
-        isVisible={showBuyCoffee}
-        onClose={() => setShowBuyCoffee(false)}
-        url="https://app.vromm.se/buymeacoffee"
-        title="Buy Me a Coffee ☕"
-      />
-      <CustomWebView
-        isVisible={showBetaWebView}
-        onClose={() => setShowBetaWebView(false)}
-        url="https://vromm.se/beta-test"
-        title="Beta Program"
-      />
+      {/* WebViews moved to TabNavigator */}
     </Modal>
   );
 };
@@ -316,6 +392,27 @@ export function TabNavigator() {
   const createRouteContext = useCreateRoute();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isBetaInfoOpen, setIsBetaInfoOpen] = useState(false);
+  const [showBuyCoffee, setShowBuyCoffee] = useState(false);
+  const [showBetaWebView, setShowBetaWebView] = useState(false);
+
+  // Badge counts state for menu icon
+  const [totalBadgeCount, setTotalBadgeCount] = useState(0);
+  
+  // Track what was seen when drawer was last opened (for menu badge only)
+  const [seenMessageCount, setSeenMessageCount] = useState(0);
+  const [seenNotificationCount, setSeenNotificationCount] = useState(0);
+  const [seenEventCount, setSeenEventCount] = useState(0);
+  // Refs used by background updaters to prevent stale closures
+  const seenMessageCountRef = React.useRef(0);
+  const seenNotificationCountRef = React.useRef(0);
+  const seenEventCountRef = React.useRef(0);
+  const seenInitializedRef = React.useRef(false);
+
+  const STORAGE_KEYS = {
+    messages: 'menu_seen_message_count',
+    notifications: 'menu_seen_notification_count',
+    events: 'menu_seen_event_count',
+  } as const;
 
   // Get access to the parent (root) navigation to navigate to CreateRoute
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -323,6 +420,150 @@ export function TabNavigator() {
   // Track navigation state changes
   const navigationState = useNavigationState((state) => state);
   const prevRouteRef = React.useRef<string | null>(null);
+
+  // Badge counts state for main component
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [unreadEventCount, setUnreadEventCount] = useState(0);
+
+  // Load and update badge counts
+  const loadBadgeCounts = async () => {
+    try {
+      // Load message count
+      const messageCount = await messageService.getUnreadCount();
+      setUnreadMessageCount(messageCount);
+      
+      // Load notification count
+      const notificationCount = await notificationService.getUnreadCount();
+      setUnreadNotificationCount(notificationCount);
+      
+      // Load event invitation count
+      const { data: { user } } = await supabase.auth.getUser();
+      let eventCount = 0;
+      if (user) {
+        const { data: eventInvitations } = await supabase
+          .from('event_attendees')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'invited');
+        eventCount = eventInvitations?.length || 0;
+      }
+      setUnreadEventCount(eventCount);
+
+      // First-run initialization
+      if (!seenInitializedRef.current) {
+        seenMessageCountRef.current = messageCount;
+        seenNotificationCountRef.current = notificationCount;
+        seenEventCountRef.current = eventCount;
+        setSeenMessageCount(messageCount);
+        setSeenNotificationCount(notificationCount);
+        setSeenEventCount(eventCount);
+        try {
+          await AsyncStorage.multiSet([
+            [STORAGE_KEYS.messages, String(messageCount)],
+            [STORAGE_KEYS.notifications, String(notificationCount)],
+            [STORAGE_KEYS.events, String(eventCount)],
+          ]);
+        } catch {}
+        seenInitializedRef.current = true;
+        setTotalBadgeCount(0);
+        return;
+      }
+
+      // Calculate new items since drawer was last opened
+      const newMessages = Math.max(0, messageCount - seenMessageCountRef.current);
+      const newNotifications = Math.max(0, notificationCount - seenNotificationCountRef.current);
+      const newEvents = Math.max(0, eventCount - seenEventCountRef.current);
+      
+      const total = newMessages + newNotifications + newEvents;
+      setTotalBadgeCount(total);
+      
+      console.log('📊 Menu badge calculation:', {
+        total,
+        newMessages,
+        newNotifications,
+        newEvents,
+        seen: { messages: seenMessageCountRef.current, notifications: seenNotificationCountRef.current, events: seenEventCountRef.current }
+      });
+    } catch (error) {
+      console.error('Error loading badge counts:', error);
+    }
+  };
+
+  // Subscribe to real-time updates for menu badge
+  useEffect(() => {
+    // Load persisted seen counts on mount
+    (async () => {
+      try {
+        const entries = await AsyncStorage.multiGet([
+          STORAGE_KEYS.messages,
+          STORAGE_KEYS.notifications,
+          STORAGE_KEYS.events,
+        ]);
+        const msg = parseInt(entries[0]?.[1] || '', 10);
+        const noti = parseInt(entries[1]?.[1] || '', 10);
+        const evt = parseInt(entries[2]?.[1] || '', 10);
+        if (!Number.isNaN(msg) && !Number.isNaN(noti) && !Number.isNaN(evt)) {
+          seenMessageCountRef.current = msg;
+          seenNotificationCountRef.current = noti;
+          seenEventCountRef.current = evt;
+          setSeenMessageCount(msg);
+          setSeenNotificationCount(noti);
+          setSeenEventCount(evt);
+          seenInitializedRef.current = true;
+        } else {
+          seenInitializedRef.current = false;
+        }
+      } catch (e) {
+        console.warn('Failed to load persisted seen counts', e);
+      }
+    })();
+
+    loadBadgeCounts();
+
+    // Subscribe to message updates
+    const messageSubscription = messageService.subscribeToConversations(() => {
+      loadBadgeCounts();
+    });
+
+    // Subscribe to notification updates
+    const notificationSubscription = notificationService.subscribeToNotifications(() => {
+      loadBadgeCounts();
+    });
+
+    // Subscribe to event invitation updates
+    const eventSubscription = supabase
+      .channel('event-invitations-menu')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_attendees',
+          filter: `status=eq.invited`,
+        },
+        () => {
+          loadBadgeCounts();
+        },
+      )
+      .subscribe();
+
+    // Periodic refresh
+    const refreshInterval = setInterval(() => {
+      loadBadgeCounts();
+    }, 15000);
+
+    return () => {
+      if (messageSubscription?.unsubscribe) {
+        messageSubscription.unsubscribe();
+      }
+      if (notificationSubscription?.unsubscribe) {
+        notificationSubscription.unsubscribe();
+      }
+      supabase.removeChannel(eventSubscription);
+      clearInterval(refreshInterval);
+    };
+  }, []);
 
   useEffect(() => {
     if (navigationState) {
@@ -579,6 +820,21 @@ export function TabNavigator() {
                   accessibilityLabel="Open menu"
                   onPress={() => {
                     logInfo('Hamburger menu tab pressed');
+                    // Update seen counts when opening drawer (for menu badge tracking)
+                    setSeenMessageCount(unreadMessageCount);
+                    setSeenNotificationCount(unreadNotificationCount);
+                    setSeenEventCount(unreadEventCount);
+                    seenMessageCountRef.current = unreadMessageCount;
+                    seenNotificationCountRef.current = unreadNotificationCount;
+                    seenEventCountRef.current = unreadEventCount;
+                    // Immediately hide combined badge on open and persist seen
+                    AsyncStorage.multiSet([
+                      [STORAGE_KEYS.messages, String(unreadMessageCount)],
+                      [STORAGE_KEYS.notifications, String(unreadNotificationCount)],
+                      [STORAGE_KEYS.events, String(unreadEventCount)],
+                    ]).catch(() => {});
+                    // Immediately hide combined badge on open
+                    setTotalBadgeCount(0);
                     setIsDrawerOpen(true);
                   }}
                   style={{
@@ -589,9 +845,33 @@ export function TabNavigator() {
                     justifyContent: 'center',
                     backgroundColor: 'transparent',
                     borderRadius: 12,
+                    position: 'relative',
                   }}
                 >
                   <Feather name="menu" size={22} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                  
+                  {/* Combined badge for menu icon */}
+                  {totalBadgeCount > 0 && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        backgroundColor: '#EF4444',
+                        borderRadius: 10,
+                        minWidth: 20,
+                        height: 20,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderWidth: 2,
+                        borderColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                      }}
+                    >
+                      <Text fontSize={10} fontWeight="bold" color="#FFFFFF" textAlign="center">
+                        {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
+                      </Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               </View>
             ),
@@ -602,13 +882,46 @@ export function TabNavigator() {
       {/* Hamburger Drawer */}
       <HamburgerDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={() => {
+          // On close, treat everything as seen and hide combined badge
+          setSeenMessageCount(unreadMessageCount);
+          setSeenNotificationCount(unreadNotificationCount);
+          setSeenEventCount(unreadEventCount);
+          seenMessageCountRef.current = unreadMessageCount;
+          seenNotificationCountRef.current = unreadNotificationCount;
+          seenEventCountRef.current = unreadEventCount;
+          AsyncStorage.multiSet([
+            [STORAGE_KEYS.messages, String(unreadMessageCount)],
+            [STORAGE_KEYS.notifications, String(unreadNotificationCount)],
+            [STORAGE_KEYS.events, String(unreadEventCount)],
+          ]).catch(() => {});
+          setTotalBadgeCount(0);
+          setIsDrawerOpen(false);
+        }}
         colorScheme={colorScheme}
         navigation={navigation}
         onOpenBetaInfo={() => setIsBetaInfoOpen(true)}
+        onOpenBetaWebView={() => setShowBetaWebView(true)}
+        onOpenBuyCoffee={() => setShowBuyCoffee(true)}
+        unreadMessageCount={unreadMessageCount}
+        unreadNotificationCount={unreadNotificationCount}
+        unreadEventCount={unreadEventCount}
       />
 
       <BetaInfoModal visible={isBetaInfoOpen} onClose={() => setIsBetaInfoOpen(false)} />
+      {/* Embedded WebViews at root (outside drawer) */}
+      <CustomWebView
+        isVisible={showBuyCoffee}
+        onClose={() => setShowBuyCoffee(false)}
+        url="https://app.vromm.se/buymeacoffee"
+        title="Buy Me a Coffee ☕"
+      />
+      <CustomWebView
+        isVisible={showBetaWebView}
+        onClose={() => setShowBetaWebView(false)}
+        url="https://vromm.se/beta-test"
+        title="Beta Program"
+      />
     </View>
   );
 }
