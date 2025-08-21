@@ -118,6 +118,7 @@ export type TabParamList = {
   CreateRouteTab: undefined;
   MapTab: undefined;
   ProfileTab: undefined;
+  MenuTab: undefined;
   ProfileScreen: undefined;
 };
 

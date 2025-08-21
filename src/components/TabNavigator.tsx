@@ -444,30 +444,6 @@ export function TabNavigator() {
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Hamburger Menu Button - Top Right */}
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          top: Platform.OS === 'ios' ? 60 : 40, // Below status bar
-          right: 20,
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1001,
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.2,
-          shadowRadius: 4,
-        }}
-        onPress={() => setIsDrawerOpen(true)}
-        accessibilityLabel="Open menu"
-      >
-        <Feather name="menu" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
-      </TouchableOpacity>
 
       <Tab.Navigator screenOptions={screenOptions}>
         <Tab.Screen
@@ -587,6 +563,37 @@ export function TabNavigator() {
             );
           }}
         </Tab.Screen>
+        {/* Rightmost tab: opens the hamburger drawer */}
+        <Tab.Screen
+          name="MenuTab"
+          component={NoopScreen}
+          options={{
+            title: '',
+            tabBarLabel: '',
+            tabBarButton: (props: BottomTabBarButtonProps) => (
+              <View style={props.style as ViewStyle}>
+                <TouchableOpacity
+                  accessibilityLabel="Open menu"
+                  onPress={() => {
+                    logInfo('Hamburger menu tab pressed');
+                    setIsDrawerOpen(true);
+                  }}
+                  style={{
+                    display: 'flex',
+                    width: 64,
+                    height: 56,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'transparent',
+                    borderRadius: 12,
+                  }}
+                >
+                  <Feather name="menu" size={22} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                </TouchableOpacity>
+              </View>
+            ),
+          }}
+        />
       </Tab.Navigator>
 
       {/* Hamburger Drawer */}
