@@ -115,6 +115,7 @@ export type TabParamList = {
     showDetail?: boolean;
     activeUserId?: string; // Add activeUserId for student switching
   };
+  CreateRouteTab: undefined;
   MapTab: undefined;
   ProfileTab: undefined;
   ProfileScreen: undefined;

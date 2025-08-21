@@ -269,6 +269,9 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps) => {
   );
 };
 
+// Empty screen placeholder for the central tab
+const NoopScreen = () => null;
+
 export function TabNavigator() {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
@@ -497,6 +500,44 @@ export function TabNavigator() {
             },
           }}
         />
+        {/* Central Create Route tab - custom button inside tab bar */}
+        <Tab.Screen
+          name="CreateRouteTab"
+          component={NoopScreen}
+          options={{
+            title: '',
+            tabBarLabel: '',
+            tabBarButton: (props: BottomTabBarButtonProps) => (
+              <View style={props.style as ViewStyle}>
+                <TouchableOpacity
+                  accessibilityLabel="Create route or record driving"
+                  onPress={() => {
+                    console.log('🎯 Central Create Route tab button pressed');
+                    showModal(<ActionSheetModal onCreateRoute={handleCreateRoute} />);
+                  }}
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    backgroundColor: colorScheme === 'dark' ? '#1A3D3D' : '#69e3c4',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    elevation: 8,
+                    shadowColor: colorScheme === 'dark' ? '#000' : '#333',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.2,
+                    shadowRadius: 6,
+                    marginTop: -12, // raise slightly to feel floating
+                    borderWidth: colorScheme === 'light' ? 2 : 0,
+                    borderColor: colorScheme === 'light' ? '#FFFFFF' : 'transparent',
+                  }}
+                >
+                  <Feather name="plus" size={24} color={colorScheme === 'dark' ? 'white' : '#1A3D3D'} />
+                </TouchableOpacity>
+              </View>
+            ),
+          }}
+        />
         <Tab.Screen
           name="MapTab"
           component={MapScreen}
@@ -547,42 +588,6 @@ export function TabNavigator() {
           }}
         </Tab.Screen>
       </Tab.Navigator>
-
-      {/* Floating Create Route Button - Central with color scheme support */}
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          bottom: TOTAL_HEIGHT + 10, // Position above tab bar
-          left: '50%',
-          marginLeft: -28, // Half of button width (56/2)
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: colorScheme === 'dark' ? '#1A3D3D' : '#69e3c4', // Teal for light mode
-          justifyContent: 'center',
-          alignItems: 'center',
-          elevation: 8,
-          shadowColor: colorScheme === 'dark' ? '#000' : '#333',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.2,
-          shadowRadius: 6,
-          zIndex: 1000,
-          // Add border for light mode visibility
-          borderWidth: colorScheme === 'light' ? 2 : 0,
-          borderColor: colorScheme === 'light' ? '#FFFFFF' : 'transparent',
-        }}
-        onPress={() => {
-          console.log('🎯 Central Create Route button pressed');
-          showModal(<ActionSheetModal onCreateRoute={handleCreateRoute} />);
-        }}
-        accessibilityLabel="Create route or record driving"
-      >
-        <Feather
-          name="plus"
-          size={24}
-          color={colorScheme === 'dark' ? 'white' : '#1A3D3D'} // Dark icon for light mode
-        />
-      </TouchableOpacity>
 
       {/* Hamburger Drawer */}
       <HamburgerDrawer
