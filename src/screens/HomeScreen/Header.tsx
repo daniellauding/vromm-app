@@ -9,9 +9,9 @@ import { useColorScheme } from 'react-native';
 import { Calendar } from '@tamagui/lucide-icons';
 
 // ADD MESSAGING COMPONENTS
-import { MessageBell } from '../../components/MessageBell';
-import { NotificationBell } from '../../components/NotificationBell';
-import { EventsBell } from '../../components/EventsBell';
+// import { MessageBell } from '../../components/MessageBell';
+// import { NotificationBell } from '../../components/NotificationBell';
+// import { EventsBell } from '../../components/EventsBell';
 
 import { useAuth } from '@/src/context/AuthContext';
 import { NavigationProp } from '@/src/types/navigation';
@@ -101,7 +101,7 @@ export const HomeHeader = () => {
       marginBottom="$2"
     >
       <XStack alignItems="center" gap={12} width="100%" justifyContent="space-between">
-        <XStack alignItems="center" gap={10} flexShrink={1}>
+        <YStack gap={8} flexShrink={1} alignItems="flex-start" width="100%">
           <TouchableOpacity
             onPress={onPressAvatar}
             activeOpacity={isSupervisorRole ? 0.7 : 1}
@@ -126,7 +126,7 @@ export const HomeHeader = () => {
               <Feather name="user" size={20} color="#fff" />
             )}
           </TouchableOpacity>
-          <Text fontSize="$6" fontWeight="800" fontStyle="italic" color="$color" numberOfLines={1}>
+          <Text fontSize="$6" fontWeight="800" fontStyle="italic" color="$color" numberOfLines={2}>
             {profile?.full_name &&
             !profile.full_name.includes('@') &&
             profile.full_name !== 'Unknown' &&
@@ -134,23 +134,10 @@ export const HomeHeader = () => {
               ? t('home.welcomeWithName').replace('{name}', profile.full_name)
               : t('home.welcome')}
           </Text>
-        </XStack>
+        </YStack>
 
         <XStack gap={12} alignItems="center">
-          <MessageBell size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
-          <NotificationBell size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
-          <EventsBell size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
-
-          <Button
-            size="sm"
-            variant="secondary"
-            onPress={() => navigation.navigate('UsersScreen')}
-          >
-            <XStack alignItems="center" gap={6}>
-              <Feather name="users" size={18} color={colorScheme === 'dark' ? 'white' : 'black'} />
-              <Text>Users</Text>
-            </XStack>
-          </Button>
+          {/* Hidden temporarily: MessageBell, NotificationBell, EventsBell, Users button */}
         </XStack>
       </XStack>
 

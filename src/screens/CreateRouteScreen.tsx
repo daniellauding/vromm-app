@@ -1645,8 +1645,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           onRouteCreated(route.id);
         }
       } else if (navigation) {
-        // Navigate to home screen instead of route detail
-        navigation.navigate('MainTabs');
+        // Navigate back to Home root inside tabs
+        // @ts-ignore
+        navigation.navigate('MainTabs', {
+          screen: 'HomeTab',
+          params: { screen: 'HomeScreen', params: { resetKey: Date.now() } },
+        });
       } else {
         console.warn('No navigation available');
       }
