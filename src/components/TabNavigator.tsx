@@ -10,6 +10,7 @@ import {
   ViewStyle,
   View,
   Modal,
+  Pressable,
   Animated,
   Dimensions,
   SafeAreaView,
@@ -36,6 +37,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import CustomWebView from './CustomWebView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TAB_BAR_HEIGHT as NAV_TAB_BAR_HEIGHT, BOTTOM_SAFE_INSET as NAV_BOTTOM_SAFE_INSET } from '../utils/layout';
+import { useTranslation as useAppTranslation } from '../contexts/TranslationContext';
 
 // Import services for badge counts
 import { messageService } from '../services/messageService';
@@ -139,6 +141,7 @@ const HamburgerDrawer = ({
   onOpenBetaWebView,
   onOpenBuyCoffee,
   onOpenAbout,
+  onOpenLanguage,
   unreadMessageCount,
   unreadNotificationCount,
   unreadEventCount,
@@ -154,6 +157,7 @@ const HamburgerDrawer = ({
   onOpenBetaWebView: () => void;
   onOpenBuyCoffee: () => void;
   onOpenAbout: () => void;
+  onOpenLanguage: () => void;
   unreadMessageCount: number;
   unreadNotificationCount: number;
   unreadEventCount: number;
@@ -185,6 +189,12 @@ const HamburgerDrawer = ({
   const onOpenAboutLocal = () => {
     console.log('[Drawer] About tapped');
     onOpenAbout();
+    onClose();
+  };
+
+  const onOpenLanguageLocal = () => {
+    console.log('[Drawer] Language tapped');
+    onOpenLanguage();
     onClose();
   };
 
@@ -279,6 +289,7 @@ const HamburgerDrawer = ({
       badgeColor: '#EF4444'
     },
     { icon: 'globe', label: t('drawer.betaWebsite') || 'Beta Website', action: () => onOpenBetaWebViewLocal() },
+    { icon: 'globe', label: t('settings.language.title') || 'Language', action: () => onOpenLanguageLocal() },
     { icon: 'coffee', label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee', action: () => onOpenBuyCoffeeLocal() },
     { icon: 'share', label: t('drawer.shareApp') || 'Share App', action: () => onShareApp() },
     { icon: 'info', label: t('drawer.about') || 'About', action: () => onOpenAboutLocal() },
@@ -473,12 +484,14 @@ export function TabNavigator() {
   const colorScheme = useColorScheme();
   const theme = useTheme();
   const { showModal } = useModal();
+  const { language, setLanguage } = useAppTranslation();
   const createRouteContext = useCreateRoute();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isBetaInfoOpen, setIsBetaInfoOpen] = useState(false);
   const [showBuyCoffee, setShowBuyCoffee] = useState(false);
   const [showBetaWebView, setShowBetaWebView] = useState(false);
   const [showAboutWebView, setShowAboutWebView] = useState(false);
+  const [showLanguageSheet, setShowLanguageSheet] = useState(false);
   const [isNavigatingFromDrawer, setIsNavigatingFromDrawer] = useState(false);
   const [isTabResetting, setIsTabResetting] = useState(false);
   const [activeMenuScreen, setActiveMenuScreen] = useState<string | null>(null);
@@ -1117,6 +1130,7 @@ export function TabNavigator() {
         onOpenBetaWebView={() => setShowBetaWebView(true)}
         onOpenBuyCoffee={() => setShowBuyCoffee(true)}
         onOpenAbout={() => setShowAboutWebView(true)}
+        onOpenLanguage={() => setShowLanguageSheet(true)}
         unreadMessageCount={unreadMessageCount}
         unreadNotificationCount={unreadNotificationCount}
         unreadEventCount={unreadEventCount}
@@ -1142,6 +1156,47 @@ export function TabNavigator() {
         url="https://vromm.se/"
         title="Vromm"
       />
+
+      {/* Language bottom sheet matching Profile screen style */}
+      <Modal
+        visible={showLanguageSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLanguageSheet(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowLanguageSheet(false)}
+        >
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            gap="$4"
+          >
+            <Text fontSize={28} fontWeight="700">{t('settings.language.title') || 'Choose language'}</Text>
+            <TouchableOpacity
+              onPress={() => { setLanguage('en'); setShowLanguageSheet(false); }}
+            >
+              <View style={{ backgroundColor: '#0A84FF', borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}>
+                <Text color="#FFF" fontWeight="800" fontStyle="italic">ENGLISH</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { setLanguage('sv'); setShowLanguageSheet(false); }}
+            >
+              <View style={{ backgroundColor: colorScheme === 'dark' ? '#0a3d3d' : '#0C5F5F', borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}>
+                <Text color="#FFF" fontWeight="800" fontStyle="italic">SVENSKA</Text>
+              </View>
+            </TouchableOpacity>
+          </YStack>
+        </Pressable>
+      </Modal>
 
       {/* Lightweight navigation spinner overlay when launching drawer destinations or tab resets */}
       {(isNavigatingFromDrawer || isTabResetting) && (
