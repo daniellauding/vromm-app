@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, TouchableOpacity, Alert, Linking, View, Image } from 'react-native';
 import { YStack, XStack, Text, Avatar, Input, Button, Spinner } from 'tamagui';
-import { ArrowLeft, Send, Image as ImageIcon, Paperclip, MoreVertical, User, Trash2, MessageCircle, Camera, Video, Flag } from '@tamagui/lucide-icons';
+import { ArrowLeft, Send, Image as ImageIcon, Paperclip, MoreVertical, User, Trash2, MessageCircle, Camera, Video, Flag, X } from '@tamagui/lucide-icons';
 import { messageService, Message, Conversation } from '../services/messageService';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
-import { Modal as RNModal, ActivityIndicator, TextInput as RNTextInput } from 'react-native';
-import { getTabContentPadding } from '../utils/layout';
+import { Modal as RNModal, ActivityIndicator, TextInput as RNTextInput, useColorScheme } from 'react-native';
+import { TAB_BAR_TOTAL_HEIGHT } from '../utils/layout';
 import Constants from 'expo-constants';
 import { ReportDialog } from '../components/report/ReportDialog';
 import { ImageWithFallback } from '../components/ImageWithFallback';
@@ -32,10 +32,18 @@ export const ConversationScreen: React.FC = () => {
   const [gifError, setGifError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showAllActions, setShowAllActions] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const navigation = useNavigation();
   const route = useRoute();
   const { conversationId } = route.params as RouteParams;
+
+  // Theme-aware colors (must be before any early returns)
+  const colorScheme = useColorScheme();
+  const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+  const inputBg = colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
+  const placeholderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)';
+  const dividerColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
 
   useEffect(() => {
     const initializeConversation = async () => {
@@ -475,7 +483,7 @@ export const ConversationScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="#0F172A">
+      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="$background">
         <Spinner size="large" color="#00FFBC" />
         <Text color="$color" marginTop={16}>
           Loading conversation...
@@ -485,7 +493,7 @@ export const ConversationScreen: React.FC = () => {
   }
 
   return (
-    <YStack flex={1} backgroundColor="#0F172A">
+    <YStack flex={1} backgroundColor="$background" paddingBottom={TAB_BAR_TOTAL_HEIGHT}>
       {/* Header */}
       <XStack
         padding={16}
@@ -605,7 +613,7 @@ export const ConversationScreen: React.FC = () => {
           renderItem={({ item, index }) => renderMessage({ item, index })}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 16, paddingBottom: getTabContentPadding() }}
+          contentContainerStyle={{ paddingVertical: 16, paddingBottom: TAB_BAR_TOTAL_HEIGHT }}
           onContentSizeChange={() => {
             // Auto-scroll to top when new messages arrive
             if (messages.length > 0) {
@@ -625,38 +633,51 @@ export const ConversationScreen: React.FC = () => {
         <XStack
           padding={16}
           borderTopWidth={1}
-          borderTopColor="rgba(255, 255, 255, 0.1)"
+          borderTopColor={dividerColor}
           gap={12}
-          alignItems="flex-end"
-          style={{ paddingBottom: 8, marginBottom: getTabContentPadding() - 48 }}
+          alignItems="center"
+          style={{ paddingBottom: 8, marginBottom: 0 }}
         >
-          <TouchableOpacity onPress={uploadImageAndSend} disabled={uploading}>
-            <Paperclip size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          {/* Actions: collapsed to Camera by default; expanded shows all */}
+          {showAllActions ? (
+            <>
+              <TouchableOpacity onPress={uploadImageAndSend} disabled={uploading}>
+                <Paperclip size={20} color={iconColor} />
+              </TouchableOpacity>
 
-          <TouchableOpacity onPress={uploadImageAndSend} disabled={uploading}>
-            <ImageIcon size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+              <TouchableOpacity onPress={uploadImageAndSend} disabled={uploading}>
+                <ImageIcon size={20} color={iconColor} />
+              </TouchableOpacity>
 
-          <TouchableOpacity onPress={takePhotoAndSend} disabled={uploading}>
-            <Camera size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+              <TouchableOpacity onPress={takePhotoAndSend} disabled={uploading}>
+                <Camera size={20} color={iconColor} />
+              </TouchableOpacity>
 
-          <TouchableOpacity onPress={pickVideoAndSend} disabled={uploading}>
-            <Video size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+              <TouchableOpacity onPress={pickVideoAndSend} disabled={uploading}>
+                <Video size={20} color={iconColor} />
+              </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => { setGifOpen(true); if (gifResults.length === 0) loadTrendingGifs(); }} disabled={uploading}>
-            <MessageCircle size={20} color="#00FFBC" />
+              <TouchableOpacity onPress={() => { setGifOpen(true); if (gifResults.length === 0) loadTrendingGifs(); }} disabled={uploading}>
+                <MessageCircle size={20} color="#00FFBC" />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity onPress={takePhotoAndSend} disabled={uploading}>
+              <Camera size={22} color={iconColor} />
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity onPress={() => setShowAllActions((s) => !s)}>
+            {showAllActions ? <X size={18} color={iconColor} /> : <MoreVertical size={18} color={iconColor} />}
           </TouchableOpacity>
 
           <Input
             flex={1}
             placeholder="Type a message..."
-            placeholderTextColor="rgba(255, 255, 255, 0.5)"
+            placeholderTextColor={placeholderColor}
             value={newMessage}
             onChangeText={setNewMessage}
-            backgroundColor="rgba(255, 255, 255, 0.1)"
+            backgroundColor={inputBg}
             borderColor="transparent"
             color="$color"
             borderRadius={20}
@@ -685,7 +706,7 @@ export const ConversationScreen: React.FC = () => {
 
       {/* GIF Picker Modal */}
       <RNModal visible={gifOpen} animationType="slide" onRequestClose={() => setGifOpen(false)}>
-        <YStack flex={1} backgroundColor="#0F172A" padding={16} gap={12}>
+        <YStack flex={1} backgroundColor="$background" padding={16} gap={12}>
           <XStack alignItems="center" justifyContent="space-between">
             <Text fontSize={18} fontWeight="bold" color="$color">Choose a GIF</Text>
             <TouchableOpacity onPress={() => setGifOpen(false)}>

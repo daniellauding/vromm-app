@@ -709,7 +709,7 @@ export const NotificationsScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="#0F172A">
+      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="$background">
         <Spinner size="large" color="#00FFBC" />
         <Text color="$color" marginTop={16}>
           Loading notifications...
@@ -719,7 +719,7 @@ export const NotificationsScreen: React.FC = () => {
   }
 
   return (
-    <YStack flex={1} backgroundColor="#0F172A">
+    <YStack flex={1} backgroundColor="$background">
       {/* Header */}
       <XStack
         padding={16}

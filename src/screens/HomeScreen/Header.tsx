@@ -126,7 +126,7 @@ export const HomeHeader = () => {
               <Feather name="user" size={20} color="#fff" />
             )}
           </TouchableOpacity>
-          <Text fontSize="$6" fontWeight="800" fontStyle="italic" color="$color" numberOfLines={2}>
+          <Text fontSize="$6" fontWeight="800" fontStyle="italic" color="$color" numberOfLines={5}>
             {profile?.full_name &&
             !profile.full_name.includes('@') &&
             profile.full_name !== 'Unknown' &&
