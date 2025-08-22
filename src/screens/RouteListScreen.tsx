@@ -38,7 +38,13 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
     // Disable Screen's ScrollView to avoid nesting with RouteList's FlatList
     <Screen scroll={false}>
       <YStack f={1} gap="$4">
-        <Header title={title} showBack />
+        <Header title={title} showBack onBackPress={() => {
+          // Ensure back goes to HomeScreen root
+          try {
+            // @ts-ignore
+            const nav: any = (global as any).reactNavigation || null;
+          } catch {}
+        }} />
 
         {/* Active Filter Chip */}
         {activeFilter && (

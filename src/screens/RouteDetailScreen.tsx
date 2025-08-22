@@ -1169,7 +1169,12 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       await AppAnalytics.trackRouteStart(routeId);
 
       // Navigate to the map screen with the route data
-      navigation.navigate('Map', { routeId });
+      // Navigate to Map tab's MapScreen within MainTabs to keep tab bar visible
+      // @ts-ignore
+      navigation.navigate('MainTabs', {
+        screen: 'MapTab',
+        params: { screen: 'MapScreen', params: { routeId } },
+      });
     } catch (err) {
       console.error('Error starting route:', err);
       Alert.alert(t('common.error'), t('routeDetail.errorStarting'));
@@ -1206,7 +1211,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   }
 
   return (
-    <Screen edges={[]} padding={false} hideStatusBar>
+    // Give extra bottom space to clear the floating tab bar on iOS
+    <Screen edges={[]} padding={false} hideStatusBar bottomInset={80}>
       <YStack f={1}>
         {/* Hero Carousel */}
         {getCarouselItems().length > 0 && (

@@ -38,7 +38,8 @@ function UserItem({
   const [isFollowLoading, setIsFollowLoading] = useState<boolean>(false);
   const colorScheme = useColorScheme();
   const navigateToProfile = React.useCallback(() => {
-    navigation.navigate('PublicProfile', { userId: user.id });
+    console.log('[NAV][UsersList] → MainTabs > MenuTab > PublicProfile', { userId: user.id });
+    (navigation as any).navigate('MainTabs', { screen: 'MenuTab', params: { screen: 'PublicProfile', params: { userId: user.id } } });
   }, [navigation, user.id]);
 
   const handleInvite = React.useCallback(async () => {

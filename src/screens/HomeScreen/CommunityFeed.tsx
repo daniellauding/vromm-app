@@ -647,7 +647,8 @@ export const CommunityFeed = () => {
   };
 
   const onNavigateToFeedScreen = React.useCallback(() => {
-    navigation.navigate('CommunityFeedScreen');
+    console.log('[NAV][HomeSection] CommunityFeed → CommunityFeedScreen');
+    (navigation as any).navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CommunityFeedScreen' } });
   }, [navigation]);
 
   if (loading) {

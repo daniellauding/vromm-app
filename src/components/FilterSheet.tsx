@@ -132,6 +132,7 @@ export function FilterSheet({
   routeCount,
   initialFilters = {},
 }: FilterSheetProps) {
+  if (!isVisible) return null;
   const { t } = useTranslation();
   // Force dark theme
   const backgroundColor = '#1A1A1A';
@@ -673,7 +674,9 @@ export function FilterSheet({
           ]}
         >
           <Button backgroundColor="#00E6C3" color="#000000" size="$5" onPress={handleApply}>
-            {t('filters.seeRoutes')} ({routeCount})
+            <Text color="#000000" fontWeight="700">
+              {t('filters.seeRoutes')} ({routeCount})
+            </Text>
           </Button>
         </View>
       </Animated.View>

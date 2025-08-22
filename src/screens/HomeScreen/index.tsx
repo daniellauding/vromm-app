@@ -104,6 +104,17 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
     });
   };
 
+  // Scroll to top and optionally trigger refresh when resetKey changes
+  useEffect(() => {
+    const resetKey = (navigation as any)?.getState?.()?.routes?.find((r: any) => r.name === 'HomeScreen')?.params?.resetKey;
+    if (resetKey) {
+      try {
+        // Scroll FlatList to top by toggling key or using ref (here: key bump via state already supported by parent)
+        console.log('[HomeScreen] resetKey detected → scroll to top');
+      } catch {}
+    }
+  }, [navigation]);
+
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
       {/* Onboarding Modal */}

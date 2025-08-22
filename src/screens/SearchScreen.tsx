@@ -250,8 +250,16 @@ export function SearchScreen() {
   };
 
   const handleResultSelect = (result: SearchResult) => {
-    // @ts-ignore: Type issues with navigation
-    navigation.navigate('Map', { selectedLocation: result });
+    console.log('[Search] navigating to Map with selectedLocation', {
+      id: result?.id,
+      place: result?.place_name,
+      center: result?.center,
+    });
+    // @ts-ignore
+    navigation.navigate('MainTabs', {
+      screen: 'MapTab',
+      params: { selectedLocation: result, fromSearch: true, ts: Date.now() },
+    });
   };
 
   const handleClose = () => {

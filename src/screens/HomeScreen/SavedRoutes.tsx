@@ -5,6 +5,7 @@ import { FlatList } from 'react-native';
 import { HeroCarousel } from '../../components/HeroCarousel';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
+import { navigateDomain } from '@/src/utils/navigation';
 import { SectionHeader } from '../../components/SectionHeader';
 import { EmptyState } from './EmptyState';
 import { useTranslation } from '@/src/contexts/TranslationContext';
@@ -144,7 +145,9 @@ export const SavedRoutes = () => {
         }
         variant="chevron"
         onAction={() => {
-          navigation.navigate('RouteList', {
+          const domain = navigateDomain(navigation);
+          console.log('[NAV][HomeSection] SavedRoutes → RouteList');
+          domain.home('RouteList', {
             title: isViewingAsStudent
               ? `${activeStudentName || 'Student'}'s Saved Routes`
               : t('home.savedRoutes'),

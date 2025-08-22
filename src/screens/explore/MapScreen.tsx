@@ -38,7 +38,7 @@ const DARK_THEME = {
   cardBackground: '#2D3130',
 };
 
-export function MapScreen({ route }: { route: { params?: { selectedLocation?: any } } }) {
+export function MapScreen({ route }: { route: { params?: { selectedLocation?: any; fromSearch?: boolean; ts?: number } } }) {
   const { t } = useTranslation();
   const [routes, setRoutes] = useState<RouteType[]>([]);
   const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>([]);
@@ -219,6 +219,23 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     [routes, setRegion],
   );
 
+  // React to navigation from SearchScreen: center map on selectedLocation
+  useEffect(() => {
+    const selected = route?.params?.selectedLocation as SearchResult | undefined;
+    const fromSearch = (route?.params as any)?.fromSearch;
+    const ts = (route?.params as any)?.ts;
+    if (selected && selected.center?.length === 2) {
+      console.log('[MapScreen] received selectedLocation from Search', {
+        id: selected.id,
+        place: selected.place_name,
+        center: selected.center,
+        fromSearch,
+        ts,
+      });
+      handleLocationSelect(selected);
+    }
+  }, [route?.params?.selectedLocation, route?.params?.fromSearch, route?.params?.ts, handleLocationSelect]);
+
   // Handle filter selection
   const handleFilterPress = useCallback(
     (filter: FilterCategory) => {
@@ -257,9 +274,23 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   // Apply filters from the filter sheet
   const handleApplyFilters = useCallback(
     (filters: FilterOptions) => {
+      console.log('[MapScreen] applying filters', filters);
       setFilters(filters);
+      // When filters change, try to center to first matching route to give feedback
+      try {
+        const next = activeRoutes?.[0] || filteredRoutes?.[0] || routes?.[0];
+        const firstWp = next?.waypoint_details?.[0] || next?.metadata?.waypoints?.[0];
+        if (firstWp && typeof firstWp.lat === 'number' && typeof firstWp.lng === 'number') {
+          setRegion({
+            latitude: firstWp.lat,
+            longitude: firstWp.lng,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
+        }
+      } catch {}
     },
-    [setFilters],
+    [setFilters, activeRoutes, filteredRoutes, routes],
   );
 
   // Handle filter button press

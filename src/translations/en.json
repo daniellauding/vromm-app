@@ -214,6 +214,14 @@
     "progress": "Progress",
     "map": "Map"
   },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search for a place, city or address",
+    "nearMe": "Near Me",
+    "popularCities": "Popular Cities",
+    "noResults": "No results",
+    "searching": "Searching..."
+  },
   "createRoute": {
     "unsavedChanges": "Unsaved Changes",
     "unsavedChangesMessage": "You have unsaved changes. What would you like to do?",

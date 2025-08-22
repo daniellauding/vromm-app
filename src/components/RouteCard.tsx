@@ -190,7 +190,14 @@ export function RouteCard({ route }: RouteCardProps) {
     <Card
       padding="$4"
       pressStyle={{ scale: 0.98 }}
-      onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
+      onPress={() => {
+        // Open route detail under Map tab so Map tab remains active
+        // @ts-ignore
+        navigation.navigate('MainTabs', {
+          screen: 'MapTab',
+          params: { screen: 'RouteDetail', params: { routeId: route.id } },
+        });
+      }}
     >
       <YStack space="$4">
         {carouselItems.length > 0 && (

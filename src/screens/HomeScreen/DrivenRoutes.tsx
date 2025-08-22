@@ -9,6 +9,7 @@ import { YStack, XStack, Card } from 'tamagui';
 import { FlatList } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
+import { navigateDomain } from '@/src/utils/navigation';
 import { supabase } from '../../lib/supabase';
 import { Image, ImageSourcePropType, useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -115,7 +116,9 @@ export const DrivenRoutes = () => {
   }, [effectiveUserId]);
 
   const onNavigateToRouteList = React.useCallback(() => {
-    navigation.navigate('RouteList', {
+    const domain = navigateDomain(navigation);
+    console.log('[NAV][HomeSection] DrivenRoutes → RouteList');
+    domain.home('RouteList', {
       title: isViewingAsStudent 
         ? `${activeStudentName || 'Student'}'s Driven Routes`
         : t('home.drivenRoutes'),

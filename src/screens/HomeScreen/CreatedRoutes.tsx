@@ -9,6 +9,7 @@ import { YStack, XStack } from 'tamagui';
 import { FlatList } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
+import { navigateDomain } from '@/src/utils/navigation';
 import { supabase } from '../../lib/supabase';
 
 export const CreatedRoutes = () => {
@@ -47,7 +48,9 @@ export const CreatedRoutes = () => {
   }, [effectiveUserId]);
 
   const onNavigateToRouteList = React.useCallback(() => {
-    navigation.navigate('RouteList', {
+    const domain = navigateDomain(navigation);
+    console.log('[NAV][HomeSection] CreatedRoutes → RouteList');
+    domain.home('RouteList', {
       type: 'created',
       title: isViewingAsStudent 
         ? `${activeStudentName || 'Student'}'s Created Routes`

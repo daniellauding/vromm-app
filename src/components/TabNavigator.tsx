@@ -69,6 +69,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
 const MenuStack = createNativeStackNavigator();
+const MapStack = createNativeStackNavigator();
 
 const BOTTOM_INSET = NAV_BOTTOM_SAFE_INSET;
 const TAB_BAR_HEIGHT = NAV_TAB_BAR_HEIGHT;
@@ -99,6 +100,14 @@ const HomeStackNavigator = () => (
     <HomeStack.Screen name="NearByRoutes" component={NearByRoutes} />
     <HomeStack.Screen name="DrivenRoutes" component={DrivenRoutes} />
   </HomeStack.Navigator>
+);
+
+// Stack for Map tab to keep Map tab active when opening detail screens
+const MapStackNavigator = () => (
+  <MapStack.Navigator screenOptions={{ headerShown: false }}>
+    <MapStack.Screen name="MapScreen" component={MapScreen} />
+    <MapStack.Screen name="RouteDetail" component={RouteDetailScreen as any} />
+  </MapStack.Navigator>
 );
 
 // Stack for Menu tab so drawer destinations live here (keeps Menu tab active)
@@ -471,6 +480,7 @@ export function TabNavigator() {
   const [showBetaWebView, setShowBetaWebView] = useState(false);
   const [showAboutWebView, setShowAboutWebView] = useState(false);
   const [isNavigatingFromDrawer, setIsNavigatingFromDrawer] = useState(false);
+  const [isTabResetting, setIsTabResetting] = useState(false);
   const [activeMenuScreen, setActiveMenuScreen] = useState<string | null>(null);
   const [homeTabKey, setHomeTabKey] = useState(0);
   const [progressTabKey, setProgressTabKey] = useState(0);
@@ -661,6 +671,19 @@ export function TabNavigator() {
         });
       }
 
+      // Log full active route path for debugging
+      try {
+        const getActivePath = (state: any): string => {
+          if (!state || !state.routes || state.index == null) return '';
+          const route = state.routes[state.index];
+          const child = (route.state || (route as any).nested)?.state;
+          const name = route.name;
+          return child ? `${name} > ${getActivePath(child)}` : name;
+        };
+        const path = getActivePath(navigationState as any);
+        if (path) console.log('[NAV][ActivePath]', path);
+      } catch {}
+
       prevRouteRef.current = currentRoute;
     }
   }, [navigationState]);
@@ -797,11 +820,13 @@ export function TabNavigator() {
       const menuScreens = new Set(['PublicProfile', 'ProfileScreen', 'UsersScreen', 'Messages', 'Events', 'Notifications']);
       if (menuScreens.has(screen)) {
         setActiveMenuScreen(screen);
+        console.log('[NAV][Drawer] → MainTabs > MenuTab >', screen, params || null);
         (navigation as any).navigate('MainTabs', {
           screen: 'MenuTab',
           params: { screen, params },
         });
       } else {
+        console.log('[NAV] → MainTabs > HomeTab >', screen, params || null);
         (navigation as any).navigate('MainTabs', {
           screen: 'HomeTab',
           params: { screen, params },
@@ -864,17 +889,33 @@ export function TabNavigator() {
               <HomeIcon color={color} size={size} />
             ),
           }}
-          listeners={() => ({
+          listeners={({ navigation: nav }) => ({
             tabPress: () => {
+              const resetKey = Date.now();
               if ((tabNavigation as any).isFocused && (tabNavigation as any).isFocused()) {
                 logInfo('Home tab reselected → refreshing');
                 setHomeTabKey((k) => k + 1);
                 try {
-                  // Ensure we pop to HomeScreen when re-tapping Home via root navigator
-                  (navigation as any).navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'HomeScreen' } });
+                  setIsTabResetting(true);
+                  console.log('[NAV][HomeTab] navigate → MainTabs > HomeTab > HomeScreen (reset)');
+                  (navigation as any).navigate('MainTabs', {
+                    screen: 'HomeTab',
+                    params: { screen: 'HomeScreen', params: { resetKey } },
+                  });
+                  setTimeout(() => setIsTabResetting(false), 300);
                 } catch {}
               } else {
                 logInfo('Home tab pressed');
+                try {
+                  setHomeTabKey((k) => k + 1);
+                  setIsTabResetting(true);
+                  console.log('[NAV][HomeTab] select → MainTabs > HomeTab > HomeScreen (reset)');
+                  (navigation as any).navigate('MainTabs', {
+                    screen: 'HomeTab',
+                    params: { screen: 'HomeScreen', params: { resetKey } },
+                  });
+                  setTimeout(() => setIsTabResetting(false), 300);
+                } catch {}
               }
             },
           })}
@@ -963,7 +1004,7 @@ export function TabNavigator() {
             },
           })}
         >
-          {(props: any) => <MapScreen key={`map-${mapTabKey}`} {...props} />}
+          {() => <MapStackNavigator key={`map-${mapTabKey}`} />}
         </Tab.Screen>
         {/* Profile removed from tabs; accessible via drawer */}
         {/* Rightmost tab: opens the hamburger drawer */}
@@ -994,6 +1035,7 @@ export function TabNavigator() {
                     ]).catch(() => {});
                     // Immediately hide combined badge on open
                     setTotalBadgeCount(0);
+                    console.log('[NAV][Drawer] open');
                     setIsDrawerOpen(true);
                   }}
                   style={{
@@ -1101,8 +1143,8 @@ export function TabNavigator() {
         title="Vromm"
       />
 
-      {/* Lightweight navigation spinner overlay when launching drawer destinations */}
-      {isNavigatingFromDrawer && (
+      {/* Lightweight navigation spinner overlay when launching drawer destinations or tab resets */}
+      {(isNavigatingFromDrawer || isTabResetting) && (
         <View
           style={{
             position: 'absolute',
