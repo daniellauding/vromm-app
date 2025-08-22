@@ -864,14 +864,14 @@ export function TabNavigator() {
               <HomeIcon color={color} size={size} />
             ),
           }}
-          listeners={({ navigation }) => ({
+          listeners={() => ({
             tabPress: () => {
-              if ((navigation as any).isFocused && (navigation as any).isFocused()) {
+              if ((tabNavigation as any).isFocused && (tabNavigation as any).isFocused()) {
                 logInfo('Home tab reselected → refreshing');
                 setHomeTabKey((k) => k + 1);
                 try {
-                  // Ensure we pop to HomeScreen when re-tapping Home
-                  (navigation as any).navigate('HomeTab', { screen: 'HomeScreen' });
+                  // Ensure we pop to HomeScreen when re-tapping Home via root navigator
+                  (navigation as any).navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'HomeScreen' } });
                 } catch {}
               } else {
                 logInfo('Home tab pressed');
