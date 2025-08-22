@@ -10,6 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { format } from 'date-fns';
 import { View } from 'react-native';
+import { getTabContentPadding } from '../utils/layout';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { Alert } from 'react-native';
@@ -559,6 +560,7 @@ export function UsersScreen() {
         <ScrollView
           padding="$4"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerStyle={{ paddingBottom: getTabContentPadding() }}
         >
           {loading && !refreshing ? (
             <YStack padding="$4" alignItems="center">

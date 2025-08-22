@@ -27,6 +27,7 @@ import { Map as MapComponent } from '../components/Map';
 import { CalendarService } from '../services/calendarService';
 import { CommentsSection } from '../components/CommentsSection';
 import { ReportDialog } from '../components/report/ReportDialog';
+import { getTabContentPadding } from '../utils/layout';
 
 interface Event {
   id: string;
@@ -410,7 +411,7 @@ export const EventDetailScreen: React.FC = () => {
         )}
       </XStack>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: getTabContentPadding() }}>
         <YStack padding={16} gap={24}>
           {/* Event Info */}
           <YStack gap={16}>

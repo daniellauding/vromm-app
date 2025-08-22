@@ -21,6 +21,7 @@ import { getIncomingInvitations, acceptInvitationById, rejectInvitation } from '
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
+import { getTabContentPadding } from '../utils/layout';
 
 export const NotificationsScreen: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -794,6 +795,7 @@ export const NotificationsScreen: React.FC = () => {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FFBC" />
           }
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: getTabContentPadding() }}
         />
       )}
     </YStack>

@@ -26,6 +26,7 @@ import { Image } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { useScreenLogger } from '../hooks/useScreenLogger';
+import { getTabContentPadding } from '../utils/layout';
 import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
 import { CommentsSection } from '../components/CommentsSection';
 import { ReportDialog } from '../components/report/ReportDialog';
@@ -2616,7 +2617,7 @@ export function ProgressScreen() {
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: getTabContentPadding() }}>
             {/* Question Content */}
             <YStack
               backgroundColor="rgba(255, 255, 255, 0.1)"
@@ -2847,7 +2848,7 @@ export function ProgressScreen() {
     return (
       <YStack flex={1} backgroundColor="$background">
         <ScrollView
-          contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
+          contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -3424,7 +3425,7 @@ export function ProgressScreen() {
     return (
       <YStack flex={1} backgroundColor="$background">
         <ScrollView
-          contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
+          contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -3885,7 +3886,7 @@ export function ProgressScreen() {
   return (
     <YStack flex={1} backgroundColor="$background" padding={0}>
       <ScrollView
-        contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

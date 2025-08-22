@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
+import { getTabContentPadding } from '../utils/layout';
 
 // Align with RootStackParamList types
 export type RouteListScreenProps = NativeStackScreenProps<RootStackParamList, 'RouteList'>;
@@ -34,7 +35,8 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
   }, [paramRoutes, type, user]);
 
   return (
-    <Screen>
+    // Disable Screen's ScrollView to avoid nesting with RouteList's FlatList
+    <Screen scroll={false}>
       <YStack f={1} gap="$4">
         <Header title={title} showBack />
 

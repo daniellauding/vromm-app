@@ -35,6 +35,7 @@ import { BetaInfoModal } from './BetaInfoModal';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import CustomWebView from './CustomWebView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TAB_BAR_HEIGHT as NAV_TAB_BAR_HEIGHT, BOTTOM_SAFE_INSET as NAV_BOTTOM_SAFE_INSET } from '../utils/layout';
 
 // Import services for badge counts
 import { messageService } from '../services/messageService';
@@ -55,6 +56,8 @@ import { EventsScreen } from '../screens/EventsScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { CreateEventScreen } from '../screens/CreateEventScreen';
 import { CreateRouteScreen } from '../screens/CreateRouteScreen';
+import { ConversationScreen } from '../screens/ConversationScreen';
+import { EventDetailScreen } from '../screens/EventDetailScreen';
 import { SavedRoutes } from '../screens/HomeScreen/SavedRoutes';
 import { CommunityFeedScreen } from '../screens/CommunityFeedScreen';
 import { CreatedRoutes } from '../screens/HomeScreen/CreatedRoutes';
@@ -67,8 +70,8 @@ const Stack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
 const MenuStack = createNativeStackNavigator();
 
-const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
-const TAB_BAR_HEIGHT = 64;
+const BOTTOM_INSET = NAV_BOTTOM_SAFE_INSET;
+const TAB_BAR_HEIGHT = NAV_TAB_BAR_HEIGHT;
 const TOTAL_HEIGHT = TAB_BAR_HEIGHT + BOTTOM_INSET;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -87,6 +90,8 @@ const HomeStackNavigator = () => (
     <HomeStack.Screen name="Notifications" component={NotificationsScreen} />
     <HomeStack.Screen name="CreateEvent" component={CreateEventScreen} />
     <HomeStack.Screen name="CreateRoute" component={CreateRouteScreen} />
+    <HomeStack.Screen name="Conversation" component={ConversationScreen} />
+    <HomeStack.Screen name="EventDetail" component={EventDetailScreen} />
     <HomeStack.Screen name="RouteList" component={RouteListScreen as any} />
     <HomeStack.Screen name="SavedRoutes" component={SavedRoutes} />
     <HomeStack.Screen name="CommunityFeedScreen" component={CommunityFeedScreen} />
@@ -106,6 +111,9 @@ const MenuStackNavigator = () => (
     <MenuStack.Screen name="Messages" component={MessagesScreen} />
     <MenuStack.Screen name="Events" component={EventsScreen} />
     <MenuStack.Screen name="Notifications" component={NotificationsScreen} />
+    <MenuStack.Screen name="Conversation" component={ConversationScreen} />
+    <MenuStack.Screen name="EventDetail" component={EventDetailScreen} />
+    <MenuStack.Screen name="CreateEvent" component={CreateEventScreen} />
   </MenuStack.Navigator>
 );
 
@@ -862,6 +870,7 @@ export function TabNavigator() {
                 logInfo('Home tab reselected → refreshing');
                 setHomeTabKey((k) => k + 1);
                 try {
+                  // Ensure we pop to HomeScreen when re-tapping Home
                   (navigation as any).navigate('HomeTab', { screen: 'HomeScreen' });
                 } catch {}
               } else {
@@ -883,8 +892,12 @@ export function TabNavigator() {
           listeners={({ navigation }) => ({
             tabPress: () => {
               if ((navigation as any).isFocused && (navigation as any).isFocused()) {
-                logInfo('Progress tab reselected → refreshing');
+                logInfo('Progress tab reselected → go to overview');
                 setProgressTabKey((k) => k + 1);
+                try {
+                  // Force to Progress overview by switching to ProgressTab from root
+                  (navigation as any).navigate('ProgressTab');
+                } catch {}
               } else {
                 logInfo('Progress tab pressed');
               }

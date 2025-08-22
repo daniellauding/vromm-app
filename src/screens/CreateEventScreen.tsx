@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, TouchableOpacity, Alert, Dimensions, View, Platform } from 'react-native';
 import { YStack, XStack, Text, Button, Input, TextArea, Separator } from 'tamagui';
+import { getTabContentPadding } from '../utils/layout';
 import {
   ArrowLeft,
   Save,
@@ -909,7 +910,7 @@ export const CreateEventScreen: React.FC = () => {
         </Button>
       </XStack>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: getTabContentPadding() }}>
         <YStack gap={24}>
           {/* Enhanced Media Section - Like CreateRouteScreen */}
           <YStack gap={12}>

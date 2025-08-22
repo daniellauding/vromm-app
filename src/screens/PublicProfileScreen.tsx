@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 import { Screen } from '../components/Screen';
+import { getTabContentPadding } from '../utils/layout';
 import { Header } from '../components/Header';
 import { Text } from '../components/Text';
 import { Button } from '../components/Button';
@@ -976,7 +977,7 @@ export function PublicProfileScreen() {
   };
 
   return (
-    <Screen scroll padding={false}>
+    <Screen scroll padding={false} bottomInset={getTabContentPadding()}>
       <Header
         title={profile.full_name || t('profile.user') || 'User'}
         showBack

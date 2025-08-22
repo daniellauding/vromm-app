@@ -18,6 +18,7 @@ import { NavigationProp } from '../types/navigation';
 import { db, supabase } from '../lib/supabase';
 import { EventCard } from '../components/EventCard';
 import { useAuth } from '../context/AuthContext';
+import { getTabContentPadding } from '../utils/layout';
 
 interface Event {
   id: string;
@@ -367,7 +368,7 @@ export const EventsScreen: React.FC = () => {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FFBC" />
           }
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 8 }}
+          contentContainerStyle={{ paddingVertical: 8, paddingBottom: getTabContentPadding() }}
         />
       )}
     </YStack>

@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { Modal as RNModal, ActivityIndicator, TextInput as RNTextInput } from 'react-native';
+import { getTabContentPadding } from '../utils/layout';
 import Constants from 'expo-constants';
 import { ReportDialog } from '../components/report/ReportDialog';
 import { ImageWithFallback } from '../components/ImageWithFallback';
@@ -604,7 +605,7 @@ export const ConversationScreen: React.FC = () => {
           renderItem={({ item, index }) => renderMessage({ item, index })}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 16 }}
+          contentContainerStyle={{ paddingVertical: 16, paddingBottom: getTabContentPadding() }}
           onContentSizeChange={() => {
             // Auto-scroll to top when new messages arrive
             if (messages.length > 0) {
@@ -627,6 +628,7 @@ export const ConversationScreen: React.FC = () => {
           borderTopColor="rgba(255, 255, 255, 0.1)"
           gap={12}
           alignItems="flex-end"
+          style={{ paddingBottom: 8, marginBottom: getTabContentPadding() - 48 }}
         >
           <TouchableOpacity onPress={uploadImageAndSend} disabled={uploading}>
             <Paperclip size={20} color="#FFFFFF" />

@@ -4,6 +4,7 @@ import { FlatList } from 'react-native-gesture-handler';
 import { Route } from '@/src/types/route';
 import { RouteCard } from './RouteCard';
 import { YStack } from 'tamagui';
+import { getTabContentPadding } from '../utils/layout';
 
 // Import the Route type that RouteCard expects
 import { Database } from '../lib/database.types';
@@ -104,7 +105,7 @@ export const RouteList = forwardRef<FlatList<RouteCardRoute>, RouteListProps>(fu
         index,
       })}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 20 }}
+      contentContainerStyle={{ paddingBottom: getTabContentPadding() }}
     />
   );
 });

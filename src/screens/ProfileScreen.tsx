@@ -20,6 +20,7 @@ import { FormField } from '../components/FormField';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
 import { Header } from '../components/Header';
+import { getTabContentPadding } from '../utils/layout';
 import { useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { OnboardingModal } from '../components/OnboardingModal';
@@ -1817,6 +1818,7 @@ export function ProfileScreen() {
     <Screen
       scroll
       padding
+      bottomInset={getTabContentPadding()}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}

@@ -7,6 +7,7 @@ import { messageService, Conversation } from '../services/messageService';
 import { useNavigation } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
+import { getTabContentPadding } from '../utils/layout';
 
 export const MessagesScreen: React.FC = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -323,6 +324,7 @@ export const MessagesScreen: React.FC = () => {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FFBC" />
           }
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: getTabContentPadding() }}
         />
       )}
 
