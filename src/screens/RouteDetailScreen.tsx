@@ -1283,6 +1283,17 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       size="md"
                     />
                   )}
+                  {/* Show draft indicator and continue editing option */}
+                  {routeData?.is_draft && user?.id === routeData?.creator_id && (
+                    <Button
+                      icon={<Feather name="edit-3" size={20} color="#FF9500" />}
+                      onPress={() => navigation.navigate('CreateRoute', { routeId })}
+                      variant="outlined"
+                      size="md"
+                      backgroundColor="rgba(255, 149, 0, 0.1)"
+                      borderColor="#FF9500"
+                    />
+                  )}
                   <Button
                     icon={
                       <Feather
@@ -1342,6 +1353,19 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               {/* Basic Info Card */}
               <Card backgroundColor="$backgroundStrong" bordered padding="$4">
                 <YStack gap="$2">
+                  {/* Draft indicator */}
+                  {routeData.is_draft && (
+                    <XStack alignItems="center" gap="$2" marginBottom="$2">
+                      <Feather name="edit-3" size={16} color="#FF9500" />
+                      <Text fontSize="$4" color="#FF9500" fontWeight="600">
+                        DRAFT ROUTE
+                      </Text>
+                      <Text fontSize="$3" color="$gray9">
+                        • Only visible to you
+                      </Text>
+                    </XStack>
+                  )}
+                  
                   <XStack gap="$2" alignItems="center">
                     <Text fontSize="$6" fontWeight="600" color="$color">
                       {getTranslation(

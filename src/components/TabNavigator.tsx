@@ -717,6 +717,35 @@ export function TabNavigator() {
     }
   }, [navigationState, isNavigatingFromDrawer]);
 
+  // Handle maximizing wizard to full CreateRouteScreen
+  const handleMaximizeWizard = useCallback((wizardData: any) => {
+    console.log('🔍 TabNavigator handling wizard maximize');
+    
+    // Navigate to CreateRouteScreen with wizard data pre-filled
+    (navigation as any).navigate('MainTabs', {
+      screen: 'HomeTab',
+      params: {
+        screen: 'CreateRoute',
+        params: {
+          routeId: undefined, // New route
+          initialWaypoints: wizardData.waypoints,
+          initialName: wizardData.name,
+          initialDescription: wizardData.description,
+          initialSearchCoordinates: wizardData.waypoints.length > 0 
+            ? `${wizardData.waypoints[0].latitude.toFixed(6)}, ${wizardData.waypoints[0].longitude.toFixed(6)}`
+            : '',
+          initialRoutePath: wizardData.routePath,
+          initialStartPoint: wizardData.waypoints.length > 0 
+            ? { latitude: wizardData.waypoints[0].latitude, longitude: wizardData.waypoints[0].longitude }
+            : undefined,
+          initialEndPoint: wizardData.waypoints.length > 1 
+            ? { latitude: wizardData.waypoints[wizardData.waypoints.length - 1].latitude, longitude: wizardData.waypoints[wizardData.waypoints.length - 1].longitude }
+            : undefined,
+        },
+      },
+    });
+  }, [navigation]);
+
   // Log tab navigator mount and set up global navigation handler
   const handleCreateRoute = (routeData?: any) => {
     console.log('🎯 ==================== TAB NAVIGATOR - CREATE ROUTE ====================');
@@ -973,7 +1002,7 @@ export function TabNavigator() {
                   accessibilityLabel="Create route or record driving"
                   onPress={() => {
                     console.log('🎯 Central Create Route tab button pressed');
-                    showModal(<ActionSheetModal onCreateRoute={handleCreateRoute} />);
+                    showModal(<ActionSheetModal onCreateRoute={handleCreateRoute} onMaximizeWizard={handleMaximizeWizard} />);
                   }}
                   style={{
                     width: 56,

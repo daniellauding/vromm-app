@@ -18,6 +18,7 @@ interface ActionSheetProps {
   isVisible: boolean;
   onClose: () => void;
   onCreateRoute: (routeData?: RecordedRouteData) => void;
+  onMaximizeWizard?: (routeData: any) => void; // Callback for maximizing wizard
 }
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
@@ -64,7 +65,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetProps) {
+export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizard }: ActionSheetProps) {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
@@ -137,6 +138,31 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetPr
     console.log('🎭 ✅ onCreateRoute callback completed');
   };
 
+  // Handle "Share Route" option (new wizard)
+  const handleShareRoute = () => {
+    console.log('🧙‍♂️ ==================== ACTION SHEET - SHARE ROUTE ====================');
+    console.log('🧙‍♂️ ActionSheet Share Route pressed');
+    console.log('🧙‍♂️ About to close ActionSheet and show RouteWizardSheet...');
+
+    onClose();
+    console.log('🧙‍♂️ ActionSheet closed, showing RouteWizardSheet...');
+    
+    // Import and show RouteWizardSheet dynamically
+    import('./RouteWizardSheet').then(({ RouteWizardSheet }) => {
+      console.log('🧙‍♂️ RouteWizardSheet imported successfully');
+      console.log('🧙‍♂️ onCreateRoute:', typeof onCreateRoute);
+      console.log('🧙‍♂️ onMaximizeWizard:', typeof onMaximizeWizard);
+      
+      showModal(<RouteWizardSheet onCreateRoute={onCreateRoute} onMaximize={onMaximizeWizard} />);
+      console.log('🧙‍♂️ ✅ RouteWizardSheet modal shown');
+    }).catch(error => {
+      console.error('🧙‍♂️ ❌ Failed to import RouteWizardSheet:', error);
+      Alert.alert('Error', 'Failed to load route wizard. Please try again.');
+    });
+    
+    console.log('🧙‍♂️ ✅ Dynamic import initiated');
+  };
+
   // Handle "Record Driving" option
   const handleRecordDriving = () => {
     console.log('🎭 ==================== ACTION SHEET - RECORD DRIVING ====================');
@@ -180,13 +206,27 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetPr
         <YStack>
           <TouchableOpacity
             style={[styles.actionButton, { borderBottomColor: borderColor }]}
-            onPress={handleCreateRoute}
+            onPress={handleShareRoute}
           >
-            <XStack alignItems="center" gap="$3">
-              <Feather name="map-pin" size={24} color={textColor} />
-              <Text fontWeight="500" fontSize={18} color={textColor}>
-                {t('createRoute.createTitle') || 'Create Route'}
-              </Text>
+            <XStack alignItems="center" gap="$3" justifyContent="space-between">
+              <XStack alignItems="center" gap="$3">
+                <Feather name="share-2" size={24} color="#69e3c4" />
+                <Text fontWeight="500" fontSize={18} color={textColor}>
+                  Share a Route
+                </Text>
+              </XStack>
+              <View
+                style={{
+                  backgroundColor: '#69e3c4',
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 12,
+                }}
+              >
+                <Text fontSize={10} fontWeight="bold" color="white">
+                  NEW
+                </Text>
+              </View>
             </XStack>
           </TouchableOpacity>
 
@@ -201,6 +241,18 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetPr
               </Text>
             </XStack>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { borderBottomColor: 'transparent' }]}
+            onPress={handleCreateRoute}
+          >
+            <XStack alignItems="center" gap="$3">
+              <Feather name="edit-3" size={24} color={textColor} />
+              <Text fontWeight="500" fontSize={18} color={textColor}>
+                {t('createRoute.createTitle') || 'Advanced Create'}
+              </Text>
+            </XStack>
+          </TouchableOpacity>
         </YStack>
       </Animated.View>
     </View>
@@ -209,10 +261,12 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute }: ActionSheetPr
 
 export function ActionSheetModal({
   onCreateRoute,
+  onMaximizeWizard,
 }: {
   onCreateRoute: (routeData?: RecordedRouteData) => void;
+  onMaximizeWizard?: (routeData: any) => void;
 }) {
   const { hideModal } = useModal();
 
-  return <ActionSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} />;
+  return <ActionSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} onMaximizeWizard={onMaximizeWizard} />;
 }

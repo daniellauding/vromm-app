@@ -488,51 +488,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   // ==================== DRAFT FUNCTIONALITY ====================
 
   const saveAsDraft = async () => {
-    try {
-      console.log('💾 Saving route as draft...');
-
-      if (!user?.id) {
-        Alert.alert('Error', 'You must be logged in to save drafts');
-        return;
-      }
-
-      // Create draft data
-      const draftData = {
-        user_id: user.id,
-        draft_name: formData.name || `Draft - ${new Date().toLocaleDateString()}`,
-        form_data: formData,
-        waypoints,
-        exercises,
-        media,
-        drawing_mode: drawingMode,
-        snap_to_roads: snapToRoads,
-        pen_path: penPath,
-        route_path: routePath,
-        region,
-        active_section: activeSection,
-        search_query: searchQuery,
-        youtube_link: youtubeLink,
-        created_at: new Date().toISOString(),
-      };
-
-      // Save to Supabase drafts table (you'll need to create this table)
-      const { error } = await supabase.from('route_drafts').insert([draftData]);
-
-      if (error) throw error;
-
-      console.log('💾 ✅ Draft saved successfully');
-      Alert.alert('Success', 'Route saved as draft! You can continue editing it later.');
-
-      // Reset unsaved changes flag
-      setHasUnsavedChanges(false);
-      setShowExitConfirmation(false);
-
-      // Navigate back
-      navigation.goBack();
-    } catch (error) {
-      console.error('💾 ❌ Error saving draft:', error);
-      Alert.alert('Error', 'Failed to save draft. Please try again.');
-    }
+    // Use the same logic as handleCreateDraft but for exit confirmation
+    await handleCreateDraft();
+    
+    // Reset unsaved changes flag and close confirmation
+    setHasUnsavedChanges(false);
+    setShowExitConfirmation(false);
   };
 
   const handleExitWithoutSaving = () => {
@@ -1346,6 +1307,103 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     } catch (error) {
       console.error('Error in media upload process:', error);
       // Don't throw here, just log the error to prevent app crashes
+    }
+  };
+
+  const handleCreateDraft = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'Please sign in to save drafts');
+      return;
+    }
+    if (!formData.name.trim()) {
+      Alert.alert('Error', 'Please enter a route name');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Create draft with minimal validation - just need name and at least some data
+      const waypointDetails = waypoints.map((wp, index) => ({
+        lat: wp.latitude,
+        lng: wp.longitude,
+        title: wp.title || `Waypoint ${index + 1}`,
+        description: wp.description || '',
+      }));
+
+      // Prepare route data for draft
+      const draftRouteData = {
+        name: formData.name,
+        description: formData.description || '',
+        difficulty: formData.difficulty,
+        spot_type: formData.spot_type,
+        visibility: 'private' as const, // Drafts are always private
+        is_draft: true, // Mark as draft
+        best_season: formData.best_season,
+        best_times: formData.best_times,
+        vehicle_types: formData.vehicle_types,
+        activity_level: formData.activity_level,
+        spot_subtype: formData.spot_subtype,
+        transmission_type: formData.transmission_type,
+        category: formData.category,
+        creator_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_public: false, // Drafts are not public
+        waypoint_details: waypointDetails,
+        metadata: {
+          waypoints: waypointDetails,
+          pins: [],
+          options: {
+            reverse: false,
+            closeLoop: false,
+            doubleBack: false,
+          },
+          actualDrawingMode: drawingMode,
+          ...(drawingMode === 'pen' && penPath.length > 0 ? { coordinates: penPath } : {}),
+        },
+        suggested_exercises: exercises.length > 0 ? JSON.stringify(exercises) : '',
+        media_attachments: media.map((item) => ({
+          type: item.type as 'image' | 'video' | 'youtube',
+          url: item.uri,
+          description: item.description,
+        })),
+        drawing_mode: drawingMode === 'pen' ? 'pen' : 'waypoint',
+      };
+
+      const { data: newRoute, error: createError } = await supabase
+        .from('routes')
+        .insert(draftRouteData)
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Draft creation error:', createError);
+        throw createError;
+      }
+
+      console.log('✅ Draft saved successfully:', newRoute.id);
+
+      // Show success toast
+      showRouteCreatedToast(newRoute.id, newRoute.name, false, true); // true for isDraft
+
+      setLoading(false);
+
+      // Navigate back to home
+      if (navigation) {
+        // @ts-ignore
+        navigation.navigate('MainTabs', {
+          screen: 'HomeTab',
+          params: { screen: 'HomeScreen', params: { resetKey: Date.now() } },
+        });
+      }
+
+    } catch (err) {
+      console.error('Draft save error:', err);
+      setError('Failed to save draft. Please try again.');
+      setLoading(false);
+      Alert.alert('Error', 'Failed to save draft. Please try again.');
     }
   };
 
@@ -3299,7 +3357,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         </YStack>
       </ScrollView>
 
-      {/* Save Button */}
+      {/* Save Buttons */}
       <YStack
         position="absolute"
         bottom={0}
@@ -3309,7 +3367,31 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         backgroundColor="$background"
         borderTopWidth={1}
         borderTopColor="$borderColor"
+        gap="$3"
       >
+        {/* Save as Draft Button - Only show when creating new routes */}
+        {!isEditing && (
+          <Button
+            onPress={() => handleCreateDraft()}
+            disabled={loading || !formData.name.trim()}
+            variant="secondary"
+            size="lg"
+            width="100%"
+            backgroundColor="$gray2"
+            borderColor="$gray8"
+          >
+            <XStack gap="$2" alignItems="center">
+              {!loading && <Feather name="edit-3" size={20} color="#FF9500" />}
+              <Text color="$color">
+                {loading
+                  ? getTranslation(t, 'createRoute.saving', 'Saving...')
+                  : getTranslation(t, 'createRoute.saveAsDraft', 'Save as Draft')}
+              </Text>
+            </XStack>
+          </Button>
+        )}
+
+        {/* Main Save/Create Button */}
         <Button
           onPress={handleCreate}
           disabled={loading || !formData.name.trim()}

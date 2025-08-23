@@ -21,7 +21,7 @@ export interface ToastData {
 interface ToastContextType {
   showToast: (toast: Omit<ToastData, 'id'>) => void;
   hideToast: (id: string) => void;
-  showRouteCreatedToast: (routeId: string, routeName: string, isUpdate?: boolean) => void;
+  showRouteCreatedToast: (routeId: string, routeName: string, isUpdate?: boolean, isDraft?: boolean) => void;
   showEventCreatedToast: (eventId: string, eventName: string, isUpdate?: boolean) => void;
   showEventInviteToast: (eventId: string, eventName: string, inviteCount: number) => void;
 }
@@ -66,13 +66,25 @@ export function ToastProvider({ children }: ToastProviderProps) {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
-  const showRouteCreatedToast = (routeId: string, routeName: string, isUpdate = false) => {
+  const showRouteCreatedToast = (routeId: string, routeName: string, isUpdate = false, isDraft = false) => {
+    const getTitle = () => {
+      if (isDraft) return 'Draft Saved!';
+      if (isUpdate) return 'Route Updated!';
+      return 'Route Created!';
+    };
+
+    const getMessage = () => {
+      if (isDraft) return `"${routeName}" has been saved as a draft`;
+      if (isUpdate) return `"${routeName}" has been updated successfully`;
+      return `"${routeName}" has been created successfully`;
+    };
+
     showToast({
-      title: isUpdate ? 'Route Updated!' : 'Route Created!',
-      message: `"${routeName}" has been ${isUpdate ? 'updated' : 'created'} successfully`,
+      title: getTitle(),
+      message: getMessage(),
       type: 'success',
       action: {
-        label: 'View',
+        label: isDraft ? 'View Draft' : 'View',
         onPress: () => {
           navigation.navigate('RouteDetail', { routeId });
         },

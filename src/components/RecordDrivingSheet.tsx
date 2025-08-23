@@ -9,6 +9,7 @@ import {
   AppState,
   AppStateStatus,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text, YStack, Button, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useModal } from '../contexts/ModalContext';
@@ -141,6 +142,11 @@ const DARK_THEME = {
 
 // Background location task name
 const LOCATION_TRACKING = 'location-tracking';
+
+// Auto-save constants
+const AUTO_SAVE_KEY = '@recording_session_backup';
+const AUTO_SAVE_INTERVAL = 10000; // Save every 10 seconds
+const RECOVERY_CHECK_KEY = '@recording_recovery_check';
 
 // Update the RecordedRouteData interface to be exported
 export interface RecordedRouteData {
@@ -323,6 +329,12 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const lastErrorRef = useRef<string | null>(null);
   const lastStateUpdateRef = useRef<number>(0); // Throttle state updates
   const deviceDataRef = useRef(defaultDeviceData);
+  
+  // Auto-save refs
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAutoSaveRef = useRef<number>(0);
+  const [hasRecoveryData, setHasRecoveryData] = useState(false);
+  const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
 
   // Format waypoints for map display with safety checks - memoized for performance
   const getRoutePath = useCallback(() => {
@@ -371,6 +383,246 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     // Empty implementation to prevent crashes
     console.log('Motion sensor cleanup not available in this version');
   };
+
+  // Format time display with HH:MM:SS format - memoized
+  const formatTime = useCallback(
+    (seconds: number): string => {
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+
+      // Debug log for timer formatting (only log occasionally to avoid spam)
+      if (seconds % 10 === 0 && seconds > 0) {
+        console.log('⏰ formatTime called:', {
+          inputSeconds: seconds,
+          hours,
+          mins,
+          secs,
+          isRecording,
+          isPaused,
+        });
+      }
+
+      // Always show at least MM:SS, add hours if recording goes over 1 hour
+      if (hours > 0) {
+        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      } else {
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+    },
+    [isRecording, isPaused],
+  );
+
+  // Auto-save current recording session
+  const autoSaveSession = useCallback(async () => {
+    try {
+      if (!isRecording || wayPointsRef.current.length === 0) {
+        return;
+      }
+
+      const now = Date.now();
+      // Don't save too frequently
+      if (now - lastAutoSaveRef.current < AUTO_SAVE_INTERVAL) {
+        return;
+      }
+
+      const sessionData = {
+        waypoints: wayPointsRef.current,
+        isRecording,
+        isPaused,
+        totalElapsedTime,
+        drivingTime,
+        distance,
+        currentSpeed,
+        maxSpeed,
+        averageSpeed,
+        recordingStartTime: recordingStartTime?.toISOString(),
+        pausedTime,
+        lastSaveTime: now,
+        sessionId: `recording_${startTimeRef.current}`,
+      };
+
+      await AsyncStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(sessionData));
+      await AsyncStorage.setItem(RECOVERY_CHECK_KEY, 'true');
+      lastAutoSaveRef.current = now;
+
+      console.log('🔄 Auto-saved recording session:', {
+        waypoints: wayPointsRef.current.length,
+        distance: distance.toFixed(2),
+        time: formatTime(totalElapsedTime),
+      });
+    } catch (error) {
+      console.error('❌ Auto-save failed:', error);
+    }
+  }, [isRecording, isPaused, totalElapsedTime, drivingTime, distance, currentSpeed, maxSpeed, averageSpeed, recordingStartTime, pausedTime, formatTime]);
+
+  // Check for recovery data on component mount
+  const checkForRecoveryData = useCallback(async () => {
+    try {
+      const recoveryCheck = await AsyncStorage.getItem(RECOVERY_CHECK_KEY);
+      const sessionData = await AsyncStorage.getItem(AUTO_SAVE_KEY);
+      
+      if (recoveryCheck === 'true' && sessionData) {
+        const parsed = JSON.parse(sessionData);
+        
+        // Check if the session is recent (within last 24 hours)
+        const lastSaveTime = parsed.lastSaveTime || 0;
+        const hoursSinceLastSave = (Date.now() - lastSaveTime) / (1000 * 60 * 60);
+        
+        if (hoursSinceLastSave < 24 && parsed.waypoints && parsed.waypoints.length > 0) {
+          console.log('🔄 Found recovery data:', {
+            waypoints: parsed.waypoints.length,
+            distance: parsed.distance,
+            hoursSinceLastSave: hoursSinceLastSave.toFixed(1),
+          });
+          
+          setHasRecoveryData(true);
+          setShowRecoveryPrompt(true);
+          return parsed;
+        }
+      }
+      
+      // Clean up old recovery data
+      await clearRecoveryData();
+    } catch (error) {
+      console.error('❌ Recovery check failed:', error);
+      await clearRecoveryData();
+    }
+    return null;
+  }, []);
+
+  // Restore from recovery data
+  const restoreFromRecovery = useCallback(async () => {
+    try {
+      const sessionData = await AsyncStorage.getItem(AUTO_SAVE_KEY);
+      if (!sessionData) return;
+
+      const parsed = JSON.parse(sessionData);
+      
+      // Restore waypoints
+      wayPointsRef.current = parsed.waypoints || [];
+      setWaypoints([...wayPointsRef.current]);
+      
+      // Restore stats
+      setDistance(parsed.distance || 0);
+      setCurrentSpeed(parsed.currentSpeed || 0);
+      setMaxSpeed(parsed.maxSpeed || 0);
+      setAverageSpeed(parsed.averageSpeed || 0);
+      setTotalElapsedTime(parsed.totalElapsedTime || 0);
+      setDrivingTime(parsed.drivingTime || 0);
+      
+      // Restore recording state
+      if (parsed.recordingStartTime) {
+        setRecordingStartTime(new Date(parsed.recordingStartTime));
+      }
+      
+      setPausedTime(parsed.pausedTime || 0);
+      setShowMap(true); // Show map to display recovered route
+      setShowSummary(true); // Go directly to summary
+      
+      console.log('✅ Restored recording session:', {
+        waypoints: wayPointsRef.current.length,
+        distance: parsed.distance,
+        totalTime: formatTime(parsed.totalElapsedTime || 0),
+      });
+
+      Alert.alert(
+        'Recording Recovered',
+        `Found a previous recording session with ${wayPointsRef.current.length} waypoints and ${(parsed.distance || 0).toFixed(2)} km. You can now create a route from this data.`,
+        [{ text: 'OK' }]
+      );
+      
+    } catch (error) {
+      console.error('❌ Recovery restore failed:', error);
+      Alert.alert('Recovery Failed', 'Could not restore the previous recording session.');
+    } finally {
+      setShowRecoveryPrompt(false);
+      await clearRecoveryData();
+    }
+  }, [formatTime]);
+
+  // Clear recovery data
+  const clearRecoveryData = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem(AUTO_SAVE_KEY);
+      await AsyncStorage.removeItem(RECOVERY_CHECK_KEY);
+      setHasRecoveryData(false);
+      setShowRecoveryPrompt(false);
+    } catch (error) {
+      console.error('❌ Failed to clear recovery data:', error);
+    }
+  }, []);
+
+  // Save as draft when app goes to background or crashes
+  const saveAsDraftEmergency = useCallback(async () => {
+    try {
+      if (!isRecording || wayPointsRef.current.length === 0) {
+        return;
+      }
+
+      console.log('🚨 Emergency draft save triggered');
+      
+      // Create emergency draft data
+      const validWaypoints = wayPointsRef.current.filter((wp) => 
+        wp && 
+        typeof wp.latitude === 'number' && 
+        typeof wp.longitude === 'number' &&
+        !isNaN(wp.latitude) && 
+        !isNaN(wp.longitude)
+      );
+
+      if (validWaypoints.length === 0) {
+        console.log('🚨 No valid waypoints for emergency save');
+        return;
+      }
+
+      const waypointsForRoute = validWaypoints.map((wp, index) => ({
+        latitude: wp.latitude,
+        longitude: wp.longitude,
+        title: `Emergency Waypoint ${index + 1}`,
+        description: `Auto-saved at ${new Date(wp.timestamp).toLocaleTimeString()}`,
+      }));
+
+      const routeName = `Emergency Draft - ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+      const routeDescription = `Auto-saved recording - Distance: ${distance.toFixed(2)} km, Duration: ${formatTime(totalElapsedTime)}, Waypoints: ${validWaypoints.length}`;
+
+      const firstWaypoint = validWaypoints[0];
+      const searchCoordinates = `${firstWaypoint.latitude.toFixed(6)}, ${firstWaypoint.longitude.toFixed(6)}`;
+
+      const routePath = validWaypoints.map((wp) => ({
+        latitude: wp.latitude,
+        longitude: wp.longitude,
+      }));
+
+      const emergencyDraftData: RecordedRouteData = {
+        waypoints: waypointsForRoute,
+        name: routeName,
+        description: routeDescription,
+        searchCoordinates,
+        routePath,
+        startPoint: {
+          latitude: firstWaypoint.latitude,
+          longitude: firstWaypoint.longitude,
+        },
+        endPoint: validWaypoints.length > 1 ? {
+          latitude: validWaypoints[validWaypoints.length - 1].latitude,
+          longitude: validWaypoints[validWaypoints.length - 1].longitude,
+        } : undefined,
+      };
+
+      // Store emergency draft data
+      await AsyncStorage.setItem('@emergency_draft', JSON.stringify(emergencyDraftData));
+      
+      console.log('🚨 Emergency draft saved successfully:', {
+        waypoints: waypointsForRoute.length,
+        distance: distance.toFixed(2),
+        name: routeName,
+      });
+
+    } catch (error) {
+      console.error('🚨 Emergency draft save failed:', error);
+    }
+  }, [isRecording, distance, totalElapsedTime, formatTime]);
 
   // Start recording location - optimized for performance
   const startLocationTracking = useCallback(async () => {
@@ -784,6 +1036,15 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         console.warn('Error cleaning up sensors:', err);
       }
 
+      // Clear auto-save timer
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+
+      // Clear recovery data since recording completed successfully
+      clearRecoveryData();
+
       console.log('🛑 Recording STOPPED - Final stats:', {
         totalTime: formatTime(totalElapsedTime),
         drivingTime: formatTime(drivingTime),
@@ -804,35 +1065,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     drivingTime,
     distance,
   ]);
-
-  // Format time display with HH:MM:SS format - memoized
-  const formatTime = useCallback(
-    (seconds: number): string => {
-      const hours = Math.floor(seconds / 3600);
-      const mins = Math.floor((seconds % 3600) / 60);
-      const secs = seconds % 60;
-
-      // Debug log for timer formatting (only log occasionally to avoid spam)
-      if (seconds % 10 === 0 && seconds > 0) {
-        console.log('⏰ formatTime called:', {
-          inputSeconds: seconds,
-          hours,
-          mins,
-          secs,
-          isRecording,
-          isPaused,
-        });
-      }
-
-      // Always show at least MM:SS, add hours if recording goes over 1 hour
-      if (hours > 0) {
-        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-      } else {
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-      }
-    },
-    [isRecording, isPaused],
-  );
 
   // Navigate to route creation with recorded data - memoized
   const saveRecording = useCallback(() => {
@@ -1148,6 +1380,74 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     );
   };
 
+  // Check for recovery data on mount
+  useEffect(() => {
+    checkForRecoveryData();
+  }, [checkForRecoveryData]);
+
+  // Set up auto-save timer when recording starts
+  useEffect(() => {
+    if (isRecording && !isPaused) {
+      // Start auto-save timer
+      autoSaveTimerRef.current = setInterval(() => {
+        autoSaveSession();
+      }, AUTO_SAVE_INTERVAL);
+
+      return () => {
+        if (autoSaveTimerRef.current) {
+          clearInterval(autoSaveTimerRef.current);
+          autoSaveTimerRef.current = null;
+        }
+      };
+    } else {
+      // Clear auto-save timer when not recording
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    }
+  }, [isRecording, isPaused, autoSaveSession]);
+
+  // Handle app state changes for emergency saves
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      console.log('📱 App state changed:', appState.current, '->', nextAppState);
+      
+      if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
+        // App going to background - emergency save
+        console.log('📱 App going to background, triggering emergency save');
+        saveAsDraftEmergency();
+      }
+      
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, [saveAsDraftEmergency]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      // Clear timers
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      
+      // Emergency save if recording
+      if (isRecording && wayPointsRef.current.length > 0) {
+        console.log('🚨 Component unmounting during recording - emergency save');
+        saveAsDraftEmergency();
+      }
+    };
+  }, [isRecording, saveAsDraftEmergency]);
+
   // Optimize render to be more performant
   return (
     <>
@@ -1210,6 +1510,41 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                   </Text>
                 </TouchableOpacity>
               </XStack>
+            )}
+
+            {/* Recovery Prompt */}
+            {showRecoveryPrompt && (
+              <View style={styles.recoveryPrompt}>
+                <YStack gap="$3" padding="$4" backgroundColor={DARK_THEME.cardBackground} borderRadius={12}>
+                  <XStack alignItems="center" gap="$2">
+                    <Feather name="alert-circle" size={20} color="#FF9500" />
+                    <Text color={DARK_THEME.text} fontSize={16} fontWeight="600">
+                      Recording Recovery
+                    </Text>
+                  </XStack>
+                  
+                  <Text color={DARK_THEME.secondaryText} fontSize={14}>
+                    Found an incomplete recording session. Would you like to restore it?
+                  </Text>
+                  
+                  <XStack gap="$3" justifyContent="flex-end">
+                    <Button
+                      variant="outlined"
+                      onPress={clearRecoveryData}
+                      backgroundColor="$gray5"
+                    >
+                      <Text color="$gray11">Discard</Text>
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onPress={restoreFromRecovery}
+                      backgroundColor="#FF9500"
+                    >
+                      <Text color="white" fontWeight="600">Restore</Text>
+                    </Button>
+                  </XStack>
+                </YStack>
+              </View>
             )}
 
             {/* Enhanced Map Preview with Live Updates */}
@@ -1799,5 +2134,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     opacity: 0.9,
     textAlign: 'center',
+  },
+  recoveryPrompt: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FF9500',
+    borderRadius: 12,
+    overflow: 'hidden',
   },
 });

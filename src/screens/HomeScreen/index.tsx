@@ -24,6 +24,7 @@ import { CityRoutes } from './CityRoutes';
 import { CreatedRoutes } from './CreatedRoutes';
 import { NearByRoutes } from './NearByRoutes';
 import { DrivenRoutes } from './DrivenRoutes';
+import { DraftRoutes } from './DraftRoutes';
 import { CommunityFeed } from './CommunityFeed';
 
 // Update the Route type to include creator id
@@ -148,6 +149,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             <GettingStarted />
 
             <ProgressSection activeUserId={effectiveUserId} />
+            <DraftRoutes />
             <SavedRoutes />
             <CommunityFeed />
             <QuickFilters handleFilterPress={handleFilterPress} />

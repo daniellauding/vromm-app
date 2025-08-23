@@ -21,6 +21,7 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
 
   React.useEffect(() => {
     if (!user && paramRoutes.length > 0) return;
+    
     if (type === 'driven' && user) {
       const loadDrivenRoutes = async () => {
         const { data } = await supabase
@@ -31,6 +32,30 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
         setRoutes((data as unknown as Route[]) || []);
       };
       loadDrivenRoutes();
+    } else if (type === 'drafts' && user) {
+      const loadDraftRoutes = async () => {
+        const { data } = await supabase
+          .from('routes')
+          .select(`
+            id,
+            name,
+            description,
+            difficulty,
+            spot_type,
+            created_at,
+            waypoint_details,
+            drawing_mode,
+            creator_id,
+            creator:creator_id(id, full_name)
+          `)
+          .eq('creator_id', user.id)
+          .eq('is_draft', true)
+          .eq('visibility', 'private')
+          .order('created_at', { ascending: false });
+
+        setRoutes((data as unknown as Route[]) || []);
+      };
+      loadDraftRoutes();
     }
   }, [paramRoutes, type, user]);
 
