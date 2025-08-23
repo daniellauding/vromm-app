@@ -148,11 +148,10 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
     [currentState, translateY],
   );
 
-  // Pan gesture for sheet dragging
+  // Pan gesture for sheet dragging - exact RoutesDrawer approach
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
       try {
-        console.log('🧙‍♂️ Pan gesture onUpdate:', event.translationY);
         const { translationY } = event;
         const newPosition = currentState.value + translationY;
         const maxTop = snapPoints.expanded;
@@ -164,51 +163,37 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
       }
     })
     .onEnd((event) => {
-      try {
-        console.log('🧙‍♂️ Pan gesture onEnd:', event.translationY, event.velocityY);
-        const { translationY, velocityY } = event;
-        const currentPosition = currentState.value + translationY;
-        let targetSnapPoint;
-        
-        if (velocityY < -500) {
-          targetSnapPoint = snapPoints.expanded;
-        } else if (velocityY > 500) {
-          targetSnapPoint = snapPoints.minimized;
-        } else {
-          const positions = [snapPoints.expanded, snapPoints.mid, snapPoints.collapsed, snapPoints.minimized];
-          targetSnapPoint = positions.reduce((prev, curr) =>
-            Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
-          );
-        }
-        
-        console.log('🧙‍♂️ Snapping to:', targetSnapPoint);
-        console.log('🧙‍♂️ Available snap points:', snapPoints);
-        
-        // Ensure we're snapping to a valid point
-        if (typeof targetSnapPoint === 'number' && !isNaN(targetSnapPoint)) {
-          // Update shared values directly in worklet
-          currentState.value = targetSnapPoint;
-          translateY.value = withSpring(targetSnapPoint, {
-            damping: 20,
-            mass: 1,
-            stiffness: 100,
-            overshootClamping: true,
-            restDisplacementThreshold: 0.01,
-            restSpeedThreshold: 0.01,
-          });
-          
-          // Update React state on JS thread - wrap the function call, not the function
-          runOnJS(setCurrentSnapPoint)(targetSnapPoint);
-        } else {
-          console.error('🧙‍♂️ Invalid snap point:', targetSnapPoint);
-          // Fallback to collapsed
-          currentState.value = snapPoints.collapsed;
-          translateY.value = withSpring(snapPoints.collapsed);
-          runOnJS(setCurrentSnapPoint)(snapPoints.collapsed);
-        }
-      } catch (error) {
-        console.error('🧙‍♂️ Pan gesture onEnd error:', error);
+      const { translationY, velocityY } = event;
+      const currentPosition = currentState.value + translationY;
+      let targetSnapPoint;
+      
+      if (velocityY < -500) {
+        targetSnapPoint = snapPoints.expanded;
+      } else if (velocityY > 500) {
+        targetSnapPoint = snapPoints.collapsed;
+      } else {
+        const positions = [snapPoints.expanded, snapPoints.mid, snapPoints.collapsed, snapPoints.minimized];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
       }
+      
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, snapPoints.expanded),
+        snapPoints.collapsed
+      );
+
+      translateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+
+      // Update state directly like RoutesDrawer - no React state update in gesture
+      currentState.value = boundedTarget;
     });
 
   const animatedStyle = useAnimatedStyle(() => ({

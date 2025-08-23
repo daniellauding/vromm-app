@@ -506,6 +506,9 @@ export function TabNavigator() {
   const [seenMessageCount, setSeenMessageCount] = useState(0);
   const [seenNotificationCount, setSeenNotificationCount] = useState(0);
   const [seenEventCount, setSeenEventCount] = useState(0);
+
+  // State for hiding tab bar on specific screens
+  const [isTabBarVisible, setIsTabBarVisible] = useState(true);
   // Refs used by background updaters to prevent stale closures
   const seenMessageCountRef = React.useRef(0);
   const seenNotificationCountRef = React.useRef(0);
@@ -856,6 +859,46 @@ export function TabNavigator() {
     };
   }, [colorScheme, handleCreateRoute]);
 
+  // Navigation listener to hide tab bar on specific screens
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('state', (e) => {
+      const state = e.data.state;
+      if (!state) return;
+
+      // Get the current route name from nested navigation
+      const getCurrentRouteName = (navState: any): string | null => {
+        if (!navState) return null;
+        
+        const route = navState.routes[navState.index];
+        if (!route) return null;
+        
+        // If this route has nested state, recurse
+        if (route.state) {
+          return getCurrentRouteName(route.state);
+        }
+        
+        return route.name;
+      };
+
+      const currentRouteName = getCurrentRouteName(state);
+      
+      // List of screens that should hide the tab bar
+      const hideTabBarScreens = [
+        'CreateRoute',
+        'RouteDetail', 
+        'ConversationScreen',
+        'Conversation',
+        'PublicProfile',
+        'ProfileScreen'
+      ];
+
+      const shouldHideTabBar = hideTabBarScreens.includes(currentRouteName || '');
+      setIsTabBarVisible(!shouldHideTabBar);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   const navigateHomeStack = useCallback((screen: string, params?: any) => {
     try {
       // If destination is a drawer item, keep MenuTab active; else use HomeTab
@@ -904,7 +947,7 @@ export function TabNavigator() {
 
   const screenOptions: import('@react-navigation/bottom-tabs').BottomTabNavigationOptions = {
     headerShown: false,
-    tabBarStyle,
+    tabBarStyle: isTabBarVisible ? tabBarStyle : { display: 'none' },
     tabBarLabelStyle: {
       fontSize: 10,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
