@@ -8,9 +8,10 @@ import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../../types/navigation';
 import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
-import { OnboardingModal } from '../../components/OnboardingModal';
+// import { OnboardingModal } from '../../components/OnboardingModal';
+import { OnboardingModalInteractive } from '../../components/OnboardingModalInteractive';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { shouldShowOnboarding } from '../../components/Onboarding';
+import { shouldShowInteractiveOnboarding } from '../../components/OnboardingInteractive';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { ProgressSection } from '../../components/ProgressSection';
 import type { FilterCategory } from '../../types/navigation';
@@ -81,7 +82,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         } else {
           // Ensure we respect the user's choice to not see onboarding again
           // Only check regular onboarding flag for first-time users or when there's a version change
-          const shouldShow = await shouldShowOnboarding('vromm_onboarding');
+          const shouldShow = await shouldShowInteractiveOnboarding('interactive_onboarding');
 
           // Don't show onboarding if user has already seen it (unless there's a version update)
           setShowOnboarding(shouldShow);
@@ -118,8 +119,8 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
-      {/* Onboarding Modal */}
-      <OnboardingModal
+      {/* Interactive Onboarding Modal */}
+      <OnboardingModalInteractive
         visible={showOnboarding}
         onClose={() => setShowOnboarding(false)}
         forceShow={isFirstLogin}

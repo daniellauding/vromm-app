@@ -1,4 +1,4 @@
-import { RouteCard } from '@/src/components/RouteCard';
+import { HeroCarousel } from '@/src/components/HeroCarousel';
 import { SectionHeader } from '@/src/components/SectionHeader';
 import { useAuth } from '@/src/context/AuthContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
@@ -6,7 +6,7 @@ import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
 import { YStack, XStack } from 'tamagui';
-import { FlatList, TouchableOpacity } from 'react-native';
+import { FlatList } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { navigateDomain } from '@/src/utils/navigation';
@@ -59,6 +59,28 @@ export const CreatedRoutes = () => {
     });
   }, [createdRoutes, navigation, t, isViewingAsStudent, activeStudentName]);
 
+  // Helper function to get route image (same as SavedRoutes)
+  const getRouteImage = (route: Route): string | null => {
+    if (!route.media_attachments || !Array.isArray(route.media_attachments)) {
+      return null;
+    }
+
+    for (const attachment of route.media_attachments) {
+      if (
+        attachment &&
+        typeof attachment === 'object' &&
+        'type' in attachment &&
+        attachment.type === 'image' &&
+        'url' in attachment &&
+        typeof attachment.url === 'string'
+      ) {
+        return attachment.url;
+      }
+    }
+
+    return null;
+  };
+
   return (
     <YStack space="$4">
       <SectionHeader
@@ -72,25 +94,21 @@ export const CreatedRoutes = () => {
       />
       <FlatList
         horizontal
-        data={createdRoutes.slice(0, 3)}
+        data={createdRoutes}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <XStack paddingHorizontal="$4" marginRight="$4">
-            <TouchableOpacity
-              onPress={() => {
-                // Navigate to RouteDetail within HomeTab stack to maintain proper back navigation
-                navigation.navigate('RouteDetail', { 
-                  routeId: item.id,
-                  previousScreen: 'Home'
-                } as any);
-              }}
-            >
-              <RouteCard route={item as any} />
-            </TouchableOpacity>
-          </XStack>
-        )}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16 }}
+        renderItem={({ item }) => (
+          <XStack marginRight="$4">
+            <HeroCarousel
+              title={t('home.createdRoutes')}
+              items={[item]}
+              getImageUrl={getRouteImage}
+              showTitle={false}
+              showMapPreview={true}
+            />
+          </XStack>
+        )}
       />
     </YStack>
   );

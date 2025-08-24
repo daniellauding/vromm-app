@@ -57,7 +57,7 @@ export function RouteMapEditor({
 }: RouteMapEditorProps) {
   const mapRef = useRef<MapView>(null);
   const containerRef = useRef<View>(null);
-  const lastDrawPointRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const lastDrawPointRef = useRef<{ latitude: number; longitude: number; timestamp?: number } | null>(null);
   const drawingRef = useRef(false);
   const [undoneWaypoints, setUndoneWaypoints] = useState<Waypoint[]>([]);
 
@@ -65,8 +65,8 @@ export function RouteMapEditor({
 
   // Convert screen coordinates to map coordinates
   const convertScreenToMapCoords = (screenX: number, screenY: number, mapRef: any) => {
-    // This is a simplified conversion - in a real app you'd use the map's coordinate conversion
-    // For now, we'll use the current region to estimate
+    // This is a placeholder - the real coordinate conversion happens in PanResponder
+    // using mapRef.current.coordinateForPoint()
     return {
       latitude: region.latitude,
       longitude: region.longitude,
@@ -176,11 +176,16 @@ export function RouteMapEditor({
   };
 
   const startContinuousDrawing = (latitude: number, longitude: number) => {
+    console.log('🎨 Starting continuous drawing at:', latitude, longitude);
     const newPoint = { latitude, longitude };
+    
+    // Clear any existing pen path and start fresh
     onPenPathChange([newPoint]);
-    lastDrawPointRef.current = newPoint;
+    lastDrawPointRef.current = { ...newPoint, timestamp: Date.now() };
     drawingRef.current = true;
     onDrawingChange?.(true);
+    
+    console.log('🎨 Drawing state set - map interactions should now be blocked');
   };
 
   const addContinuousDrawingPoint = (latitude: number, longitude: number) => {
@@ -200,7 +205,7 @@ export function RouteMapEditor({
     }
 
     onPenPathChange([...penPath, newPoint]);
-    lastDrawPointRef.current = newPoint;
+    lastDrawPointRef.current = { ...newPoint, timestamp: Date.now() };
   };
 
   const finishPenDrawing = () => {
@@ -221,30 +226,114 @@ export function RouteMapEditor({
     setUndoneWaypoints([]);
   };
 
-  // Pan responder for pen drawing on Android
+  // Pan responder for pen drawing with improved coordinate handling (matching CreateRouteScreen)
   const drawingPanResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => drawingMode === 'pen',
-    onMoveShouldSetPanResponder: () => drawingMode === 'pen',
-    
-    onPanResponderGrant: (evt) => {
-      if (drawingMode !== 'pen' || !containerRef.current) return;
-      
-      const { pageX, pageY } = evt.nativeEvent;
-      const coords = convertScreenToMapCoords(pageX, pageY, mapRef.current);
-      startContinuousDrawing(coords.latitude, coords.longitude);
+    onStartShouldSetPanResponder: (evt, gestureState) => {
+      // Only capture in pen mode with single touch
+      const shouldCapture = drawingMode === 'pen' && evt.nativeEvent.touches.length === 1;
+      if (shouldCapture) {
+        console.log('🎨 PanResponder: Starting pen drawing');
+      }
+      return shouldCapture;
     },
-    
-    onPanResponderMove: (evt) => {
-      if (drawingMode !== 'pen' || !drawingRef.current || !containerRef.current) return;
-      
-      const { pageX, pageY } = evt.nativeEvent;
-      const coords = convertScreenToMapCoords(pageX, pageY, mapRef.current);
-      addContinuousDrawingPoint(coords.latitude, coords.longitude);
+    onMoveShouldSetPanResponder: (evt, gestureState) => {
+      // Capture pen drawing movement
+      if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
+        // Only capture if user has moved enough (avoid accidental captures)
+        const hasMovedEnough = Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+        if (hasMovedEnough) {
+          console.log('🎨 PanResponder: Should capture pen movement');
+        }
+        return hasMovedEnough;
+      }
+      return false;
     },
-    
-    onPanResponderRelease: () => {
-      if (drawingMode === 'pen' && drawingRef.current) {
-        finishPenDrawing();
+    onPanResponderTerminationRequest: (evt, gestureState) => {
+      // Don't allow termination during active pen drawing
+      const shouldTerminate = !(drawingMode === 'pen' && drawingRef.current);
+      console.log('🎨 PanResponder: Termination request:', shouldTerminate);
+      return shouldTerminate;
+    },
+    onShouldBlockNativeResponder: (evt, gestureState) => {
+      // Block native responder in pen mode to prevent map interference
+      const shouldBlock = drawingMode === 'pen';
+      if (shouldBlock) {
+        console.log('🎨 PanResponder: Blocking native responder');
+      }
+      return shouldBlock;
+    },
+    onPanResponderGrant: (evt, gestureState) => {
+      if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
+        console.log('🎨 PEN DRAWING STARTED - Blocking map interactions');
+        const { locationX, locationY } = evt.nativeEvent;
+        
+        // Set drawing state immediately to block map interactions
+        drawingRef.current = true;
+        onDrawingChange?.(true);
+
+        // Try coordinate conversion, fallback to approximate method
+        if (mapRef.current && mapRef.current.coordinateForPoint) {
+          mapRef.current
+            .coordinateForPoint({ x: locationX, y: locationY })
+            .then((coordinate: { latitude: number; longitude: number }) => {
+              console.log('🎨 DRAG START at:', coordinate);
+              startContinuousDrawing(coordinate.latitude, coordinate.longitude);
+            })
+            .catch((error: any) => {
+              console.log('🎨 Coordinate conversion failed, using region center');
+              // Fallback: Start at region center
+              startContinuousDrawing(region.latitude, region.longitude);
+            });
+        } else {
+          // If coordinate conversion not available, start at region center
+          console.log('🎨 Starting at region center (no coordinate conversion)');
+          startContinuousDrawing(region.latitude, region.longitude);
+        }
+      }
+    },
+    onPanResponderMove: (evt, gestureState) => {
+      if (drawingMode === 'pen' && drawingRef.current && evt.nativeEvent.touches.length === 1) {
+        const { locationX, locationY } = evt.nativeEvent;
+
+        // Throttle updates to prevent lag (reduced to 30ms for smoother drawing)
+        const now = Date.now();
+        if (now - (lastDrawPointRef.current?.timestamp || 0) < 30) {
+          return;
+        }
+
+        if (mapRef.current && mapRef.current.coordinateForPoint) {
+          mapRef.current
+            .coordinateForPoint({ x: locationX, y: locationY })
+            .then((coordinate: { latitude: number; longitude: number }) => {
+              console.log('🎨 DRAG MOVE to:', coordinate);
+              addContinuousDrawingPoint(coordinate.latitude, coordinate.longitude);
+              lastDrawPointRef.current = { ...coordinate, timestamp: now };
+            })
+            .catch((error: any) => {
+              // If coordinate conversion fails, approximate based on gesture
+              const lastPoint = lastDrawPointRef.current;
+              if (lastPoint) {
+                // Simple approximation based on gesture movement
+                const deltaLat = gestureState.dy * 0.0001; // Rough conversion
+                const deltaLng = gestureState.dx * 0.0001;
+                const newCoordinate = {
+                  latitude: lastPoint.latitude + deltaLat,
+                  longitude: lastPoint.longitude + deltaLng,
+                };
+                console.log('🎨 APPROXIMATED MOVE to:', newCoordinate);
+                addContinuousDrawingPoint(newCoordinate.latitude, newCoordinate.longitude);
+                lastDrawPointRef.current = { ...newCoordinate, timestamp: now };
+              }
+            });
+        }
+      }
+    },
+    onPanResponderRelease: (evt, gestureState) => {
+      if (drawingMode === 'pen') {
+        console.log('🎨 PEN DRAWING PAUSED - Can continue or finish, map interactions restored');
+        drawingRef.current = false;
+        // Note: Keep isDrawing true so user can continue drawing if they want
+        // Map interactions will be restored since drawingRef.current is now false
       }
     },
   });
@@ -423,15 +512,25 @@ export function RouteMapEditor({
           style={{ flex: 1 }}
           region={region}
           onPress={handleMapPress}
-          scrollEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
-          zoomEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
-          pitchEnabled={!(drawingMode === 'pen' && isDrawing)}
-          rotateEnabled={!(drawingMode === 'pen' && isDrawing)}
+          scrollEnabled={!(drawingMode === 'pen' && (isDrawing || drawingRef.current))}
+          zoomEnabled={!(drawingMode === 'pen' && (isDrawing || drawingRef.current))}
+          pitchEnabled={!(drawingMode === 'pen' && (isDrawing || drawingRef.current))}
+          rotateEnabled={!(drawingMode === 'pen' && (isDrawing || drawingRef.current))}
           moveOnMarkerPress={false}
           showsUserLocation={true}
           userInterfaceStyle="dark"
-          zoomTapEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
-          scrollDuringRotateOrZoomEnabled={!(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')}
+          zoomTapEnabled={!(drawingMode === 'pen' && (isDrawing || drawingRef.current))}
+          scrollDuringRotateOrZoomEnabled={!(drawingMode === 'pen' && (isDrawing || drawingRef.current))}
+          onTouchStart={() => {
+            if (drawingMode === 'pen') {
+              console.log('🎨 Map touch start in pen mode - should be blocked');
+            }
+          }}
+          onTouchEnd={() => {
+            if (drawingMode === 'pen') {
+              console.log('🎨 Map touch end in pen mode');
+            }
+          }}
         >
           {/* Render waypoints as individual markers (not in pen drawing mode) */}
           {drawingMode !== 'pen' &&
