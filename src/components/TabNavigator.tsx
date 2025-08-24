@@ -889,7 +889,8 @@ export function TabNavigator() {
         'ConversationScreen',
         'Conversation',
         'PublicProfile',
-        'ProfileScreen'
+        'ProfileScreen',
+        'EventDetail'
       ];
 
       const shouldHideTabBar = hideTabBarScreens.includes(currentRouteName || '');

@@ -39,6 +39,7 @@ import { RecordDrivingModal } from '../components/RecordDrivingSheet';
 import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector';
 import { AdvancedExerciseCreator } from '../components/AdvancedExerciseCreator';
 import * as mediaUtils from '../utils/mediaUtils';
+import { RouteMapEditor, Waypoint as RouteMapWaypoint } from '../components/shared/RouteMapEditor';
 
 // Helper function to extract YouTube video ID
 const extractYoutubeVideoId = (url: string): string | null => {
@@ -2197,8 +2198,39 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       />
                     </YStack>
 
-                    {/* Drawing Mode Controls */}
-                    <YStack gap="$4">
+                    {/* Route Map Editor */}
+                    <RouteMapEditor
+                      waypoints={waypoints.map(wp => ({
+                        latitude: wp.latitude,
+                        longitude: wp.longitude,
+                        title: wp.title || 'Waypoint',
+                        description: wp.description || '',
+                      }))}
+                      onWaypointsChange={(newWaypoints) => {
+                        const convertedWaypoints = newWaypoints.map(wp => ({
+                          latitude: wp.latitude,
+                          longitude: wp.longitude,
+                          title: wp.title,
+                          description: wp.description,
+                        }));
+                        setWaypoints(convertedWaypoints);
+                      }}
+                      drawingMode={drawingMode}
+                      onDrawingModeChange={setDrawingMode}
+                      penPath={penPath}
+                      onPenPathChange={setPenPath}
+                      routePath={routePath || undefined}
+                      region={region}
+                      onRegionChange={setRegion}
+                      onRecord={handleRecordRoute}
+                      isDrawing={isDrawing}
+                      onDrawingChange={setIsDrawing}
+                      initialWaypoints={initialWaypoints}
+                      colorScheme={colorScheme || 'dark'}
+                    />
+
+                    {/* TEMPORARY - keeping this structure for now to avoid major edits */}
+                    <YStack gap="$4" style={{ display: 'none' }}>
                       <Heading>Drawing Mode</Heading>
                       <Text size="sm" color="$gray11">
                         Choose how to create your route

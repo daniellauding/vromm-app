@@ -35,6 +35,7 @@ import MapView, { Marker, Polyline, Region } from '../components/MapView';
 import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector';
 import { RouteSelector } from '../components/RouteSelector';
 import { RouteCard } from '../components/RouteCard';
+import { RouteMapEditor, Waypoint as RouteMapWaypoint } from '../components/shared/RouteMapEditor';
 import { RecurrencePicker, RecurrenceRule } from '../components/RecurrencePicker';
 import { Exercise } from '../types/route';
 import { useRoutes } from '../hooks/useRoutes';
@@ -1078,11 +1079,42 @@ export const CreateEventScreen: React.FC = () => {
             />
           </YStack>
 
-          {/* Enhanced Location Section - Full Map Controls Like CreateRouteScreen */}
+          {/* Enhanced Location Section - Using RouteMapEditor */}
           <YStack gap={12}>
             <Text fontSize={16} fontWeight="600" color="#FFFFFF">
               Event Location
             </Text>
+            
+            {/* RouteMapEditor Component */}
+            <RouteMapEditor
+              waypoints={formData.waypoints.map(wp => ({
+                latitude: wp.latitude,
+                longitude: wp.longitude,
+                title: wp.title,
+                description: wp.description,
+              }))}
+              onWaypointsChange={(newWaypoints) => {
+                const convertedWaypoints = newWaypoints.map(wp => ({
+                  latitude: wp.latitude,
+                  longitude: wp.longitude,
+                  title: wp.title,
+                  description: wp.description,
+                }));
+                setFormData(prev => ({ ...prev, waypoints: convertedWaypoints }));
+              }}
+              drawingMode={formData.drawingMode}
+              onDrawingModeChange={(mode) => updateFormData('drawingMode', mode)}
+              penPath={penPath}
+              onPenPathChange={setPenPath}
+              region={mapRegion}
+              onRegionChange={setMapRegion}
+              isDrawing={isDrawing}
+              onDrawingChange={setIsDrawing}
+              colorScheme="dark"
+            />
+
+            {/* TEMPORARY - keeping existing structure hidden to avoid major edits */}
+            <View style={{ display: 'none' }}>
 
             {/* Drawing Mode Controls */}
           <YStack gap={8}>
@@ -1362,6 +1394,7 @@ export const CreateEventScreen: React.FC = () => {
                 </YStack>
               )}
             </YStack>
+            </View>
           </YStack>
 
           {/* Exercises Section */}

@@ -109,14 +109,13 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === steps.length - 1;
 
-  // Bottom sheet animation similar to RoutesDrawer
+  // Bottom sheet animation - exact RoutesDrawer approach
   const { height: screenHeight } = Dimensions.get('window');
   const snapPoints = useMemo(
     () => ({
-      expanded: screenHeight * 0.9, // Full height for recording
-      mid: screenHeight * 0.35, // Medium height for name step
-      collapsed: screenHeight * 0.25, // Taller for map step - shows more map
-      minimized: screenHeight * 0.12, // Small minimized state like RoutesDrawer
+      expanded: screenHeight * 0.1, // Fully expanded (like RoutesDrawer 20%)
+      mid: screenHeight * 0.4, // Show 60% of the screen (like RoutesDrawer)
+      collapsed: screenHeight - BOTTOM_NAV_HEIGHT - 120, // Show more of the handle + title above nav bar
     }),
     [screenHeight],
   );
@@ -148,39 +147,40 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
     [currentState, translateY],
   );
 
-  // Pan gesture for sheet dragging - exact RoutesDrawer approach
+  // Pan gesture for sheet dragging - exact RoutesDrawer implementation
   const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      // No need for isDragging ref, just start gesture
+    })
     .onUpdate((event) => {
       try {
         const { translationY } = event;
         const newPosition = currentState.value + translationY;
-        const maxTop = snapPoints.expanded;
+        const maxsnapToTop = snapPoints.expanded;
         const maxBottom = snapPoints.collapsed;
-        const boundedPosition = Math.min(Math.max(newPosition, maxTop), maxBottom);
+        const boundedPosition = Math.min(Math.max(newPosition, maxsnapToTop), maxBottom);
         translateY.value = boundedPosition;
       } catch (error) {
-        console.error('🧙‍♂️ Pan gesture onUpdate error:', error);
+        console.log('panGesture error', error);
       }
     })
     .onEnd((event) => {
       const { translationY, velocityY } = event;
       const currentPosition = currentState.value + translationY;
       let targetSnapPoint;
-      
       if (velocityY < -500) {
         targetSnapPoint = snapPoints.expanded;
       } else if (velocityY > 500) {
         targetSnapPoint = snapPoints.collapsed;
       } else {
-        const positions = [snapPoints.expanded, snapPoints.mid, snapPoints.collapsed, snapPoints.minimized];
+        const positions = [snapPoints.expanded, snapPoints.mid, snapPoints.collapsed];
         targetSnapPoint = positions.reduce((prev, curr) =>
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
       }
-      
       const boundedTarget = Math.min(
         Math.max(targetSnapPoint, snapPoints.expanded),
-        snapPoints.collapsed
+        snapPoints.collapsed,
       );
 
       translateY.value = withSpring(boundedTarget, {
@@ -192,7 +192,7 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
         restSpeedThreshold: 0.01,
       });
 
-      // Update state directly like RoutesDrawer - no React state update in gesture
+      // lastGesture.current = boundedTarget;
       currentState.value = boundedTarget;
     });
 
@@ -535,6 +535,7 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
           ? { coordinates: routeData.routePath }
           : { coordinates: waypointDetails.map(wp => ({ latitude: wp.lat, longitude: wp.lng })) },
         media_attachments: [],
+        suggested_exercises: routeData.exercises?.length > 0 ? JSON.stringify(routeData.exercises) : '',
         drawing_mode: routeData.drawingMode === 'pen' ? 'pen' : 'waypoint',
       };
 
@@ -767,23 +768,54 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
                     Step {currentStepIndex + 1} of {steps.length}
                   </Text>
                   
-                  {/* Back button for basic info step */}
-                  <Button
-                    onPress={() => {
-                      console.log('🧙‍♂️ Back button pressed!');
-                      handleBack();
-                    }}
-                    variant="outlined"
-                    size="md"
-                    backgroundColor="$gray5"
-                    borderColor="$gray8"
-                    pressStyle={{ opacity: 0.8 }}
-                  >
-                    <XStack gap="$1" alignItems="center">
-                      <Feather name="arrow-left" size={16} color="$gray11" />
-                      <Text color="$gray11" fontSize="$3" fontWeight="500">Back</Text>
-                    </XStack>
-                  </Button>
+                  <XStack gap="$2">
+                    {/* Back button for basic info step */}
+                    <Button
+                      onPress={() => {
+                        console.log('🧙‍♂️ Back button pressed!');
+                        handleBack();
+                      }}
+                      variant="outlined"
+                      size="md"
+                      backgroundColor="$gray5"
+                      borderColor="$gray8"
+                      pressStyle={{ opacity: 0.8 }}
+                    >
+                      <XStack gap="$1" alignItems="center">
+                        <Feather name="arrow-left" size={16} color="$gray11" />
+                        <Text color="$gray11" fontSize="$3" fontWeight="500">Back</Text>
+                      </XStack>
+                    </Button>
+                    
+                    {/* Save Draft button */}
+                    <Button
+                      onPress={() => handleSaveRoute(true)}
+                      variant="outlined"
+                      size="md"
+                      backgroundColor="$orange8"
+                      borderColor="$orange9"
+                      pressStyle={{ opacity: 0.8 }}
+                    >
+                      <XStack gap="$1" alignItems="center">
+                        <Feather name="save" size={16} color="white" />
+                        <Text color="white" fontSize="$3" fontWeight="500">Save Draft</Text>
+                      </XStack>
+                    </Button>
+                    
+                    {/* Publish button */}
+                    <Button
+                      onPress={() => handleSaveRoute(false)}
+                      disabled={!canProceed()}
+                      size="md"
+                      backgroundColor={canProceed() ? "#69e3c4" : "$gray8"}
+                      pressStyle={{ opacity: 0.8 }}
+                    >
+                      <XStack gap="$1" alignItems="center">
+                        <Feather name="upload" size={16} color="white" />
+                        <Text color="white" fontSize="$3" fontWeight="500">Publish</Text>
+                      </XStack>
+                    </Button>
+                  </XStack>
                 </XStack>
               </View>
             </View>

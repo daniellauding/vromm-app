@@ -6,7 +6,7 @@ import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
 import { YStack, XStack } from 'tamagui';
-import { FlatList } from 'react-native';
+import { FlatList, TouchableOpacity } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { navigateDomain } from '@/src/utils/navigation';
@@ -76,7 +76,17 @@ export const CreatedRoutes = () => {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <XStack paddingHorizontal="$4" marginRight="$4">
-            <RouteCard route={item} />
+            <TouchableOpacity
+              onPress={() => {
+                // Navigate to RouteDetail within HomeTab stack to maintain proper back navigation
+                navigation.navigate('RouteDetail', { 
+                  routeId: item.id,
+                  previousScreen: 'Home'
+                } as any);
+              }}
+            >
+              <RouteCard route={item as any} />
+            </TouchableOpacity>
           </XStack>
         )}
         showsHorizontalScrollIndicator={false}

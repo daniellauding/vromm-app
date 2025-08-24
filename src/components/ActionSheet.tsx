@@ -7,6 +7,7 @@ import {
   Dimensions,
   Animated,
   Platform,
+  Alert,
 } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';

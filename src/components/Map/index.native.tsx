@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { View, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import { View, TouchableOpacity, StyleProp, ViewStyle, Text as RNText } from 'react-native';
 import MapView, { Marker, Region, Polyline } from '../MapView';
 import { StyleSheet } from 'react-native';
 import { Text, Circle } from 'tamagui';
@@ -122,32 +122,81 @@ const WaypointMarker = React.memo(
       return 10;
     };
 
+    // Option 1: Use react-native-maps built-in pin colors (most map-like)
+    const getBuiltInPinColor = () => {
+      if (drawingMode === 'pin') return 'blue';
+      if (drawingMode === 'waypoint') {
+        if (waypointIndex === 0) return 'green';
+        if (waypointIndex === (totalWaypoints || 1) - 1 && (totalWaypoints || 0) > 1)
+          return 'red';
+        return 'blue';
+      }
+      if (drawingMode === 'pen') return 'orange';
+      return selectedPin === cluster.properties.id ? 'red' : 'orange';
+    };
+
+    // Option 2: Create custom pin-shaped marker
+    const createCustomPin = () => (
+      <View style={{
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        {/* Pin shape */}
+        <View style={{
+          width: 32,
+          height: 32,
+          backgroundColor: getMarkerColor(),
+          borderRadius: 16,
+          borderWidth: 3,
+          borderColor: 'white',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.4,
+          shadowRadius: 4,
+          elevation: 5,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          {/* Optional: Add number or icon inside pin */}
+          {drawingMode === 'waypoint' && (
+            <RNText style={{ 
+              color: 'white', 
+              fontSize: 12, 
+              fontWeight: 'bold' 
+            }}>
+              {(waypointIndex || 0) + 1}
+            </RNText>
+          )}
+        </View>
+        {/* Pin bottom point */}
+        <View style={{
+          width: 0,
+          height: 0,
+          borderLeftWidth: 8,
+          borderRightWidth: 8,
+          borderTopWidth: 12,
+          borderStyle: 'solid',
+          backgroundColor: 'transparent',
+          borderLeftColor: 'transparent',
+          borderRightColor: 'transparent',
+          borderTopColor: getMarkerColor(),
+          marginTop: -3,
+        }} />
+      </View>
+    );
+
     return (
       <Marker
         coordinate={toLocation(cluster.geometry.coordinates)}
-        anchor={{ x: 0.5, y: 0.5 }}
+        anchor={{ x: 0.5, y: 1 }} // Anchor at bottom center for pin shape
         onPress={(e) => {
           e.stopPropagation();
           onMarkerPress?.(cluster.properties.id);
         }}
+        pinColor={getBuiltInPinColor()} // Use built-in pin style
       >
-        {customMarker || (
-          <View
-            style={{
-              width: getMarkerSize(),
-              height: getMarkerSize(),
-              backgroundColor: getMarkerColor(),
-              borderRadius: getMarkerSize() / 2,
-              borderWidth: 2,
-              borderColor: 'white',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.3,
-              shadowRadius: 2,
-              elevation: 3,
-            }}
-          />
-        )}
+        {/* Uncomment below to use custom pin shape instead of built-in pin */}
+        {/* {customMarker || createCustomPin()} */}
       </Marker>
     );
   },

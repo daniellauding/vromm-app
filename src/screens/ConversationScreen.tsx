@@ -493,7 +493,7 @@ export const ConversationScreen: React.FC = () => {
   }
 
   return (
-    <YStack flex={1} backgroundColor="$background" paddingBottom={TAB_BAR_TOTAL_HEIGHT}>
+    <YStack flex={1} backgroundColor="$background">
       {/* Header */}
       <XStack
         padding={16}
@@ -613,7 +613,7 @@ export const ConversationScreen: React.FC = () => {
           renderItem={({ item, index }) => renderMessage({ item, index })}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 16, paddingBottom: TAB_BAR_TOTAL_HEIGHT }}
+          contentContainerStyle={{ paddingVertical: 16 }}
           onContentSizeChange={() => {
             // Auto-scroll to top when new messages arrive
             if (messages.length > 0) {

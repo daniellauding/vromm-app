@@ -60,7 +60,8 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
+    elevation: 1000, // Very high elevation to appear above TabNavigator and FilterSheet
+    zIndex: 1000, // Also add z-index for iOS
   },
   handleContainer: {
     paddingVertical: 8,
