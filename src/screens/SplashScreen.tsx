@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   },
   dotsContainer: {
     position: 'absolute',
-    bottom: 140,
+    bottom: 20, // Much lower, near bottom of screen
     left: 0,
     right: 0,
     zIndex: 20,
@@ -173,6 +173,7 @@ export function SplashScreen() {
   const [onboardingSlides, setOnboardingSlides] = useState<OnboardingSlide[]>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isLoadingSlides, setIsLoadingSlides] = useState(true);
+  const [seenSlides, setSeenSlides] = useState<Set<number>>(new Set()); // Track which slides have been seen
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
   const autoScrollTimer = useRef<NodeJS.Timeout | null>(null);
@@ -189,7 +190,12 @@ export function SplashScreen() {
   const viewableItemsChangedRef = useRef(
     ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
       if (viewableItems[0] && viewableItems[0].index !== null) {
-        setCurrentSlideIndex(viewableItems[0].index);
+        const slideIndex = viewableItems[0].index;
+        const realIndex = slideIndex % (onboardingSlides.length + 1); // +1 for splash
+        setCurrentSlideIndex(realIndex);
+        
+        // Mark this slide as seen
+        setSeenSlides(prev => new Set(prev).add(realIndex));
       }
     },
   );
@@ -438,8 +444,8 @@ export function SplashScreen() {
           key="image-container"
           alignItems="center"
           justifyContent="center"
-          width={width * 0.8}
-          height={width * 0.6}
+          width={width * 0.9} // Bigger width
+          height={width * 0.75} // Bigger height
           marginBottom="$4"
         >
           <Image
@@ -449,7 +455,7 @@ export function SplashScreen() {
               width: '100%',
               height: '100%',
               resizeMode: 'contain',
-              borderRadius: 12,
+              borderRadius: 16, // Slightly more rounded corners
             }}
             onError={(error) => console.error('Image loading error:', error.nativeEvent)}
             onLoad={() => console.log('Image loaded successfully')}
@@ -771,16 +777,19 @@ export function SplashScreen() {
 
 
   // Animated onboarding slide component
-  const AnimatedOnboardingSlide = ({ item, isActive }: { item: OnboardingSlide; isActive: boolean }) => {
-    const imageScale = useRef(new Animated.Value(0.8)).current;
-    const titleTranslateY = useRef(new Animated.Value(30)).current;
-    const textTranslateY = useRef(new Animated.Value(40)).current;
-    const titleOpacity = useRef(new Animated.Value(0)).current;
-    const textOpacity = useRef(new Animated.Value(0)).current;
+  const AnimatedOnboardingSlide = ({ item, isActive, slideIndex }: { item: OnboardingSlide; isActive: boolean; slideIndex: number }) => {
+    const imageScale = useRef(new Animated.Value(seenSlides.has(slideIndex) ? 1 : 0.8)).current;
+    const titleTranslateY = useRef(new Animated.Value(seenSlides.has(slideIndex) ? 0 : 30)).current;
+    const textTranslateY = useRef(new Animated.Value(seenSlides.has(slideIndex) ? 0 : 40)).current;
+    const titleOpacity = useRef(new Animated.Value(seenSlides.has(slideIndex) ? 1 : 0)).current;
+    const textOpacity = useRef(new Animated.Value(seenSlides.has(slideIndex) ? 1 : 0)).current;
 
     useEffect(() => {
-      if (isActive) {
-        // Start entrance animations when slide becomes active
+      if (isActive && !seenSlides.has(slideIndex)) {
+        // Only animate if this slide hasn't been seen before
+        console.log('🎬 Animating slide', slideIndex, 'for first time');
+        
+        // Start entrance animations when slide becomes active for the first time
         Animated.sequence([
           // Animate content with stagger effect
           Animated.parallel([
@@ -821,15 +830,17 @@ export function SplashScreen() {
             }),
           ]),
         ]).start();
-      } else {
-        // Reset animations when slide becomes inactive
-        imageScale.setValue(0.8);
-        titleTranslateY.setValue(30);
-        textTranslateY.setValue(40);
-        titleOpacity.setValue(0);
-        textOpacity.setValue(0);
+      } else if (isActive && seenSlides.has(slideIndex)) {
+        // If slide has been seen before, just show final state immediately
+        console.log('⚡ Showing slide', slideIndex, 'immediately (already seen)');
+        imageScale.setValue(1);
+        titleTranslateY.setValue(0);
+        textTranslateY.setValue(0);
+        titleOpacity.setValue(1);
+        textOpacity.setValue(1);
       }
-    }, [isActive]);
+      // Don't reset when inactive - keep the final state for seen slides
+    }, [isActive, slideIndex]);
 
     return (
       <View style={[styles.onboardingSlide, { width }]}>
@@ -906,7 +917,7 @@ export function SplashScreen() {
     const realIndex = index % realSlidesCount;
     const isActive = currentSlideIndex === realIndex;
     
-    return <AnimatedOnboardingSlide item={item} isActive={isActive} />;
+    return <AnimatedOnboardingSlide item={item} isActive={isActive} slideIndex={realIndex} />;
   };
 
   // Render original splash screen content (background video handled at main level)
@@ -1039,8 +1050,8 @@ export function SplashScreen() {
     }
 
     return (
-      <View style={[styles.dotsContainer, { backgroundColor: 'rgba(0,0,0,0.3)', paddingVertical: 10, borderRadius: 20 }]}>
-        <XStack justifyContent="center" gap="$2" marginBottom="$4">
+      <View style={styles.dotsContainer}>
+        <XStack justifyContent="center" gap="$1" paddingVertical="$2">
           {baseSlides.map((_, i) => {
             const isActive = currentSlideIndex === i;
 
@@ -1049,22 +1060,22 @@ export function SplashScreen() {
                 key={`dot-${i}`}
                 onPress={() => scrollToSlide(startIndex + i)} // Jump to middle set + offset
                 style={{
-                  padding: 8, // Larger touch target
+                  padding: 6, // Smaller touch target
                 }}
               >
                 <Animated.View
                   style={{
-                    width: isActive ? 20 : 10,
-                    height: 10,
-                    borderRadius: 5,
+                    width: isActive ? 16 : 8, // Smaller dots
+                    height: 8, // Smaller height
+                    borderRadius: 4,
                     backgroundColor: isActive ? '#00FFBC' : '#FFFFFF',
-                    marginHorizontal: 4,
-                    opacity: isActive ? 1 : 0.6,
+                    marginHorizontal: 2, // Less spacing
+                    opacity: isActive ? 1 : 0.5,
                     shadowColor: isActive ? '#00FFBC' : 'transparent',
                     shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: isActive ? 0.5 : 0,
-                    shadowRadius: isActive ? 8 : 0,
-                    elevation: isActive ? 5 : 0,
+                    shadowOpacity: isActive ? 0.3 : 0, // Subtle glow
+                    shadowRadius: isActive ? 4 : 0,
+                    elevation: isActive ? 3 : 0,
                   }}
                 />
               </TouchableOpacity>
@@ -1076,26 +1087,22 @@ export function SplashScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: '#1C1C1C' }]}>
-      {/* Background Video - only render when on splash screen */}
-      {currentSlideIndex === 0 && (
-        <>
-          <View style={styles.videoContainer}>
-            <Animated.View style={[styles.backgroundVideo, videoAnimatedStyle]}>
-              <Video
-                ref={videoRef}
-                source={require('../../assets/bg_video.mp4') as any}
-                style={StyleSheet.absoluteFill}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay
-                isLooping
-                isMuted
-              />
-            </Animated.View>
-            <View style={[styles.overlay, { backgroundColor: '#397770' }]} />
-          </View>
-        </>
-      )}
+    <View style={styles.container}>
+      {/* Background Video with Overlay - always present for splash */}
+      <View style={styles.videoContainer}>
+        <Animated.View style={[styles.backgroundVideo, videoAnimatedStyle]}>
+          <Video
+            ref={videoRef}
+            source={require('../../assets/bg_video.mp4') as any}
+            style={StyleSheet.absoluteFill}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay
+            isLooping
+            isMuted
+          />
+        </Animated.View>
+        <View style={[styles.overlay, { backgroundColor: '#397770' }]} />
+      </View>
 
       {/* Carousel with splash and onboarding slides */}
       {!isLoadingSlides && (
@@ -1124,81 +1131,77 @@ export function SplashScreen() {
         />
       )}
 
-      {/* Help Icon - only show on splash screen */}
-      {currentSlideIndex === 0 && (
-        <Animated.View
+      {/* Help Icon - show on all slides */}
+      <Animated.View
+        style={{
+          opacity: contentOpacity,
+          position: 'absolute',
+          top: insets.top || 40,
+          left: 16,
+          zIndex: 100,
+        }}
+      >
+        <TouchableOpacity
+          onPress={handleOpenWebsite}
           style={{
-            opacity: contentOpacity,
-            position: 'absolute',
-            top: insets.top || 40,
-            left: 16,
-            zIndex: 100,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          activeOpacity={1}
+          onPressIn={(e) => {
+            e.currentTarget.setNativeProps({
+              style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+            });
+          }}
+          onPressOut={(e) => {
+            e.currentTarget.setNativeProps({
+              style: { backgroundColor: 'transparent' },
+            });
           }}
         >
-          <TouchableOpacity
-            onPress={handleOpenWebsite}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            activeOpacity={1}
-            onPressIn={(e) => {
-              e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
-              });
-            }}
-            onPressOut={(e) => {
-              e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'transparent' },
-              });
-            }}
-          >
-            <HelpCircle size={20} color="white" />
-          </TouchableOpacity>
-        </Animated.View>
-      )}
+          <HelpCircle size={20} color="white" />
+        </TouchableOpacity>
+      </Animated.View>
 
-      {/* Language Selector - only show on splash screen */}
-      {currentSlideIndex === 0 && (
-        <Animated.View
+      {/* Language Selector - show on all slides */}
+      <Animated.View
+        style={{
+          opacity: contentOpacity,
+          position: 'absolute',
+          top: insets.top || 40,
+          right: 16,
+          zIndex: 100,
+        }}
+      >
+        <TouchableOpacity
+          onPress={showLanguageModal}
           style={{
-            opacity: contentOpacity,
-            position: 'absolute',
-            top: insets.top || 40,
-            right: 16,
-            zIndex: 100,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          activeOpacity={1}
+          onPressIn={(e) => {
+            e.currentTarget.setNativeProps({
+              style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+            });
+          }}
+          onPressOut={(e) => {
+            e.currentTarget.setNativeProps({
+              style: { backgroundColor: 'transparent' },
+            });
           }}
         >
-          <TouchableOpacity
-            onPress={showLanguageModal}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            activeOpacity={1}
-            onPressIn={(e) => {
-              e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
-              });
-            }}
-            onPressOut={(e) => {
-              e.currentTarget.setNativeProps({
-                style: { backgroundColor: 'transparent' },
-              });
-            }}
-          >
-            <Flag size={20} color="white" />
-          </TouchableOpacity>
-        </Animated.View>
-      )}
+          <Flag size={20} color="white" />
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Dots indicator */}
       {renderDots()}
