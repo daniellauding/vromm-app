@@ -9,6 +9,7 @@ import {
   AppState,
   AppStateStatus,
   PanResponder,
+  ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text, YStack, XStack, Button } from 'tamagui';
@@ -393,6 +394,9 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
 
   // Data update handler
   const updateRouteData = useCallback((updates: Partial<WizardRouteData>) => {
+    if (updates.waypoints) {
+      console.log('🧙‍♂️ updateRouteData: Updating waypoints:', updates.waypoints.length);
+    }
     setRouteData(prev => ({ ...prev, ...updates }));
   }, []);
 
@@ -485,12 +489,18 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
               setAverageSpeed(recordingDistance / timeHours);
             }
 
-            // Add waypoint with timestamp
+            // Add waypoint with timestamp AND update route path for continuous line
+            const newRoutePathPoint = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            };
+
             updateRouteData({
               waypoints: [...routeData.waypoints, { 
                 ...newWaypoint, 
                 timestamp: Date.now() 
               }],
+              routePath: [...(routeData.routePath || []), newRoutePathPoint],
               drawingMode: 'record'
             });
           }
@@ -1278,8 +1288,15 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
                 </Text>
               </View>
               
-              <View style={{ flex: 1, padding: 16 }}>
+              <ScrollView 
+                style={{ flex: 1 }} 
+                contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+              >
                 <RouteMapEditor
+                  key={`map-editor-${routeData.waypoints.length}-${routeData.drawingMode}`}
                   waypoints={routeData.waypoints.map(wp => ({
                     latitude: wp.latitude,
                     longitude: wp.longitude,
@@ -1287,6 +1304,7 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
                     description: wp.description,
                   }))}
                   onWaypointsChange={(newWaypoints) => {
+                    console.log('🧙‍♂️ RouteWizardSheet: Waypoints changed:', newWaypoints.length);
                     updateRouteData({
                       waypoints: newWaypoints.map(wp => ({
                         latitude: wp.latitude,
@@ -1320,13 +1338,11 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
                   onDrawingChange={setIsDrawing}
                   colorScheme="dark"
                 />
-              </View>
-              
-              {/* Navigation buttons for map step */}
-              <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+              </ScrollView>
+              {/* Navigation buttons for map step - reduced gap */}
+              <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
                 <XStack gap="$2" justifyContent="space-between" alignItems="center">
                   <View style={{ flex: 1 }} />
-                  
                   <Button
                     onPress={handleNext}
                     disabled={!canProceed()}
@@ -1499,13 +1515,15 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
           return;
         }
 
-        // Request location permission if not granted
-        if (!locationPermission) {
-          console.log('🧙‍♂️ Requesting location permission');
-          await requestLocationPermission();
+        // Check if location permission is already granted (don't request it)
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('🧙‍♂️ Location permission not granted - skipping auto-location');
+          return;
         }
 
-        if (locationPermission) {
+        console.log('🧙‍♂️ Location permission already granted, setting default location');
+        if (true) { // Always true since we checked permission above
           const location = await getCurrentLocation();
           if (location) {
             const { latitude, longitude } = location.coords;
@@ -1646,9 +1664,9 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
   console.log('🧙‍♂️ About to render RouteWizardSheet');
   
   return (
-    <GestureDetector gesture={combinedGesture}>
-      <View style={{ flex: 1 }}>
-        {/* Click outside area to minimize - now without background color */}
+    <View style={{ flex: 1 }}>
+      {/* Click outside area to minimize - only show when not minimized */}
+      {!isMinimized && (
         <TouchableOpacity 
           style={{ 
             position: 'absolute', 
@@ -1660,7 +1678,9 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
           onPress={handleClickOutside}
           activeOpacity={1}
         />
-        
+      )}
+      
+      <GestureDetector gesture={isMinimized ? Gesture.Pan() : combinedGesture}>
         <Animated.View
           style={[
             styles.bottomSheet,
@@ -1808,8 +1828,9 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
             </View>
           )}
         </Animated.View>
+      </GestureDetector>
 
-        {/* Recovery Prompt */}
+      {/* Recovery Prompt */}
         {showRecoveryPrompt && (
           <View style={{
             position: 'absolute',
@@ -1911,8 +1932,7 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
             </View>
           </View>
         )}
-      </View>
-    </GestureDetector>
+    </View>
   );
   
   } catch (error) {

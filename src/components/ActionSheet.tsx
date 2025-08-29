@@ -20,6 +20,7 @@ interface ActionSheetProps {
   onClose: () => void;
   onCreateRoute: (routeData?: RecordedRouteData) => void;
   onMaximizeWizard?: (routeData: any) => void; // Callback for maximizing wizard
+  onCreateEvent?: () => void; // Callback for creating event
 }
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizard }: ActionSheetProps) {
+export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizard, onCreateEvent }: ActionSheetProps) {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
@@ -176,6 +177,22 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
     console.log('🎭 ✅ RecordDrivingModal shown');
   };
 
+  // Handle "Create Event" option
+  const handleCreateEvent = () => {
+    console.log('🎉 ==================== ACTION SHEET - CREATE EVENT ====================');
+    console.log('🎉 ActionSheet Create Event pressed');
+    console.log('🎉 About to close ActionSheet and call onCreateEvent...');
+
+    onClose();
+    console.log('🎉 ActionSheet closed, calling onCreateEvent callback...');
+    if (onCreateEvent) {
+      onCreateEvent();
+      console.log('🎉 ✅ onCreateEvent callback completed');
+    } else {
+      console.warn('🎉 ⚠️ onCreateEvent callback not provided');
+    }
+  };
+
   if (!isVisible) return null;
 
   return (
@@ -233,6 +250,18 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
 
           <TouchableOpacity
             style={[styles.actionButton, { borderBottomColor: borderColor }]}
+            onPress={handleCreateEvent}
+          >
+            <XStack alignItems="center" gap="$3">
+              <Feather name="calendar" size={24} color="#F59E0B" />
+              <Text fontWeight="500" fontSize={18} color={textColor}>
+                Create Event
+              </Text>
+            </XStack>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { borderBottomColor: borderColor }]}
             onPress={handleRecordDriving}
           >
             <XStack alignItems="center" gap="$3">
@@ -263,11 +292,13 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
 export function ActionSheetModal({
   onCreateRoute,
   onMaximizeWizard,
+  onCreateEvent,
 }: {
   onCreateRoute: (routeData?: RecordedRouteData) => void;
   onMaximizeWizard?: (routeData: any) => void;
+  onCreateEvent?: () => void;
 }) {
   const { hideModal } = useModal();
 
-  return <ActionSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} onMaximizeWizard={onMaximizeWizard} />;
+  return <ActionSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} onMaximizeWizard={onMaximizeWizard} onCreateEvent={onCreateEvent} />;
 }

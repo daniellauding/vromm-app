@@ -43,12 +43,16 @@ interface OnboardingInteractiveProps {
   onDone: () => void;
   onSkip?: () => void;
   showAgainKey?: string;
+  onCloseModal?: () => void; // Add callback to close the modal
+  onReopenModal?: () => void; // Add callback to reopen the modal
 }
 
 export function OnboardingInteractive({
   onDone,
   onSkip,
   showAgainKey = 'interactive_onboarding',
+  onCloseModal,
+  onReopenModal,
 }: OnboardingInteractiveProps) {
   const { language, t } = useTranslation();
   const theme = useTheme();
@@ -268,18 +272,19 @@ export function OnboardingInteractive({
         await handleRoleSelection();
         break;
       case 'relationships':
-        // Navigate to relationship screen - this will be handled later
-        console.log('🎯 [OnboardingInteractive] Relationships step - to be implemented');
+        await handleRelationships();
         break;
       case 'license_plan':
-        // Navigate to LicensePlanScreen and return to onboarding
+        // Close modal before navigating to LicensePlanScreen
+        onCloseModal?.();
         navigation.navigate('LicensePlanScreen', {
           fromOnboarding: true,
           onboardingStep: step.id
         });
         break;
       case 'create_route':
-        // Navigate to CreateRouteScreen above onboarding
+        // Close modal before navigating to CreateRouteScreen
+        onCloseModal?.();
         navigation.navigate('CreateRoute', {
           fromOnboarding: true,
           onboardingStep: step.id,
@@ -287,12 +292,14 @@ export function OnboardingInteractive({
           onClose: () => {
             // Return to onboarding after route creation
             console.log('🎯 [OnboardingInteractive] Returning from CreateRoute');
+            onReopenModal?.();
             checkStepCompletions(); // Refresh completion status
           }
         });
         break;
       case 'complete_exercise':
-        // Navigate to ProgressScreen and return to onboarding
+        // Close modal before navigating to ProgressScreen
+        onCloseModal?.();
         navigation.navigate('ProgressTab', { 
           showDetail: false,
           fromOnboarding: true,
@@ -300,7 +307,8 @@ export function OnboardingInteractive({
         });
         break;
       case 'save_route':
-        // Navigate to MapScreen and return to onboarding
+        // Close modal before navigating to MapScreen
+        onCloseModal?.();
         navigation.navigate('MapTab', {
           fromOnboarding: true,
           onboardingStep: step.id
@@ -313,20 +321,56 @@ export function OnboardingInteractive({
 
   const handleRoleSelection = async () => {
     try {
-      // Navigate to role selection screen first
-      navigation.navigate('RoleSelectionScreen');
-      
-      // After role selection, check if we need to set up relationships
-      // This will be handled when the user returns to onboarding
+      // Close modal before navigating to role selection screen
+      onCloseModal?.();
+      navigation.navigate('RoleSelectionScreen', {
+        fromOnboarding: true,
+        onboardingStep: 'role'
+      });
     } catch (error) {
       console.error('Error handling role selection:', error);
       Alert.alert('Error', 'Failed to open role selection. Please try again.');
     }
   };
 
+  const handleRelationships = async () => {
+    try {
+      // Close modal before navigating to RoleSelectionScreen with relationships context
+      onCloseModal?.();
+      navigation.navigate('RoleSelectionScreen', {
+        fromOnboarding: true,
+        onboardingStep: 'relationships'
+      });
+    } catch (error) {
+      console.error('🎯 [OnboardingInteractive] Error handling relationships:', error);
+      Alert.alert('Error', 'Failed to open relationships setup. Please try again.');
+    }
+  };
+
   const handleLocationPermission = async () => {
     try {
+      console.log('🎯 [OnboardingInteractive] Requesting location permission - this will show native dialog');
+      
+      // Check current permission status first
+      const currentStatus = await Location.getForegroundPermissionsAsync();
+      console.log('🎯 [OnboardingInteractive] Current permission status:', currentStatus.status);
+      
+      if (currentStatus.status === 'granted') {
+        // Permission already granted
+        Alert.alert(
+          '✅ Location Already Enabled',
+          'Location access is already enabled for this app.',
+          [{ text: 'Continue', onPress: () => {
+            setCompletedSteps(prev => new Set(prev).add('location'));
+            nextSlide();
+          }}]
+        );
+        return;
+      }
+      
+      // Request permission - this shows the native dialog
       const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('🎯 [OnboardingInteractive] Permission request result:', status);
       
       if (status === 'granted') {
         Alert.alert(
@@ -348,7 +392,7 @@ export function OnboardingInteractive({
         );
       }
     } catch (error) {
-      console.error('Error requesting location permission:', error);
+      console.error('🎯 [OnboardingInteractive] Error requesting location permission:', error);
       Alert.alert('Error', 'Failed to request location permission. Please try again.');
     }
   };

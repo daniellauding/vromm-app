@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { Text } from './Text';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 interface OnboardingModalInteractiveProps {
   visible: boolean;
@@ -20,7 +21,20 @@ export function OnboardingModalInteractive({
 }: OnboardingModalInteractiveProps) {
   const [loading, setLoading] = useState(false);
   const [showDebugOptions, setShowDebugOptions] = useState(false);
+  const [isTemporarilyClosed, setIsTemporarilyClosed] = useState(false);
   const { user } = useAuth();
+  const navigation = useNavigation();
+
+  // Listen for navigation focus to reopen modal when returning from onboarding screens
+  useFocusEffect(
+    React.useCallback(() => {
+      // If we were temporarily closed and the screen comes back into focus, reopen
+      if (isTemporarilyClosed && visible) {
+        console.log('🎯 [OnboardingModal] Screen focused - reopening modal');
+        setIsTemporarilyClosed(false);
+      }
+    }, [isTemporarilyClosed, visible])
+  );
 
   const handleComplete = () => {
     completeOnboardingWithVersion('interactive_onboarding');
@@ -47,7 +61,15 @@ export function OnboardingModalInteractive({
     setShowDebugOptions(!showDebugOptions);
   };
 
-  if (!visible) return null;
+  const handleCloseModal = () => {
+    setIsTemporarilyClosed(true);
+  };
+
+  const handleReopenModal = () => {
+    setIsTemporarilyClosed(false);
+  };
+
+  if (!visible || isTemporarilyClosed) return null;
 
   if (loading) {
     return (
@@ -111,6 +133,8 @@ export function OnboardingModalInteractive({
             onDone={handleComplete}
             onSkip={forceShow ? handleComplete : onClose}
             showAgainKey="interactive_onboarding"
+            onCloseModal={handleCloseModal}
+            onReopenModal={handleReopenModal}
           />
         </View>
       </View>

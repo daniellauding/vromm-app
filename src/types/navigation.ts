@@ -53,6 +53,11 @@ export type RootStackParamList = {
       latitude: number;
       longitude: number;
     };
+    fromOnboarding?: boolean;
+    onboardingStep?: string;
+    isModal?: boolean;
+    onClose?: () => void;
+    onRouteCreated?: (routeId: string) => void;
   };
   Map: { selectedLocation?: SearchResult };
   Search: undefined;
@@ -60,8 +65,14 @@ export type RootStackParamList = {
   OnboardingDemo: undefined;
   TranslationDemo: undefined;
   ContentDemo: undefined;
-  LicensePlanScreen: undefined;
-  RoleSelectionScreen: undefined;
+  LicensePlanScreen: {
+    fromOnboarding?: boolean;
+    onboardingStep?: string;
+  };
+  RoleSelectionScreen: {
+    fromOnboarding?: boolean;
+    onboardingStep?: string;
+  };
   PublicProfile: { userId: string };
   UsersScreen: undefined;
   ProfileScreen: undefined;
@@ -115,9 +126,14 @@ export type TabParamList = {
     selectedPathId?: string;
     showDetail?: boolean;
     activeUserId?: string; // Add activeUserId for student switching
+    fromOnboarding?: boolean;
+    onboardingStep?: string;
   };
   CreateRouteTab: undefined;
-  MapTab: undefined;
+  MapTab: {
+    fromOnboarding?: boolean;
+    onboardingStep?: string;
+  };
   ProfileTab: undefined;
   MenuTab: undefined;
   ProfileScreen: undefined;

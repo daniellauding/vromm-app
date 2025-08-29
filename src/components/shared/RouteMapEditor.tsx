@@ -4,6 +4,7 @@ import {
   Platform,
   PanResponder,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Text, XStack, YStack, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -56,6 +57,11 @@ export function RouteMapEditor({
   colorScheme = 'dark',
 }: RouteMapEditorProps) {
   const mapRef = useRef<MapView>(null);
+  
+  // Debug waypoints prop changes
+  React.useEffect(() => {
+    console.log(`🗺️ RouteMapEditor: ${waypoints.length} waypoints, mode: ${drawingMode}`);
+  }, [waypoints.length, drawingMode]);
   const containerRef = useRef<View>(null);
   const lastDrawPointRef = useRef<{ latitude: number; longitude: number; timestamp?: number } | null>(null);
   const drawingRef = useRef(false);
@@ -132,31 +138,51 @@ export function RouteMapEditor({
 
   const handleWaypointMode = async (latitude: number, longitude: number) => {
     try {
-      const [result] = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
-
       const waypointNumber = waypoints.length + 1;
-      const title = result?.street 
-        ? `${result.street}${result.streetNumber ? ` ${result.streetNumber}` : ''}`
-        : `Waypoint ${waypointNumber}`;
-
-      const description = [result?.city, result?.region, result?.country]
-        .filter(Boolean)
-        .join(', ') || `Waypoint ${waypointNumber} description`;
-
+      console.log(`🗺️ Adding waypoint ${waypointNumber} at ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+      
+      // Create waypoint immediately to prevent UI lag
       const newWaypoint = {
         latitude,
         longitude,
-        title,
-        description,
+        title: `Waypoint ${waypointNumber}`,
+        description: `Route waypoint ${waypointNumber}`,
       };
 
-      onWaypointsChange([...waypoints, newWaypoint]);
+      // Add waypoint immediately
+      const updatedWaypoints = [...waypoints, newWaypoint];
+      onWaypointsChange(updatedWaypoints);
       setUndoneWaypoints([]);
+      
+      console.log(`🗺️ ✅ Now have ${updatedWaypoints.length} waypoints total`);
+
+      // Try to get address in background with delay to prevent rate limiting
+      setTimeout(async () => {
+        try {
+          const [result] = await Location.reverseGeocodeAsync({
+            latitude,
+            longitude,
+          });
+
+          if (result?.street) {
+            const addressTitle = `${result.street}${result.streetNumber ? ` ${result.streetNumber}` : ''}`;
+            const addressDescription = [result?.city, result?.region, result?.country]
+              .filter(Boolean)
+              .join(', ') || `Waypoint ${waypointNumber} description`;
+            
+            // Update the specific waypoint with real address
+            const waypointsWithAddress = updatedWaypoints.map((wp, index) =>
+              index === updatedWaypoints.length - 1 ? { ...wp, title: addressTitle, description: addressDescription } : wp
+            );
+            onWaypointsChange(waypointsWithAddress);
+          }
+        } catch (err) {
+          // Silent fail for address lookup
+        }
+      }, 500);
+      
     } catch (error) {
-      console.error('Error with waypoint mode:', error);
+      console.error('🗺️ ❌ Error adding waypoint:', error);
       const waypointNumber = waypoints.length + 1;
       const newWaypoint = {
         latitude,
@@ -340,24 +366,57 @@ export function RouteMapEditor({
 
   const handleLocateMe = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Location permission denied');
+      console.log('🗺️ [RouteMapEditor] Locate Me pressed - checking location permission');
+      
+      // Check current permission status first
+      const currentStatus = await Location.getForegroundPermissionsAsync();
+      console.log('🗺️ [RouteMapEditor] Current permission status:', currentStatus.status);
+      
+      if (currentStatus.status === 'granted') {
+        // Permission already granted, get location
+        const location = await Location.getCurrentPositionAsync({});
+        const newRegion = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        };
+        
+        onRegionChange(newRegion);
+        mapRef.current?.animateToRegion(newRegion, 1000);
         return;
       }
-
-      const location = await Location.getCurrentPositionAsync({});
-      const newRegion = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      };
       
-      onRegionChange(newRegion);
-      mapRef.current?.animateToRegion(newRegion, 1000);
+      // Request permission - this shows the native dialog
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('🗺️ [RouteMapEditor] Permission request result:', status);
+      
+      if (status === 'granted') {
+        // Permission granted, get location
+        const location = await Location.getCurrentPositionAsync({});
+        const newRegion = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        };
+        
+        onRegionChange(newRegion);
+        mapRef.current?.animateToRegion(newRegion, 1000);
+      } else {
+        // Permission denied, show helpful message
+        console.log('🗺️ [RouteMapEditor] Location permission denied by user');
+        Alert.alert(
+          '📍 Location Permission Required',
+          'To use "Locate Me", please enable location access for this app in your device settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Try Again', onPress: handleLocateMe }
+          ]
+        );
+      }
     } catch (error) {
-      console.error('Error getting location:', error);
+      console.error('🗺️ [RouteMapEditor] Error getting location:', error);
     }
   };
 
@@ -390,10 +449,10 @@ export function RouteMapEditor({
     <YStack gap="$4">
       {/* Drawing Mode Controls */}
       <YStack gap="$4">
-        <Text fontSize="$6" fontWeight="600">Drawing Mode</Text>
+        {/* <Text fontSize="$6" fontWeight="600">Drawing Mode</Text>
         <Text size="sm" color="$gray11">
           Choose how to create your route
-        </Text>
+        </Text> */}
 
         <XStack gap="$2" flexWrap="wrap">
           <Button
@@ -580,16 +639,18 @@ export function RouteMapEditor({
             </>
           )}
 
-          {/* Render connecting lines for waypoints (not in pen mode) */}
-          {drawingMode === 'waypoint' && waypoints.length > 1 && (
+          {/* Render connecting lines for waypoints when there are 2+ waypoints (except in pen mode) */}
+          {drawingMode !== 'pen' && waypoints.length > 1 && (
             <Polyline
               coordinates={waypoints.map((wp) => ({
                 latitude: wp.latitude,
                 longitude: wp.longitude,
               }))}
-              strokeWidth={3}
+              strokeWidth={4}
               strokeColor="#1A73E8"
               lineJoin="round"
+              lineCap="round"
+              geodesic={true}
             />
           )}
 

@@ -47,7 +47,6 @@ export interface CreateRouteState {
 
   // UI state
   activeSection: string;
-  searchQuery: string;
   youtubeLink: string;
 
   // Recording context
@@ -175,7 +174,7 @@ export function CreateRouteProvider({ children }: { children: ReactNode }) {
         routePath: recordedData.routePath,
         region: calculateRegionFromWaypoints(recordedData.waypoints) || defaultRegion,
         activeSection: 'basic',
-        searchQuery: recordedData.searchCoordinates || '',
+
         youtubeLink: '',
         isFromRecording: true,
       };
@@ -189,7 +188,7 @@ export function CreateRouteProvider({ children }: { children: ReactNode }) {
       routePath: recordedData.routePath,
       drawingMode: 'record',
       region: calculateRegionFromWaypoints(recordedData.waypoints) || persistedState.region,
-      searchQuery: recordedData.searchCoordinates || persistedState.searchQuery,
+
       isFromRecording: true,
       // Keep existing form data but update with recorded info if user hasn't entered anything
       formData: {

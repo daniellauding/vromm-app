@@ -749,6 +749,15 @@ export function TabNavigator() {
     });
   }, [navigation]);
 
+  const handleCreateEvent = useCallback(() => {
+    console.log('🎉 TabNavigator handling create event');
+    
+    // Navigate directly to CreateEventScreen (not through HomeTab)
+    navigation.navigate('CreateEvent', {
+      eventId: undefined, // New event
+    });
+  }, [navigation]);
+
   // Log tab navigator mount and set up global navigation handler
   const handleCreateRoute = (routeData?: any) => {
     console.log('🎯 ==================== TAB NAVIGATOR - CREATE ROUTE ====================');
@@ -1046,7 +1055,7 @@ export function TabNavigator() {
                   accessibilityLabel="Create route or record driving"
                   onPress={() => {
                     console.log('🎯 Central Create Route tab button pressed');
-                    showModal(<ActionSheetModal onCreateRoute={handleCreateRoute} onMaximizeWizard={handleMaximizeWizard} />);
+                    showModal(<ActionSheetModal onCreateRoute={handleCreateRoute} onMaximizeWizard={handleMaximizeWizard} onCreateEvent={handleCreateEvent} />);
                   }}
                   style={{
                     width: 56,

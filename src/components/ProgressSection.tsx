@@ -87,7 +87,9 @@ interface ProgressSectionProps {
   activeUserId?: string | null;
 }
 
-const loadLastAudit = async (effectiveUserId: string | null): Promise<any> => {
+const loadLastAudit = async (
+  effectiveUserId: string | null,
+): Promise<{ action: string; actor_name: string | null; created_at: string } | null> => {
   if (!effectiveUserId) return null;
   try {
     const { data, error } = await supabase
@@ -263,7 +265,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       navigation.navigate('ProgressTab', {
         selectedPathId: path.id,
         showDetail: true,
-        activeUserId: effectiveUserId, // Pass the active user ID (includes StudentSwitch context)
+        activeUserId: effectiveUserId || undefined, // Pass the active user ID (includes StudentSwitch context)
       });
     },
     [effectiveUserId, navigation],
@@ -288,7 +290,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         variant="chevron"
         onAction={() =>
           navigation.navigate('ProgressTab', {
-            activeUserId: effectiveUserId,
+            activeUserId: effectiveUserId || undefined,
           })
         }
         actionLabel={t('common.seeAll') || 'See All'}
@@ -303,7 +305,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       )}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <XStack space="$3" paddingHorizontal="$4">
-          {paths.map((path, idx) => {
+          {paths.map((path) => {
             const isActive = activePath === path.id;
             const percent = getPathProgress(path);
             // Allow all paths to be clickable - no order restriction
@@ -342,7 +344,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                       width: 40,
                       height: 40,
                       borderRadius: 20,
-                      backgroundColor: isActive ? '#00E6C3' : '#222',
+                      backgroundColor: isActive ? '#00E6C3' : 'transparent',
                       alignItems: 'center',
                       justifyContent: 'center',
                       position: 'relative',
@@ -351,8 +353,8 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                     <ProgressCircle
                       percent={percent}
                       size={40}
-                      color="#fff"
-                      bg={isActive ? '#00E6C3' : '#222'}
+                      color={isActive ? '#fff' : '#00E6C3'}
+                      bg={isActive ? '#00E6C3' : '#E5E5E5'}
                     />
                     <Text
                       style={{
@@ -364,7 +366,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                         textAlign: 'center',
                         textAlignVertical: 'center',
                         lineHeight: 40,
-                        fontSize: 14,
+                        fontSize: 10,
                         fontWeight: 'bold',
                       }}
                       color={isActive ? '$color' : '$gray11'}

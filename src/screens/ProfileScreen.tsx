@@ -1839,6 +1839,7 @@ export function ProfileScreen() {
       <YStack f={1} gap={24}>
         <Header
           title={t('profile.title')}
+          showBack
           rightElement={
             <XStack gap="$2">
               {!!activeStudentId && (

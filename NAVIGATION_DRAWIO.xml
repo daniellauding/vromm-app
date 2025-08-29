@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  Copy this entire XML content and paste it into draw.io:
+  1. Go to https://app.diagrams.net/
+  2. File > Open from > Device
+  3. Or just paste this XML directly into a new diagram
+-->
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="5.0" version="21.6.5" etag="vromm_navigation">
+  <diagram name="App Navigation Flow" id="navigation-architecture">
+    <mxGraphModel dx="2066" dy="1142" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Main App Container -->
+        <mxCell id="app-container" value="VROMM APP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1e1e1e;strokeColor=#ffffff;fontColor=#ffffff;fontSize=20;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="1520" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Tab Navigator Container -->
+        <mxCell id="tab-nav-container" value="TabNavigator (Bottom Tabs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2D3130;strokeColor=#69e3c4;strokeWidth=2;fontColor=#69e3c4;fontSize=16;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="120" width="1520" height="100" as="geometry" />
+        </mxCell>
+        
+        <!-- Tab Items -->
+        <mxCell id="tab-home" value="HomeTab&#xa;🏠" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D4140;strokeColor=#69e3c4;fontColor=#ffffff;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="80" y="140" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="tab-explore" value="ExploreTab&#xa;🗺️" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D4140;strokeColor=#69e3c4;fontColor=#ffffff;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="320" y="140" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="tab-create" value="CreateTab&#xa;➕&#xa;(Modal Trigger)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1A3D3D;strokeColor=#69e3c4;strokeWidth=3;fontColor=#69e3c4;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="560" y="140" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="tab-school" value="SchoolTab&#xa;🎓" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D4140;strokeColor=#69e3c4;fontColor=#ffffff;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="800" y="140" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="tab-menu" value="MenuTab&#xa;☰" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D4140;strokeColor=#69e3c4;fontColor=#ffffff;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="1040" y="140" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Home Stack -->
+        <mxCell id="home-stack" value="Home Stack Navigator" style="swimlane;fillColor=#2D3130;strokeColor=#666666;fontColor=#ffffff;startSize=30;" vertex="1" parent="1">
+          <mxGeometry x="40" y="260" width="360" height="580" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="home-screen" value="HomeScreen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="home-stack">
+          <mxGeometry x="20" y="50" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="draft-section" value="DraftRoutes Section&#xa;(is_draft=true)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9500;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="home-stack">
+          <mxGeometry x="20" y="110" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="created-routes" value="CreatedRoutes Section" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="home-stack">
+          <mxGeometry x="20" y="170" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="create-route" value="CreateRouteScreen&#xa;(Tab Hidden)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2196F3;strokeColor=#ffffff;fontColor=#ffffff;strokeWidth=2" vertex="1" parent="home-stack">
+          <mxGeometry x="20" y="230" width="320" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="route-detail" value="RouteDetailScreen&#xa;(Tab Hidden)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2196F3;strokeColor=#ffffff;fontColor=#ffffff;strokeWidth=2" vertex="1" parent="home-stack">
+          <mxGeometry x="20" y="310" width="320" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="route-list" value="RouteListScreen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="home-stack">
+          <mxGeometry x="20" y="390" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="conversation" value="ConversationScreen&#xa;(Tab Hidden)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2196F3;strokeColor=#ffffff;fontColor=#ffffff;strokeWidth=2" vertex="1" parent="home-stack">
+          <mxGeometry x="20" y="450" width="320" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Explore Stack -->
+        <mxCell id="explore-stack" value="Explore Stack Navigator" style="swimlane;fillColor=#2D3130;strokeColor=#666666;fontColor=#ffffff;startSize=30;" vertex="1" parent="1">
+          <mxGeometry x="420" y="260" width="360" height="300" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="map-screen" value="MapScreen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="explore-stack">
+          <mxGeometry x="20" y="50" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="routes-drawer" value="RoutesDrawer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="explore-stack">
+          <mxGeometry x="20" y="110" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- Modal System -->
+        <mxCell id="modal-system" value="Modal System (Overlays)" style="swimlane;fillColor=#1A1A1A;strokeColor=#FF9500;fontColor=#FF9500;startSize=30;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="800" y="260" width="760" height="580" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="action-sheet" value="ActionSheetModal&#xa;(Create Options)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9500;strokeColor=#ffffff;fontColor=#ffffff;fontStyle=1" vertex="1" parent="modal-system">
+          <mxGeometry x="20" y="50" width="340" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="wizard-sheet" value="RouteWizardSheet&#xa;(NEW - Multi-step)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9C27B0;strokeColor=#ffffff;fontColor=#ffffff;fontStyle=1;strokeWidth=3" vertex="1" parent="modal-system">
+          <mxGeometry x="20" y="130" width="340" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="record-sheet" value="RecordDrivingSheet&#xa;(With Emergency Draft Save)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF5722;strokeColor=#ffffff;fontColor=#ffffff;fontStyle=1" vertex="1" parent="modal-system">
+          <mxGeometry x="20" y="210" width="340" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="onboarding-modal" value="OnboardingModalInteractive&#xa;(NEW)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00BCD4;strokeColor=#ffffff;fontColor=#ffffff;fontStyle=1" vertex="1" parent="modal-system">
+          <mxGeometry x="20" y="290" width="340" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="exit-confirm" value="Exit Confirmation Modal&#xa;(With Draft Option)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9500;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="modal-system">
+          <mxGeometry warning x="20" y="370" width="340" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Wizard Steps -->
+        <mxCell id="wizard-steps" value="Wizard Steps" style="swimlane;fillColor=#9C27B0;strokeColor=#ffffff;fontColor=#ffffff;startSize=25;fontSize=12" vertex="1" parent="modal-system">
+          <mxGeometry x="400" y="50" width="340" height="380" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="step-map" value="1. MapInteractionStep" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#9C27B0;fontColor=#000000" vertex="1" parent="wizard-steps">
+          <mxGeometry x="10" y="40" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="step-basic" value="2. BasicInfoStep" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#9C27B0;fontColor=#000000" vertex="1" parent="wizard-steps">
+          <mxGeometry x="10" y="90" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="step-exercises" value="3. ExercisesStep" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#9C27B0;fontColor=#000000" vertex="1" parent="wizard-steps">
+          <mxGeometry x="10" y="140" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="step-media" value="4. MediaStep" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#9C27B0;fontColor=#000000" vertex="1" parent="wizard-steps">
+          <mxGeometry x="10" y="190" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="step-review" value="5. ReviewStep" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#9C27B0;fontColor=#000000" vertex="1" parent="wizard-steps">
+          <mxGeometry x="10" y="240" width="320" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- Navigation Flows -->
+        <mxCell id="flow1" edge="1" parent="1" source="tab-create" target="action-sheet">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="660" y="200" as="sourcePoint" />
+            <mxPoint x="820" y="310" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="660" y="240" />
+              <mxPoint x="980" y="240" />
+            </Array>
+            <mxCell id="flow1-label" value="Opens Modal" as="label">
+              <mxGeometry relative="1" as="geometry">
+                <mxPoint as="offset" />
+              </mxGeometry>
+            </mxCell>
+          </mxGeometry>
+          <mxCell id="flow1-style" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#69e3c4;strokeWidth=2;fontColor=#69e3c4" edge="1" parent="flow1" />
+        </mxCell>
+        
+        <mxCell id="flow2" edge="1" parent="1" source="action-sheet" target="wizard-sheet">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="980" y="380" />
+              <mxPoint x="980" y="420" />
+            </Array>
+          </mxGeometry>
+          <mxCell id="flow2-style" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9C27B0;strokeWidth=2" edge="1" parent="flow2" />
+        </mxCell>
+        
+        <mxCell id="flow3" edge="1" parent="1" source="action-sheet" target="record-sheet">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="980" y="380" />
+              <mxPoint x="980" y="500" />
+            </Array>
+          </mxGeometry>
+          <mxCell id="flow3-style" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF5722;strokeWidth=2" edge="1" parent="flow3" />
+        </mxCell>
+        
+        <mxCell id="flow4" edge="1" parent="1" source="tab-home" target="home-screen">
+          <mxGeometry relative="1" as="geometry" />
+          <mxCell id="flow4-style" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4CAF50;strokeWidth=2" edge="1" parent="flow4" />
+        </mxCell>
+        
+        <mxCell id="flow5" edge="1" parent="1" source="draft-section" target="route-detail">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="220" y="400" />
+              <mxPoint x="220" y="450" />
+            </Array>
+            <mxCell id="flow5-label" value="View Draft" as="label">
+              <mxGeometry relative="1" as="geometry">
+                <mxPoint x="-10" y="-10" as="offset" />
+              </mxGeometry>
+            </mxCell>
+          </mxGeometry>
+          <mxCell id="flow5-style" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF9500;strokeWidth=2;fontColor=#FF9500" edge="1" parent="flow5" />
+        </mxCell>
+        
+        <!-- Legend -->
+        <mxCell id="legend" value="Legend" style="swimlane;fillColor=#2D3130;strokeColor=#666666;fontColor=#ffffff;startSize=25" vertex="1" parent="1">
+          <mxGeometry x="420" y="580" width="360" height="260" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-visible" value="Tab Bar Visible" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="legend">
+          <mxGeometry x="10" y="35" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-hidden" value="Tab Bar Hidden" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2196F3;strokeColor=#ffffff;fontColor=#ffffff;strokeWidth=2" vertex="1" parent="legend">
+          <mxGeometry x="190" y="35" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-modal" value="Modal/Overlay" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9500;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="legend">
+          <mxGeometry x="10" y="75" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-new" value="NEW in Branch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9C27B0;strokeColor=#ffffff;fontColor=#ffffff;strokeWidth=3" vertex="1" parent="legend">
+          <mxGeometry x="190" y="75" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-draft" value="Draft Feature" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9500;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="legend">
+          <mxGeometry x="10" y="115" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-record" value="Recording Feature" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF5722;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="legend">
+          <mxGeometry x="190" y="115" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-tab" value="Tab Navigator Item" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D4140;strokeColor=#69e3c4;fontColor=#ffffff" vertex="1" parent="legend">
+          <mxGeometry x="10" y="155" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-create" value="Create Action (Central)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1A3D3D;strokeColor=#69e3c4;strokeWidth=3;fontColor=#69e3c4" vertex="1" parent="legend">
+          <mxGeometry x="190" y="155" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-onboarding" value="Onboarding" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00BCD4;strokeColor=#ffffff;fontColor=#ffffff" vertex="1" parent="legend">
+          <mxGeometry x="10" y="195" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

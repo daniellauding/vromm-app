@@ -250,26 +250,57 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
   const handleLocateMe = useCallback(async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(t('common.error'), t('map.permissionDenied'));
+      console.log('🗺️ [MapScreen] Locate Me pressed - checking location permission');
+      
+      // Check current permission status first
+      const currentStatus = await Location.getForegroundPermissionsAsync();
+      console.log('🗺️ [MapScreen] Current permission status:', currentStatus.status);
+      
+      if (currentStatus.status === 'granted') {
+        // Permission already granted, get location
+        const location = await Location.getCurrentPositionAsync({});
+        if (location && mapRef.current) {
+          mapRef.current.animateToRegion({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.1,
+            longitudeDelta: 0.1,
+          });
+        }
         return;
       }
-
-      const location = await Location.getLastKnownPositionAsync({});
-
-      if (location && mapRef.current) {
-        mapRef.current.animateToRegion({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          latitudeDelta: 0.1,
-          longitudeDelta: 0.1,
-        });
+      
+      // Request permission - this shows the native dialog
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('🗺️ [MapScreen] Permission request result:', status);
+      
+      if (status === 'granted') {
+        // Permission granted, get location
+        const location = await Location.getCurrentPositionAsync({});
+        if (location && mapRef.current) {
+          mapRef.current.animateToRegion({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.1,
+            longitudeDelta: 0.1,
+          });
+        }
+      } else {
+        // Permission denied, show helpful message
+        Alert.alert(
+          '📍 Location Permission Required',
+          'To use "Locate Me", please enable location access for this app in your device settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Try Again', onPress: handleLocateMe }
+          ]
+        );
       }
     } catch (err) {
-      console.error('Error getting location:', err);
+      console.error('🗺️ [MapScreen] Error getting location:', err);
+      Alert.alert('Error', 'Unable to get your location. Please try again.');
     }
-  }, [t]);
+  }, []);
 
   // Apply filters from the filter sheet
   const handleApplyFilters = useCallback(

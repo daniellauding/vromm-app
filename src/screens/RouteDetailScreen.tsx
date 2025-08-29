@@ -11,6 +11,7 @@ import {
   Linking,
   Platform,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { YStack, XStack, Text, Card, Button, TextArea, Progress, Separator } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,7 +42,6 @@ import {
   formatRecordingStatsDisplay,
 } from '../utils/routeUtils';
 import { RouteExerciseList, ExerciseDetailModal } from '../components';
-import { RouteExercisesSection } from '../components/shared/RouteExercisesSection';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type RouteRow = Database['public']['Tables']['routes']['Row'];
@@ -153,7 +153,7 @@ function getTranslation(t: (key: string) => string, key: string, fallback: strin
 
 export function RouteDetailScreen({ route }: RouteDetailProps) {
   const { t } = useTranslation();
-  const { routeId, previousScreen } = route.params as { routeId: string; previousScreen?: string };
+  const { routeId } = route.params;
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
@@ -1146,6 +1146,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     }
   };
 
+
+
   const startRoute = async () => {
     try {
       if (!user || !routeId) {
@@ -1225,6 +1227,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     // Give extra bottom space to clear the floating tab bar on iOS
     <Screen edges={[]} padding={false} hideStatusBar bottomInset={80}>
       <YStack f={1}>
+
         {/* Hero Carousel */}
         {getCarouselItems().length > 0 && (
           <View style={{ height: HERO_HEIGHT }}>
@@ -1268,7 +1271,6 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled={true}
           keyboardShouldPersistTaps="handled"
-          scrollEventThrottle={16}
           contentContainerStyle={{ flexGrow: 1 }}
         >
           <YStack gap="$4" padding="$4">
@@ -1292,17 +1294,6 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       onPress={() => navigation.navigate('CreateRoute', { routeId })}
                       variant="outlined"
                       size="md"
-                    />
-                  )}
-                  {/* Show draft indicator and continue editing option */}
-                  {routeData?.is_draft && user?.id === routeData?.creator_id && (
-                    <Button
-                      icon={<Feather name="edit-3" size={20} color="#FF9500" />}
-                      onPress={() => navigation.navigate('CreateRoute', { routeId })}
-                      variant="outlined"
-                      size="md"
-                      backgroundColor="rgba(255, 149, 0, 0.1)"
-                      borderColor="#FF9500"
                     />
                   )}
                   <Button
@@ -1335,8 +1326,6 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   backgroundColor={isDriven ? '$gray10' : '$blue10'}
                   icon={<Feather name="check-circle" size={20} color="white" />}
                   size="$5"
-                  delayPressIn={50}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text color="white" fontSize="$3">
                     {isDriven
@@ -1350,8 +1339,6 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   backgroundColor={isSaved ? '$gray10' : '$blue10'}
                   icon={<Feather name="bookmark" size={20} color="white" />}
                   size="$5"
-                  delayPressIn={50}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text color="white" fontSize="$3">
                     {isSaved
@@ -1364,19 +1351,6 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
               {/* Basic Info Card */}
               <Card backgroundColor="$backgroundStrong" bordered padding="$4">
                 <YStack gap="$2">
-                  {/* Draft indicator */}
-                  {routeData.is_draft && (
-                    <XStack alignItems="center" gap="$2" marginBottom="$2">
-                      <Feather name="edit-3" size={16} color="#FF9500" />
-                      <Text fontSize="$4" color="#FF9500" fontWeight="600">
-                        DRAFT ROUTE
-                      </Text>
-                      <Text fontSize="$3" color="$gray9">
-                        • Only visible to you
-                      </Text>
-                    </XStack>
-                  )}
-                  
                   <XStack gap="$2" alignItems="center">
                     <Text fontSize="$6" fontWeight="600" color="$color">
                       {getTranslation(
@@ -1416,7 +1390,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                   {routeData.creator && (
                     <XStack alignItems="center" gap="$2" marginTop="$2">
                       <Button
-                        variant="secondary"
+                        variant="outlined"
                         icon={<Feather name="user" size={16} color={iconColor} />}
                         onPress={() => {
                           if (routeData?.creator?.id) {
@@ -1635,14 +1609,93 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
             </Card>
 
             {/* Route Exercises Section */}
-            <RouteExercisesSection
-              exercises={routeData.exercises || []}
-              exerciseStats={exerciseStats}
-              completedExerciseIds={completedExerciseIds}
-              allExercisesCompleted={allExercisesCompleted}
-              onStartExercises={handleStartExercises}
-              onExercisePress={handleExercisePress}
-            />
+            {routeData.exercises &&
+              Array.isArray(routeData.exercises) &&
+              routeData.exercises.length > 0 && (
+                <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+                  <YStack gap="$4">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <Text fontSize="$6" fontWeight="600" color="$color">
+                        {t('routeDetail.exercises')}
+                      </Text>
+                      <Button
+                        onPress={handleStartExercises}
+                        backgroundColor="$blue10"
+                        icon={<Feather name="play" size={18} color="white" />}
+                        size="md"
+                      >
+                        <Text color="white" fontSize={14} fontWeight="600">
+                          {allExercisesCompleted
+                            ? t('routeDetail.reviewExercises')
+                            : t('routeDetail.startExercises')}
+                        </Text>
+                        {allExercisesCompleted && (
+                          <View
+                            style={{
+                              backgroundColor: '#10B981',
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 8,
+                              marginLeft: 8,
+                            }}
+                          >
+                            <XStack alignItems="center" gap={2}>
+                              <Feather name="check" size={10} color="white" />
+                              <Text fontSize={10} color="white" fontWeight="600">
+                                COMPLETED
+                              </Text>
+                            </XStack>
+                          </View>
+                        )}
+                      </Button>
+                    </XStack>
+
+                    {/* Exercise List Preview */}
+                    <RouteExerciseList
+                      exercises={routeData.exercises}
+                      completedIds={completedExerciseIds}
+                      maxPreview={3}
+                      onExercisePress={handleExercisePress}
+                    />
+
+                    {/* Exercise Statistics */}
+                    {exerciseStats && (
+                      <Card bordered padding="$3" backgroundColor="$gray2">
+                        <YStack gap="$2">
+                          <Text fontSize={12} fontWeight="600" color="$gray11">
+                            {t('routeDetail.yourProgress')}
+                          </Text>
+                          <XStack justifyContent="space-between" alignItems="center">
+                            <Text fontSize={11} color="$gray11">
+                              {t('routeDetail.completed')}: {exerciseStats.completed}/
+                              {exerciseStats.total}
+                            </Text>
+                            <Text fontSize={11} color="$gray11">
+                              {Math.round((exerciseStats.completed / exerciseStats.total) * 100)}%
+                            </Text>
+                          </XStack>
+                          <Progress
+                            value={Math.round(
+                              (exerciseStats.completed / exerciseStats.total) * 100,
+                            )}
+                            backgroundColor="$gray6"
+                            size="$0.5"
+                          >
+                            <Progress.Indicator backgroundColor="$blue10" />
+                          </Progress>
+
+                          {exerciseStats.lastSessionAt && (
+                            <Text fontSize={10} color="$gray9" marginTop="$1">
+                              {t('routeDetail.lastSession')}:{' '}
+                              {new Date(exerciseStats.lastSessionAt).toLocaleDateString()}
+                            </Text>
+                          )}
+                        </YStack>
+                      </Card>
+                    )}
+                  </YStack>
+                </Card>
+              )}
 
             {/* Reviews Section */}
             <ReviewSection routeId={routeId} reviews={reviews} onReviewAdded={loadReviews} />

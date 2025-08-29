@@ -1,5 +1,12 @@
 import React, { useMemo } from 'react';
 import { View, Image, useColorScheme, Dimensions, TouchableOpacity } from 'react-native';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring, 
+  withSequence,
+  runOnJS
+} from 'react-native-reanimated';
 import { YStack, Text, Card, XStack } from 'tamagui';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
@@ -56,6 +63,46 @@ export function RouteCard({ route }: RouteCardProps) {
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const width = Dimensions.get('window').width - 32; // Account for padding
+
+  // Animation values
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  // Animated styles
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+      opacity: opacity.value,
+    };
+  });
+
+  // Navigation function to be called from runOnJS
+  const navigateToRoute = () => {
+    // Open route detail under Map tab so Map tab remains active
+    // @ts-ignore
+    navigation.navigate('MainTabs', {
+      screen: 'MapTab',
+      params: { screen: 'RouteDetail', params: { routeId: route.id } },
+    });
+  };
+
+  // Enhanced press handler with animations
+  const handlePress = () => {
+    // Zoom and fade animation sequence
+    scale.value = withSequence(
+      withSpring(0.95, { damping: 15, stiffness: 300 }),
+      withSpring(1.05, { damping: 15, stiffness: 300 }),
+      withSpring(1, { damping: 15, stiffness: 300 })
+    );
+    
+    opacity.value = withSequence(
+      withSpring(0.8, { damping: 15, stiffness: 300 }),
+      withSpring(1, { damping: 15, stiffness: 300 }, () => {
+        // Navigate after animation completes
+        runOnJS(navigateToRoute)();
+      })
+    );
+  };
 
   const getMapRegion = () => {
     const waypointsData = (route.waypoint_details ||
@@ -187,18 +234,11 @@ export function RouteCard({ route }: RouteCardProps) {
   }, [route.media_attachments, region, waypoints, route.drawing_mode]);
 
   return (
-    <Card
-      padding="$4"
-      pressStyle={{ scale: 0.98 }}
-      onPress={() => {
-        // Open route detail under Map tab so Map tab remains active
-        // @ts-ignore
-        navigation.navigate('MainTabs', {
-          screen: 'MapTab',
-          params: { screen: 'RouteDetail', params: { routeId: route.id } },
-        });
-      }}
-    >
+    <Animated.View style={animatedStyle}>
+      <Card
+        padding="$4"
+        onPress={handlePress}
+      >
       <YStack space="$4">
         {carouselItems.length > 0 && (
           <View style={{ height: 200, borderRadius: 16, overflow: 'hidden' }}>
@@ -397,5 +437,6 @@ export function RouteCard({ route }: RouteCardProps) {
         </YStack>
       </YStack>
     </Card>
+    </Animated.View>
   );
 }
