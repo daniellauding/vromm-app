@@ -5,8 +5,7 @@ import { Text } from '../components/Text';
 import { Button } from '../components/Button';
 import { useTranslation } from '../contexts/TranslationContext';
 import { AnimatedLogo } from '../components/AnimatedLogo';
-import { OnboardingSlide, Onboarding } from '../components/Onboarding';
-import { fetchOnboardingSlides } from '../services/onboardingService';
+import { OnboardingSlide } from '../components/Onboarding';
 import { supabase } from '../lib/supabase';
 import { useState, useRef, useEffect } from 'react';
 import {
@@ -33,6 +32,10 @@ import { Video, ResizeMode } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
 import { SvgXml } from 'react-native-svg';
+
+// Video asset reference
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const backgroundVideo = require('../../assets/bg_video.mp4');
 
 // Define styles outside of the component
 const styles = StyleSheet.create({
@@ -169,14 +172,14 @@ export function SplashScreen() {
   const { width, height } = Dimensions.get('window');
   const [contentOpacity] = useState(() => new Animated.Value(0));
   const [surveyModalVisible, setSurveyModalVisible] = useState(false);
-  const [isChangingLanguage, setIsChangingLanguage] = useState(false);
+
   const [onboardingSlides, setOnboardingSlides] = useState<OnboardingSlide[]>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isLoadingSlides, setIsLoadingSlides] = useState(true);
   const [seenSlides, setSeenSlides] = useState<Set<number>>(new Set()); // Track which slides have been seen
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
-  const autoScrollTimer = useRef<NodeJS.Timeout | null>(null);
+
   const videoRef = useRef<Video>(null);
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = Dimensions.get('window');
@@ -186,7 +189,7 @@ export function SplashScreen() {
   const surveySheetTranslateY = useRef(new Animated.Value(300)).current;
   const languageBackdropOpacity = useRef(new Animated.Value(0)).current;
   const languageSheetTranslateY = useRef(new Animated.Value(300)).current;
-  
+
   const viewableItemsChangedRef = useRef(
     ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
       if (viewableItems[0] && viewableItems[0].index !== null) {
@@ -195,7 +198,7 @@ export function SplashScreen() {
         setCurrentSlideIndex(realIndex);
         
         // Mark this slide as seen
-        setSeenSlides(prev => new Set(prev).add(realIndex));
+        setSeenSlides((prev) => new Set(prev).add(realIndex));
       }
     },
   );
@@ -573,8 +576,10 @@ export function SplashScreen() {
     // Add icon if available (emoji or FontAwesome)
     if (item.icon) {
       // Check if it's an emoji (Unicode characters)
-      const isEmoji = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(item.icon);
-      
+      const isEmoji =
+        /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(
+          item.icon,
+        );
       if (isEmoji) {
         // Render emoji with glow effect
         mediaElements.push(
@@ -618,7 +623,7 @@ export function SplashScreen() {
             height={width * 0.4}
           >
             <FontAwesome
-              name={item.icon as any}
+              name={item.icon as keyof typeof FontAwesome.glyphMap}
               size={120}
               color={item.iconColor || '#ffffff'}
             />
@@ -679,9 +684,7 @@ export function SplashScreen() {
   const handleLanguageSelect = async (newLanguage: 'en' | 'sv') => {
     setIsLanguageMenuVisible(false);
     if (newLanguage !== language) {
-      setIsChangingLanguage(true);
       await setLanguage(newLanguage);
-      setIsChangingLanguage(false);
     }
   };
 
@@ -775,9 +778,16 @@ export function SplashScreen() {
   };
 
 
-
   // Animated onboarding slide component
-  const AnimatedOnboardingSlide = ({ item, isActive, slideIndex }: { item: OnboardingSlide; isActive: boolean; slideIndex: number }) => {
+  const AnimatedOnboardingSlide = ({
+    item,
+    isActive,
+    slideIndex,
+  }: {
+    item: OnboardingSlide;
+    isActive: boolean;
+    slideIndex: number;
+  }) => {
     const imageScale = useRef(new Animated.Value(seenSlides.has(slideIndex) ? 1 : 0.8)).current;
     const titleTranslateY = useRef(new Animated.Value(seenSlides.has(slideIndex) ? 0 : 30)).current;
     const textTranslateY = useRef(new Animated.Value(seenSlides.has(slideIndex) ? 0 : 40)).current;
@@ -788,7 +798,7 @@ export function SplashScreen() {
       if (isActive && !seenSlides.has(slideIndex)) {
         // Only animate if this slide hasn't been seen before
         console.log('🎬 Animating slide', slideIndex, 'for first time');
-        
+
         // Start entrance animations when slide becomes active for the first time
         Animated.sequence([
           // Animate content with stagger effect
@@ -840,7 +850,15 @@ export function SplashScreen() {
         textOpacity.setValue(1);
       }
       // Don't reset when inactive - keep the final state for seen slides
-    }, [isActive, slideIndex]);
+    }, [
+      isActive,
+      slideIndex,
+      imageScale,
+      titleTranslateY,
+      textTranslateY,
+      titleOpacity,
+      textOpacity,
+    ]);
 
     return (
       <View style={[styles.onboardingSlide, { width }]}>
@@ -1008,30 +1026,75 @@ export function SplashScreen() {
     </ScrollView>
   );
 
-  // Combine splash and onboarding slides data with infinite looping
-  const baseSlides = [{ id: 'splash', isSplash: true }, ...onboardingSlides.map(slide => ({ ...slide, isSplash: false }))];
+  // Always include splash screen as first slide, then add onboarding slides if available
+  const splashSlide: OnboardingSlide & { isSplash: boolean } = {
+    id: 'splash',
+    title_en: 'Welcome to Vromm',
+    title_sv: 'Välkommen till Vromm',
+    text_en: 'Your driving practice companion',
+    text_sv: 'Din körövningspartner',
+    isSplash: true,
+  };
   
-  // Create infinite loop by duplicating slides for smooth scrolling
-  const allSlides = [...baseSlides, ...baseSlides, ...baseSlides]; // Triple the slides for smooth infinite scroll
-  const realSlidesCount = baseSlides.length;
-  const startIndex = realSlidesCount; // Start in the middle set
-  
-  console.log('🚀 SplashScreen render - isLoadingSlides:', isLoadingSlides, 'onboardingSlides:', onboardingSlides.length, 'baseSlides:', baseSlides.length, 'allSlides:', allSlides.length);
+  const baseSlides = [
+    splashSlide,
+    ...onboardingSlides.map((slide) => ({ ...slide, isSplash: false })),
+  ];
 
-  const renderItem = ({ item, index }: { item: any; index: number }) => {
+  // Create infinite loop by duplicating slides for smooth scrolling (only if we have more than 1 slide)
+  const allSlides =
+    baseSlides.length > 1
+      ? [...baseSlides, ...baseSlides, ...baseSlides] // Triple the slides for smooth infinite scroll
+      : baseSlides; // Don't duplicate if only splash screen
+  const realSlidesCount = baseSlides.length;
+  const startIndex = baseSlides.length > 1 ? realSlidesCount : 0; // Start in the middle set if we have multiple slides
+
+  console.log(
+    '🚀 SplashScreen render - isLoadingSlides:',
+    isLoadingSlides,
+    'onboardingSlides:',
+    onboardingSlides.length,
+    'baseSlides:',
+    baseSlides.length,
+    'allSlides:',
+    allSlides.length,
+  );
+
+  const renderItem = ({
+    item,
+    index,
+  }: {
+    item: OnboardingSlide & { isSplash?: boolean };
+    index: number;
+  }) => {
     if (item.isSplash) {
-      return (
-        <View style={{ width }}>
-          {renderSplashContent()}
-        </View>
-      );
+      return <View style={{ width }}>{renderSplashContent()}</View>;
     }
     return renderOnboardingSlide({ item, index });
   };
 
   // Wait for slides to load before rendering carousel
   if (isLoadingSlides) {
-    return renderSplashContent();
+    return (
+      <View style={styles.container}>
+        {/* Background Video with Overlay - always present for splash */}
+        <View style={styles.videoContainer}>
+          <Animated.View style={[styles.backgroundVideo, videoAnimatedStyle]}>
+            <Video
+              ref={videoRef}
+              source={backgroundVideo}
+              style={StyleSheet.absoluteFill}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay
+              isLooping
+              isMuted
+            />
+          </Animated.View>
+          <View style={[styles.overlay, { backgroundColor: '#397770' }]} />
+        </View>
+        {renderSplashContent()}
+      </View>
+    );
   }
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -1040,10 +1103,15 @@ export function SplashScreen() {
     })(event);
   };
 
-  // Render dots indicator (only for real slides, not duplicates)
+  // Render dots indicator (only for real slides, not duplicates, and only if more than 1 slide)
   const renderDots = () => {
-    console.log('🎯 Rendering dots for', baseSlides.length, 'real slides, current index:', currentSlideIndex);
-    
+    console.log(
+      '🎯 Rendering dots for',
+      baseSlides.length,
+      'real slides, current index:',
+      currentSlideIndex,
+    );
+
     if (baseSlides.length <= 1) {
       console.log('⚠️ Not showing dots - only', baseSlides.length, 'slide(s)');
       return null;
@@ -1093,7 +1161,7 @@ export function SplashScreen() {
         <Animated.View style={[styles.backgroundVideo, videoAnimatedStyle]}>
           <Video
             ref={videoRef}
-            source={require('../../assets/bg_video.mp4') as any}
+            source={require('../../assets/bg_video.mp4')}
             style={StyleSheet.absoluteFill}
             resizeMode={ResizeMode.COVER}
             shouldPlay
@@ -1104,24 +1172,30 @@ export function SplashScreen() {
         <View style={[styles.overlay, { backgroundColor: '#397770' }]} />
       </View>
 
-      {/* Use OnboardingScreen component for slides */}
-      {!isLoadingSlides && onboardingSlides.length > 0 ? (
-        <Onboarding
-          slides={onboardingSlides}
-          onDone={() => {
-            // Stay on splash screen after viewing slides
-            console.log('Onboarding slides completed');
-          }}
-          onSkip={() => {
-            // Stay on splash screen after skipping slides
-            console.log('Onboarding slides skipped');
-          }}
-          showAgainKey="splash_onboarding"
-        />
-      ) : (
-        // Show splash content when no slides or still loading
-        renderSplashContent()
-      )}
+      {/* Main Content - Carousel with splash and onboarding slides */}
+      <FlatList
+        ref={slidesRef}
+        data={allSlides}
+        renderItem={renderItem}
+        keyExtractor={(item, index) => `${item.id || 'slide'}-${index}`}
+        horizontal={baseSlides.length > 1} // Only horizontal if multiple slides
+        pagingEnabled={baseSlides.length > 1} // Only paging if multiple slides
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={32}
+        onScroll={baseSlides.length > 1 ? handleScroll : undefined}
+        onMomentumScrollEnd={baseSlides.length > 1 ? handleMomentumScrollEnd : undefined}
+        onViewableItemsChanged={baseSlides.length > 1 ? viewableItemsChangedRef.current : undefined}
+        viewabilityConfig={baseSlides.length > 1 ? viewConfigRef.current : undefined}
+        getItemLayout={(data, index) => ({
+          length: width,
+          offset: width * index,
+          index,
+        })}
+        initialScrollIndex={baseSlides.length > 1 ? startIndex : 0}
+        bounces={false}
+        decelerationRate="fast"
+        scrollEnabled={baseSlides.length > 1} // Only allow scrolling if multiple slides
+      />
 
       {/* Help Icon - show on all slides */}
       <Animated.View
