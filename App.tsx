@@ -20,6 +20,7 @@ import { ModalProvider } from './src/contexts/ModalContext';
 import { ToastProvider } from './src/contexts/ToastContext';
 import { CreateRouteProvider } from './src/contexts/CreateRouteContext';
 import { MessagingProvider } from './src/contexts/MessagingContext';
+import { TourProvider } from './src/contexts/TourContext';
 import { ErrorBoundary, clearOldCrashReports } from './src/components/ErrorBoundary';
 import { NetworkAlert } from './src/components/NetworkAlert';
 import { logInfo, logWarn, logError, logNavigation } from './src/utils/logger';
@@ -30,6 +31,8 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Updates from 'expo-updates';
 import { CommonActions } from '@react-navigation/native';
 import { registerInvitationModalOpener } from './src/utils/invitationModalBridge';
+import { TourOverlay } from './src/components/TourOverlay';
+import { PromotionalModal, usePromotionalModal } from './src/components/PromotionalModal';
 import type { NavigationContainerRef } from '@react-navigation/native';
 
 // Define a compatible type for WebBrowser dismiss helpers to avoid any-casts
@@ -132,6 +135,9 @@ function AppContent() {
   // Global invitation notification state
   const [showGlobalInvitationNotification, setShowGlobalInvitationNotification] = useState(false);
   
+  // Global promotional modal state
+  const { showModal: showPromotionalModal, modalContentType, setShowModal: setShowPromotionalModal, checkForPromotionalContent } = usePromotionalModal();
+  
   // Debug: Force show global modal (remove in production)
   useEffect(() => {
     const handleShake = () => {
@@ -207,6 +213,12 @@ function AppContent() {
           setShowGlobalInvitationNotification(true);
         } else if (!hasValidInvitation) {
           console.log('🌍 No valid invitations found');
+          
+          // If no invitations, check for promotional content
+          console.log('🎉 [AppContent] Checking for promotional content...');
+          setTimeout(() => {
+            checkForPromotionalContent('modal');
+          }, 1000);
         } else {
           console.log('🌍 Modal already showing, not triggering again');
         }
@@ -854,6 +866,16 @@ function AppContent() {
           )}
         </Stack.Navigator>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        
+        {/* Tour overlay - rendered at app level */}
+        <TourOverlay />
+        
+        {/* Promotional modal - rendered at app level */}
+        <PromotionalModal
+          visible={showPromotionalModal}
+          onClose={() => setShowPromotionalModal(false)}
+          contentType={modalContentType}
+        />
       </ToastProvider>
           </NavigationContainer>
     </>
@@ -935,7 +957,9 @@ export default function App() {
                       <CreateRouteProvider>
                         <ModalProvider>
                           <MessagingProvider>
-                            <AppContent />
+                            <TourProvider>
+                              <AppContent />
+                            </TourProvider>
                           </MessagingProvider>
                         </ModalProvider>
                       </CreateRouteProvider>

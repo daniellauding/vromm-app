@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -12,6 +12,7 @@ import {
   TextInput,
   Alert,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { YStack, XStack, Text, Card, Select, Image as TamaguiImage, Button } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
@@ -194,6 +195,7 @@ interface UserPayment {
 
 // Use translation context that's available in the app
 import { useTranslation } from '../contexts/TranslationContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ProgressCircle component
 interface ProgressCircleProps {
@@ -433,21 +435,32 @@ export function ProgressScreen() {
 
         setCategoryOptions(groupedCategories);
 
-        // Set defaults based on your actual data
-        // Most learning paths have: Car, Manual, Standard License, Beginner, "Prepare for driving test"
-        const defaultFilters: Record<CategoryType, string> = {
-          vehicle_type: 'all', // Show all vehicle types
-          transmission_type: 'all', // Show all transmission types  
-          license_type: 'all', // Show all license types
-          experience_level: 'all', // Show all experience levels
-          purpose: 'all', // Show all purposes (learning, Signs & Situations, etc.)
-          user_profile: 'all', // Show all user profiles
-          platform: 'all', // Show all platforms
-          type: 'all', // Show all content types
-        };
+        // Try to load saved filter preferences first
+        const savedFilters = await loadFilterPreferences();
+        
+        if (savedFilters) {
+          // Use saved preferences
+          setCategoryFilters(savedFilters);
+          console.log('✅ Using saved filter preferences:', savedFilters);
+        } else {
+          // Set defaults to match SQL data exactly
+          const defaultFilters: Record<CategoryType, string> = {
+            vehicle_type: getProfilePreference('vehicle_type', 'Car'), // Match SQL: 'Car'
+            transmission_type: getProfilePreference('transmission_type', 'Manual'), // Match SQL: 'Manual'
+            license_type: getProfilePreference('license_type', 'Standard Driving License'), // Match SQL: 'Standard Driving License'
+            experience_level: getProfilePreference('experience_level', 'Beginner'), // Match SQL: 'Beginner'
+            purpose: getProfilePreference('purpose', 'Prepare for driving test'), // Match SQL: 'Prepare for driving test'
+            user_profile: 'All', // Match SQL: 'All'
+            platform: 'both', // Match SQL: 'both' 
+            type: 'learning', // Match SQL: 'learning'
+          };
 
-        setCategoryFilters(defaultFilters);
-        console.log('✅ Set default category filters:', defaultFilters);
+          setCategoryFilters(defaultFilters);
+          console.log('✅ Set default category filters:', defaultFilters);
+          
+          // Save defaults for next time
+          saveFilterPreferences(defaultFilters);
+        }
 
       } catch (err) {
         console.error('💥 Exception fetching categories:', err);
@@ -485,7 +498,14 @@ export function ProgressScreen() {
     fetchCategories();
   }, []);
 
-  // Modal state for category filter selection
+  // Filter drawer state
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  
+  // Animation refs for drawer (similar to TabNavigator)
+  const drawerTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+  const drawerOpacity = useRef(new Animated.Value(0)).current;
+  
+  // Modal state for category filter selection (legacy - kept for compatibility)
   const [activeFilterType, setActiveFilterType] = useState<CategoryType | null>(null);
 
   // Category labels for display - EXTENDED with translations
@@ -500,10 +520,124 @@ export function ProgressScreen() {
     type: t('filters.contentType') || 'Content Type',
   };
 
-  // Filter option selection handler
+  // Helper function to get user profile preferences with value mapping
+  const getProfilePreference = (key: string, defaultValue: string): string => {
+    if (!profile) return defaultValue;
+    
+    try {
+      // Check if profile has license_plan_data from onboarding
+      const licenseData = (profile as any)?.license_plan_data;
+      if (licenseData && typeof licenseData === 'object') {
+        let value = licenseData[key];
+        
+        // Map onboarding values to SQL values
+        switch (key) {
+          case 'vehicle_type':
+            if (value === 'passenger_car') value = 'Car';
+            return value || defaultValue;
+          case 'transmission_type':
+            if (value === 'manual') value = 'Manual';
+            if (value === 'automatic') value = 'Automatic';
+            return value || defaultValue;
+          case 'license_type':
+            if (value === 'b') value = 'Standard Driving License';
+            if (value === 'a') value = 'Motorcycle License';
+            if (value === 'c') value = 'Truck License';
+            return value || defaultValue;
+          case 'experience_level':
+            if (value === 'beginner') value = 'Beginner';
+            if (value === 'intermediate') value = 'Intermediate';
+            if (value === 'advanced') value = 'Advanced';
+            return value || defaultValue;
+          case 'purpose':
+            // Check if user has a specific purpose preference
+            return value || defaultValue;
+          default:
+            return value || defaultValue;
+        }
+      }
+      
+      // Fallback to direct profile properties with mapping
+      let value = (profile as any)[key];
+      if (key === 'vehicle_type' && value === 'passenger_car') value = 'Car';
+      if (key === 'transmission_type' && value === 'manual') value = 'Manual';
+      if (key === 'license_type' && value === 'b') value = 'Standard Driving License';
+      if (key === 'experience_level' && value === 'beginner') value = 'Beginner';
+      
+      return value || defaultValue;
+    } catch (error) {
+      console.log('Error getting profile preference:', error);
+      return defaultValue;
+    }
+  };
+
+  // Animation effect for drawer
+  useEffect(() => {
+    if (showFilterDrawer) {
+      // Animate in
+      Animated.parallel([
+        Animated.timing(drawerTranslateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+        Animated.timing(drawerOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+      ]).start();
+    } else {
+      // Animate out
+      Animated.parallel([
+        Animated.timing(drawerTranslateY, {
+          toValue: Dimensions.get('window').height,
+          duration: 250,
+          useNativeDriver: false,
+        }),
+        Animated.timing(drawerOpacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: false,
+        }),
+      ]).start();
+    }
+  }, [showFilterDrawer, drawerTranslateY, drawerOpacity]);
+
+  // Save filter preferences to AsyncStorage
+  const saveFilterPreferences = async (filters: Record<CategoryType, string>) => {
+    try {
+      await AsyncStorage.setItem('vromm_progress_filters', JSON.stringify(filters));
+      console.log('✅ Saved filter preferences:', filters);
+    } catch (error) {
+      console.error('Error saving filter preferences:', error);
+    }
+  };
+
+  // Load filter preferences from AsyncStorage
+  const loadFilterPreferences = async (): Promise<Record<CategoryType, string> | null> => {
+    try {
+      const saved = await AsyncStorage.getItem('vromm_progress_filters');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('✅ Loaded saved filter preferences:', parsed);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading filter preferences:', error);
+    }
+    return null;
+  };
+
+  // Filter option selection handler with persistence
   const handleFilterSelect = (filterType: CategoryType, value: string) => {
-    setCategoryFilters((prev) => ({ ...prev, [filterType]: value }));
+    const newFilters = { ...categoryFilters, [filterType]: value };
+    setCategoryFilters(newFilters);
     setActiveFilterType(null);
+    setShowFilterDrawer(false); // Close drawer when selection is made
+    
+    // Save to AsyncStorage for persistence
+    saveFilterPreferences(newFilters);
   };
 
   // NEW: Load user payments and access control
@@ -2062,6 +2196,249 @@ export function ProgressScreen() {
             </TouchableOpacity>
           </YStack>
         </Pressable>
+      </RNModal>
+    );
+  };
+
+  // Filter drawer component similar to FilterSheet.tsx
+  const renderFilterDrawer = () => {
+    if (!showFilterDrawer) return null;
+    
+    return (
+      <RNModal
+        visible={showFilterDrawer}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowFilterDrawer(false)}
+      >
+        {/* Overlay */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            opacity: drawerOpacity,
+          }}
+        >
+          <TouchableOpacity 
+            style={{ flex: 1 }} 
+            activeOpacity={1} 
+            onPress={() => setShowFilterDrawer(false)} 
+          />
+        </Animated.View>
+
+        {/* Drawer */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: '#1A1A1A',
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            maxHeight: '80%',
+            transform: [{ translateY: drawerTranslateY }],
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 4,
+            elevation: 8,
+          }}
+        >
+          <YStack padding="$4">
+            {/* Header */}
+            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
+              <TouchableOpacity
+                onPress={() => {
+                  // Reset all filters to correct defaults
+                  const defaultFilters: Record<CategoryType, string> = {
+                    vehicle_type: getProfilePreference('vehicle_type', 'Car'),
+                    transmission_type: getProfilePreference('transmission_type', 'Manual'),
+                    license_type: getProfilePreference('license_type', 'Standard Driving License'),
+                    experience_level: getProfilePreference('experience_level', 'Beginner'),
+                    purpose: getProfilePreference('purpose', 'Prepare for driving test'),
+                    user_profile: 'All',
+                    platform: 'both',
+                    type: 'learning',
+                  };
+                  setCategoryFilters(defaultFilters);
+                  saveFilterPreferences(defaultFilters);
+                }}
+              >
+                <Text color="#00E6C3">Reset</Text>
+              </TouchableOpacity>
+              
+              <Text fontWeight="600" fontSize="$5" color="white">
+                Filter Learning Paths
+              </Text>
+              
+              <TouchableOpacity onPress={() => setShowFilterDrawer(false)}>
+                <Feather name="x" size={24} color="white" />
+              </TouchableOpacity>
+            </XStack>
+
+            <ScrollView style={{ maxHeight: 400 }}>
+              {/* Vehicle Type */}
+              {categoryOptions.vehicle_type && categoryOptions.vehicle_type.length > 1 && (
+                <YStack marginBottom="$4">
+                  <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
+                    {categoryLabels.vehicle_type}
+                  </Text>
+                  <XStack flexWrap="wrap" gap="$2">
+                    {categoryOptions.vehicle_type.map((option) => (
+                      <TouchableOpacity
+                        key={option.id}
+                        onPress={() => handleFilterSelect('vehicle_type', option.value)}
+                        style={{
+                          backgroundColor: categoryFilters.vehicle_type === option.value ? '#00E6C3' : '#333',
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text
+                          fontSize={14}
+                          color={categoryFilters.vehicle_type === option.value ? '#000' : '#fff'}
+                        >
+                          {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </XStack>
+                </YStack>
+              )}
+
+              {/* Transmission Type */}
+              {categoryOptions.transmission_type && categoryOptions.transmission_type.length > 1 && (
+                <YStack marginBottom="$4">
+                  <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
+                    {categoryLabels.transmission_type}
+                  </Text>
+                  <XStack flexWrap="wrap" gap="$2">
+                    {categoryOptions.transmission_type.map((option) => (
+                      <TouchableOpacity
+                        key={option.id}
+                        onPress={() => handleFilterSelect('transmission_type', option.value)}
+                        style={{
+                          backgroundColor: categoryFilters.transmission_type === option.value ? '#00E6C3' : '#333',
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text
+                          fontSize={14}
+                          color={categoryFilters.transmission_type === option.value ? '#000' : '#fff'}
+                        >
+                          {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </XStack>
+                </YStack>
+              )}
+
+              {/* License Type */}
+              {categoryOptions.license_type && categoryOptions.license_type.length > 1 && (
+                <YStack marginBottom="$4">
+                  <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
+                    {categoryLabels.license_type}
+                  </Text>
+                  <XStack flexWrap="wrap" gap="$2">
+                    {categoryOptions.license_type.map((option) => (
+                      <TouchableOpacity
+                        key={option.id}
+                        onPress={() => handleFilterSelect('license_type', option.value)}
+                        style={{
+                          backgroundColor: categoryFilters.license_type === option.value ? '#00E6C3' : '#333',
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text
+                          fontSize={14}
+                          color={categoryFilters.license_type === option.value ? '#000' : '#fff'}
+                        >
+                          {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </XStack>
+                </YStack>
+              )}
+
+              {/* Experience Level */}
+              {categoryOptions.experience_level && categoryOptions.experience_level.length > 1 && (
+                <YStack marginBottom="$4">
+                  <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
+                    {categoryLabels.experience_level}
+                  </Text>
+                  <XStack flexWrap="wrap" gap="$2">
+                    {categoryOptions.experience_level.map((option) => (
+                      <TouchableOpacity
+                        key={option.id}
+                        onPress={() => handleFilterSelect('experience_level', option.value)}
+                        style={{
+                          backgroundColor: categoryFilters.experience_level === option.value ? '#00E6C3' : '#333',
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text
+                          fontSize={14}
+                          color={categoryFilters.experience_level === option.value ? '#000' : '#fff'}
+                        >
+                          {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </XStack>
+                </YStack>
+              )}
+
+              {/* Purpose */}
+              {categoryOptions.purpose && categoryOptions.purpose.length > 1 && (
+                <YStack marginBottom="$4">
+                  <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
+                    {categoryLabels.purpose}
+                  </Text>
+                  <XStack flexWrap="wrap" gap="$2">
+                    {categoryOptions.purpose.map((option) => (
+                      <TouchableOpacity
+                        key={option.id}
+                        onPress={() => handleFilterSelect('purpose', option.value)}
+                        style={{
+                          backgroundColor: categoryFilters.purpose === option.value ? '#00E6C3' : '#333',
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text
+                          fontSize={14}
+                          color={categoryFilters.purpose === option.value ? '#000' : '#fff'}
+                        >
+                          {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </XStack>
+                </YStack>
+              )}
+            </ScrollView>
+          </YStack>
+        </Animated.View>
       </RNModal>
     );
   };
@@ -3909,83 +4286,72 @@ export function ProgressScreen() {
             <Feather name="clock" size={18} color="#fff" />
           </TouchableOpacity>
         </XStack>
-        {/* Category filters */}
-        <YStack
-          space={12}
-          padding={16}
-          backgroundColor="$backgroundStronger"
-          borderRadius={16}
-          marginBottom={24}
-        >
-          <XStack alignItems="center" justifyContent="space-between">
-            <Text fontSize={16} fontWeight="bold" color="$color">
-              {t('progress.filterLearningPaths')}
+        {/* Filter and Show All Controls */}
+        <XStack justifyContent="space-between" alignItems="center" marginBottom={24}>
+          <TouchableOpacity
+            onPress={() => setShowFilterDrawer(true)}
+            style={{
+              backgroundColor: '#333',
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+            }}
+          >
+            <Feather name="filter" size={20} color="#00E6C3" />
+            {/* Show active filter count badge */}
+            {(() => {
+              const activeFilters = Object.values(categoryFilters).filter(value => value !== 'all').length;
+              return activeFilters > 0 ? (
+                <View style={{
+                  position: 'absolute',
+                  top: -4,
+                  right: -4,
+                  backgroundColor: '#00E6C3',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 4,
+                }}>
+                  <Text fontSize={12} fontWeight="bold" color="#000">
+                    {activeFilters}
+                  </Text>
+                </View>
+              ) : null;
+            })()}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setShowAllExercises(!showAllExercises)}
+            style={{
+              backgroundColor: showAllExercises ? '#4B6BFF' : '#333',
+              paddingHorizontal: 12,
+              paddingVertical: 12,
+              borderRadius: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Feather
+              name={showAllExercises ? 'list' : 'plus'}
+              size={14}
+              color={showAllExercises ? 'white' : '#888'}
+            />
+            <Text fontSize={12} fontWeight="600" color={showAllExercises ? 'white' : '#888'}>
+              {showAllExercises ? 'All Exercises' : 'Show All'}
             </Text>
+          </TouchableOpacity>
+        </XStack>
 
-            <TouchableOpacity
-              onPress={() => setShowAllExercises(!showAllExercises)}
-              style={{
-                backgroundColor: showAllExercises ? '#4B6BFF' : '#333',
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 16,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <Feather
-                name={showAllExercises ? 'list' : 'plus'}
-                size={14}
-                color={showAllExercises ? 'white' : '#888'}
-              />
-              <Text fontSize={12} fontWeight="600" color={showAllExercises ? 'white' : '#888'}>
-                {showAllExercises ? 'All Exercises' : 'Show All'}
-              </Text>
-            </TouchableOpacity>
-          </XStack>
-
-          <XStack flexWrap="wrap" gap={8} justifyContent="space-between">
-            {Object.keys(categoryFilters).map((filterType) => {
-              const type = filterType as CategoryType;
-              // Skip if there are no options for this category type
-              if (!categoryOptions[type] || categoryOptions[type].length <= 1) return null;
-
-              // Find the selected option
-              const selectedOption = categoryOptions[type].find(
-                (opt) => opt.value === categoryFilters[type],
-              );
-
-              const displayValue = selectedOption
-                ? selectedOption.label[lang] || selectedOption.label.en
-                : 'All';
-
-              return (
-                <TouchableOpacity
-                  key={type}
-                  onPress={() => setActiveFilterType(type)}
-                  style={{
-                    flexBasis: '48%',
-                    maxWidth: 150,
-                    backgroundColor: '#333',
-                    padding: 12,
-                    borderRadius: 8,
-                    marginBottom: 8,
-                  }}
-                >
-                  <Text fontSize={14} color="$color" marginBottom={4}>
-                    {categoryLabels[type]}
-                  </Text>
-                  <Text fontSize={16} color="#00E6C3">
-                    {displayValue}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </XStack>
-        </YStack>
-
-        {/* Render filter selection modals */}
+        {/* Render filter drawer */}
+        {renderFilterDrawer()}
+        
+        {/* Render filter selection modals (legacy - kept for compatibility) */}
         {renderFilterModal(activeFilterType)}
 
         {/* Show All Exercises Section */}

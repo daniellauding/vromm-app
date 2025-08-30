@@ -14,6 +14,7 @@ import {
   RefreshControl,
   TextInput,
   Dimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
@@ -30,6 +31,9 @@ import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from '../types/navigation';
 import { forceRefreshTranslations, debugTranslations } from '../services/translationService';
 import { useTranslation } from '../contexts/TranslationContext';
+import { useTour } from '../contexts/TourContext';
+import { useLocation } from '../context/LocationContext';
+import { usePromotionalModal } from '../components/PromotionalModal';
 import { Language } from '../contexts/TranslationContext';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -195,6 +199,9 @@ const CustomBarChart = ({
 export function ProfileScreen() {
   const { user, profile, updateProfile, signOut } = useAuth();
   const { language, setLanguage, t } = useTranslation();
+  const { resetTour, startDatabaseTour } = useTour();
+  const { setUserLocation } = useLocation();
+  const { checkForPromotionalContent } = usePromotionalModal();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -210,6 +217,11 @@ export function ProfileScreen() {
   const [optDeleteExercises, setOptDeleteExercises] = useState(false);
   const [optDeleteReviews, setOptDeleteReviews] = useState(false);
   const [optTransferPublic, setOptTransferPublic] = useState(true);
+  
+  // Location autocomplete state
+  const [showLocationDrawer, setShowLocationDrawer] = useState(false);
+  const [locationSearchResults, setLocationSearchResults] = useState<any[]>([]);
+  const [locationSearchTimeout, setLocationSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   
   const theme = useTheme();
   const colorScheme = useColorScheme();
@@ -410,6 +422,120 @@ export function ProfileScreen() {
       setLoading(false);
     }
   }, []);
+
+  // Location search function similar to OnboardingInteractive
+  const handleLocationSearch = async (query: string) => {
+    // Update form data as user types
+    setFormData((prev) => ({ ...prev, location: query }));
+
+    // Clear previous timeout
+    if (locationSearchTimeout) {
+      clearTimeout(locationSearchTimeout);
+    }
+
+    if (!query.trim() || query.length < 2) {
+      setLocationSearchResults([]);
+      return;
+    }
+
+    // Set new timeout for debounced search
+    const timeout = setTimeout(async () => {
+      try {
+        // Try with original query first
+        let results = await Location.geocodeAsync(query);
+
+        // If no results, try with more specific search terms
+        if (results.length === 0) {
+          const searchTerms = [
+            `${query}, Sweden`,
+            `${query}, United States`,
+            `${query}, Europe`,
+            query, // Original query as fallback
+          ];
+
+          for (const term of searchTerms) {
+            results = await Location.geocodeAsync(term);
+            if (results.length > 0) break;
+          }
+        }
+
+        if (results.length > 0) {
+          const addresses = await Promise.all(
+            results.map(async (result) => {
+              try {
+                const address = await Location.reverseGeocodeAsync({
+                  latitude: result.latitude,
+                  longitude: result.longitude,
+                });
+                return {
+                  ...address[0],
+                  coords: {
+                    latitude: result.latitude,
+                    longitude: result.longitude,
+                  },
+                };
+              } catch (err) {
+                return null;
+              }
+            })
+          );
+
+          // Filter out null values and duplicates
+          const uniqueAddresses = addresses.filter(
+            (addr, index, self) =>
+              addr &&
+              addr.coords &&
+              index ===
+                self.findIndex(
+                  (a) =>
+                    a?.coords?.latitude === addr.coords?.latitude &&
+                    a?.coords?.longitude === addr.coords?.longitude,
+                ),
+          );
+
+          setLocationSearchResults(uniqueAddresses);
+          if (uniqueAddresses.length > 0) {
+            setShowLocationDrawer(true);
+          }
+        } else {
+          setLocationSearchResults([]);
+        }
+      } catch (err) {
+        console.error('Location geocoding error:', err);
+        setLocationSearchResults([]);
+      }
+    }, 300);
+
+    setLocationSearchTimeout(timeout);
+  };
+
+  // Handle location selection from autocomplete
+  const handleLocationSelect = async (locationData: any) => {
+    const locationName = [locationData.city, locationData.region, locationData.country]
+      .filter(Boolean)
+      .join(', ');
+    
+    setFormData((prev) => ({
+      ...prev,
+      location: locationName,
+      location_lat: locationData.coords?.latitude || null,
+      location_lng: locationData.coords?.longitude || null,
+    }));
+    
+    // Update LocationContext with selected location
+    if (locationData.coords?.latitude && locationData.coords?.longitude) {
+      await setUserLocation({
+        name: locationName,
+        latitude: locationData.coords.latitude,
+        longitude: locationData.coords.longitude,
+        source: 'profile',
+        timestamp: new Date().toISOString(),
+      });
+    }
+    
+    setShowLocationDrawer(false);
+    setLocationSearchResults([]);
+  };
 
   const handleShowOnboarding = async () => {
     await resetOnboarding('vromm_onboarding');
@@ -1678,6 +1804,15 @@ export function ProfileScreen() {
     }
   }, [activeStudentId, fetchDrivingStats, profile?.id]);
 
+  // Clean up location search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (locationSearchTimeout) {
+        clearTimeout(locationSearchTimeout);
+      }
+    };
+  }, [locationSearchTimeout]);
+
   // Fetch driving statistics
   const fetchDrivingStats = useCallback(async () => {
     if (!profile?.id) return;
@@ -1975,24 +2110,41 @@ export function ProfileScreen() {
               </Text>
               <FormField
                 value={formData.location}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, location: text }))}
-                placeholder={t('profile.locationPlaceholder')}
+                onChangeText={handleLocationSearch}
+                placeholder={t('profile.locationPlaceholder') + ' (type to search...)'}
                 autoCapitalize="none"
                 rightElement={
-                  <Button
-                    onPress={detectLocation}
-                    disabled={loading}
-                    variant="secondary"
-                    padding="$2"
-                    backgroundColor="transparent"
-                    borderWidth={0}
-                  >
-                    <Feather
-                      name="map-pin"
-                      size={20}
-                      color={colorScheme === 'dark' ? 'white' : 'black'}
-                    />
-                  </Button>
+                  <XStack gap="$1">
+                    {locationSearchResults.length > 0 && (
+                      <Button
+                        onPress={() => setShowLocationDrawer(true)}
+                        variant="secondary"
+                        padding="$2"
+                        backgroundColor="transparent"
+                        borderWidth={0}
+                      >
+                        <Feather
+                          name="search"
+                          size={18}
+                          color="#00E6C3"
+                        />
+                      </Button>
+                    )}
+                    <Button
+                      onPress={detectLocation}
+                      disabled={loading}
+                      variant="secondary"
+                      padding="$2"
+                      backgroundColor="transparent"
+                      borderWidth={0}
+                    >
+                      <Feather
+                        name="map-pin"
+                        size={20}
+                        color={colorScheme === 'dark' ? 'white' : 'black'}
+                      />
+                    </Button>
+                  </XStack>
                 }
               />
             </YStack>
@@ -2722,6 +2874,53 @@ export function ProfileScreen() {
               </XStack>
             </Button>
 
+            <Button 
+              onPress={async () => {
+                try {
+                  // Reset ALL onboarding storage to force it to show
+                  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                  
+                  console.log('🔄 [ProfileScreen] Clearing ALL onboarding storage...');
+                  await AsyncStorage.multiRemove([
+                    'interactive_onboarding',
+                    'vromm_first_login', 
+                    'vromm_onboarding',
+                    'show_onboarding'
+                  ]);
+                  
+                  console.log('🔄 [ProfileScreen] Storage cleared, checking current state...');
+                  const remainingKeys = await AsyncStorage.getAllKeys();
+                  const onboardingKeys = remainingKeys.filter(key => 
+                    key.includes('onboarding') || key.includes('first_login')
+                  );
+                  console.log('🔄 [ProfileScreen] Remaining onboarding keys:', onboardingKeys);
+                  
+                  // Navigate to home and trigger onboarding
+                  navigation.navigate('MainTabs', {
+                    screen: 'HomeTab',
+                    params: { screen: 'HomeScreen', params: { forceOnboarding: true } }
+                  });
+                  
+                  Alert.alert('Onboarding Reset', 'All onboarding storage cleared. Check console logs and home screen.');
+                } catch (error) {
+                  console.error('Error resetting interactive onboarding:', error);
+                  Alert.alert('Error', 'Failed to reset interactive onboarding');
+                }
+              }} 
+              variant="secondary" 
+              size="lg"
+              backgroundColor="$green9"
+            >
+              <XStack gap="$2" alignItems="center">
+                <Feather
+                  name="refresh-cw"
+                  size={20}
+                  color="white"
+                />
+                <Text color="white">🚗 FORCE Reset & Test Onboarding</Text>
+              </XStack>
+            </Button>
+
             <Button onPress={navigateToOnboardingDemo} variant="secondary" size="lg">
               <XStack gap="$2" alignItems="center">
                 <Feather
@@ -3042,6 +3241,77 @@ ${
                   marginBottom="$2"
                 >
                   🔔 Test Push Notifications
+                </Button>
+                
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      console.log('🎯 [ProfileScreen] Reset tour button pressed');
+                      await resetTour();
+                      console.log('🎯 [ProfileScreen] Tour reset completed');
+                      
+                      // Navigate to home and start database tour
+                      navigation.navigate('MainTabs', {
+                        screen: 'HomeTab',
+                        params: { screen: 'HomeScreen' }
+                      });
+                      console.log('🎯 [ProfileScreen] Navigated to HomeScreen');
+                      
+                      setTimeout(() => {
+                        console.log('🎯 [ProfileScreen] Starting database tour...');
+                        startDatabaseTour();
+                      }, 500);
+                      
+                      Alert.alert('Tour Reset', 'App tour has been reset and will start shortly!');
+                    } catch (error) {
+                      console.error('Error resetting tour:', error);
+                      Alert.alert('Error', 'Failed to reset tour');
+                    }
+                  }}
+                  marginBottom="$2"
+                  backgroundColor="$purple9"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="map" size={20} color="white" />
+                    <Text color="white">🎯 Reset & Test App Tour</Text>
+                  </XStack>
+                </Button>
+                
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      console.log('🎉 [ProfileScreen] Test promotional modal button pressed');
+                      
+                      // Clear promotional modal storage to force it to show
+                      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                      await AsyncStorage.removeItem('promotional_modal_seen');
+                      console.log('🎉 [ProfileScreen] Cleared promotional modal storage');
+                      
+                      // Trigger promotional content check
+                      const result = await checkForPromotionalContent('modal');
+                      console.log('🎉 [ProfileScreen] Promotional content check result:', result);
+                      
+                      if (result) {
+                        Alert.alert('Promotional Modal', 'Promotional modal should appear shortly!');
+                      } else {
+                        Alert.alert('No Content', 'No promotional content found. Make sure you ran the SQL in Supabase.');
+                      }
+                    } catch (error) {
+                      console.error('Error testing promotional modal:', error);
+                      Alert.alert('Error', 'Failed to test promotional modal');
+                    }
+                  }}
+                  marginBottom="$2"
+                  backgroundColor="$orange9"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="gift" size={20} color="white" />
+                    <Text color="white">🎉 Test Promotional Modal</Text>
+                  </XStack>
                 </Button>
               </YStack>
             </Card>
@@ -3828,6 +4098,79 @@ ${
           onRemovalComplete={handleRemovalComplete}
         />
       )}
+
+      {/* Location Autocomplete Modal */}
+      <Modal
+        visible={showLocationDrawer}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLocationDrawer(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowLocationDrawer(false)}
+        >
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            maxHeight="70%"
+          >
+            <Text size="lg" weight="bold" color="$color" marginBottom="$4" textAlign="center">
+              Select Your Location
+            </Text>
+            
+            <ScrollView style={{ maxHeight: 300 }}>
+              <YStack gap="$1">
+                {locationSearchResults.length === 0 && (
+                  <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                    No locations found. Keep typing to search worldwide.
+                  </Text>
+                )}
+                
+                {locationSearchResults.map((locationData, index) => {
+                  const locationName = [locationData.city, locationData.region, locationData.country]
+                    .filter(Boolean)
+                    .join(', ');
+                  
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => handleLocationSelect(locationData)}
+                      style={{
+                        backgroundColor: formData.location === locationName ? '$blue5' : '$backgroundStrong',
+                        padding: 16,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: formData.location === locationName ? '$blue8' : '$borderColor',
+                      }}
+                    >
+                      <XStack alignItems="center" justifyContent="space-between">
+                        <YStack>
+                          <Text size="md" color={formData.location === locationName ? '$blue12' : '$color'}>
+                            {locationName}
+                          </Text>
+                          <Text size="xs" color="$gray11">
+                            {locationData.coords?.latitude.toFixed(4)}, {locationData.coords?.longitude.toFixed(4)}
+                          </Text>
+                        </YStack>
+                        {formData.location === locationName && (
+                          <Feather name="check" size={20} color="$blue11" />
+                        )}
+                      </XStack>
+                    </TouchableOpacity>
+                  );
+                })}
+              </YStack>
+            </ScrollView>
+          </YStack>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }

@@ -18,6 +18,7 @@ export const GettingStarted = () => {
   const [hasCreatedRoutes, setHasCreatedRoutes] = React.useState(false);
   const [hasCompletedExercise, setHasCompletedExercise] = React.useState(false);
   const [hasSavedRoute, setHasSavedRoute] = React.useState(false);
+  const [hasConnections, setHasConnections] = React.useState(false);
 
   // Type assertion helper for profile to handle new fields
   const typedProfile = profile as typeof profile & {
@@ -122,12 +123,40 @@ export const GettingStarted = () => {
     checkSavedRoutes();
   }, [user]);
 
+  // Check if user has connections (supervisors or students)
+  React.useEffect(() => {
+    const checkConnections = async () => {
+      if (!user) return;
+      try {
+        const { count, error } = await supabase
+          .from('student_supervisor_relationships')
+          .select('id', { count: 'exact', head: true })
+          .or(`student_id.eq.${user.id},supervisor_id.eq.${user.id}`);
+
+        if (!error && typeof count === 'number') {
+          setHasConnections(count > 0);
+        } else {
+          setHasConnections(false);
+        }
+      } catch (err) {
+        setHasConnections(false);
+      }
+    };
+
+    checkConnections();
+  }, [user]);
+
   const hasLicensePlan = typedProfile?.license_plan_completed;
   const hasRoleSelected = typedProfile?.role_confirmed === true;
 
   // Add this helper function before the return statement in the HomeScreen component
   const isAllOnboardingCompleted =
-    hasLicensePlan && hasCreatedRoutes && hasCompletedExercise && hasSavedRoute && hasRoleSelected;
+    hasLicensePlan &&
+    hasCreatedRoutes &&
+    hasCompletedExercise &&
+    hasSavedRoute &&
+    hasRoleSelected &&
+    hasConnections;
   if (isAllOnboardingCompleted) {
     return null;
   }
@@ -139,7 +168,7 @@ export const GettingStarted = () => {
         <XStack space="$4" paddingHorizontal="$4">
           {/* 1. Din körkortsplan */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('LicensePlanScreen')}
+            onPress={() => (navigation as any).navigate('LicensePlanScreen')}
             activeOpacity={0.8}
             delayPressIn={50}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -296,7 +325,7 @@ export const GettingStarted = () => {
 
           {/* 4. Save a public route */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('MapTab')}
+            onPress={() => navigation.navigate('HomeTab')}
             activeOpacity={0.8}
             delayPressIn={50}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -340,7 +369,7 @@ export const GettingStarted = () => {
 
           {/* 5. Select your role */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('RoleSelectionScreen')}
+            onPress={() => (navigation as any).navigate('ProfileScreen')}
             activeOpacity={0.8}
             delayPressIn={50}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -394,6 +423,55 @@ export const GettingStarted = () => {
               </YStack>
             </YStack>
           </TouchableOpacity>
+
+          {/* 6. Connect with others - only show if role is selected */}
+          {hasRoleSelected && (
+            <TouchableOpacity
+              onPress={() => {
+                // Navigate to ProfileScreen to manage relationships
+                (navigation as any).navigate('ProfileScreen');
+              }}
+              activeOpacity={0.8}
+              delayPressIn={50}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <YStack
+                width={180}
+                height={180}
+                backgroundColor={hasConnections ? '$green5' : '$backgroundStrong'}
+                borderRadius={16}
+                padding="$4"
+                justifyContent="space-between"
+              >
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Feather name="users" size={24} color={hasConnections ? '#00E6C3' : '#4B6BFF'} />
+                  {hasConnections && (
+                    <View
+                      style={{
+                        backgroundColor: '#00E6C3',
+                        borderRadius: 12,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text fontSize={10} color="#000" fontWeight="bold">
+                        KLART
+                      </Text>
+                    </View>
+                  )}
+                </XStack>
+
+                <YStack>
+                  <Text fontSize={18} fontWeight="bold" color="$color">
+                    {typedProfile?.role === 'student' ? 'Lägg till handledare' : 'Lägg till elever'}
+                  </Text>
+                  <Text fontSize={14} color="$gray11" marginTop="$1">
+                    {typedProfile?.role === 'student' ? 'Anslut med körskolor och handledare' : 'Anslut med elever att handleda'}
+                  </Text>
+                </YStack>
+              </YStack>
+            </TouchableOpacity>
+          )}
         </XStack>
       </ScrollView>
     </YStack>

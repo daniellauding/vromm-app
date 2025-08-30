@@ -69,7 +69,16 @@ export function OnboardingModalInteractive({
     setIsTemporarilyClosed(false);
   };
 
-  if (!visible || isTemporarilyClosed) return null;
+  console.log('🎯 [OnboardingModalInteractive] Render check:', {
+    visible,
+    isTemporarilyClosed,
+    shouldRender: visible && !isTemporarilyClosed
+  });
+  
+  if (!visible || isTemporarilyClosed) {
+    console.log('🎯 [OnboardingModalInteractive] Not rendering - visible:', visible, 'isTemporarilyClosed:', isTemporarilyClosed);
+    return null;
+  }
 
   if (loading) {
     return (
@@ -85,24 +94,14 @@ export function OnboardingModalInteractive({
     );
   }
 
+  console.log('🎯 [OnboardingModalInteractive] RENDERING MODAL');
+  
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.centeredView}>
         <View style={styles.modalView}>
           {/* Close button in top-right corner */}
-          {!forceShow && (
-            <Button
-              position="absolute"
-              top={Platform.OS === 'ios' ? 50 : 20}
-              right={20}
-              zIndex={100}
-              size="$2"
-              circular
-              backgroundColor="rgba(0,0,0,0.1)"
-              icon={<Feather name="x" size={16} color="#555" />}
-              onPress={onClose}
-            />
-          )}
+          {/* Removed X close button */}
 
           {/* Debug/test options */}
           <View style={styles.debugContainer}>

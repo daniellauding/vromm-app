@@ -5,7 +5,7 @@ import { Text } from '../components/Text';
 import { Button } from '../components/Button';
 import { useTranslation } from '../contexts/TranslationContext';
 import { AnimatedLogo } from '../components/AnimatedLogo';
-import { OnboardingSlide } from '../components/Onboarding';
+import { OnboardingSlide, Onboarding } from '../components/Onboarding';
 import { fetchOnboardingSlides } from '../services/onboardingService';
 import { supabase } from '../lib/supabase';
 import { useState, useRef, useEffect } from 'react';
@@ -1104,31 +1104,23 @@ export function SplashScreen() {
         <View style={[styles.overlay, { backgroundColor: '#397770' }]} />
       </View>
 
-      {/* Carousel with splash and onboarding slides */}
-      {!isLoadingSlides && (
-        <FlatList
-          data={allSlides}
-          renderItem={renderItem}
-          keyExtractor={(item, index) => `${item.id}-${Math.floor(index / realSlidesCount)}-${index % realSlidesCount}`}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          pagingEnabled
-          bounces={false}
-          onScroll={handleScroll}
-          onMomentumScrollEnd={handleMomentumScrollEnd}
-          onViewableItemsChanged={viewableItemsChangedRef.current}
-          viewabilityConfig={viewConfigRef.current}
-          ref={slidesRef}
-          initialScrollIndex={startIndex}
-          initialNumToRender={3}
-          maxToRenderPerBatch={3}
-          windowSize={5}
-          getItemLayout={(data, index) => ({
-            length: width,
-            offset: width * index,
-            index,
-          })}
+      {/* Use OnboardingScreen component for slides */}
+      {!isLoadingSlides && onboardingSlides.length > 0 ? (
+        <Onboarding
+          slides={onboardingSlides}
+          onDone={() => {
+            // Stay on splash screen after viewing slides
+            console.log('Onboarding slides completed');
+          }}
+          onSkip={() => {
+            // Stay on splash screen after skipping slides
+            console.log('Onboarding slides skipped');
+          }}
+          showAgainKey="splash_onboarding"
         />
+      ) : (
+        // Show splash content when no slides or still loading
+        renderSplashContent()
       )}
 
       {/* Help Icon - show on all slides */}

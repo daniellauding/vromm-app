@@ -13,7 +13,9 @@ import { OnboardingModalInteractive } from '../../components/OnboardingModalInte
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shouldShowInteractiveOnboarding } from '../../components/OnboardingInteractive';
 import { useTranslation } from '../../contexts/TranslationContext';
+import { useTour } from '../../contexts/TourContext';
 import { ProgressSection } from '../../components/ProgressSection';
+import { PromotionalModal, usePromotionalModal } from '../../components/PromotionalModal';
 import type { FilterCategory } from '../../types/navigation';
 import { SectionHeader } from '../../components/SectionHeader';
 import { UsersList } from '../../components/UsersList';
@@ -52,6 +54,8 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
+  const { startDatabaseTour, shouldShowTour } = useTour();
+  const { showModal, modalContentType, setShowModal, checkForPromotionalContent } = usePromotionalModal();
 
   // Use the effective user ID (either activeUserId prop, activeStudentId from context, or current user id)
   const effectiveUserId = activeUserId || getEffectiveUserId();
@@ -66,6 +70,14 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   // State declarations
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isFirstLogin, setIsFirstLogin] = useState(false);
+  
+  // Debug state
+  console.log('🎯 [HomeScreen] Current state:', {
+    showOnboarding,
+    isFirstLogin,
+    hasUser: !!user,
+    userId: user?.id
+  });
 
   // Check if this is the first login and should show onboarding
   useEffect(() => {
@@ -76,26 +88,57 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
 
         if (firstLoginValue === null) {
           // First time login detected
+          console.log('🎯 [HomeScreen] FIRST LOGIN DETECTED - showing onboarding');
           setIsFirstLogin(true);
           setShowOnboarding(true);
           await AsyncStorage.setItem(key, 'false');
         } else {
-          // Ensure we respect the user's choice to not see onboarding again
-          // Only check regular onboarding flag for first-time users or when there's a version change
+          // Check if interactive onboarding should be shown
           const shouldShow = await shouldShowInteractiveOnboarding('interactive_onboarding');
-
-          // Don't show onboarding if user has already seen it (unless there's a version update)
+          console.log('🎯 [HomeScreen] Should show interactive onboarding:', shouldShow);
+          
           setShowOnboarding(shouldShow);
         }
       } catch (error) {
-        console.error('Error checking first login status:', error);
+        console.error('🎯 [HomeScreen] Error checking first login status:', error);
+        // Force show onboarding on error for debugging
+        console.log('🎯 [HomeScreen] FORCING onboarding due to error');
+        setShowOnboarding(true);
       }
     };
 
     if (user) {
+      console.log('🎯 [HomeScreen] User detected, checking first login:', user.id);
       checkFirstLogin();
+    } else {
+      console.log('🎯 [HomeScreen] No user detected yet');
     }
   }, [user]);
+
+  // Check if tour should be shown after onboarding is complete
+  useEffect(() => {
+    const checkTour = async () => {
+      if (user && !showOnboarding) {
+        console.log('🎯 [HomeScreen] Checking if tour should show...');
+        const shouldShow = await shouldShowTour();
+        console.log('🎯 [HomeScreen] Should show tour:', shouldShow);
+        
+        if (shouldShow) {
+          console.log('🎯 [HomeScreen] Starting database tour...');
+          // Start database tour after a brief delay to ensure UI is ready
+          setTimeout(() => {
+            startDatabaseTour();
+          }, 1000);
+        } else {
+          console.log('🎯 [HomeScreen] Tour already completed, not showing');
+        }
+      } else {
+        console.log('🎯 [HomeScreen] Tour check skipped:', { hasUser: !!user, showOnboarding });
+      }
+    };
+
+    checkTour();
+  }, [user, showOnboarding, shouldShowTour, startDatabaseTour]);
 
   const handleFilterPress = (filter: FilterCategory) => {
     navigation.navigate('RouteList', {
@@ -120,11 +163,23 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
       {/* Interactive Onboarding Modal */}
+      {/* Debug onboarding state */}
+      {console.log('🎯 [HomeScreen] Rendering OnboardingModalInteractive:', {
+        visible: showOnboarding,
+        forceShow: isFirstLogin,
+        component: 'OnboardingModalInteractive'
+      })}
+      
       <OnboardingModalInteractive
         visible={showOnboarding}
-        onClose={() => setShowOnboarding(false)}
+        onClose={() => {
+          console.log('🎯 [HomeScreen] Onboarding modal closed');
+          setShowOnboarding(false);
+        }}
         forceShow={isFirstLogin}
       />
+      
+      {/* Removed force button - onboarding should work now */}
 
       <FlatList
         data={[1]}

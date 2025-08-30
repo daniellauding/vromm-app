@@ -19,6 +19,7 @@ import { useModal } from '../../contexts/ModalContext';
 import { SelectedRoute } from './SelectedRoute';
 import { useActiveRoutes, useRoutesFilters, useWaypoints } from './hooks';
 import { calculateDistance, getDistanceFromLatLonInKm } from './utils';
+import { useLocation } from '../../context/LocationContext';
 
 type SearchResult = {
   id: string;
@@ -44,6 +45,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
   const { fetchRoutes } = useRoutes();
+  const { userLocation } = useLocation();
 
   const [isMapReady, setIsMapReady] = useState(false);
   const { showModal } = useModal();
@@ -114,10 +116,26 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
   useEffect(() => {
     (async () => {
+      // First try to use user location from context (onboarding/profile)
+      if (userLocation) {
+        console.log('🗺️ [MapScreen] Using user location from context:', userLocation);
+        setRegion((prev) => ({
+          ...prev,
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.05, // Closer zoom for user's preferred area
+          longitudeDelta: 0.05,
+        }));
+        setIsMapReady(true);
+        return;
+      }
+
+      // Fallback to GPS location
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         const location = await Location.getLastKnownPositionAsync({});
         if (location) {
+          console.log('🗺️ [MapScreen] Using GPS location as fallback');
           setRegion((prev) => ({
             ...prev,
             latitude: location.coords.latitude,
@@ -127,7 +145,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       }
       setIsMapReady(true);
     })();
-  }, []);
+  }, [userLocation]);
 
   // Update focus effect to reset both route and pin selection
   useFocusEffect(

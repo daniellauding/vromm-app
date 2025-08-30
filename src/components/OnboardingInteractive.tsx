@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
-  StyleSheet,
   Dimensions,
   FlatList,
   NativeSyntheticEvent,
@@ -9,22 +8,22 @@ import {
   Animated,
   TouchableOpacity,
   Alert,
-  Platform,
   ScrollView,
+  Modal,
+  TextInput,
 } from 'react-native';
-import { YStack, XStack, useTheme, Stack, Card, Button as TamaguiButton } from 'tamagui';
+import { YStack, XStack, Stack } from 'tamagui';
 import { Text } from './Text';
 import { Button } from './Button';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTranslation } from '../contexts/TranslationContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { NavigationProp } from '../types/navigation';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { supabase } from '../lib/supabase';
-import { useModal } from '../contexts/ModalContext';
+import { useLocation } from '../context/LocationContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -43,8 +42,7 @@ interface OnboardingInteractiveProps {
   onDone: () => void;
   onSkip?: () => void;
   showAgainKey?: string;
-  onCloseModal?: () => void; // Add callback to close the modal
-  onReopenModal?: () => void; // Add callback to reopen the modal
+  onCloseModal?: () => void;
 }
 
 export function OnboardingInteractive({
@@ -52,85 +50,98 @@ export function OnboardingInteractive({
   onSkip,
   showAgainKey = 'interactive_onboarding',
   onCloseModal,
-  onReopenModal,
 }: OnboardingInteractiveProps) {
-  const { language, t } = useTranslation();
-  const theme = useTheme();
   const { user, profile } = useAuth();
   const navigation = useNavigation<NavigationProp>();
-  const { showModal } = useModal();
   const insets = useSafeAreaInsets();
+  const { setUserLocation } = useLocation();
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [stepStates, setStepStates] = useState<Record<string, any>>({});
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
+  const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set());
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [vehicleType, setVehicleType] = useState<string>('passenger_car');
+  const [transmissionType, setTransmissionType] = useState<string>('manual');
+  const [licenseType, setLicenseType] = useState<string>('b');
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [showCityDrawer, setShowCityDrawer] = useState(false);
+  const [citySearchQuery, setCitySearchQuery] = useState('');
+  const [showConnectionsDrawer, setShowConnectionsDrawer] = useState(false);
+  const [connectionSearchQuery, setConnectionSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showVehicleDrawer, setShowVehicleDrawer] = useState(false);
+  const [showTransmissionDrawer, setShowTransmissionDrawer] = useState(false);
+  const [showLicenseDrawer, setShowLicenseDrawer] = useState(false);
+  const [citySearchResults, setCitySearchResults] = useState<any[]>([]);
+  const [citySearchTimeout, setCitySearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
 
-  // Define the onboarding steps based on GettingStarted component
+  // Vehicle type options
+  const vehicleTypes = [
+    { id: 'passenger_car', title: 'Car' },
+    { id: 'motorcycle', title: 'Motorcycle' },
+    { id: 'truck', title: 'Truck' },
+  ];
+
+  const transmissionTypes = [
+    { id: 'manual', title: 'Manual' },
+    { id: 'automatic', title: 'Automatic' },
+  ];
+
+  const licenseTypes = [
+    { id: 'b', title: 'Standard License (B)' },
+    { id: 'a', title: 'Motorcycle License (A)' },
+    { id: 'c', title: 'Truck License (C)' },
+  ];
+
+  // Simplified onboarding steps - clear and focused
   const steps: OnboardingStep[] = [
     {
       id: 'location',
-      title: 'Location Permission',
-      description: 'We need location access to help you create and navigate routes accurately.',
+      title: 'Enable Location Access',
+      description: 'Allow location access to find practice routes near you',
       icon: 'map-pin',
       type: 'permission',
-      actionButton: 'Grant Location Access',
+      actionButton: 'Enable Location',
+      skipButton: 'Skip for now',
+    },
+    {
+      id: 'license_plan',
+      title: 'Your License Journey',
+      description: 'Tell us about your driving goals and vehicle preferences',
+      icon: 'clipboard',
+      type: 'selection',
+      actionButton: 'Set My Preferences',
       skipButton: 'Skip for now',
     },
     {
       id: 'role',
       title: 'Select Your Role',
-      description: 'Tell us about yourself to personalize your experience.',
+      description: 'Are you learning to drive or teaching others?',
       icon: 'user',
       type: 'selection',
       actionButton: 'Choose Role',
-      skipButton: 'Skip',
+      skipButton: 'Skip for now',
     },
     {
       id: 'relationships',
       title: 'Connect with Others',
-      description: 'Connect with instructors or students to enhance your learning experience.',
+      description: 'Connect with instructors or students based on your role',
       icon: 'users',
       type: 'action',
-      actionButton: 'Set Up Connections',
-      skipButton: 'Skip for now',
+      actionButton: 'Find Connections',
+      skipButton: 'Maybe later',
     },
     {
-      id: 'license_plan',
-      title: 'Your License Plan',
-      description: 'Create a personalized plan for your driving license journey.',
-      icon: 'clipboard',
-      type: 'action',
-      actionButton: 'Create Plan',
-      skipButton: 'Skip',
-    },
-    {
-      id: 'create_route',
-      title: 'Create Your First Route',
-      description: 'Add a driving route you use often to get started.',
-      icon: 'plus-circle',
-      type: 'action',
-      actionButton: 'Create Route',
-      skipButton: 'Skip',
-    },
-    {
-      id: 'complete_exercise',
-      title: 'Start Learning',
-      description: 'Complete your first exercise to begin your driving education.',
-      icon: 'play-circle',
-      type: 'action',
-      actionButton: 'Start Exercise',
-      skipButton: 'Skip',
-    },
-    {
-      id: 'save_route',
-      title: 'Save a Route',
-      description: 'Find and save a route from the community to your collection.',
-      icon: 'bookmark',
-      type: 'action',
-      actionButton: 'Explore Routes',
-      skipButton: 'Skip',
+      id: 'complete',
+      title: 'Ready for Your Journey!',
+      description: 'Ready to become a confident driver! Explore the app, progress in exercises, save and upload routes, and discover a community of drivers like you.',
+      icon: 'check-circle',
+      type: 'info',
+      actionButton: 'Start My Journey',
+      skipButton: undefined,
     },
   ];
 
@@ -150,16 +161,23 @@ export function OnboardingInteractive({
     checkStepCompletions();
   }, [user, profile]);
 
-  // Refresh completion status when screen comes into focus (when user returns from role/license screens)
+  // Clean up search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (citySearchTimeout) {
+        clearTimeout(citySearchTimeout);
+      }
+    };
+  }, [citySearchTimeout]);
+
+  // Refresh completion status when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      // Small delay to ensure any profile updates have been processed
       const timeoutId = setTimeout(() => {
         checkStepCompletions();
       }, 500);
-      
       return () => clearTimeout(timeoutId);
-    }, [])
+    }, []),
   );
 
   const checkStepCompletions = async () => {
@@ -174,6 +192,14 @@ export function OnboardingInteractive({
         newCompletedSteps.add('location');
       }
 
+      // Check license plan completion
+      const typedProfilePlan = profile as typeof profile & {
+        license_plan_completed?: boolean;
+      };
+      if (typedProfilePlan?.license_plan_completed === true) {
+        newCompletedSteps.add('license_plan');
+      }
+
       // Check role selection
       const typedProfile = profile as typeof profile & {
         role_confirmed?: boolean;
@@ -182,39 +208,13 @@ export function OnboardingInteractive({
         newCompletedSteps.add('role');
       }
 
-      // Check license plan
-      const typedProfilePlan = profile as typeof profile & {
-        license_plan_completed?: boolean;
-      };
-      if (typedProfilePlan?.license_plan_completed === true) {
-        newCompletedSteps.add('license_plan');
-      }
-
-      // Check created routes
-      const { count: routeCount } = await supabase
-        .from('routes')
+      // Check relationships
+      const { count: relationshipCount } = await supabase
+        .from('student_supervisor_relationships')
         .select('id', { count: 'exact', head: true })
-        .eq('creator_id', user.id);
-      if (routeCount && routeCount > 0) {
-        newCompletedSteps.add('create_route');
-      }
-
-      // Check completed exercises
-      const { count: exerciseCount } = await supabase
-        .from('learning_path_exercise_completions')
-        .select('exercise_id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      if (exerciseCount && exerciseCount > 0) {
-        newCompletedSteps.add('complete_exercise');
-      }
-
-      // Check saved routes
-      const { count: savedCount } = await supabase
-        .from('saved_routes')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      if (savedCount && savedCount > 0) {
-        newCompletedSteps.add('save_route');
+        .or(`student_id.eq.${user.id},supervisor_id.eq.${user.id}`);
+      if (relationshipCount && relationshipCount > 0) {
+        newCompletedSteps.add('relationships');
       }
 
       setCompletedSteps(newCompletedSteps);
@@ -261,150 +261,323 @@ export function OnboardingInteractive({
     }
   };
 
-  const handleStepAction = async (step: OnboardingStep) => {
-    console.log('🎯 [OnboardingInteractive] Step action:', step.id);
-
-    switch (step.id) {
-      case 'location':
-        await handleLocationPermission();
-        break;
-      case 'role':
-        await handleRoleSelection();
-        break;
-      case 'relationships':
-        await handleRelationships();
-        break;
-      case 'license_plan':
-        // Close modal before navigating to LicensePlanScreen
-        onCloseModal?.();
-        navigation.navigate('LicensePlanScreen', {
-          fromOnboarding: true,
-          onboardingStep: step.id
-        });
-        break;
-      case 'create_route':
-        // Close modal before navigating to CreateRouteScreen
-        onCloseModal?.();
-        navigation.navigate('CreateRoute', {
-          fromOnboarding: true,
-          onboardingStep: step.id,
-          isModal: true,
-          onClose: () => {
-            // Return to onboarding after route creation
-            console.log('🎯 [OnboardingInteractive] Returning from CreateRoute');
-            onReopenModal?.();
-            checkStepCompletions(); // Refresh completion status
-          }
-        });
-        break;
-      case 'complete_exercise':
-        // Close modal before navigating to ProgressScreen
-        onCloseModal?.();
-        navigation.navigate('ProgressTab', { 
-          showDetail: false,
-          fromOnboarding: true,
-          onboardingStep: step.id
-        });
-        break;
-      case 'save_route':
-        // Close modal before navigating to MapScreen
-        onCloseModal?.();
-        navigation.navigate('MapTab', {
-          fromOnboarding: true,
-          onboardingStep: step.id
-        });
-        break;
-      default:
-        console.warn('Unknown step action:', step.id);
-    }
-  };
-
-  const handleRoleSelection = async () => {
-    try {
-      // Close modal before navigating to role selection screen
-      onCloseModal?.();
-      navigation.navigate('RoleSelectionScreen', {
-        fromOnboarding: true,
-        onboardingStep: 'role'
-      });
-    } catch (error) {
-      console.error('Error handling role selection:', error);
-      Alert.alert('Error', 'Failed to open role selection. Please try again.');
-    }
-  };
-
-  const handleRelationships = async () => {
-    try {
-      // Close modal before navigating to RoleSelectionScreen with relationships context
-      onCloseModal?.();
-      navigation.navigate('RoleSelectionScreen', {
-        fromOnboarding: true,
-        onboardingStep: 'relationships'
-      });
-    } catch (error) {
-      console.error('🎯 [OnboardingInteractive] Error handling relationships:', error);
-      Alert.alert('Error', 'Failed to open relationships setup. Please try again.');
-    }
+  const handleSkipStep = (step: OnboardingStep) => {
+    console.log('⏭️ [OnboardingInteractive] Skipping step:', step.id);
+    setSkippedSteps((prev) => new Set(prev).add(step.id));
+    nextSlide();
   };
 
   const handleLocationPermission = async () => {
     try {
-      console.log('🎯 [OnboardingInteractive] Requesting location permission - this will show native dialog');
+      console.log('🎯 [OnboardingInteractive] Requesting location permission');
       
       // Check current permission status first
       const currentStatus = await Location.getForegroundPermissionsAsync();
-      console.log('🎯 [OnboardingInteractive] Current permission status:', currentStatus.status);
       
       if (currentStatus.status === 'granted') {
-        // Permission already granted
-        Alert.alert(
-          '✅ Location Already Enabled',
-          'Location access is already enabled for this app.',
-          [{ text: 'Continue', onPress: () => {
-            setCompletedSteps(prev => new Set(prev).add('location'));
+        setLocationStatus('granted');
+        setCompletedSteps((prev) => new Set(prev).add('location'));
             nextSlide();
-          }}]
-        );
         return;
       }
       
       // Request permission - this shows the native dialog
       const { status } = await Location.requestForegroundPermissionsAsync();
-      console.log('🎯 [OnboardingInteractive] Permission request result:', status);
       
-      if (status === 'granted') {
-        Alert.alert(
-          '✅ Location Access Granted',
-          'Great! We can now help you with location-based features.',
-          [{ text: 'Continue', onPress: () => {
-            setCompletedSteps(prev => new Set(prev).add('location'));
-            nextSlide();
-          }}]
-        );
+            if (status === 'granted') {
+        setLocationStatus('granted');
+        setCompletedSteps((prev) => new Set(prev).add('location'));
+        nextSlide();
       } else {
-        Alert.alert(
-          '⚠️ Location Permission Denied',
-          'You can still use the app, but some features will be limited. You can enable location access later in Settings.',
-          [
-            { text: 'Continue Anyway', onPress: nextSlide },
-            { text: 'Try Again', onPress: handleLocationPermission }
-          ]
-        );
+        setLocationStatus('denied');
+        // User can still select city or skip
       }
     } catch (error) {
       console.error('🎯 [OnboardingInteractive] Error requesting location permission:', error);
-      Alert.alert('Error', 'Failed to request location permission. Please try again.');
+      setLocationStatus('denied');
+      // Don't auto-continue on error, let user choose
     }
   };
 
-  const handleSkipStep = (step: OnboardingStep) => {
-    console.log('⏭️ [OnboardingInteractive] Skipping step:', step.id);
-    nextSlide();
+  const handleCitySelect = async (cityData: any) => {
+    const cityName = [cityData.city, cityData.region, cityData.country].filter(Boolean).join(', ');
+
+    setSelectedCity(cityName);
+    setShowCityDrawer(false);
+    setCitySearchQuery('');
+    setCitySearchResults([]);
+
+    // Save city selection to profile and LocationContext
+    if (user) {
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            preferred_city: cityName,
+            preferred_city_coords: cityData.coords,
+          })
+          .eq('id', user.id);
+
+        if (!error) {
+          // Update LocationContext with selected location
+          await setUserLocation({
+            name: cityName,
+            latitude: cityData.coords.latitude,
+            longitude: cityData.coords.longitude,
+            source: 'onboarding',
+            timestamp: new Date().toISOString(),
+          });
+
+          setCompletedSteps((prev) => new Set(prev).add('location'));
+          nextSlide();
+        }
+      } catch (err) {
+        console.error('Error saving city:', err);
+      }
+    }
   };
 
-  const renderStep = ({ item, index }: { item: OnboardingStep; index: number }) => {
-    const isCompleted = completedSteps.has(item.id);
-    const isActive = currentIndex === index;
+
+
+  const handleCitySearch = async (query: string) => {
+    setCitySearchQuery(query);
+
+    // Clear previous timeout
+    if (citySearchTimeout) {
+      clearTimeout(citySearchTimeout);
+    }
+
+    if (!query.trim()) {
+      setCitySearchResults([]);
+      return;
+    }
+
+    // Set new timeout for debounced search
+    const timeout = setTimeout(async () => {
+      try {
+        // Try with original query first
+        let results = await Location.geocodeAsync(query);
+
+        // If no results, try with more specific search terms
+        if (results.length === 0) {
+          const searchTerms = [
+            `${query}, Sweden`,
+            `${query}, United States`,
+            `${query}, Europe`,
+            query, // Original query as fallback
+          ];
+
+          for (const term of searchTerms) {
+            results = await Location.geocodeAsync(term);
+            if (results.length > 0) break;
+          }
+        }
+
+        if (results.length > 0) {
+          const addresses = await Promise.all(
+            results.map(async (result) => {
+              try {
+                const address = await Location.reverseGeocodeAsync({
+                  latitude: result.latitude,
+                  longitude: result.longitude,
+                });
+                return {
+                  ...address[0],
+                  coords: {
+                    latitude: result.latitude,
+                    longitude: result.longitude,
+                  },
+                };
+              } catch (err) {
+                return null;
+              }
+            })
+          );
+
+          // Filter out null values and duplicates
+          const uniqueAddresses = addresses.filter(
+            (addr, index, self) =>
+              addr &&
+              addr.coords &&
+              index ===
+                self.findIndex(
+                  (a) =>
+                    a?.coords?.latitude === addr.coords?.latitude &&
+                    a?.coords?.longitude === addr.coords?.longitude,
+                ),
+          );
+
+          setCitySearchResults(uniqueAddresses);
+        } else {
+          setCitySearchResults([]);
+        }
+      } catch (err) {
+        console.error('City geocoding error:', err);
+        setCitySearchResults([]);
+      }
+    }, 300);
+
+    setCitySearchTimeout(timeout);
+  };
+
+  const handleSaveLicensePlan = async () => {
+    if (!user) return;
+
+    try {
+      const licenseData = {
+        vehicle_type: vehicleType,
+        transmission_type: transmissionType,
+        license_type: licenseType,
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          license_plan_completed: true,
+          license_plan_data: licenseData,
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error saving license plan:', error);
+        Alert.alert('Error', 'Could not save your preferences. Please try again.');
+      } else {
+        setCompletedSteps((prev) => new Set(prev).add('license_plan'));
+        checkStepCompletions();
+        // Don't auto-advance - let user press Next Step
+      }
+    } catch (err) {
+      console.error('Error saving license plan:', err);
+      Alert.alert('Error', 'Could not save your preferences. Please try again.');
+    }
+  };
+
+  const handleRoleSelect = async (roleId: string) => {
+    if (!user) return;
+
+    try {
+      setSelectedRole(roleId);
+
+      // Update the profile with the selected role
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          role: roleId,
+          role_confirmed: true,
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error saving role selection:', error);
+        Alert.alert('Error', 'Could not update your role. Please try again.');
+      } else {
+        setCompletedSteps((prev) => new Set(prev).add('role'));
+        checkStepCompletions();
+        // Don't auto-advance - let user press Next Step
+      }
+    } catch (err) {
+      console.error('Error saving role selection:', err);
+      Alert.alert('Error', 'Could not update your role. Please try again.');
+    }
+  };
+
+  const handleSearchUsers = async (query: string) => {
+    setConnectionSearchQuery(query);
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      // Search based on user's role
+      let targetRole = '';
+      if (selectedRole === 'student') {
+        targetRole = 'instructor'; // Students search for instructors
+      } else if (selectedRole === 'instructor' || selectedRole === 'school') {
+        targetRole = 'student'; // Instructors search for students
+      }
+
+      let query_builder = supabase
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .neq('id', user?.id)
+        .limit(10);
+
+      // Filter by target role if we have one
+      if (targetRole) {
+        query_builder = query_builder.eq('role', targetRole);
+      }
+
+      const { data, error } = await query_builder;
+
+      if (error) throw error;
+      setSearchResults(data || []);
+    } catch (error) {
+      console.error('Error searching users:', error);
+    }
+  };
+
+  const handleConnectWithUser = async (targetUser: any) => {
+    try {
+      let studentId, supervisorId;
+      if (selectedRole === 'student') {
+        studentId = user?.id;
+        supervisorId = targetUser.id;
+      } else {
+        studentId = targetUser.id;
+        supervisorId = user?.id;
+      }
+
+      // First check if relationship already exists
+      const { data: existingRelationship } = await supabase
+        .from('student_supervisor_relationships')
+        .select('id, status')
+        .eq('student_id', studentId)
+        .eq('supervisor_id', supervisorId)
+        .single();
+
+      if (existingRelationship) {
+        // Silently handle existing relationship
+        setShowConnectionsDrawer(false);
+        setCompletedSteps((prev) => new Set(prev).add('relationships'));
+            nextSlide();
+        return;
+      }
+      
+      const { error } = await supabase
+        .from('student_supervisor_relationships')
+        .insert({
+          student_id: studentId,
+          supervisor_id: supervisorId,
+          status: 'active'
+        });
+
+      if (error) {
+        // Handle duplicate key error gracefully
+        if (error.code === '23505') {
+          // Silently handle duplicate relationship
+          setShowConnectionsDrawer(false);
+          setCompletedSteps((prev) => new Set(prev).add('relationships'));
+            nextSlide();
+          return;
+        }
+        throw error;
+      }
+
+      // Silently complete connection and continue
+      setShowConnectionsDrawer(false);
+      setCompletedSteps((prev) => new Set(prev).add('relationships'));
+    nextSlide();
+    } catch (error) {
+      console.error('Error creating connection:', error);
+      // Silently continue even on error
+      setShowConnectionsDrawer(false);
+      handleSkipStep(steps.find((s) => s.id === 'relationships')!);
+    }
+  };
+
+  const renderLicensePlanStep = (item: OnboardingStep) => {
 
     return (
       <ScrollView
@@ -418,179 +591,306 @@ export function OnboardingInteractive({
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <YStack
-          flex={1}
-          alignItems="center"
-          justifyContent="center"
-          minHeight={height - 300}
-        >
-          {/* Step Icon */}
-          <YStack
-            alignItems="center"
-            justifyContent="center"
-            marginBottom="$6"
-            minHeight={200}
-          >
-            <View
-              style={{
-                width: 120,
-                height: 120,
-                borderRadius: 60,
-                backgroundColor: isCompleted ? '#10B981' : '#3B82F6',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 24,
-                shadowColor: '#000',
-                shadowOffset: {
-                  width: 0,
-                  height: 4,
-                },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 8,
-              }}
-            >
-              <Feather 
-                name={isCompleted ? 'check' : item.icon as any} 
-                size={48} 
-                color="white" 
-              />
-            </View>
-
-            {isCompleted && (
-              <View
-                style={{
-                  backgroundColor: '#10B981',
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 16,
-                  marginBottom: 16,
-                }}
-              >
-                <Text fontSize={12} color="white" fontWeight="bold">
-                  ✅ COMPLETED
-                </Text>
-              </View>
-            )}
-          </YStack>
-
-          {/* Step Content */}
-          <YStack flex={1} alignItems="center" gap="$4" minHeight={200}>
-            <Text
-              size="2xl"
-              weight="bold"
-              textAlign="center"
-              fontFamily="$heading"
-              color="$color"
-            >
+        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300}>
+          {/* Step Header */}
+          <YStack alignItems="center" marginBottom="$6">
+            <Text size="2xl" weight="bold" textAlign="center" color="$color">
               {item.title}
             </Text>
-            
-            <Text 
-              size="lg" 
-              intent="muted" 
-              textAlign="center"
-              paddingHorizontal="$4"
-            >
-              {isCompleted && (item.id === 'role' || item.id === 'license_plan') 
-                ? `${item.description} You can change this anytime.`
-                : item.description
-              }
+            <Text size="lg" intent="muted" textAlign="center" paddingHorizontal="$4" marginTop="$2">
+              {item.description}
             </Text>
+          </YStack>
 
-            {/* Action Buttons */}
-            <YStack gap="$3" marginTop="$6" width="100%" paddingHorizontal="$4">
-              {!isCompleted && item.actionButton && (
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onPress={() => handleStepAction(item)}
-                >
-                  {item.actionButton}
-                </Button>
-              )}
+                      {/* Vehicle Type Selection */}
+            <YStack gap="$3" width="100%" paddingHorizontal="$4">
+              <Text size="md" weight="bold" color="$color">
+                Vehicle Type
+              </Text>
+              <Button
+                variant="secondary"
+                size="lg"
+                onPress={() => setShowVehicleDrawer(true)}
+              >
+                <Text>{vehicleTypes.find((v) => v.id === vehicleType)?.title || 'Car'}</Text>
+              </Button>
 
-              {isCompleted && (
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  onPress={() => handleStepAction(item)}
-                  backgroundColor="$green5"
-                >
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="edit-2" size={20} color="#10B981" />
-                    <Text color="#10B981">
-                      {item.id === 'role' ? 'Change Role' :
-                       item.id === 'license_plan' ? 'Modify License Plan' :
-                       item.id === 'location' ? 'Update Permission' :
-                       'Done - Tap to revisit'}
-                    </Text>
-                  </XStack>
-                </Button>
-              )}
+                          {/* Transmission Type Selection */}
+              <Text size="md" weight="bold" color="$color" marginTop="$4">
+                Transmission
+              </Text>
+              <Button
+                variant="secondary"
+                size="lg"
+                onPress={() => setShowTransmissionDrawer(true)}
+              >
+                <Text>{transmissionTypes.find((t) => t.id === transmissionType)?.title || 'Manual'}</Text>
+              </Button>
 
-              {item.skipButton && !isCompleted && (
-                <Button
-                  variant="link"
-                  size="md"
-                  onPress={() => handleSkipStep(item)}
-                >
-                  {item.skipButton}
-                </Button>
-              )}
-            </YStack>
+                          {/* License Type Selection */}
+              <Text size="md" weight="bold" color="$color" marginTop="$4">
+                License Type
+              </Text>
+              <Button
+                variant="secondary"
+                size="lg"
+                onPress={() => setShowLicenseDrawer(true)}
+              >
+                <Text>{licenseTypes.find((l) => l.id === licenseType)?.title || 'Standard License (B)'}</Text>
+              </Button>
+
+            {/* Save Button */}
+            <Button
+              variant="primary"
+              size="lg"
+              onPress={handleSaveLicensePlan}
+              marginTop="$6"
+            >
+              <Text>Save My Preferences</Text>
+            </Button>
+
+            {/* Skip Button */}
+            {item.skipButton && (
+              <Button
+                variant="link"
+                size="md"
+                onPress={() => handleSkipStep(item)}
+                marginTop="$2"
+              >
+                <Text>{item.skipButton}</Text>
+              </Button>
+            )}
           </YStack>
         </YStack>
       </ScrollView>
     );
   };
 
-  const renderDots = () => {
+  const renderRoleSelectionStep = (item: OnboardingStep) => {
+    const roles = [
+      {
+        id: 'student',
+        title: 'Student',
+        description: 'I want to learn to drive',
+      },
+      {
+        id: 'instructor',
+        title: 'Instructor',
+        description: 'I teach others to drive',
+      },
+      {
+        id: 'school',
+        title: 'Driving School',
+        description: 'I represent a driving school',
+      },
+    ];
+
     return (
-      <XStack justifyContent="center" gap="$2" marginBottom="$4">
-        {steps.map((step, i) => {
-          const opacity = scrollX.interpolate({
-            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
-            outputRange: [0.3, 1, 0.3],
-            extrapolate: 'clamp',
-          });
+      <ScrollView
+        style={{ width, flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingTop: 60,
+          paddingBottom: 120,
+        }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300}>
+          {/* Step Header */}
+          <YStack alignItems="center" marginBottom="$6">
+            <Text size="2xl" weight="bold" textAlign="center" color="$color">
+              {item.title}
+            </Text>
+            <Text size="lg" intent="muted" textAlign="center" paddingHorizontal="$4" marginTop="$2">
+              {item.description}
+            </Text>
+          </YStack>
 
-          const dotWidth = scrollX.interpolate({
-            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
-            outputRange: [10, 20, 10],
-            extrapolate: 'clamp',
-          });
+          {/* Role Options */}
+          <YStack gap="$2" width="100%" paddingHorizontal="$4">
+            {roles.map((role) => (
+              <TouchableOpacity
+                key={role.id}
+                onPress={() => handleRoleSelect(role.id)}
+                style={{
+                  backgroundColor: selectedRole === role.id ? '$blue5' : '$backgroundStrong',
+                  padding: 16,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: selectedRole === role.id ? '$blue8' : '$borderColor',
+                }}
+              >
+                <XStack alignItems="center" justifyContent="space-between">
+                  <YStack>
+                    <Text size="md" weight="bold" color={selectedRole === role.id ? '$blue12' : '$color'}>
+                      {role.title}
+                </Text>
+                    <Text size="sm" color="$gray11">
+                      {role.description}
+                    </Text>
+                  </YStack>
+                  {selectedRole === role.id && (
+                    <Feather name="check" size={20} color="$blue11" />
+                  )}
+                </XStack>
+              </TouchableOpacity>
+            ))}
+          </YStack>
 
-          const isActive = currentIndex === i;
+          {/* Skip Button */}
+          {item.skipButton && (
+            <Button
+              variant="link"
+              size="md"
+              onPress={() => handleSkipStep(item)}
+              marginTop="$6"
+            >
+              <Text>{item.skipButton}</Text>
+            </Button>
+          )}
+        </YStack>
+      </ScrollView>
+    );
+  };
+
+  const renderSimpleStep = (item: OnboardingStep, isCompleted: boolean, isSkipped: boolean) => {
+    return (
+      <ScrollView
+        style={{ width, flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingTop: 60,
+          paddingBottom: 120,
+        }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300}>
+                    {/* Simplified Step Content */}
+          <YStack alignItems="center" gap="$4" paddingHorizontal="$4">
+            <Text size="xl" weight="bold" textAlign="center" color="$color">
+              {item.title}
+            </Text>
+            
+            <Text size="md" color="$gray11" textAlign="center">
+              {item.description}
+            </Text>
+
+            {/* Removed status indicators - users can always interact */}
+
+            {/* Location options - always available */}
+            {item.id === 'location' && (
+              <YStack gap="$3" marginTop="$4" width="100%">
+                <Button variant="primary" size="lg" onPress={handleLocationPermission}>
+                  <Text>Enable Location</Text>
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onPress={() => setShowCityDrawer(true)}
+                >
+                  <Text>{selectedCity || 'Or Select Your City'}</Text>
+                </Button>
+                
+                <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
+                  <Text>Skip for now</Text>
+                </Button>
+              </YStack>
+            )}
+
+            {/* Action Buttons - Only show for non-location steps */}
+            {item.id !== 'location' && (
+              <YStack gap="$3" marginTop="$6" width="100%" paddingHorizontal="$4">
+                {item.id === 'relationships' ? (
+                  <Button variant="primary" size="lg" onPress={() => setShowConnectionsDrawer(true)}>
+                    <Text>Find Connections</Text>
+                  </Button>
+                ) : (
+                  <Button variant="primary" size="lg" onPress={() => nextSlide()}>
+                    <Text>Continue</Text>
+                  </Button>
+                )}
+
+                {item.skipButton && (
+                  <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
+                    <Text>{item.skipButton}</Text>
+                </Button>
+              )}
+            </YStack>
+            )}
+          </YStack>
+        </YStack>
+      </ScrollView>
+    );
+  };
+
+  const renderStep = ({ item, index }: { item: OnboardingStep; index: number }) => {
+    const isCompleted = completedSteps.has(item.id);
+    const isSkipped = skippedSteps.has(item.id);
+
+    // Special rendering for license plan step (always editable)
+    if (item.id === 'license_plan') {
+      return renderLicensePlanStep(item);
+    }
+
+    // Special rendering for role selection step (always editable)
+    if (item.id === 'role') {
+      return renderRoleSelectionStep(item);
+    }
+
+    // Simple step rendering for others
+    return renderSimpleStep(item, isCompleted, isSkipped);
+  };
+
+  // Removed renderDots - using visual progress indicator in header instead
+
+  return (
+    <Stack flex={1} bg="$background">
+      {/* Progress Header with Visual Indicator */}
+      <View
+        style={{
+          position: 'absolute',
+          top: (insets.top || 40) + 8,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          alignItems: 'center',
+        }}
+      >
+        {/* Visual Progress Indicator */}
+        <XStack gap="$1" alignItems="center">
+          {steps.map((step, index) => {
+            const isActive = index === currentIndex;
           const isCompleted = completedSteps.has(step.id);
+            const isSkipped = skippedSteps.has(step.id);
 
           return (
-            <Animated.View
-              key={`dot-${i}`}
+              <View
+                key={step.id}
               style={{
-                width: dotWidth,
-                height: 10,
-                borderRadius: 5,
+                  width: isActive ? 24 : 12,
+                  height: 6,
+                  borderRadius: 3,
                 backgroundColor: isCompleted 
                   ? '#10B981' 
+                    : isSkipped 
+                      ? '#F59E0B'
                   : isActive 
-                    ? '#3B82F6' 
-                    : '#374151',
-                marginHorizontal: 4,
-                opacity,
+                        ? '#3B82F6' // Primary blue for current step
+                        : '#374151', // Gray for pending steps
+                  marginHorizontal: 2,
               }}
             />
           );
         })}
       </XStack>
-    );
-  };
+      </View>
 
-  const progressPercentage = Math.round((completedSteps.size / steps.length) * 100);
-
-  return (
-    <Stack flex={1} bg="$background">
-      {/* Progress Header */}
+      {/* Navigation Buttons */}
       <View
         style={{
           position: 'absolute',
@@ -603,35 +903,36 @@ export function OnboardingInteractive({
           alignItems: 'center',
         }}
       >
-        <Text size="sm" color="$gray11">
-          {progressPercentage}% Complete
-        </Text>
-        
-        <Button
-          variant="link"
-          size="sm"
-          onPress={skipOnboarding}
-        >
-          Skip All
-        </Button>
-      </View>
-
       {/* Previous Button */}
-      {currentIndex > 0 && (
-        <Button
-          variant="link"
-          size="md"
+        {currentIndex > 0 ? (
+          <TouchableOpacity
           onPress={() => scrollTo(currentIndex - 1)}
           style={{
-            position: 'absolute',
-            top: insets.top + 60 || 100,
-            left: 16,
-            zIndex: 100,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <Feather name="chevron-left" size={20} color="$gray11" />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
+        
+        {/* Skip All Button */}
+        <TouchableOpacity
+          onPress={skipOnboarding}
+          style={{
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 16,
           }}
         >
-          ← Previous
-        </Button>
-      )}
+          <Text size="sm" color="$gray11">Skip All</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Main Content */}
       <FlatList
@@ -663,48 +964,404 @@ export function OnboardingInteractive({
         borderTopWidth={1}
         borderTopColor="$borderColor"
       >
-        {renderDots()}
-
-        <YStack marginTop="$4" width="100%">
-          <Button 
-            variant="primary" 
-            size="lg" 
-            onPress={nextSlide}
-          >
-            {currentIndex === steps.length - 1 ? 'Get Started' : 'Next Step'}
+        <YStack width="100%">
+          <Button variant="primary" size="lg" onPress={nextSlide}>
+            <Text>{currentIndex === steps.length - 1 ? 'Start Using Vromm!' : 'Next Step'}</Text>
           </Button>
         </YStack>
-
-        {/* Progress Summary */}
-        <Text
-          size="sm"
-          color="$gray11"
-          textAlign="center"
-          marginTop="$2"
-        >
-          {completedSteps.size} of {steps.length} steps completed
-        </Text>
       </YStack>
+
+      {/* City Selection Modal */}
+      <Modal
+        visible={showCityDrawer}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCityDrawer(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onPress={() => setShowCityDrawer(false)}
+          />
+          <YStack
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            maxHeight="70%"
+          >
+            <Text size="lg" weight="bold" color="$color" marginBottom="$4" textAlign="center">
+              Select Your City
+            </Text>
+            
+            <TextInput
+              placeholder="Search cities... (try 'Ystad', 'New York', etc.)"
+              value={citySearchQuery}
+              onChangeText={handleCitySearch}
+              style={{
+                backgroundColor: '$backgroundStrong',
+                padding: 12,
+                borderRadius: 8,
+                marginBottom: 16,
+                color: '$color',
+                borderWidth: 1,
+                borderColor: '$borderColor',
+              }}
+              placeholderTextColor="$gray10"
+            />
+            
+            <ScrollView style={{ maxHeight: 300 }}>
+              <YStack gap="$1">
+                {citySearchResults.length === 0 && citySearchQuery.length >= 2 && (
+                  <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                    No cities found for "{citySearchQuery}"
+                  </Text>
+                )}
+                
+                {citySearchResults.length === 0 && citySearchQuery.length < 2 && (
+                  <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                    Start typing to search for any city worldwide
+                  </Text>
+                )}
+                
+                {citySearchResults.map((cityData, index) => {
+                  const cityName = [cityData.city, cityData.region, cityData.country]
+                    .filter(Boolean)
+                    .join(', ');
+                  
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => handleCitySelect(cityData)}
+                      style={{
+                        backgroundColor: selectedCity === cityName ? '$blue5' : '$backgroundStrong',
+                        padding: 16,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: selectedCity === cityName ? '$blue8' : '$borderColor',
+                      }}
+                    >
+                      <XStack alignItems="center" justifyContent="space-between">
+                        <YStack>
+                          <Text size="md" color={selectedCity === cityName ? '$blue12' : '$color'}>
+                            {cityName}
+                          </Text>
+                          <Text size="xs" color="$gray11">
+                            {cityData.coords?.latitude.toFixed(4)}, {cityData.coords?.longitude.toFixed(4)}
+                          </Text>
+                        </YStack>
+                        {selectedCity === cityName && (
+                          <Feather name="check" size={20} color="$blue11" />
+                        )}
+                      </XStack>
+                    </TouchableOpacity>
+                  );
+                })}
+              </YStack>
+            </ScrollView>
+          </YStack>
+        </View>
+      </Modal>
+
+      {/* Connections Selection Modal */}
+      <Modal
+        visible={showConnectionsDrawer}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowConnectionsDrawer(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onPress={() => setShowConnectionsDrawer(false)}
+          />
+          <YStack
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            maxHeight="70%"
+          >
+            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
+              <Text size="lg" weight="bold" color="$color">
+                Find {selectedRole === 'student' ? 'Instructors' : selectedRole === 'instructor' || selectedRole === 'school' ? 'Students' : 'Users'}
+              </Text>
+              {/* Removed X button */}
+            </XStack>
+            
+            <Text size="sm" color="$gray11" marginBottom="$3">
+              Search for {selectedRole === 'student' ? 'driving instructors' : selectedRole === 'instructor' || selectedRole === 'school' ? 'students' : 'users'} to connect with
+            </Text>
+            
+            <TextInput
+              placeholder="Search by name or email..."
+              value={connectionSearchQuery}
+              onChangeText={handleSearchUsers}
+              style={{
+                backgroundColor: '$backgroundStrong',
+                padding: 12,
+                borderRadius: 8,
+                marginBottom: 16,
+                color: '$color',
+                borderWidth: 1,
+                borderColor: '$borderColor',
+              }}
+              placeholderTextColor="$gray10"
+            />
+            
+            <ScrollView style={{ maxHeight: 300 }}>
+              <YStack gap="$2">
+                {searchResults.length === 0 && connectionSearchQuery.length >= 2 && (
+                  <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                    No users found
+                  </Text>
+                )}
+                
+                {searchResults.length === 0 && connectionSearchQuery.length < 2 && (
+                  <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                    Start typing to search for users
+                  </Text>
+                )}
+                
+                {searchResults.map((user) => (
+                  <TouchableOpacity
+                    key={user.id}
+                    onPress={() => handleConnectWithUser(user)}
+                    style={{
+                      backgroundColor: '$backgroundStrong',
+                      padding: 16,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '$borderColor',
+                    }}
+                  >
+                    <XStack alignItems="center" justifyContent="space-between">
+                      <YStack>
+                        <Text size="md" weight="bold" color="$color">
+                          {user.full_name || 'Unknown User'}
+                        </Text>
+                        <Text size="sm" color="$gray11">
+                          {user.email} • {user.role}
+                        </Text>
+                      </YStack>
+                      <Feather name="plus-circle" size={20} color="$blue11" />
+                    </XStack>
+                  </TouchableOpacity>
+                ))}
+                
+                {/* Skip option */}
+          <Button 
+                  variant="link"
+                  size="md"
+                  onPress={() => {
+                    setShowConnectionsDrawer(false);
+                    handleSkipStep(steps.find((s) => s.id === 'relationships')!);
+                  }}
+                  marginTop="$4"
+                >
+                  <Text>I'll do this later</Text>
+          </Button>
+        </YStack>
+            </ScrollView>
+          </YStack>
+        </View>
+      </Modal>
+
+      {/* Vehicle Type Selection Modal */}
+      <Modal
+        visible={showVehicleDrawer}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowVehicleDrawer(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onPress={() => setShowVehicleDrawer(false)}
+          />
+          <YStack
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+          >
+            <Text size="lg" weight="bold" color="$color" marginBottom="$4" textAlign="center">
+              Select Vehicle Type
+        </Text>
+            
+            <YStack gap="$1">
+              {vehicleTypes.map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  onPress={() => {
+                    setVehicleType(type.id);
+                    setShowVehicleDrawer(false);
+                  }}
+                  style={{
+                    backgroundColor: vehicleType === type.id ? '$blue5' : '$backgroundStrong',
+                    padding: 16,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: vehicleType === type.id ? '$blue8' : '$borderColor',
+                  }}
+                >
+                  <XStack alignItems="center" justifyContent="space-between">
+                    <Text size="md" color={vehicleType === type.id ? '$blue12' : '$color'}>
+                      {type.title}
+                    </Text>
+                    {vehicleType === type.id && (
+                      <Feather name="check" size={20} color="$blue11" />
+                    )}
+                  </XStack>
+                </TouchableOpacity>
+              ))}
+      </YStack>
+          </YStack>
+        </View>
+      </Modal>
+
+      {/* Transmission Type Selection Modal */}
+      <Modal
+        visible={showTransmissionDrawer}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTransmissionDrawer(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onPress={() => setShowTransmissionDrawer(false)}
+          />
+          <YStack
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+          >
+            <Text size="lg" weight="bold" color="$color" marginBottom="$4" textAlign="center">
+              Select Transmission
+            </Text>
+            
+            <YStack gap="$1">
+              {transmissionTypes.map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  onPress={() => {
+                    setTransmissionType(type.id);
+                    setShowTransmissionDrawer(false);
+                  }}
+                  style={{
+                    backgroundColor: transmissionType === type.id ? '$blue5' : '$backgroundStrong',
+                    padding: 16,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: transmissionType === type.id ? '$blue8' : '$borderColor',
+                  }}
+                >
+                  <XStack alignItems="center" justifyContent="space-between">
+                    <Text size="md" color={transmissionType === type.id ? '$blue12' : '$color'}>
+                      {type.title}
+                    </Text>
+                    {transmissionType === type.id && (
+                      <Feather name="check" size={20} color="$blue11" />
+                    )}
+                  </XStack>
+                </TouchableOpacity>
+              ))}
+            </YStack>
+          </YStack>
+        </View>
+      </Modal>
+
+      {/* License Type Selection Modal */}
+      <Modal
+        visible={showLicenseDrawer}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLicenseDrawer(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onPress={() => setShowLicenseDrawer(false)}
+          />
+          <YStack
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+          >
+            <Text size="lg" weight="bold" color="$color" marginBottom="$4" textAlign="center">
+              Select License Type
+            </Text>
+            
+            <YStack gap="$1">
+              {licenseTypes.map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  onPress={() => {
+                    setLicenseType(type.id);
+                    setShowLicenseDrawer(false);
+                  }}
+                  style={{
+                    backgroundColor: licenseType === type.id ? '$blue5' : '$backgroundStrong',
+                    padding: 16,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: licenseType === type.id ? '$blue8' : '$borderColor',
+                  }}
+                >
+                  <XStack alignItems="center" justifyContent="space-between">
+                    <Text size="md" color={licenseType === type.id ? '$blue12' : '$color'}>
+                      {type.title}
+                    </Text>
+                    {licenseType === type.id && (
+                      <Feather name="check" size={20} color="$blue11" />
+                    )}
+                  </XStack>
+                </TouchableOpacity>
+              ))}
+            </YStack>
+          </YStack>
+        </View>
+      </Modal>
     </Stack>
   );
 }
 
 // Utility function to check if interactive onboarding should be shown
-export const shouldShowInteractiveOnboarding = async (key = 'interactive_onboarding'): Promise<boolean> => {
+export const shouldShowInteractiveOnboarding = async (
+  key = 'interactive_onboarding',
+): Promise<boolean> => {
   try {
-    const CURRENT_ONBOARDING_VERSION = 1;
+    const CURRENT_ONBOARDING_VERSION = 2; // Updated to show new onboarding flow
     const value = await AsyncStorage.getItem(key);
+    
+    console.log('🎯 [OnboardingInteractive] Checking if should show:', {
+      key,
+      currentVersion: CURRENT_ONBOARDING_VERSION,
+      storedValue: value,
+    });
 
     if (value === null) {
+      console.log('🎯 [OnboardingInteractive] No stored value - showing onboarding');
       return true;
     }
 
     if (value.startsWith('v')) {
       const lastSeenVersion = parseInt(value.substring(1), 10);
-      return lastSeenVersion < CURRENT_ONBOARDING_VERSION;
+      const shouldShow = lastSeenVersion < CURRENT_ONBOARDING_VERSION;
+      console.log('🎯 [OnboardingInteractive] Version check:', {
+        lastSeenVersion,
+        currentVersion: CURRENT_ONBOARDING_VERSION,
+        shouldShow,
+      });
+      return shouldShow;
     }
 
-    return value === 'true';
+    const shouldShow = value === 'true';
+    console.log('🎯 [OnboardingInteractive] Boolean check:', { value, shouldShow });
+    return shouldShow;
   } catch (error) {
     console.error('Error reading interactive onboarding status:', error);
     return true;
@@ -712,9 +1369,11 @@ export const shouldShowInteractiveOnboarding = async (key = 'interactive_onboard
 };
 
 // Utility function to mark interactive onboarding as seen
-export const completeOnboardingWithVersion = async (key = 'interactive_onboarding'): Promise<void> => {
+export const completeOnboardingWithVersion = async (
+  key = 'interactive_onboarding',
+): Promise<void> => {
   try {
-    const CURRENT_ONBOARDING_VERSION = 1;
+    const CURRENT_ONBOARDING_VERSION = 2; // Updated to match the check function
     await AsyncStorage.setItem(key, `v${CURRENT_ONBOARDING_VERSION}`);
   } catch (error) {
     console.error('Error saving interactive onboarding status with version:', error);
