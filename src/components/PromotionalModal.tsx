@@ -287,29 +287,64 @@ export function usePromotionalModal() {
 
   const checkForPromotionalContent = async (contentType = 'modal') => {
     try {
+      console.log('🎉 [PromotionalModal] Checking for promotional content:', contentType);
+      
       // Check if this promotional content has been seen
       const seen = await AsyncStorage.getItem(`promotional_${contentType}_seen`);
+      console.log('🎉 [PromotionalModal] AsyncStorage check:', { key: `promotional_${contentType}_seen`, seen });
+      
       if (seen === 'true') {
+        console.log('🎉 [PromotionalModal] Already seen - not showing');
         return false; // Already seen
       }
 
       // Check if there's active promotional content
+      console.log('🎉 [PromotionalModal] Querying database for content...');
       const { data, error } = await supabase
         .from('content')
-        .select('id')
+        .select('id, platforms')
         .eq('content_type', contentType)
-        .eq('active', true)
-        .limit(1);
+        .eq('active', true);
 
-      if (error || !data || data.length === 0) {
+      console.log('🎉 [PromotionalModal] Database query result:', { 
+        error: error?.message, 
+        dataLength: data?.length,
+        data: data?.map(d => ({ id: d.id, platforms: d.platforms }))
+      });
+
+      if (error) {
+        console.error('🎉 [PromotionalModal] Database error:', error);
         return false;
       }
 
+      if (!data || data.length === 0) {
+        console.log('🎉 [PromotionalModal] No promotional content found');
+        return false;
+      }
+
+      // Filter for mobile platforms
+      const mobileContent = data.filter(item => {
+        if (!item.platforms) return false;
+        const platforms = typeof item.platforms === 'string' ? JSON.parse(item.platforms) : item.platforms;
+        return Array.isArray(platforms) && (platforms.includes('mobile') || platforms.includes('both'));
+      });
+
+      console.log('🎉 [PromotionalModal] Mobile content filtered:', { 
+        total: data.length, 
+        mobile: mobileContent.length 
+      });
+
+      if (mobileContent.length === 0) {
+        console.log('🎉 [PromotionalModal] No mobile promotional content found');
+        return false;
+      }
+
+      console.log('🎉 [PromotionalModal] SHOWING promotional modal');
       setModalContentType(contentType);
       setShowModal(true);
       return true;
     } catch (error) {
-      console.error('Error checking promotional content:', error);
+      console.error('🎉 [PromotionalModal] Error checking promotional content:', error);
       return false;
     }
   };

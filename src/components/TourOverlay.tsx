@@ -122,7 +122,7 @@ export function TourOverlay() {
 
   return (
     <Modal visible={isActive} transparent animationType="fade">
-      {/* Minimal overlay - tap to close */}
+      {/* Semi-transparent overlay - tap to close */}
       <TouchableOpacity 
         style={styles.overlay} 
         activeOpacity={1} 
@@ -147,7 +147,26 @@ export function TourOverlay() {
             shadowRadius={6}
             maxWidth={220}
             minWidth={180}
+            position="relative"
           >
+            {/* Close button */}
+            <TouchableOpacity
+              onPress={endTour}
+              style={{
+                position: 'absolute',
+                top: -8,
+                right: -8,
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                backgroundColor: '#666',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1,
+              }}
+            >
+              <Feather name="x" size={10} color="white" />
+            </TouchableOpacity>
             {/* Compact content - no title, just text */}
             <TouchableOpacity onPress={() => setExpanded(!expanded)} activeOpacity={0.8}>
               <Text 
@@ -187,6 +206,11 @@ export function TourOverlay() {
                 )}
               </TouchableOpacity>
             </XStack>
+            
+            {/* Hint text */}
+            <Text fontSize={9} color="#888" textAlign="center" marginTop="$1">
+              Tap outside to close
+            </Text>
           </YStack>
 
           {/* Chat bubble tail */}
@@ -238,12 +262,13 @@ const getBubbleTailStyle = (position?: string) => {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'transparent', // No dark overlay
-    pointerEvents: 'box-none', // Allow interaction with background
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Semi-transparent overlay to indicate tap-to-dismiss
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chatBubble: {
     position: 'absolute',
-    zIndex: 1000,
+    zIndex: 10000, // Higher z-index to ensure it's above other modals
   },
   bubbleTail: {
     position: 'absolute',

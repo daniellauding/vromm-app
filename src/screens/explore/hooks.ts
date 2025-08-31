@@ -218,9 +218,10 @@ export const useUserLocation = () => {
   const [userLocation, setUserLocation] = React.useState<Location.LocationObject | null>(null);
   // Location and route organization effects
   React.useEffect(() => {
-    const requestLocationPermission = async () => {
+    const checkLocationPermission = async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        // Only check permission status, don't request it automatically
+        const { status } = await Location.getForegroundPermissionsAsync();
         if (status === 'granted') {
           const location = await Location.getCurrentPositionAsync({});
           setUserLocation(location);
@@ -230,7 +231,7 @@ export const useUserLocation = () => {
       }
     };
 
-    requestLocationPermission();
+    checkLocationPermission();
   }, []);
 
   return userLocation;

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
 interface TourStep {
@@ -30,12 +31,30 @@ const TOUR_STORAGE_KEY = 'vromm_app_tour_completed';
 const TOUR_CONTENT_HASH_KEY = 'vromm_tour_content_hash';
 
 export function TourProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [steps, setSteps] = useState<TourStep[]>([]);
 
   const shouldShowTour = useCallback(async (): Promise<boolean> => {
     try {
+      if (!user?.id) {
+        console.log('🎯 [TourContext] No user ID - showing tour');
+        return true;
+      }
+
+      // Check user's profile for tour completion (USER-BASED)
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('tour_completed, tour_content_hash')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('🎯 [TourContext] Error checking user profile:', error);
+        return true; // Show tour on error
+      }
+
       // Check if tour content has been updated
       const { data } = await supabase
         .from('content')
@@ -46,33 +65,34 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         .limit(1);
 
       const latestUpdate = data?.[0]?.updated_at;
-      const storedHash = await AsyncStorage.getItem(TOUR_CONTENT_HASH_KEY);
-      const completed = await AsyncStorage.getItem(TOUR_STORAGE_KEY);
 
-      console.log('🎯 [TourContext] Tour status check:', { 
-        storageKey: TOUR_STORAGE_KEY, 
-        storedValue: completed,
+      console.log('🎯 [TourContext] User-based tour status check:', { 
+        userId: user.id,
+        userTourCompleted: profile?.tour_completed,
+        userContentHash: profile?.tour_content_hash,
         latestUpdate,
-        storedHash,
-        contentUpdated: latestUpdate && storedHash && latestUpdate !== storedHash
+        contentUpdated: latestUpdate && profile?.tour_content_hash && latestUpdate !== profile?.tour_content_hash
       });
 
-      // Show tour if never completed OR if content has been updated
-      if (completed !== 'true') {
-        return true; // Never completed
+      // Show tour if user never completed it
+      if (!profile?.tour_completed) {
+        console.log('🎯 [TourContext] User has not completed tour - showing');
+        return true;
       }
 
-      if (latestUpdate && storedHash && latestUpdate !== storedHash) {
-        console.log('🎯 [TourContext] Tour content updated, showing tour again');
-        return true; // Content updated
+      // Show tour if content has been updated since user last saw it
+      if (latestUpdate && profile?.tour_content_hash && latestUpdate !== profile?.tour_content_hash) {
+        console.log('🎯 [TourContext] Tour content updated for user - showing');
+        return true;
       }
 
-      return false; // Already seen and no updates
+      console.log('🎯 [TourContext] User has completed current tour - not showing');
+      return false;
     } catch (error) {
       console.error('Error checking tour status:', error);
       return true; // Show tour on error
     }
-  }, []);
+  }, [user?.id]);
 
   const startTour = useCallback((tourSteps?: TourStep[]) => {
     if (tourSteps) {
@@ -195,9 +215,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     setSteps([]);
     
     try {
+      // Save to AsyncStorage for backup
       await AsyncStorage.setItem(TOUR_STORAGE_KEY, 'true');
       
-      // Save current content hash to track updates
+      // Get current content hash
       const { data } = await supabase
         .from('content')
         .select('updated_at')
@@ -206,24 +227,64 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         .order('updated_at', { ascending: false })
         .limit(1);
 
-      if (data?.[0]?.updated_at) {
-        await AsyncStorage.setItem(TOUR_CONTENT_HASH_KEY, data[0].updated_at);
+      const latestUpdate = data?.[0]?.updated_at;
+
+      // Save to user's profile (USER-BASED)
+      if (user?.id) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            tour_completed: true,
+            tour_content_hash: latestUpdate,
+          })
+          .eq('id', user.id);
+
+        if (error) {
+          console.error('🎯 [TourContext] Error saving tour completion to profile:', error);
+        } else {
+          console.log('🎯 [TourContext] Tour completion saved to user profile:', user.id);
+        }
+      }
+
+      // Also save to AsyncStorage for backup
+      if (latestUpdate) {
+        await AsyncStorage.setItem(TOUR_CONTENT_HASH_KEY, latestUpdate);
       }
     } catch (error) {
       console.error('Error saving tour completion:', error);
     }
-  }, []);
+  }, [user?.id]);
 
   const resetTour = useCallback(async () => {
     try {
+      // Reset AsyncStorage
       await AsyncStorage.removeItem(TOUR_STORAGE_KEY);
+      await AsyncStorage.removeItem(TOUR_CONTENT_HASH_KEY);
+      
+      // Reset user's profile (USER-BASED)
+      if (user?.id) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            tour_completed: false,
+            tour_content_hash: null,
+          })
+          .eq('id', user.id);
+
+        if (error) {
+          console.error('🎯 [TourContext] Error resetting tour in profile:', error);
+        } else {
+          console.log('🎯 [TourContext] Tour reset in user profile:', user.id);
+        }
+      }
+      
       setIsActive(false);
       setCurrentStep(0);
       setSteps([]);
     } catch (error) {
       console.error('Error resetting tour:', error);
     }
-  }, []);
+  }, [user?.id]);
 
   const value: TourContextType = {
     isActive,

@@ -154,7 +154,11 @@ function AppContent() {
 
   // Global invitation checking function
   const checkForGlobalInvitations = async () => {
-    if (!user?.email) return;
+    console.log('🌍 [AppContent] checkForGlobalInvitations called for user:', user?.email);
+    if (!user?.email) {
+      console.log('🌍 [AppContent] No user email - skipping invitation check');
+      return;
+    }
 
     try {
       console.log('🌍 Checking for global invitations for:', user.email);
@@ -216,8 +220,10 @@ function AppContent() {
           
           // If no invitations, check for promotional content
           console.log('🎉 [AppContent] Checking for promotional content...');
-          setTimeout(() => {
-            checkForPromotionalContent('modal');
+          setTimeout(async () => {
+            console.log('🎉 [AppContent] About to call checkForPromotionalContent...');
+            const result = await checkForPromotionalContent('modal');
+            console.log('🎉 [AppContent] checkForPromotionalContent result:', result);
           }, 1000);
         } else {
           console.log('🌍 Modal already showing, not triggering again');

@@ -148,7 +148,7 @@ export function OnboardingInteractive({
   // Mark onboarding as viewed
   const completeOnboarding = async () => {
     try {
-      await completeOnboardingWithVersion(showAgainKey);
+      await completeOnboardingWithVersion(showAgainKey, user?.id);
       onDone();
     } catch (error) {
       console.error('Error saving onboarding status:', error);
@@ -1329,52 +1329,90 @@ export function OnboardingInteractive({
   );
 }
 
-// Utility function to check if interactive onboarding should be shown
+// Utility function to check if interactive onboarding should be shown (USER-BASED)
 export const shouldShowInteractiveOnboarding = async (
   key = 'interactive_onboarding',
+  userId?: string,
 ): Promise<boolean> => {
   try {
-    const CURRENT_ONBOARDING_VERSION = 2; // Updated to show new onboarding flow
-    const value = await AsyncStorage.getItem(key);
+    const CURRENT_ONBOARDING_VERSION = 2;
     
-    console.log('🎯 [OnboardingInteractive] Checking if should show:', {
-      key,
-      currentVersion: CURRENT_ONBOARDING_VERSION,
-      storedValue: value,
-    });
-
-    if (value === null) {
-      console.log('🎯 [OnboardingInteractive] No stored value - showing onboarding');
+    if (!userId) {
+      console.log('🎯 [OnboardingInteractive] No user ID - showing onboarding');
       return true;
     }
 
-    if (value.startsWith('v')) {
-      const lastSeenVersion = parseInt(value.substring(1), 10);
-      const shouldShow = lastSeenVersion < CURRENT_ONBOARDING_VERSION;
-      console.log('🎯 [OnboardingInteractive] Version check:', {
-        lastSeenVersion,
-        currentVersion: CURRENT_ONBOARDING_VERSION,
-        shouldShow,
-      });
-      return shouldShow;
+    // Check user's profile for onboarding completion (USER-BASED)
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('interactive_onboarding_completed, interactive_onboarding_version')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('🎯 [OnboardingInteractive] Error checking user profile:', error);
+      return true; // Show onboarding on error
     }
 
-    const shouldShow = value === 'true';
-    console.log('🎯 [OnboardingInteractive] Boolean check:', { value, shouldShow });
-    return shouldShow;
+    console.log('🎯 [OnboardingInteractive] User-based onboarding check:', {
+      userId,
+      currentVersion: CURRENT_ONBOARDING_VERSION,
+      userCompleted: profile?.interactive_onboarding_completed,
+      userVersion: profile?.interactive_onboarding_version,
+    });
+
+    // If user hasn't completed onboarding, show it
+    if (!profile?.interactive_onboarding_completed) {
+      console.log('🎯 [OnboardingInteractive] User has not completed onboarding - showing');
+      return true;
+    }
+
+    // If user completed onboarding but version is outdated, show it
+    const userVersion = profile?.interactive_onboarding_version || 1;
+    if (userVersion < CURRENT_ONBOARDING_VERSION) {
+      console.log('🎯 [OnboardingInteractive] User onboarding version outdated - showing');
+      return true;
+    }
+
+    console.log('🎯 [OnboardingInteractive] User has completed current onboarding version - not showing');
+    return false;
   } catch (error) {
-    console.error('Error reading interactive onboarding status:', error);
-    return true;
+    console.error('Error checking interactive onboarding status:', error);
+    return true; // Show onboarding on error
   }
 };
 
-// Utility function to mark interactive onboarding as seen
+// Utility function to mark interactive onboarding as seen (USER-BASED)
 export const completeOnboardingWithVersion = async (
   key = 'interactive_onboarding',
+  userId?: string,
 ): Promise<void> => {
   try {
-    const CURRENT_ONBOARDING_VERSION = 2; // Updated to match the check function
-    await AsyncStorage.setItem(key, `v${CURRENT_ONBOARDING_VERSION}`);
+    const CURRENT_ONBOARDING_VERSION = 2;
+    
+    if (!userId) {
+      console.error('🎯 [OnboardingInteractive] Cannot complete onboarding - no user ID');
+      return;
+    }
+
+    // Save completion to user's profile (USER-BASED)
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        interactive_onboarding_completed: true,
+        interactive_onboarding_version: CURRENT_ONBOARDING_VERSION,
+      })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('🎯 [OnboardingInteractive] Error saving onboarding completion to profile:', error);
+      // Fallback to AsyncStorage if database fails
+      await AsyncStorage.setItem(key, `v${CURRENT_ONBOARDING_VERSION}`);
+    } else {
+      console.log('🎯 [OnboardingInteractive] Onboarding completion saved to user profile:', userId);
+      // Also save to AsyncStorage for backup
+      await AsyncStorage.setItem(key, `v${CURRENT_ONBOARDING_VERSION}`);
+    }
   } catch (error) {
     console.error('Error saving interactive onboarding status with version:', error);
   }

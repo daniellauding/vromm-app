@@ -7,6 +7,7 @@ import { Text } from './Text';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { supabase } from '../lib/supabase';
 
 interface OnboardingModalInteractiveProps {
   visible: boolean;
@@ -37,19 +38,42 @@ export function OnboardingModalInteractive({
   );
 
   const handleComplete = () => {
-    completeOnboardingWithVersion('interactive_onboarding');
+    completeOnboardingWithVersion('interactive_onboarding', user?.id);
     onClose();
   };
 
   // Handle reset onboarding for testing
   const handleResetOnboarding = async () => {
     try {
-      await AsyncStorage.removeItem('interactive_onboarding');
-      await AsyncStorage.removeItem('vromm_first_login');
+      // Reset AsyncStorage flags
+      await AsyncStorage.multiRemove([
+        'interactive_onboarding',
+        'vromm_first_login',
+        'vromm_onboarding',
+        'vromm_app_tour_completed'
+      ]);
+      
+      // Reset user's profile flags (USER-BASED)
+      if (user?.id) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            interactive_onboarding_completed: false,
+            interactive_onboarding_version: null,
+          })
+          .eq('id', user.id);
+          
+        if (error) {
+          console.error('Error resetting user profile onboarding flags:', error);
+        } else {
+          console.log('🎯 [OnboardingModal] Reset user profile onboarding flags for:', user.id);
+        }
+      }
+      
       // Close modal first
       onClose();
       // Show confirmation
-      alert('Interactive onboarding has been reset. Restart the app to see onboarding again.');
+      alert('All onboarding flags (device + user) have been reset. Restart the app to see onboarding again.');
     } catch (error) {
       console.error('Error resetting interactive onboarding:', error);
       alert('Failed to reset onboarding. Check console for details.');
@@ -59,6 +83,29 @@ export function OnboardingModalInteractive({
   // Toggle debug options with tap
   const handleDebugTap = () => {
     setShowDebugOptions(!showDebugOptions);
+  };
+
+  // Check current storage values for debugging
+  const handleCheckStorage = async () => {
+    try {
+      const values = await AsyncStorage.multiGet([
+        'interactive_onboarding',
+        'vromm_first_login',
+        'vromm_onboarding',
+        'vromm_app_tour_completed'
+      ]);
+      
+      const storageState = values.reduce((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {} as Record<string, string | null>);
+      
+      console.log('🎯 [OnboardingModal] Current AsyncStorage state:', storageState);
+      alert(`Storage State:\n${JSON.stringify(storageState, null, 2)}`);
+    } catch (error) {
+      console.error('Error checking storage:', error);
+      alert('Failed to check storage. Check console for details.');
+    }
   };
 
   const handleCloseModal = () => {
@@ -121,8 +168,11 @@ export function OnboardingModalInteractive({
                 <Text size="xs" color="$gray11">
                   Developer Options
                 </Text>
+                <Button size="$2" theme="blue" onPress={handleCheckStorage}>
+                  Check Storage
+                </Button>
                 <Button size="$2" theme="red" onPress={handleResetOnboarding}>
-                  Reset Interactive Onboarding
+                  Reset All Onboarding
                 </Button>
               </YStack>
             )}
@@ -133,7 +183,6 @@ export function OnboardingModalInteractive({
             onSkip={forceShow ? handleComplete : onClose}
             showAgainKey="interactive_onboarding"
             onCloseModal={handleCloseModal}
-            onReopenModal={handleReopenModal}
           />
         </View>
       </View>
