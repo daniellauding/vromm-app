@@ -272,7 +272,7 @@ export function LoginScreen() {
         <Header title={t('auth.signIn.title')} showBack={true} />
 
         <YStack gap={24} width="100%">
-          <YStack gap={16}>
+          <YStack gap={8}>
             <FormField
               label={t('auth.signIn.emailLabel')}
               value={email}
@@ -320,45 +320,45 @@ export function LoginScreen() {
             >
               <Button
                 size="md"
-                radius="full"
-                variant="secondary"
+                backgroundColor="transparent"
+                borderWidth={0}
                 onPress={handleGoogleLogin}
                 disabled={oauthLoading}
                 accessibilityLabel="Sign in with Google"
                 accessibilityRole="button"
-                pressStyle={{ scale: 0.95 }}
+                pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
               >
-                <Ionicons name="logo-google" size={24} color="#4285F4" />
+                <Ionicons name="logo-google" size={32} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
               </Button>
               
               <Button
                 size="md"
-                radius="full"
-                variant="secondary"
-                onPress={handleAppleLogin}
-                disabled={oauthLoading}
-                accessibilityLabel="Sign in with Apple"
-                accessibilityRole="button"
-                pressStyle={{ scale: 0.95 }}
-              >
-                <Ionicons 
-                  name="logo-apple" 
-                  size={24} 
-                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
-                />
-              </Button>
-              
-              <Button
-                size="md"
-                radius="full"
-                variant="secondary"
+                backgroundColor="transparent"
+                borderWidth={0}
                 onPress={handleFacebookLogin}
                 disabled={oauthLoading}
                 accessibilityLabel="Sign in with Facebook"
                 accessibilityRole="button"
-                pressStyle={{ scale: 0.95 }}
+                pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
               >
-                <Ionicons name="logo-facebook" size={24} color="#1877F2" />
+                <Ionicons name="logo-facebook" size={32} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+              </Button>
+              
+              <Button
+                size="md"
+                backgroundColor="transparent"
+                borderWidth={0}
+                onPress={handleAppleLogin}
+                disabled={oauthLoading}
+                accessibilityLabel="Sign in with Apple"
+                accessibilityRole="button"
+                pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
+              >
+                <Ionicons 
+                  name="logo-apple" 
+                  size={32} 
+                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
+                />
               </Button>
             </XStack>
           </YStack>
@@ -378,7 +378,7 @@ export function LoginScreen() {
           <Button
             variant="link"
             size="md"
-            onPress={() => navigation.navigate('Signup')}
+            onPress={() => navigation.replace('Signup')}
             paddingVertical={0}
             height="auto"
           >

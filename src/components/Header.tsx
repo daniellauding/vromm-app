@@ -2,6 +2,7 @@ import { Text, YStack, XStack, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useThemeColor } from '../../hooks/useThemeColor';
 
 export interface HeaderProps {
   title: string;
@@ -25,7 +26,7 @@ export function Header({
     navigation = null;
   }
 
-  const iconColor = 'white';
+  const iconColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
 
   const handleBackPress = () => {
     if (onBackPress) {

@@ -40,17 +40,17 @@ type FormFieldProps = React.ComponentProps<typeof Input> & {
   rightElement?: React.ReactNode;
 };
 
-export const FormField = forwardRef<any, FormFieldProps>(
+export const FormField = forwardRef<React.ElementRef<typeof Input>, FormFieldProps>(
   ({ label, error, rightElement, ...inputProps }, ref) => {
     return (
-      <YStack gap={tokens.space[2]} w="100%">
+      <YStack gap={0} w="100%">
         {label && <StyledLabel>{label}</StyledLabel>}
         <XStack w="100%" gap={tokens.space[2]}>
           <StyledInput ref={ref} {...inputProps} flex={1} />
           {rightElement}
         </XStack>
         {error ? (
-          <Text color="$error" fontSize={tokens.fontSize[1]}>
+          <Text color="$error" fontSize={tokens.fontSize[1]} mt={tokens.space[2]}>
             {error}
           </Text>
         ) : null}

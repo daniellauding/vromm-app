@@ -129,7 +129,7 @@ export function SignupScreen() {
           </Text>
 
           <YStack gap={24}>
-            <YStack gap={16}>
+            <YStack gap={8}>
               <FormField
                 label={t('auth.signUp.emailLabel')}
                 value={email}
@@ -173,21 +173,6 @@ export function SignupScreen() {
           </YStack>
         </YStack>
 
-        <XStack justifyContent="center" alignItems="center" gap={8}>
-          <Text size="md" intent="muted">
-            {t('auth.signUp.hasAccount')}
-          </Text>
-          <Button
-            variant="link"
-            size="md"
-            onPress={() => navigation.navigate('Login')}
-            paddingVertical={0}
-            height="auto"
-          >
-            {t('auth.signUp.signInLink')}
-          </Button>
-        </XStack>
-
         {/* Social sign-up options */}
         <XStack
           justifyContent="space-around"
@@ -198,45 +183,63 @@ export function SignupScreen() {
         >
           <Button
             size="md"
-            radius="full"
-            variant="secondary"
+            backgroundColor="transparent"
+            borderWidth={0}
             onPress={handleGoogleSignup}
             disabled={oauthLoading}
             accessibilityLabel="Continue with Google"
             accessibilityRole="button"
-            pressStyle={{ scale: 0.95 }}
+            pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
           >
-            <Ionicons name="logo-google" size={24} color="#4285F4" />
+            <Ionicons name="logo-google" size={32} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
           </Button>
 
           <Button
             size="md"
-            radius="full"
-            variant="secondary"
+            backgroundColor="transparent"
+            borderWidth={0}
             onPress={handleFacebookSignup}
             disabled={oauthLoading}
             accessibilityLabel="Continue with Facebook"
             accessibilityRole="button"
-            pressStyle={{ scale: 0.95 }}
+            pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
           >
-            <Ionicons name="logo-facebook" size={24} color="#1877F2" />
+            <Ionicons name="logo-facebook" size={32} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
           </Button>
 
           <Button
             size="md"
-            radius="full"
-            variant="secondary"
-            onPress={() => navigation.navigate('Login')}
+            backgroundColor="transparent"
+            borderWidth={0}
+            onPress={() => {
+              // TODO: Implement Apple signup
+              console.log('Apple signup not implemented yet');
+            }}
             disabled={oauthLoading}
             accessibilityLabel="Continue with Apple"
             accessibilityRole="button"
-            pressStyle={{ scale: 0.95 }}
+            pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
           >
             <Ionicons
               name="logo-apple"
-              size={24}
+              size={32}
               color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
             />
+          </Button>
+        </XStack>
+
+        <XStack justifyContent="center" alignItems="center" gap={8}>
+          <Text size="md" intent="muted">
+            {t('auth.signUp.hasAccount')}
+          </Text>
+          <Button
+            variant="link"
+            size="md"
+            onPress={() => navigation.replace('Login')}
+            paddingVertical={0}
+            height="auto"
+          >
+            {t('auth.signUp.signInLink')}
           </Button>
         </XStack>
       </YStack>

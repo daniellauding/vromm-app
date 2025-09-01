@@ -32,9 +32,11 @@ import { Video, ResizeMode } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
 import { SvgXml } from 'react-native-svg';
+import { useThemeColor } from '../../hooks/useThemeColor';
+import { Database } from '../lib/database.types';
 
 // Video asset reference
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const backgroundVideo = require('../../assets/bg_video.mp4');
 
 // Define styles outside of the component
@@ -146,7 +148,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     backgroundColor: 'transparent',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -154,7 +155,6 @@ const styles = StyleSheet.create({
   },
   onboardingSlide: {
     flex: 1,
-    backgroundColor: '#1C1C1C', // Solid background to completely cover video
     position: 'relative',
   },
   dotsContainer: {
@@ -172,6 +172,17 @@ export function SplashScreen() {
   const { width, height } = Dimensions.get('window');
   const [contentOpacity] = useState(() => new Animated.Value(0));
   const [surveyModalVisible, setSurveyModalVisible] = useState(false);
+  // Theme colors
+  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
+  const textColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
+  const selectedBackgroundColor = useThemeColor(
+    { light: 'rgba(0, 0, 0, 0.1)', dark: 'rgba(255, 255, 255, 0.1)' },
+    'background',
+  );
+  const handleColor = useThemeColor(
+    { light: 'rgba(0, 0, 0, 0.3)', dark: 'rgba(255, 255, 255, 0.3)' },
+    'background',
+  );
 
   const [onboardingSlides, setOnboardingSlides] = useState<OnboardingSlide[]>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -196,7 +207,7 @@ export function SplashScreen() {
         const slideIndex = viewableItems[0].index;
         const realIndex = slideIndex % (onboardingSlides.length + 1); // +1 for splash
         setCurrentSlideIndex(realIndex);
-        
+
         // Mark this slide as seen
         setSeenSlides((prev) => new Set(prev).add(realIndex));
       }
@@ -209,10 +220,10 @@ export function SplashScreen() {
   const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset } = event.nativeEvent;
     const slideIndex = Math.round(contentOffset.x / width);
-    
+
     // Calculate the position within the real slides (0 to realSlidesCount-1)
     const realIndex = slideIndex % realSlidesCount;
-    
+
     // If we're in the first set (indices 0 to realSlidesCount-1), jump to middle set
     if (slideIndex < realSlidesCount) {
       const targetIndex = slideIndex + realSlidesCount; // Jump to middle set
@@ -231,7 +242,7 @@ export function SplashScreen() {
         }
       }, 50);
     }
-    
+
     // Update the current slide index to show correct dots
     setCurrentSlideIndex(realIndex);
   };
@@ -258,7 +269,7 @@ export function SplashScreen() {
     const loadOnboardingSlides = async () => {
       try {
         console.log('🔄 Loading onboarding slides for splash screen...');
-        
+
         // Fetch from content table with proper filtering
         const { data, error } = await supabase
           .from('content')
@@ -275,24 +286,24 @@ export function SplashScreen() {
 
         if (data && data.length > 0) {
           console.log('📱 Loaded', data.length, 'onboarding content items from database');
-          
+
           // Transform the content data to match the OnboardingSlide interface
-          const slides = data.map((content: any) => ({
+          const slides = data.map((content: Database['public']['Tables']['content']['Row']) => ({
             id: content.id,
-            title_en: content.title?.en || '',
-            title_sv: content.title?.sv || '',
-            text_en: content.body?.en || '',
-            text_sv: content.body?.sv || '',
-            image_url: content.image_url,
-            icon: content.icon,
-            iconColor: content.icon_color,
+            title_en: ((content.title as { en?: string; sv?: string }) || {}).en || '',
+            title_sv: ((content.title as { en?: string; sv?: string }) || {}).sv || '',
+            text_en: ((content.body as { en?: string; sv?: string }) || {}).en || '',
+            text_sv: ((content.body as { en?: string; sv?: string }) || {}).sv || '',
+            image_url: content.image_url || undefined,
+            icon: content.icon || undefined,
+            iconColor: content.icon_color || undefined,
             media_enabled: content.media_enabled || true,
-            media_type: content.media_type,
-            youtube_embed: content.youtube_embed,
-            iframe_embed: content.iframe_embed,
-            iconSvg: content.icon_svg,
+            media_type: content.media_type as 'image' | 'video' | 'embed' | undefined,
+            youtube_embed: content.youtube_embed || undefined,
+            iframe_embed: content.iframe_embed || undefined,
+            iconSvg: content.icon_svg || undefined,
           }));
-          
+
           setOnboardingSlides(slides);
         } else {
           console.log('📝 No slides found in database, creating demo slides');
@@ -306,7 +317,7 @@ export function SplashScreen() {
               media_enabled: false,
             },
             {
-              id: 'demo2', 
+              id: 'demo2',
               title_en: 'Find Routes',
               title_sv: 'Hitta rutter',
               text_en: 'Browse routes created by instructors and other learners',
@@ -777,7 +788,6 @@ export function SplashScreen() {
     });
   };
 
-
   // Animated onboarding slide component
   const AnimatedOnboardingSlide = ({
     item,
@@ -861,15 +871,15 @@ export function SplashScreen() {
     ]);
 
     return (
-      <View style={[styles.onboardingSlide, { width }]}>
+      <View style={[styles.onboardingSlide, { width, backgroundColor }]}>
         <ScrollView
-          style={{ flex: 1, backgroundColor: '#1C1C1C' }}
+          style={{ flex: 1, backgroundColor }}
           contentContainerStyle={{
             flexGrow: 1,
             paddingHorizontal: 24,
             paddingTop: 60,
             paddingBottom: 200, // Space for dots and buttons
-            backgroundColor: '#1C1C1C',
+            backgroundColor,
           }}
           showsVerticalScrollIndicator={false}
           bounces={false}
@@ -879,7 +889,7 @@ export function SplashScreen() {
             alignItems="center"
             justifyContent="center"
             minHeight={height - 300}
-            backgroundColor="#1C1C1C"
+            backgroundColor={backgroundColor}
           >
             <Animated.View
               style={{
@@ -893,7 +903,7 @@ export function SplashScreen() {
             >
               {renderMedia(item)}
             </Animated.View>
-            
+
             <YStack flex={1} alignItems="center" gap="$4" minHeight={150}>
               <Animated.View
                 style={{
@@ -907,19 +917,19 @@ export function SplashScreen() {
                   fontStyle="italic"
                   textAlign="center"
                   fontFamily="$heading"
-                  color="white"
+                  color={textColor}
                 >
                   {getTitle(item)}
                 </Text>
               </Animated.View>
-              
+
               <Animated.View
                 style={{
                   opacity: textOpacity,
                   transform: [{ translateY: textTranslateY }],
                 }}
               >
-                <Text size="lg" textAlign="center" color="white" opacity={0.9}>
+                <Text size="lg" textAlign="center" color={textColor} opacity={0.9}>
                   {getText(item)}
                 </Text>
               </Animated.View>
@@ -934,7 +944,7 @@ export function SplashScreen() {
   const renderOnboardingSlide = ({ item, index }: { item: OnboardingSlide; index: number }) => {
     const realIndex = index % realSlidesCount;
     const isActive = currentSlideIndex === realIndex;
-    
+
     return <AnimatedOnboardingSlide item={item} isActive={isActive} slideIndex={realIndex} />;
   };
 
@@ -1035,7 +1045,7 @@ export function SplashScreen() {
     text_sv: 'Din körövningspartner',
     isSplash: true,
   };
-  
+
   const baseSlides = [
     splashSlide,
     ...onboardingSlides.map((slide) => ({ ...slide, isSplash: false })),
@@ -1136,7 +1146,7 @@ export function SplashScreen() {
                     width: isActive ? 16 : 8, // Smaller dots
                     height: 8, // Smaller height
                     borderRadius: 4,
-                    backgroundColor: isActive ? '#00FFBC' : '#FFFFFF',
+                    backgroundColor: isActive ? '#00FFBC' : textColor,
                     marginHorizontal: 2, // Less spacing
                     opacity: isActive ? 1 : 0.5,
                     shadowColor: isActive ? '#00FFBC' : 'transparent',
@@ -1161,7 +1171,7 @@ export function SplashScreen() {
         <Animated.View style={[styles.backgroundVideo, videoAnimatedStyle]}>
           <Video
             ref={videoRef}
-            source={require('../../assets/bg_video.mp4')}
+            source={backgroundVideo}
             style={StyleSheet.absoluteFill}
             resizeMode={ResizeMode.COVER}
             shouldPlay
@@ -1220,7 +1230,7 @@ export function SplashScreen() {
           activeOpacity={1}
           onPressIn={(e) => {
             e.currentTarget.setNativeProps({
-              style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+              style: { backgroundColor: selectedBackgroundColor },
             });
           }}
           onPressOut={(e) => {
@@ -1229,7 +1239,7 @@ export function SplashScreen() {
             });
           }}
         >
-          <HelpCircle size={20} color="white" />
+          <HelpCircle size={20} color={currentSlideIndex === 0 ? 'white' : textColor} />
         </TouchableOpacity>
       </Animated.View>
 
@@ -1256,7 +1266,7 @@ export function SplashScreen() {
           activeOpacity={1}
           onPressIn={(e) => {
             e.currentTarget.setNativeProps({
-              style: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+              style: { backgroundColor: selectedBackgroundColor },
             });
           }}
           onPressOut={(e) => {
@@ -1265,7 +1275,7 @@ export function SplashScreen() {
             });
           }}
         >
-          <Flag size={20} color="white" />
+          <Flag size={20} color={currentSlideIndex === 0 ? 'white' : textColor} />
         </TouchableOpacity>
       </Animated.View>
 
@@ -1297,7 +1307,7 @@ export function SplashScreen() {
               }}
             >
               <YStack
-                backgroundColor="$background"
+                backgroundColor={backgroundColor}
                 padding="$4"
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
@@ -1309,23 +1319,23 @@ export function SplashScreen() {
                     width: 40,
                     height: 4,
                     borderRadius: 2,
-                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                    backgroundColor: handleColor,
                     alignSelf: 'center',
                     marginBottom: 12,
                   }}
                 />
 
-                <Heading textAlign="center" size="$5" color="white">
+                <Heading textAlign="center" size="$5" color={textColor}>
                   {t('auth.signIn.helpImprove.drawer.title')}
                 </Heading>
 
-                <Text textAlign="center" color="white">
+                <Text textAlign="center" color={textColor}>
                   {t('auth.signIn.helpImprove.drawer.text')}
                 </Text>
 
                 <XStack gap="$4" marginTop="$4" paddingHorizontal="$2">
                   <TouchableOpacity
-                    style={styles.surveyOption}
+                    style={[styles.surveyOption, { borderColor: selectedBackgroundColor }]}
                     onPress={() => handleOpenSurvey('driver')}
                   >
                     <YStack alignItems="center" gap="$3">
@@ -1340,16 +1350,16 @@ export function SplashScreen() {
                           marginBottom: 8,
                         }}
                       >
-                        <GraduationCap size={40} color="white" />
+                        <GraduationCap size={40} color={textColor} />
                       </View>
-                      <Text color="white" size="lg" textAlign="center">
+                      <Text color={textColor} size="lg" textAlign="center">
                         {t('auth.signIn.forLearners')}
                       </Text>
                     </YStack>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.surveyOption}
+                    style={[styles.surveyOption, { borderColor: selectedBackgroundColor }]}
                     onPress={() => handleOpenSurvey('school')}
                   >
                     <YStack alignItems="center" gap="$3">
@@ -1364,9 +1374,9 @@ export function SplashScreen() {
                           marginBottom: 8,
                         }}
                       >
-                        <School size={40} color="white" />
+                        <School size={40} color={textColor} />
                       </View>
-                      <Text color="white" size="lg" textAlign="center">
+                      <Text color={textColor} size="lg" textAlign="center">
                         {t('auth.signIn.forSchools')}
                       </Text>
                     </YStack>
@@ -1403,7 +1413,7 @@ export function SplashScreen() {
               }}
             >
               <YStack
-                backgroundColor="$background"
+                backgroundColor={backgroundColor}
                 padding="$4"
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
@@ -1415,13 +1425,13 @@ export function SplashScreen() {
                     width: 40,
                     height: 4,
                     borderRadius: 2,
-                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                    backgroundColor: handleColor,
                     alignSelf: 'center',
                     marginBottom: 12,
                   }}
                 />
 
-                <Text size="xl" weight="bold" color="white" textAlign="center">
+                <Text size="xl" weight="bold" color={textColor} textAlign="center">
                   {t('settings.language.title')}
                 </Text>
 
@@ -1429,16 +1439,16 @@ export function SplashScreen() {
                   <TouchableOpacity
                     style={[
                       styles.languageOption,
-                      language === 'en' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
+                      language === 'en' && { backgroundColor: selectedBackgroundColor },
                     ]}
                     onPress={() => handleLanguageSelect('en')}
                   >
                     <XStack gap={8} padding="$2" alignItems="center">
-                      <Text color="white" size="lg">
+                      <Text color={textColor} size="lg">
                         English
                       </Text>
                       {language === 'en' && (
-                        <Check size={16} color="white" style={{ marginLeft: 'auto' }} />
+                        <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
                       )}
                     </XStack>
                   </TouchableOpacity>
@@ -1446,16 +1456,16 @@ export function SplashScreen() {
                   <TouchableOpacity
                     style={[
                       styles.languageOption,
-                      language === 'sv' && { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
+                      language === 'sv' && { backgroundColor: selectedBackgroundColor },
                     ]}
                     onPress={() => handleLanguageSelect('sv')}
                   >
                     <XStack gap={8} padding="$2" alignItems="center">
-                      <Text color="white" size="lg">
+                      <Text color={textColor} size="lg">
                         Svenska
                       </Text>
                       {language === 'sv' && (
-                        <Check size={16} color="white" style={{ marginLeft: 'auto' }} />
+                        <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
                       )}
                     </XStack>
                   </TouchableOpacity>
