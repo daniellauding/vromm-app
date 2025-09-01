@@ -36,7 +36,10 @@ import { BetaInfoModal } from './BetaInfoModal';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import CustomWebView from './CustomWebView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TAB_BAR_HEIGHT as NAV_TAB_BAR_HEIGHT, BOTTOM_SAFE_INSET as NAV_BOTTOM_SAFE_INSET } from '../utils/layout';
+import {
+  TAB_BAR_HEIGHT as NAV_TAB_BAR_HEIGHT,
+  BOTTOM_SAFE_INSET as NAV_BOTTOM_SAFE_INSET,
+} from '../utils/layout';
 import { useTranslation as useAppTranslation } from '../contexts/TranslationContext';
 
 // Import services for badge counts
@@ -68,7 +71,6 @@ import { DrivenRoutes } from '../screens/HomeScreen/DrivenRoutes';
 import { RouteListScreen } from '../screens/RouteListScreen';
 
 const Tab = createBottomTabNavigator<TabParamList>();
-const Stack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
 const MenuStack = createNativeStackNavigator();
 const MapStack = createNativeStackNavigator();
@@ -245,7 +247,7 @@ const HamburgerDrawer = ({
       console.log('📬 Updated seen counts when drawer opened:', {
         messages: unreadMessageCount,
         notifications: unreadNotificationCount,
-        events: unreadEventCount
+        events: unreadEventCount,
       });
     } else {
       Animated.parallel([
@@ -264,36 +266,97 @@ const HamburgerDrawer = ({
   }, [isOpen]);
 
   const menuItems = [
-    { icon: 'user', target: 'PublicProfile', label: t('drawer.myProfile') || 'My Profile', action: () => { onBeginNavigate(); if (user?.id) { onNavigateHome('PublicProfile', { userId: user.id }); } onClose(); } },
-    { icon: 'settings', target: 'ProfileScreen', label: t('drawer.settings') || 'Settings', action: () => { onBeginNavigate(); onNavigateHome('ProfileScreen'); onClose(); } },
-    { icon: 'users', target: 'UsersScreen', label: t('drawer.users') || 'Users', action: () => { onBeginNavigate(); onNavigateHome('UsersScreen'); onClose(); } },
-    { 
-      icon: 'message-circle', target: 'Messages',
-      label: t('drawer.messages') || 'Messages', 
-      action: () => { onBeginNavigate(); onNavigateHome('Messages'); onClose(); },
+    {
+      icon: 'user',
+      target: 'PublicProfile',
+      label: t('drawer.myProfile') || 'My Profile',
+      action: () => {
+        onBeginNavigate();
+        if (user?.id) {
+          onNavigateHome('PublicProfile', { userId: user.id });
+        }
+        onClose();
+      },
+    },
+    {
+      icon: 'settings',
+      target: 'ProfileScreen',
+      label: t('drawer.settings') || 'Settings',
+      action: () => {
+        onBeginNavigate();
+        onNavigateHome('ProfileScreen');
+        onClose();
+      },
+    },
+    {
+      icon: 'users',
+      target: 'UsersScreen',
+      label: t('drawer.users') || 'Users',
+      action: () => {
+        onBeginNavigate();
+        onNavigateHome('UsersScreen');
+        onClose();
+      },
+    },
+    {
+      icon: 'message-circle',
+      target: 'Messages',
+      label: t('drawer.messages') || 'Messages',
+      action: () => {
+        onBeginNavigate();
+        onNavigateHome('Messages');
+        onClose();
+      },
       badge: unreadMessageCount,
-      badgeColor: '#EF4444'
+      badgeColor: '#EF4444',
     },
-    { 
-      icon: 'calendar', target: 'Events',
-      label: t('drawer.events') || 'Events', 
-      action: () => { onBeginNavigate(); onNavigateHome('Events'); onClose(); },
+    {
+      icon: 'calendar',
+      target: 'Events',
+      label: t('drawer.events') || 'Events',
+      action: () => {
+        onBeginNavigate();
+        onNavigateHome('Events');
+        onClose();
+      },
       badge: unreadEventCount,
-      badgeColor: '#EF4444'
+      badgeColor: '#EF4444',
     },
-    { 
-      icon: 'bell', target: 'Notifications',
-      label: t('drawer.notifications') || 'Notifications', 
-      action: () => { onBeginNavigate(); onNavigateHome('Notifications'); onClose(); },
+    {
+      icon: 'bell',
+      target: 'Notifications',
+      label: t('drawer.notifications') || 'Notifications',
+      action: () => {
+        onBeginNavigate();
+        onNavigateHome('Notifications');
+        onClose();
+      },
       badge: unreadNotificationCount,
-      badgeColor: '#EF4444'
+      badgeColor: '#EF4444',
     },
-    { icon: 'globe', label: t('drawer.betaWebsite') || 'Beta Website', action: () => onOpenBetaWebViewLocal() },
-    { icon: 'globe', label: t('settings.language.title') || 'Language', action: () => onOpenLanguageLocal() },
-    { icon: 'coffee', label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee', action: () => onOpenBuyCoffeeLocal() },
+    {
+      icon: 'globe',
+      label: t('drawer.betaWebsite') || 'Beta Website',
+      action: () => onOpenBetaWebViewLocal(),
+    },
+    {
+      icon: 'globe',
+      label: t('settings.language.title') || 'Language',
+      action: () => onOpenLanguageLocal(),
+    },
+    {
+      icon: 'coffee',
+      label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee',
+      action: () => onOpenBuyCoffeeLocal(),
+    },
     { icon: 'share', label: t('drawer.shareApp') || 'Share App', action: () => onShareApp() },
     { icon: 'info', label: t('drawer.about') || 'About', action: () => onOpenAboutLocal() },
-    { icon: 'log-out', label: t('drawer.logout') || 'Logout', action: () => handleSignOut(), danger: true },
+    {
+      icon: 'log-out',
+      label: t('drawer.logout') || 'Logout',
+      action: () => handleSignOut(),
+      danger: true,
+    },
   ];
 
   return (
@@ -334,8 +397,10 @@ const HamburgerDrawer = ({
             {/* Profile Header */}
             <Card padding="$3" marginBottom="$2">
               <TouchableOpacity
-                onPress={() => { 
-                  if (user?.id) { onNavigateHome('PublicProfile', { userId: user.id }); }
+                onPress={() => {
+                  if (user?.id) {
+                    onNavigateHome('PublicProfile', { userId: user.id });
+                  }
                   onClose();
                 }}
                 accessibilityLabel="View public profile"
@@ -357,12 +422,20 @@ const HamburgerDrawer = ({
                         justifyContent: 'center',
                       }}
                     >
-                      <Feather name="user" size={22} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                      <Feather
+                        name="user"
+                        size={22}
+                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                      />
                     </View>
                   )}
                   <YStack>
-                    <Text fontSize="$5" fontWeight="600">{profile?.full_name || user?.email || 'User'}</Text>
-                    <Text fontSize="$2" color="$gray10">{user?.email}</Text>
+                    <Text fontSize="$5" fontWeight="600">
+                      {profile?.full_name || user?.email || 'User'}
+                    </Text>
+                    <Text fontSize="$2" color="$gray10">
+                      {user?.email}
+                    </Text>
                   </YStack>
                 </XStack>
               </TouchableOpacity>
@@ -376,8 +449,12 @@ const HamburgerDrawer = ({
                 marginBottom="$1"
                 pressStyle={{ opacity: 0.7 }}
                 backgroundColor={
-                  activeMenuScreen && (item as any).target && activeMenuScreen === (item as any).target
-                    ? (colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(105,227,196,0.12)')
+                  activeMenuScreen &&
+                  (item as any).target &&
+                  activeMenuScreen === (item as any).target
+                    ? colorScheme === 'dark'
+                      ? 'rgba(255,255,255,0.08)'
+                      : 'rgba(105,227,196,0.12)'
                     : undefined
                 }
               >
@@ -399,15 +476,33 @@ const HamburgerDrawer = ({
                         color={
                           (item as any).danger
                             ? '#FF4444'
-                            : activeMenuScreen && (item as any).target && activeMenuScreen === (item as any).target
+                            : activeMenuScreen &&
+                                (item as any).target &&
+                                activeMenuScreen === (item as any).target
                               ? '#69e3c4'
-                              : (colorScheme === 'dark' ? '#FFFFFF' : '#000000')
+                              : colorScheme === 'dark'
+                                ? '#FFFFFF'
+                                : '#000000'
                         }
                       />
                       <Text
                         fontSize="$4"
-                        color={(item as any).danger ? '#FF4444' : (activeMenuScreen && (item as any).target && activeMenuScreen === (item as any).target ? '#69e3c4' : undefined)}
-                        fontWeight={activeMenuScreen && (item as any).target && activeMenuScreen === (item as any).target ? '700' : undefined}
+                        color={
+                          (item as any).danger
+                            ? '#FF4444'
+                            : activeMenuScreen &&
+                                (item as any).target &&
+                                activeMenuScreen === (item as any).target
+                              ? '#69e3c4'
+                              : undefined
+                        }
+                        fontWeight={
+                          activeMenuScreen &&
+                          (item as any).target &&
+                          activeMenuScreen === (item as any).target
+                            ? '700'
+                            : undefined
+                        }
                       >
                         {item.label}
                       </Text>
@@ -501,7 +596,7 @@ export function TabNavigator() {
 
   // Badge counts state for menu icon
   const [totalBadgeCount, setTotalBadgeCount] = useState(0);
-  
+
   // Track what was seen when drawer was last opened (for menu badge only)
   const [seenMessageCount, setSeenMessageCount] = useState(0);
   const [seenNotificationCount, setSeenNotificationCount] = useState(0);
@@ -540,13 +635,15 @@ export function TabNavigator() {
       // Load message count
       const messageCount = await messageService.getUnreadCount();
       setUnreadMessageCount(messageCount);
-      
+
       // Load notification count
       const notificationCount = await notificationService.getUnreadCount();
       setUnreadNotificationCount(notificationCount);
-      
+
       // Load event invitation count
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       let eventCount = 0;
       if (user) {
         const { data: eventInvitations } = await supabase
@@ -582,16 +679,20 @@ export function TabNavigator() {
       const newMessages = Math.max(0, messageCount - seenMessageCountRef.current);
       const newNotifications = Math.max(0, notificationCount - seenNotificationCountRef.current);
       const newEvents = Math.max(0, eventCount - seenEventCountRef.current);
-      
+
       const total = newMessages + newNotifications + newEvents;
       setTotalBadgeCount(total);
-      
+
       console.log('📊 Menu badge calculation:', {
         total,
         newMessages,
         newNotifications,
         newEvents,
-        seen: { messages: seenMessageCountRef.current, notifications: seenNotificationCountRef.current, events: seenEventCountRef.current }
+        seen: {
+          messages: seenMessageCountRef.current,
+          notifications: seenNotificationCountRef.current,
+          events: seenEventCountRef.current,
+        },
       });
     } catch (error) {
       console.error('Error loading badge counts:', error);
@@ -721,37 +822,49 @@ export function TabNavigator() {
   }, [navigationState, isNavigatingFromDrawer]);
 
   // Handle maximizing wizard to full CreateRouteScreen
-  const handleMaximizeWizard = useCallback((wizardData: any) => {
-    console.log('🔍 TabNavigator handling wizard maximize');
-    
-    // Navigate to CreateRouteScreen with wizard data pre-filled
-    (navigation as any).navigate('MainTabs', {
-      screen: 'HomeTab',
-      params: {
-        screen: 'CreateRoute',
+  const handleMaximizeWizard = useCallback(
+    (wizardData: any) => {
+      console.log('🔍 TabNavigator handling wizard maximize');
+
+      // Navigate to CreateRouteScreen with wizard data pre-filled
+      (navigation as any).navigate('MainTabs', {
+        screen: 'HomeTab',
         params: {
-          routeId: undefined, // New route
-          initialWaypoints: wizardData.waypoints,
-          initialName: wizardData.name,
-          initialDescription: wizardData.description,
-          initialSearchCoordinates: wizardData.waypoints.length > 0 
-            ? `${wizardData.waypoints[0].latitude.toFixed(6)}, ${wizardData.waypoints[0].longitude.toFixed(6)}`
-            : '',
-          initialRoutePath: wizardData.routePath,
-          initialStartPoint: wizardData.waypoints.length > 0 
-            ? { latitude: wizardData.waypoints[0].latitude, longitude: wizardData.waypoints[0].longitude }
-            : undefined,
-          initialEndPoint: wizardData.waypoints.length > 1 
-            ? { latitude: wizardData.waypoints[wizardData.waypoints.length - 1].latitude, longitude: wizardData.waypoints[wizardData.waypoints.length - 1].longitude }
-            : undefined,
+          screen: 'CreateRoute',
+          params: {
+            routeId: undefined, // New route
+            initialWaypoints: wizardData.waypoints,
+            initialName: wizardData.name,
+            initialDescription: wizardData.description,
+            initialSearchCoordinates:
+              wizardData.waypoints.length > 0
+                ? `${wizardData.waypoints[0].latitude.toFixed(6)}, ${wizardData.waypoints[0].longitude.toFixed(6)}`
+                : '',
+            initialRoutePath: wizardData.routePath,
+            initialStartPoint:
+              wizardData.waypoints.length > 0
+                ? {
+                    latitude: wizardData.waypoints[0].latitude,
+                    longitude: wizardData.waypoints[0].longitude,
+                  }
+                : undefined,
+            initialEndPoint:
+              wizardData.waypoints.length > 1
+                ? {
+                    latitude: wizardData.waypoints[wizardData.waypoints.length - 1].latitude,
+                    longitude: wizardData.waypoints[wizardData.waypoints.length - 1].longitude,
+                  }
+                : undefined,
+          },
         },
-      },
-    });
-  }, [navigation]);
+      });
+    },
+    [navigation],
+  );
 
   const handleCreateEvent = useCallback(() => {
     console.log('🎉 TabNavigator handling create event');
-    
+
     // Navigate directly to CreateEventScreen (not through HomeTab)
     navigation.navigate('CreateEvent', {
       eventId: undefined, // New event
@@ -820,14 +933,14 @@ export function TabNavigator() {
             params: {
               screen: 'CreateRoute',
               params: {
-            routeId: undefined,
-            initialWaypoints: routeData.waypoints,
-            initialName: routeData.name,
-            initialDescription: routeData.description,
-            initialSearchCoordinates: routeData.searchCoordinates,
-            initialRoutePath: routeData.routePath,
-            initialStartPoint: routeData.startPoint,
-            initialEndPoint: routeData.endPoint,
+                routeId: undefined,
+                initialWaypoints: routeData.waypoints,
+                initialName: routeData.name,
+                initialDescription: routeData.description,
+                initialSearchCoordinates: routeData.searchCoordinates,
+                initialRoutePath: routeData.routePath,
+                initialStartPoint: routeData.startPoint,
+                initialEndPoint: routeData.endPoint,
               },
             },
           });
@@ -877,29 +990,29 @@ export function TabNavigator() {
       // Get the current route name from nested navigation
       const getCurrentRouteName = (navState: any): string | null => {
         if (!navState) return null;
-        
+
         const route = navState.routes[navState.index];
         if (!route) return null;
-        
+
         // If this route has nested state, recurse
         if (route.state) {
           return getCurrentRouteName(route.state);
         }
-        
+
         return route.name;
       };
 
       const currentRouteName = getCurrentRouteName(state);
-      
+
       // List of screens that should hide the tab bar
       const hideTabBarScreens = [
         'CreateRoute',
-        'RouteDetail', 
+        'RouteDetail',
         'ConversationScreen',
         'Conversation',
         'PublicProfile',
         'ProfileScreen',
-        'EventDetail'
+        'EventDetail',
       ];
 
       const shouldHideTabBar = hideTabBarScreens.includes(currentRouteName || '');
@@ -909,28 +1022,38 @@ export function TabNavigator() {
     return unsubscribe;
   }, [navigation]);
 
-  const navigateHomeStack = useCallback((screen: string, params?: any) => {
-    try {
-      // If destination is a drawer item, keep MenuTab active; else use HomeTab
-      const menuScreens = new Set(['PublicProfile', 'ProfileScreen', 'UsersScreen', 'Messages', 'Events', 'Notifications']);
-      if (menuScreens.has(screen)) {
-        setActiveMenuScreen(screen);
-        console.log('[NAV][Drawer] → MainTabs > MenuTab >', screen, params || null);
-        (navigation as any).navigate('MainTabs', {
-          screen: 'MenuTab',
-          params: { screen, params },
-        });
-      } else {
-        console.log('[NAV] → MainTabs > HomeTab >', screen, params || null);
-        (navigation as any).navigate('MainTabs', {
-          screen: 'HomeTab',
-          params: { screen, params },
-        });
+  const navigateHomeStack = useCallback(
+    (screen: string, params?: any) => {
+      try {
+        // If destination is a drawer item, keep MenuTab active; else use HomeTab
+        const menuScreens = new Set([
+          'PublicProfile',
+          'ProfileScreen',
+          'UsersScreen',
+          'Messages',
+          'Events',
+          'Notifications',
+        ]);
+        if (menuScreens.has(screen)) {
+          setActiveMenuScreen(screen);
+          console.log('[NAV][Drawer] → MainTabs > MenuTab >', screen, params || null);
+          (navigation as any).navigate('MainTabs', {
+            screen: 'MenuTab',
+            params: { screen, params },
+          });
+        } else {
+          console.log('[NAV] → MainTabs > HomeTab >', screen, params || null);
+          (navigation as any).navigate('MainTabs', {
+            screen: 'HomeTab',
+            params: { screen, params },
+          });
+        }
+      } catch (e) {
+        console.error('[Drawer] navigateHomeStack error:', e);
       }
-    } catch (e) {
-      console.error('[Drawer] navigateHomeStack error:', e);
-    }
-  }, [navigation]);
+    },
+    [navigation],
+  );
 
   const tabBarStyle = {
     position: 'absolute',
@@ -968,21 +1091,16 @@ export function TabNavigator() {
     tabBarButton: (props: BottomTabBarButtonProps) => <CustomTabBarButton {...props} />,
   };
 
-
-
   // (moved to top-level to avoid recreation on every render)
 
   return (
     <View style={{ flex: 1 }}>
-
       <Tab.Navigator screenOptions={screenOptions}>
         <Tab.Screen
           name="HomeTab"
           options={{
             title: t('navigation.home'),
-            tabBarIcon: ({ color, size }) => (
-              <HomeIcon color={color} size={size} />
-            ),
+            tabBarIcon: ({ color, size }) => <HomeIcon color={color} size={size} />,
           }}
           listeners={({ navigation: nav }) => ({
             tabPress: () => {
@@ -1021,9 +1139,7 @@ export function TabNavigator() {
           name="ProgressTab"
           options={{
             title: t('navigation.progress'),
-            tabBarIcon: ({ color, size }) => (
-              <PractiseIcon color={color} size={size} />
-            ),
+            tabBarIcon: ({ color, size }) => <PractiseIcon color={color} size={size} />,
           }}
           listeners={({ navigation }) => ({
             tabPress: () => {
@@ -1055,7 +1171,13 @@ export function TabNavigator() {
                   accessibilityLabel="Create route or record driving"
                   onPress={() => {
                     console.log('🎯 Central Create Route tab button pressed');
-                    showModal(<ActionSheetModal onCreateRoute={handleCreateRoute} onMaximizeWizard={handleMaximizeWizard} onCreateEvent={handleCreateEvent} />);
+                    showModal(
+                      <ActionSheetModal
+                        onCreateRoute={handleCreateRoute}
+                        onMaximizeWizard={handleMaximizeWizard}
+                        onCreateEvent={handleCreateEvent}
+                      />,
+                    );
                   }}
                   style={{
                     width: 56,
@@ -1074,7 +1196,11 @@ export function TabNavigator() {
                     borderColor: colorScheme === 'light' ? '#FFFFFF' : 'transparent',
                   }}
                 >
-                  <Feather name="plus" size={24} color={colorScheme === 'dark' ? 'white' : '#1A3D3D'} />
+                  <Feather
+                    name="plus"
+                    size={24}
+                    color={colorScheme === 'dark' ? 'white' : '#1A3D3D'}
+                  />
                 </TouchableOpacity>
               </View>
             ),
@@ -1084,11 +1210,10 @@ export function TabNavigator() {
           name="MapTab"
           options={{
             title: t('navigation.map'),
-            tabBarIcon: ({ color, size }) => (
-              <MapIcon color={color} size={size} />
-            ),
+            tabBarIcon: ({ color, size }) => <MapIcon color={color} size={size} />,
+            popToTopOnBlur: true,
           }}
-          listeners={({ navigation }) => ({
+          listeners={({ navigation, route }) => ({
             tabPress: () => {
               if ((navigation as any).isFocused && (navigation as any).isFocused()) {
                 logInfo('Map tab reselected → refreshing');
@@ -1149,12 +1274,14 @@ export function TabNavigator() {
                     size={22}
                     color={
                       // Consider the menu tab active when drawer is open or a menu screen is active
-                      (isDrawerOpen || !!activeMenuScreen)
+                      isDrawerOpen || !!activeMenuScreen
                         ? '#69e3c4'
-                        : (colorScheme === 'dark' ? '#FFFFFF' : '#000000')
+                        : colorScheme === 'dark'
+                          ? '#FFFFFF'
+                          : '#000000'
                     }
                   />
-                  
+
                   {/* Combined badge for menu icon */}
                   {totalBadgeCount > 0 && (
                     <View
@@ -1261,19 +1388,45 @@ export function TabNavigator() {
             borderTopRightRadius="$4"
             gap="$4"
           >
-            <Text fontSize={28} fontWeight="700">{t('settings.language.title') || 'Choose language'}</Text>
+            <Text fontSize={28} fontWeight="700">
+              {t('settings.language.title') || 'Choose language'}
+            </Text>
             <TouchableOpacity
-              onPress={() => { setLanguage('en'); setShowLanguageSheet(false); }}
+              onPress={() => {
+                setLanguage('en');
+                setShowLanguageSheet(false);
+              }}
             >
-              <View style={{ backgroundColor: '#0A84FF', borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}>
-                <Text color="#FFF" fontWeight="800" fontStyle="italic">ENGLISH</Text>
+              <View
+                style={{
+                  backgroundColor: '#0A84FF',
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: 'center',
+                }}
+              >
+                <Text color="#FFF" fontWeight="800" fontStyle="italic">
+                  ENGLISH
+                </Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => { setLanguage('sv'); setShowLanguageSheet(false); }}
+              onPress={() => {
+                setLanguage('sv');
+                setShowLanguageSheet(false);
+              }}
             >
-              <View style={{ backgroundColor: colorScheme === 'dark' ? '#0a3d3d' : '#0C5F5F', borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}>
-                <Text color="#FFF" fontWeight="800" fontStyle="italic">SVENSKA</Text>
+              <View
+                style={{
+                  backgroundColor: colorScheme === 'dark' ? '#0a3d3d' : '#0C5F5F',
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: 'center',
+                }}
+              >
+                <Text color="#FFF" fontWeight="800" fontStyle="italic">
+                  SVENSKA
+                </Text>
               </View>
             </TouchableOpacity>
           </YStack>
@@ -1291,7 +1444,7 @@ export function TabNavigator() {
             bottom: 0,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: 'rgba(0,0,0,0.15)'
+            backgroundColor: 'rgba(0,0,0,0.15)',
           }}
           pointerEvents="none"
         >
