@@ -11,11 +11,16 @@ import {
   ScrollView,
   Modal,
   TextInput,
+  Easing,
+  Pressable,
 } from 'react-native';
 import { YStack, XStack, Stack } from 'tamagui';
 import { Text } from './Text';
 import { Button } from './Button';
+import { FormField } from './FormField';
+import { RadioButton, DropdownButton } from './SelectButton';
 import { Feather } from '@expo/vector-icons';
+import { Check } from '@tamagui/lucide-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -25,8 +30,27 @@ import * as Location from 'expo-location';
 import { supabase } from '../lib/supabase';
 import { useLocation } from '../context/LocationContext';
 import { useThemeColor } from '../../hooks/useThemeColor';
+import { useTranslation } from '../contexts/TranslationContext';
+import { StyleSheet } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
+
+// Styles matching SplashScreen and FormField
+const styles = StyleSheet.create({
+  sheetOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginVertical: 4,
+  },
+  selectButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+    marginVertical: 4,
+    borderWidth: 1,
+  },
+});
 
 export interface OnboardingStep {
   id: string;
@@ -56,18 +80,36 @@ export function OnboardingInteractive({
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { setUserLocation } = useLocation();
+  const { language } = useTranslation();
   
   // Theme colors
   const iconColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
+  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
+  const textColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
+  const selectedBackgroundColor = useThemeColor(
+    { light: 'rgba(0, 0, 0, 0.1)', dark: 'rgba(255, 255, 255, 0.1)' },
+    'background',
+  );
+  const handleColor = useThemeColor(
+    { light: 'rgba(0, 0, 0, 0.3)', dark: 'rgba(255, 255, 255, 0.3)' },
+    'background',
+  );
+  const borderColor = useThemeColor(
+    { light: 'rgba(0, 0, 0, 0.1)', dark: 'rgba(255, 255, 255, 0.1)' },
+    'background',
+  );
+  const focusBorderColor = '#34D399'; // tokens.color.emerald400 (exact FormField focus color)
+  const focusBackgroundColor = useThemeColor({ light: '#EBEBEB', dark: '#282828' }, 'background'); // FormField focus background (match FormField)
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | null>('student'); // Default to student
   const [locationStatus, setLocationStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set());
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [vehicleType, setVehicleType] = useState<string>('passenger_car');
   const [transmissionType, setTransmissionType] = useState<string>('manual');
   const [licenseType, setLicenseType] = useState<string>('b');
+  const [experienceLevel, setExperienceLevel] = useState<string>('beginner'); // Default to beginner
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [showCityDrawer, setShowCityDrawer] = useState(false);
   const [citySearchQuery, setCitySearchQuery] = useState('');
@@ -82,23 +124,22 @@ export function OnboardingInteractive({
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
 
-  // Vehicle type options
-  const vehicleTypes = [
-    { id: 'passenger_car', title: 'Car' },
-    { id: 'motorcycle', title: 'Motorcycle' },
-    { id: 'truck', title: 'Truck' },
-  ];
+  // Animation refs for modals (like SplashScreen)
+  const cityBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const citySheetTranslateY = useRef(new Animated.Value(300)).current;
+  const connectionsBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const connectionsSheetTranslateY = useRef(new Animated.Value(300)).current;
+  const vehicleBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const vehicleSheetTranslateY = useRef(new Animated.Value(300)).current;
+  const transmissionBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const transmissionSheetTranslateY = useRef(new Animated.Value(300)).current;
+  const licenseBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const licenseSheetTranslateY = useRef(new Animated.Value(300)).current;
 
-  const transmissionTypes = [
-    { id: 'manual', title: 'Manual' },
-    { id: 'automatic', title: 'Automatic' },
-  ];
-
-  const licenseTypes = [
-    { id: 'b', title: 'Standard License (B)' },
-    { id: 'a', title: 'Motorcycle License (A)' },
-    { id: 'c', title: 'Truck License (C)' },
-  ];
+  // Dynamic category options from database
+  const [vehicleTypes, setVehicleTypes] = useState<Array<{ id: string; title: string }>>([]);
+  const [transmissionTypes, setTransmissionTypes] = useState<Array<{ id: string; title: string }>>([]);
+  const [licenseTypes, setLicenseTypes] = useState<Array<{ id: string; title: string }>>([]);
 
   // Simplified onboarding steps - clear and focused
   const steps: OnboardingStep[] = [
@@ -164,6 +205,109 @@ export function OnboardingInteractive({
   useEffect(() => {
     checkStepCompletions();
   }, [user, profile]);
+
+  // Load categories from database
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('learning_path_categories')
+          .select('category, value, label, is_default, created_at')
+          .in('category', ['vehicle_type', 'transmission_type', 'license_type'])
+          .order('order_index', { ascending: true });
+
+        if (error) {
+          console.error('Error loading categories:', error);
+          // Fallback to hardcoded values
+          setVehicleTypes([
+            { id: 'passenger_car', title: 'Car' },
+            { id: 'motorcycle', title: 'Motorcycle' },
+            { id: 'truck', title: 'Truck' },
+          ]);
+          setTransmissionTypes([
+            { id: 'manual', title: 'Manual' },
+            { id: 'automatic', title: 'Automatic' },
+          ]);
+          setLicenseTypes([
+            { id: 'b', title: 'Standard License (B)' },
+            { id: 'a', title: 'Motorcycle License (A)' },
+            { id: 'c', title: 'Truck License (C)' },
+          ]);
+          return;
+        }
+
+        if (data) {
+          // Group by category and extract titles with proper language support
+          const vehicles = data
+            .filter((item) => item.category === 'vehicle_type')
+            .map((item) => ({
+              id: item.value,
+              title: (item.label as { en?: string; sv?: string })?.[language] || 
+                     (item.label as { en?: string; sv?: string })?.en || 
+                     item.value,
+            }));
+          
+          const transmissions = data
+            .filter((item) => item.category === 'transmission_type')
+            .map((item) => ({
+              id: item.value,
+              title: (item.label as { en?: string; sv?: string })?.[language] || 
+                     (item.label as { en?: string; sv?: string })?.en || 
+                     item.value,
+            }));
+          
+          const licenses = data
+            .filter((item) => item.category === 'license_type')
+            .map((item) => ({
+              id: item.value,
+              title: (item.label as { en?: string; sv?: string })?.[language] || 
+                     (item.label as { en?: string; sv?: string })?.en || 
+                     item.value,
+            }));
+
+          setVehicleTypes(vehicles);
+          setTransmissionTypes(transmissions);
+          setLicenseTypes(licenses);
+          
+          // Debug logging to see what we loaded
+          console.log('🚗 Loaded vehicle types:', vehicles);
+          console.log('🔧 Loaded transmission types:', transmissions);
+          console.log('📋 Loaded license types:', licenses);
+          console.log('🎯 Current state values:', { vehicleType, transmissionType, licenseType });
+          
+          // Set state to match the most recent is_default=true values from database
+          const defaultVehicle = data
+            .filter(item => item.category === 'vehicle_type' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const defaultTransmission = data
+            .filter(item => item.category === 'transmission_type' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const defaultLicense = data
+            .filter(item => item.category === 'license_type' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          
+          if (defaultVehicle && defaultVehicle.value !== vehicleType) {
+            console.log('🚗 Setting vehicle type to default:', defaultVehicle.value);
+            setVehicleType(defaultVehicle.value);
+          }
+          
+          if (defaultTransmission && defaultTransmission.value !== transmissionType) {
+            console.log('🔧 Setting transmission type to default:', defaultTransmission.value);
+            setTransmissionType(defaultTransmission.value);
+          }
+          
+          if (defaultLicense && defaultLicense.value !== licenseType) {
+            console.log('📋 Setting license type to default:', defaultLicense.value);
+            setLicenseType(defaultLicense.value);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    };
+
+    loadCategories();
+  }, [language]); // Reload when language changes
 
   // Clean up search timeout on unmount
   useEffect(() => {
@@ -303,11 +447,172 @@ export function OnboardingInteractive({
     }
   };
 
+  // Modal show/hide functions (like SplashScreen)
+  const showCityModal = () => {
+    setShowCityDrawer(true);
+    // Fade in the backdrop
+    Animated.timing(cityBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    // Slide up the sheet
+    Animated.timing(citySheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideCityModal = () => {
+    // Fade out the backdrop
+    Animated.timing(cityBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    // Slide down the sheet
+    Animated.timing(citySheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowCityDrawer(false);
+    });
+  };
+
+  const showConnectionsModal = () => {
+    setShowConnectionsDrawer(true);
+    Animated.timing(connectionsBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(connectionsSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideConnectionsModal = () => {
+    Animated.timing(connectionsBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(connectionsSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowConnectionsDrawer(false);
+    });
+  };
+
+  const showVehicleModal = () => {
+    setShowVehicleDrawer(true);
+    Animated.timing(vehicleBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(vehicleSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideVehicleModal = () => {
+    Animated.timing(vehicleBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(vehicleSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowVehicleDrawer(false);
+    });
+  };
+
+  const showTransmissionModal = () => {
+    setShowTransmissionDrawer(true);
+    Animated.timing(transmissionBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(transmissionSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideTransmissionModal = () => {
+    Animated.timing(transmissionBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(transmissionSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowTransmissionDrawer(false);
+    });
+  };
+
+  const showLicenseModal = () => {
+    setShowLicenseDrawer(true);
+    Animated.timing(licenseBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(licenseSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideLicenseModal = () => {
+    Animated.timing(licenseBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(licenseSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowLicenseDrawer(false);
+    });
+  };
+
   const handleCitySelect = async (cityData: any) => {
-    const cityName = [cityData.city, cityData.region, cityData.country].filter(Boolean).join(', ');
+    // Format city name as "City, SE" instead of full address
+    const cityName = [cityData.city, cityData.country].filter(Boolean).join(', ');
 
     setSelectedCity(cityName);
-    setShowCityDrawer(false);
+    hideCityModal();
     setCitySearchQuery('');
     setCitySearchResults([]);
 
@@ -433,6 +738,8 @@ export function OnboardingInteractive({
         transmission_type: transmissionType,
         license_type: licenseType,
       };
+      
+      console.log('💾 [OnboardingInteractive] Saving license plan data:', licenseData);
 
       const { error } = await supabase
         .from('profiles')
@@ -448,7 +755,8 @@ export function OnboardingInteractive({
       } else {
         setCompletedSteps((prev) => new Set(prev).add('license_plan'));
         checkStepCompletions();
-        // Don't auto-advance - let user press Next Step
+        // Auto-advance to next slide after saving
+        nextSlide();
       }
     } catch (err) {
       console.error('Error saving license plan:', err);
@@ -477,7 +785,8 @@ export function OnboardingInteractive({
       } else {
         setCompletedSteps((prev) => new Set(prev).add('role'));
         checkStepCompletions();
-        // Don't auto-advance - let user press Next Step
+        // Auto-advance to next slide after role selection
+        nextSlide();
       }
     } catch (err) {
       console.error('Error saving role selection:', err);
@@ -543,9 +852,9 @@ export function OnboardingInteractive({
 
       if (existingRelationship) {
         // Silently handle existing relationship
-        setShowConnectionsDrawer(false);
+        hideConnectionsModal();
         setCompletedSteps((prev) => new Set(prev).add('relationships'));
-            nextSlide();
+        nextSlide();
         return;
       }
       
@@ -561,22 +870,22 @@ export function OnboardingInteractive({
         // Handle duplicate key error gracefully
         if (error.code === '23505') {
           // Silently handle duplicate relationship
-          setShowConnectionsDrawer(false);
+          hideConnectionsModal();
           setCompletedSteps((prev) => new Set(prev).add('relationships'));
-            nextSlide();
+          nextSlide();
           return;
         }
         throw error;
       }
 
       // Silently complete connection and continue
-      setShowConnectionsDrawer(false);
+      hideConnectionsModal();
       setCompletedSteps((prev) => new Set(prev).add('relationships'));
-    nextSlide();
+      nextSlide();
     } catch (error) {
       console.error('Error creating connection:', error);
       // Silently continue even on error
-      setShowConnectionsDrawer(false);
+      hideConnectionsModal();
       handleSkipStep(steps.find((s) => s.id === 'relationships')!);
     }
   };
@@ -588,16 +897,16 @@ export function OnboardingInteractive({
         style={{ width, flex: 1 }}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingHorizontal: 24,
+          paddingHorizontal: 16,
           paddingTop: 60,
           paddingBottom: 120,
         }}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300}>
+        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300} paddingHorizontal="$4">
           {/* Step Header */}
-          <YStack alignItems="center" marginBottom="$6">
+          <YStack alignItems="center" marginBottom="$6" width="100%">
             <Text 
               size="3xl" 
               fontWeight="800" 
@@ -608,67 +917,40 @@ export function OnboardingInteractive({
             >
               {item.title}
             </Text>
-            <Text size="lg" textAlign="center" color="$color" opacity={0.9} paddingHorizontal="$4" marginTop="$2">
+            <Text size="lg" textAlign="center" color="$color" opacity={0.9} marginTop="$2">
               {item.description}
             </Text>
           </YStack>
 
-                      {/* Vehicle Type Selection */}
-            <YStack gap="$3" width="100%" paddingHorizontal="$4">
-              <Text size="md" weight="bold" color="$color">
-                Vehicle Type
-              </Text>
-              <Button
-                variant="secondary"
-                size="lg"
-                onPress={() => setShowVehicleDrawer(true)}
-              >
-                <Text>{vehicleTypes.find((v) => v.id === vehicleType)?.title || 'Car'}</Text>
-              </Button>
+          {/* Streamlined License Preferences */}
+          <YStack gap="$3" width="100%" marginTop="$4">
+            <DropdownButton
+              onPress={showVehicleModal}
+              value={vehicleTypes.find((v) => v.id === vehicleType)?.title || 'Car'}
+              isActive={showVehicleDrawer}
+            />
 
-                          {/* Transmission Type Selection */}
-              <Text size="md" weight="bold" color="$color" marginTop="$4">
-                Transmission
-              </Text>
-              <Button
-                variant="secondary"
-                size="lg"
-                onPress={() => setShowTransmissionDrawer(true)}
-              >
-                <Text>{transmissionTypes.find((t) => t.id === transmissionType)?.title || 'Manual'}</Text>
-              </Button>
+            <DropdownButton
+              onPress={showTransmissionModal}
+              value={transmissionTypes.find((t) => t.id === transmissionType)?.title || 'Manual'}
+              isActive={showTransmissionDrawer}
+            />
 
-                          {/* License Type Selection */}
-              <Text size="md" weight="bold" color="$color" marginTop="$4">
-                License Type
-              </Text>
-              <Button
-                variant="secondary"
-                size="lg"
-                onPress={() => setShowLicenseDrawer(true)}
-              >
-                <Text>{licenseTypes.find((l) => l.id === licenseType)?.title || 'Standard License (B)'}</Text>
-              </Button>
+            <DropdownButton
+              onPress={showLicenseModal}
+              value={licenseTypes.find((l) => l.id === licenseType)?.title || 'Standard License (B)'}
+              isActive={showLicenseDrawer}
+            />
 
             {/* Save Button */}
-            <Button
-              variant="primary"
-              size="lg"
-              onPress={handleSaveLicensePlan}
-              marginTop="$6"
-            >
-              <Text>Save My Preferences</Text>
+            <Button variant="primary" size="lg" onPress={handleSaveLicensePlan} marginTop="$4">
+              Save My Preferences
             </Button>
 
             {/* Skip Button */}
             {item.skipButton && (
-              <Button
-                variant="link"
-                size="md"
-                onPress={() => handleSkipStep(item)}
-                marginTop="$2"
-              >
-                <Text>{item.skipButton}</Text>
+              <Button variant="link" size="md" onPress={() => handleSkipStep(item)} marginTop="$2">
+                {item.skipButton}
               </Button>
             )}
           </YStack>
@@ -701,16 +983,16 @@ export function OnboardingInteractive({
         style={{ width, flex: 1 }}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingHorizontal: 24,
+          paddingHorizontal: 16,
           paddingTop: 60,
           paddingBottom: 120,
         }}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300}>
+        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300} paddingHorizontal="$4">
           {/* Step Header */}
-          <YStack alignItems="center" marginBottom="$6">
+          <YStack alignItems="center" marginBottom="$6" width="100%">
             <Text 
               size="3xl" 
               fontWeight="800" 
@@ -721,51 +1003,28 @@ export function OnboardingInteractive({
             >
               {item.title}
             </Text>
-            <Text size="lg" textAlign="center" color="$color" opacity={0.9} paddingHorizontal="$4" marginTop="$2">
+            <Text size="lg" textAlign="center" color="$color" opacity={0.9} marginTop="$2">
               {item.description}
             </Text>
           </YStack>
 
           {/* Role Options */}
-          <YStack gap="$2" width="100%" paddingHorizontal="$4">
+          <YStack gap="$2" width="100%">
             {roles.map((role) => (
-              <TouchableOpacity
+              <RadioButton
                 key={role.id}
                 onPress={() => handleRoleSelect(role.id)}
-                style={{
-                  backgroundColor: selectedRole === role.id ? '$blue5' : '$backgroundStrong',
-                  padding: 16,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: selectedRole === role.id ? '$blue8' : '$borderColor',
-                }}
-              >
-                <XStack alignItems="center" justifyContent="space-between">
-                  <YStack>
-                    <Text size="md" weight="bold" color={selectedRole === role.id ? '$blue12' : '$color'}>
-                      {role.title}
-                </Text>
-                    <Text size="sm" color="$gray11">
-                      {role.description}
-                    </Text>
-                  </YStack>
-                  {selectedRole === role.id && (
-                    <Feather name="check" size={20} color="$blue11" />
-                  )}
-                </XStack>
-              </TouchableOpacity>
+                title={role.title}
+                description={role.description}
+                isSelected={selectedRole === role.id}
+              />
             ))}
           </YStack>
 
           {/* Skip Button */}
           {item.skipButton && (
-            <Button
-              variant="link"
-              size="md"
-              onPress={() => handleSkipStep(item)}
-              marginTop="$6"
-            >
-              <Text>{item.skipButton}</Text>
+            <Button variant="link" size="md" onPress={() => handleSkipStep(item)} marginTop="$6">
+              {item.skipButton}
             </Button>
           )}
         </YStack>
@@ -779,16 +1038,16 @@ export function OnboardingInteractive({
         style={{ width, flex: 1 }}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingHorizontal: 24,
+          paddingHorizontal: 16,
           paddingTop: 60,
           paddingBottom: 120,
         }}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300}>
-                    {/* Simplified Step Content */}
-          <YStack alignItems="center" gap="$4" paddingHorizontal="$4">
+        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300} paddingHorizontal="$4">
+          {/* Simplified Step Content */}
+          <YStack alignItems="center" gap="$4" width="100%">
             <Text 
               size="3xl" 
               fontWeight="800" 
@@ -808,48 +1067,47 @@ export function OnboardingInteractive({
 
             {/* Location options - always available */}
             {item.id === 'location' && (
-              <YStack gap="$3" marginTop="$4" width="100%">
+              <YStack gap="$4" marginTop="$6" width="100%">
                 <Button variant="primary" size="lg" onPress={handleLocationPermission}>
-                  <Text>Enable Location</Text>
+                  Enable Location
                 </Button>
 
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  onPress={() => setShowCityDrawer(true)}
-                >
-                  <Text>{selectedCity || 'Or Select Your City'}</Text>
-                </Button>
+                <DropdownButton
+                  onPress={showCityModal}
+                  value={selectedCity}
+                  placeholder="Or Select Your City"
+                  isActive={showCityDrawer}
+                />
                 
                 <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-                  <Text>Skip for now</Text>
+                  Skip for now
                 </Button>
               </YStack>
             )}
 
             {/* Action Buttons - Only show for non-location steps */}
             {item.id !== 'location' && (
-              <YStack gap="$3" marginTop="$6" width="100%" paddingHorizontal="$4">
+              <YStack gap="$4" marginTop="$6" width="100%">
                 {item.id === 'relationships' ? (
-                  <Button variant="primary" size="lg" onPress={() => setShowConnectionsDrawer(true)}>
-                    <Text>Find Connections</Text>
+                  <Button variant="primary" size="lg" onPress={showConnectionsModal}>
+                    Find Connections
                   </Button>
                 ) : item.id === 'complete' ? (
                   <Button variant="primary" size="lg" onPress={completeOnboarding}>
-                    <Text>Start Using Vromm!</Text>
+                    Start Using Vromm!
                   </Button>
                 ) : (
                   <Button variant="primary" size="lg" onPress={() => nextSlide()}>
-                    <Text>Continue</Text>
+                    Continue
                   </Button>
                 )}
 
                 {item.skipButton && (
                   <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-                    <Text>{item.skipButton}</Text>
-                </Button>
-              )}
-            </YStack>
+                    {item.skipButton}
+                  </Button>
+                )}
+              </YStack>
             )}
           </YStack>
         </YStack>
@@ -878,43 +1136,34 @@ export function OnboardingInteractive({
   // Removed renderDots - using visual progress indicator in header instead
 
   return (
-    <Stack flex={1} bg="$background">
+    <View style={{ flex: 1, height: '100%' }}>
+    <Stack flex={1} bg="$background" height="100%">
 
 
-      {/* Navigation Buttons */}
-      <View
-        style={{
-          position: 'absolute',
-          top: insets.top || 40,
-          left: 16,
-          right: 16,
-          zIndex: 100,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-      {/* Previous Button */}
-        {currentIndex > 0 ? (
-          <TouchableOpacity
-          onPress={() => scrollTo(currentIndex - 1)}
+      {/* Back Button - Header Style */}
+      {currentIndex > 0 && (
+        <View
           style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              justifyContent: 'center',
-              alignItems: 'center',
+            position: 'absolute',
+            top: insets.top || 40,
+            left: 16,
+            zIndex: 1000,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              console.log('Back button pressed, going to index:', currentIndex - 1);
+              scrollTo(currentIndex - 1);
+            }}
+            style={{
+              padding: 12,
+              marginLeft: -8,
             }}
           >
-            <Feather name="chevron-left" size={20} color={iconColor} />
+            <Feather name="arrow-left" size={24} color={iconColor} />
           </TouchableOpacity>
-        ) : (
-          <View style={{ width: 40 }} />
-        )}
-        
-        {/* Empty space where skip button was */}
-        <View style={{ width: 40 }} />
-      </View>
+        </View>
+      )}
 
       {/* Main Content */}
       <FlatList
@@ -932,6 +1181,8 @@ export function OnboardingInteractive({
         initialNumToRender={1}
         maxToRenderPerBatch={1}
         windowSize={3}
+        style={{ flex: 1, height: '100%' }}
+        contentContainerStyle={{ height: '100%' }}
       />
 
       {/* Dots indicator - similar to SplashScreen */}
@@ -989,39 +1240,43 @@ export function OnboardingInteractive({
       <Modal
         visible={showCityDrawer}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowCityDrawer(false)}
+        animationType="none"
+        onRequestClose={hideCityModal}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            onPress={() => setShowCityDrawer(false)}
-          />
-          <YStack
-            backgroundColor="$background"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-            maxHeight="70%"
-          >
-            <Text size="lg" weight="bold" color="$color" marginBottom="$4" textAlign="center">
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: cityBackdropOpacity,
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={hideCityModal}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: citySheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+
+              >
+            <Text size="xl" weight="bold" color="$color" textAlign="center">
               Select Your City
             </Text>
             
-            <TextInput
+            <FormField
               placeholder="Search cities... (try 'Ystad', 'New York', etc.)"
               value={citySearchQuery}
               onChangeText={handleCitySearch}
-              style={{
-                backgroundColor: '$backgroundStrong',
-                padding: 12,
-                borderRadius: 8,
-                marginBottom: 16,
-                color: '$color',
-                borderWidth: 1,
-                borderColor: '$borderColor',
-              }}
-              placeholderTextColor="$gray10"
             />
             
             <ScrollView style={{ maxHeight: 300 }}>
@@ -1039,7 +1294,7 @@ export function OnboardingInteractive({
                 )}
                 
                 {citySearchResults.map((cityData, index) => {
-                  const cityName = [cityData.city, cityData.region, cityData.country]
+                  const cityName = [cityData.city, cityData.country]
                     .filter(Boolean)
                     .join(', ');
                   
@@ -1047,25 +1302,17 @@ export function OnboardingInteractive({
                     <TouchableOpacity
                       key={index}
                       onPress={() => handleCitySelect(cityData)}
-                      style={{
-                        backgroundColor: selectedCity === cityName ? '$blue5' : '$backgroundStrong',
-                        padding: 16,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: selectedCity === cityName ? '$blue8' : '$borderColor',
-                      }}
+                      style={[
+                        styles.sheetOption,
+                        selectedCity === cityName && { backgroundColor: selectedBackgroundColor },
+                      ]}
                     >
-                      <XStack alignItems="center" justifyContent="space-between">
-                        <YStack>
-                          <Text size="md" color={selectedCity === cityName ? '$blue12' : '$color'}>
-                            {cityName}
-                          </Text>
-                          <Text size="xs" color="$gray11">
-                            {cityData.coords?.latitude.toFixed(4)}, {cityData.coords?.longitude.toFixed(4)}
-                          </Text>
-                        </YStack>
+                      <XStack gap={8} padding="$2" alignItems="center">
+                        <Text color={textColor} size="lg">
+                          {cityName}
+                        </Text>
                         {selectedCity === cityName && (
-                          <Feather name="check" size={20} color="$blue11" />
+                          <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
                         )}
                       </XStack>
                     </TouchableOpacity>
@@ -1073,54 +1320,56 @@ export function OnboardingInteractive({
                 })}
               </YStack>
             </ScrollView>
-          </YStack>
-        </View>
+              </YStack>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
       </Modal>
 
       {/* Connections Selection Modal */}
       <Modal
         visible={showConnectionsDrawer}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowConnectionsDrawer(false)}
+        animationType="none"
+        onRequestClose={hideConnectionsModal}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            onPress={() => setShowConnectionsDrawer(false)}
-          />
-          <YStack
-            backgroundColor="$background"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-            maxHeight="70%"
-          >
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-              <Text size="lg" weight="bold" color="$color">
-                Find {selectedRole === 'student' ? 'Instructors' : selectedRole === 'instructor' || selectedRole === 'school' ? 'Students' : 'Users'}
-              </Text>
-              {/* Removed X button */}
-            </XStack>
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: connectionsBackdropOpacity,
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={hideConnectionsModal}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: connectionsSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+            <Text size="xl" weight="bold" color="$color" textAlign="center">
+              Find {selectedRole === 'student' ? 'Instructors' : selectedRole === 'instructor' || selectedRole === 'school' ? 'Students' : 'Users'}
+            </Text>
             
             <Text size="sm" color="$gray11" marginBottom="$3">
               Search for {selectedRole === 'student' ? 'driving instructors' : selectedRole === 'instructor' || selectedRole === 'school' ? 'students' : 'users'} to connect with
             </Text>
             
-            <TextInput
+            <FormField
               placeholder="Search by name or email..."
               value={connectionSearchQuery}
               onChangeText={handleSearchUsers}
-              style={{
-                backgroundColor: '$backgroundStrong',
-                padding: 12,
-                borderRadius: 8,
-                marginBottom: 16,
-                color: '$color',
-                borderWidth: 1,
-                borderColor: '$borderColor',
-              }}
-              placeholderTextColor="$gray10"
             />
             
             <ScrollView style={{ maxHeight: 300 }}>
@@ -1142,11 +1391,10 @@ export function OnboardingInteractive({
                     key={user.id}
                     onPress={() => handleConnectWithUser(user)}
                     style={{
-                      backgroundColor: '$backgroundStrong',
+                      backgroundColor: 'transparent',
                       padding: 16,
                       borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: '$borderColor',
+                      marginVertical: 4,
                     }}
                   >
                     <XStack alignItems="center" justifyContent="space-between">
@@ -1158,188 +1406,236 @@ export function OnboardingInteractive({
                           {user.email} • {user.role}
                         </Text>
                       </YStack>
-                      <Feather name="plus-circle" size={20} color="$blue11" />
+                      <Feather name="plus-circle" size={20} color={textColor} />
                     </XStack>
                   </TouchableOpacity>
                 ))}
                 
                 {/* Skip option */}
-          <Button 
+                <Button 
                   variant="link"
                   size="md"
                   onPress={() => {
-                    setShowConnectionsDrawer(false);
+                    hideConnectionsModal();
                     handleSkipStep(steps.find((s) => s.id === 'relationships')!);
                   }}
                   marginTop="$4"
                 >
-                  <Text>I'll do this later</Text>
-          </Button>
-        </YStack>
+                  I'll do this later
+                </Button>
+              </YStack>
             </ScrollView>
-          </YStack>
-        </View>
+              </YStack>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
       </Modal>
 
       {/* Vehicle Type Selection Modal */}
       <Modal
         visible={showVehicleDrawer}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowVehicleDrawer(false)}
+        animationType="none"
+        onRequestClose={hideVehicleModal}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            onPress={() => setShowVehicleDrawer(false)}
-          />
-          <YStack
-            backgroundColor="$background"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-          >
-            <Text size="lg" weight="bold" color="$color" marginBottom="$4" textAlign="center">
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: vehicleBackdropOpacity,
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={hideVehicleModal}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: vehicleSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+            <Text size="xl" weight="bold" color="$color" textAlign="center">
               Select Vehicle Type
-        </Text>
+            </Text>
             
-            <YStack gap="$1">
-              {vehicleTypes.map((type) => (
+            <ScrollView style={{ maxHeight: 300 }}>
+              <YStack gap="$1">
+                {vehicleTypes.map((type) => (
                 <TouchableOpacity
                   key={type.id}
                   onPress={() => {
                     setVehicleType(type.id);
-                    setShowVehicleDrawer(false);
+                    hideVehicleModal();
                   }}
-                  style={{
-                    backgroundColor: vehicleType === type.id ? '$blue5' : '$backgroundStrong',
-                    padding: 16,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: vehicleType === type.id ? '$blue8' : '$borderColor',
-                  }}
+                  style={[
+                    styles.sheetOption,
+                    vehicleType === type.id && { backgroundColor: selectedBackgroundColor },
+                  ]}
                 >
-                  <XStack alignItems="center" justifyContent="space-between">
-                    <Text size="md" color={vehicleType === type.id ? '$blue12' : '$color'}>
+                  <XStack gap={8} padding="$2" alignItems="center">
+                    <Text color={textColor} size="lg">
                       {type.title}
                     </Text>
                     {vehicleType === type.id && (
-                      <Feather name="check" size={20} color="$blue11" />
+                      <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
                     )}
                   </XStack>
                 </TouchableOpacity>
               ))}
-      </YStack>
-          </YStack>
-        </View>
+              </YStack>
+            </ScrollView>
+              </YStack>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
       </Modal>
 
       {/* Transmission Type Selection Modal */}
       <Modal
         visible={showTransmissionDrawer}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowTransmissionDrawer(false)}
+        animationType="none"
+        onRequestClose={hideTransmissionModal}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            onPress={() => setShowTransmissionDrawer(false)}
-          />
-          <YStack
-            backgroundColor="$background"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-          >
-            <Text size="lg" weight="bold" color="$color" marginBottom="$4" textAlign="center">
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: transmissionBackdropOpacity,
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={hideTransmissionModal}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: transmissionSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+            <Text size="xl" weight="bold" color="$color" textAlign="center">
               Select Transmission
             </Text>
             
-            <YStack gap="$1">
-              {transmissionTypes.map((type) => (
+            <ScrollView style={{ maxHeight: 300 }}>
+              <YStack gap="$1">
+                {transmissionTypes.map((type) => (
                 <TouchableOpacity
                   key={type.id}
                   onPress={() => {
                     setTransmissionType(type.id);
-                    setShowTransmissionDrawer(false);
+                    hideTransmissionModal();
                   }}
-                  style={{
-                    backgroundColor: transmissionType === type.id ? '$blue5' : '$backgroundStrong',
-                    padding: 16,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: transmissionType === type.id ? '$blue8' : '$borderColor',
-                  }}
+                  style={[
+                    styles.sheetOption,
+                    transmissionType === type.id && { backgroundColor: selectedBackgroundColor },
+                  ]}
                 >
-                  <XStack alignItems="center" justifyContent="space-between">
-                    <Text size="md" color={transmissionType === type.id ? '$blue12' : '$color'}>
+                  <XStack gap={8} padding="$2" alignItems="center">
+                    <Text color={textColor} size="lg">
                       {type.title}
                     </Text>
                     {transmissionType === type.id && (
-                      <Feather name="check" size={20} color="$blue11" />
+                      <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
                     )}
                   </XStack>
                 </TouchableOpacity>
-              ))}
-            </YStack>
-          </YStack>
-        </View>
+                              ))}
+              </YStack>
+            </ScrollView>
+              </YStack>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
       </Modal>
 
       {/* License Type Selection Modal */}
       <Modal
         visible={showLicenseDrawer}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowLicenseDrawer(false)}
+        animationType="none"
+        onRequestClose={hideLicenseModal}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            onPress={() => setShowLicenseDrawer(false)}
-          />
-          <YStack
-            backgroundColor="$background"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-          >
-            <Text size="lg" weight="bold" color="$color" marginBottom="$4" textAlign="center">
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: licenseBackdropOpacity,
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={hideLicenseModal}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: licenseSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+            <Text size="xl" weight="bold" color="$color" textAlign="center">
               Select License Type
             </Text>
             
-            <YStack gap="$1">
-              {licenseTypes.map((type) => (
+            <ScrollView style={{ maxHeight: 300 }}>
+              <YStack gap="$1">
+                {licenseTypes.map((type) => (
                 <TouchableOpacity
                   key={type.id}
                   onPress={() => {
                     setLicenseType(type.id);
-                    setShowLicenseDrawer(false);
+                    hideLicenseModal();
                   }}
-                  style={{
-                    backgroundColor: licenseType === type.id ? '$blue5' : '$backgroundStrong',
-                    padding: 16,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: licenseType === type.id ? '$blue8' : '$borderColor',
-                  }}
+                  style={[
+                    styles.sheetOption,
+                    licenseType === type.id && { backgroundColor: selectedBackgroundColor },
+                  ]}
                 >
-                  <XStack alignItems="center" justifyContent="space-between">
-                    <Text size="md" color={licenseType === type.id ? '$blue12' : '$color'}>
+                  <XStack gap={8} padding="$2" alignItems="center">
+                    <Text color={textColor} size="lg">
                       {type.title}
                     </Text>
                     {licenseType === type.id && (
-                      <Feather name="check" size={20} color="$blue11" />
+                      <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
                     )}
                   </XStack>
                 </TouchableOpacity>
-              ))}
-            </YStack>
-          </YStack>
-        </View>
+                              ))}
+              </YStack>
+            </ScrollView>
+              </YStack>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
       </Modal>
     </Stack>
+    </View>
   );
 }
 

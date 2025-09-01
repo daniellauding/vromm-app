@@ -1313,18 +1313,6 @@ export function SplashScreen() {
                 borderTopRightRadius="$4"
                 gap="$4"
               >
-                {/* Sheet Handle */}
-                <View
-                  style={{
-                    width: 40,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: handleColor,
-                    alignSelf: 'center',
-                    marginBottom: 12,
-                  }}
-                />
-
                 <Heading textAlign="center" size="$5" color={textColor}>
                   {t('auth.signIn.helpImprove.drawer.title')}
                 </Heading>
@@ -1419,18 +1407,6 @@ export function SplashScreen() {
                 borderTopRightRadius="$4"
                 gap="$4"
               >
-                {/* Sheet Handle */}
-                <View
-                  style={{
-                    width: 40,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: handleColor,
-                    alignSelf: 'center',
-                    marginBottom: 12,
-                  }}
-                />
-
                 <Text size="xl" weight="bold" color={textColor} textAlign="center">
                   {t('settings.language.title')}
                 </Text>

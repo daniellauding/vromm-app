@@ -389,7 +389,7 @@ export function ProgressScreen() {
         
         const { data, error } = await supabase
           .from('learning_path_categories')
-          .select('*')
+          .select('category, value, label, is_default, created_at, order_index')
           .order('order_index', { ascending: true });
 
         if (error) {
@@ -443,20 +443,45 @@ export function ProgressScreen() {
           setCategoryFilters(savedFilters);
           console.log('✅ Using saved filter preferences:', savedFilters);
         } else {
-          // Set defaults to match SQL data exactly
+          // Set defaults based on most recent is_default=true values from database (like OnboardingInteractive)
+          const defaultVehicle = data
+            .filter(item => item.category === 'vehicle_type' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const defaultTransmission = data
+            .filter(item => item.category === 'transmission_type' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const defaultLicense = data
+            .filter(item => item.category === 'license_type' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const defaultExperience = data
+            .filter(item => item.category === 'experience_level' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const defaultPurpose = data
+            .filter(item => item.category === 'purpose' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const defaultUserProfile = data
+            .filter(item => item.category === 'user_profile' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const defaultPlatform = data
+            .filter(item => item.category === 'platform' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const defaultType = data
+            .filter(item => item.category === 'type' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+
           const defaultFilters: Record<CategoryType, string> = {
-            vehicle_type: getProfilePreference('vehicle_type', 'Car'), // Match SQL: 'Car'
-            transmission_type: getProfilePreference('transmission_type', 'Manual'), // Match SQL: 'Manual'
-            license_type: getProfilePreference('license_type', 'Standard Driving License'), // Match SQL: 'Standard Driving License'
-            experience_level: getProfilePreference('experience_level', 'Beginner'), // Match SQL: 'Beginner'
-            purpose: getProfilePreference('purpose', 'Prepare for driving test'), // Match SQL: 'Prepare for driving test'
-            user_profile: 'All', // Match SQL: 'All'
-            platform: 'both', // Match SQL: 'both' 
-            type: 'learning', // Match SQL: 'learning'
+            vehicle_type: getProfilePreference('vehicle_type', defaultVehicle?.value || 'all'),
+            transmission_type: getProfilePreference('transmission_type', defaultTransmission?.value || 'all'),
+            license_type: getProfilePreference('license_type', defaultLicense?.value || 'all'),
+            experience_level: getProfilePreference('experience_level', defaultExperience?.value || 'all'),
+            purpose: getProfilePreference('purpose', defaultPurpose?.value || 'all'),
+            user_profile: getProfilePreference('user_profile', defaultUserProfile?.value || 'all'),
+            platform: defaultPlatform?.value || 'all',
+            type: defaultType?.value || 'all',
           };
 
           setCategoryFilters(defaultFilters);
-          console.log('✅ Set default category filters:', defaultFilters);
+          console.log('✅ Set default category filters from database defaults:', defaultFilters);
           
           // Save defaults for next time
           saveFilterPreferences(defaultFilters);
@@ -529,41 +554,14 @@ export function ProgressScreen() {
       const licenseData = (profile as any)?.license_plan_data;
       if (licenseData && typeof licenseData === 'object') {
         let value = licenseData[key];
+        console.log(`🔍 [ProgressScreen] Reading profile preference ${key}:`, value, 'from licenseData:', licenseData);
         
-        // Map onboarding values to SQL values
-        switch (key) {
-          case 'vehicle_type':
-            if (value === 'passenger_car') value = 'Car';
-            return value || defaultValue;
-          case 'transmission_type':
-            if (value === 'manual') value = 'Manual';
-            if (value === 'automatic') value = 'Automatic';
-            return value || defaultValue;
-          case 'license_type':
-            if (value === 'b') value = 'Standard Driving License';
-            if (value === 'a') value = 'Motorcycle License';
-            if (value === 'c') value = 'Truck License';
-            return value || defaultValue;
-          case 'experience_level':
-            if (value === 'beginner') value = 'Beginner';
-            if (value === 'intermediate') value = 'Intermediate';
-            if (value === 'advanced') value = 'Advanced';
-            return value || defaultValue;
-          case 'purpose':
-            // Check if user has a specific purpose preference
-            return value || defaultValue;
-          default:
-            return value || defaultValue;
-        }
+        // Keep onboarding values as they are - they now match database values
+        return value || defaultValue;
       }
       
-      // Fallback to direct profile properties with mapping
-      let value = (profile as any)[key];
-      if (key === 'vehicle_type' && value === 'passenger_car') value = 'Car';
-      if (key === 'transmission_type' && value === 'manual') value = 'Manual';
-      if (key === 'license_type' && value === 'b') value = 'Standard Driving License';
-      if (key === 'experience_level' && value === 'beginner') value = 'Beginner';
-      
+      // Fallback to direct profile properties - no mapping needed
+      const value = (profile as any)[key];
       return value || defaultValue;
     } catch (error) {
       console.log('Error getting profile preference:', error);

@@ -10,6 +10,7 @@ import { useCallback } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface LearningPath {
   id: string;
@@ -83,6 +84,17 @@ function ProgressCircle({
   );
 }
 
+// Category types matching ProgressScreen
+type CategoryType =
+  | 'vehicle_type'
+  | 'transmission_type'
+  | 'license_type'
+  | 'experience_level'
+  | 'purpose'
+  | 'user_profile'
+  | 'platform'
+  | 'type';
+
 interface ProgressSectionProps {
   activeUserId?: string | null;
 }
@@ -147,7 +159,7 @@ const fetchLearningPaths = async (): Promise<LearningPath[]> => {
 
 export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const { language: lang, t } = useTranslation();
-  const { user: authUser } = useAuth();
+  const { user: authUser, profile } = useAuth();
   const { activeStudentId } = useStudentSwitch();
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [activePath, setActivePath] = useState<string>('');
@@ -160,14 +172,125 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     created_at: string;
   } | null>(null);
 
+  // Add filter state (same as ProgressScreen)
+  const [categoryFilters, setCategoryFilters] = useState<Record<CategoryType, string>>({
+    vehicle_type: 'all',
+    transmission_type: 'all',
+    license_type: 'all',
+    experience_level: 'all',
+    purpose: 'all',
+    user_profile: 'all',
+    platform: 'all',
+    type: 'all',
+  });
+
   // Use activeStudentId from context, then activeUserId prop, then authenticated user
   const effectiveUserId: string | null = activeStudentId || activeUserId || authUser?.id || null;
 
-  // Fetch learning paths when the component mounts
+  // Helper function to get user profile preferences (same as ProgressScreen)
+  const getProfilePreference = (key: string, defaultValue: string): string => {
+    if (!profile) return defaultValue;
+    
+    try {
+      // Check if profile has license_plan_data from onboarding
+      const licenseData = (profile as any)?.license_plan_data;
+      if (licenseData && typeof licenseData === 'object') {
+        const value = licenseData[key];
+        console.log(`🔍 [ProgressSection] Reading profile preference ${key}:`, value);
+        return value || defaultValue;
+      }
+      
+      // Fallback to direct profile properties
+      const value = (profile as any)[key];
+      return value || defaultValue;
+    } catch (error) {
+      console.log('Error getting profile preference:', error);
+      return defaultValue;
+    }
+  };
+
+  // Load filter preferences from AsyncStorage (same as ProgressScreen)
+  const loadFilterPreferences = async (): Promise<Record<CategoryType, string> | null> => {
+    try {
+      const saved = await AsyncStorage.getItem('vromm_progress_filters');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('✅ [ProgressSection] Loaded saved filter preferences:', parsed);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading filter preferences:', error);
+    }
+    return null;
+  };
+
+  // Load filters and learning paths
   useEffect(() => {
-    console.log('ProgressSection: Fetching learning paths');
+    console.log('ProgressSection: Fetching learning paths and filters');
     setLoading(true);
     const fetch = async () => {
+      // Load filters first
+      try {
+        const savedFilters = await loadFilterPreferences();
+        
+        if (savedFilters) {
+          // Use saved preferences
+          setCategoryFilters(savedFilters);
+          console.log('✅ [ProgressSection] Using saved filter preferences:', savedFilters);
+        } else {
+          // Load defaults from database (same logic as ProgressScreen)
+          const { data: categoryData } = await supabase
+            .from('learning_path_categories')
+            .select('category, value, label, is_default, created_at, order_index')
+            .order('order_index', { ascending: true });
+
+          if (categoryData) {
+            // Get most recent is_default=true values
+            const defaultVehicle = categoryData
+              .filter(item => item.category === 'vehicle_type' && item.is_default)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+            const defaultTransmission = categoryData
+              .filter(item => item.category === 'transmission_type' && item.is_default)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+            const defaultLicense = categoryData
+              .filter(item => item.category === 'license_type' && item.is_default)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+            const defaultExperience = categoryData
+              .filter(item => item.category === 'experience_level' && item.is_default)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+            const defaultPurpose = categoryData
+              .filter(item => item.category === 'purpose' && item.is_default)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+            const defaultUserProfile = categoryData
+              .filter(item => item.category === 'user_profile' && item.is_default)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+            const defaultPlatform = categoryData
+              .filter(item => item.category === 'platform' && item.is_default)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+            const defaultType = categoryData
+              .filter(item => item.category === 'type' && item.is_default)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+
+            const defaultFilters: Record<CategoryType, string> = {
+              vehicle_type: getProfilePreference('vehicle_type', defaultVehicle?.value || 'all'),
+              transmission_type: getProfilePreference('transmission_type', defaultTransmission?.value || 'all'),
+              license_type: getProfilePreference('license_type', defaultLicense?.value || 'all'),
+              experience_level: getProfilePreference('experience_level', defaultExperience?.value || 'all'),
+              purpose: getProfilePreference('purpose', defaultPurpose?.value || 'all'),
+              user_profile: getProfilePreference('user_profile', defaultUserProfile?.value || 'all'),
+              platform: defaultPlatform?.value || 'all',
+              type: defaultType?.value || 'all',
+            };
+
+            setCategoryFilters(defaultFilters);
+            console.log('✅ [ProgressSection] Set default category filters:', defaultFilters);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading filters for ProgressSection:', error);
+      }
+
+      // Load learning paths
       const data = await fetchLearningPaths();
       if (data && data.length > 0) {
         setPaths(data);
@@ -176,7 +299,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       setLoading(false);
     };
     fetch();
-  }, []);
+  }, [profile]); // Reload when profile changes
 
   // Add useFocusEffect to refresh data when screen comes into focus
   useFocusEffect(
@@ -271,6 +394,66 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     [effectiveUserId, navigation],
   );
 
+  // Filter paths based on user preferences (same logic as ProgressScreen)
+  const filteredPaths = React.useMemo(() => {
+    return paths.filter((path) => {
+      // Handle variations in data values and allow null values
+      const matchesVehicleType =
+        categoryFilters.vehicle_type === 'all' ||
+        !path.vehicle_type ||
+        path.vehicle_type === categoryFilters.vehicle_type;
+        
+      const matchesTransmission =
+        categoryFilters.transmission_type === 'all' ||
+        !path.transmission_type ||
+        path.transmission_type === categoryFilters.transmission_type;
+        
+      const matchesLicense =
+        categoryFilters.license_type === 'all' ||
+        !path.license_type ||
+        path.license_type === categoryFilters.license_type;
+        
+      const matchesExperience =
+        categoryFilters.experience_level === 'all' ||
+        !path.experience_level ||
+        path.experience_level === categoryFilters.experience_level;
+        
+      const matchesPurpose =
+        categoryFilters.purpose === 'all' ||
+        !path.purpose ||
+        path.purpose === categoryFilters.purpose;
+        
+      const matchesUserProfile =
+        categoryFilters.user_profile === 'all' ||
+        !path.user_profile ||
+        path.user_profile === categoryFilters.user_profile ||
+        path.user_profile === 'All'; // "All" user profile matches any filter
+        
+      const matchesPlatform =
+        categoryFilters.platform === 'all' ||
+        !path.platform ||
+        path.platform === 'both' || // "both" platform matches any filter
+        path.platform === categoryFilters.platform ||
+        path.platform === 'mobile'; // Always show mobile content
+        
+      const matchesType =
+        categoryFilters.type === 'all' || 
+        !path.type || 
+        path.type === categoryFilters.type;
+
+      return (
+        matchesVehicleType &&
+        matchesTransmission &&
+        matchesLicense &&
+        matchesExperience &&
+        matchesPurpose &&
+        matchesUserProfile &&
+        matchesPlatform &&
+        matchesType
+      );
+    });
+  }, [paths, categoryFilters]);
+
   // Calculate progress for each path
   const getPathProgress = (path: LearningPath) => {
     const ids = path.learning_path_exercises.map((exercise) => exercise.id);
@@ -279,7 +462,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     return completed / ids.length;
   };
 
-  if (loading || paths.length === 0) {
+  if (loading || filteredPaths.length === 0) {
     return null;
   }
 
@@ -305,7 +488,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       )}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <XStack space="$3" paddingHorizontal="$4">
-          {paths.map((path) => {
+          {filteredPaths.map((path) => {
             const isActive = activePath === path.id;
             const percent = getPathProgress(path);
             // Allow all paths to be clickable - no order restriction
