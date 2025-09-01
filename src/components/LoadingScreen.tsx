@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
 import { YStack } from 'tamagui';
-import { logInfo, logWarn } from '../utils/logger';
+import { logWarn } from '../utils/logger';
 
 interface LoadingScreenProps {
   message?: string;

@@ -19,10 +19,16 @@ export const NearByRoutes = () => {
   const [nearbyRoutes, setNearbyRoutes] = React.useState<Route[]>([]);
   const userLocation = useUserLocation();
 
+  console.log(userLocation);
   React.useEffect(() => {
     if (!user || !userLocation) return;
     const loadNearbyRoutes = async () => {
       if (!user) return;
+      console.log('find_nearby_routes', {
+        lat_input: userLocation?.coords.latitude,
+        lng_input: userLocation?.coords.longitude,
+        max_km: 100.0,
+      });
       const { data, error } = await supabase.rpc('find_nearby_routes', {
         lat_input: userLocation?.coords.latitude,
         lng_input: userLocation?.coords.longitude,
