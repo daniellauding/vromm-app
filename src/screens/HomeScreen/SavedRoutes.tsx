@@ -157,24 +157,15 @@ export const SavedRoutes = () => {
         }}
         actionLabel={t('common.seeAll')}
       />
-      <FlatList
-        horizontal
-        data={savedRoutes}
-        keyExtractor={(item) => item.id}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
-        renderItem={({ item }) => (
-          <XStack marginRight="$4">
-            <HeroCarousel
-              title={t('home.savedRoutes')}
-              items={[item]}
-              getImageUrl={getRouteImage}
-              showTitle={false}
-              showMapPreview={true}
-            />
-          </XStack>
-        )}
-      />
+      <XStack paddingHorizontal="$4">
+        <HeroCarousel
+          title={t('home.savedRoutes')}
+          items={savedRoutes}
+          getImageUrl={getRouteImage}
+          showTitle={false}
+          showMapPreview={true}
+        />
+      </XStack>
     </YStack>
   );
 };

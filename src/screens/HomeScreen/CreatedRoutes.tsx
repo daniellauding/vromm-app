@@ -92,24 +92,15 @@ export const CreatedRoutes = () => {
         onAction={onNavigateToRouteList}
         actionLabel={t('common.seeAll')}
       />
-      <FlatList
-        horizontal
-        data={createdRoutes}
-        keyExtractor={(item) => item.id}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
-        renderItem={({ item }) => (
-          <XStack marginRight="$4">
-            <HeroCarousel
-              title={t('home.createdRoutes')}
-              items={[item]}
-              getImageUrl={getRouteImage}
-              showTitle={false}
-              showMapPreview={true}
-            />
-          </XStack>
-        )}
-      />
+      <XStack paddingHorizontal="$4">
+        <HeroCarousel
+          title={t('home.createdRoutes')}
+          items={createdRoutes}
+          getImageUrl={getRouteImage}
+          showTitle={false}
+          showMapPreview={true}
+        />
+      </XStack>
     </YStack>
   );
 };
