@@ -145,12 +145,12 @@ export const SavedRoutes = () => {
         }
         variant="chevron"
         onAction={() => {
-          const domain = navigateDomain(navigation);
-          console.log('[NAV][HomeSection] SavedRoutes → RouteList');
-          domain.home('RouteList', {
-            title: isViewingAsStudent
-              ? `${activeStudentName || 'Student'}'s Saved Routes`
-              : t('home.savedRoutes'),
+          const titleText = isViewingAsStudent
+            ? `${activeStudentName || 'Student'}'s Saved Routes`
+            : t('home.savedRoutes');
+          console.log('[NAV][HomeSection] SavedRoutes → RouteList with title:', titleText);
+          navigation.navigate('RouteList', {
+            title: titleText,
             routes: savedRoutes,
             type: 'saved',
           });

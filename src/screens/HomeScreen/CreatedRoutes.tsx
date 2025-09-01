@@ -48,13 +48,13 @@ export const CreatedRoutes = () => {
   }, [effectiveUserId]);
 
   const onNavigateToRouteList = React.useCallback(() => {
-    const domain = navigateDomain(navigation);
-    console.log('[NAV][HomeSection] CreatedRoutes → RouteList');
-    domain.home('RouteList', {
+    const titleText = isViewingAsStudent 
+      ? `${activeStudentName || 'Student'}'s Created Routes`
+      : t('home.createdRoutes');
+    console.log('[NAV][HomeSection] CreatedRoutes → RouteList with title:', titleText);
+    navigation.navigate('RouteList', {
       type: 'created',
-      title: isViewingAsStudent 
-        ? `${activeStudentName || 'Student'}'s Created Routes`
-        : t('home.createdRoutes'),
+      title: titleText,
       routes: createdRoutes,
     });
   }, [createdRoutes, navigation, t, isViewingAsStudent, activeStudentName]);

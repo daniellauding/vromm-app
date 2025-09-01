@@ -8,7 +8,7 @@ import { YStack, XStack } from 'tamagui';
 import { FlatList } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
-import { navigateDomain } from '@/src/utils/navigation';
+
 import { supabase } from '../../lib/supabase';
 import { useUserLocation } from '../explore/hooks';
 
@@ -39,9 +39,8 @@ export const NearByRoutes = () => {
   }, [user, userLocation]);
 
   const onNavigateToRouteList = React.useCallback(() => {
-    const domain = navigateDomain(navigation);
     console.log('[NAV][HomeSection] NearByRoutes → RouteList');
-    domain.home('RouteList', {
+    navigation.navigate('RouteList', {
       type: 'nearby',
       title: t('home.nearbyRoutes'),
       routes: nearbyRoutes,

@@ -13,6 +13,8 @@ import { ImageWithFallback } from '../components/ImageWithFallback';
 import { Feather } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
 import Carousel from 'react-native-reanimated-carousel';
+import { Screen } from '../components/Screen';
+import { Header } from '../components/Header';
 
 interface ActivityItem {
   id: string;
@@ -412,13 +414,13 @@ export const CommunityFeedScreen: React.FC = () => {
 
     return (
       <YStack
-        backgroundColor="rgba(255, 255, 255, 0.05)"
+        backgroundColor="$backgroundStrong"
         borderRadius={12}
         padding={16}
         margin={8}
         gap={16}
         borderWidth={1}
-        borderColor="rgba(255, 255, 255, 0.1)"
+        borderColor="$borderColor"
       >
         {/* User info header */}
         <TouchableOpacity onPress={() => navigateToProfile(activity.user.id)}>
@@ -452,7 +454,7 @@ export const CommunityFeedScreen: React.FC = () => {
             )}
             
             <YStack flex={1}>
-              <Text fontSize={16} fontWeight="600" color="#FFFFFF">
+              <Text fontSize={16} fontWeight="600" color="$color">
                 {activity.user.full_name}
               </Text>
               <XStack alignItems="center" gap={6}>
@@ -461,13 +463,13 @@ export const CommunityFeedScreen: React.FC = () => {
                   size={14} 
                   color="#00FFBC" 
                 />
-                <Text fontSize={14} color="#9CA3AF">
+                <Text fontSize={14} color="$gray11">
                   {getActivityText(activity.type)}
                 </Text>
               </XStack>
             </YStack>
             
-            <Text fontSize={12} color="#6B7280">
+            <Text fontSize={12} color="$gray9">
               {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
             </Text>
           </XStack>
@@ -598,22 +600,22 @@ export const CommunityFeedScreen: React.FC = () => {
         {/* Activity content */}
         {activity.type === 'route_created' && (
           <TouchableOpacity onPress={() => navigation.navigate('RouteDetail', { routeId: activity.data.id })}>
-            <YStack gap={8} backgroundColor="rgba(0, 255, 188, 0.05)" borderRadius={8} padding={12}>
-              <Text fontSize={16} fontWeight="500" color="#FFFFFF">
+            <YStack gap={8} backgroundColor="$backgroundStrong" borderRadius={8} padding={12}>
+              <Text fontSize={16} fontWeight="500" color="$color">
                 {activity.data.name}
               </Text>
               <XStack gap={16}>
                 <XStack alignItems="center" gap={6}>
-                  <Feather name="bar-chart" size={14} color="#9CA3AF" />
-                  <Text fontSize={13} color="#9CA3AF">{activity.data.difficulty}</Text>
+                  <Feather name="bar-chart" size={14} color="$gray11" />
+                  <Text fontSize={13} color="$gray11">{activity.data.difficulty}</Text>
                 </XStack>
                 <XStack alignItems="center" gap={6}>
-                  <Feather name="map-pin" size={14} color="#9CA3AF" />
-                  <Text fontSize={13} color="#9CA3AF">{activity.data.spot_type}</Text>
+                  <Feather name="map-pin" size={14} color="$gray11" />
+                  <Text fontSize={13} color="$gray11">{activity.data.spot_type}</Text>
                 </XStack>
               </XStack>
               {activity.data.description && (
-                <Text fontSize={13} color="#CCCCCC" numberOfLines={3}>
+                <Text fontSize={13} color="$gray9" numberOfLines={3}>
                   {activity.data.description}
                 </Text>
               )}
@@ -623,13 +625,13 @@ export const CommunityFeedScreen: React.FC = () => {
 
         {activity.type === 'event_created' && (
           <TouchableOpacity onPress={() => navigation.navigate('EventDetail', { eventId: activity.data.id })}>
-            <YStack gap={8} backgroundColor="rgba(245, 158, 11, 0.05)" borderRadius={8} padding={12}>
-              <Text fontSize={16} fontWeight="500" color="#FFFFFF">
+            <YStack gap={8} backgroundColor="$backgroundStrong" borderRadius={8} padding={12}>
+              <Text fontSize={16} fontWeight="500" color="$color">
                 {activity.data.title}
               </Text>
               <XStack alignItems="center" gap={6}>
-                <Feather name="calendar" size={14} color="#9CA3AF" />
-                <Text fontSize={13} color="#9CA3AF">
+                <Feather name="calendar" size={14} color="$gray11" />
+                <Text fontSize={13} color="$gray11">
                   {activity.data.event_date ? 
                     new Date(activity.data.event_date).toLocaleDateString() : 
                     'No date set'
@@ -637,7 +639,7 @@ export const CommunityFeedScreen: React.FC = () => {
                 </Text>
               </XStack>
               {activity.data.description && (
-                <Text fontSize={13} color="#CCCCCC" numberOfLines={3}>
+                <Text fontSize={13} color="$gray9" numberOfLines={3}>
                   {activity.data.description}
                 </Text>
               )}
@@ -652,8 +654,8 @@ export const CommunityFeedScreen: React.FC = () => {
             routeName: 'Exercise',
             startIndex: 0
           })}>
-            <YStack gap={8} backgroundColor="rgba(16, 185, 129, 0.05)" borderRadius={8} padding={12}>
-              <Text fontSize={16} fontWeight="500" color="#FFFFFF">
+            <YStack gap={8} backgroundColor="$backgroundStrong" borderRadius={8} padding={12}>
+              <Text fontSize={16} fontWeight="500" color="$color">
                 {activity.data.exercise.title?.en || activity.data.exercise.title?.sv || 'Exercise'}
               </Text>
               <XStack alignItems="center" gap={6}>
@@ -661,7 +663,7 @@ export const CommunityFeedScreen: React.FC = () => {
                 <Text fontSize={13} color="#10B981">Exercise Completed</Text>
               </XStack>
               {activity.data.exercise.description && (
-                <Text fontSize={13} color="#CCCCCC" numberOfLines={3}>
+                <Text fontSize={13} color="$gray9" numberOfLines={3}>
                   {activity.data.exercise.description?.en || activity.data.exercise.description?.sv}
                 </Text>
               )}
@@ -716,69 +718,55 @@ export const CommunityFeedScreen: React.FC = () => {
   };
 
   return (
-    <YStack flex={1} backgroundColor="#0F172A">
-      {/* Header */}
-      <XStack
-        padding={16}
-        borderBottomWidth={1}
-        borderBottomColor="rgba(255, 255, 255, 0.1)"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <XStack alignItems="center" gap={12} flex={1}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <ArrowLeft size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text fontSize={20} fontWeight="600" color="#FFFFFF">
-            Community Feed
-          </Text>
+    <Screen scroll={false}>
+      <YStack f={1} gap="$4">
+        <Header title="Community Feed" showBack />
+
+        {/* Filter chips */}
+        <XStack padding={16} gap={12}>
+          <Chip
+            active={filter === 'all'}
+            onPress={() => setFilter('all')}
+            icon="activity"
+          >
+            All Activity
+          </Chip>
+          <Chip
+            active={filter === 'following'}
+            onPress={() => setFilter('following')}
+            icon="users"
+          >
+            Following ({followingUserIds.length})
+          </Chip>
         </XStack>
-      </XStack>
 
-      {/* Filter chips */}
-      <XStack padding={16} gap={12}>
-        <Chip
-          active={filter === 'all'}
-          onPress={() => setFilter('all')}
-          icon="activity"
-        >
-          All Activity
-        </Chip>
-        <Chip
-          active={filter === 'following'}
-          onPress={() => setFilter('following')}
-          icon="users"
-        >
-          Following ({followingUserIds.length})
-        </Chip>
-      </XStack>
-
-      {/* Activity list */}
-      {loading ? (
-        <YStack flex={1} justifyContent="center" alignItems="center">
-          <Spinner size="large" color="#00FFBC" />
-          <Text color="$gray11" marginTop={16}>
-            Loading community activity...
-          </Text>
-        </YStack>
-      ) : (
-        <FlatList
-          data={activities}
-          renderItem={renderActivityItem}
-          keyExtractor={(item) => item.id}
-          nestedScrollEnabled
-          refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh} 
-              tintColor="#00FFBC"
-            />
-          }
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={EmptyState}
-          contentContainerStyle={activities.length === 0 ? { flex: 1 } : { paddingBottom: 32 }}
-        />
-      )}
-    </YStack>
+        {/* Activity list */}
+        {loading ? (
+          <YStack flex={1} justifyContent="center" alignItems="center">
+            <Spinner size="large" color="#00FFBC" />
+            <Text color="$gray11" marginTop={16}>
+              Loading community activity...
+            </Text>
+          </YStack>
+        ) : (
+          <FlatList
+            data={activities}
+            renderItem={renderActivityItem}
+            keyExtractor={(item) => item.id}
+            nestedScrollEnabled
+            refreshControl={
+              <RefreshControl 
+                refreshing={refreshing} 
+                onRefresh={onRefresh} 
+                tintColor="#00FFBC"
+              />
+            }
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={EmptyState}
+            contentContainerStyle={activities.length === 0 ? { flex: 1 } : { paddingBottom: 32 }}
+          />
+        )}
+      </YStack>
+    </Screen>
   );
 }; 

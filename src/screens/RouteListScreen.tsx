@@ -18,6 +18,15 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
   const { title, routes: paramRoutes = [], type, activeFilter } = route.params;
   const { user } = useAuth();
   const [routes, setRoutes] = React.useState<Route[]>(paramRoutes);
+  
+  // Debug logging to see what parameters are received
+  console.log('[RouteListScreen] Received params:', {
+    title,
+    type,
+    routesCount: paramRoutes.length,
+    activeFilter,
+    allParams: route.params
+  });
 
   React.useEffect(() => {
     if (!user && paramRoutes.length > 0) return;
@@ -63,13 +72,7 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
     // Disable Screen's ScrollView to avoid nesting with RouteList's FlatList
     <Screen scroll={false}>
       <YStack f={1} gap="$4">
-        <Header title={title} showBack onBackPress={() => {
-          // Ensure back goes to HomeScreen root
-          try {
-            // @ts-ignore
-            const nav: any = (global as any).reactNavigation || null;
-          } catch {}
-        }} />
+        <Header title={title || 'Routes'} showBack />
 
         {/* Active Filter Chip */}
         {activeFilter && (

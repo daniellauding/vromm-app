@@ -24,6 +24,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { supabase } from '../lib/supabase';
 import { useLocation } from '../context/LocationContext';
+import { useThemeColor } from '../../hooks/useThemeColor';
 
 const { width, height } = Dimensions.get('window');
 
@@ -55,6 +56,9 @@ export function OnboardingInteractive({
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { setUserLocation } = useLocation();
+  
+  // Theme colors
+  const iconColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
@@ -594,10 +598,17 @@ export function OnboardingInteractive({
         <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300}>
           {/* Step Header */}
           <YStack alignItems="center" marginBottom="$6">
-            <Text size="2xl" weight="bold" textAlign="center" color="$color">
+            <Text 
+              size="3xl" 
+              fontWeight="800" 
+              fontStyle="italic"
+              textAlign="center" 
+              fontFamily="$heading"
+              color="$color"
+            >
               {item.title}
             </Text>
-            <Text size="lg" intent="muted" textAlign="center" paddingHorizontal="$4" marginTop="$2">
+            <Text size="lg" textAlign="center" color="$color" opacity={0.9} paddingHorizontal="$4" marginTop="$2">
               {item.description}
             </Text>
           </YStack>
@@ -700,10 +711,17 @@ export function OnboardingInteractive({
         <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300}>
           {/* Step Header */}
           <YStack alignItems="center" marginBottom="$6">
-            <Text size="2xl" weight="bold" textAlign="center" color="$color">
+            <Text 
+              size="3xl" 
+              fontWeight="800" 
+              fontStyle="italic"
+              textAlign="center" 
+              fontFamily="$heading"
+              color="$color"
+            >
               {item.title}
             </Text>
-            <Text size="lg" intent="muted" textAlign="center" paddingHorizontal="$4" marginTop="$2">
+            <Text size="lg" textAlign="center" color="$color" opacity={0.9} paddingHorizontal="$4" marginTop="$2">
               {item.description}
             </Text>
           </YStack>
@@ -771,11 +789,18 @@ export function OnboardingInteractive({
         <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300}>
                     {/* Simplified Step Content */}
           <YStack alignItems="center" gap="$4" paddingHorizontal="$4">
-            <Text size="xl" weight="bold" textAlign="center" color="$color">
+            <Text 
+              size="3xl" 
+              fontWeight="800" 
+              fontStyle="italic"
+              textAlign="center" 
+              fontFamily="$heading"
+              color="$color"
+            >
               {item.title}
             </Text>
             
-            <Text size="md" color="$gray11" textAlign="center">
+            <Text size="lg" textAlign="center" color="$color" opacity={0.9}>
               {item.description}
             </Text>
 
@@ -808,6 +833,10 @@ export function OnboardingInteractive({
                 {item.id === 'relationships' ? (
                   <Button variant="primary" size="lg" onPress={() => setShowConnectionsDrawer(true)}>
                     <Text>Find Connections</Text>
+                  </Button>
+                ) : item.id === 'complete' ? (
+                  <Button variant="primary" size="lg" onPress={completeOnboarding}>
+                    <Text>Start Using Vromm!</Text>
                   </Button>
                 ) : (
                   <Button variant="primary" size="lg" onPress={() => nextSlide()}>
@@ -850,45 +879,7 @@ export function OnboardingInteractive({
 
   return (
     <Stack flex={1} bg="$background">
-      {/* Progress Header with Visual Indicator */}
-      <View
-        style={{
-          position: 'absolute',
-          top: (insets.top || 40) + 8,
-          left: 0,
-          right: 0,
-          zIndex: 100,
-          alignItems: 'center',
-        }}
-      >
-        {/* Visual Progress Indicator */}
-        <XStack gap="$1" alignItems="center">
-          {steps.map((step, index) => {
-            const isActive = index === currentIndex;
-          const isCompleted = completedSteps.has(step.id);
-            const isSkipped = skippedSteps.has(step.id);
 
-          return (
-              <View
-                key={step.id}
-              style={{
-                  width: isActive ? 24 : 12,
-                  height: 6,
-                  borderRadius: 3,
-                backgroundColor: isCompleted 
-                  ? '#10B981' 
-                    : isSkipped 
-                      ? '#F59E0B'
-                  : isActive 
-                        ? '#3B82F6' // Primary blue for current step
-                        : '#374151', // Gray for pending steps
-                  marginHorizontal: 2,
-              }}
-            />
-          );
-        })}
-      </XStack>
-      </View>
 
       {/* Navigation Buttons */}
       <View
@@ -915,23 +906,14 @@ export function OnboardingInteractive({
               alignItems: 'center',
             }}
           >
-            <Feather name="chevron-left" size={20} color="$gray11" />
+            <Feather name="chevron-left" size={20} color={iconColor} />
           </TouchableOpacity>
         ) : (
           <View style={{ width: 40 }} />
         )}
         
-        {/* Skip All Button */}
-        <TouchableOpacity
-          onPress={skipOnboarding}
-          style={{
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-            borderRadius: 16,
-          }}
-        >
-          <Text size="sm" color="$gray11">Skip All</Text>
-        </TouchableOpacity>
+        {/* Empty space where skip button was */}
+        <View style={{ width: 40 }} />
       </View>
 
       {/* Main Content */}
@@ -952,24 +934,56 @@ export function OnboardingInteractive({
         windowSize={3}
       />
 
-      {/* Bottom Navigation */}
-      <YStack
-        position="absolute"
-        bottom={0}
-        left={0}
-        right={0}
-        paddingBottom="$6"
-        paddingHorizontal="$6"
-        backgroundColor="$background"
-        borderTopWidth={1}
-        borderTopColor="$borderColor"
+      {/* Dots indicator - similar to SplashScreen */}
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          left: 0,
+          right: 0,
+          zIndex: 20,
+        }}
       >
-        <YStack width="100%">
-          <Button variant="primary" size="lg" onPress={nextSlide}>
-            <Text>{currentIndex === steps.length - 1 ? 'Start Using Vromm!' : 'Next Step'}</Text>
-          </Button>
-        </YStack>
-      </YStack>
+        <XStack justifyContent="center" gap="$1" paddingVertical="$2">
+          {steps.map((_, i) => {
+            const isActive = currentIndex === i;
+            const isCompleted = completedSteps.has(steps[i].id);
+            const isSkipped = skippedSteps.has(steps[i].id);
+
+            return (
+              <TouchableOpacity
+                key={`dot-${i}`}
+                onPress={() => scrollTo(i)}
+                style={{
+                  padding: 6,
+                }}
+              >
+                <Animated.View
+                  style={{
+                    width: isActive ? 16 : 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: isCompleted 
+                      ? '#10B981' 
+                      : isSkipped 
+                        ? '#F59E0B'
+                        : isActive 
+                          ? '#00FFBC' 
+                          : '#374151',
+                    marginHorizontal: 2,
+                    opacity: isActive ? 1 : 0.5,
+                    shadowColor: isActive ? '#00FFBC' : 'transparent',
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: isActive ? 0.3 : 0,
+                    shadowRadius: isActive ? 4 : 0,
+                    elevation: isActive ? 3 : 0,
+                  }}
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </XStack>
+      </View>
 
       {/* City Selection Modal */}
       <Modal

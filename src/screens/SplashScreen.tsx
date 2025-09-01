@@ -913,7 +913,7 @@ export function SplashScreen() {
               >
                 <Text
                   size="3xl"
-                  weight="bold"
+                  fontWeight="800"
                   fontStyle="italic"
                   textAlign="center"
                   fontFamily="$heading"

@@ -21,7 +21,7 @@ WebBrowser.maybeCompleteAuthSession();
 export function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { signUp } = useAuth();
@@ -37,12 +37,8 @@ export function SignupScreen() {
   }, [clearCache]);
 
   const handleSignup = async () => {
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password) {
       setError(t('auth.signUp.error.emptyFields'));
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError(t('auth.signUp.error.passwordMismatch'));
       return;
     }
     try {
@@ -148,15 +144,6 @@ export function SignupScreen() {
                 placeholder={t('auth.signUp.passwordPlaceholder')}
                 autoComplete="password-new"
               />
-
-              <FormField
-                label={t('auth.signUp.confirmPasswordLabel')}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                placeholder={t('auth.signUp.confirmPasswordPlaceholder')}
-                autoComplete="password-new"
-              />
             </YStack>
 
             {error ? (
@@ -191,7 +178,11 @@ export function SignupScreen() {
             accessibilityRole="button"
             pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
           >
-            <Ionicons name="logo-google" size={32} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+            <Ionicons
+              name="logo-google"
+              size={32}
+              color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+            />
           </Button>
 
           <Button
@@ -204,7 +195,11 @@ export function SignupScreen() {
             accessibilityRole="button"
             pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
           >
-            <Ionicons name="logo-facebook" size={32} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+            <Ionicons
+              name="logo-facebook"
+              size={32}
+              color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+            />
           </Button>
 
           <Button

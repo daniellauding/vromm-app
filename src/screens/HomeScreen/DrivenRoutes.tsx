@@ -116,9 +116,8 @@ export const DrivenRoutes = () => {
   }, [effectiveUserId]);
 
   const onNavigateToRouteList = React.useCallback(() => {
-    const domain = navigateDomain(navigation);
     console.log('[NAV][HomeSection] DrivenRoutes → RouteList');
-    domain.home('RouteList', {
+    navigation.navigate('RouteList', {
       title: isViewingAsStudent 
         ? `${activeStudentName || 'Student'}'s Driven Routes`
         : t('home.drivenRoutes'),
