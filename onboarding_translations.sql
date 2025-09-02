@@ -1,0 +1,105 @@
+-- OnboardingInteractive Translation Keys
+-- Insert translation keys for all onboarding text in both English and Swedish
+
+-- Location step
+INSERT INTO "public"."translations" ("id", "key", "language", "value", "platform", "created_at", "updated_at") VALUES 
+('onb-loc-title-en', 'onboarding.location.title', 'en', 'Enable Location Access', 'mobile', NOW(), NOW()),
+('onb-loc-title-sv', 'onboarding.location.title', 'sv', 'Aktivera Platsåtkomst', 'mobile', NOW(), NOW()),
+('onb-loc-desc-en', 'onboarding.location.description', 'en', 'Allow location access to find practice routes near you', 'mobile', NOW(), NOW()),
+('onb-loc-desc-sv', 'onboarding.location.description', 'sv', 'Tillåt platsåtkomst för att hitta övningsrutter nära dig', 'mobile', NOW(), NOW()),
+('onb-loc-btn-en', 'onboarding.location.enableButton', 'en', 'Enable Location Access', 'mobile', NOW(), NOW()),
+('onb-loc-btn-sv', 'onboarding.location.enableButton', 'sv', 'Aktivera Platsåtkomst', 'mobile', NOW(), NOW()),
+('onb-loc-city-en', 'onboarding.location.selectCity', 'en', 'Or Select Your City', 'mobile', NOW(), NOW()),
+('onb-loc-city-sv', 'onboarding.location.selectCity', 'sv', 'Eller Välj Din Stad', 'mobile', NOW(), NOW()),
+('onb-loc-save-en', 'onboarding.location.saveButton', 'en', 'Save Location & Continue', 'mobile', NOW(), NOW()),
+('onb-loc-save-sv', 'onboarding.location.saveButton', 'sv', 'Spara Plats & Fortsätt', 'mobile', NOW(), NOW()),
+('onb-loc-skip-en', 'onboarding.location.skipButton', 'en', 'Skip for now', 'mobile', NOW(), NOW()),
+('onb-loc-skip-sv', 'onboarding.location.skipButton', 'sv', 'Hoppa över nu', 'mobile', NOW(), NOW()),
+
+-- License plan step
+('onb-lic-title-en', 'onboarding.licensePlan.title', 'en', 'Your License Journey', 'mobile', NOW(), NOW()),
+('onb-lic-title-sv', 'onboarding.licensePlan.title', 'sv', 'Din Körkortresa', 'mobile', NOW(), NOW()),
+('onb-lic-desc-en', 'onboarding.licensePlan.description', 'en', 'Tell us about your experience level, driving goals and vehicle preferences', 'mobile', NOW(), NOW()),
+('onb-lic-desc-sv', 'onboarding.licensePlan.description', 'sv', 'Berätta om din erfarenhetsnivå, körmål och fordonsföreställningar', 'mobile', NOW(), NOW()),
+('onb-lic-date-en', 'onboarding.licensePlan.targetDate', 'en', 'Want my license on:', 'mobile', NOW(), NOW()),
+('onb-lic-date-sv', 'onboarding.licensePlan.targetDate', 'sv', 'Vill ha körkort den:', 'mobile', NOW(), NOW()),
+('onb-lic-save-en', 'onboarding.licensePlan.saveButton', 'en', 'Save My Preferences', 'mobile', NOW(), NOW()),
+('onb-lic-save-sv', 'onboarding.licensePlan.saveButton', 'sv', 'Spara Mina Inställningar', 'mobile', NOW(), NOW()),
+('onb-lic-skip-en', 'onboarding.licensePlan.skipButton', 'en', 'Skip for now', 'mobile', NOW(), NOW()),
+('onb-lic-skip-sv', 'onboarding.licensePlan.skipButton', 'sv', 'Hoppa över nu', 'mobile', NOW(), NOW()),
+
+-- Role selection step
+('onb-role-title-en', 'onboarding.role.title', 'en', 'Select Your Role', 'mobile', NOW(), NOW()),
+('onb-role-title-sv', 'onboarding.role.title', 'sv', 'Välj Din Roll', 'mobile', NOW(), NOW()),
+('onb-role-desc-en', 'onboarding.role.description', 'en', 'Are you learning to drive or teaching others?', 'mobile', NOW(), NOW()),
+('onb-role-desc-sv', 'onboarding.role.description', 'sv', 'Lär du dig köra eller undervisar du andra?', 'mobile', NOW(), NOW()),
+('onb-role-student-en', 'onboarding.role.student.title', 'en', 'Student', 'mobile', NOW(), NOW()),
+('onb-role-student-sv', 'onboarding.role.student.title', 'sv', 'Elev', 'mobile', NOW(), NOW()),
+('onb-role-student-desc-en', 'onboarding.role.student.description', 'en', 'I want to learn to drive', 'mobile', NOW(), NOW()),
+('onb-role-student-desc-sv', 'onboarding.role.student.description', 'sv', 'Jag vill lära mig köra', 'mobile', NOW(), NOW()),
+('onb-role-instructor-en', 'onboarding.role.instructor.title', 'en', 'Instructor', 'mobile', NOW(), NOW()),
+('onb-role-instructor-sv', 'onboarding.role.instructor.title', 'sv', 'Instruktör', 'mobile', NOW(), NOW()),
+('onb-role-instructor-desc-en', 'onboarding.role.instructor.description', 'en', 'I teach others to drive', 'mobile', NOW(), NOW()),
+('onb-role-instructor-desc-sv', 'onboarding.role.instructor.description', 'sv', 'Jag undervisar andra att köra', 'mobile', NOW(), NOW()),
+('onb-role-school-en', 'onboarding.role.school.title', 'en', 'Driving School', 'mobile', NOW(), NOW()),
+('onb-role-school-sv', 'onboarding.role.school.title', 'sv', 'Trafikskola', 'mobile', NOW(), NOW()),
+('onb-role-school-desc-en', 'onboarding.role.school.description', 'en', 'I represent a driving school', 'mobile', NOW(), NOW()),
+('onb-role-school-desc-sv', 'onboarding.role.school.description', 'sv', 'Jag representerar en trafikskola', 'mobile', NOW(), NOW()),
+('onb-role-save-en', 'onboarding.role.saveButton', 'en', 'Save Role & Continue', 'mobile', NOW(), NOW()),
+('onb-role-save-sv', 'onboarding.role.saveButton', 'sv', 'Spara Roll & Fortsätt', 'mobile', NOW(), NOW()),
+('onb-role-skip-en', 'onboarding.role.skipButton', 'en', 'Skip for now', 'mobile', NOW(), NOW()),
+('onb-role-skip-sv', 'onboarding.role.skipButton', 'sv', 'Hoppa över nu', 'mobile', NOW(), NOW()),
+
+-- Relationships step
+('onb-rel-title-en', 'onboarding.relationships.title', 'en', 'Connect with Others', 'mobile', NOW(), NOW()),
+('onb-rel-title-sv', 'onboarding.relationships.title', 'sv', 'Anslut med Andra', 'mobile', NOW(), NOW()),
+('onb-rel-desc-en', 'onboarding.relationships.description', 'en', 'Connect with instructors or students based on your role', 'mobile', NOW(), NOW()),
+('onb-rel-desc-sv', 'onboarding.relationships.description', 'sv', 'Anslut med instruktörer eller elever baserat på din roll', 'mobile', NOW(), NOW()),
+('onb-rel-find-en', 'onboarding.relationships.findButton', 'en', 'Find Connections', 'mobile', NOW(), NOW()),
+('onb-rel-find-sv', 'onboarding.relationships.findButton', 'sv', 'Hitta Kontakter', 'mobile', NOW(), NOW()),
+('onb-rel-save-en', 'onboarding.relationships.saveButton', 'en', 'Save Connections & Continue', 'mobile', NOW(), NOW()),
+('onb-rel-save-sv', 'onboarding.relationships.saveButton', 'sv', 'Spara Kontakter & Fortsätt', 'mobile', NOW(), NOW()),
+('onb-rel-msg-en', 'onboarding.relationships.optionalMessage', 'en', 'Optional message:', 'mobile', NOW(), NOW()),
+('onb-rel-msg-sv', 'onboarding.relationships.optionalMessage', 'sv', 'Valfritt meddelande:', 'mobile', NOW(), NOW()),
+('onb-rel-msg-ph-en', 'onboarding.relationships.messagePlaceholder', 'en', 'Add a personal message...', 'mobile', NOW(), NOW()),
+('onb-rel-msg-ph-sv', 'onboarding.relationships.messagePlaceholder', 'sv', 'Lägg till ett personligt meddelande...', 'mobile', NOW(), NOW()),
+('onb-rel-search-en', 'onboarding.relationships.searchPlaceholder', 'en', 'Search by name or email...', 'mobile', NOW(), NOW()),
+('onb-rel-search-sv', 'onboarding.relationships.searchPlaceholder', 'sv', 'Sök på namn eller e-post...', 'mobile', NOW(), NOW()),
+('onb-rel-selected-en', 'onboarding.relationships.selectedConnections', 'en', 'Selected Connections:', 'mobile', NOW(), NOW()),
+('onb-rel-selected-sv', 'onboarding.relationships.selectedConnections', 'sv', 'Valda Kontakter:', 'mobile', NOW(), NOW()),
+('onb-rel-yourmsg-en', 'onboarding.relationships.yourMessage', 'en', 'Your message:', 'mobile', NOW(), NOW()),
+('onb-rel-yourmsg-sv', 'onboarding.relationships.yourMessage', 'sv', 'Ditt meddelande:', 'mobile', NOW(), NOW()),
+
+-- Complete step
+('onb-comp-title-en', 'onboarding.complete.title', 'en', 'Ready for Your Journey!', 'mobile', NOW(), NOW()),
+('onb-comp-title-sv', 'onboarding.complete.title', 'sv', 'Redo för Din Resa!', 'mobile', NOW(), NOW()),
+('onb-comp-desc-en', 'onboarding.complete.description', 'en', 'Ready to become a confident driver! Explore the app, progress in exercises, save and upload routes, and discover a community of drivers like you.', 'mobile', NOW(), NOW()),
+('onb-comp-desc-sv', 'onboarding.complete.description', 'sv', 'Redo att bli en självsäker förare! Utforska appen, gör framsteg i övningar, spara och ladda upp rutter, och upptäck en gemenskap av förare som du.', 'mobile', NOW(), NOW()),
+('onb-comp-btn-en', 'onboarding.complete.startButton', 'en', 'Start Using Vromm!', 'mobile', NOW(), NOW()),
+('onb-comp-btn-sv', 'onboarding.complete.startButton', 'sv', 'Börja Använda Vromm!', 'mobile', NOW(), NOW()),
+
+-- City selection
+('onb-city-title-en', 'onboarding.city.title', 'en', 'Select Your City', 'mobile', NOW(), NOW()),
+('onb-city-title-sv', 'onboarding.city.title', 'sv', 'Välj Din Stad', 'mobile', NOW(), NOW()),
+('onb-city-search-en', 'onboarding.city.searchPlaceholder', 'en', 'Search cities... (try ''Ystad'', ''New York'', etc.)', 'mobile', NOW(), NOW()),
+('onb-city-search-sv', 'onboarding.city.searchPlaceholder', 'sv', 'Sök städer... (prova ''Ystad'', ''Stockholm'', etc.)', 'mobile', NOW(), NOW()),
+('onb-city-current-en', 'onboarding.city.currentLocation', 'en', '(Current)', 'mobile', NOW(), NOW()),
+('onb-city-current-sv', 'onboarding.city.currentLocation', 'sv', '(Aktuell)', 'mobile', NOW(), NOW()),
+
+-- Connection search
+('onb-conn-title-en', 'onboarding.connections.findTitle', 'en', 'Find Instructors', 'mobile', NOW(), NOW()),
+('onb-conn-title-sv', 'onboarding.connections.findTitle', 'sv', 'Hitta Instruktörer', 'mobile', NOW(), NOW()),
+('onb-conn-search-desc-en', 'onboarding.connections.searchDescription', 'en', 'Search for driving instructors to connect with', 'mobile', NOW(), NOW()),
+('onb-conn-search-desc-sv', 'onboarding.connections.searchDescription', 'sv', 'Sök efter körinstruktörer att ansluta med', 'mobile', NOW(), NOW()),
+('onb-conn-cancel-en', 'onboarding.connections.cancelButton', 'en', 'Cancel', 'mobile', NOW(), NOW()),
+('onb-conn-cancel-sv', 'onboarding.connections.cancelButton', 'sv', 'Avbryt', 'mobile', NOW(), NOW()),
+('onb-conn-select-en', 'onboarding.connections.selectButton', 'en', 'Select Connection', 'mobile', NOW(), NOW()),
+('onb-conn-select-sv', 'onboarding.connections.selectButton', 'sv', 'Välj Kontakt', 'mobile', NOW(), NOW()),
+
+-- General
+('onb-continue-en', 'onboarding.general.continue', 'en', 'Continue', 'mobile', NOW(), NOW()),
+('onb-continue-sv', 'onboarding.general.continue', 'sv', 'Fortsätt', 'mobile', NOW(), NOW()),
+('onb-save-en', 'onboarding.general.save', 'en', 'Save', 'mobile', NOW(), NOW()),
+('onb-save-sv', 'onboarding.general.save', 'sv', 'Spara', 'mobile', NOW(), NOW()),
+('onb-skip-en', 'onboarding.general.skip', 'en', 'Skip', 'mobile', NOW(), NOW()),
+('onb-skip-sv', 'onboarding.general.skip', 'sv', 'Hoppa över', 'mobile', NOW(), NOW());

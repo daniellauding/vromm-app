@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Dimensions,
@@ -28,10 +28,13 @@ import { NavigationProp } from '../types/navigation';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { supabase } from '../lib/supabase';
+import { Database } from '../lib/database.types';
 import { useLocation } from '../context/LocationContext';
 import { useThemeColor } from '../../hooks/useThemeColor';
 import { useTranslation } from '../contexts/TranslationContext';
 import { StyleSheet } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import Popover from 'react-native-popover-view';
 
 const { width, height } = Dimensions.get('window');
 
@@ -69,6 +72,24 @@ interface OnboardingInteractiveProps {
   showAgainKey?: string;
   onCloseModal?: () => void;
 }
+
+// Map experience levels to valid enum values with fallbacks
+const mapToValidExperienceLevel = (level: string): string => {
+  const mapping: Record<string, string> = {
+    'beginner': 'beginner',
+    'intermediate': 'intermediate', 
+    'advanced': 'advanced',
+    'expert': 'advanced', // Map expert to advanced as fallback
+    'refresher': 'intermediate', // Map refresher to intermediate as fallback
+    'all': 'beginner', // Default fallback
+  };
+  
+  const normalizedLevel = level.toLowerCase();
+  const mappedLevel = mapping[normalizedLevel] || 'beginner';
+  
+  console.log(`🎯 [OnboardingInteractive] Mapping experience level: ${level} → ${mappedLevel}`);
+  return mappedLevel;
+};
 
 export function OnboardingInteractive({
   onDone,
@@ -120,6 +141,51 @@ export function OnboardingInteractive({
   const [showTransmissionDrawer, setShowTransmissionDrawer] = useState(false);
   const [showLicenseDrawer, setShowLicenseDrawer] = useState(false);
   const [citySearchResults, setCitySearchResults] = useState<any[]>([]);
+  
+  // Connection selection state
+  const [selectedConnections, setSelectedConnections] = useState<Array<{ id: string; full_name: string; email: string; role?: string }>>([]);
+  const [connectionCustomMessage, setConnectionCustomMessage] = useState('');
+  
+  // Experience level state
+  const [showExperienceModal, setShowExperienceModal] = useState(false);
+  const [selectedExperienceLevel, setSelectedExperienceLevel] = useState<string>('beginner');
+  const [locationLoading, setLocationLoading] = useState(false);
+
+  const [selectedTargetDate, setSelectedTargetDate] = useState<Date>(() => {
+    // Default to 6 months from now
+    const date = new Date();
+    date.setMonth(date.getMonth() + 6);
+    return date;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [showDatePopover, setShowDatePopover] = useState(false);
+  const [selectedDateOption, setSelectedDateOption] = useState<string>('6months'); // Track which date option is selected
+  const dateButtonRef = useRef<any>(null);
+  
+  // Dynamic experience levels from database
+  const [experienceLevels, setExperienceLevels] = useState<Array<{ id: string; title: string; description?: string }>>([]);
+  
+  // Loading spinner animation
+  const spinValue = useRef(new Animated.Value(0)).current;
+  
+  // Start spinner animation when loading
+  useEffect(() => {
+    if (locationLoading) {
+      const spin = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      spin.start();
+      return () => spin.stop();
+    } else {
+      spinValue.setValue(0);
+    }
+  }, [locationLoading, spinValue]);
   const [citySearchTimeout, setCitySearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
@@ -155,7 +221,7 @@ export function OnboardingInteractive({
     {
       id: 'license_plan',
       title: 'Your License Journey',
-      description: 'Tell us about your driving goals and vehicle preferences',
+      description: 'Tell us about your experience level, driving goals and vehicle preferences',
       icon: 'clipboard',
       type: 'selection',
       actionButton: 'Set My Preferences',
@@ -212,8 +278,8 @@ export function OnboardingInteractive({
       try {
         const { data, error } = await supabase
           .from('learning_path_categories')
-          .select('category, value, label, is_default, created_at')
-          .in('category', ['vehicle_type', 'transmission_type', 'license_type'])
+          .select('category, value, label, is_default, created_at, order_index')
+          .in('category', ['vehicle_type', 'transmission_type', 'license_type', 'experience_level'])
           .order('order_index', { ascending: true });
 
         if (error) {
@@ -237,6 +303,8 @@ export function OnboardingInteractive({
         }
 
         if (data) {
+          console.log('📊 [OnboardingInteractive] Raw database data:', data);
+          
           // Group by category and extract titles with proper language support
           const vehicles = data
             .filter((item) => item.category === 'vehicle_type')
@@ -264,16 +332,32 @@ export function OnboardingInteractive({
                      (item.label as { en?: string; sv?: string })?.en || 
                      item.value,
             }));
+          
+          const experiences = data
+            .filter((item) => item.category === 'experience_level')
+            .filter((item) => item.value !== 'all' && item.value !== 'All') // Filter out 'all' and 'All' options
+            .sort((a, b) => a.order_index - b.order_index)
+            .map((item) => ({
+              id: item.value.toLowerCase(), // Normalize to lowercase for enum compatibility
+              title: (item.label as { en?: string; sv?: string })?.[language] || 
+                     (item.label as { en?: string; sv?: string })?.en || 
+                     item.value,
+              description: undefined, // No descriptions in database
+            }));
 
           setVehicleTypes(vehicles);
           setTransmissionTypes(transmissions);
           setLicenseTypes(licenses);
+          setExperienceLevels(experiences);
+          
+          console.log('📊 [OnboardingInteractive] Setting experience levels from DB:', experiences);
           
           // Debug logging to see what we loaded
           console.log('🚗 Loaded vehicle types:', vehicles);
           console.log('🔧 Loaded transmission types:', transmissions);
           console.log('📋 Loaded license types:', licenses);
-          console.log('🎯 Current state values:', { vehicleType, transmissionType, licenseType });
+          console.log('🎓 Loaded experience levels:', experiences);
+          console.log('🎯 Current state values:', { vehicleType, transmissionType, licenseType, selectedExperienceLevel });
           
           // Set state to match the most recent is_default=true values from database
           const defaultVehicle = data
@@ -284,6 +368,9 @@ export function OnboardingInteractive({
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultLicense = data
             .filter(item => item.category === 'license_type' && item.is_default)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const defaultExperience = data
+            .filter(item => item.category === 'experience_level' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           
           if (defaultVehicle && defaultVehicle.value !== vehicleType) {
@@ -299,6 +386,11 @@ export function OnboardingInteractive({
           if (defaultLicense && defaultLicense.value !== licenseType) {
             console.log('📋 Setting license type to default:', defaultLicense.value);
             setLicenseType(defaultLicense.value);
+          }
+          
+          if (defaultExperience && defaultExperience.value !== selectedExperienceLevel) {
+            console.log('🎓 Setting experience level to default:', defaultExperience.value);
+            setSelectedExperienceLevel(defaultExperience.value);
           }
         }
       } catch (error) {
@@ -374,6 +466,7 @@ export function OnboardingInteractive({
   const viewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
       if (viewableItems[0] && viewableItems[0].index !== null) {
+        console.log('📺 [OnboardingInteractive] Slide visible changed to index:', viewableItems[0].index);
         setCurrentIndex(viewableItems[0].index);
       }
     },
@@ -382,8 +475,21 @@ export function OnboardingInteractive({
   const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
   const scrollTo = (index: number) => {
+    console.log('📜 [OnboardingInteractive] scrollTo called with index:', index, 'steps length:', steps.length);
     if (slidesRef.current && index >= 0 && index < steps.length) {
-      slidesRef.current.scrollToIndex({ index });
+      console.log('📜 [OnboardingInteractive] Executing scrollToIndex:', index);
+      slidesRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      // Force update current index after animation
+      setTimeout(() => {
+        console.log('📜 [OnboardingInteractive] Setting currentIndex to:', index);
+        setCurrentIndex(index);
+      }, 100);
+    } else {
+      console.error('📜 [OnboardingInteractive] Invalid scrollTo parameters:', {
+        hasRef: !!slidesRef.current,
+        index,
+        stepsLength: steps.length
+      });
     }
   };
 
@@ -394,9 +500,13 @@ export function OnboardingInteractive({
   };
 
   const nextSlide = () => {
+    console.log('➡️ [OnboardingInteractive] nextSlide called, current index:', currentIndex, 'total steps:', steps.length);
     if (currentIndex < steps.length - 1) {
-      scrollTo(currentIndex + 1);
+      const nextIndex = currentIndex + 1;
+      console.log('➡️ [OnboardingInteractive] Moving to slide:', nextIndex);
+      scrollTo(nextIndex);
     } else {
+      console.log('➡️ [OnboardingInteractive] Last slide reached, completing onboarding');
       completeOnboarding();
     }
   };
@@ -416,7 +526,13 @@ export function OnboardingInteractive({
   };
 
   const handleLocationPermission = async () => {
+    if (locationStatus === 'granted') {
+      console.log('🎯 [OnboardingInteractive] Location already granted, skipping');
+      return;
+    }
+    
     try {
+      setLocationLoading(true);
       console.log('🎯 [OnboardingInteractive] Requesting location permission');
       
       // Check current permission status first
@@ -424,26 +540,71 @@ export function OnboardingInteractive({
       
       if (currentStatus.status === 'granted') {
         setLocationStatus('granted');
-        setCompletedSteps((prev) => new Set(prev).add('location'));
-            nextSlide();
+        // Get current location and set it as selected city - but only once
+        if (!selectedCity) {
+          await detectAndSetCurrentLocation();
+        }
         return;
       }
       
       // Request permission - this shows the native dialog
       const { status } = await Location.requestForegroundPermissionsAsync();
       
-            if (status === 'granted') {
+      if (status === 'granted') {
         setLocationStatus('granted');
-        setCompletedSteps((prev) => new Set(prev).add('location'));
-        nextSlide();
+        // Get current location and set it as selected city - but only once
+        if (!selectedCity) {
+          await detectAndSetCurrentLocation();
+        }
       } else {
         setLocationStatus('denied');
-        // User can still select city or skip
+        // User can still select city manually
       }
     } catch (error) {
       console.error('🎯 [OnboardingInteractive] Error requesting location permission:', error);
       setLocationStatus('denied');
-      // Don't auto-continue on error, let user choose
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const detectAndSetCurrentLocation = async () => {
+    try {
+      let location;
+      try {
+        location = await Location.getCurrentPositionAsync({});
+      } catch (locationError) {
+        console.log('🎯 [OnboardingInteractive] Location failed, using Lund, Sweden fallback for simulator');
+        // Fallback location for simulator - Lund, Sweden
+        location = {
+          coords: {
+            latitude: 55.7047,
+            longitude: 13.1910,
+          },
+        };
+      }
+      
+      // Get address from coordinates
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      const cityName = [address.city, address.country].filter(Boolean).join(', ');
+      setSelectedCity(cityName);
+      
+      // Save to LocationContext
+      await setUserLocation({
+        name: cityName,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        source: 'onboarding',
+        timestamp: new Date().toISOString(),
+      });
+      
+      console.log('🎯 [OnboardingInteractive] Location detected and set:', cityName);
+    } catch (error) {
+      console.error('🎯 [OnboardingInteractive] Error detecting location:', error);
     }
   };
 
@@ -498,7 +659,15 @@ export function OnboardingInteractive({
     }).start();
   };
 
-  const hideConnectionsModal = () => {
+  const hideConnectionsModal = useCallback(() => {
+    console.log('🔒 [OnboardingInteractive] Hiding connections modal, current state:', showConnectionsDrawer);
+    
+    // Prevent multiple calls during animation
+    if (!showConnectionsDrawer) {
+      console.log('🔒 [OnboardingInteractive] Modal already hidden, skipping');
+      return;
+    }
+
     Animated.timing(connectionsBackdropOpacity, {
       toValue: 0,
       duration: 200,
@@ -510,9 +679,17 @@ export function OnboardingInteractive({
       easing: Easing.in(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
-      setShowConnectionsDrawer(false);
+      // Use setTimeout to avoid state updates during render cycles
+      setTimeout(() => {
+        setShowConnectionsDrawer(false);
+        // Only clear search, keep selections for the main slide
+        setConnectionSearchQuery('');
+        setSearchResults([]);
+        console.log('🔒 [OnboardingInteractive] Connections modal hidden successfully');
+        // Don't clear selections - they should persist for the save button
+      }, 10);
     });
-  };
+  }, [showConnectionsDrawer]);
 
   const showVehicleModal = () => {
     setShowVehicleDrawer(true);
@@ -637,8 +814,8 @@ export function OnboardingInteractive({
             timestamp: new Date().toISOString(),
           });
 
-          setCompletedSteps((prev) => new Set(prev).add('location'));
-          nextSlide();
+          // Don't auto-advance - let user click save button
+          console.log('City saved successfully, waiting for user to click save button');
         }
       } catch (err) {
         console.error('Error saving city:', err);
@@ -734,9 +911,11 @@ export function OnboardingInteractive({
 
     try {
       const licenseData = {
+        experience_level: selectedExperienceLevel,
         vehicle_type: vehicleType,
         transmission_type: transmissionType,
         license_type: licenseType,
+        target_date: selectedTargetDate.toISOString(),
       };
       
       console.log('💾 [OnboardingInteractive] Saving license plan data:', licenseData);
@@ -746,6 +925,12 @@ export function OnboardingInteractive({
         .update({
           license_plan_completed: true,
           license_plan_data: licenseData,
+          // Also save individual fields for easier access by other screens
+          vehicle_type: vehicleType,
+          transmission_type: transmissionType,
+          license_type: licenseType,
+          experience_level: mapToValidExperienceLevel(selectedExperienceLevel) as Database['public']['Enums']['experience_level'],
+          target_license_date: selectedTargetDate.toISOString(),
         })
         .eq('id', user.id);
 
@@ -756,7 +941,11 @@ export function OnboardingInteractive({
         setCompletedSteps((prev) => new Set(prev).add('license_plan'));
         checkStepCompletions();
         // Auto-advance to next slide after saving
-        nextSlide();
+        console.log('💾 [OnboardingInteractive] License plan saved, advancing to next slide');
+        setTimeout(() => {
+          console.log('💾 [OnboardingInteractive] Timeout executed, calling nextSlide');
+          nextSlide();
+        }, 200); // Increased delay to ensure proper state updates
       }
     } catch (err) {
       console.error('Error saving license plan:', err);
@@ -764,17 +953,20 @@ export function OnboardingInteractive({
     }
   };
 
-  const handleRoleSelect = async (roleId: string) => {
-    if (!user) return;
+  const handleRoleSelect = (roleId: string) => {
+    setSelectedRole(roleId);
+    // Don't auto-advance - wait for save button
+  };
+  
+  const handleSaveRole = async () => {
+    if (!user || !selectedRole) return;
 
     try {
-      setSelectedRole(roleId);
-
       // Update the profile with the selected role
       const { error } = await supabase
         .from('profiles')
         .update({
-          role: roleId,
+          role: selectedRole,
           role_confirmed: true,
         })
         .eq('id', user.id);
@@ -785,7 +977,7 @@ export function OnboardingInteractive({
       } else {
         setCompletedSteps((prev) => new Set(prev).add('role'));
         checkStepCompletions();
-        // Auto-advance to next slide after role selection
+        // Advance to next slide after saving
         nextSlide();
       }
     } catch (err) {
@@ -831,7 +1023,107 @@ export function OnboardingInteractive({
     }
   };
 
+  // Handle creating connections for selected users
+  const handleCreateSelectedConnections = async () => {
+    if (!user?.id || selectedConnections.length === 0) return;
+
+    try {
+      console.log('Creating connections for selected users:', selectedConnections);
+      
+      // Create invitations for each selected connection
+      for (const targetUser of selectedConnections) {
+        if (!targetUser.email) continue;
+        
+        // Determine relationship type and target role
+        const relationshipType = selectedRole === 'student' 
+          ? 'student_invites_supervisor' 
+          : 'supervisor_invites_student';
+        const targetRole = selectedRole === 'student' ? 'instructor' : 'student';
+        
+        // Check for existing invitation first
+        const { data: existingInvitations } = await supabase
+          .from('pending_invitations')
+          .select('id, status')
+          .eq('email', targetUser.email.toLowerCase())
+          .eq('invited_by', user.id)
+          .in('status', ['pending', 'accepted']);
+
+        if (existingInvitations && existingInvitations.length > 0) {
+          console.log('Invitation already exists for:', targetUser.email);
+          continue; // Skip this user
+        }
+        
+        // Create pending invitation
+        const { error: inviteError } = await supabase
+          .from('pending_invitations')
+          .insert({
+            email: targetUser.email.toLowerCase(),
+            role: targetRole,
+            invited_by: user.id,
+            metadata: {
+              supervisorName: profile?.full_name || user.email,
+              inviterRole: selectedRole,
+              relationshipType,
+              invitedAt: new Date().toISOString(),
+              targetUserId: targetUser.id,
+              targetUserName: targetUser.full_name,
+              customMessage: connectionCustomMessage.trim() || undefined,
+            },
+            status: 'pending',
+          });
+          
+        if (inviteError && inviteError.code !== '23505') {
+          console.error('Error creating invitation:', inviteError);
+          continue;
+        }
+        
+        // Create notification for the target user
+        const notificationType = selectedRole === 'student' 
+          ? 'supervisor_invitation' 
+          : 'student_invitation';
+        const baseMessage = selectedRole === 'student' 
+          ? `${profile?.full_name || user.email || 'Someone'} wants you to be their supervisor`
+          : `${profile?.full_name || user.email || 'Someone'} wants you to be their student`;
+        
+        // Include custom message if provided
+        const fullMessage = connectionCustomMessage.trim() 
+          ? `${baseMessage}\n\nPersonal message: "${connectionCustomMessage.trim()}"`
+          : baseMessage;
+        
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: targetUser.id,
+            actor_id: user.id,
+            type: notificationType as Database['public']['Enums']['notification_type'],
+            title: 'New Supervision Request',
+            message: fullMessage,
+            metadata: {
+              relationship_type: relationshipType,
+              from_user_id: user.id,
+              from_user_name: profile?.full_name || user.email,
+              customMessage: connectionCustomMessage.trim() || undefined,
+            },
+            action_url: 'vromm://notifications',
+            priority: 'high',
+            is_read: false,
+          });
+      }
+      
+      // Complete step (selections cleared by caller)
+      setCompletedSteps((prev) => new Set(prev).add('relationships'));
+      
+      console.log('📤 [OnboardingInteractive] Invitations sent to:', selectedConnections.length, 'connections');
+      
+    } catch (error) {
+      console.error('Error creating connections:', error);
+      Alert.alert('Error', 'Some invitations may not have been sent. Please try again.');
+    }
+  };
+
   const handleConnectWithUser = async (targetUser: any) => {
+    // This function is kept for backward compatibility but simplified
+    // The new flow uses selection-based connections
     try {
       let studentId, supervisorId;
       if (selectedRole === 'student') {
@@ -852,7 +1144,9 @@ export function OnboardingInteractive({
 
       if (existingRelationship) {
         // Silently handle existing relationship
-        hideConnectionsModal();
+        setTimeout(() => {
+          hideConnectionsModal();
+        }, 0);
         setCompletedSteps((prev) => new Set(prev).add('relationships'));
         nextSlide();
         return;
@@ -870,7 +1164,9 @@ export function OnboardingInteractive({
         // Handle duplicate key error gracefully
         if (error.code === '23505') {
           // Silently handle duplicate relationship
-          hideConnectionsModal();
+          setTimeout(() => {
+            hideConnectionsModal();
+          }, 0);
           setCompletedSteps((prev) => new Set(prev).add('relationships'));
           nextSlide();
           return;
@@ -879,18 +1175,32 @@ export function OnboardingInteractive({
       }
 
       // Silently complete connection and continue
-      hideConnectionsModal();
+      setTimeout(() => {
+        hideConnectionsModal();
+      }, 0);
       setCompletedSteps((prev) => new Set(prev).add('relationships'));
       nextSlide();
     } catch (error) {
       console.error('Error creating connection:', error);
       // Silently continue even on error
-      hideConnectionsModal();
+      setTimeout(() => {
+        hideConnectionsModal();
+      }, 0);
       handleSkipStep(steps.find((s) => s.id === 'relationships')!);
     }
   };
 
   const renderLicensePlanStep = (item: OnboardingStep) => {
+    console.log('📝 [OnboardingInteractive] Rendering license plan step');
+    
+    // Use database experience levels - force show if empty for debugging
+    console.log('🎓 [OnboardingInteractive] Available experience levels from DB:', experienceLevels);
+    
+    const availableExperienceLevels = experienceLevels.length > 0 ? experienceLevels : [
+      { id: 'beginner', title: 'Beginner (Fallback)', description: 'Just starting out' },
+      { id: 'intermediate', title: 'Intermediate (Fallback)', description: 'Some experience' }, 
+      { id: 'advanced', title: 'Advanced (Fallback)', description: 'Very experienced' },
+    ];
 
     return (
       <ScrollView
@@ -922,8 +1232,26 @@ export function OnboardingInteractive({
             </Text>
           </YStack>
 
-          {/* Streamlined License Preferences */}
+          {/* License Preferences */}
           <YStack gap="$3" width="100%" marginTop="$4">
+            {/* Experience Level */}
+            <DropdownButton
+              onPress={() => setShowExperienceModal(true)}
+              value={(experienceLevels.length > 0 ? experienceLevels : [
+                { id: 'beginner', title: 'Beginner (Fallback)' },
+                { id: 'intermediate', title: 'Intermediate (Fallback)' },
+                { id: 'advanced', title: 'Advanced (Fallback)' },
+              ]).find((e) => e.id === selectedExperienceLevel)?.title || 'Beginner'}
+              isActive={showExperienceModal}
+            />
+            
+            {/* License Target Date */}
+            <DropdownButton
+              onPress={() => setShowDateModal(true)}
+              value={`Want my license on: ${selectedTargetDate.toLocaleDateString()}`}
+              isActive={showDateModal}
+            />
+
             <DropdownButton
               onPress={showVehicleModal}
               value={vehicleTypes.find((v) => v.id === vehicleType)?.title || 'Car'}
@@ -943,13 +1271,19 @@ export function OnboardingInteractive({
             />
 
             {/* Save Button */}
-            <Button variant="primary" size="lg" onPress={handleSaveLicensePlan} marginTop="$4">
+            <Button variant="primary" size="lg" onPress={() => {
+              console.log('💾 [OnboardingInteractive] Save button pressed');
+              handleSaveLicensePlan();
+            }} marginTop="$4">
               Save My Preferences
             </Button>
 
             {/* Skip Button */}
             {item.skipButton && (
-              <Button variant="link" size="md" onPress={() => handleSkipStep(item)} marginTop="$2">
+              <Button variant="link" size="md" onPress={() => {
+                console.log('⏭️ [OnboardingInteractive] Skip button pressed for step:', item.id);
+                handleSkipStep(item);
+              }} marginTop="$2">
                 {item.skipButton}
               </Button>
             )}
@@ -1021,9 +1355,16 @@ export function OnboardingInteractive({
             ))}
           </YStack>
 
+          {/* Save Button */}
+          <YStack width="100%" marginTop="$4">
+            <Button variant="primary" size="lg" onPress={handleSaveRole}>
+              Save Role & Continue
+            </Button>
+          </YStack>
+
           {/* Skip Button */}
           {item.skipButton && (
-            <Button variant="link" size="md" onPress={() => handleSkipStep(item)} marginTop="$6">
+            <Button variant="link" size="md" onPress={() => handleSkipStep(item)} marginTop="$2">
               {item.skipButton}
             </Button>
           )}
@@ -1068,8 +1409,29 @@ export function OnboardingInteractive({
             {/* Location options - always available */}
             {item.id === 'location' && (
               <YStack gap="$4" marginTop="$6" width="100%">
-                <Button variant="primary" size="lg" onPress={handleLocationPermission}>
-                  Enable Location
+                <Button 
+                  variant="secondary" 
+                  size="lg" 
+                                onPress={handleLocationPermission}
+              disabled={locationLoading}
+            >
+              {locationLoading ? (
+                <XStack alignItems="center" gap="$2">
+                  <Animated.View
+                    style={{
+                      transform: [{
+                        rotate: spinValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '360deg']
+                        })
+                      }]
+                    }}
+                  >
+                    <Feather name="loader" size={16} color="#00E6C3" />
+                  </Animated.View>
+                  <Text>Detecting Location...</Text>
+                </XStack>
+              ) : locationStatus === 'granted' ? 'Location Enabled' : 'Enable Location Access'}
                 </Button>
 
                 <DropdownButton
@@ -1078,6 +1440,16 @@ export function OnboardingInteractive({
                   placeholder="Or Select Your City"
                   isActive={showCityDrawer}
                 />
+                
+                {/* Save button when city is selected or location is detected */}
+                {selectedCity && (
+                  <Button variant="primary" size="lg" onPress={() => {
+                    setCompletedSteps((prev) => new Set(prev).add('location'));
+                    nextSlide();
+                  }}>
+                    Save Location & Continue
+                  </Button>
+                )}
                 
                 <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
                   Skip for now
@@ -1089,9 +1461,57 @@ export function OnboardingInteractive({
             {item.id !== 'location' && (
               <YStack gap="$4" marginTop="$6" width="100%">
                 {item.id === 'relationships' ? (
-                  <Button variant="primary" size="lg" onPress={showConnectionsModal}>
-                    Find Connections
-                  </Button>
+                  <YStack gap="$3" width="100%">
+                    {/* Show selected connections with message */}
+                    {selectedConnections.length > 0 && (
+                      <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
+                        <Text size="md" fontWeight="600" color="$color">
+                          Selected {selectedConnections.length > 1 ? 'Connections' : 'Connection'}:
+                        </Text>
+                        {selectedConnections.map((connection) => (
+                          <RadioButton
+                            key={connection.id}
+                            onPress={() => {
+                              // Remove this connection
+                              setSelectedConnections(prev => 
+                                prev.filter(conn => conn.id !== connection.id)
+                              );
+                            }}
+                            title={connection.full_name || connection.email}
+                            description={`${connection.email} • ${connection.role || 'instructor'} • Tap to remove`}
+                            isSelected={true}
+                          />
+                        ))}
+                        
+                        {/* Show custom message if provided */}
+                        {connectionCustomMessage.trim() && (
+                          <YStack gap="$1" marginTop="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                            <Text size="sm" color="$gray11" fontWeight="600">Your message:</Text>
+                            <Text size="sm" color="$color" fontStyle="italic">
+                              "{connectionCustomMessage.trim()}"
+                            </Text>
+                          </YStack>
+                        )}
+                      </YStack>
+                    )}
+                    
+                    {/* Save button when connections are selected */}
+                    {selectedConnections.length > 0 ? (
+                      <Button variant="primary" size="lg" onPress={async () => {
+                        await handleCreateSelectedConnections();
+                        // Clear selections after successful save
+                        setSelectedConnections([]);
+                        setConnectionCustomMessage('');
+                        nextSlide();
+                      }}>
+                        Save {selectedConnections.length > 1 ? 'Connections' : 'Connection'} & Continue
+                      </Button>
+                    ) : (
+                      <Button variant="secondary" size="lg" onPress={showConnectionsModal}>
+                        Find Connections
+                      </Button>
+                    )}
+                  </YStack>
                 ) : item.id === 'complete' ? (
                   <Button variant="primary" size="lg" onPress={completeOnboarding}>
                     Start Using Vromm!
@@ -1102,7 +1522,7 @@ export function OnboardingInteractive({
                   </Button>
                 )}
 
-                {item.skipButton && (
+                {item.skipButton && item.id !== 'relationships' && (
                   <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
                     {item.skipButton}
                   </Button>
@@ -1116,6 +1536,8 @@ export function OnboardingInteractive({
   };
 
   const renderStep = ({ item, index }: { item: OnboardingStep; index: number }) => {
+    console.log('🎨 [OnboardingInteractive] Rendering step:', item.id, 'at index:', index);
+    console.log('🎨 [OnboardingInteractive] Current slide index:', currentIndex, 'vs rendering index:', index);
     const isCompleted = completedSteps.has(item.id);
     const isSkipped = skippedSteps.has(item.id);
 
@@ -1174,13 +1596,25 @@ export function OnboardingInteractive({
         showsHorizontalScrollIndicator={false}
         pagingEnabled
         bounces={false}
-        onScroll={handleScroll}
+        onScroll={(event) => {
+          console.log('📜 [OnboardingInteractive] Scroll event offset:', event.nativeEvent.contentOffset.x);
+          handleScroll(event);
+        }}
         onViewableItemsChanged={viewableItemsChanged}
         viewabilityConfig={viewConfig}
         ref={slidesRef}
         initialNumToRender={1}
         maxToRenderPerBatch={1}
         windowSize={3}
+        removeClippedSubviews={false}
+        getItemLayout={(data, index) => ({
+          length: width,
+          offset: width * index,
+          index,
+        })}
+        onScrollBeginDrag={() => console.log('📜 [OnboardingInteractive] Scroll begin drag')}
+        onScrollEndDrag={() => console.log('📜 [OnboardingInteractive] Scroll end drag')}
+        onMomentumScrollEnd={() => console.log('📜 [OnboardingInteractive] Momentum scroll end')}
         style={{ flex: 1, height: '100%' }}
         contentContainerStyle={{ height: '100%' }}
       />
@@ -1293,6 +1727,27 @@ export function OnboardingInteractive({
                   </Text>
                 )}
                 
+                {/* Show selected city first if it exists and matches search or is detected */}
+                {selectedCity && !citySearchResults.some(city => {
+                  const cityName = [city.city, city.country].filter(Boolean).join(', ');
+                  return cityName === selectedCity;
+                }) && (
+                  <TouchableOpacity
+                    key="selected-city"
+                    style={[
+                      styles.sheetOption,
+                      { backgroundColor: selectedBackgroundColor },
+                    ]}
+                  >
+                    <XStack gap={8} padding="$2" alignItems="center">
+                      <Text color={textColor} size="lg">
+                        {selectedCity} (Current)
+                      </Text>
+                      <Check size={16} color={focusBorderColor} style={{ marginLeft: 'auto' }} />
+                    </XStack>
+                  </TouchableOpacity>
+                )}
+                
                 {citySearchResults.map((cityData, index) => {
                   const cityName = [cityData.city, cityData.country]
                     .filter(Boolean)
@@ -1312,7 +1767,7 @@ export function OnboardingInteractive({
                           {cityName}
                         </Text>
                         {selectedCity === cityName && (
-                          <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
+                          <Check size={16} color={focusBorderColor} style={{ marginLeft: 'auto' }} />
                         )}
                       </XStack>
                     </TouchableOpacity>
@@ -1331,7 +1786,13 @@ export function OnboardingInteractive({
         visible={showConnectionsDrawer}
         transparent
         animationType="none"
-        onRequestClose={hideConnectionsModal}
+        onRequestClose={() => {
+          console.log('🔒 [OnboardingInteractive] Modal onRequestClose called');
+          // Use setTimeout to avoid useInsertionEffect errors
+          setTimeout(() => {
+            hideConnectionsModal();
+          }, 0);
+        }}
       >
         <Animated.View
           style={{
@@ -1340,7 +1801,16 @@ export function OnboardingInteractive({
             opacity: connectionsBackdropOpacity,
           }}
         >
-          <Pressable style={{ flex: 1 }} onPress={hideConnectionsModal}>
+          <Pressable 
+            style={{ flex: 1 }} 
+            onPress={() => {
+              console.log('🔒 [OnboardingInteractive] Background pressed');
+              // Use setTimeout to avoid state conflicts
+              setTimeout(() => {
+                hideConnectionsModal();
+              }, 0);
+            }}
+          >
             <Animated.View
               style={{
                 position: 'absolute',
@@ -1357,14 +1827,44 @@ export function OnboardingInteractive({
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
                 gap="$4"
+                height={height * 0.5}
+                maxHeight={height * 0.5}
               >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
               Find {selectedRole === 'student' ? 'Instructors' : selectedRole === 'instructor' || selectedRole === 'school' ? 'Students' : 'Users'}
             </Text>
             
-            <Text size="sm" color="$gray11" marginBottom="$3">
+            <Text size="sm" color="$gray11">
               Search for {selectedRole === 'student' ? 'driving instructors' : selectedRole === 'instructor' || selectedRole === 'school' ? 'students' : 'users'} to connect with
             </Text>
+            
+            {/* Custom message input - using FormField styling */}
+            <YStack gap="$2">
+              <Text size="sm" color="$gray11">Optional message:</Text>
+              <TextInput
+                value={connectionCustomMessage}
+                onChangeText={setConnectionCustomMessage}
+                placeholder="Add a personal message..."
+                multiline
+                style={[
+                  {
+                    minHeight: 40,
+                    textAlignVertical: 'top',
+                    padding: 8,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    fontSize: 14,
+                  },
+                  // Dynamic theming
+                  {
+                    backgroundColor: backgroundColor,
+                    color: textColor,
+                    borderColor: borderColor,
+                  }
+                ]}
+                placeholderTextColor={handleColor}
+              />
+            </YStack>
             
             <FormField
               placeholder="Search by name or email..."
@@ -1372,7 +1872,7 @@ export function OnboardingInteractive({
               onChangeText={handleSearchUsers}
             />
             
-            <ScrollView style={{ maxHeight: 300 }}>
+            <ScrollView style={{ flex: 1, maxHeight: 180 }} showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingBottom: 8 }}>
               <YStack gap="$2">
                 {searchResults.length === 0 && connectionSearchQuery.length >= 2 && (
                   <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
@@ -1386,45 +1886,81 @@ export function OnboardingInteractive({
                   </Text>
                 )}
                 
-                {searchResults.map((user) => (
-                  <TouchableOpacity
-                    key={user.id}
-                    onPress={() => handleConnectWithUser(user)}
-                    style={{
-                      backgroundColor: 'transparent',
-                      padding: 16,
-                      borderRadius: 8,
-                      marginVertical: 4,
-                    }}
-                  >
-                    <XStack alignItems="center" justifyContent="space-between">
-                      <YStack>
-                        <Text size="md" weight="bold" color="$color">
-                          {user.full_name || 'Unknown User'}
-                        </Text>
-                        <Text size="sm" color="$gray11">
-                          {user.email} • {user.role}
-                        </Text>
-                      </YStack>
-                      <Feather name="plus-circle" size={20} color={textColor} />
-                    </XStack>
-                  </TouchableOpacity>
-                ))}
-                
-                {/* Skip option */}
-                <Button 
-                  variant="link"
-                  size="md"
-                  onPress={() => {
-                    hideConnectionsModal();
-                    handleSkipStep(steps.find((s) => s.id === 'relationships')!);
-                  }}
-                  marginTop="$4"
-                >
-                  I'll do this later
-                </Button>
+                {searchResults.map((user) => {
+                  const isSelected = selectedConnections.some(conn => conn.id === user.id);
+                  return (
+                    <TouchableOpacity
+                      key={user.id}
+                      onPress={() => {
+                        if (isSelected) {
+                          // Remove from selection
+                          setSelectedConnections(prev => prev.filter(conn => conn.id !== user.id));
+                        } else {
+                          // Add to selection
+                          setSelectedConnections(prev => [...prev, user]);
+                        }
+                      }}
+                      style={[
+                        styles.selectButton,
+                        {
+                          borderWidth: isSelected ? 2 : 1,
+                          borderColor: isSelected ? focusBorderColor : borderColor,
+                          backgroundColor: isSelected ? focusBackgroundColor : 'transparent',
+                          marginVertical: 4,
+                        }
+                      ]}
+                    >
+                      <XStack gap={8} padding="$2" alignItems="center" width="100%">
+                        <YStack flex={1}>
+                          <Text color={isSelected ? textColor : '$color'} size="md" weight="semibold">
+                            {user.full_name || 'Unknown User'}
+                          </Text>
+                          <Text size="sm" color="$gray11">
+                            {user.email} • {user.role}
+                          </Text>
+                        </YStack>
+                        {isSelected ? (
+                          <Check size={16} color={focusBorderColor} />
+                        ) : (
+                          <Feather name="plus-circle" size={16} color={textColor} />
+                        )}
+                      </XStack>
+                    </TouchableOpacity>
+                  );
+                })}
               </YStack>
             </ScrollView>
+            
+                        {/* Action buttons - stacked vertically */}
+            <YStack gap="$2">
+              {selectedConnections.length > 0 && (
+                <Button 
+                  variant="primary"
+                  size="md"
+                  onPress={() => {
+                    console.log('🔒 [OnboardingInteractive] Select connections button pressed');
+                    setTimeout(() => {
+                      hideConnectionsModal();
+                    }, 0);
+                    // Selected connections remain in state for the save button
+                  }}
+                >
+                  Select {selectedConnections.length} Connection{selectedConnections.length > 1 ? 's' : ''}
+                </Button>
+              )}
+              <Button 
+                variant="tertiary"
+                size="md"
+                onPress={() => {
+                  console.log('🔒 [OnboardingInteractive] Cancel connections button pressed');
+                  setTimeout(() => {
+                    hideConnectionsModal();
+                  }, 0);
+                }}
+              >
+                Cancel
+              </Button>
+            </YStack>
               </YStack>
             </Animated.View>
           </Pressable>
@@ -1567,6 +2103,83 @@ export function OnboardingInteractive({
         </Animated.View>
       </Modal>
 
+      {/* Experience Level Selection Modal */}
+      <Modal
+        visible={showExperienceModal}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowExperienceModal(false)}
+      >
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={() => setShowExperienceModal(false)}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+            <Text size="xl" weight="bold" color="$color" textAlign="center">
+              Select Experience Level
+            </Text>
+            
+            <ScrollView style={{ maxHeight: 300 }}>
+              <YStack gap="$1">
+                {(experienceLevels.length > 0 ? experienceLevels : [
+                  { id: 'beginner', title: 'Beginner (Fallback)', description: 'Just starting out' },
+                  { id: 'intermediate', title: 'Intermediate (Fallback)', description: 'Some experience' },
+                  { id: 'advanced', title: 'Advanced (Fallback)', description: 'Very experienced' },
+                ]).map((level: { id: string; title: string; description?: string }) => (
+                <TouchableOpacity
+                  key={level.id}
+                  onPress={() => {
+                    setSelectedExperienceLevel(level.id);
+                    setShowExperienceModal(false);
+                  }}
+                  style={[
+                    styles.sheetOption,
+                    selectedExperienceLevel === level.id && { backgroundColor: selectedBackgroundColor },
+                  ]}
+                >
+                  <XStack gap={8} padding="$2" alignItems="center">
+                    <YStack flex={1}>
+                      <Text color={textColor} size="lg">
+                        {level.title}
+                      </Text>
+                      {level.description && (
+                        <Text color={handleColor} size="sm">
+                          {level.description}
+                        </Text>
+                      )}
+                    </YStack>
+                    {selectedExperienceLevel === level.id && (
+                      <Check size={16} color={focusBorderColor} style={{ marginLeft: 'auto' }} />
+                    )}
+                  </XStack>
+                </TouchableOpacity>
+                ))}
+              </YStack>
+            </ScrollView>
+              </YStack>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
+      </Modal>
+
       {/* License Type Selection Modal */}
       <Modal
         visible={showLicenseDrawer}
@@ -1634,6 +2247,191 @@ export function OnboardingInteractive({
           </Pressable>
         </Animated.View>
       </Modal>
+      
+      {/* Date Selection Modal with Quick Options + Custom Picker */}
+      <Modal
+        visible={showDateModal}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowDateModal(false)}
+      >
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={() => setShowDateModal(false)}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+            <Text size="xl" weight="bold" color="$color" textAlign="center">
+              When do you want your license?
+            </Text>
+            
+            <YStack gap="$3">
+              {/* Quick date options */}
+              {[
+                { label: 'Within 3 months', months: 3, key: '3months' },
+                { label: 'Within 6 months', months: 6, key: '6months' },
+                { label: 'Within 1 year', months: 12, key: '1year' },
+                { label: 'No specific date', months: 24, key: 'nodate' },
+              ].map((option) => {
+                const targetDate = new Date();
+                targetDate.setMonth(targetDate.getMonth() + option.months);
+                const isSelected = selectedDateOption === option.key;
+                
+                return (
+                  <RadioButton
+                    key={option.label}
+                    onPress={() => {
+                      setSelectedTargetDate(targetDate);
+                      setSelectedDateOption(option.key);
+                      // Don't auto-close - let user press save button
+                    }}
+                    title={option.label}
+                    description={targetDate.toLocaleDateString()}
+                    isSelected={isSelected}
+                  />
+                );
+              })}
+              
+              {/* Custom Date Picker with Popover */}
+              <TouchableOpacity
+                ref={dateButtonRef}
+                onPress={() => {
+                  console.log('🗓️ [OnboardingInteractive] Opening date popover');
+                  setSelectedDateOption('custom');
+                  setShowDatePopover(true);
+                }}
+                style={[
+                  styles.selectButton,
+                  {
+                    borderWidth: selectedDateOption === 'custom' ? 2 : 1,
+                    borderColor: selectedDateOption === 'custom' ? focusBorderColor : borderColor,
+                    backgroundColor: selectedDateOption === 'custom' ? focusBackgroundColor : 'transparent',
+                    marginVertical: 4,
+                  }
+                ]}
+              >
+                <XStack gap={8} padding="$2" alignItems="center" width="100%">
+                  <YStack flex={1}>
+                    <Text color={selectedDateOption === 'custom' ? textColor : '$color'} size="md" weight="semibold">
+                      Pick specific date
+                    </Text>
+                    <Text size="sm" color="$gray11">
+                      {selectedTargetDate.toLocaleDateString()}
+                    </Text>
+                  </YStack>
+                  {selectedDateOption === 'custom' ? (
+                    <Check size={16} color={focusBorderColor} />
+                  ) : (
+                    <Feather name="calendar" size={16} color={textColor} />
+                  )}
+                </XStack>
+              </TouchableOpacity>
+              
+              <Popover
+                isVisible={showDatePopover}
+                onRequestClose={() => {
+                  console.log('🗓️ [OnboardingInteractive] Popover onRequestClose called');
+                  setShowDatePopover(false);
+                  // Complete cleanup to prevent any blocking issues
+                  setTimeout(() => {
+                    console.log('🗓️ [OnboardingInteractive] Complete cleanup after popover close');
+                    setSelectedDateOption('custom');
+                  }, 10);
+                }}
+                from={dateButtonRef}
+                placement={'top' as any}
+                backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
+                popoverStyle={{
+                  backgroundColor: backgroundColor,
+                  borderRadius: 12,
+                  padding: 16,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 12,
+                  elevation: 12,
+                  width: 380,
+                  height: 480,
+                }}
+
+              >
+                <YStack alignItems="center" gap="$2" width="100%">
+                  <Text color={textColor} size="lg" weight="semibold" textAlign="center">
+                    Select Target Date
+                  </Text>
+                  
+                  {/* Container for full inline DateTimePicker */}
+                  <View style={{
+                    width: 350,
+                    height: 380,
+                    backgroundColor: '#FFF',
+                    borderRadius: 8,
+                    overflow: 'visible',
+                  }}>
+                    <DateTimePicker
+                      testID="dateTimePicker"
+                      value={selectedTargetDate}
+                      mode="date"
+                      display="inline"
+                      minimumDate={new Date()}
+                      maximumDate={(() => {
+                        const maxDate = new Date();
+                        maxDate.setFullYear(maxDate.getFullYear() + 3);
+                        return maxDate;
+                      })()}
+                      onChange={(event, selectedDate) => {
+                        console.log('🗓️ [OnboardingInteractive] Date changed:', selectedDate?.toLocaleDateString());
+                        if (selectedDate) {
+                          setSelectedTargetDate(selectedDate);
+                          setSelectedDateOption('custom');
+                          // Don't auto-close - let user press save button
+                          console.log('🗓️ [OnboardingInteractive] Date updated, waiting for save button');
+                        }
+                      }}
+                      style={{ width: 350, height: 380 }}
+                    />
+                  </View>
+                  
+                </YStack>
+              </Popover>
+              
+              {/* Save button as last option in sheet */}
+              <Button 
+                variant="primary" 
+                size="lg" 
+                onPress={() => {
+                  console.log('🗓️ [OnboardingInteractive] Save date button pressed (last option)');
+                  setShowDateModal(false);
+                }}
+                marginTop="$4"
+                width="100%"
+              >
+                Save Selected Date
+              </Button>
+            </YStack>
+              </YStack>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
+      </Modal>
+
     </Stack>
     </View>
   );

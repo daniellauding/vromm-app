@@ -121,6 +121,7 @@ export function LicensePlanScreen() {
                     display="default"
                     onChange={handleDateChange}
                     minimumDate={new Date()}
+                    themeVariant="dark"
                   />
                 )}
               </YStack>
