@@ -11,6 +11,7 @@ import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { navigateDomain } from '@/src/utils/navigation';
 import { supabase } from '../../lib/supabase';
+import { EmptyState } from './EmptyState';
 
 export const CreatedRoutes = () => {
   const { t } = useTranslation();
@@ -92,15 +93,37 @@ export const CreatedRoutes = () => {
         onAction={onNavigateToRouteList}
         actionLabel={t('common.seeAll')}
       />
-      <XStack paddingHorizontal="$4">
-        <HeroCarousel
-          title={t('home.createdRoutes')}
-          items={createdRoutes}
-          getImageUrl={getRouteImage}
-          showTitle={false}
-          showMapPreview={true}
-        />
-      </XStack>
+      
+      {createdRoutes.length === 0 ? (
+        <YStack px="$4">
+          <EmptyState
+            title={isViewingAsStudent ? "No Routes Created" : "Create Your First Route"}
+            message={
+              isViewingAsStudent
+                ? `${activeStudentName || 'This student'} hasn't created any routes yet`
+                : 'Share your favorite practice spots with the community! Create detailed routes with exercises and help other learners.'
+            }
+            icon="map-pin"
+            variant="success"
+            actionLabel={isViewingAsStudent ? undefined : "Create Route"}
+            actionIcon="plus"
+            onAction={isViewingAsStudent ? undefined : () => navigation.navigate('CreateRoute')}
+            secondaryLabel={isViewingAsStudent ? undefined : "Get Inspired"}
+            secondaryIcon="map"
+            onSecondaryAction={isViewingAsStudent ? undefined : () => navigation.navigate('MapTab')}
+          />
+        </YStack>
+      ) : (
+        <XStack paddingHorizontal="$4">
+          <HeroCarousel
+            title={t('home.createdRoutes')}
+            items={createdRoutes}
+            getImageUrl={getRouteImage}
+            showTitle={false}
+            showMapPreview={true}
+          />
+        </XStack>
+      )}
     </YStack>
   );
 };

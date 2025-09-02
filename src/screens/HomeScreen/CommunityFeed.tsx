@@ -677,14 +677,45 @@ export const CommunityFeed = () => {
       />
 
       {activities.length === 0 ? (
-        <YStack alignItems="center" padding="$4" gap="$2">
-          <Feather name="activity" size={32} color="$gray9" />
-          <Text fontSize={16} color="$gray11" textAlign="center">
-            No community activity yet
-          </Text>
-          <Text fontSize={14} color="$gray9" textAlign="center">
-            Follow users to see their activity here
-          </Text>
+        <YStack padding="$4">
+          <Card 
+            bordered 
+            elevate 
+            backgroundColor="$backgroundStrong" 
+            padding="$4"
+            borderWidth={1}
+            borderColor="rgba(0, 230, 195, 0.3)"
+          >
+            <YStack alignItems="center" gap="$3">
+              <Feather name="activity" size={32} color="#00E6C3" />
+              <Text size="xl" weight="bold" textAlign="center">
+                Welcome to the Community!
+              </Text>
+              <Text size="md" color="$gray11" textAlign="center" lineHeight={20}>
+                No community activity yet. Create routes, connect with others, and start building the driving practice community!
+              </Text>
+              
+              {/* Action buttons */}
+              <YStack gap="$2" marginTop="$2" width="100%">
+                <Button 
+                  variant="primary" 
+                  size="md" 
+                  onPress={() => (navigation as any).navigate('CreateRoute')}
+                  iconBefore={<Feather name="plus" size={16} color="white" />}
+                >
+                  Create Your First Route
+                </Button>
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  onPress={() => (navigation as any).navigate('ProfileScreen')}
+                  iconBefore={<Feather name="users" size={16} />}
+                >
+                  Connect with Others
+                </Button>
+              </YStack>
+            </YStack>
+          </Card>
         </YStack>
       ) : (
         <FlatList

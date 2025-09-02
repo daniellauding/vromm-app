@@ -10,10 +10,20 @@ import { SectionHeader } from '../../components/SectionHeader';
 import { useAuth } from '@/src/context/AuthContext';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
+import { useTour } from '../../contexts/TourContext';
 
 export const GettingStarted = () => {
   const { profile, user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
+  const { isActive: tourActive, currentStep, steps } = useTour();
+  
+  // Helper function to check if license plan should be highlighted
+  const isLicensePlanHighlighted = (): boolean => {
+    if (!tourActive || typeof currentStep !== 'number' || !steps[currentStep]) return false;
+    const step = steps[currentStep];
+    return step.targetScreen === 'GettingStarted.LicensePlan' || 
+           step.targetElement === 'GettingStarted.LicensePlan';
+  };
 
   const [hasCreatedRoutes, setHasCreatedRoutes] = React.useState(false);
   const [hasCompletedExercise, setHasCompletedExercise] = React.useState(false);
@@ -172,11 +182,30 @@ export const GettingStarted = () => {
             activeOpacity={0.8}
             delayPressIn={50}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={[
+              // ✅ Tour highlighting for license plan card
+              isLicensePlanHighlighted() && {
+                borderWidth: 3,
+                borderColor: '#00E6C3',
+                borderRadius: 19, // Slightly larger to account for border
+                shadowColor: '#00E6C3',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.8,
+                shadowRadius: 12,
+                elevation: 12,
+              },
+            ]}
           >
             <YStack
               width={180}
               height={180}
-              backgroundColor={typedProfile?.license_plan_completed ? '$green5' : '$blue5'}
+              backgroundColor={
+                isLicensePlanHighlighted() 
+                  ? 'rgba(0, 230, 195, 0.2)' // Tour highlight background
+                  : typedProfile?.license_plan_completed 
+                    ? '$green5' 
+                    : '$blue5'
+              }
               borderRadius={16}
               padding="$4"
               justifyContent="space-between"

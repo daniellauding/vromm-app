@@ -128,8 +128,16 @@ export const SavedRoutes = () => {
           message={
             isViewingAsStudent
               ? `${activeStudentName || 'This student'} hasn't saved any routes yet`
-              : 'Save routes to access them quickly'
+              : 'Save routes from the map or community to access them quickly here'
           }
+          icon="bookmark"
+          variant="info"
+          actionLabel={isViewingAsStudent ? undefined : "Explore Routes"}
+          actionIcon="map"
+          onAction={isViewingAsStudent ? undefined : () => navigation.navigate('MapTab')}
+          secondaryLabel={isViewingAsStudent ? undefined : "View Community"}
+          secondaryIcon="users"
+          onSecondaryAction={isViewingAsStudent ? undefined : () => navigation.navigate('CommunityFeedScreen')}
         />
       </YStack>
     );

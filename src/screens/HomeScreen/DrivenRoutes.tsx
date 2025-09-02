@@ -217,7 +217,18 @@ export const DrivenRoutes = () => {
           }}
         />
       ) : (
-        <EmptyState title="No Driven Routes" message="Complete routes to see them here" />
+        <EmptyState 
+          title="No Driven Routes" 
+          message="Start driving practice routes to track your progress and see them here"
+          icon="map-pin"
+          variant="info"
+          actionLabel="Find Routes"
+          actionIcon="map"
+          onAction={() => (navigation as any).navigate('MapTab')}
+          secondaryLabel="Create Route"
+          secondaryIcon="plus"
+          onSecondaryAction={() => (navigation as any).navigate('CreateRoute')}
+        />
       )}
     </YStack>
   );

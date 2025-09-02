@@ -283,7 +283,18 @@ export const CityRoutes = () => {
             </Card>
           ))
         ) : (
-          <EmptyState title="No Routes" message="No routes available in this city yet" />
+          <EmptyState 
+            title="No Routes in This City" 
+            message={`No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`}
+            icon="map-pin"
+            variant="warning"
+            actionLabel="Create Route Here"
+            actionIcon="plus"
+            onAction={() => navigation.navigate('CreateRoute')}
+            secondaryLabel="Change City"
+            secondaryIcon="map"
+            onSecondaryAction={() => setIsModalVisible(true)}
+          />
         )}
       </YStack>
 

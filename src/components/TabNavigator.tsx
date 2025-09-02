@@ -54,6 +54,7 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { PublicProfileScreen } from '../screens/PublicProfileScreen';
 import { ProgressScreen } from '../screens/ProgressScreen';
 import { useAuth } from '../context/AuthContext';
+import { useTour } from '../contexts/TourContext';
 import { UsersScreen } from '../screens/UsersScreen';
 import { RouteDetailScreen } from '../screens/RouteDetailScreen';
 import { MessagesScreen } from '../screens/MessagesScreen';
@@ -538,34 +539,57 @@ const HamburgerDrawer = ({
   );
 };
 
-// Custom tab bar button component with color scheme support
-const CustomTabBarButton = (props: BottomTabBarButtonProps) => {
-  const { accessibilityState, children, onPress, style } = props;
+// Custom tab bar button component with color scheme support and tour highlighting
+const CustomTabBarButton = (props: BottomTabBarButtonProps & { isHighlighted?: boolean }) => {
+  const { accessibilityState, children, onPress, style, isHighlighted } = props;
   const isSelected = accessibilityState?.selected;
   const colorScheme = useColorScheme();
 
   return (
-    <View style={style as ViewStyle}>
+    <View style={[
+      style as ViewStyle, 
+      { 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        flex: 1, // ✅ Ensure equal distribution
+      }
+    ]}>
       <TouchableOpacity
         onPress={onPress}
         style={[
           {
             display: 'flex',
-            width: 64,
+            width: '100%',  // ✅ Take full width of container
             height: 56,
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: 'transparent',
             borderRadius: 12,
-            gap: 4,
           },
           isSelected && {
             backgroundColor:
-              colorScheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(105,227,196,0.15)', // Light teal background for light mode
+              colorScheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(105,227,196,0.15)',
+          },
+          // ✅ Tour highlighting
+          isHighlighted && {
+            backgroundColor: 'rgba(0, 230, 195, 0.3)',
+            borderWidth: 2,
+            borderColor: '#00E6C3',
+            shadowColor: '#00E6C3',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.8,
+            shadowRadius: 8,
+            elevation: 8,
           },
         ]}
       >
-        {children}
+        <View style={{ 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          width: '100%',  // ✅ Center content within button
+        }}>
+          {children}
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -581,6 +605,21 @@ export function TabNavigator() {
   const { showModal } = useModal();
   const { language, setLanguage } = useAppTranslation();
   const createRouteContext = useCreateRoute();
+  const { isActive: tourActive, currentStep, steps, nextStep, prevStep, endTour } = useTour();
+  
+  // Helper function to check if a tab should be highlighted during tour
+  const isTabHighlighted = (tabTarget: string): boolean => {
+    if (!tourActive || typeof currentStep !== 'number' || !steps[currentStep]) return false;
+    const step = steps[currentStep];
+    return step.targetScreen === tabTarget || step.targetElement === tabTarget;
+  };
+  
+  // Get current step object
+  const getCurrentStepObject = () => {
+    if (!tourActive || typeof currentStep !== 'number' || !steps[currentStep]) return null;
+    return steps[currentStep];
+  };
+  
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isBetaInfoOpen, setIsBetaInfoOpen] = useState(false);
   const [showBuyCoffee, setShowBuyCoffee] = useState(false);
@@ -1085,10 +1124,15 @@ export function TabNavigator() {
       fontSize: 10,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
       fontWeight: '500' as TextStyle['fontWeight'],
+      textAlign: 'center',
+      marginTop: 4,
+      marginBottom: 0,
+      alignSelf: 'center',
+      width: '100%',
     },
     tabBarActiveTintColor: '#69e3c4',
     tabBarInactiveTintColor: colorScheme === 'dark' ? '#8E8E93' : '#6B7280', // Better contrast for light mode
-    tabBarButton: (props: BottomTabBarButtonProps) => <CustomTabBarButton {...props} />,
+    tabBarButton: (props: BottomTabBarButtonProps) => <CustomTabBarButton {...props} isHighlighted={false} />,
   };
 
   // (moved to top-level to avoid recreation on every render)
@@ -1101,6 +1145,12 @@ export function TabNavigator() {
           options={{
             title: t('navigation.home'),
             tabBarIcon: ({ color, size }) => <HomeIcon color={color} size={size} />,
+            tabBarButton: (props: BottomTabBarButtonProps) => (
+              <CustomTabBarButton 
+                {...props} 
+                isHighlighted={isTabHighlighted('HomeTab') || isTabHighlighted('GettingStarted.LicensePlan')}
+              />
+            ),
           }}
           listeners={({ navigation: nav }) => ({
             tabPress: () => {
@@ -1140,6 +1190,12 @@ export function TabNavigator() {
           options={{
             title: t('navigation.progress'),
             tabBarIcon: ({ color, size }) => <PractiseIcon color={color} size={size} />,
+            tabBarButton: (props: BottomTabBarButtonProps) => (
+              <CustomTabBarButton 
+                {...props} 
+                isHighlighted={isTabHighlighted('ProgressTab')}
+              />
+            ),
           }}
           listeners={({ navigation }) => ({
             tabPress: () => {
@@ -1165,45 +1221,60 @@ export function TabNavigator() {
           options={{
             title: '',
             tabBarLabel: '',
-            tabBarButton: (props: BottomTabBarButtonProps) => (
-              <View style={props.style as ViewStyle}>
-                <TouchableOpacity
-                  accessibilityLabel="Create route or record driving"
-                  onPress={() => {
-                    console.log('🎯 Central Create Route tab button pressed');
-                    showModal(
-                      <ActionSheetModal
-                        onCreateRoute={handleCreateRoute}
-                        onMaximizeWizard={handleMaximizeWizard}
-                        onCreateEvent={handleCreateEvent}
-                      />,
-                    );
-                  }}
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 28,
-                    backgroundColor: colorScheme === 'dark' ? '#1A3D3D' : '#69e3c4',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    elevation: 8,
-                    shadowColor: colorScheme === 'dark' ? '#000' : '#333',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.2,
-                    shadowRadius: 6,
-                    marginTop: -12, // raise slightly to feel floating
-                    borderWidth: colorScheme === 'light' ? 2 : 0,
-                    borderColor: colorScheme === 'light' ? '#FFFFFF' : 'transparent',
-                  }}
-                >
-                  <Feather
-                    name="plus"
-                    size={24}
-                    color={colorScheme === 'dark' ? 'white' : '#1A3D3D'}
-                  />
-                </TouchableOpacity>
-              </View>
-            ),
+            tabBarButton: (props: BottomTabBarButtonProps) => {
+              const isHighlighted = isTabHighlighted('CreateRouteTab');
+              return (
+                <View style={props.style as ViewStyle}>
+                  <TouchableOpacity
+                    accessibilityLabel="Create route or record driving"
+                    onPress={() => {
+                      console.log('🎯 Central Create Route tab button pressed');
+                      showModal(
+                        <ActionSheetModal
+                          onCreateRoute={handleCreateRoute}
+                          onMaximizeWizard={handleMaximizeWizard}
+                          onCreateEvent={handleCreateEvent}
+                        />,
+                      );
+                    }}
+                    style={[
+                      {
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                        backgroundColor: colorScheme === 'dark' ? '#1A3D3D' : '#69e3c4',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        elevation: 8,
+                        shadowColor: colorScheme === 'dark' ? '#000' : '#333',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.2,
+                        shadowRadius: 6,
+                        marginTop: -12, // raise slightly to feel floating
+                        borderWidth: colorScheme === 'light' ? 2 : 0,
+                        borderColor: colorScheme === 'light' ? '#FFFFFF' : 'transparent',
+                      },
+                      // ✅ Tour highlighting for create button
+                      isHighlighted && {
+                        borderWidth: 3,
+                        borderColor: '#00E6C3',
+                        shadowColor: '#00E6C3',
+                        shadowOpacity: 0.8,
+                        shadowRadius: 12,
+                        elevation: 12,
+                        backgroundColor: '#00E6C3',
+                      },
+                    ]}
+                  >
+                    <Feather
+                      name="plus"
+                      size={24}
+                      color={isHighlighted ? '#000' : (colorScheme === 'dark' ? 'white' : '#1A3D3D')}
+                    />
+                  </TouchableOpacity>
+                </View>
+              );
+            },
           }}
         />
         <Tab.Screen
@@ -1212,6 +1283,12 @@ export function TabNavigator() {
             title: t('navigation.map'),
             tabBarIcon: ({ color, size }) => <MapIcon color={color} size={size} />,
             popToTopOnBlur: true,
+            tabBarButton: (props: BottomTabBarButtonProps) => (
+              <CustomTabBarButton 
+                {...props} 
+                isHighlighted={isTabHighlighted('MapTab')}
+              />
+            ),
           }}
           listeners={({ navigation, route }) => ({
             tabPress: () => {
@@ -1234,79 +1311,100 @@ export function TabNavigator() {
           options={{
             title: '',
             tabBarLabel: '',
-            tabBarButton: (props: BottomTabBarButtonProps) => (
-              <View style={props.style as ViewStyle}>
-                <TouchableOpacity
-                  accessibilityLabel="Open menu"
-                  onPress={() => {
-                    logInfo('Hamburger menu tab pressed');
-                    // Update seen counts when opening drawer (for menu badge tracking)
-                    setSeenMessageCount(unreadMessageCount);
-                    setSeenNotificationCount(unreadNotificationCount);
-                    setSeenEventCount(unreadEventCount);
-                    seenMessageCountRef.current = unreadMessageCount;
-                    seenNotificationCountRef.current = unreadNotificationCount;
-                    seenEventCountRef.current = unreadEventCount;
-                    // Immediately hide combined badge on open and persist seen
-                    AsyncStorage.multiSet([
-                      [STORAGE_KEYS.messages, String(unreadMessageCount)],
-                      [STORAGE_KEYS.notifications, String(unreadNotificationCount)],
-                      [STORAGE_KEYS.events, String(unreadEventCount)],
-                    ]).catch(() => {});
-                    // Immediately hide combined badge on open
-                    setTotalBadgeCount(0);
-                    console.log('[NAV][Drawer] open');
-                    setIsDrawerOpen(true);
-                  }}
-                  style={{
-                    display: 'flex',
-                    width: 64,
-                    height: 56,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: 'transparent',
-                    borderRadius: 12,
-                    position: 'relative',
-                  }}
-                >
-                  <Feather
-                    name="menu"
-                    size={22}
-                    color={
-                      // Consider the menu tab active when drawer is open or a menu screen is active
-                      isDrawerOpen || !!activeMenuScreen
-                        ? '#69e3c4'
-                        : colorScheme === 'dark'
-                          ? '#FFFFFF'
-                          : '#000000'
-                    }
-                  />
-
-                  {/* Combined badge for menu icon */}
-                  {totalBadgeCount > 0 && (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        backgroundColor: '#EF4444',
-                        borderRadius: 10,
-                        minWidth: 20,
-                        height: 20,
-                        justifyContent: 'center',
+            tabBarButton: (props: BottomTabBarButtonProps) => {
+              const isHighlighted = isTabHighlighted('MenuTab');
+              return (
+                <View style={[
+                  props.style as ViewStyle,
+                  { alignItems: 'center', justifyContent: 'center', flex: 1 }
+                ]}>
+                  <TouchableOpacity
+                    accessibilityLabel="Open menu"
+                    onPress={() => {
+                      logInfo('Hamburger menu tab pressed');
+                      // Update seen counts when opening drawer (for menu badge tracking)
+                      setSeenMessageCount(unreadMessageCount);
+                      setSeenNotificationCount(unreadNotificationCount);
+                      setSeenEventCount(unreadEventCount);
+                      seenMessageCountRef.current = unreadMessageCount;
+                      seenNotificationCountRef.current = unreadNotificationCount;
+                      seenEventCountRef.current = unreadEventCount;
+                      // Immediately hide combined badge on open and persist seen
+                      AsyncStorage.multiSet([
+                        [STORAGE_KEYS.messages, String(unreadMessageCount)],
+                        [STORAGE_KEYS.notifications, String(unreadNotificationCount)],
+                        [STORAGE_KEYS.events, String(unreadEventCount)],
+                      ]).catch(() => {});
+                      // Immediately hide combined badge on open
+                      setTotalBadgeCount(0);
+                      console.log('[NAV][Drawer] open');
+                      setIsDrawerOpen(true);
+                    }}
+                    style={[
+                      {
+                        display: 'flex',
+                        width: '100%',
+                        height: 56,
                         alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'transparent',
+                        borderRadius: 12,
+                        position: 'relative',
+                      },
+                      // ✅ Tour highlighting
+                      isHighlighted && {
+                        backgroundColor: 'rgba(0, 230, 195, 0.3)',
                         borderWidth: 2,
-                        borderColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-                      }}
-                    >
-                      <Text fontSize={10} fontWeight="bold" color="#FFFFFF" textAlign="center">
-                        {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            ),
+                        borderColor: '#00E6C3',
+                        shadowColor: '#00E6C3',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.8,
+                        shadowRadius: 8,
+                        elevation: 8,
+                      },
+                    ]}
+                  >
+                    <Feather
+                      name="menu"
+                      size={22}
+                      color={
+                        isHighlighted 
+                          ? '#00E6C3'
+                          : // Consider the menu tab active when drawer is open or a menu screen is active
+                          isDrawerOpen || !!activeMenuScreen
+                            ? '#69e3c4'
+                            : colorScheme === 'dark'
+                              ? '#FFFFFF'
+                              : '#000000'
+                      }
+                    />
+
+                    {/* Combined badge for menu icon */}
+                    {totalBadgeCount > 0 && (
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          backgroundColor: '#EF4444',
+                          borderRadius: 10,
+                          minWidth: 20,
+                          height: 20,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          borderWidth: 2,
+                          borderColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                        }}
+                      >
+                        <Text fontSize={10} fontWeight="bold" color="#FFFFFF" textAlign="center">
+                          {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              );
+            },
           }}
         />
       </Tab.Navigator>
@@ -1449,6 +1547,92 @@ export function TabNavigator() {
           pointerEvents="none"
         >
           <ActivityIndicator size="small" color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+        </View>
+      )}
+
+      {/* Tour Overlay - Shows tour tooltips */}
+      {tourActive && getCurrentStepObject() && (
+        <View 
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 10000,
+            pointerEvents: 'box-none', // Allow touches to pass through to highlighted elements
+          }}
+        >
+          {/* Tour tooltip */}
+          <View
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: 20,
+              right: 20,
+              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              borderRadius: 12,
+              padding: 16,
+              borderWidth: 2,
+              borderColor: '#00E6C3',
+              shadowColor: '#00E6C3',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 10,
+              transform: [{ translateY: -50 }],
+            }}
+          >
+            <View style={{ alignItems: 'center', gap: 8 }}>
+              <Text fontSize={20} fontWeight="bold" color="#00E6C3" textAlign="center">
+                {getCurrentStepObject()?.title}
+              </Text>
+              <Text fontSize={16} color="white" textAlign="center" lineHeight={24}>
+                {getCurrentStepObject()?.content}
+              </Text>
+              
+              {/* Tour navigation */}
+              <XStack justifyContent="space-between" marginTop={16} width="100%">
+                <TouchableOpacity
+                  onPress={prevStep}
+                  style={{
+                    backgroundColor: '#333',
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                    opacity: currentStep > 0 ? 1 : 0.5,
+                  }}
+                  disabled={currentStep === 0}
+                >
+                  <Text color="white" fontWeight="600">Previous</Text>
+                </TouchableOpacity>
+                
+                <Text color="#00E6C3" fontSize={14}>
+                  {currentStep + 1} / {steps.length}
+                </Text>
+                
+                <TouchableOpacity
+                  onPress={() => {
+                    if (currentStep === steps.length - 1) {
+                      endTour();
+                    } else {
+                      nextStep();
+                    }
+                  }}
+                  style={{
+                    backgroundColor: '#00E6C3',
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                  }}
+                >
+                  <Text color="black" fontWeight="600">
+                    {currentStep === steps.length - 1 ? 'Finish' : 'Next'}
+                  </Text>
+                </TouchableOpacity>
+              </XStack>
+            </View>
+          </View>
         </View>
       )}
     </View>

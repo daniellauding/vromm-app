@@ -303,14 +303,30 @@ export function ProfileScreen() {
 
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
-    location: profile?.location || '',
+    location: (profile as any)?.preferred_city || profile?.location || '', // Check onboarding data first
     role: profile?.role || ('student' as UserRole),
     experience_level: profile?.experience_level || ('beginner' as ExperienceLevel),
     private_profile: profile?.private_profile || false,
-    location_lat: profile?.location_lat || null,
-    location_lng: profile?.location_lng || null,
+    location_lat: (profile as any)?.preferred_city_coords?.latitude || profile?.location_lat || null,
+    location_lng: (profile as any)?.preferred_city_coords?.longitude || profile?.location_lng || null,
     avatar_url: profile?.avatar_url || null,
   });
+
+  // Update form data when profile changes (e.g., after onboarding completion)
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        full_name: profile?.full_name || '',
+        location: (profile as any)?.preferred_city || profile?.location || '',
+        role: profile?.role || ('student' as UserRole),
+        experience_level: profile?.experience_level || ('beginner' as ExperienceLevel),
+        private_profile: profile?.private_profile || false,
+        location_lat: (profile as any)?.preferred_city_coords?.latitude || profile?.location_lat || null,
+        location_lng: (profile as any)?.preferred_city_coords?.longitude || profile?.location_lng || null,
+        avatar_url: profile?.avatar_url || null,
+      });
+    }
+  }, [profile]);
 
   const handleUpdate = async () => {
     try {
@@ -3276,6 +3292,52 @@ ${
                   <XStack gap="$2" alignItems="center">
                     <Feather name="map" size={20} color="white" />
                     <Text color="white">🎯 Reset & Test App Tour</Text>
+                  </XStack>
+                </Button>
+                
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      console.log('🎯 [ProfileScreen] Reset all tour data button pressed');
+                      
+                      // Reset tour in database
+                      await resetTour();
+                      
+                      // Also reset AsyncStorage tour data
+                      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                      await AsyncStorage.multiRemove([
+                        'vromm_app_tour_completed',
+                        'vromm_tour_content_hash'
+                      ]);
+                      
+                      Alert.alert(
+                        'Tour System Reset',
+                        'All tour data has been cleared. The tour will show next time you open the app or you can manually start it above.',
+                        [
+                          { text: 'OK' },
+                          {
+                            text: 'Start Tour Now',
+                            onPress: () => {
+                              setTimeout(() => {
+                                startDatabaseTour();
+                              }, 200);
+                            }
+                          }
+                        ]
+                      );
+                    } catch (error) {
+                      console.error('Error resetting all tour data:', error);
+                      Alert.alert('Error', 'Failed to reset tour data');
+                    }
+                  }}
+                  marginBottom="$2"
+                  backgroundColor="$green9"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="refresh-cw" size={20} color="white" />
+                    <Text color="white">🔄 Reset Tour System</Text>
                   </XStack>
                 </Button>
                 

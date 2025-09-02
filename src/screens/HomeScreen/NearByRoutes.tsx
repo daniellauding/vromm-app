@@ -8,6 +8,7 @@ import { YStack, XStack } from 'tamagui';
 import { FlatList } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
+import { EmptyState } from './EmptyState';
 
 import { supabase } from '../../lib/supabase';
 import { useUserLocation } from '../explore/hooks';
@@ -53,6 +54,11 @@ export const NearByRoutes = () => {
     });
   }, [nearbyRoutes, navigation, t]);
 
+  // If no user location, don't show this section
+  if (!userLocation) {
+    return null;
+  }
+
   return (
     <YStack space="$4">
       <SectionHeader
@@ -61,18 +67,36 @@ export const NearByRoutes = () => {
         onAction={onNavigateToRouteList}
         actionLabel={t('common.seeAll')}
       />
-      <FlatList
-        horizontal
-        data={nearbyRoutes.slice(0, 3)}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <XStack paddingHorizontal="$4" marginRight="$4">
-            <RouteCard route={item} />
-          </XStack>
-        )}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
-      />
+      
+      {nearbyRoutes.length === 0 ? (
+        <YStack px="$4">
+          <EmptyState
+            title="No Nearby Routes"
+            message={`No practice routes found within 100km of your location. Create the first route in your area or explore the map!`}
+            icon="map-pin"
+            variant="warning"
+            actionLabel="Create Route Here"
+            actionIcon="plus"
+            onAction={() => navigation.navigate('CreateRoute')}
+            secondaryLabel="Explore Map"
+            secondaryIcon="map"
+            onSecondaryAction={() => navigation.navigate('MapTab')}
+          />
+        </YStack>
+      ) : (
+        <FlatList
+          horizontal
+          data={nearbyRoutes.slice(0, 3)}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <XStack paddingHorizontal="$4" marginRight="$4">
+              <RouteCard route={item} />
+            </XStack>
+          )}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+        />
+      )}
     </YStack>
   );
 };

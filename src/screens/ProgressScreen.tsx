@@ -401,7 +401,7 @@ export function ProgressScreen() {
 
         console.log('✅ Successfully fetched categories:', data?.length || 0);
 
-        // Group by category type
+        // Group by category type with deduplication
         const groupedCategories: Record<CategoryType, CategoryOption[]> = {
           vehicle_type: [],
           transmission_type: [],
@@ -413,25 +413,54 @@ export function ProgressScreen() {
           type: [],
         };
 
-        // Add "All" option for each category
-        for (const key of Object.keys(groupedCategories) as CategoryType[]) {
-          groupedCategories[key].push({
-            id: `all-${key}`,
-            category: key,
-            value: 'all',
-            label: { en: 'All', sv: 'Alla' },
-            order_index: 0,
-            is_default: false,
-          });
-        }
+        // Track which categories have "all" options from database
+        const categoriesWithAll = new Set<CategoryType>();
 
-        // Process categories from database
+        // Process categories from database first (with deduplication)
+        const processedItems = new Map<string, CategoryOption>();
+        
         data?.forEach((item) => {
           const category = item.category as CategoryType;
+          const uniqueKey = `${category}-${item.value}`;
+          
+          // Skip if we already processed this exact category-value combination
+          if (processedItems.has(uniqueKey)) {
+            console.log(`🔄 [ProgressScreen] Skipping duplicate: ${uniqueKey}`);
+            return;
+          }
+          
+          // Add to processed items
+          processedItems.set(uniqueKey, item as CategoryOption);
+          
+          // Track if this category has an "all" option
+          if (item.value.toLowerCase() === 'all') {
+            categoriesWithAll.add(category);
+          }
+          
           if (groupedCategories[category]) {
             groupedCategories[category].push(item as CategoryOption);
           }
         });
+
+        // Add missing "All" options for categories that don't have them from database
+        for (const key of Object.keys(groupedCategories) as CategoryType[]) {
+          if (!categoriesWithAll.has(key)) {
+            console.log(`➕ [ProgressScreen] Adding missing 'all' option for: ${key}`);
+            groupedCategories[key].unshift({
+              id: `generated-all-${key}`,
+              category: key,
+              value: 'all',
+              label: { en: 'All', sv: 'Alla' },
+              order_index: 0,
+              is_default: false,
+            });
+          }
+        }
+
+        // Sort each category by order_index
+        for (const key of Object.keys(groupedCategories) as CategoryType[]) {
+          groupedCategories[key].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+        }
 
         setCategoryOptions(groupedCategories);
 
@@ -627,15 +656,25 @@ export function ProgressScreen() {
     return null;
   };
 
-  // Filter option selection handler with persistence
+  // Filter option selection handler - don't auto-close drawer
   const handleFilterSelect = (filterType: CategoryType, value: string) => {
+    console.log(`🎛️ [ProgressScreen] Filter selected: ${filterType} = ${value}`);
     const newFilters = { ...categoryFilters, [filterType]: value };
     setCategoryFilters(newFilters);
     setActiveFilterType(null);
-    setShowFilterDrawer(false); // Close drawer when selection is made
     
-    // Save to AsyncStorage for persistence
-    saveFilterPreferences(newFilters);
+    // Debug: Log current paths and how many match this filter
+    const currentPathsForDebug = paths.length;
+    console.log(`🔍 [ProgressScreen] Total paths: ${currentPathsForDebug}, new filter will be: ${filterType}=${value}`);
+    
+    // Don't close drawer automatically - let user save when done
+  };
+
+  // Save filters and close drawer
+  const handleSaveFilters = () => {
+    setShowFilterDrawer(false);
+    saveFilterPreferences(categoryFilters);
+    console.log('✅ [ProgressScreen] Filters saved:', categoryFilters);
   };
 
   // NEW: Load user payments and access control
@@ -1828,7 +1867,9 @@ export function ProgressScreen() {
 
   // Filter paths based on selected categories with robust data value matching
   const filteredPaths = useMemo(() => {
-    return paths.filter((path) => {
+    console.log(`🔍 [ProgressScreen] Filtering ${paths.length} paths with filters:`, categoryFilters);
+    
+    const filtered = paths.filter((path) => {
       // Handle variations in data values and allow null values
       const matchesVehicleType =
         categoryFilters.vehicle_type === 'all' ||
@@ -1885,7 +1926,7 @@ export function ProgressScreen() {
         !path.type || 
         path.type === categoryFilters.type;
 
-      return (
+      const matches = (
         matchesVehicleType &&
         matchesTransmission &&
         matchesLicense &&
@@ -1895,7 +1936,24 @@ export function ProgressScreen() {
         matchesPlatform &&
         matchesType
       );
+      
+      // Debug individual path filtering
+      if (!matches && categoryFilters.license_type !== 'all') {
+        console.log(`❌ [ProgressScreen] Path "${path.title?.en || path.id}" filtered out:`, {
+          path_license: path.license_type,
+          filter_license: categoryFilters.license_type,
+          matchesLicense,
+          matchesVehicleType,
+          matchesTransmission,
+          matchesExperience
+        });
+      }
+      
+      return matches;
     });
+    
+    console.log(`✅ [ProgressScreen] Filtered from ${paths.length} to ${filtered.length} paths`);
+    return filtered;
   }, [paths, categoryFilters]);
 
   useEffect(() => {
@@ -2158,9 +2216,9 @@ export function ProgressScreen() {
               {categoryLabels[filterType]}
             </Text>
             <YStack gap="$2">
-              {options.map((option) => (
+              {options.map((option, optionIndex) => (
                 <TouchableOpacity
-                  key={option.id}
+                  key={`filter-${filterType}-${option.id}-${optionIndex}`}
                   onPress={() => handleFilterSelect(filterType, option.value)}
                   style={{
                     backgroundColor:
@@ -2287,9 +2345,9 @@ export function ProgressScreen() {
                     {categoryLabels.vehicle_type}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
-                    {categoryOptions.vehicle_type.map((option) => (
+                    {categoryOptions.vehicle_type.map((option, optionIndex) => (
                       <TouchableOpacity
-                        key={option.id}
+                        key={`vehicle-${option.id}-${optionIndex}`}
                         onPress={() => handleFilterSelect('vehicle_type', option.value)}
                         style={{
                           backgroundColor: categoryFilters.vehicle_type === option.value ? '#00E6C3' : '#333',
@@ -2318,9 +2376,9 @@ export function ProgressScreen() {
                     {categoryLabels.transmission_type}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
-                    {categoryOptions.transmission_type.map((option) => (
+                    {categoryOptions.transmission_type.map((option, optionIndex) => (
                       <TouchableOpacity
-                        key={option.id}
+                        key={`transmission-${option.id}-${optionIndex}`}
                         onPress={() => handleFilterSelect('transmission_type', option.value)}
                         style={{
                           backgroundColor: categoryFilters.transmission_type === option.value ? '#00E6C3' : '#333',
@@ -2349,9 +2407,9 @@ export function ProgressScreen() {
                     {categoryLabels.license_type}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
-                    {categoryOptions.license_type.map((option) => (
+                    {categoryOptions.license_type.map((option, optionIndex) => (
                       <TouchableOpacity
-                        key={option.id}
+                        key={`license-${option.id}-${optionIndex}`}
                         onPress={() => handleFilterSelect('license_type', option.value)}
                         style={{
                           backgroundColor: categoryFilters.license_type === option.value ? '#00E6C3' : '#333',
@@ -2380,9 +2438,9 @@ export function ProgressScreen() {
                     {categoryLabels.experience_level}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
-                    {categoryOptions.experience_level.map((option) => (
+                    {categoryOptions.experience_level.map((option, optionIndex) => (
                       <TouchableOpacity
-                        key={option.id}
+                        key={`experience-${option.id}-${optionIndex}`}
                         onPress={() => handleFilterSelect('experience_level', option.value)}
                         style={{
                           backgroundColor: categoryFilters.experience_level === option.value ? '#00E6C3' : '#333',
@@ -2411,9 +2469,9 @@ export function ProgressScreen() {
                     {categoryLabels.purpose}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
-                    {categoryOptions.purpose.map((option) => (
+                    {categoryOptions.purpose.map((option, optionIndex) => (
                       <TouchableOpacity
-                        key={option.id}
+                        key={`purpose-${option.id}-${optionIndex}`}
                         onPress={() => handleFilterSelect('purpose', option.value)}
                         style={{
                           backgroundColor: categoryFilters.purpose === option.value ? '#00E6C3' : '#333',
@@ -2435,6 +2493,24 @@ export function ProgressScreen() {
                 </YStack>
               )}
             </ScrollView>
+            
+            {/* Save Button */}
+            <YStack marginTop="$4" paddingTop="$2" borderTopWidth={1} borderTopColor="#333">
+              <TouchableOpacity
+                onPress={handleSaveFilters}
+                style={{
+                  backgroundColor: '#00E6C3',
+                  padding: 16,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  width: '100%',
+                }}
+              >
+                <Text fontSize={16} fontWeight="bold" color="#000">
+                  Save Filters & Apply
+                </Text>
+              </TouchableOpacity>
+            </YStack>
           </YStack>
         </Animated.View>
       </RNModal>
@@ -3020,7 +3096,7 @@ export function ProgressScreen() {
 
             {/* Answer Options */}
             <YStack gap={8}>
-              {currentQuestion.answers.map((answer) => {
+              {currentQuestion.answers.map((answer, answerIndex) => {
                 const isSelected = selectedAnswers.includes(answer.id);
                 const isCorrect = feedback?.isCorrect && isSelected;
                 const isIncorrect = feedback && !feedback.isCorrect && isSelected;
@@ -3042,7 +3118,7 @@ export function ProgressScreen() {
 
                 return (
                   <TouchableOpacity
-                    key={answer.id}
+                    key={`quiz-answer-${answer.id}-${answerIndex}`}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -3244,7 +3320,7 @@ export function ProgressScreen() {
               <XStack gap={8} alignItems="center">
                 {Array.from({ length: totalRepeats }).map((_, i) => (
                   <View
-                    key={`indicator-${i}`}
+                    key={`repeat-indicator-${selectedExercise.id}-${i}`}
                     style={{
                       width: 10,
                       height: 10,
@@ -3546,7 +3622,7 @@ export function ProgressScreen() {
 
                             return (
                               <TouchableOpacity
-                                key={`placeholder-${i}`}
+                                key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
                                 style={{
                                   backgroundColor: '#222',
                                   padding: 12,
@@ -3603,13 +3679,13 @@ export function ProgressScreen() {
                         );
                       }
 
-                      return repeats.map((repeat) => {
+                      return repeats.map((repeat, repeatIndex) => {
                         const isDone = completedIds.includes(repeat.id);
                         // Remove locking for repeats - only main exercise can be locked
 
                         return (
                           <TouchableOpacity
-                            key={repeat.id}
+                            key={`repeat-${repeat.id}-${repeatIndex}`}
                             style={{
                               backgroundColor: '#222',
                               padding: 12,
@@ -3999,7 +4075,7 @@ export function ProgressScreen() {
                   // Process exercises: show all exercises and create virtual repeats for UI
                   let displayIndex = 0;
 
-                  return exercises.map((exercise) => {
+                  return exercises.map((exercise, exerciseIndex) => {
                     displayIndex++;
 
                     const main = exercise;
@@ -4012,7 +4088,7 @@ export function ProgressScreen() {
                     const mainIsAvailable = !mainIsPasswordLocked;
 
                     return (
-                      <YStack key={main.id} marginBottom={16}>
+                      <YStack key={`exercise-detail-${main.id}-${exerciseIndex}`} marginBottom={16}>
                         {/* Main Exercise */}
                         <TouchableOpacity onPress={() => setSelectedExercise(main)}>
                           <XStack alignItems="center" gap={12}>
@@ -4178,7 +4254,7 @@ export function ProgressScreen() {
 
                   return (
                     <TouchableOpacity
-                      key={`${e.exercise_id}-${e.created_at}-${idx}`}
+                      key={`audit-${e.exercise_id}-${e.created_at}-${idx}-${e.repeat_number || 0}`}
                       onPress={() => {
                         const ex = exercises.find((x) => x.id === e.exercise_id) || null;
                         if (ex) setSelectedExercise(ex);
@@ -4381,7 +4457,7 @@ export function ProgressScreen() {
               <YStack gap={8}>
                 {allAvailableExercises.map((exercise, index) => (
                   <TouchableOpacity
-                    key={`${exercise.source}-${exercise.id}`}
+                    key={`all-exercise-${exercise.source}-${exercise.id}-${index}`}
                     onPress={() => {
                       console.log('🎯 [ProgressScreen] Exercise selected:', exercise);
 
@@ -4517,7 +4593,7 @@ export function ProgressScreen() {
 
                 return (
                   <TouchableOpacity
-                    key={path.id}
+                    key={`filtered-path-${path.id}-${idx}`}
                     onPress={() => handlePathPress(path, idx)}
                     activeOpacity={0.8}
                     style={{
