@@ -11,11 +11,15 @@ import { useAuth } from '@/src/context/AuthContext';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { useTour } from '../../contexts/TourContext';
+import { useTourTarget } from '../../components/TourOverlay';
 
 export const GettingStarted = () => {
   const { profile, user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const { isActive: tourActive, currentStep, steps } = useTour();
+  
+  // Register license plan card for tour targeting
+  const licensePlanRef = useTourTarget('GettingStarted.LicensePlan');
   
   // Helper function to check if license plan should be highlighted
   const isLicensePlanHighlighted = (): boolean => {
@@ -178,6 +182,7 @@ export const GettingStarted = () => {
         <XStack space="$4" paddingHorizontal="$4">
           {/* 1. Din körkortsplan */}
           <TouchableOpacity
+            ref={licensePlanRef}
             onPress={() => (navigation as any).navigate('LicensePlanScreen')}
             activeOpacity={0.8}
             delayPressIn={50}

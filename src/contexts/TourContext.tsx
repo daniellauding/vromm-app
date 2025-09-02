@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { findNodeHandle, UIManager, Platform } from 'react-native';
 
 interface TourStep {
   id: string;
@@ -9,7 +10,14 @@ interface TourStep {
   content: string;
   targetScreen: string;
   targetElement?: string;
-  position?: 'top' | 'bottom' | 'center';
+  position?: 'top' | 'bottom' | 'center' | 'left' | 'right';
+  arrowPosition?: 'top' | 'bottom' | 'left' | 'right';
+  targetCoords?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 }
 
 interface TourContextType {
@@ -23,6 +31,9 @@ interface TourContextType {
   endTour: () => void;
   resetTour: () => Promise<void>;
   shouldShowTour: () => Promise<boolean>;
+  measureElement: (targetId: string) => Promise<{x: number, y: number, width: number, height: number} | null>;
+  updateStepCoords: (stepIndex: number, coords: {x: number, y: number, width: number, height: number}) => void;
+  registerElement: (targetId: string, ref: any) => void;
 }
 
 const TourContext = createContext<TourContextType | undefined>(undefined);
@@ -35,6 +46,54 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [steps, setSteps] = useState<TourStep[]>([]);
+
+  // Store ref registry for tour target elements  
+  const elementRefs = useRef<Map<string, any>>(new Map());
+
+  // Function to register element for tour targeting
+  const registerElement = useCallback((targetId: string, ref: any) => {
+    console.log(`🎯 [TourContext] Registering element: ${targetId}`);
+    elementRefs.current.set(targetId, ref);
+  }, []);
+
+  // Function to measure element position and size for React Native
+  const measureElement = useCallback(async (targetId: string): Promise<{x: number, y: number, width: number, height: number} | null> => {
+    return new Promise((resolve) => {
+      const ref = elementRefs.current.get(targetId);
+      
+      if (!ref || !ref.current) {
+        console.log(`🎯 [TourContext] Element ref not found: ${targetId}`);
+        resolve(null);
+        return;
+      }
+
+      try {
+        // Use React Native's measurement API
+        ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+          const coords = { x, y, width, height };
+          console.log(`🎯 [TourContext] Measured element ${targetId}:`, coords);
+          resolve(coords);
+        });
+      } catch (error) {
+        console.error(`🎯 [TourContext] Error measuring element ${targetId}:`, error);
+        resolve(null);
+      }
+    });
+  }, []);
+
+  // Function to update step coordinates
+  const updateStepCoords = useCallback((stepIndex: number, coords: {x: number, y: number, width: number, height: number}) => {
+    setSteps(prevSteps => {
+      const newSteps = [...prevSteps];
+      if (newSteps[stepIndex]) {
+        newSteps[stepIndex] = {
+          ...newSteps[stepIndex],
+          targetCoords: coords,
+        };
+      }
+      return newSteps;
+    });
+  }, []);
 
   const shouldShowTour = useCallback(async (): Promise<boolean> => {
     try {
@@ -297,6 +356,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     endTour,
     resetTour,
     shouldShowTour,
+    measureElement,
+    updateStepCoords,
+    registerElement,
   };
 
   return <TourContext.Provider value={value}>{children}</TourContext.Provider>;

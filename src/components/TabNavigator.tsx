@@ -55,6 +55,7 @@ import { PublicProfileScreen } from '../screens/PublicProfileScreen';
 import { ProgressScreen } from '../screens/ProgressScreen';
 import { useAuth } from '../context/AuthContext';
 import { useTour } from '../contexts/TourContext';
+import { TourOverlay, useTourTarget } from './TourOverlay';
 import { UsersScreen } from '../screens/UsersScreen';
 import { RouteDetailScreen } from '../screens/RouteDetailScreen';
 import { MessagesScreen } from '../screens/MessagesScreen';
@@ -540,10 +541,13 @@ const HamburgerDrawer = ({
 };
 
 // Custom tab bar button component with color scheme support and tour highlighting
-const CustomTabBarButton = (props: BottomTabBarButtonProps & { isHighlighted?: boolean }) => {
-  const { accessibilityState, children, onPress, style, isHighlighted } = props;
+const CustomTabBarButton = (props: BottomTabBarButtonProps & { isHighlighted?: boolean; tourTargetId?: string }) => {
+  const { accessibilityState, children, onPress, style, isHighlighted, tourTargetId } = props;
   const isSelected = accessibilityState?.selected;
   const colorScheme = useColorScheme();
+  
+  // Register this button for tour targeting if tourTargetId is provided
+  const tourRef = tourTargetId ? useTourTarget(tourTargetId) : null;
 
   return (
     <View style={[
@@ -555,6 +559,7 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps & { isHighlighted?: b
       }
     ]}>
       <TouchableOpacity
+        ref={tourRef}
         onPress={onPress}
         style={[
           {
@@ -1132,7 +1137,7 @@ export function TabNavigator() {
     },
     tabBarActiveTintColor: '#69e3c4',
     tabBarInactiveTintColor: colorScheme === 'dark' ? '#8E8E93' : '#6B7280', // Better contrast for light mode
-    tabBarButton: (props: BottomTabBarButtonProps) => <CustomTabBarButton {...props} isHighlighted={false} />,
+    tabBarButton: (props: BottomTabBarButtonProps) => <CustomTabBarButton {...props} isHighlighted={false} tourTargetId="MenuTab" />,
   };
 
   // (moved to top-level to avoid recreation on every render)
@@ -1149,6 +1154,7 @@ export function TabNavigator() {
               <CustomTabBarButton 
                 {...props} 
                 isHighlighted={isTabHighlighted('HomeTab') || isTabHighlighted('GettingStarted.LicensePlan')}
+                tourTargetId="HomeTab"
               />
             ),
           }}
@@ -1194,6 +1200,7 @@ export function TabNavigator() {
               <CustomTabBarButton 
                 {...props} 
                 isHighlighted={isTabHighlighted('ProgressTab')}
+                tourTargetId="ProgressTab"
               />
             ),
           }}
@@ -1223,9 +1230,11 @@ export function TabNavigator() {
             tabBarLabel: '',
             tabBarButton: (props: BottomTabBarButtonProps) => {
               const isHighlighted = isTabHighlighted('CreateRouteTab');
+              const createRouteRef = useTourTarget('CreateRouteTab');
               return (
                 <View style={props.style as ViewStyle}>
                   <TouchableOpacity
+                    ref={createRouteRef}
                     accessibilityLabel="Create route or record driving"
                     onPress={() => {
                       console.log('🎯 Central Create Route tab button pressed');
@@ -1287,6 +1296,7 @@ export function TabNavigator() {
               <CustomTabBarButton 
                 {...props} 
                 isHighlighted={isTabHighlighted('MapTab')}
+                tourTargetId="MapTab"
               />
             ),
           }}
@@ -1313,12 +1323,14 @@ export function TabNavigator() {
             tabBarLabel: '',
             tabBarButton: (props: BottomTabBarButtonProps) => {
               const isHighlighted = isTabHighlighted('MenuTab');
+              const menuRef = useTourTarget('MenuTab');
               return (
                 <View style={[
                   props.style as ViewStyle,
                   { alignItems: 'center', justifyContent: 'center', flex: 1 }
                 ]}>
                   <TouchableOpacity
+                    ref={menuRef}
                     accessibilityLabel="Open menu"
                     onPress={() => {
                       logInfo('Hamburger menu tab pressed');
@@ -1551,90 +1563,8 @@ export function TabNavigator() {
       )}
 
       {/* Tour Overlay - Shows tour tooltips */}
-      {tourActive && getCurrentStepObject() && (
-        <View 
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 10000,
-            pointerEvents: 'box-none', // Allow touches to pass through to highlighted elements
-          }}
-        >
-          {/* Tour tooltip */}
-          <View
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: 20,
-              right: 20,
-              backgroundColor: 'rgba(0, 0, 0, 0.9)',
-              borderRadius: 12,
-              padding: 16,
-              borderWidth: 2,
-              borderColor: '#00E6C3',
-              shadowColor: '#00E6C3',
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 10,
-              transform: [{ translateY: -50 }],
-            }}
-          >
-            <View style={{ alignItems: 'center', gap: 8 }}>
-              <Text fontSize={20} fontWeight="bold" color="#00E6C3" textAlign="center">
-                {getCurrentStepObject()?.title}
-              </Text>
-              <Text fontSize={16} color="white" textAlign="center" lineHeight={24}>
-                {getCurrentStepObject()?.content}
-              </Text>
-              
-              {/* Tour navigation */}
-              <XStack justifyContent="space-between" marginTop={16} width="100%">
-                <TouchableOpacity
-                  onPress={prevStep}
-                  style={{
-                    backgroundColor: '#333',
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 8,
-                    opacity: currentStep > 0 ? 1 : 0.5,
-                  }}
-                  disabled={currentStep === 0}
-                >
-                  <Text color="white" fontWeight="600">Previous</Text>
-                </TouchableOpacity>
-                
-                <Text color="#00E6C3" fontSize={14}>
-                  {currentStep + 1} / {steps.length}
-                </Text>
-                
-                <TouchableOpacity
-                  onPress={() => {
-                    if (currentStep === steps.length - 1) {
-                      endTour();
-                    } else {
-                      nextStep();
-                    }
-                  }}
-                  style={{
-                    backgroundColor: '#00E6C3',
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 8,
-                  }}
-                >
-                  <Text color="black" fontWeight="600">
-                    {currentStep === steps.length - 1 ? 'Finish' : 'Next'}
-                  </Text>
-                </TouchableOpacity>
-              </XStack>
-            </View>
-          </View>
-        </View>
-      )}
+      {/* NEW: Advanced Tour Overlay with accurate positioning and theming */}
+      <TourOverlay />
     </View>
   );
 }
