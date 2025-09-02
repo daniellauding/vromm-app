@@ -138,7 +138,7 @@ export function useScreenLogger({
   };
 
   const logMemoryWarning = (context?: string) => {
-    logWarn(`Memory warning${context ? ` - ${context}` : ''}`, null, screenName);
+    logWarn(`Memory warning${context ? ` - ${context}` : ''}`, undefined, screenName);
   };
 
   return {

@@ -13,6 +13,7 @@ import {
   Alert,
   RefreshControl,
   Animated,
+  useColorScheme,
 } from 'react-native';
 import { YStack, XStack, Text, Card, Select, Image as TamaguiImage, Button } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
@@ -196,6 +197,10 @@ interface UserPayment {
 // Use translation context that's available in the app
 import { useTranslation } from '../contexts/TranslationContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// Tour imports DISABLED to prevent performance issues
+// import { useTourTarget } from '../components/TourOverlay';
+// import { useScreenTours } from '../utils/screenTours';
+// import { useTour } from '../contexts/TourContext';
 
 // ProgressCircle component
 interface ProgressCircleProps {
@@ -269,6 +274,20 @@ export function ProgressScreen() {
   const { profile, user: authUser } = useAuth(); // Get user profile for auth context
   const { selectedPathId, showDetail, activeUserId } = (route.params || {}) as any;
   const focusExerciseId: string | undefined = (route.params as any)?.focusExerciseId;
+  const colorScheme = useColorScheme();
+  const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+  // ALL TOURS DISABLED FOR PROGRESSSCREEN DUE TO PERFORMANCE ISSUES
+  // const firstPathRef = useTourTarget('ProgressScreen.FirstPath');
+  // const filterButtonRef = useTourTarget('ProgressScreen.FilterButton');
+  // const pathCardRef = useTourTarget('ProgressScreen.PathCard');
+  // const markCompleteButtonRef = useTourTarget('ExerciseDetail.MarkCompleteButton');
+  // const repeatSectionRef = useTourTarget('ExerciseDetail.RepeatSection');
+  // const exerciseItemRef = useTourTarget('ProgressScreen.ExerciseItem');
+
+  // Screen tours integration DISABLED
+  // const { triggerScreenTour } = useScreenTours();
+  // const tourContext = useTour();
   
   // Use activeUserId from navigation if provided (for student switching)
   const effectiveUserId = activeUserId || authUser?.id;
@@ -284,11 +303,7 @@ export function ProgressScreen() {
   const { user } = useAuth();
   
   // Debug logging for ProgressScreen
-  console.log('📚 [ProgressScreen] Current user:', user?.id, user?.email);
-  console.log('📚 [ProgressScreen] Effective user ID:', effectiveUserId);
-  console.log('📚 [ProgressScreen] Profile:', profile);
-  console.log('📚 [ProgressScreen] Route params:', route.params);
-  console.log('📚 [ProgressScreen] Is viewing student data?', !!activeUserId);
+  // User and profile tracking without excessive logging
   
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
@@ -429,8 +444,16 @@ export function ProgressScreen() {
             return;
           }
           
-          // Add to processed items
-          processedItems.set(uniqueKey, item as CategoryOption);
+          // Add to processed items (with proper typing)
+          const categoryOption: CategoryOption = {
+            id: (item as any).id || `generated-${category}-${item.value}`,
+            category: category,
+            value: item.value,
+            label: item.label,
+            order_index: item.order_index || 0,
+            is_default: item.is_default || false,
+          };
+          processedItems.set(uniqueKey, categoryOption);
           
           // Track if this category has an "all" option
           if (item.value.toLowerCase() === 'all') {
@@ -438,7 +461,7 @@ export function ProgressScreen() {
           }
           
           if (groupedCategories[category]) {
-            groupedCategories[category].push(item as CategoryOption);
+            groupedCategories[category].push(categoryOption);
           }
         });
 
@@ -1040,6 +1063,15 @@ export function ProgressScreen() {
     };
     loadQuizInfo();
   }, [exercises]);
+
+  // Exercise detail tours DISABLED to prevent console flooding
+  // useEffect(() => {
+  //   if (selectedExercise) {
+  //     setTimeout(async () => {
+  //       await triggerScreenTour('ExerciseDetail', tourContext, profile?.role);
+  //     }, 800);
+  //   }
+  // }, [selectedExercise]);
 
   // Load the display name/email for the user whose progress is being viewed
   useEffect(() => {
@@ -1965,6 +1997,14 @@ export function ProgressScreen() {
     const unsubscribe = navigation.addListener('focus', () => {
       console.log('🔄 [ProgressScreen] Screen focused - refreshing data');
       fetchCompletions();
+      
+      // ProgressScreen tours DISABLED to prevent console flooding
+      // setTimeout(async () => {
+      //   if (!tourContext.isActive) {
+      //     await triggerScreenTour('ProgressScreen', tourContext, profile?.role);
+      //   }
+      // }, 1000);
+      
       // Also refresh the exercises to get latest state
       if (showDetailView && detailPath) {
         const refreshExercises = async () => {
@@ -1986,7 +2026,7 @@ export function ProgressScreen() {
     });
 
     return unsubscribe;
-  }, [navigation, showDetailView, detailPath]);
+  }, [navigation, showDetailView, detailPath]); // Removed tour dependencies
 
   // Populate exercisesByPath mapping for consistent progress calculation
   useEffect(() => {
@@ -3026,7 +3066,7 @@ export function ProgressScreen() {
             borderBottomColor="rgba(255, 255, 255, 0.2)"
           >
             <TouchableOpacity onPress={closeQuiz}>
-              <Feather name="arrow-left" size={28} color="#fff" />
+              <Feather name="arrow-left" size={28} color={iconColor} />
             </TouchableOpacity>
 
             <YStack alignItems="center">
@@ -3145,7 +3185,7 @@ export function ProgressScreen() {
                         justifyContent: 'center',
                       }}
                     >
-                      {isSelected && <Feather name="check" size={16} color="#fff" />}
+                      {isSelected && <Feather name="check" size={16} color="red" />}
                     </View>
 
                     <Text fontSize={16} color="$color" flex={1}>
@@ -3313,7 +3353,7 @@ export function ProgressScreen() {
           {/* Header with back button and repetition indicators */}
           <XStack justifyContent="space-between" alignItems="center" marginBottom={24}>
             <TouchableOpacity onPress={() => setSelectedExercise(null)}>
-              <Feather name="arrow-left" size={28} color="#fff" />
+              <Feather name="arrow-left" size={28} color={iconColor} />
             </TouchableOpacity>
 
             {totalRepeats > 1 && (
@@ -3524,7 +3564,7 @@ export function ProgressScreen() {
               {!selectedExercise.isRepeat &&
                 selectedExercise.repeat_count &&
                 selectedExercise.repeat_count > 1 && (
-                  <YStack marginTop={16} marginBottom={16} gap={12}>
+                  <YStack /* ref={repeatSectionRef} */ marginTop={16} marginBottom={16} gap={12}>
                     <XStack alignItems="center" gap={8} marginBottom={8}>
                       <Feather name="list" size={20} color="#4B6BFF" />
                       <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
@@ -3742,6 +3782,7 @@ export function ProgressScreen() {
 
               {/* Toggle done/not done button */}
               <TouchableOpacity
+                // ref={markCompleteButtonRef} // DISABLED
                 onPress={() => {
                   // Toggle main exercise
                   toggleCompletion(selectedExercise.id);
@@ -3890,7 +3931,7 @@ export function ProgressScreen() {
           {/* Back + History Header Row */}
           <XStack justifyContent="space-between" alignItems="center" marginBottom={8}>
             <TouchableOpacity onPress={() => setShowDetailView(false)}>
-              <Feather name="arrow-left" size={28} color="#fff" />
+              <Feather name="arrow-left" size={28} color={iconColor} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
@@ -4071,13 +4112,9 @@ export function ProgressScreen() {
               {exercises.length === 0 ? (
                 <Text color="$gray11">No exercises for this learning path.</Text>
               ) : (
-                (() => {
-                  // Process exercises: show all exercises and create virtual repeats for UI
-                  let displayIndex = 0;
-
-                  return exercises.map((exercise, exerciseIndex) => {
-                    displayIndex++;
-
+                exercises.map((exercise, exerciseIndex) => {
+                    // Process exercises: show all exercises and create virtual repeats for UI
+                    const displayIndex = exerciseIndex + 1;
                     const main = exercise;
 
                     // Main exercise logic
@@ -4090,7 +4127,10 @@ export function ProgressScreen() {
                     return (
                       <YStack key={`exercise-detail-${main.id}-${exerciseIndex}`} marginBottom={16}>
                         {/* Main Exercise */}
-                        <TouchableOpacity onPress={() => setSelectedExercise(main)}>
+                        <TouchableOpacity 
+                          // ref={exerciseIndex === 0 ? exerciseItemRef : undefined} // DISABLED
+                          onPress={() => setSelectedExercise(main)}
+                        >
                           <XStack alignItems="center" gap={12}>
                             <TouchableOpacity
                               onPress={(e) => {
@@ -4209,8 +4249,7 @@ export function ProgressScreen() {
                         </TouchableOpacity>
                       </YStack>
                     );
-                  });
-                })()
+                })
               )}
             </>
           )}
@@ -4225,7 +4264,7 @@ export function ProgressScreen() {
           <YStack flex={1} backgroundColor="$background">
             <XStack justifyContent="space-between" alignItems="center" padding={16}>
               <TouchableOpacity onPress={() => setHistoryModalVisible(false)}>
-                <Feather name="arrow-left" size={28} color="#fff" />
+                <Feather name="arrow-left" size={28} color={iconColor} />
               </TouchableOpacity>
               <Text fontSize={18} fontWeight="bold" color="$color">History</Text>
               <View style={{ width: 28 }} />
@@ -4363,6 +4402,7 @@ export function ProgressScreen() {
         {/* Filter and Show All Controls */}
         <XStack justifyContent="space-between" alignItems="center" marginBottom={24}>
           <TouchableOpacity
+// ref={filterButtonRef} // DISABLED
             onPress={() => setShowFilterDrawer(true)}
             style={{
               backgroundColor: '#333',
@@ -4570,7 +4610,8 @@ export function ProgressScreen() {
 
         {/* Learning Paths Section - only show when not viewing all exercises */}
         {!showAllExercises && (
-          <>
+          <YStack // ref={pathCardRef} // DISABLED
+          >
             {filteredPaths.length === 0 ? (
               <YStack padding={16} alignItems="center" justifyContent="center" gap={8}>
                 <Feather name="info" size={32} color="$gray11" />
@@ -4585,6 +4626,7 @@ export function ProgressScreen() {
               filteredPaths.map((path, idx) => {
                 const isActive = activePath === path.id;
                 const percent = getPathProgress(path.id);
+                const isFirstPath = idx === 0;
 
                 // More permissive access - only block if password-locked
                 const isPasswordLocked = isPathPasswordLocked(path);
@@ -4594,6 +4636,7 @@ export function ProgressScreen() {
                 return (
                   <TouchableOpacity
                     key={`filtered-path-${path.id}-${idx}`}
+                    // ref={isFirstPath ? firstPathRef : undefined} // DISABLED
                     onPress={() => handlePathPress(path, idx)}
                     activeOpacity={0.8}
                     style={{
@@ -4743,7 +4786,7 @@ export function ProgressScreen() {
                 );
               })
             )}
-          </>
+          </YStack>
         )}
       </ScrollView>
       {reportPath && detailPath && (

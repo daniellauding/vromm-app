@@ -162,11 +162,7 @@ export function RouteCard({ route }: RouteCardProps) {
       // Extract pen drawing coordinates from metadata
       const penDrawingCoordinates = route.metadata?.coordinates || [];
 
-      console.log('🗺️ [RouteCard] Adding map item:', { 
-        waypointsCount: waypoints.length,
-        drawingMode: route.drawing_mode,
-        showStartEndMarkers 
-      });
+      // Map item added
 
       items.push({
         type: 'map' as const,
@@ -188,11 +184,7 @@ export function RouteCard({ route }: RouteCardProps) {
         arr.findIndex(a => a.url === m.url && a.type === m.type) === index
       ) || [];
 
-    console.log('📷 [RouteCard] Media attachments:', {
-      total: route.media_attachments?.length || 0,
-      afterFilter: uniqueAttachments.length,
-      types: uniqueAttachments.map(m => m.type)
-    });
+    // Media attachments processed
 
     // Validate and filter out invalid URLs
     const validAttachments = uniqueAttachments.filter((m) => {
@@ -205,22 +197,14 @@ export function RouteCard({ route }: RouteCardProps) {
       );
       
       if (!isValidUrl) {
-        console.warn('⚠️ [RouteCard] Invalid media URL detected (skipping):', {
-          type: m.type,
-          url: m.url,
-          description: m.description
-        });
+        // Invalid media URL skipped
         return false;
       }
       
       return true;
     });
 
-    console.log('📷 [RouteCard] Valid media after URL validation:', {
-      beforeValidation: uniqueAttachments.length,
-      afterValidation: validAttachments.length,
-      skipped: uniqueAttachments.length - validAttachments.length
-    });
+    // Media validation completed
 
     const media = validAttachments.map((m) => ({
       type: m.type as const,

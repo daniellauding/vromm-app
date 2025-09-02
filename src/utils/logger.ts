@@ -86,16 +86,32 @@ class Logger {
 
     switch (level) {
       case 'error':
-        console.error(fullMessage, data);
+        if (data !== null && data !== undefined) {
+          console.error(fullMessage, data);
+        } else {
+          console.error(fullMessage);
+        }
         break;
       case 'warn':
-        console.warn(fullMessage, data);
+        if (data !== null && data !== undefined) {
+          console.warn(fullMessage, data);
+        } else {
+          console.warn(fullMessage);
+        }
         break;
       case 'debug':
-        console.debug(fullMessage, data);
+        if (data !== null && data !== undefined) {
+          console.debug(fullMessage, data);
+        } else {
+          console.debug(fullMessage);
+        }
         break;
       default:
-        console.log(fullMessage, data);
+        if (data !== null && data !== undefined) {
+          console.log(fullMessage, data);
+        } else {
+          console.log(fullMessage);
+        }
     }
 
     // Store memory logs separately
@@ -158,19 +174,19 @@ class Logger {
 
   // Screen lifecycle logging
   logScreenMount(screenName: string) {
-    this.log('info', `Screen mounted: ${screenName}`, null, screenName);
+    this.log('info', `Screen mounted: ${screenName}`, undefined, screenName);
   }
 
   logScreenUnmount(screenName: string) {
-    this.log('info', `Screen unmounted: ${screenName}`, null, screenName);
+    this.log('info', `Screen unmounted: ${screenName}`, undefined, screenName);
   }
 
   logScreenFocus(screenName: string) {
-    this.log('info', `Screen focused: ${screenName}`, null, screenName);
+    this.log('info', `Screen focused: ${screenName}`, undefined, screenName);
   }
 
   logScreenBlur(screenName: string) {
-    this.log('info', `Screen blurred: ${screenName}`, null, screenName);
+    this.log('info', `Screen blurred: ${screenName}`, undefined, screenName);
   }
 
   // Error logging with context

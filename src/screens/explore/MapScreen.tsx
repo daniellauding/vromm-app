@@ -20,6 +20,11 @@ import { SelectedRoute } from './SelectedRoute';
 import { useActiveRoutes, useRoutesFilters, useWaypoints } from './hooks';
 import { calculateDistance, getDistanceFromLatLonInKm } from './utils';
 import { useLocation } from '../../context/LocationContext';
+// Tour imports disabled to prevent performance issues
+// import { useTourTarget } from '../../components/TourOverlay';
+// import { useScreenTours } from '../../utils/screenTours';
+// import { useTour } from '../../contexts/TourContext';
+import { useAuth } from '../../context/AuthContext';
 
 type SearchResult = {
   id: string;
@@ -46,9 +51,14 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
   const { fetchRoutes } = useRoutes();
   const { userLocation } = useLocation();
+  const { profile } = useAuth();
 
   const [isMapReady, setIsMapReady] = useState(false);
   const { showModal } = useModal();
+
+  // Screen tours integration disabled
+  // const { triggerScreenTour } = useScreenTours();
+  // const tourContext = useTour();
   const mapRef = useRef<MapView>(null);
   const [region, setRegion] = useState({
     latitude: 60.1282,
@@ -60,6 +70,11 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
   // Add selectedPin state
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
+
+  // Tour targets disabled for MapScreen to prevent performance issues
+  // const locateButtonRef = useTourTarget('MapScreen.LocateButton');
+  // const routesDrawerRef = useTourTarget('MapScreen.RoutesDrawer');
+  // const mapViewRef = useTourTarget('MapScreen.MapView');
 
   // Create a map of routes by ID for quick lookup
   const routesById = useMemo(() => {
@@ -118,7 +133,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     (async () => {
       // First try to use user location from context (onboarding/profile)
       if (userLocation) {
-        console.log('🗺️ [MapScreen] Using user location from context:', userLocation);
+        // Using user location from context
         setRegion((prev) => ({
           ...prev,
           latitude: userLocation.latitude,
@@ -135,7 +150,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       if (status === 'granted') {
         const location = await Location.getLastKnownPositionAsync({});
         if (location) {
-          console.log('🗺️ [MapScreen] Using GPS location as fallback');
+          // Using GPS location as fallback
           setRegion((prev) => ({
             ...prev,
             latitude: location.coords.latitude,
@@ -152,7 +167,10 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     React.useCallback(() => {
       setSelectedRoute(null);
       setSelectedPin(null);
-    }, []),
+      
+      // MapScreen tours disabled due to performance issues
+      // TODO: Re-enable after fixing RoutesDrawer ref registration
+    }, []), // No dependencies to prevent re-triggers
   );
 
   const handleLocationSelect = useCallback(
@@ -257,22 +275,35 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   // Handle filter selection
   const handleFilterPress = useCallback(
     (filter: FilterCategory) => {
-      if (filters?.id === filter.id) {
-        setFilters(null);
-      } else {
-        // setFilters(filter);
+      // Apply filter based on filter type
+      const currentFilters = filters || {};
+      const updatedFilters = { ...currentFilters };
+      
+      switch(filter.type) {
+        case 'difficulty':
+          updatedFilters.difficulty = updatedFilters.difficulty?.includes(filter.value) 
+            ? updatedFilters.difficulty.filter(v => v !== filter.value)
+            : [...(updatedFilters.difficulty || []), filter.value];
+          break;
+        case 'spot_type':
+          updatedFilters.spotType = updatedFilters.spotType?.includes(filter.value)
+            ? updatedFilters.spotType.filter(v => v !== filter.value) 
+            : [...(updatedFilters.spotType || []), filter.value];
+          break;
+        // Add other filter types as needed
+        default:
+          break;
       }
+      
+      setFilters(updatedFilters);
     },
     [filters, setFilters],
   );
 
   const handleLocateMe = useCallback(async () => {
     try {
-      console.log('🗺️ [MapScreen] Locate Me pressed - checking location permission');
-      
       // Check current permission status first
       const currentStatus = await Location.getForegroundPermissionsAsync();
-      console.log('🗺️ [MapScreen] Current permission status:', currentStatus.status);
       
       if (currentStatus.status === 'granted') {
         // Permission already granted, get location
@@ -290,7 +321,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       
       // Request permission - this shows the native dialog
       const { status } = await Location.requestForegroundPermissionsAsync();
-      console.log('🗺️ [MapScreen] Permission request result:', status);
       
       if (status === 'granted') {
         // Permission granted, get location
@@ -315,7 +345,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         );
       }
     } catch (err) {
-      console.error('🗺️ [MapScreen] Error getting location:', err);
+      console.error('Error getting location:', err);
       Alert.alert('Error', 'Unable to get your location. Please try again.');
     }
   }, []);
@@ -366,32 +396,41 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
       <SafeAreaView edges={['top']} style={{ zIndex: 1000 }}>
-        <AppHeader
-          onLocateMe={handleLocateMe}
-          filters={availableFilters}
-          onFilterPress={handleFilterPress}
-          onFilterButtonPress={handleFilterButtonPress}
-        />
+        <View>
+          <AppHeader
+            onLocateMe={handleLocateMe}
+            filters={availableFilters}
+            onFilterPress={handleFilterPress}
+            onFilterButtonPress={handleFilterButtonPress}
+          />
+        </View>
       </SafeAreaView>
-      <Map
-        waypoints={activeWaypoints}
-        region={region}
-        onPress={handleMapPress}
-        style={StyleSheet.absoluteFillObject}
-        selectedPin={selectedPin}
-        onMarkerPress={handleMarkerPress}
-        ref={mapRef}
-      />
-      <RoutesDrawer
-        selectedRoute={selectedRoute}
-        filteredRoutes={activeRoutes}
-        loadRoutes={loadRoutes}
-      />
-      <SelectedRoute
-        selectedRoute={selectedRoute}
-        setSelectedRoute={setSelectedRoute}
-        setSelectedPin={setSelectedPin}
-      />
+      <View style={{ flex: 1 }}>
+        <Map
+          waypoints={activeWaypoints}
+          region={region}
+          onPress={handleMapPress}
+          style={StyleSheet.absoluteFillObject}
+          selectedPin={selectedPin}
+          onMarkerPress={handleMarkerPress}
+          ref={mapRef}
+        />
+      </View>
+      {selectedRoute ? null : (
+        <RoutesDrawer
+          selectedRoute={selectedRoute}
+          filteredRoutes={activeRoutes}
+          loadRoutes={loadRoutes}
+  // ref={routesDrawerRef} // Disabled
+        />
+      )}
+      {selectedRoute && (
+        <SelectedRoute
+          selectedRoute={selectedRoute}
+          setSelectedRoute={setSelectedRoute}
+          setSelectedPin={setSelectedPin}
+        />
+      )}
     </Screen>
   );
 }

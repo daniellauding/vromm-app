@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  View, 
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
   Text, 
-  TouchableOpacity, 
-  Dimensions, 
+  TouchableOpacity,
+  Dimensions,
   useColorScheme,
   Platform,
-  StatusBar 
+  StatusBar,
+  Animated 
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTour } from '../contexts/TourContext';
@@ -70,15 +71,26 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   const screenDimensions = Dimensions.get('window');
+  const [animValue] = useState(new Animated.Value(0));
   
-  // Theme colors
+  // Theme colors - flatter design
   const isDark = colorScheme === 'dark';
   const backgroundColor = isDark ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)';
   const textColor = isDark ? '#FFFFFF' : '#000000';
   const secondaryTextColor = isDark ? '#B0B0B0' : '#666666';
-  const borderColor = '#00E6C3';
+  const accentColor = '#00E6C3';
   const buttonColor = isDark ? '#333333' : '#F0F0F0';
   const buttonTextColor = isDark ? '#FFFFFF' : '#000000';
+
+  // Animate in when tooltip appears
+  useEffect(() => {
+    Animated.spring(animValue, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 8,
+    }).start();
+  }, [currentIndex]);
   
   // Calculate tooltip position and arrow direction
   const calculatePosition = () => {
@@ -123,9 +135,9 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
         screenDimensions.width - tooltipWidth - margin,
         targetCenterX - tooltipWidth / 2
       ));
-      tooltipY = targetCoords.y - tooltipHeight - arrowSize - 10;
+      tooltipY = targetCoords.y - tooltipHeight - 5; // Closer to target
       arrowX = targetCenterX - tooltipX - arrowSize / 2;
-      arrowY = tooltipHeight;
+      arrowY = tooltipHeight - 2; // Arrow comes out of tooltip bottom
       
     } else if (spaceBelow > tooltipHeight + margin) {
       // Place below target  
@@ -134,30 +146,30 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
         screenDimensions.width - tooltipWidth - margin,
         targetCenterX - tooltipWidth / 2
       ));
-      tooltipY = targetCoords.y + targetCoords.height + arrowSize + 10;
+      tooltipY = targetCoords.y + targetCoords.height + 5; // Closer to target
       arrowX = targetCenterX - tooltipX - arrowSize / 2;
-      arrowY = -arrowSize;
+      arrowY = -2; // Arrow comes out of tooltip top
       
     } else if (spaceLeft > tooltipWidth + margin) {
       // Place to the left
       arrowDirection = 'right';
-      tooltipX = targetCoords.x - tooltipWidth - arrowSize - 10;
+      tooltipX = targetCoords.x - tooltipWidth - 5; // Closer to target
       tooltipY = Math.max(margin, Math.min(
         screenDimensions.height - tooltipHeight - margin,
         targetCenterY - tooltipHeight / 2
       ));
-      arrowX = tooltipWidth;
+      arrowX = tooltipWidth - 2; // Arrow comes out of tooltip right edge
       arrowY = targetCenterY - tooltipY - arrowSize / 2;
       
     } else if (spaceRight > tooltipWidth + margin) {
       // Place to the right
       arrowDirection = 'left';
-      tooltipX = targetCoords.x + targetCoords.width + arrowSize + 10;
+      tooltipX = targetCoords.x + targetCoords.width + 5; // Closer to target
       tooltipY = Math.max(margin, Math.min(
         screenDimensions.height - tooltipHeight - margin,
         targetCenterY - tooltipHeight / 2
       ));
-      arrowX = -arrowSize;
+      arrowX = -2; // Arrow comes out of tooltip left edge
       arrowY = targetCenterY - tooltipY - arrowSize / 2;
       
     } else {
@@ -187,49 +199,44 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
   const position = calculatePosition();
 
   return (
-    <View style={{
+    <Animated.View style={{
       position: 'absolute',
       left: position.tooltipX,
       top: position.tooltipY,
       width: position.tooltipWidth,
-      zIndex: 10000,
+      zIndex: 100000, // ✅ Even higher z-index for tooltip
+      elevation: 100000, // ✅ Android elevation
+      transform: [
+        { scale: animValue },
+        { 
+          translateY: animValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: [10, 0],
+          })
+        }
+      ],
+      opacity: animValue,
     }}>
-      {/* Arrow pointing to target element */}
-      {position.showArrow && (
-        <View style={{
-          position: 'absolute',
-          left: position.arrowX,
-          top: position.arrowY,
-          zIndex: 10001,
-        }}>
-          <TourArrow 
-            direction={position.arrowDirection} 
-            color={borderColor} 
-            size={20} 
-          />
-        </View>
-      )}
+      {/* Arrow removed - works better without */}
       
-      {/* Main tooltip content */}
+      {/* Main tooltip content - flatter design */}
       <View style={{
         backgroundColor,
-        borderRadius: 12,
+        borderRadius: 16,
         padding: 20,
-        borderWidth: 2,
-        borderColor,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 12,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        elevation: 16,
       }}>
         {/* Content */}
-        <View style={{ marginBottom: 16 }}>
+        <View style={{ marginBottom: 20 }}>
           <Text style={{
             fontSize: 18,
             fontWeight: 'bold',
-            color: borderColor,
-            marginBottom: 8,
+            color: accentColor,
+            marginBottom: 10,
             textAlign: 'center'
           }}>
             {step.title}
@@ -239,76 +246,115 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
             fontSize: 14,
             color: textColor,
             textAlign: 'center',
-            lineHeight: 20
+            lineHeight: 22
           }}>
             {step.content}
           </Text>
         </View>
 
-        {/* Navigation */}
+        {/* Navigation - flatter design with arrow icons */}
         <View style={{
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <TouchableOpacity
+      <TouchableOpacity 
             onPress={onPrev}
             style={{
               backgroundColor: currentIndex > 0 ? buttonColor : 'transparent',
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderRadius: 8,
-              opacity: currentIndex > 0 ? 1 : 0.5,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderRadius: 20,
+              opacity: currentIndex > 0 ? 1 : 0.3,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
             }}
             disabled={currentIndex === 0}
           >
-            <Text style={{ color: buttonTextColor, fontWeight: '600' }}>
+            <Feather 
+              name="chevron-left" 
+              size={16} 
+              color={currentIndex > 0 ? buttonTextColor : secondaryTextColor} 
+            />
+            <Text style={{ color: currentIndex > 0 ? buttonTextColor : secondaryTextColor, fontWeight: '600' }}>
               Previous
             </Text>
           </TouchableOpacity>
 
-          <Text style={{ color: borderColor, fontSize: 14, fontWeight: '600' }}>
+          <Text style={{ color: accentColor, fontSize: 14, fontWeight: '600' }}>
             {currentIndex + 1} / {totalSteps}
           </Text>
 
-          <TouchableOpacity
+            <TouchableOpacity
             onPress={currentIndex === totalSteps - 1 ? onEnd : onNext}
-            style={{
-              backgroundColor: borderColor,
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderRadius: 8,
+              style={{
+              backgroundColor: accentColor,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderRadius: 20,
+              flexDirection: 'row',
+                alignItems: 'center',
+              gap: 6,
             }}
           >
             <Text style={{ color: '#000000', fontWeight: '600' }}>
               {currentIndex === totalSteps - 1 ? 'Finish' : 'Next'}
             </Text>
-          </TouchableOpacity>
+            <Feather 
+              name={currentIndex === totalSteps - 1 ? 'check' : 'chevron-right'} 
+              size={16} 
+              color="#000000" 
+            />
+        </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
-// Target element highlight component
+// Target element highlight component - simplified
 const ElementHighlight: React.FC<{ coords: { x: number; y: number; width: number; height: number } }> = ({ coords }) => {
+  const [pulseAnim] = useState(new Animated.Value(1));
+
+  useEffect(() => {
+    const pulse = Animated.sequence([
+      Animated.timing(pulseAnim, {
+        toValue: 1.05,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    const loop = Animated.loop(pulse);
+    loop.start();
+
+    return () => loop.stop();
+  }, []);
+
   return (
-    <View style={{
+    <Animated.View style={{
       position: 'absolute',
-      left: coords.x - 4,
-      top: coords.y - 4,
-      width: coords.width + 8,
-      height: coords.height + 8,
+      left: coords.x,
+      top: coords.y,
+      width: coords.width,
+      height: coords.height,
       borderWidth: 3,
       borderColor: '#00E6C3',
       borderRadius: 8,
-      backgroundColor: 'rgba(0, 230, 195, 0.1)',
+      backgroundColor: 'rgba(0, 230, 195, 0.15)',
       shadowColor: '#00E6C3',
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.6,
-      shadowRadius: 8,
-      elevation: 8,
-      zIndex: 9999,
+      shadowRadius: 12,
+      elevation: 99997, // ✅ Very high elevation for Android
+      zIndex: 99997, // ✅ Very high z-index
+      transform: [{ scale: pulseAnim }],
     }} />
   );
 };
@@ -322,12 +368,14 @@ export const TourOverlay: React.FC = () => {
     nextStep, 
     prevStep, 
     endTour, 
-    measureElement,
+    measureElement, 
     updateStepCoords 
   } = useTour();
   
   const [targetCoords, setTargetCoords] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [measuring, setMeasuring] = useState(false);
+
+  // Tour overlay active tracking
 
   // Get current step object
   const getCurrentStepObject = () => {
@@ -346,36 +394,45 @@ export const TourOverlay: React.FC = () => {
       }
 
       setMeasuring(true);
-      console.log(`🎯 [TourOverlay] Measuring target: ${step.targetElement}`);
       
-      // Add small delay to let UI settle
+      // Add delay to let UI settle
       setTimeout(async () => {
         try {
           const coords = await measureElement(step.targetElement!);
           if (coords) {
-            console.log(`🎯 [TourOverlay] Got coords for ${step.targetElement}:`, coords);
             setTargetCoords(coords);
             updateStepCoords(currentStep, coords);
           } else {
-            console.log(`🎯 [TourOverlay] No coords for ${step.targetElement}`);
-            setTargetCoords(null);
+            // Retry once for elements that render slowly
+            setTimeout(async () => {
+              const retryCoords = await measureElement(step.targetElement!);
+              if (retryCoords) {
+                setTargetCoords(retryCoords);
+                updateStepCoords(currentStep, retryCoords);
+              } else {
+                // Don't auto-advance - let user manually advance or close tour
+                setTargetCoords(null);
+              }
+            }, 500);
           }
         } catch (error) {
-          console.error(`🎯 [TourOverlay] Error measuring ${step.targetElement}:`, error);
+          console.error(`Error measuring ${step.targetElement}:`, error);
           setTargetCoords(null);
         } finally {
           setMeasuring(false);
         }
-      }, 100);
+      }, 300);
     };
 
     measureTarget();
-  }, [step, measureElement, updateStepCoords, currentStep]);
+  }, [step, measureElement, updateStepCoords, currentStep, nextStep]);
 
-  // Don't render if tour is not active
+  // Don't render if tour is not active or if target element is missing
   if (!isActive || !step) {
-    return null;
+    return <></>;
   }
+
+  // Show tour even if target element not found - user can still read content and navigate
 
   return (
     <View style={{
@@ -384,12 +441,37 @@ export const TourOverlay: React.FC = () => {
       left: 0,
       right: 0,
       bottom: 0,
-      zIndex: 10000,
-      pointerEvents: 'box-none', // Allow touches to pass through to highlighted elements
+      zIndex: 99999, // ✅ Maximum z-index to ensure always above everything
+      elevation: 99999, // ✅ Android elevation
     }}>
-      {/* Element highlight (if target coords available) */}
+      {/* Background overlay - tap outside to close tour */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        }}
+        activeOpacity={1}
+        onPress={endTour}
+      />
+
+      {/* Element highlight (if target coords available) - renders above background */}
       {targetCoords && (
-        <ElementHighlight coords={targetCoords} />
+        <View style={{
+          position: 'absolute',
+          left: targetCoords.x - 2,
+          top: targetCoords.y - 2,
+          width: targetCoords.width + 4,
+          height: targetCoords.height + 4,
+          zIndex: 99998, // ✅ High z-index for element highlight
+          elevation: 99998, // ✅ Android elevation
+          pointerEvents: 'box-none', // Allow touches to pass through to actual element
+        }}>
+          <ElementHighlight coords={{ x: 2, y: 2, width: targetCoords.width, height: targetCoords.height }} />
+        </View>
       )}
 
       {/* Tour tooltip with smart positioning */}
@@ -404,21 +486,7 @@ export const TourOverlay: React.FC = () => {
       />
 
       {/* Measuring indicator */}
-      {measuring && (
-        <View style={{
-          position: 'absolute',
-          top: 50,
-          right: 20,
-          backgroundColor: 'rgba(0, 230, 195, 0.8)',
-          paddingHorizontal: 12,
-          paddingVertical: 6,
-          borderRadius: 16,
-        }}>
-          <Text style={{ color: '#000', fontSize: 12, fontWeight: 'bold' }}>
-            📐 Measuring...
-          </Text>
-        </View>
-      )}
+      {/* Measuring text removed - cleaner UI */}
     </View>
   );
 };

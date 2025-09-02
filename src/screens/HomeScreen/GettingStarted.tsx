@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 
 import { SectionHeader } from '../../components/SectionHeader';
 import { useAuth } from '@/src/context/AuthContext';
+import { useTranslation } from '../../contexts/TranslationContext';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { useTour } from '../../contexts/TourContext';
@@ -17,6 +18,7 @@ export const GettingStarted = () => {
   const { profile, user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const { isActive: tourActive, currentStep, steps } = useTour();
+  const { t } = useTranslation();
   
   // Register license plan card for tour targeting
   const licensePlanRef = useTourTarget('GettingStarted.LicensePlan');
@@ -176,7 +178,7 @@ export const GettingStarted = () => {
   }
   return (
     <YStack space="$4" marginBottom="$6">
-      <SectionHeader title="Komma igång" variant="chevron" onAction={() => {}} actionLabel="" />
+      <SectionHeader title={t('home.gettingStarted.title') || 'Getting Started'} variant="chevron" onAction={() => {}} actionLabel="" />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <XStack space="$4" paddingHorizontal="$4">
@@ -188,16 +190,9 @@ export const GettingStarted = () => {
             delayPressIn={50}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={[
-              // ✅ Tour highlighting for license plan card
+              // ✅ Simplified tour highlighting - let TourOverlay handle main highlight
               isLicensePlanHighlighted() && {
-                borderWidth: 3,
-                borderColor: '#00E6C3',
-                borderRadius: 19, // Slightly larger to account for border
-                shadowColor: '#00E6C3',
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.8,
-                shadowRadius: 12,
-                elevation: 12,
+                backgroundColor: 'rgba(0, 230, 195, 0.1)',
               },
             ]}
           >
@@ -252,10 +247,10 @@ export const GettingStarted = () => {
 
               <YStack>
                 <Text fontSize={18} fontWeight="bold" color="$color">
-                  Din körkortsplan
+                  {t('home.gettingStarted.licensePlan.title') || 'Your License Plan'}
                 </Text>
                 <Text fontSize={14} color="$gray11" marginTop="$1">
-                  Berätta om dig och dina mål
+                  {t('home.gettingStarted.licensePlan.description') || 'Tell us about yourself and your goals'}
                 </Text>
               </YStack>
             </YStack>
@@ -292,7 +287,7 @@ export const GettingStarted = () => {
                     }}
                   >
                     <Text fontSize={10} color="#000" fontWeight="bold">
-                      KLART
+                      {t('home.gettingStarted.status.completed') || 'DONE'}
                     </Text>
                   </View>
                 )}
@@ -300,10 +295,10 @@ export const GettingStarted = () => {
 
               <YStack>
                 <Text fontSize={18} fontWeight="bold" color="$color">
-                  Lägg till din första rutt
+                  {t('home.gettingStarted.firstRoute.title') || 'Add Your First Route'}
                 </Text>
                 <Text fontSize={14} color="$gray11" marginTop="$1">
-                  Skapa en körrutt du använder ofta
+                  {t('home.gettingStarted.firstRoute.description') || 'Create a route you use often'}
                 </Text>
               </YStack>
             </YStack>
@@ -340,7 +335,7 @@ export const GettingStarted = () => {
                     }}
                   >
                     <Text fontSize={10} color="#000" fontWeight="bold">
-                      KLART
+                      {t('home.gettingStarted.status.completed') || 'DONE'}
                     </Text>
                   </View>
                 )}
@@ -348,10 +343,10 @@ export const GettingStarted = () => {
 
               <YStack>
                 <Text fontSize={18} fontWeight="bold" color="$color">
-                  Börja på steg 1 av 16
+                  {t('home.gettingStarted.startLearning.title') || 'Start on Step 1 of 16'}
                 </Text>
                 <Text fontSize={14} color="$gray11" marginTop="$1">
-                  Starta din körkortsresa
+                  {t('home.gettingStarted.startLearning.description') || 'Start your license journey'}
                 </Text>
               </YStack>
             </YStack>
@@ -384,7 +379,7 @@ export const GettingStarted = () => {
                     }}
                   >
                     <Text fontSize={10} color="#000" fontWeight="bold">
-                      KLART
+                      {t('home.gettingStarted.status.completed') || 'DONE'}
                     </Text>
                   </View>
                 )}
@@ -392,10 +387,10 @@ export const GettingStarted = () => {
 
               <YStack>
                 <Text fontSize={18} fontWeight="bold" color="$color">
-                  Spara en körrutt
+                  {t('home.gettingStarted.saveRoute.title') || 'Save a Route'}
                 </Text>
                 <Text fontSize={14} color="$gray11" marginTop="$1">
-                  Hitta och spara en rutt från kartan
+                  {t('home.gettingStarted.saveRoute.description') || 'Find and save a route from the map'}
                 </Text>
               </YStack>
             </YStack>
@@ -449,10 +444,10 @@ export const GettingStarted = () => {
 
               <YStack>
                 <Text fontSize={18} fontWeight="bold" color="$color">
-                  Välj din roll
+                  {t('home.gettingStarted.chooseRole.title') || 'Choose Your Role'}
                 </Text>
                 <Text fontSize={14} color="$gray11" marginTop="$1">
-                  Student, lärare eller trafikskola?
+                  {t('home.gettingStarted.chooseRole.description') || 'Student, instructor, or driving school?'}
                 </Text>
               </YStack>
             </YStack>
@@ -497,10 +492,16 @@ export const GettingStarted = () => {
 
                 <YStack>
                   <Text fontSize={18} fontWeight="bold" color="$color">
-                    {typedProfile?.role === 'student' ? 'Lägg till handledare' : 'Lägg till elever'}
+                    {typedProfile?.role === 'student' 
+                      ? t('home.gettingStarted.connectStudent.title') || 'Add Supervisor'
+                      : t('home.gettingStarted.connectInstructor.title') || 'Add Students'
+                    }
                   </Text>
                   <Text fontSize={14} color="$gray11" marginTop="$1">
-                    {typedProfile?.role === 'student' ? 'Anslut med körskolor och handledare' : 'Anslut med elever att handleda'}
+                    {typedProfile?.role === 'student'
+                      ? t('home.gettingStarted.connectStudent.description') || 'Connect with driving schools and supervisors'
+                      : t('home.gettingStarted.connectInstructor.description') || 'Connect with students to supervise'
+                    }
                   </Text>
                 </YStack>
               </YStack>

@@ -335,14 +335,7 @@ export function Map({
   );
 
   useEffect(() => {
-    console.log('🗺️ Map: waypoints changed', {
-      count: waypoints.length,
-      drawingMode,
-      hasWaypoints: waypoints.length > 0,
-      waypointIds: waypoints.map((wp) => wp.id || 'no-id').slice(0, 5), // Only first 5 IDs
-      timestamp: Date.now(),
-    });
-
+    // Reduced logging to prevent console flooding
     if (waypoints.length > 0) {
       const geoPoints = waypoints.map((point: Waypoint) => ({
         type: 'Feature' as const,
@@ -356,12 +349,10 @@ export function Map({
         },
       }));
 
-      console.log('🗺️ Map: created geoPoints', geoPoints.length, 'features');
       supercluster.current?.load(geoPoints);
       calculateClusters({ region: currentRegion.current });
     } else {
       // Clear clusters when no waypoints
-      console.log('🗺️ Map: clearing clusters (no waypoints)');
       setClusters([]);
     }
   }, [waypoints, calculateClusters, drawingMode]);
@@ -399,7 +390,7 @@ export function Map({
 
   if (!region) return null;
 
-  console.log('🗺️ Map: region', region);
+  // Map region updated
   return (
     <View style={[styles.container, style]}>
       <MapView
@@ -431,7 +422,7 @@ export function Map({
               `waypoint-${waypoints.indexOf(wp)}` === cluster.properties.id,
           );
 
-          console.log('🗺️ Map: cluster', cluster);
+          // Cluster marker pressed
 
           return (
             <WaypointMarker

@@ -19,6 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { supabase } from '../../lib/supabase';
+import { useTourTarget } from '../../components/TourOverlay';
 
 export const HomeHeader = () => {
   const { t } = useTranslation();
@@ -26,6 +27,9 @@ export const HomeHeader = () => {
   const { profile } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const { setActiveStudent, activeStudentId } = useStudentSwitch();
+
+  // Register profile avatar for instructor tour targeting
+  const profileAvatarRef = useTourTarget('Header.ProfileAvatar');
 
   const [showStudentPicker, setShowStudentPicker] = React.useState(false);
   const [students, setStudents] = React.useState<Array<{ id: string; full_name: string; email: string; created_at?: string }>>([]);
@@ -103,6 +107,7 @@ export const HomeHeader = () => {
       <XStack alignItems="center" gap={12} width="100%" justifyContent="space-between">
         <YStack gap={8} flexShrink={1} alignItems="flex-start" width="100%">
           <TouchableOpacity
+            ref={profileAvatarRef}
             onPress={onPressAvatar}
             activeOpacity={isSupervisorRole ? 0.7 : 1}
             style={{

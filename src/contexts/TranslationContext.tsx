@@ -48,16 +48,35 @@ const TranslationContext = createContext<TranslationContextType>({
   refreshTranslations: async () => {},
 });
 
-// Logger utility (simplified)
+// Logger utility (simplified) - fixed to prevent null logging
 const logger = {
   info: (message: string, ...args: any[]) => {
-    if (__DEV__) console.log(`[TRANSLATION] ${message}`, ...args);
+    const validArgs = args.filter(arg => arg !== null && arg !== undefined);
+    if (__DEV__) {
+      if (validArgs.length > 0) {
+        console.log(`[TRANSLATION] ${message}`, ...validArgs);
+      } else {
+        console.log(`[TRANSLATION] ${message}`);
+      }
+    }
   },
   error: (message: string, ...args: any[]) => {
-    console.error(`[TRANSLATION ERROR] ${message}`, ...args);
+    const validArgs = args.filter(arg => arg !== null && arg !== undefined);
+    if (validArgs.length > 0) {
+      console.error(`[TRANSLATION ERROR] ${message}`, ...validArgs);
+    } else {
+      console.error(`[TRANSLATION ERROR] ${message}`);
+    }
   },
   debug: (message: string, ...args: any[]) => {
-    if (__DEV__) console.log(`[TRANSLATION DEBUG] ${message}`, ...args);
+    const validArgs = args.filter(arg => arg !== null && arg !== undefined);
+    if (__DEV__) {
+      if (validArgs.length > 0) {
+        console.log(`[TRANSLATION DEBUG] ${message}`, ...validArgs);
+      } else {
+        console.log(`[TRANSLATION DEBUG] ${message}`);
+      }
+    }
   },
 };
 

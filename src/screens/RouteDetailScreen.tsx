@@ -42,6 +42,10 @@ import {
   formatRecordingStatsDisplay,
 } from '../utils/routeUtils';
 import { RouteExerciseList, ExerciseDetailModal } from '../components';
+// Tour imports disabled to prevent performance issues
+// import { useTourTarget } from '../components/TourOverlay';
+// import { useScreenTours } from '../utils/screenTours';
+// import { useTour } from '../contexts/TourContext';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type RouteRow = Database['public']['Tables']['routes']['Row'];
@@ -197,6 +201,16 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
   // Exercise detail modal state - Removed, now navigates directly to RouteExerciseScreen
 
+  // Tour targets disabled for RouteDetailScreen to prevent performance issues
+  // const saveButtonRef = useTourTarget('RouteDetailScreen.SaveButton');
+  // const exercisesCardRef = useTourTarget('RouteDetailScreen.ExercisesCard');
+  // const mapCardRef = useTourTarget('RouteDetailScreen.MapCard');
+  // const reviewsSectionRef = useTourTarget('RouteDetailScreen.ReviewsSection');
+
+  // Screen tours integration disabled
+  // const { triggerScreenTour } = useScreenTours();
+  // const tourContext = useTour();
+
   useEffect(() => {
     if (routeId) {
       const loadData = async () => {
@@ -209,6 +223,10 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           }
           // Track route view
           await AppAnalytics.trackRouteView(routeId);
+          
+          // RouteDetailScreen tours disabled due to performance issues
+          // TODO: Re-enable after fixing tour target registration issues
+          
         } catch (error) {
           console.error('Error loading route data:', error);
           setError(error instanceof Error ? error.message : 'Failed to load route data');
@@ -218,14 +236,17 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       };
       loadData();
     }
-  }, [routeId, user]);
+  }, [routeId, user]); // Removed tour dependencies
 
+  // Separate useEffect to prevent multiple tour triggers
   useEffect(() => {
     loadRouteData();
     checkSavedStatus();
     checkDrivenStatus();
     loadReviews();
-
+  }, [routeId]);
+  
+  useEffect(() => {
     // Listen for navigation focus events
     const unsubscribe = navigation.addListener('focus', () => {
       // Check if we need to refresh data
@@ -250,7 +271,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     });
 
     return unsubscribe;
-  }, [routeId]);
+  }, [navigation]);
 
   useEffect(() => {
     const checkAdminStatus = async () => {

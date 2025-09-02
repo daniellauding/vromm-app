@@ -11,6 +11,8 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTourTarget } from './TourOverlay';
+import { useTour } from '../contexts/TourContext';
 
 interface LearningPath {
   id: string;
@@ -171,6 +173,24 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     actor_name: string | null;
     created_at: string;
   } | null>(null);
+
+  // Register first progress card for tour targeting
+  const firstProgressCardRef = useTourTarget('ProgressSection.FirstCard');
+  const { isActive: tourActive, currentStep, steps } = useTour();
+  
+  // Helper function to check if ProgressSection should be highlighted
+  const isProgressSectionHighlighted = (): boolean => {
+    if (!tourActive || typeof currentStep !== 'number' || !steps[currentStep]) return false;
+    const step = steps[currentStep];
+    return step.targetElement === 'ProgressSection.FirstCard';
+  };
+  
+  // Debug tour registration  
+  useEffect(() => {
+    if (firstProgressCardRef?.current) {
+      console.log('🎯 [ProgressSection] First card ref registered successfully');
+    }
+  }, [firstProgressCardRef]);
 
   // Add filter state (same as ProgressScreen)
   const [categoryFilters, setCategoryFilters] = useState<Record<CategoryType, string>>({
@@ -467,7 +487,24 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   }
 
   return (
-    <YStack space="$4">
+    <YStack 
+      space="$4"
+      style={[
+        // ✅ Tour highlighting for entire ProgressSection when active
+        isProgressSectionHighlighted() && {
+          borderWidth: 3,
+          borderColor: '#00E6C3',
+          borderRadius: 16,
+          padding: 8,
+          backgroundColor: 'rgba(0, 230, 195, 0.1)',
+          shadowColor: '#00E6C3',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.6,
+          shadowRadius: 12,
+          elevation: 8,
+        },
+      ]}
+    >
       <SectionHeader
         title={t('home.yourProgress') || 'Your Progress'}
         variant="chevron"
@@ -488,16 +525,18 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       )}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <XStack space="$3" paddingHorizontal="$4">
-          {filteredPaths.map((path) => {
+          {filteredPaths.map((path, index) => {
             const isActive = activePath === path.id;
             const percent = getPathProgress(path);
             // Allow all paths to be clickable - no order restriction
             const isEnabled = true;
             // Visual highlight for paths with progress
             const isNextToUnlock = percent > 0 && percent < 1;
+            const isFirstCard = index === 0;
             return (
               <TouchableOpacity
                 key={path.id}
+                ref={isFirstCard ? firstProgressCardRef : undefined}
                 onPress={() => isEnabled && handlePathPress(path)}
                 activeOpacity={isEnabled ? 0.8 : 1}
                 style={{

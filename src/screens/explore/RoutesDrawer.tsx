@@ -131,14 +131,13 @@ const styles = StyleSheet.create({
   },
 });
 
-export function RoutesDrawer({
-  selectedRoute,
-  filteredRoutes,
-}: {
+import React from 'react';
+
+export const RoutesDrawer = React.forwardRef<View, {
   selectedRoute: Route | null;
   filteredRoutes: Route[];
   loadRoutes: () => void;
-}) {
+}>(({ selectedRoute, filteredRoutes }, ref) => {
   const { t } = useTranslation();
   const scrollOffset = useRef(0);
   const { height: screenHeight } = Dimensions.get('window');
@@ -240,6 +239,7 @@ export function RoutesDrawer({
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View
+        ref={ref}
         style={[
           styles.bottomSheet,
           {
@@ -265,4 +265,6 @@ export function RoutesDrawer({
       </Animated.View>
     </GestureDetector>
   );
-}
+});
+
+RoutesDrawer.displayName = 'RoutesDrawer';

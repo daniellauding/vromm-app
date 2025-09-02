@@ -31,7 +31,7 @@ export function OnboardingModalInteractive({
     React.useCallback(() => {
       // If we were temporarily closed and the screen comes back into focus, reopen
       if (isTemporarilyClosed && visible) {
-        console.log('🎯 [OnboardingModal] Screen focused - reopening modal');
+        // Screen focused - reopening modal
         setIsTemporarilyClosed(false);
       }
     }, [isTemporarilyClosed, visible])
@@ -116,14 +116,8 @@ export function OnboardingModalInteractive({
     setIsTemporarilyClosed(false);
   };
 
-  console.log('🎯 [OnboardingModalInteractive] Render check:', {
-    visible,
-    isTemporarilyClosed,
-    shouldRender: visible && !isTemporarilyClosed
-  });
-  
+  // Render check without excessive logging to prevent console flooding
   if (!visible || isTemporarilyClosed) {
-    console.log('🎯 [OnboardingModalInteractive] Not rendering - visible:', visible, 'isTemporarilyClosed:', isTemporarilyClosed);
     return null;
   }
 
@@ -141,7 +135,7 @@ export function OnboardingModalInteractive({
     );
   }
 
-  console.log('🎯 [OnboardingModalInteractive] RENDERING MODAL');
+  // Rendering OnboardingModalInteractive
   
   return (
     <Modal visible={visible} transparent animationType="fade">

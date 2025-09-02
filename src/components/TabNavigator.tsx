@@ -46,6 +46,8 @@ import { useTranslation as useAppTranslation } from '../contexts/TranslationCont
 import { messageService } from '../services/messageService';
 import { notificationService } from '../services/notificationService';
 import { supabase } from '../lib/supabase';
+// Screen tours import DISABLED
+// import { useScreenTours } from '../utils/screenTours';
 
 // Import screens
 import { HomeScreen } from '../screens/HomeScreen';
@@ -54,8 +56,9 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { PublicProfileScreen } from '../screens/PublicProfileScreen';
 import { ProgressScreen } from '../screens/ProgressScreen';
 import { useAuth } from '../context/AuthContext';
+// Tour imports partially re-enabled for HomeScreen tours only
 import { useTour } from '../contexts/TourContext';
-import { TourOverlay, useTourTarget } from './TourOverlay';
+import { useTourTarget } from './TourOverlay';
 import { UsersScreen } from '../screens/UsersScreen';
 import { RouteDetailScreen } from '../screens/RouteDetailScreen';
 import { MessagesScreen } from '../screens/MessagesScreen';
@@ -146,6 +149,7 @@ const HamburgerDrawer = ({
   onOpenBuyCoffee,
   onOpenAbout,
   onOpenLanguage,
+  onStartTour,
   unreadMessageCount,
   unreadNotificationCount,
   unreadEventCount,
@@ -162,6 +166,7 @@ const HamburgerDrawer = ({
   onOpenBuyCoffee: () => void;
   onOpenAbout: () => void;
   onOpenLanguage: () => void;
+  onStartTour: () => void;
   unreadMessageCount: number;
   unreadNotificationCount: number;
   unreadEventCount: number;
@@ -351,6 +356,18 @@ const HamburgerDrawer = ({
       label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee',
       action: () => onOpenBuyCoffeeLocal(),
     },
+    // { 
+    //   icon: 'help-circle', 
+    //   label: 'Start Tour', 
+    //   action: () => {
+    //     console.log('[Drawer] Start Tour tapped');
+    //     onClose();
+    //     // Small delay to let drawer close, then start tour for current screen
+    //     setTimeout(() => {
+    //       onStartTour();
+    //     }, 300);
+    //   }
+    // }, // DISABLED: Tours causing performance issues
     { icon: 'share', label: t('drawer.shareApp') || 'Share App', action: () => onShareApp() },
     { icon: 'info', label: t('drawer.about') || 'About', action: () => onOpenAboutLocal() },
     {
@@ -540,13 +557,13 @@ const HamburgerDrawer = ({
   );
 };
 
-// Custom tab bar button component with color scheme support and tour highlighting
+// Custom tab bar button component with color scheme support and HomeScreen tour highlighting
 const CustomTabBarButton = (props: BottomTabBarButtonProps & { isHighlighted?: boolean; tourTargetId?: string }) => {
   const { accessibilityState, children, onPress, style, isHighlighted, tourTargetId } = props;
   const isSelected = accessibilityState?.selected;
   const colorScheme = useColorScheme();
   
-  // Register this button for tour targeting if tourTargetId is provided
+  // Register this button for tour targeting (HomeScreen tours only)  
   const tourRef = tourTargetId ? useTourTarget(tourTargetId) : null;
 
   return (
@@ -575,16 +592,9 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps & { isHighlighted?: b
             backgroundColor:
               colorScheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(105,227,196,0.15)',
           },
-          // ✅ Tour highlighting
+          // ✅ Simplified tour highlighting - let TourOverlay handle main highlight
           isHighlighted && {
-            backgroundColor: 'rgba(0, 230, 195, 0.3)',
-            borderWidth: 2,
-            borderColor: '#00E6C3',
-            shadowColor: '#00E6C3',
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.8,
-            shadowRadius: 8,
-            elevation: 8,
+            backgroundColor: 'rgba(0, 230, 195, 0.15)',
           },
         ]}
       >
@@ -609,10 +619,14 @@ export function TabNavigator() {
   const theme = useTheme();
   const { showModal } = useModal();
   const { language, setLanguage } = useAppTranslation();
+  const { user } = useAuth();
   const createRouteContext = useCreateRoute();
-  const { isActive: tourActive, currentStep, steps, nextStep, prevStep, endTour } = useTour();
+  // Tour context RE-ENABLED for HomeScreen tours only
+  const { isActive: tourActive, currentStep, steps, nextStep, prevStep, endTour, startDatabaseTour, resetTour, startCustomTour } = useTour();
+  // Screen tours still DISABLED
+  // const { triggerScreenTour } = useScreenTours();
   
-  // Helper function to check if a tab should be highlighted during tour
+  // Helper function to check if a tab should be highlighted during tour - RE-ENABLED for HomeScreen
   const isTabHighlighted = (tabTarget: string): boolean => {
     if (!tourActive || typeof currentStep !== 'number' || !steps[currentStep]) return false;
     const step = steps[currentStep];
@@ -667,6 +681,49 @@ export function TabNavigator() {
   // Track navigation state changes
   const navigationState = useNavigationState((state) => state);
   const prevRouteRef = React.useRef<string | null>(null);
+
+  // HomeScreen tours RE-ENABLED, others disabled to prevent console flooding
+  const handleStartTourForCurrentScreen = async () => {
+    try {
+      // Get current route name from navigation state
+      const getCurrentRouteName = (navState: any): string | null => {
+        if (!navState) return null;
+        const route = navState.routes[navState.index];
+        if (!route) return null;
+        if (route.state) {
+          return getCurrentRouteName(route.state);
+        }
+        return route.name;
+      };
+
+      const currentRouteName = getCurrentRouteName(navigationState);
+
+      // Get user profile for role
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user?.id)
+        .single();
+
+      const userRole = userProfile?.role || 'student';
+
+      // Start HomeScreen tours if we're on HomeScreen (detect better)
+      const isOnHomeScreen = currentRouteName === 'HomeScreen' || 
+                            (currentRouteName === 'MainTabs' && 
+                             navigationState?.routes?.[navigationState.index]?.name === 'HomeTab');
+      
+      if (isOnHomeScreen || !currentRouteName) {
+        await resetTour();
+        setTimeout(() => {
+          startDatabaseTour('HomeScreen', userRole);
+        }, 500);
+      } else {
+        console.log('[TabNavigator] Non-HomeScreen tours disabled:', currentRouteName);
+      }
+    } catch (error) {
+      console.error('[TabNavigator] Error starting HomeScreen tour:', error);
+    }
+  };
 
   // Badge counts state for main component
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
@@ -728,14 +785,14 @@ export function TabNavigator() {
       setTotalBadgeCount(total);
 
       console.log('📊 Menu badge calculation:', {
-        total,
+        newEvents,
         newMessages,
         newNotifications,
-        newEvents,
+        total,
         seen: {
+          events: seenEventCountRef.current,
           messages: seenMessageCountRef.current,
           notifications: seenNotificationCountRef.current,
-          events: seenEventCountRef.current,
         },
       });
     } catch (error) {
@@ -1010,20 +1067,19 @@ export function TabNavigator() {
   };
 
   useEffect(() => {
-    logInfo('TabNavigator mounted', { colorScheme });
+    // TabNavigator mounted
 
     // Set up global navigation handler for route recording with context support
     (global as any).navigateToCreateRoute = (routeData: any) => {
-      console.log('🌐 Global navigation handler called with route data from TabNavigator');
       handleCreateRoute(routeData);
     };
 
     return () => {
-      logInfo('TabNavigator unmounted');
+      // TabNavigator unmounted
       // Clean up global handler
       delete (global as any).navigateToCreateRoute;
     };
-  }, [colorScheme, handleCreateRoute]);
+  }, [colorScheme]); // Removed handleCreateRoute dependency to prevent recreating
 
   // Navigation listener to hide tab bar on specific screens
   useEffect(() => {
@@ -1080,13 +1136,13 @@ export function TabNavigator() {
         ]);
         if (menuScreens.has(screen)) {
           setActiveMenuScreen(screen);
-          console.log('[NAV][Drawer] → MainTabs > MenuTab >', screen, params || null);
+          console.log('[NAV][Drawer] → MainTabs > MenuTab >', screen, params || '(no params)');
           (navigation as any).navigate('MainTabs', {
             screen: 'MenuTab',
             params: { screen, params },
           });
         } else {
-          console.log('[NAV] → MainTabs > HomeTab >', screen, params || null);
+          console.log('[NAV] → MainTabs > HomeTab >', screen, params || '(no params)');
           (navigation as any).navigate('MainTabs', {
             screen: 'HomeTab',
             params: { screen, params },
@@ -1119,7 +1175,7 @@ export function TabNavigator() {
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    zIndex: 100,
+    zIndex: 50, // ✅ Reduced from 100 to be below tour overlay (z-index: 10000)
   } as const;
 
   const screenOptions: import('@react-navigation/bottom-tabs').BottomTabNavigationOptions = {
@@ -1229,7 +1285,7 @@ export function TabNavigator() {
             title: '',
             tabBarLabel: '',
             tabBarButton: (props: BottomTabBarButtonProps) => {
-              const isHighlighted = isTabHighlighted('CreateRouteTab');
+              const isHighlighted = isTabHighlighted('CreateRouteTab'); // Tour highlighting enabled for HomeScreen tours
               const createRouteRef = useTourTarget('CreateRouteTab');
               return (
                 <View style={props.style as ViewStyle}>
@@ -1263,14 +1319,8 @@ export function TabNavigator() {
                         borderWidth: colorScheme === 'light' ? 2 : 0,
                         borderColor: colorScheme === 'light' ? '#FFFFFF' : 'transparent',
                       },
-                      // ✅ Tour highlighting for create button
+                      // ✅ Simplified tour highlighting - let TourOverlay handle main highlight
                       isHighlighted && {
-                        borderWidth: 3,
-                        borderColor: '#00E6C3',
-                        shadowColor: '#00E6C3',
-                        shadowOpacity: 0.8,
-                        shadowRadius: 12,
-                        elevation: 12,
                         backgroundColor: '#00E6C3',
                       },
                     ]}
@@ -1322,7 +1372,7 @@ export function TabNavigator() {
             title: '',
             tabBarLabel: '',
             tabBarButton: (props: BottomTabBarButtonProps) => {
-              const isHighlighted = isTabHighlighted('MenuTab');
+              const isHighlighted = isTabHighlighted('MenuTab'); // Tour highlighting enabled for HomeScreen tours
               const menuRef = useTourTarget('MenuTab');
               return (
                 <View style={[
@@ -1363,16 +1413,9 @@ export function TabNavigator() {
                         borderRadius: 12,
                         position: 'relative',
                       },
-                      // ✅ Tour highlighting
+                      // ✅ Simplified tour highlighting - let TourOverlay handle main highlight
                       isHighlighted && {
-                        backgroundColor: 'rgba(0, 230, 195, 0.3)',
-                        borderWidth: 2,
-                        borderColor: '#00E6C3',
-                        shadowColor: '#00E6C3',
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 0.8,
-                        shadowRadius: 8,
-                        elevation: 8,
+                        backgroundColor: 'rgba(0, 230, 195, 0.15)',
                       },
                     ]}
                   >
@@ -1450,6 +1493,7 @@ export function TabNavigator() {
         onOpenBuyCoffee={() => setShowBuyCoffee(true)}
         onOpenAbout={() => setShowAboutWebView(true)}
         onOpenLanguage={() => setShowLanguageSheet(true)}
+        onStartTour={handleStartTourForCurrentScreen}
         unreadMessageCount={unreadMessageCount}
         unreadNotificationCount={unreadNotificationCount}
         unreadEventCount={unreadEventCount}
@@ -1562,9 +1606,7 @@ export function TabNavigator() {
         </View>
       )}
 
-      {/* Tour Overlay - Shows tour tooltips */}
-      {/* NEW: Advanced Tour Overlay with accurate positioning and theming */}
-      <TourOverlay />
+      {/* Tour Overlay moved to app root level for proper DOM hierarchy */}
     </View>
   );
 }

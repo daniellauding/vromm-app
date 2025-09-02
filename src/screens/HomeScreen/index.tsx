@@ -16,6 +16,8 @@ import { shouldShowInteractiveOnboarding } from '../../components/OnboardingInte
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useTour } from '../../contexts/TourContext';
 import { ProgressSection } from '../../components/ProgressSection';
+// Conditional tours still DISABLED to prevent flooding
+// import { useConditionalTours } from '../../utils/conditionalTours';
 import { PromotionalModal, usePromotionalModal } from '../../components/PromotionalModal';
 import type { FilterCategory } from '../../types/navigation';
 import { SectionHeader } from '../../components/SectionHeader';
@@ -51,11 +53,14 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
-  const { startDatabaseTour, shouldShowTour } = useTour();
+  const tourContext = useTour();
+  const { startDatabaseTour, shouldShowTour } = tourContext;
+  // Conditional tours still DISABLED
+  // const { triggerConditionalTour } = useConditionalTours();
   const { showModal, modalContentType, setShowModal, checkForPromotionalContent } = usePromotionalModal();
   
   // Debug state for development
@@ -64,24 +69,13 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   // Use the effective user ID (either activeUserId prop, activeStudentId from context, or current user id)
   const effectiveUserId = activeUserId || getEffectiveUserId();
 
-  // Debug logging for HomeScreen
-  console.log('📱 [HomeScreen] Current user:', user?.id, user?.email);
-  console.log('📱 [HomeScreen] Active user ID prop:', activeUserId);
-  console.log('📱 [HomeScreen] Effective user ID:', effectiveUserId);
-  console.log('📱 [HomeScreen] Is viewing as student:', isViewingAsStudent);
-  console.log('📱 [HomeScreen] Active student name:', activeStudentName);
+  // Reduced logging to prevent console flooding
 
   // State declarations
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isFirstLogin, setIsFirstLogin] = useState(false);
   
-  // Debug state
-  console.log('🎯 [HomeScreen] Current state:', {
-    showOnboarding,
-    isFirstLogin,
-    hasUser: !!user,
-    userId: user?.id
-  });
+  // State tracking without excessive logging
 
   // Check if this is the first login and should show onboarding
   useEffect(() => {
@@ -122,60 +116,70 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
     }
   }, [user]);
 
-  // Check if tour should be shown after onboarding is complete
+  // Check if tour should be shown after onboarding is complete (RE-ENABLED for HomeScreen)
   useEffect(() => {
+    let isMounted = true;
+    
     const checkTour = async () => {
       // Only show tour if user exists, onboarding is NOT showing, and no promotional modal
-      if (user && !showOnboarding && !showModal) {
-        console.log('🎯 [HomeScreen] Checking if tour should show...');
+      if (user && !showOnboarding && !showModal && isMounted) {
         const shouldShow = await shouldShowTour();
-        console.log('🎯 [HomeScreen] Should show tour:', shouldShow);
         
-        if (shouldShow) {
-          console.log('🎯 [HomeScreen] Starting database tour...');
-          // Start database tour after a longer delay to ensure UI is fully ready and no other modals are showing
+        if (shouldShow && isMounted) {
+          // Start database tour after a delay to ensure UI is fully ready
           setTimeout(() => {
-            // Double-check that no onboarding or promotional modal is showing
-            if (!showModal && !showOnboarding) {
-              console.log('🎯 [HomeScreen] All clear - starting tour now');
-              startDatabaseTour();
-            } else {
-              console.log('🎯 [HomeScreen] Tour delayed - modal is showing:', { showModal, showOnboarding });
+            // Double-check that no onboarding or promotional modal is showing and component is still mounted
+            if (!showModal && !showOnboarding && isMounted) {
+              startDatabaseTour('HomeScreen', profile?.role);
             }
-          }, 2000); // 2 second delay after onboarding closes
-        } else {
-          console.log('🎯 [HomeScreen] Tour already completed, not showing');
+          }, 2000);
         }
-      } else {
-        console.log('🎯 [HomeScreen] Tour check skipped:', { hasUser: !!user, showOnboarding, showModal });
       }
     };
 
-    checkTour();
-  }, [user, showOnboarding, showModal, shouldShowTour, startDatabaseTour]);
+    // Add a small delay to prevent immediate execution on every render
+    const timer = setTimeout(() => {
+      if (isMounted) {
+        checkTour();
+      }
+    }, 100);
 
-  // Retry tour when modal closes (onboarding or promotional)
-  useEffect(() => {
-    if (user && !showOnboarding && !showModal) {
-      // If modal just closed, check if we should start the tour
-      const retryTour = async () => {
-        const shouldShow = await shouldShowTour();
-        if (shouldShow) {
-          console.log('🎯 [HomeScreen] Retrying tour after modal closed');
-          setTimeout(() => {
-            // Final check before starting tour
-            if (!showModal && !showOnboarding) {
-              console.log('🎯 [HomeScreen] Starting tour on retry');
-              startDatabaseTour();
-            }
-          }, 1000);
-        }
-      };
-      
-      // Small delay to let modal close animation complete
-      setTimeout(retryTour, 500);
-    }
-  }, [showModal, showOnboarding]); // Trigger when either modal state changes
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [user?.id, showOnboarding, showModal, shouldShowTour, startDatabaseTour]); // Re-enabled dependencies
+
+  // Retry tour when modal closes - consolidated with above effect to prevent conflicts
+
+  // Conditional tours DISABLED to prevent console flooding
+  // useEffect(() => {
+  //   let isMounted = true;
+  //   let timeoutId: NodeJS.Timeout;
+  //   
+  //   const checkConditionalTours = async () => {
+  //     try {
+  //       if (user && !showOnboarding && !showModal && isMounted) {
+  //         timeoutId = setTimeout(async () => {
+  //           if (isMounted) {
+  //             await triggerConditionalTour(user.id, tourContext, profile?.role || 'student');
+  //           }
+  //         }, 8000);
+  //       }
+  //     } catch (error) {
+  //       console.error('Error checking conditional tours:', error);
+  //     }
+  //   };
+  // 
+  //   checkConditionalTours();
+  // 
+  //   return () => {
+  //     isMounted = false;
+  //     if (timeoutId) {
+  //       clearTimeout(timeoutId);
+  //     }
+  //   };
+  // }, [user?.id, showOnboarding, showModal]);
 
   // Debug functions for testing onboarding
   const handleResetAllOnboarding = async () => {
@@ -269,14 +273,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
       {/* Interactive Onboarding Modal */}
-      {/* Debug onboarding state */}
-      {console.log('🎯 [HomeScreen] Rendering OnboardingModalInteractive:', {
-        visible: showOnboarding,
-        forceShow: isFirstLogin,
-        component: 'OnboardingModalInteractive',
-        user: !!user,
-        userId: user?.id
-      })}
+      {/* Onboarding modal without debug logging */}
       
       <OnboardingModalInteractive
         visible={showOnboarding}

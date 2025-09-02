@@ -4,7 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { findNodeHandle, UIManager, Platform } from 'react-native';
 
-interface TourStep {
+// FEATURE FLAGS: Selective tour enabling to prevent performance issues
+const TOURS_GLOBALLY_ENABLED = false;
+const HOMESCREEN_TOURS_ENABLED = true; // HomeScreen tours work fine
+
+export interface TourStep {
   id: string;
   title: string;
   content: string;
@@ -25,7 +29,8 @@ interface TourContextType {
   currentStep: number;
   steps: TourStep[];
   startTour: (steps?: TourStep[]) => void;
-  startDatabaseTour: () => Promise<void>;
+  startDatabaseTour: (screenContext?: string, userRole?: string) => Promise<void>;
+  startCustomTour: (customSteps: TourStep[], tourKey?: string) => void;
   nextStep: () => void;
   prevStep: () => void;
   endTour: () => void;
@@ -52,7 +57,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
   // Function to register element for tour targeting
   const registerElement = useCallback((targetId: string, ref: any) => {
-    console.log(`🎯 [TourContext] Registering element: ${targetId}`);
     elementRefs.current.set(targetId, ref);
   }, []);
 
@@ -62,7 +66,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       const ref = elementRefs.current.get(targetId);
       
       if (!ref || !ref.current) {
-        console.log(`🎯 [TourContext] Element ref not found: ${targetId}`);
         resolve(null);
         return;
       }
@@ -71,7 +74,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         // Use React Native's measurement API
         ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
           const coords = { x, y, width, height };
-          console.log(`🎯 [TourContext] Measured element ${targetId}:`, coords);
           resolve(coords);
         });
       } catch (error) {
@@ -98,7 +100,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const shouldShowTour = useCallback(async (): Promise<boolean> => {
     try {
       if (!user?.id) {
-        console.log('🎯 [TourContext] No user ID - showing tour');
+        // No user ID - showing tour without logging
         return true;
       }
 
@@ -125,27 +127,21 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
       const latestUpdate = data?.[0]?.updated_at;
 
-      console.log('🎯 [TourContext] User-based tour status check:', { 
-        userId: user.id,
-        userTourCompleted: profile?.tour_completed,
-        userContentHash: profile?.tour_content_hash,
-        latestUpdate,
-        contentUpdated: latestUpdate && profile?.tour_content_hash && latestUpdate !== profile?.tour_content_hash
-      });
+      // Tour status check completed without logging
 
       // Show tour if user never completed it
       if (!profile?.tour_completed) {
-        console.log('🎯 [TourContext] User has not completed tour - showing');
+        // User has not completed tour - showing without logging
         return true;
       }
 
       // Show tour if content has been updated since user last saw it
       if (latestUpdate && profile?.tour_content_hash && latestUpdate !== profile?.tour_content_hash) {
-        console.log('🎯 [TourContext] Tour content updated for user - showing');
+        // Tour content updated for user - showing without logging
         return true;
       }
 
-      console.log('🎯 [TourContext] User has completed current tour - not showing');
+      // User has completed current tour - not showing without logging
       return false;
     } catch (error) {
       console.error('Error checking tour status:', error);
@@ -164,9 +160,27 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const startDatabaseTour = useCallback(async () => {
-    console.log('🎯 [TourContext] Starting database tour...');
+  const startDatabaseTour = useCallback(async (screenContext?: string, userRole?: string) => {
+    // Only allow HomeScreen tours, disable others
+    if (!TOURS_GLOBALLY_ENABLED && screenContext !== 'HomeScreen') {
+      return;
+    }
+    
+    // Allow HomeScreen tours specifically
+    if (!TOURS_GLOBALLY_ENABLED && !HOMESCREEN_TOURS_ENABLED) {
+      return;
+    }
+    
     try {
+      // Get user profile for role filtering
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user?.id)
+        .single();
+      
+      const currentUserRole = userRole || profile?.role || 'student';
+
       const { data, error } = await supabase
         .from('content')
         .select('*')
@@ -174,29 +188,47 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         .eq('active', true)
         .order('order_index');
 
-      console.log('🎯 [TourContext] Database query result:', { 
-        error: error?.message, 
-        dataLength: data?.length,
-        data: data?.map(d => ({ id: d.id, title: d.title, target: d.target }))
-      });
+      // Database query completed without logging
 
       if (error) {
-        console.log('🎯 [TourContext] Database error, using fallback tour');
         throw error;
       }
 
       if (data && data.length > 0) {
-        // Filter for mobile platforms in JavaScript
-        const mobileContent = data.filter(item => {
+        // Filter for mobile platforms and appropriate tours based on context
+        const filteredContent = data.filter(item => {
           if (!item.platforms) return false;
           const platforms = typeof item.platforms === 'string' ? JSON.parse(item.platforms) : item.platforms;
-          return Array.isArray(platforms) && (platforms.includes('mobile') || platforms.includes('both'));
+          const isMobile = Array.isArray(platforms) && (platforms.includes('mobile') || platforms.includes('both'));
+          
+          if (!isMobile) return false;
+
+          // Filter out inappropriate tours based on user role
+          const isInstructorTour = item.key.includes('instructor') || item.key.includes('conditional');
+          const isScreenTour = item.key.includes('screen.') || item.key.includes('tab.');
+          
+          // Students should not see instructor tours
+          if (currentUserRole === 'student' && isInstructorTour) {
+            return false;
+          }
+
+          // For HomeScreen context, only show main mobile tours (not screen/conditional tours)
+          if (screenContext === 'HomeScreen') {
+            if (isScreenTour || isInstructorTour) {
+              return false;
+            }
+            // Only show basic mobile tours on HomeScreen
+            return item.key.startsWith('tour.mobile.') && !item.key.includes('screen') && !item.key.includes('conditional');
+          }
+
+          // For other screen contexts, allow screen-specific tours
+          return true;
         });
 
-        console.log('🎯 [TourContext] Filtered mobile content:', mobileContent.length);
+        // Content filtered without logging
 
-        if (mobileContent.length > 0) {
-          const dbSteps: TourStep[] = mobileContent.map((item) => ({
+        if (filteredContent.length > 0) {
+          const dbSteps: TourStep[] = filteredContent.map((item) => ({
             id: item.id,
             title: item.title?.en || 'Tour Step',
             content: item.body?.en || 'Tour content',
@@ -205,21 +237,18 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
             position: (item.category as any) || 'center',
           }));
           
-          console.log('🎯 [TourContext] Setting database tour steps:', dbSteps.length);
           setSteps(dbSteps);
           setCurrentStep(0);
           setIsActive(true);
-          console.log('🎯 [TourContext] Database tour activated!');
           return;
         }
       }
       
-      console.log('🎯 [TourContext] No mobile tour content found, using fallback');
       throw new Error('No mobile tour content in database');
     } catch (error) {
       console.error('Error loading tour from database:', error);
       // Fallback to default tour
-      console.log('🎯 [TourContext] Using fallback tour steps');
+              // Using fallback tour steps without logging
       const defaultSteps: TourStep[] = [
         {
           id: 'progress',
@@ -244,12 +273,21 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         },
       ];
       
-      console.log('🎯 [TourContext] Setting fallback tour steps:', defaultSteps.length);
       setSteps(defaultSteps);
       setCurrentStep(0);
       setIsActive(true);
-      console.log('🎯 [TourContext] Fallback tour activated!');
     }
+  }, []);
+
+  const startCustomTour = useCallback((customSteps: TourStep[], tourKey?: string) => {
+    // DISABLED: Custom tours cause console flooding (keep disabled even for HomeScreen)
+    if (!TOURS_GLOBALLY_ENABLED) {
+      return;
+    }
+    
+    setSteps(customSteps);
+    setCurrentStep(0);
+    setIsActive(true);
   }, []);
 
   const nextStep = useCallback(() => {
@@ -301,7 +339,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           console.error('🎯 [TourContext] Error saving tour completion to profile:', error);
         } else {
-          console.log('🎯 [TourContext] Tour completion saved to user profile:', user.id);
+          // Tour completion saved to user profile without logging
         }
       }
 
@@ -333,7 +371,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           console.error('🎯 [TourContext] Error resetting tour in profile:', error);
         } else {
-          console.log('🎯 [TourContext] Tour reset in user profile:', user.id);
+          // Tour reset in user profile without logging
         }
       }
       
@@ -351,6 +389,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     steps,
     startTour,
     startDatabaseTour,
+    startCustomTour,
     nextStep,
     prevStep,
     endTour,

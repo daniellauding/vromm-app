@@ -256,13 +256,13 @@ export function OnboardingInteractive({
     },
   ];
 
-  // Mark onboarding as viewed
+    // Mark onboarding as viewed
   const completeOnboarding = async () => {
     try {
       await completeOnboardingWithVersion(showAgainKey, user?.id);
       onDone();
     } catch (error) {
-      console.error('Error saving onboarding status:', error);
+      // Error saving onboarding status
       onDone();
     }
   };
@@ -303,7 +303,7 @@ export function OnboardingInteractive({
         }
 
         if (data) {
-          console.log('📊 [OnboardingInteractive] Raw database data:', data);
+          // Database categories loaded
           
           // Group by category and extract titles with proper language support
           const vehicles = data
@@ -350,14 +350,10 @@ export function OnboardingInteractive({
           setLicenseTypes(licenses);
           setExperienceLevels(experiences);
           
-          console.log('📊 [OnboardingInteractive] Setting experience levels from DB:', experiences);
+          // Experience levels set from database
           
           // Debug logging to see what we loaded
-          console.log('🚗 Loaded vehicle types:', vehicles);
-          console.log('🔧 Loaded transmission types:', transmissions);
-          console.log('📋 Loaded license types:', licenses);
-          console.log('🎓 Loaded experience levels:', experiences);
-          console.log('🎯 Current state values:', { vehicleType, transmissionType, licenseType, selectedExperienceLevel });
+          // Category options loaded from database
           
           // Set state to match the most recent is_default=true values from database
           const defaultVehicle = data
@@ -374,22 +370,18 @@ export function OnboardingInteractive({
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           
           if (defaultVehicle && defaultVehicle.value !== vehicleType) {
-            console.log('🚗 Setting vehicle type to default:', defaultVehicle.value);
             setVehicleType(defaultVehicle.value);
           }
           
           if (defaultTransmission && defaultTransmission.value !== transmissionType) {
-            console.log('🔧 Setting transmission type to default:', defaultTransmission.value);
             setTransmissionType(defaultTransmission.value);
           }
           
           if (defaultLicense && defaultLicense.value !== licenseType) {
-            console.log('📋 Setting license type to default:', defaultLicense.value);
             setLicenseType(defaultLicense.value);
           }
           
           if (defaultExperience && defaultExperience.value !== selectedExperienceLevel) {
-            console.log('🎓 Setting experience level to default:', defaultExperience.value);
             setSelectedExperienceLevel(defaultExperience.value);
           }
         }
@@ -466,7 +458,7 @@ export function OnboardingInteractive({
   const viewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
       if (viewableItems[0] && viewableItems[0].index !== null) {
-        console.log('📺 [OnboardingInteractive] Slide visible changed to index:', viewableItems[0].index);
+        // Slide visible changed without excessive logging
         setCurrentIndex(viewableItems[0].index);
       }
     },
@@ -475,21 +467,12 @@ export function OnboardingInteractive({
   const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
   const scrollTo = (index: number) => {
-    console.log('📜 [OnboardingInteractive] scrollTo called with index:', index, 'steps length:', steps.length);
     if (slidesRef.current && index >= 0 && index < steps.length) {
-      console.log('📜 [OnboardingInteractive] Executing scrollToIndex:', index);
       slidesRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
       // Force update current index after animation
       setTimeout(() => {
-        console.log('📜 [OnboardingInteractive] Setting currentIndex to:', index);
         setCurrentIndex(index);
       }, 100);
-    } else {
-      console.error('📜 [OnboardingInteractive] Invalid scrollTo parameters:', {
-        hasRef: !!slidesRef.current,
-        index,
-        stepsLength: steps.length
-      });
     }
   };
 
@@ -500,13 +483,10 @@ export function OnboardingInteractive({
   };
 
   const nextSlide = () => {
-    console.log('➡️ [OnboardingInteractive] nextSlide called, current index:', currentIndex, 'total steps:', steps.length);
     if (currentIndex < steps.length - 1) {
       const nextIndex = currentIndex + 1;
-      console.log('➡️ [OnboardingInteractive] Moving to slide:', nextIndex);
       scrollTo(nextIndex);
     } else {
-      console.log('➡️ [OnboardingInteractive] Last slide reached, completing onboarding');
       completeOnboarding();
     }
   };
@@ -520,20 +500,19 @@ export function OnboardingInteractive({
   };
 
   const handleSkipStep = (step: OnboardingStep) => {
-    console.log('⏭️ [OnboardingInteractive] Skipping step:', step.id);
     setSkippedSteps((prev) => new Set(prev).add(step.id));
     nextSlide();
   };
 
   const handleLocationPermission = async () => {
     if (locationStatus === 'granted') {
-      console.log('🎯 [OnboardingInteractive] Location already granted, skipping');
+      // Location already granted
       return;
     }
     
     try {
       setLocationLoading(true);
-      console.log('🎯 [OnboardingInteractive] Requesting location permission');
+      // Requesting location permission
       
       // Check current permission status first
       const currentStatus = await Location.getForegroundPermissionsAsync();
@@ -561,7 +540,7 @@ export function OnboardingInteractive({
         // User can still select city manually
       }
     } catch (error) {
-      console.error('🎯 [OnboardingInteractive] Error requesting location permission:', error);
+      console.error('Error requesting location permission:', error);
       setLocationStatus('denied');
     } finally {
       setLocationLoading(false);
@@ -574,7 +553,7 @@ export function OnboardingInteractive({
       try {
         location = await Location.getCurrentPositionAsync({});
       } catch (locationError) {
-        console.log('🎯 [OnboardingInteractive] Location failed, using Lund, Sweden fallback for simulator');
+        // Location failed, using Lund, Sweden fallback for simulator
         // Fallback location for simulator - Lund, Sweden
         location = {
           coords: {
@@ -602,9 +581,9 @@ export function OnboardingInteractive({
         timestamp: new Date().toISOString(),
       });
       
-      console.log('🎯 [OnboardingInteractive] Location detected and set:', cityName);
+      // Location detected and set
     } catch (error) {
-      console.error('🎯 [OnboardingInteractive] Error detecting location:', error);
+      console.error('Error detecting location:', error);
     }
   };
 
@@ -660,11 +639,8 @@ export function OnboardingInteractive({
   };
 
   const hideConnectionsModal = useCallback(() => {
-    console.log('🔒 [OnboardingInteractive] Hiding connections modal, current state:', showConnectionsDrawer);
-    
     // Prevent multiple calls during animation
     if (!showConnectionsDrawer) {
-      console.log('🔒 [OnboardingInteractive] Modal already hidden, skipping');
       return;
     }
 
@@ -685,7 +661,7 @@ export function OnboardingInteractive({
         // Only clear search, keep selections for the main slide
         setConnectionSearchQuery('');
         setSearchResults([]);
-        console.log('🔒 [OnboardingInteractive] Connections modal hidden successfully');
+        // Connections modal hidden successfully
         // Don't clear selections - they should persist for the save button
       }, 10);
     });
@@ -815,7 +791,7 @@ export function OnboardingInteractive({
           });
 
           // Don't auto-advance - let user click save button
-          console.log('City saved successfully, waiting for user to click save button');
+          // City saved successfully, waiting for user to save
         }
       } catch (err) {
         console.error('Error saving city:', err);
@@ -941,9 +917,7 @@ export function OnboardingInteractive({
         setCompletedSteps((prev) => new Set(prev).add('license_plan'));
         checkStepCompletions();
         // Auto-advance to next slide after saving
-        console.log('💾 [OnboardingInteractive] License plan saved, advancing to next slide');
         setTimeout(() => {
-          console.log('💾 [OnboardingInteractive] Timeout executed, calling nextSlide');
           nextSlide();
         }, 200); // Increased delay to ensure proper state updates
       }
@@ -1191,10 +1165,7 @@ export function OnboardingInteractive({
   };
 
   const renderLicensePlanStep = (item: OnboardingStep) => {
-    console.log('📝 [OnboardingInteractive] Rendering license plan step');
-    
-    // Use database experience levels - force show if empty for debugging
-    console.log('🎓 [OnboardingInteractive] Available experience levels from DB:', experienceLevels);
+    // Render license plan step without excessive logging
     
     const availableExperienceLevels = experienceLevels.length > 0 ? experienceLevels : [
       { id: 'beginner', title: 'Beginner (Fallback)', description: 'Just starting out' },
@@ -1272,7 +1243,6 @@ export function OnboardingInteractive({
 
             {/* Save Button */}
             <Button variant="primary" size="lg" onPress={() => {
-              console.log('💾 [OnboardingInteractive] Save button pressed');
               handleSaveLicensePlan();
             }} marginTop="$4">
               Save My Preferences
@@ -1281,7 +1251,6 @@ export function OnboardingInteractive({
             {/* Skip Button */}
             {item.skipButton && (
               <Button variant="link" size="md" onPress={() => {
-                console.log('⏭️ [OnboardingInteractive] Skip button pressed for step:', item.id);
                 handleSkipStep(item);
               }} marginTop="$2">
                 {item.skipButton}
@@ -1536,8 +1505,7 @@ export function OnboardingInteractive({
   };
 
   const renderStep = ({ item, index }: { item: OnboardingStep; index: number }) => {
-    console.log('🎨 [OnboardingInteractive] Rendering step:', item.id, 'at index:', index);
-    console.log('🎨 [OnboardingInteractive] Current slide index:', currentIndex, 'vs rendering index:', index);
+    // Render step without excessive logging to prevent console flooding
     const isCompleted = completedSteps.has(item.id);
     const isSkipped = skippedSteps.has(item.id);
 
@@ -1574,7 +1542,6 @@ export function OnboardingInteractive({
         >
           <TouchableOpacity
             onPress={() => {
-              console.log('Back button pressed, going to index:', currentIndex - 1);
               scrollTo(currentIndex - 1);
             }}
             style={{
@@ -1597,7 +1564,6 @@ export function OnboardingInteractive({
         pagingEnabled
         bounces={false}
         onScroll={(event) => {
-          console.log('📜 [OnboardingInteractive] Scroll event offset:', event.nativeEvent.contentOffset.x);
           handleScroll(event);
         }}
         onViewableItemsChanged={viewableItemsChanged}
@@ -1612,9 +1578,7 @@ export function OnboardingInteractive({
           offset: width * index,
           index,
         })}
-        onScrollBeginDrag={() => console.log('📜 [OnboardingInteractive] Scroll begin drag')}
-        onScrollEndDrag={() => console.log('📜 [OnboardingInteractive] Scroll end drag')}
-        onMomentumScrollEnd={() => console.log('📜 [OnboardingInteractive] Momentum scroll end')}
+        // Scroll events without excessive logging
         style={{ flex: 1, height: '100%' }}
         contentContainerStyle={{ height: '100%' }}
       />
