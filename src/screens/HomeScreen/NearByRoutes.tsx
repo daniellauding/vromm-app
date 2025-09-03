@@ -20,7 +20,7 @@ export const NearByRoutes = () => {
   const [nearbyRoutes, setNearbyRoutes] = React.useState<Route[]>([]);
   const userLocation = useUserLocation();
 
-  console.log(userLocation);
+  // User location tracking without null logging
   React.useEffect(() => {
     if (!user || !userLocation) return;
     const loadNearbyRoutes = async () => {
@@ -56,7 +56,7 @@ export const NearByRoutes = () => {
 
   // If no user location, don't show this section
   if (!userLocation) {
-    return null;
+    return <></>;
   }
 
   return (

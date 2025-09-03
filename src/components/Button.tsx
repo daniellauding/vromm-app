@@ -4,7 +4,7 @@ import { Text } from 'tamagui';
 import { sizes } from '../theme/sizes';
 import { tokens } from '../tokens';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'link';
+export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'link' | 'outlined';
 export type ButtonSize = keyof typeof sizes.button;
 export type ButtonRadius = keyof typeof sizes.radius;
 
@@ -133,6 +133,20 @@ const ButtonFrame = styled(Stack, {
           backgroundColor: '$backgroundFocus',
         },
       },
+      outlined: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: '#e2e8f0', // Light gray border
+        radius: 'lg',
+        hoverStyle: {
+          borderColor: '#00FFBC', // Brand teal border on hover
+          backgroundColor: 'rgba(0, 255, 188, 0.05)', // Very light teal background
+        },
+        pressStyle: {
+          borderColor: '#00CC96', // Darker teal border
+          backgroundColor: 'rgba(0, 255, 188, 0.1)', // Light teal background
+        },
+      },
     },
 
     disabled: {
@@ -188,6 +202,12 @@ const ButtonText = styled(Text, {
       },
       radio: {
         color: '$color',
+        fontStyle: 'normal',
+        textTransform: 'none',
+        fontWeight: '600',
+      },
+      outlined: {
+        color: '$color', // Use theme color
         fontStyle: 'normal',
         textTransform: 'none',
         fontWeight: '600',

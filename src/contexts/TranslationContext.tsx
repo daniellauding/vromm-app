@@ -48,35 +48,19 @@ const TranslationContext = createContext<TranslationContextType>({
   refreshTranslations: async () => {},
 });
 
-// Logger utility (simplified) - fixed to prevent null logging
+// Logger utility DISABLED to prevent console flooding
 const logger = {
   info: (message: string, ...args: any[]) => {
-    const validArgs = args.filter(arg => arg !== null && arg !== undefined);
-    if (__DEV__) {
-      if (validArgs.length > 0) {
-        console.log(`[TRANSLATION] ${message}`, ...validArgs);
-      } else {
-        console.log(`[TRANSLATION] ${message}`);
-      }
-    }
+    // Translation info logging disabled to prevent console flooding
   },
   error: (message: string, ...args: any[]) => {
-    const validArgs = args.filter(arg => arg !== null && arg !== undefined);
-    if (validArgs.length > 0) {
-      console.error(`[TRANSLATION ERROR] ${message}`, ...validArgs);
-    } else {
+    // Only log critical translation errors
+    if (message.includes('ERROR') || message.includes('failed')) {
       console.error(`[TRANSLATION ERROR] ${message}`);
     }
   },
   debug: (message: string, ...args: any[]) => {
-    const validArgs = args.filter(arg => arg !== null && arg !== undefined);
-    if (__DEV__) {
-      if (validArgs.length > 0) {
-        console.log(`[TRANSLATION DEBUG] ${message}`, ...validArgs);
-      } else {
-        console.log(`[TRANSLATION DEBUG] ${message}`);
-      }
-    }
+    // Translation debug logging disabled to prevent console flooding
   },
 };
 
@@ -288,7 +272,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       // If the key doesn't exist in translations, return the key itself
       if (!(key in translations)) {
-        logger.debug(`Missing translation for key: ${key}`);
+        // Missing translation logging disabled to prevent console flooding
         return key;
       }
       // Otherwise return the translation
@@ -299,7 +283,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Force refresh translations
   const refreshTranslations = useCallback(async () => {
-    logger.info('Manual refresh of translations requested');
+    // Manual refresh of translations without logging
     await clearCache();
     return fetchAndCacheTranslations(language, true);
   }, [language, fetchAndCacheTranslations]);
@@ -307,7 +291,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Clear the cache
   const clearCache = React.useCallback(async () => {
     try {
-      logger.info('Clearing translation cache');
+      // Clearing translation cache without logging
 
       // Clear both our cache and the translationService cache
       await clearAllTranslationCaches();

@@ -284,8 +284,8 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         forceShow={isFirstLogin}
       />
       
-      {/* Debug options for development */}
-      {__DEV__ && (
+      {/* Debug options DISABLED to prevent console flooding */}
+      {false && __DEV__ && (
         <>
           {/* Debug trigger - tap area in top-left corner */}
           <TouchableOpacity

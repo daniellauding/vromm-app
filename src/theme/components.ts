@@ -21,7 +21,7 @@ const media = createMedia({
   hoverNone: { hover: 'none' },
   pointerCoarse: { pointer: 'coarse' },
 });
-console.log(tokens);
+// Theme tokens loaded
 // Define component themes
 export const componentThemes = {
   Button: {

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { YStack, XStack, Switch, useTheme, Card, Input } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
@@ -15,15 +15,11 @@ import {
   TextInput,
   Dimensions,
   TouchableOpacity,
-  Animated,
-  Easing,
-  StyleSheet,
 } from 'react-native';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
-import { RadioButton, DropdownButton } from '../components/SelectButton';
 import { Header } from '../components/Header';
 import { getTabContentPadding } from '../utils/layout';
 import { useColorScheme } from 'react-native';
@@ -37,7 +33,6 @@ import { forceRefreshTranslations, debugTranslations } from '../services/transla
 import { useTranslation } from '../contexts/TranslationContext';
 import { useTour } from '../contexts/TourContext';
 import { useLocation } from '../context/LocationContext';
-import { useToast } from '../contexts/ToastContext';
 import { usePromotionalModal } from '../components/PromotionalModal';
 import { Language } from '../contexts/TranslationContext';
 import * as ImagePicker from 'expo-image-picker';
@@ -201,23 +196,12 @@ const CustomBarChart = ({
   );
 };
 
-// Styles matching OnboardingInteractive patterns
-const styles = StyleSheet.create({
-  sheetOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginVertical: 4,
-  },
-});
-
 export function ProfileScreen() {
   const { user, profile, updateProfile, signOut } = useAuth();
   const { language, setLanguage, t } = useTranslation();
   const { resetTour, startDatabaseTour } = useTour();
   const { setUserLocation } = useLocation();
   const { checkForPromotionalContent } = usePromotionalModal();
-  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -289,28 +273,6 @@ export function ProfileScreen() {
   const [inviteCustomMessage, setInviteCustomMessage] = useState(''); // Custom message for invitations
   const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [showPendingInvites, setShowPendingInvites] = useState(false);
-
-  // Avatar selection modal state
-  const [showAvatarModal, setShowAvatarModal] = useState(false);
-  const avatarBackdropOpacity = useRef(new Animated.Value(0)).current;
-  const avatarSheetTranslateY = useRef(new Animated.Value(300)).current;
-
-  // Location selection modal animation refs
-  const locationBackdropOpacity = useRef(new Animated.Value(0)).current;
-  const locationSheetTranslateY = useRef(new Animated.Value(300)).current;
-
-  // Developer options modal state
-  const [showDeveloperModal, setShowDeveloperModal] = useState(false);
-  const developerBackdropOpacity = useRef(new Animated.Value(0)).current;
-  const developerSheetTranslateY = useRef(new Animated.Value(300)).current;
-
-  // Role, Experience, Language modal animation refs
-  const roleBackdropOpacity = useRef(new Animated.Value(0)).current;
-  const roleSheetTranslateY = useRef(new Animated.Value(300)).current;
-  const experienceBackdropOpacity = useRef(new Animated.Value(0)).current;
-  const experienceSheetTranslateY = useRef(new Animated.Value(300)).current;
-  const languageBackdropOpacity = useRef(new Animated.Value(0)).current;
-  const languageSheetTranslateY = useRef(new Animated.Value(300)).current;
 
   // Sound settings
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -433,18 +395,10 @@ export function ProfileScreen() {
       if (error) throw error;
 
       await supabase.auth.signOut();
-      showToast({
-        title: t('deleteAccount.successTitle') || 'Account deleted',
-        message: t('deleteAccount.successMessage') || 'Your account was deleted.',
-        type: 'success'
-      });
+      Alert.alert(t('deleteAccount.successTitle') || 'Account deleted', t('deleteAccount.successMessage') || 'Your account was deleted.');
     } catch (err) {
       console.error('Delete account error:', err);
-      showToast({
-        title: 'Error',
-        message: (err as any)?.message || 'Failed to delete account',
-        type: 'error'
-      });
+      Alert.alert('Error', (err as any)?.message || 'Failed to delete account');
     } finally {
       setShowDeleteDialog(false);
     }
@@ -456,11 +410,7 @@ export function ProfileScreen() {
 
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        showToast({
-          title: 'Permission denied',
-          message: 'Please enable location services to use this feature',
-          type: 'error'
-        });
+        Alert.alert('Permission denied', 'Please enable location services to use this feature');
         return;
       }
 
@@ -483,11 +433,7 @@ export function ProfileScreen() {
         location_lng: location.coords.longitude,
       }));
     } catch (err) {
-      showToast({
-        title: 'Error',
-        message: 'Failed to detect location',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to detect location');
     } finally {
       setLoading(false);
     }
@@ -603,7 +549,7 @@ export function ProfileScreen() {
       });
     }
     
-    hideLocationSheet();
+    setShowLocationDrawer(false);
     setLocationSearchResults([]);
   };
 
@@ -652,18 +598,10 @@ export function ProfileScreen() {
               // Debug the new translations cache
               await debugTranslations();
 
-              showToast({
-                title: 'Success',
-                message: t('profile.refreshSuccess'),
-                type: 'success'
-              });
+              Alert.alert('Success', t('profile.refreshSuccess'));
             } catch (err) {
               console.error('Error refreshing translations:', err);
-              showToast({
-                title: t('common.error'),
-                message: 'Failed to refresh translations',
-                type: 'error'
-              });
+              Alert.alert(t('common.error'), 'Failed to refresh translations');
             } finally {
               setLoading(false);
             }
@@ -687,11 +625,7 @@ export function ProfileScreen() {
       if (useCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-          showToast({
-            title: 'Permission needed',
-            message: 'Camera permission is required to take a photo',
-            type: 'error'
-          });
+          Alert.alert('Permission needed', 'Camera permission is required to take a photo');
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -703,11 +637,7 @@ export function ProfileScreen() {
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          showToast({
-            title: 'Permission needed',
-            message: 'Media library permission is required',
-            type: 'error'
-          });
+          Alert.alert('Permission needed', 'Media library permission is required');
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
@@ -778,11 +708,7 @@ export function ProfileScreen() {
     } catch (err) {
       console.error('Avatar upload error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload avatar';
-      showToast({
-        title: 'Error',
-        message: errorMessage,
-        type: 'error'
-      });
+      Alert.alert('Error', errorMessage);
     } finally {
       setAvatarUploading(false);
     }
@@ -794,128 +720,12 @@ export function ProfileScreen() {
       setAvatarUploading(true);
       await updateProfile({ ...formData, avatar_url: null });
       setFormData((prev) => ({ ...prev, avatar_url: null }));
-      showToast({
-        title: 'Success',
-        message: 'Avatar removed!',
-        type: 'success'
-      });
+      Alert.alert('Success', 'Avatar removed!');
     } catch (err) {
-      showToast({
-        title: 'Error',
-        message: 'Failed to delete avatar',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to delete avatar');
     } finally {
       setAvatarUploading(false);
     }
-  };
-
-  // Avatar modal show/hide functions
-  const showAvatarSheet = () => {
-    setShowAvatarModal(true);
-    // Fade in the backdrop
-    Animated.timing(avatarBackdropOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    // Slide up the sheet
-    Animated.timing(avatarSheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const hideAvatarSheet = () => {
-    // Fade out the backdrop
-    Animated.timing(avatarBackdropOpacity, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    // Slide down the sheet
-    Animated.timing(avatarSheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
-      setShowAvatarModal(false);
-    });
-  };
-
-  // Location modal show/hide functions  
-  const showLocationSheet = () => {
-    setShowLocationDrawer(true);
-    // Fade in the backdrop
-    Animated.timing(locationBackdropOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    // Slide up the sheet
-    Animated.timing(locationSheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const hideLocationSheet = () => {
-    // Fade out the backdrop
-    Animated.timing(locationBackdropOpacity, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    // Slide down the sheet
-    Animated.timing(locationSheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
-      setShowLocationDrawer(false);
-    });
-  };
-
-  // Developer options modal show/hide functions
-  const showDeveloperSheet = () => {
-    setShowDeveloperModal(true);
-    // Fade in the backdrop
-    Animated.timing(developerBackdropOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    // Slide up the sheet
-    Animated.timing(developerSheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const hideDeveloperSheet = () => {
-    // Fade out the backdrop
-    Animated.timing(developerBackdropOpacity, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    // Slide down the sheet
-    Animated.timing(developerSheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
-      setShowDeveloperModal(false);
-    });
   };
 
   // Get user's complete profile with relationships
@@ -1006,11 +816,7 @@ export function ProfileScreen() {
       if (error) throw error;
 
       if (success && profile?.id) {
-        showToast({
-          title: 'Success',
-          message: 'You have left your supervisor',
-          type: 'success'
-        });
+        Alert.alert('Success', 'You have left your supervisor');
         // Refresh the relationships
         await getUserProfileWithRelationships(profile.id);
       }
@@ -1018,11 +824,7 @@ export function ProfileScreen() {
       return success;
     } catch (error) {
       logError('Error leaving supervisor', error as Error);
-      showToast({
-        title: 'Error',
-        message: 'Failed to leave supervisor',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to leave supervisor');
       return false;
     }
   };
@@ -1037,11 +839,7 @@ export function ProfileScreen() {
       if (error) throw error;
 
       if (success && profile?.id) {
-        showToast({
-          title: 'Success',
-          message: 'You have left the school',
-          type: 'success'
-        });
+        Alert.alert('Success', 'You have left the school');
         // Refresh the relationships
         await getUserProfileWithRelationships(profile.id);
       }
@@ -1049,11 +847,7 @@ export function ProfileScreen() {
       return success;
     } catch (error) {
       logError('Error leaving school', error as Error);
-      showToast({
-        title: 'Error',
-        message: 'Failed to leave school',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to leave school');
       return false;
     }
   };
@@ -1093,11 +887,7 @@ export function ProfileScreen() {
       setAvailableSupervisors(data || []);
     } catch (error) {
       logError('Error fetching supervisors', error as Error);
-      showToast({
-        title: 'Error',
-        message: 'Failed to load available supervisors',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to load available supervisors');
     }
   }, [profile?.id, logError]);
 
@@ -1122,11 +912,7 @@ export function ProfileScreen() {
       setAvailableStudents(data || []);
     } catch (error) {
       logError('Error fetching students', error as Error);
-      showToast({
-        title: 'Error',
-        message: 'Failed to load available students',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to load available students');
     }
   }, [logError]);
 
@@ -1191,11 +977,7 @@ export function ProfileScreen() {
       });
     } catch (error) {
       logError('Error sending invitation', error as Error);
-      showToast({
-        title: 'Error',
-        message: 'Failed to send invitation. Please try again.',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to send invitation. Please try again.');
     }
   };
 
@@ -1204,11 +986,7 @@ export function ProfileScreen() {
     try {
       const validEmails = inviteEmails.filter(email => email.includes('@'));
       if (validEmails.length === 0) {
-        showToast({
-          title: 'Invalid Emails',
-          message: 'Please enter valid email addresses',
-          type: 'error'
-        });
+        Alert.alert('Invalid Emails', 'Please enter valid email addresses');
         return;
       }
 
@@ -1269,11 +1047,7 @@ export function ProfileScreen() {
       fetchPendingInvitations();
     } catch (error) {
       logError('Error sending bulk invitations', error as Error);
-      showToast({
-        title: 'Error',
-        message: 'Failed to send invitations. Please try again.',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to send invitations. Please try again.');
     }
   };
 
@@ -1288,17 +1062,9 @@ export function ProfileScreen() {
   const handleResendInvite = async (invitationId: string) => {
     const success = await resendInvitation(invitationId);
     if (success) {
-      showToast({
-        title: 'Success',
-        message: 'Invitation resent successfully',
-        type: 'success'
-      });
+      Alert.alert('Success', 'Invitation resent successfully');
     } else {
-      showToast({
-        title: 'Error',
-        message: 'Failed to resend invitation',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to resend invitation');
     }
   };
 
@@ -1316,17 +1082,9 @@ export function ProfileScreen() {
             const success = await cancelInvitation(invitationId);
             if (success) {
               fetchPendingInvitations();
-              showToast({
-                title: 'Success',
-                message: 'Invitation cancelled',
-                type: 'success'
-              });
+              Alert.alert('Success', 'Invitation cancelled');
             } else {
-              showToast({
-                title: 'Error',
-                message: 'Failed to cancel invitation',
-                type: 'error'
-              });
+              Alert.alert('Error', 'Failed to cancel invitation');
             }
           },
         },
@@ -1776,11 +1534,7 @@ export function ProfileScreen() {
       setShowSchoolModal(false);
     } catch (error) {
       logError('Error joining school', error as Error);
-      showToast({
-        title: 'Error',
-        message: 'Failed to join school',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to join school');
     }
   };
 
@@ -1889,11 +1643,7 @@ export function ProfileScreen() {
     if (studentId) {
       setActiveStudent(studentId, studentName);
       logInfo(`Switched to view student: ${studentName || studentId}`);
-      showToast({
-        title: 'Student View Active',
-        message: `You are now viewing ${studentName || "this student"}'s progress and data.`,
-        type: 'info'
-      });
+      Alert.alert('Student View Active', `You are now viewing ${studentName || "this student"}'s progress and data.`);
     } else {
       clearActiveStudent();
       logInfo('Switched back to own view');
@@ -1965,28 +1715,16 @@ export function ProfileScreen() {
       );
       
       if (success) {
-        showToast({
-          title: 'Success',
-          message: 'You have removed your supervisor and submitted your review',
-          type: 'success'
-        });
+        Alert.alert('Success', 'You have removed your supervisor and submitted your review');
         if (profile?.id) {
           await getUserProfileWithRelationships(profile.id);
         }
       } else {
-        showToast({
-        title: 'Error',
-        message: 'Failed to remove supervisor',
-        type: 'error'
-      });
+        Alert.alert('Error', 'Failed to remove supervisor');
       }
     } catch (error) {
       console.error('Error removing supervisor:', error);
-      showToast({
-        title: 'Error',
-        message: 'Failed to remove supervisor',
-        type: 'error'
-      });
+      Alert.alert('Error', 'Failed to remove supervisor');
     } finally {
       setRemovalTargetSupervisor(null);
       setShowRemovalReviewModal(false);
@@ -2287,11 +2025,11 @@ export function ProfileScreen() {
           }
         />
         <YStack gap={24}>
-          <YStack gap={24}>
+          <YStack gap={24} paddingBottom={56}>
             <YStack alignItems="center" marginTop={24} marginBottom={8}>
-              <TouchableOpacity onPress={showAvatarSheet} disabled={avatarUploading}>
-                <View style={{ position: 'relative' }}>
-                  {formData.avatar_url ? (
+              <View style={{ position: 'relative' }}>
+                {formData.avatar_url ? (
+                  <View>
                     <Image
                       source={{ uri: formData.avatar_url }}
                       style={{
@@ -2302,45 +2040,55 @@ export function ProfileScreen() {
                         borderColor: '#ccc',
                       }}
                     />
-                  ) : (
-                    <View
-                      style={{
-                        width: 96,
-                        height: 96,
-                        borderRadius: 48,
-                        backgroundColor: '#eee',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderWidth: 2,
-                        borderColor: '#ccc',
-                      }}
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      style={{ position: 'absolute', top: 0, right: 0, zIndex: 2 }}
+                      onPress={handleDeleteAvatar}
+                      disabled={avatarUploading}
+                      backgroundColor="$red10"
                     >
-                      <Feather name="user" size={48} color="#bbb" />
-                    </View>
-                  )}
-                  {/* Edit indicator overlay */}
-                  <View
+                      <Feather name="trash-2" size={16} color="white" />
+                    </Button>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => handlePickAvatar(false)}
                     style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      right: 0,
-                      backgroundColor: '#00E6C3',
-                      borderRadius: 12,
-                      width: 24,
-                      height: 24,
+                      width: 96,
+                      height: 96,
+                      borderRadius: 48,
+                      backgroundColor: '#eee',
                       alignItems: 'center',
                       justifyContent: 'center',
                       borderWidth: 2,
-                      borderColor: 'white',
+                      borderColor: '#ccc',
                     }}
                   >
-                    <Feather name="edit-2" size={12} color="white" />
-                  </View>
-                </View>
-              </TouchableOpacity>
-              <Text size="sm" color="$gray11" textAlign="center" marginTop={8}>
-                Tap to change avatar
-              </Text>
+                    <Feather name="user" size={48} color="#bbb" />
+                  </Pressable>
+                )}
+              </View>
+              <XStack gap={8} marginTop={8}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => handlePickAvatar(false)}
+                  disabled={avatarUploading}
+                >
+                  <Feather name="image" size={16} color="#4287f5" />
+                  <Text ml={4}>Pick from Library</Text>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => handlePickAvatar(true)}
+                  disabled={avatarUploading}
+                >
+                  <Feather name="camera" size={16} color="#4287f5" />
+                  <Text ml={4}>Take Photo</Text>
+                </Button>
+              </XStack>
               
               {/* Display rating badge if user has reviews */}
               {userRating.reviewCount > 0 && (
@@ -2376,71 +2124,70 @@ export function ProfileScreen() {
               <Text size="lg" weight="medium" mb="$2" color="$color">
                 {t('profile.location')}
               </Text>
-              <YStack gap="$2">
-                <DropdownButton
-                  onPress={() => {
-                    // Search for nearby locations first, then show sheet
-                    if (!formData.location) {
-                      handleLocationSearch('');
-                    }
-                    showLocationSheet();
-                  }}
-                  value={formData.location}
-                  placeholder="Select Your Location"
-                  isActive={showLocationDrawer}
-                />
-                
-                <Button
-                  onPress={detectLocation}
-                  disabled={loading}
-                  variant="secondary"
-                  size="md"
-                  backgroundColor="transparent"
-                  borderWidth={1}
-                  borderColor="$borderColor"
-                >
-                  <XStack gap="$2" alignItems="center">
-                    <Feather
-                      name="map-pin"
-                      size={16}
-                      color="#00E6C3"
-                    />
-                    <Text color="$color">
-                      Detect My Location
-                    </Text>
+              <FormField
+                value={formData.location}
+                onChangeText={handleLocationSearch}
+                placeholder={t('profile.locationPlaceholder') + ' (type to search...)'}
+                autoCapitalize="none"
+                rightElement={
+                  <XStack gap="$1">
+                    {locationSearchResults.length > 0 && (
+                      <Button
+                        onPress={() => setShowLocationDrawer(true)}
+                        variant="secondary"
+                        padding="$2"
+                        backgroundColor="transparent"
+                        borderWidth={0}
+                      >
+                        <Feather
+                          name="search"
+                          size={18}
+                          color="#00E6C3"
+                        />
+                      </Button>
+                    )}
+                    <Button
+                      onPress={detectLocation}
+                      disabled={loading}
+                      variant="secondary"
+                      padding="$2"
+                      backgroundColor="transparent"
+                      borderWidth={0}
+                    >
+                      <Feather
+                        name="map-pin"
+                        size={20}
+                        color={colorScheme === 'dark' ? 'white' : 'black'}
+                      />
+                    </Button>
                   </XStack>
-                </Button>
-              </YStack>
+                }
+              />
             </YStack>
 
-            <DropdownButton
-              onPress={() => setShowRoleModal(true)}
-              value={formData.role === 'student'
-                ? t('profile.roles.student')
-                : formData.role === 'instructor'
-                  ? t('profile.roles.instructor')
-                  : t('profile.roles.school')}
-              placeholder="Select Role"
-              isActive={showRoleModal}
-            />
+            <Button onPress={() => setShowRoleModal(true)} variant="secondary" size="lg">
+              <Text color="$color">
+                {formData.role === 'student'
+                  ? t('profile.roles.student')
+                  : formData.role === 'instructor'
+                    ? t('profile.roles.instructor')
+                    : t('profile.roles.school')}
+              </Text>
+            </Button>
 
-            <DropdownButton
-              onPress={() => setShowExperienceModal(true)}
-              value={formData.experience_level === 'beginner'
-                ? t('profile.experienceLevels.beginner')
-                : formData.experience_level === 'intermediate'
-                  ? t('profile.experienceLevels.intermediate')
-                  : t('profile.experienceLevels.advanced')}
-              placeholder="Select Experience Level"
-              isActive={showExperienceModal}
-            />
+            <Button onPress={() => setShowExperienceModal(true)} variant="secondary" size="lg">
+              <Text color="$color">
+                {formData.experience_level === 'beginner'
+                  ? t('profile.experienceLevels.beginner')
+                  : formData.experience_level === 'intermediate'
+                    ? t('profile.experienceLevels.intermediate')
+                    : t('profile.experienceLevels.advanced')}
+              </Text>
+            </Button>
 
-            <DropdownButton
-              onPress={() => setShowLanguageModal(true)}
-              value={LANGUAGE_LABELS[language]}
-              placeholder="Select Language"
-              isActive={showLanguageModal}
-            />
+            <Button onPress={() => setShowLanguageModal(true)} variant="secondary" size="lg">
+              <Text color="$color">{LANGUAGE_LABELS[language]}</Text>
+            </Button>
 
             {/* Supervised Students Section for Supervisors */}
             {canSuperviseStudents() && (
@@ -3254,78 +3001,385 @@ export function ProfileScreen() {
               />
             )}
 
-            <Button 
-              onPress={showDeveloperSheet}
-              variant="secondary" 
-              size="lg"
-              marginTop="$4"
-              borderWidth={1}
-              borderColor="$borderColor"
-            >
-              <XStack gap="$2" alignItems="center">
-                <Feather name="settings" size={20} color="#00E6C3" />
-                <Text color="$color" size="lg">
-                  Developer Options
+            <Card bordered padding="$4" marginTop="$4">
+              <YStack gap={8}>
+                <Text size="lg" weight="bold" mb="$2" color="$color">
+                  {t('profile.developerOptions')}
                 </Text>
-              </XStack>
-            </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={navigateToOnboardingDemo}
+                  marginBottom="$2"
+                >
+                  {t('profile.contentUpdatesDemo')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={navigateToTranslationDemo}
+                  marginBottom="$2"
+                >
+                  {t('profile.translationDemo')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={handleShowOnboarding}
+                  marginBottom="$2"
+                >
+                  {t('profile.onboardingTour')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={handleResetOnboarding}
+                  marginBottom="$2"
+                >
+                  {t('profile.resetOnboarding')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={refreshTranslations}
+                  marginBottom="$2"
+                >
+                  {t('profile.refreshTranslations')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      const { getStoredCrashReports, clearOldCrashReports } = await import(
+                        '../components/ErrorBoundary'
+                      );
+                      const { getCrashReport } = await import('../utils/logger');
+                      const currentLogs = getCrashReport();
+                      const storedCrashes = await getStoredCrashReports();
+                      const perfSummary = getPerformanceSummary();
+
+                      checkMemoryUsage('ProfileScreen.debugExport');
+                      checkForPotentialIssues('ProfileScreen.debugExport');
+
+                      logInfo('Debug logs exported', {
+                        currentLogsLength: currentLogs.length,
+                        storedCrashCount: storedCrashes.length,
+                        performance: perfSummary,
+                      });
+
+                      Alert.alert(
+                        'Debug & Performance Report',
+                        `Session Runtime: ${perfSummary.totalRuntime}s
+Memory Allocations: ${perfSummary.memoryAllocations}
+Database Calls: ${perfSummary.databaseCalls}
+Network Calls: ${perfSummary.networkCalls}
+Warnings: ${perfSummary.warnings}
+Errors: ${perfSummary.errors}
+Avg Calls/Min: ${perfSummary.avgCallsPerMinute}
+
+Current Logs: ${currentLogs.length} chars
+Stored Crashes: ${storedCrashes.length}
+
+Recent Errors:
+${perfSummary.recentErrors.join('\n')}`,
+                        [
+                          { text: 'OK' },
+                          {
+                            text: 'Clear All Data',
+                            style: 'destructive',
+                            onPress: async () => {
+                              await clearOldCrashReports(0); // Clear all
+                              Alert.alert('Success', 'All debug data cleared');
+                            },
+                          },
+                        ],
+                      );
+                    } catch (error) {
+                      logError('Failed to export debug logs', error as Error);
+                    }
+                  }}
+                  marginBottom="$2"
+                >
+                  Performance & Debug Report
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      checkMemoryUsage('ProfileScreen.memoryCheck');
+                      checkForPotentialIssues('ProfileScreen.manualCheck');
+
+                      // Test database connection
+                      const dbStart = Date.now();
+                      await monitorDatabaseCall(
+                        async () => {
+                          const { data, error } = await supabase
+                            .from('profiles')
+                            .select('id')
+                            .limit(1);
+                          if (error) throw error;
+                          return data;
+                        },
+                        'profiles',
+                        'select',
+                        ['id'],
+                      );
+                      const dbTime = Date.now() - dbStart;
+
+                      // Test network connection
+                      const netStart = Date.now();
+                      try {
+                        await monitorNetworkCall(
+                          () => fetch('https://httpbin.org/delay/0'),
+                          'https://httpbin.org/delay/0',
+                          'GET',
+                        );
+                      } catch (e) {
+                        // Network test failed - that's ok
+                      }
+                      const netTime = Date.now() - netStart;
+
+                      const perfSummary = getPerformanceSummary();
+
+                      Alert.alert(
+                        'System Health Check',
+                        `Database Response: ${dbTime}ms ${dbTime > 1000 ? '⚠️' : '✅'}
+Network Response: ${netTime}ms ${netTime > 2000 ? '⚠️' : '✅'}
+Memory Allocations: ${perfSummary.memoryAllocations}
+Total Runtime: ${perfSummary.totalRuntime}s
+Recent Issues: ${perfSummary.recentErrors.length}
+
+${
+  dbTime > 2000
+    ? '⚠️ Database is slow'
+    : netTime > 3000
+      ? '⚠️ Network is slow'
+      : perfSummary.memoryAllocations > 1000
+        ? '⚠️ High memory usage'
+        : '✅ All systems normal'
+}`,
+                      );
+                    } catch (error) {
+                      logError('Health check failed', error as Error);
+                      Alert.alert('Health Check Failed', 'See logs for details');
+                    }
+                  }}
+                  marginBottom="$2"
+                >
+                  System Health Check
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      console.log('🔍 Manual invitation check triggered');
+                      await checkForPendingInvitations();
+                      Alert.alert('Invitation Check', 'Checked for pending invitations. See console for details.');
+                    } catch (error) {
+                      logError('Failed to check invitations', error as Error);
+                      Alert.alert('Error', 'Failed to check for invitations');
+                    }
+                  }}
+                  marginBottom="$2"
+                >
+                  📥 Check for Invitations
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={() => {
+                    console.log('🧪 Force showing global invitation modal for testing');
+                    // This will be handled by the global modal in App.tsx
+                    Alert.alert('Test Info', 'Global invitation modal is now handled at app level. Check for real invitations.');
+                  }}
+                  marginBottom="$2"
+                >
+                  🧪 Test Global Invitations
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      if (!profile?.id) {
+                        Alert.alert('Error', 'User not found');
+                        return;
+                      }
+
+                      Alert.alert('Test Notifications', 'Choose a notification type to test:', [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'General Test',
+                          onPress: async () => {
+                            await pushNotificationService.sendTestNotification(
+                              profile.id,
+                              'general',
+                            );
+                            Alert.alert('Success', 'Test notification sent!');
+                          },
+                        },
+                        {
+                          text: 'Route Test',
+                          onPress: async () => {
+                            await pushNotificationService.sendTestNotification(profile.id, 'route');
+                            Alert.alert('Success', 'Route test notification sent!');
+                          },
+                        },
+                        {
+                          text: 'Follow Test',
+                          onPress: async () => {
+                            await pushNotificationService.sendTestNotification(
+                              profile.id,
+                              'follow',
+                            );
+                            Alert.alert('Success', 'Follow test notification sent!');
+                          },
+                        },
+                        {
+                          text: 'Message Test',
+                          onPress: async () => {
+                            await pushNotificationService.sendTestNotification(
+                              profile.id,
+                              'message',
+                            );
+                            Alert.alert('Success', 'Message test notification sent!');
+                          },
+                        },
+                      ]);
+                    } catch (error) {
+                      logError('Failed to send test notification', error as Error);
+                      Alert.alert('Error', 'Failed to send test notification');
+                    }
+                  }}
+                  marginBottom="$2"
+                >
+                  🔔 Test Push Notifications
+                </Button>
+                
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      console.log('🎯 [ProfileScreen] Reset tour button pressed');
+                      await resetTour();
+                      console.log('🎯 [ProfileScreen] Tour reset completed');
+                      
+                      // Navigate to home and start database tour
+                      navigation.navigate('MainTabs', {
+                        screen: 'HomeTab',
+                        params: { screen: 'HomeScreen' }
+                      });
+                      console.log('🎯 [ProfileScreen] Navigated to HomeScreen');
+                      
+                      setTimeout(() => {
+                        console.log('🎯 [ProfileScreen] Starting database tour...');
+                        startDatabaseTour();
+                      }, 500);
+                      
+                      Alert.alert('Tour Reset', 'App tour has been reset and will start shortly!');
+                    } catch (error) {
+                      console.error('Error resetting tour:', error);
+                      Alert.alert('Error', 'Failed to reset tour');
+                    }
+                  }}
+                  marginBottom="$2"
+                  backgroundColor="$purple9"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="map" size={20} color="white" />
+                    <Text color="white">🎯 Reset & Test App Tour</Text>
+                  </XStack>
+                </Button>
+                
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      console.log('🎯 [ProfileScreen] Reset all tour data button pressed');
+                      
+                      // Reset tour in database
+                      await resetTour();
+                      
+                      // Also reset AsyncStorage tour data
+                      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                      await AsyncStorage.multiRemove([
+                        'vromm_app_tour_completed',
+                        'vromm_tour_content_hash'
+                      ]);
+                      
+                      Alert.alert(
+                        'Tour System Reset',
+                        'All tour data has been cleared. The tour will show next time you open the app or you can manually start it above.',
+                        [
+                          { text: 'OK' },
+                          {
+                            text: 'Start Tour Now',
+                            onPress: () => {
+                              setTimeout(() => {
+                                startDatabaseTour();
+                              }, 200);
+                            }
+                          }
+                        ]
+                      );
+                    } catch (error) {
+                      console.error('Error resetting all tour data:', error);
+                      Alert.alert('Error', 'Failed to reset tour data');
+                    }
+                  }}
+                  marginBottom="$2"
+                  backgroundColor="$green9"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="refresh-cw" size={20} color="white" />
+                    <Text color="white">🔄 Reset Tour System</Text>
+                  </XStack>
+                </Button>
+                
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={async () => {
+                    try {
+                      console.log('🎉 [ProfileScreen] Test promotional modal button pressed');
+                      
+                      // Clear promotional modal storage to force it to show
+                      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                      await AsyncStorage.removeItem('promotional_modal_seen');
+                      console.log('🎉 [ProfileScreen] Cleared promotional modal storage');
+                      
+                      // Trigger promotional content check
+                      const result = await checkForPromotionalContent('modal');
+                      console.log('🎉 [ProfileScreen] Promotional content check result:', result);
+                      
+                      if (result) {
+                        Alert.alert('Promotional Modal', 'Promotional modal should appear shortly!');
+                      } else {
+                        Alert.alert('No Content', 'No promotional content found. Make sure you ran the SQL in Supabase.');
+                      }
+                    } catch (error) {
+                      console.error('Error testing promotional modal:', error);
+                      Alert.alert('Error', 'Failed to test promotional modal');
+                    }
+                  }}
+                  marginBottom="$2"
+                  backgroundColor="$orange9"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="gift" size={20} color="white" />
+                    <Text color="white">🎉 Test Promotional Modal</Text>
+                  </XStack>
+                </Button>
+              </YStack>
+            </Card>
           </YStack>
         </YStack>
       </YStack>
-
-      {/* Delete Account Modal */}
-      <Modal
-        visible={showDeleteDialog}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDeleteDialog(false)}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onPress={() => setShowDeleteDialog(false)}
-        >
-          <YStack
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            backgroundColor="$background"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-            gap="$4"
-          >
-            <Text size="xl" weight="bold" color="$color">
-              {t('settings.deleteAccount')}
-            </Text>
-            <Text color="$color">
-              {t('settings.deleteAccountConfirmation')}
-            </Text>
-            <XStack gap="$2">
-              <Button
-                flex={1}
-                onPress={() => setShowDeleteDialog(false)}
-                variant="secondary"
-                size="lg"
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button
-                flex={1}
-                onPress={() => {
-                  setShowDeleteDialog(false);
-                  // Add delete account logic here
-                }}
-                variant="primary"
-                backgroundColor="$red10"
-                size="lg"
-              >
-                {t('common.delete')}
-              </Button>
-            </XStack>
-          </YStack>
-        </Pressable>
-      </Modal>
 
       <Modal
         visible={showRoleModal}
@@ -3353,7 +3407,7 @@ export function ProfileScreen() {
             </Text>
             <YStack gap="$2">
               {USER_ROLES.map((role) => (
-                <RadioButton
+                <Button
                   key={role}
                   onPress={() => {
                     setFormData((prev) => ({ ...prev, role: role as UserRole }));
@@ -3363,15 +3417,26 @@ export function ProfileScreen() {
                       role_confirmed: true,
                     });
                   }}
-                  title={role === 'student'
+                  variant={formData.role === role ? 'primary' : 'secondary'}
+                  backgroundColor={formData.role === role ? '$blue10' : undefined}
+                  size="lg"
+                >
+                  {role === 'student'
                     ? t('profile.roles.student')
                     : role === 'instructor'
                       ? t('profile.roles.instructor')
                       : t('profile.roles.school')}
-                  isSelected={formData.role === role}
-                />
+                </Button>
               ))}
             </YStack>
+            <Button
+              onPress={() => setShowRoleModal(false)}
+              variant="secondary"
+              size="lg"
+              backgroundColor="$backgroundHover"
+            >
+              {t('common.cancel')}
+            </Button>
           </YStack>
         </Pressable>
       </Modal>
@@ -3402,7 +3467,7 @@ export function ProfileScreen() {
             </Text>
             <YStack gap="$2">
               {EXPERIENCE_LEVELS.map((level) => (
-                <RadioButton
+                <Button
                   key={level}
                   onPress={() => {
                     setFormData((prev) => ({
@@ -3411,15 +3476,26 @@ export function ProfileScreen() {
                     }));
                     setShowExperienceModal(false);
                   }}
-                  title={level === 'beginner'
+                  variant={formData.experience_level === level ? 'primary' : 'secondary'}
+                  backgroundColor={formData.experience_level === level ? '$blue10' : undefined}
+                  size="lg"
+                >
+                  {level === 'beginner'
                     ? t('profile.experienceLevels.beginner')
                     : level === 'intermediate'
                       ? t('profile.experienceLevels.intermediate')
                       : t('profile.experienceLevels.advanced')}
-                  isSelected={formData.experience_level === level}
-                />
+                </Button>
               ))}
             </YStack>
+            <Button
+              onPress={() => setShowExperienceModal(false)}
+              variant="secondary"
+              size="lg"
+              backgroundColor="$backgroundHover"
+            >
+              {t('common.cancel')}
+            </Button>
           </YStack>
         </Pressable>
       </Modal>
@@ -3450,17 +3526,28 @@ export function ProfileScreen() {
             </Text>
             <YStack gap="$2">
               {LANGUAGES.map((lang) => (
-                <RadioButton
+                <Button
                   key={lang}
                   onPress={async () => {
                     await setLanguage(lang);
                     setShowLanguageModal(false);
                   }}
-                  title={LANGUAGE_LABELS[lang]}
-                  isSelected={language === lang}
-                />
+                  variant={language === lang ? 'primary' : 'secondary'}
+                  backgroundColor={language === lang ? '$blue10' : undefined}
+                  size="lg"
+                >
+                  {LANGUAGE_LABELS[lang]}
+                </Button>
               ))}
             </YStack>
+            <Button
+              onPress={() => setShowLanguageModal(false)}
+              variant="secondary"
+              size="lg"
+              backgroundColor="$backgroundHover"
+            >
+              {t('common.cancel')}
+            </Button>
           </YStack>
         </Pressable>
       </Modal>
@@ -4074,362 +4161,77 @@ export function ProfileScreen() {
         />
       )}
 
-      {/* Location Selection Modal */}
+      {/* Location Autocomplete Modal */}
       <Modal
         visible={showLocationDrawer}
         transparent
-        animationType="none"
-        onRequestClose={hideLocationSheet}
+        animationType="slide"
+        onRequestClose={() => setShowLocationDrawer(false)}
       >
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: locationBackdropOpacity,
-          }}
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowLocationDrawer(false)}
         >
-          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <Pressable style={{ flex: 1 }} onPress={hideLocationSheet} />
-            <Animated.View
-              style={{
-                transform: [{ translateY: locationSheetTranslateY }],
-              }}
-            >
-              <YStack
-                backgroundColor="$background"
-                padding="$4"
-                paddingBottom={24}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                gap="$4"
-                maxHeight="70%"
-              >
-                <Text size="xl" weight="bold" color="$color" textAlign="center">
-                  Select Your Location
-                </Text>
+          <YStack
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            backgroundColor="$background"
+            padding="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
+            maxHeight="70%"
+          >
+            <Text size="lg" weight="bold" color="$color" marginBottom="$4" textAlign="center">
+              Select Your Location
+            </Text>
+            
+            <ScrollView style={{ maxHeight: 300 }}>
+              <YStack gap="$1">
+                {locationSearchResults.length === 0 && (
+                  <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                    No locations found. Keep typing to search worldwide.
+                  </Text>
+                )}
                 
-                <FormField
-                  placeholder="Search cities... (try 'Stockholm', 'New York', etc.)"
-                  value={formData.location}
-                  onChangeText={handleLocationSearch}
-                />
-                
-                <ScrollView style={{ maxHeight: 300 }}>
-                  <YStack gap="$1">
-                    {locationSearchResults.length === 0 && (
-                      <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                        No locations found. Keep typing to search worldwide.
-                      </Text>
-                    )}
-                    
-                    {locationSearchResults.map((locationData, index) => {
-                      const locationName = [locationData.city, locationData.region, locationData.country]
-                        .filter(Boolean)
-                        .join(', ');
-                      
-                      return (
-                        <TouchableOpacity
-                          key={index}
-                          onPress={() => handleLocationSelect(locationData)}
-                          style={[
-                            styles.sheetOption,
-                            {
-                              backgroundColor: formData.location === locationName ? 'rgba(52, 211, 153, 0.1)' : 'transparent',
-                              borderWidth: formData.location === locationName ? 1 : 0,
-                              borderColor: formData.location === locationName ? '#34D399' : 'transparent',
-                            }
-                          ]}
-                        >
-                          <XStack gap={12} padding="$2" alignItems="center">
-                            <Feather 
-                              name="map-pin" 
-                              size={16} 
-                              color={formData.location === locationName ? '#34D399' : '#666'} 
-                            />
-                            <YStack flex={1}>
-                              <Text 
-                                color={formData.location === locationName ? '#34D399' : '$color'} 
-                                size="lg"
-                              >
-                                {locationName}
-                              </Text>
-                              <Text size="sm" color="$gray11">
-                                {locationData.coords?.latitude.toFixed(4)}, {locationData.coords?.longitude.toFixed(4)}
-                              </Text>
-                            </YStack>
-                            {formData.location === locationName && (
-                              <Feather name="check" size={16} color="#34D399" />
-                            )}
-                          </XStack>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </YStack>
-                </ScrollView>
+                {locationSearchResults.map((locationData, index) => {
+                  const locationName = [locationData.city, locationData.region, locationData.country]
+                    .filter(Boolean)
+                    .join(', ');
+                  
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => handleLocationSelect(locationData)}
+                      style={{
+                        backgroundColor: formData.location === locationName ? '$blue5' : '$backgroundStrong',
+                        padding: 16,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: formData.location === locationName ? '$blue8' : '$borderColor',
+                      }}
+                    >
+                      <XStack alignItems="center" justifyContent="space-between">
+                        <YStack>
+                          <Text size="md" color={formData.location === locationName ? '$blue12' : '$color'}>
+                            {locationName}
+                          </Text>
+                          <Text size="xs" color="$gray11">
+                            {locationData.coords?.latitude.toFixed(4)}, {locationData.coords?.longitude.toFixed(4)}
+                          </Text>
+                        </YStack>
+                        {formData.location === locationName && (
+                          <Feather name="check" size={20} color="$blue11" />
+                        )}
+                      </XStack>
+                    </TouchableOpacity>
+                  );
+                })}
               </YStack>
-            </Animated.View>
-          </View>
-        </Animated.View>
-      </Modal>
-
-      {/* Avatar Selection Modal */}
-      <Modal
-        visible={showAvatarModal}
-        transparent
-        animationType="none"
-        onRequestClose={hideAvatarSheet}
-      >
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: avatarBackdropOpacity,
-          }}
-        >
-          <Pressable style={{ flex: 1 }} onPress={hideAvatarSheet}>
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                transform: [{ translateY: avatarSheetTranslateY }],
-              }}
-            >
-              <YStack
-                backgroundColor="$background"
-                padding="$4"
-                paddingBottom={24}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                gap="$4"
-              >
-                <Text size="xl" weight="bold" color="$color" textAlign="center">
-                  Change Avatar
-                </Text>
-                
-                <YStack gap="$1">
-                  <TouchableOpacity
-                    onPress={() => {
-                      hideAvatarSheet();
-                      setTimeout(() => handlePickAvatar(false), 300);
-                    }}
-                    style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                  >
-                    <XStack gap={12} padding="$2" alignItems="center">
-                      <Feather name="image" size={20} color="#00E6C3" />
-                      <Text color="$color" size="lg">
-                        Choose from Library
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => {
-                      hideAvatarSheet();
-                      setTimeout(() => handlePickAvatar(true), 300);
-                    }}
-                    style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                  >
-                    <XStack gap={12} padding="$2" alignItems="center">
-                      <Feather name="camera" size={20} color="#00E6C3" />
-                      <Text color="$color" size="lg">
-                        Take Photo
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-
-                  {formData.avatar_url && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideAvatarSheet();
-                        setTimeout(() => handleDeleteAvatar(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="trash-2" size={20} color="#EF4444" />
-                        <Text color="#EF4444" size="lg">
-                          Remove Avatar
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-                  )}
-                </YStack>
-              </YStack>
-            </Animated.View>
-          </Pressable>
-        </Animated.View>
-      </Modal>
-
-      {/* Developer Options Modal */}
-      <Modal
-        visible={showDeveloperModal}
-        transparent
-        animationType="none"
-        onRequestClose={hideDeveloperSheet}
-      >
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: developerBackdropOpacity,
-          }}
-        >
-          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <Pressable style={{ flex: 1 }} onPress={hideDeveloperSheet} />
-            <Animated.View
-              style={{
-                transform: [{ translateY: developerSheetTranslateY }],
-              }}
-            >
-              <YStack
-                backgroundColor="$background"
-                padding="$4"
-                paddingBottom={50}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                gap="$3"
-                height="80%"
-              >
-                <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
-                  Developer Options
-                </Text>
-                
-                <ScrollView style={{ flex: 1 }}>
-                  <YStack gap="$2">
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => navigateToOnboardingDemo(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="play-circle" size={20} color="#00E6C3" />
-                        <Text color="$color" size="lg">
-                          Content Updates Demo
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => navigateToTranslationDemo(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="globe" size={20} color="#00E6C3" />
-                        <Text color="$color" size="lg">
-                          Translation Demo
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => handleShowOnboarding(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="help-circle" size={20} color="#00E6C3" />
-                        <Text color="$color" size="lg">
-                          Show Onboarding
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => handleResetOnboarding(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="refresh-cw" size={20} color="#FF6B35" />
-                        <Text color="#FF6B35" size="lg">
-                          Reset Onboarding
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => refreshTranslations(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="download" size={20} color="#00E6C3" />
-                        <Text color="$color" size="lg">
-                          Refresh Translations
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => {
-                          resetTour();
-                          Alert.alert('Success', 'Tour has been reset. Restart the app to see tour badges again.');
-                        }, 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="compass" size={20} color="#FF6B35" />
-                        <Text color="#FF6B35" size="lg">
-                          Reset Tour
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => startDatabaseTour(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="database" size={20} color="#00E6C3" />
-                        <Text color="$color" size="lg">
-                          Start Database Tour
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(async () => {
-                          console.log('🎉 Testing promotional modal...');
-                          checkForPromotionalContent();
-                          Alert.alert('Test', 'Promotional modal trigger sent - check console and UI.');
-                        }, 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="gift" size={20} color="#FF6B35" />
-                        <Text color="#FF6B35" size="lg">
-                          Test Promotional Modal
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-                  </YStack>
-                </ScrollView>
-              </YStack>
-            </Animated.View>
-          </View>
-        </Animated.View>
+            </ScrollView>
+          </YStack>
+        </Pressable>
       </Modal>
     </Screen>
   );

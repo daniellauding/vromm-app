@@ -174,7 +174,7 @@ export const GettingStarted = () => {
     hasRoleSelected &&
     hasConnections;
   if (isAllOnboardingCompleted) {
-    return null;
+    return <></>;
   }
   return (
     <YStack space="$4" marginBottom="$6">
