@@ -312,6 +312,16 @@ export function ProfileScreen() {
   const languageBackdropOpacity = useRef(new Animated.Value(0)).current;
   const languageSheetTranslateY = useRef(new Animated.Value(300)).current;
 
+  // Notification modal state and animation refs
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const notificationBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const notificationSheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Testing tools modal state and animation refs
+  const [showTestingModal, setShowTestingModal] = useState(false);
+  const testingBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const testingSheetTranslateY = useRef(new Animated.Value(300)).current;
+
   // Sound settings
   const [soundEnabled, setSoundEnabled] = useState(true);
 
@@ -918,6 +928,166 @@ export function ProfileScreen() {
     });
   };
 
+  // Role modal show/hide functions
+  const showRoleSheet = () => {
+    setShowRoleModal(true);
+    Animated.timing(roleBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(roleSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideRoleSheet = () => {
+    Animated.timing(roleBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(roleSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowRoleModal(false);
+    });
+  };
+
+  // Experience modal show/hide functions
+  const showExperienceSheet = () => {
+    setShowExperienceModal(true);
+    Animated.timing(experienceBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(experienceSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideExperienceSheet = () => {
+    Animated.timing(experienceBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(experienceSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowExperienceModal(false);
+    });
+  };
+
+  // Language modal show/hide functions
+  const showLanguageSheet = () => {
+    setShowLanguageModal(true);
+    Animated.timing(languageBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(languageSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideLanguageSheet = () => {
+    Animated.timing(languageBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(languageSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowLanguageModal(false);
+    });
+  };
+
+  // Notification modal show/hide functions
+  const showNotificationSheet = () => {
+    setShowNotificationModal(true);
+    Animated.timing(notificationBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(notificationSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideNotificationSheet = () => {
+    Animated.timing(notificationBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(notificationSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowNotificationModal(false);
+    });
+  };
+
+  // Testing tools modal show/hide functions
+  const showTestingSheet = () => {
+    setShowTestingModal(true);
+    Animated.timing(testingBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(testingSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideTestingSheet = () => {
+    Animated.timing(testingBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(testingSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowTestingModal(false);
+    });
+  };
+
   // Get user's complete profile with relationships
   const getUserProfileWithRelationships = useCallback(
     async (userId: string) => {
@@ -1176,7 +1346,7 @@ export function ProfileScreen() {
       );
 
       Alert.alert(
-        'Invitation Sent! 🎉',
+        'Invitation Sent!',
         `${invitationType === 'student' ? 'Student supervision' : 'Supervisor'} invitation sent to ${targetUser.full_name || targetUser.email}. They will receive a push notification.`,
       );
 
@@ -1250,7 +1420,7 @@ export function ProfileScreen() {
 
       if (result.successful.length > 0) {
         Alert.alert(
-          'Invitations Sent! 🎉',
+          'Invitations Sent!',
           `Successfully invited ${result.successful.length} ${inviteType}(s). They can login immediately with their assigned passwords.`,
         );
       }
@@ -1712,7 +1882,7 @@ export function ProfileScreen() {
 
       if (successCount > 0) {
         Alert.alert(
-          'Supervision Requests Sent! 📤',
+          'Supervision Requests Sent!',
           `${successCount} request${successCount !== 1 ? 's' : ''} sent. Supervisors will receive notifications and need to accept before becoming your supervisor.`
         );
       }
@@ -2414,7 +2584,7 @@ export function ProfileScreen() {
             </YStack>
 
             <DropdownButton
-              onPress={() => setShowRoleModal(true)}
+              onPress={showRoleSheet}
               value={formData.role === 'student'
                 ? t('profile.roles.student')
                 : formData.role === 'instructor'
@@ -2425,7 +2595,7 @@ export function ProfileScreen() {
             />
 
             <DropdownButton
-              onPress={() => setShowExperienceModal(true)}
+              onPress={showExperienceSheet}
               value={formData.experience_level === 'beginner'
                 ? t('profile.experienceLevels.beginner')
                 : formData.experience_level === 'intermediate'
@@ -2436,7 +2606,7 @@ export function ProfileScreen() {
             />
 
             <DropdownButton
-              onPress={() => setShowLanguageModal(true)}
+              onPress={showLanguageSheet}
               value={LANGUAGE_LABELS[language]}
               placeholder="Select Language"
               isActive={showLanguageModal}
@@ -2486,7 +2656,7 @@ export function ProfileScreen() {
                   {activeStudentId ? (
                     <YStack gap="$1">
                       <Text color="$green11" size="sm">
-                        🎯 Active View: {getActiveUser().full_name}
+                        Active View: {getActiveUser().full_name}
                       </Text>
                       <Text color="$gray11" size="xs">
                         You can see this student's progress, routes, and exercises
@@ -2504,7 +2674,7 @@ export function ProfileScreen() {
                   ) : supervisedStudents.length > 0 ? (
                     <YStack gap="$1">
                       <Text color="$gray11" size="sm">
-                        👨‍🏫 Managing {supervisedStudents.length} student
+                        Managing {supervisedStudents.length} student
                         {supervisedStudents.length !== 1 ? 's' : ''} • Currently viewing your own
                         profile
                       </Text>
@@ -2515,7 +2685,7 @@ export function ProfileScreen() {
                   ) : (
                     <YStack gap="$1">
                       <Text color="$gray11" size="sm">
-                        👥 No supervised students yet
+                        No supervised students yet
                       </Text>
                       <Text color="$gray11" size="xs">
                         Invite students to supervise their learning journey
@@ -2723,7 +2893,7 @@ export function ProfileScreen() {
               <YStack gap="$3">
                 <XStack justifyContent="space-between" alignItems="center">
                   <Text size="lg" weight="bold" color="$color">
-                    {t('profile.stats.title') || '📊 Driving Statistics'}
+                    {t('profile.stats.title') || 'Driving Statistics'}
                   </Text>
                   <Button
                     size="sm"
@@ -2827,7 +2997,7 @@ export function ProfileScreen() {
                     {/* Weekly Time Chart */}
                     <YStack gap="$2">
                       <Text fontSize="$4" fontWeight="600" color="$color">
-                        {t('profile.stats.weeklyTime') || '⏱️ Weekly Time'}
+                        {t('profile.stats.weeklyTime') || 'Weekly Time'}
                       </Text>
                       <BarChart
                         data={{
@@ -2948,269 +3118,20 @@ export function ProfileScreen() {
             </XStack>
 
             {/* Notification Settings */}
-            <Card bordered padding="$4" marginVertical="$2">
-              <YStack gap="$3">
-                <Text size="lg" weight="bold" color="$color">
-                  🔔 Notification Settings
-                </Text>
+            <DropdownButton
+              onPress={showNotificationSheet}
+              value="Notification Settings"
+              placeholder="Notification Settings"
+              marginVertical="$2"
+            />
 
-                <XStack justifyContent="space-between" alignItems="center">
-                  <YStack flex={1}>
-                    <Text color="$color" fontWeight="500">
-                      Push Notifications
-                    </Text>
-                    <Text color="$gray11" fontSize="$3">
-                      Get notified about messages, routes, and updates
-                    </Text>
-                  </YStack>
-                  <Switch
-                    size="$4"
-                    checked={true}
-                    backgroundColor="$blue8"
-                    onCheckedChange={async (checked) => {
-                      if (checked) {
-                        await pushNotificationService.registerForPushNotifications();
-                        Alert.alert(
-                          'Notifications Enabled',
-                          'You will receive push notifications for important updates.',
-                        );
-                      } else {
-                        Alert.alert(
-                          'Feature Not Available',
-                          'Notification disabling will be available in a future update.',
-                        );
-                      }
-                    }}
-                  >
-                    <Switch.Thumb />
-                  </Switch>
-                </XStack>
-
-                <XStack justifyContent="space-between" alignItems="center">
-                  <YStack flex={1}>
-                    <Text color="$color" fontWeight="500">
-                      App Badge
-                    </Text>
-                    <Text color="$gray11" fontSize="$3">
-                      Show unread count on app icon
-                    </Text>
-                  </YStack>
-                  <Switch
-                    size="$4"
-                    checked={true}
-                    backgroundColor="$blue8"
-                    onCheckedChange={async (checked) => {
-                      if (checked) {
-                        await pushNotificationService.updateBadgeCount();
-                        Alert.alert('Badge Enabled', 'App icon will show unread count.');
-                      } else {
-                        await pushNotificationService.setBadgeCount(0);
-                        Alert.alert('Badge Disabled', 'App icon badge cleared.');
-                      }
-                    }}
-                  >
-                    <Switch.Thumb />
-                  </Switch>
-                </XStack>
-
-                <XStack justifyContent="space-between" alignItems="center">
-                  <YStack flex={1}>
-                    <Text color="$color" fontWeight="500">
-                      Notification Sounds
-                    </Text>
-                    <Text color="$gray11" fontSize="$3">
-                      Play sounds for messages and notifications
-                    </Text>
-                  </YStack>
-                  <Switch
-                    size="$4"
-                    checked={soundEnabled}
-                    backgroundColor={soundEnabled ? '$blue8' : '$gray6'}
-                    onCheckedChange={async (checked) => {
-                      try {
-                        // Save sound setting directly with AsyncStorage
-                        const AsyncStorage = (
-                          await import('@react-native-async-storage/async-storage')
-                        ).default;
-                        await AsyncStorage.setItem(
-                          'notification_sound_enabled',
-                          checked.toString(),
-                        );
-                        setSoundEnabled(checked);
-
-                        if (checked) {
-                          Alert.alert('Sounds Enabled', 'You will hear notification sounds.');
-                          // Play test sound
-                          await pushNotificationService.playNotificationSound('notification');
-                        } else {
-                          Alert.alert('Sounds Disabled', 'Notification sounds turned off.');
-                        }
-                      } catch (error) {
-                        console.error('Error updating sound settings:', error);
-                        Alert.alert('Error', 'Failed to update sound settings');
-                      }
-                    }}
-                  >
-                    <Switch.Thumb />
-                  </Switch>
-                </XStack>
-
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  backgroundColor="$gray7"
-                  onPress={async () => {
-                    try {
-                      await pushNotificationService.updateBadgeCount();
-                      const currentBadge = await pushNotificationService.getBadgeCount();
-                      Alert.alert(
-                        'Badge Updated',
-                        `Current badge count: ${currentBadge}\n\nNote: Badge count may only be visible when the app is published to the App Store.`,
-                      );
-                    } catch (error) {
-                      console.error('Badge update error:', error);
-                      Alert.alert('Error', 'Failed to update badge count');
-                    }
-                  }}
-                >
-                  <Text>🔄 Update Badge Count</Text>
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  backgroundColor="$purple9"
-                  onPress={async () => {
-                    try {
-                      Alert.alert('Test Sounds', 'Choose a sound to test:', [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: '🔔 Notification Sound',
-                          onPress: async () => {
-                            await pushNotificationService.playNotificationSound('notification');
-                          },
-                        },
-                        {
-                          text: '💬 Message Sound',
-                          onPress: async () => {
-                            await pushNotificationService.playNotificationSound('message');
-                          },
-                        },
-                        {
-                          text: '📱 System Sound',
-                          onPress: async () => {
-                            await pushNotificationService.playSystemSound();
-                          },
-                        },
-                      ]);
-                    } catch (error) {
-                      console.error('Test sound error:', error);
-                      Alert.alert('Error', 'Failed to play test sound');
-                    }
-                  }}
-                >
-                  <Text color="white">🎵 Test Sounds</Text>
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  backgroundColor="$red9"
-                  onPress={async () => {
-                    try {
-                      await pushNotificationService.clearAllNotifications();
-                      await pushNotificationService.setBadgeCount(0);
-                      Alert.alert('Cleared', 'All notifications and badge count cleared');
-                    } catch (error) {
-                      console.error('Clear notifications error:', error);
-                      Alert.alert('Error', 'Failed to clear notifications');
-                    }
-                  }}
-                >
-                  <Text color="white">🗑️ Clear All Notifications</Text>
-                </Button>
-              </YStack>
-            </Card>
-
-            <Button onPress={handleShowOnboarding} variant="secondary" size="lg">
-              <XStack gap="$2" alignItems="center">
-                <Feather
-                  name="help-circle"
-                  size={20}
-                  color={colorScheme === 'dark' ? 'white' : 'black'}
-                />
-                <Text>{t('profile.onboardingTour')}</Text>
-              </XStack>
-            </Button>
-
-            <Button 
-              onPress={async () => {
-                try {
-                  // Reset ALL onboarding storage to force it to show
-                  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-                  
-                  console.log('🔄 [ProfileScreen] Clearing ALL onboarding storage...');
-                  await AsyncStorage.multiRemove([
-                    'interactive_onboarding',
-                    'vromm_first_login', 
-                    'vromm_onboarding',
-                    'show_onboarding'
-                  ]);
-                  
-                  console.log('🔄 [ProfileScreen] Storage cleared, checking current state...');
-                  const remainingKeys = await AsyncStorage.getAllKeys();
-                  const onboardingKeys = remainingKeys.filter(key => 
-                    key.includes('onboarding') || key.includes('first_login')
-                  );
-                  console.log('🔄 [ProfileScreen] Remaining onboarding keys:', onboardingKeys);
-                  
-                  // Navigate to home and trigger onboarding
-                  navigation.navigate('MainTabs', {
-                    screen: 'HomeTab',
-                    params: { screen: 'HomeScreen', params: { forceOnboarding: true } }
-                  });
-                  
-                  Alert.alert('Onboarding Reset', 'All onboarding storage cleared. Check console logs and home screen.');
-                } catch (error) {
-                  console.error('Error resetting interactive onboarding:', error);
-                  Alert.alert('Error', 'Failed to reset interactive onboarding');
-                }
-              }} 
-              variant="secondary" 
-              size="lg"
-              backgroundColor="$green9"
-            >
-              <XStack gap="$2" alignItems="center">
-                <Feather
-                  name="refresh-cw"
-                  size={20}
-                  color="white"
-                />
-                <Text color="white">🚗 FORCE Reset & Test Onboarding</Text>
-              </XStack>
-            </Button>
-
-            <Button onPress={navigateToOnboardingDemo} variant="secondary" size="lg">
-              <XStack gap="$2" alignItems="center">
-                <Feather
-                  name="refresh-cw"
-                  size={20}
-                  color={colorScheme === 'dark' ? 'white' : 'black'}
-                />
-                <Text>{t('profile.contentUpdatesDemo')}</Text>
-              </XStack>
-            </Button>
-
-            <Button onPress={navigateToTranslationDemo} variant="secondary" size="lg">
-              <XStack gap="$2" alignItems="center">
-                <Feather
-                  name="globe"
-                  size={20}
-                  color={colorScheme === 'dark' ? 'white' : 'black'}
-                />
-                <Text>{t('profile.translationDemo')}</Text>
-              </XStack>
-            </Button>
+            {/* Testing Tools */}
+            <DropdownButton
+              onPress={showTestingSheet}
+              value="Testing Tools"
+              placeholder="Testing Tools"
+              marginVertical="$2"
+            />
 
             {error ? (
               <Text size="sm" intent="error" textAlign="center">
@@ -3254,21 +3175,12 @@ export function ProfileScreen() {
               />
             )}
 
-            <Button 
+            <DropdownButton
               onPress={showDeveloperSheet}
-              variant="secondary" 
-              size="lg"
+              value="Developer Options"
+              placeholder="Developer Options"
               marginTop="$4"
-              borderWidth={1}
-              borderColor="$borderColor"
-            >
-              <XStack gap="$2" alignItems="center">
-                <Feather name="settings" size={20} color="#00E6C3" />
-                <Text color="$color" size="lg">
-                  Developer Options
-                </Text>
-              </XStack>
-            </Button>
+            />
           </YStack>
         </YStack>
       </YStack>
@@ -3330,139 +3242,169 @@ export function ProfileScreen() {
       <Modal
         visible={showRoleModal}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowRoleModal(false)}
+        animationType="none"
+        onRequestClose={hideRoleSheet}
       >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onPress={() => setShowRoleModal(false)}
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: roleBackdropOpacity,
+          }}
         >
-          <YStack
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            backgroundColor="$background"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-            gap="$4"
-          >
-            <Text size="xl" weight="bold" color="$color">
-              {t('profile.roles.title')}
-            </Text>
-            <YStack gap="$2">
-              {USER_ROLES.map((role) => (
-                <RadioButton
-                  key={role}
-                  onPress={() => {
-                    setFormData((prev) => ({ ...prev, role: role as UserRole }));
-                    setShowRoleModal(false);
-                    updateProfile({
-                      role: role as UserRole,
-                      role_confirmed: true,
-                    });
-                  }}
-                  title={role === 'student'
-                    ? t('profile.roles.student')
-                    : role === 'instructor'
-                      ? t('profile.roles.instructor')
-                      : t('profile.roles.school')}
-                  isSelected={formData.role === role}
-                />
-              ))}
-            </YStack>
-          </YStack>
-        </Pressable>
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <Pressable style={{ flex: 1 }} onPress={hideRoleSheet} />
+            <Animated.View
+              style={{
+                transform: [{ translateY: roleSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor="$background"
+                padding="$4"
+                paddingBottom={24}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+                <Text size="xl" weight="bold" color="$color" textAlign="center">
+                  {t('profile.roles.title')}
+                </Text>
+                <YStack gap="$2">
+                  {USER_ROLES.map((role) => (
+                    <RadioButton
+                      key={role}
+                      onPress={() => {
+                        setFormData((prev) => ({ ...prev, role: role as UserRole }));
+                        hideRoleSheet();
+                        updateProfile({
+                          role: role as UserRole,
+                          role_confirmed: true,
+                        });
+                      }}
+                      title={role === 'student'
+                        ? t('profile.roles.student')
+                        : role === 'instructor'
+                          ? t('profile.roles.instructor')
+                          : t('profile.roles.school')}
+                      isSelected={formData.role === role}
+                    />
+                  ))}
+                </YStack>
+              </YStack>
+            </Animated.View>
+          </View>
+        </Animated.View>
       </Modal>
 
       <Modal
         visible={showExperienceModal}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowExperienceModal(false)}
+        animationType="none"
+        onRequestClose={hideExperienceSheet}
       >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onPress={() => setShowExperienceModal(false)}
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: experienceBackdropOpacity,
+          }}
         >
-          <YStack
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            backgroundColor="$background"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-            gap="$4"
-          >
-            <Text size="xl" weight="bold" color="$color">
-              {t('profile.experienceLevels.title')}
-            </Text>
-            <YStack gap="$2">
-              {EXPERIENCE_LEVELS.map((level) => (
-                <RadioButton
-                  key={level}
-                  onPress={() => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      experience_level: level as ExperienceLevel,
-                    }));
-                    setShowExperienceModal(false);
-                  }}
-                  title={level === 'beginner'
-                    ? t('profile.experienceLevels.beginner')
-                    : level === 'intermediate'
-                      ? t('profile.experienceLevels.intermediate')
-                      : t('profile.experienceLevels.advanced')}
-                  isSelected={formData.experience_level === level}
-                />
-              ))}
-            </YStack>
-          </YStack>
-        </Pressable>
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <Pressable style={{ flex: 1 }} onPress={hideExperienceSheet} />
+            <Animated.View
+              style={{
+                transform: [{ translateY: experienceSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor="$background"
+                padding="$4"
+                paddingBottom={24}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+                <Text size="xl" weight="bold" color="$color" textAlign="center">
+                  {t('profile.experienceLevels.title')}
+                </Text>
+                <YStack gap="$2">
+                  {EXPERIENCE_LEVELS.map((level) => (
+                    <RadioButton
+                      key={level}
+                      onPress={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          experience_level: level as ExperienceLevel,
+                        }));
+                        hideExperienceSheet();
+                        updateProfile({
+                          experience_level: level as ExperienceLevel,
+                        });
+                      }}
+                      title={level === 'beginner'
+                        ? t('profile.experienceLevels.beginner')
+                        : level === 'intermediate'
+                          ? t('profile.experienceLevels.intermediate')
+                          : t('profile.experienceLevels.advanced')}
+                      isSelected={formData.experience_level === level}
+                    />
+                  ))}
+                </YStack>
+              </YStack>
+            </Animated.View>
+          </View>
+        </Animated.View>
       </Modal>
 
       <Modal
         visible={showLanguageModal}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowLanguageModal(false)}
+        animationType="none"
+        onRequestClose={hideLanguageSheet}
       >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onPress={() => setShowLanguageModal(false)}
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: languageBackdropOpacity,
+          }}
         >
-          <YStack
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            backgroundColor="$background"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-            gap="$4"
-          >
-            <Text size="xl" weight="bold" color="$color">
-              {t('settings.language.title')}
-            </Text>
-            <YStack gap="$2">
-              {LANGUAGES.map((lang) => (
-                <RadioButton
-                  key={lang}
-                  onPress={async () => {
-                    await setLanguage(lang);
-                    setShowLanguageModal(false);
-                  }}
-                  title={LANGUAGE_LABELS[lang]}
-                  isSelected={language === lang}
-                />
-              ))}
-            </YStack>
-          </YStack>
-        </Pressable>
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <Pressable style={{ flex: 1 }} onPress={hideLanguageSheet} />
+            <Animated.View
+              style={{
+                transform: [{ translateY: languageSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor="$background"
+                padding="$4"
+                paddingBottom={24}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+                <Text size="xl" weight="bold" color="$color" textAlign="center">
+                  {t('settings.language.title')}
+                </Text>
+                <YStack gap="$2">
+                  {LANGUAGES.map((lang) => (
+                    <RadioButton
+                      key={lang}
+                      onPress={async () => {
+                        await setLanguage(lang);
+                        hideLanguageSheet();
+                      }}
+                      title={LANGUAGE_LABELS[lang]}
+                      isSelected={language === lang}
+                    />
+                  ))}
+                </YStack>
+              </YStack>
+            </Animated.View>
+          </View>
+        </Animated.View>
       </Modal>
 
       {/* Supervisor Selection Modal */}
@@ -3914,7 +3856,7 @@ export function ProfileScreen() {
                 {supervisedStudents.length === 0 ? (
                   <YStack padding="$4" alignItems="center">
                     <Text color="$gray11" textAlign="center">
-                      👥 No supervised students
+                      No supervised students
                     </Text>
                     <Text color="$gray11" fontSize="$3" textAlign="center" marginTop="$2">
                       Students need to add you as their supervisor first
@@ -4298,115 +4240,20 @@ export function ProfileScreen() {
                 
                 <ScrollView style={{ flex: 1 }}>
                   <YStack gap="$2">
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => navigateToOnboardingDemo(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="play-circle" size={20} color="#00E6C3" />
-                        <Text color="$color" size="lg">
-                          Content Updates Demo
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
 
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => navigateToTranslationDemo(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="globe" size={20} color="#00E6C3" />
-                        <Text color="$color" size="lg">
-                          Translation Demo
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => handleShowOnboarding(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="help-circle" size={20} color="#00E6C3" />
-                        <Text color="$color" size="lg">
-                          Show Onboarding
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => handleResetOnboarding(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="refresh-cw" size={20} color="#FF6B35" />
-                        <Text color="#FF6B35" size="lg">
-                          Reset Onboarding
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
+                    <Button
                       onPress={() => {
                         hideDeveloperSheet();
                         setTimeout(() => refreshTranslations(), 300);
                       }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
+                      variant="outlined"
+                      size="lg"
                     >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="download" size={20} color="#00E6C3" />
-                        <Text color="$color" size="lg">
-                          Refresh Translations
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
+                      Refresh Translations
+                    </Button>
 
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => {
-                          resetTour();
-                          Alert.alert('Success', 'Tour has been reset. Restart the app to see tour badges again.');
-                        }, 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="compass" size={20} color="#FF6B35" />
-                        <Text color="#FF6B35" size="lg">
-                          Reset Tour
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
 
-                    <TouchableOpacity
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => startDatabaseTour(), 300);
-                      }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
-                    >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="database" size={20} color="#00E6C3" />
-                        <Text color="$color" size="lg">
-                          Start Database Tour
-                        </Text>
-                      </XStack>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
+                    <Button
                       onPress={() => {
                         hideDeveloperSheet();
                         setTimeout(async () => {
@@ -4415,15 +4262,337 @@ export function ProfileScreen() {
                           Alert.alert('Test', 'Promotional modal trigger sent - check console and UI.');
                         }, 300);
                       }}
-                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
+                      variant="outlined"
+                      size="lg"
                     >
-                      <XStack gap={12} padding="$2" alignItems="center">
-                        <Feather name="gift" size={20} color="#FF6B35" />
-                        <Text color="#FF6B35" size="lg">
-                          Test Promotional Modal
+                      Test Promotional Modal
+                    </Button>
+                  </YStack>
+                </ScrollView>
+              </YStack>
+            </Animated.View>
+          </View>
+        </Animated.View>
+      </Modal>
+
+      {/* Notification Settings Modal */}
+      <Modal
+        visible={showNotificationModal}
+        transparent
+        animationType="none"
+        onRequestClose={hideNotificationSheet}
+      >
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: notificationBackdropOpacity,
+          }}
+        >
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <Pressable style={{ flex: 1 }} onPress={hideNotificationSheet} />
+            <Animated.View
+              style={{
+                transform: [{ translateY: notificationSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor="$background"
+                padding="$4"
+                paddingBottom={50}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$3"
+                height="80%"
+              >
+                <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
+                  Notification Settings
+                </Text>
+                
+                <ScrollView style={{ flex: 1 }}>
+                  <YStack gap="$4">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <YStack flex={1}>
+                        <Text color="$color" fontWeight="500">
+                          Push Notifications
                         </Text>
-                      </XStack>
-                    </TouchableOpacity>
+                        <Text color="$gray11" fontSize="$3">
+                          Get notified about messages, routes, and updates
+                        </Text>
+                      </YStack>
+                      <Switch
+                        size="$4"
+                        checked={true}
+                        backgroundColor="$blue8"
+                        onCheckedChange={async (checked) => {
+                          if (checked) {
+                            await pushNotificationService.registerForPushNotifications();
+                            Alert.alert(
+                              'Notifications Enabled',
+                              'You will receive push notifications for important updates.',
+                            );
+                          } else {
+                            Alert.alert(
+                              'Feature Not Available',
+                              'Notification disabling will be available in a future update.',
+                            );
+                          }
+                        }}
+                      >
+                        <Switch.Thumb />
+                      </Switch>
+                    </XStack>
+
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <YStack flex={1}>
+                        <Text color="$color" fontWeight="500">
+                          App Badge
+                        </Text>
+                        <Text color="$gray11" fontSize="$3">
+                          Show unread count on app icon
+                        </Text>
+                      </YStack>
+                      <Switch
+                        size="$4"
+                        checked={true}
+                        backgroundColor="$blue8"
+                        onCheckedChange={async (checked) => {
+                          if (checked) {
+                            await pushNotificationService.updateBadgeCount();
+                            Alert.alert('Badge Enabled', 'App icon will show unread count.');
+                          } else {
+                            await pushNotificationService.setBadgeCount(0);
+                            Alert.alert('Badge Disabled', 'App icon badge cleared.');
+                          }
+                        }}
+                      >
+                        <Switch.Thumb />
+                      </Switch>
+                    </XStack>
+
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <YStack flex={1}>
+                        <Text color="$color" fontWeight="500">
+                          Notification Sounds
+                        </Text>
+                        <Text color="$gray11" fontSize="$3">
+                          Play sounds for messages and notifications
+                        </Text>
+                      </YStack>
+                      <Switch
+                        size="$4"
+                        checked={soundEnabled}
+                        backgroundColor={soundEnabled ? '$blue8' : '$gray6'}
+                        onCheckedChange={async (checked) => {
+                          try {
+                            const AsyncStorage = (
+                              await import('@react-native-async-storage/async-storage')
+                            ).default;
+                            await AsyncStorage.setItem(
+                              'notification_sound_enabled',
+                              checked.toString(),
+                            );
+                            setSoundEnabled(checked);
+
+                            if (checked) {
+                              Alert.alert('Sounds Enabled', 'You will hear notification sounds.');
+                              await pushNotificationService.playNotificationSound('notification');
+                            } else {
+                              Alert.alert('Sounds Disabled', 'Notification sounds turned off.');
+                            }
+                          } catch (error) {
+                            console.error('Error updating sound settings:', error);
+                            Alert.alert('Error', 'Failed to update sound settings');
+                          }
+                        }}
+                      >
+                        <Switch.Thumb />
+                      </Switch>
+                    </XStack>
+
+                    <Button
+                      variant="outlined"
+                      size="lg"
+                      onPress={async () => {
+                        try {
+                          await pushNotificationService.updateBadgeCount();
+                          const currentBadge = await pushNotificationService.getBadgeCount();
+                          Alert.alert(
+                            'Badge Updated',
+                            `Current badge count: ${currentBadge}\n\nNote: Badge count may only be visible when the app is published to the App Store.`,
+                          );
+                        } catch (error) {
+                          console.error('Badge update error:', error);
+                          Alert.alert('Error', 'Failed to update badge count');
+                        }
+                      }}
+                    >
+                      Update Badge Count
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      size="lg"
+                      onPress={async () => {
+                        try {
+                          Alert.alert('Test Sounds', 'Choose a sound to test:', [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Notification Sound',
+                              onPress: async () => {
+                                await pushNotificationService.playNotificationSound('notification');
+                              },
+                            },
+                            {
+                              text: 'Message Sound',
+                              onPress: async () => {
+                                await pushNotificationService.playNotificationSound('message');
+                              },
+                            },
+                            {
+                              text: 'System Sound',
+                              onPress: async () => {
+                                await pushNotificationService.playSystemSound();
+                              },
+                            },
+                          ]);
+                        } catch (error) {
+                          console.error('Test sound error:', error);
+                          Alert.alert('Error', 'Failed to play test sound');
+                        }
+                      }}
+                    >
+                      Test Sounds
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      size="lg"
+                      onPress={async () => {
+                        try {
+                          await pushNotificationService.clearAllNotifications();
+                          await pushNotificationService.setBadgeCount(0);
+                          Alert.alert('Cleared', 'All notifications and badge count cleared');
+                        } catch (error) {
+                          console.error('Clear notifications error:', error);
+                          Alert.alert('Error', 'Failed to clear notifications');
+                        }
+                      }}
+                    >
+                      Clear All Notifications
+                    </Button>
+                  </YStack>
+                </ScrollView>
+              </YStack>
+            </Animated.View>
+          </View>
+        </Animated.View>
+      </Modal>
+
+      {/* Testing Tools Modal */}
+      <Modal
+        visible={showTestingModal}
+        transparent
+        animationType="none"
+        onRequestClose={hideTestingSheet}
+      >
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: testingBackdropOpacity,
+          }}
+        >
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <Pressable style={{ flex: 1 }} onPress={hideTestingSheet} />
+            <Animated.View
+              style={{
+                transform: [{ translateY: testingSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor="$background"
+                padding="$4"
+                paddingBottom={50}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$3"
+                height="80%"
+              >
+                <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
+                  Testing Tools
+                </Text>
+                
+                <ScrollView style={{ flex: 1 }}>
+                  <YStack gap="$2">
+                    <Button
+                      onPress={() => {
+                        hideTestingSheet();
+                        setTimeout(() => navigateToOnboardingDemo(), 300);
+                      }}
+                      variant="outlined"
+                      size="lg"
+                    >
+                      Content Updates Demo
+                    </Button>
+
+                    <Button
+                      onPress={() => {
+                        hideTestingSheet();
+                        setTimeout(() => navigateToTranslationDemo(), 300);
+                      }}
+                      variant="outlined"
+                      size="lg"
+                    >
+                      Translation Demo
+                    </Button>
+
+                    <Button
+                      onPress={() => {
+                        hideTestingSheet();
+                        setTimeout(() => handleShowOnboarding(), 300);
+                      }}
+                      variant="outlined"
+                      size="lg"
+                    >
+                      Show Onboarding
+                    </Button>
+
+                    <Button
+                      onPress={() => {
+                        hideTestingSheet();
+                        setTimeout(() => handleResetOnboarding(), 300);
+                      }}
+                      variant="outlined"
+                      size="lg"
+                    >
+                      Reset Onboarding
+                    </Button>
+
+                    <Button
+                      onPress={() => {
+                        hideTestingSheet();
+                        setTimeout(() => {
+                          resetTour();
+                          Alert.alert('Success', 'Tour has been reset. Restart the app to see tour badges again.');
+                        }, 300);
+                      }}
+                      variant="outlined"
+                      size="lg"
+                    >
+                      Reset Tour
+                    </Button>
+
+                    <Button
+                      onPress={() => {
+                        hideTestingSheet();
+                        setTimeout(() => startDatabaseTour(), 300);
+                      }}
+                      variant="outlined"
+                      size="lg"
+                    >
+                      Start Database Tour
+                    </Button>
                   </YStack>
                 </ScrollView>
               </YStack>
