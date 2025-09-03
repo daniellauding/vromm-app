@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from './TranslationContext';
 import { supabase } from '../lib/supabase';
 import { findNodeHandle, UIManager, Platform } from 'react-native';
 
@@ -48,6 +49,7 @@ const TOUR_CONTENT_HASH_KEY = 'vromm_tour_content_hash';
 
 export function TourProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { language, t } = useTranslation();
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [steps, setSteps] = useState<TourStep[]>([]);
@@ -230,8 +232,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         if (filteredContent.length > 0) {
           const dbSteps: TourStep[] = filteredContent.map((item) => ({
             id: item.id,
-            title: item.title?.en || 'Tour Step',
-            content: item.body?.en || 'Tour content',
+            title: (item.title as any)?.[language] || (item.title as any)?.en || 'Tour Step',
+            content: (item.body as any)?.[language] || (item.body as any)?.en || 'Tour content',
             targetScreen: item.target || 'HomeTab',
             targetElement: item.target || undefined,
             position: (item.category as any) || 'center',
@@ -252,22 +254,22 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       const defaultSteps: TourStep[] = [
         {
           id: 'progress',
-          title: 'Track Your Progress',
-          content: 'Here you can see your learning progress and complete exercises. Tap the Progress tab to explore learning paths.',
+          title: t('tour.fallback.progress.title') || 'Track Your Progress',
+          content: t('tour.fallback.progress.content') || 'Here you can see your learning progress and complete exercises. Tap the Progress tab to explore learning paths.',
           targetScreen: 'ProgressTab',
           position: 'top-right',
         },
         {
           id: 'create',
-          title: 'Create Routes & Events',
-          content: 'Add routes and events here using the central create button. Tap the plus button to get started!',
+          title: t('tour.fallback.create.title') || 'Create Routes & Events',
+          content: t('tour.fallback.create.content') || 'Add routes and events here using the central create button. Tap the plus button to get started!',
           targetScreen: 'HomeTab',
           position: 'bottom',
         },
         {
           id: 'menu',
-          title: 'Menu & Settings',
-          content: 'Access your profile, settings, and manage relationships through the menu tab.',
+          title: t('tour.fallback.menu.title') || 'Menu & Settings',
+          content: t('tour.fallback.menu.content') || 'Access your profile, settings, and manage relationships through the menu tab.',
           targetScreen: 'MenuTab',
           position: 'bottom-right',
         },

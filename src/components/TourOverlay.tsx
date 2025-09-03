@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTour } from '../contexts/TourContext';
+import { useTranslation } from '../contexts/TranslationContext';
 import Svg, { Polygon } from 'react-native-svg';
 
 interface ArrowProps {
@@ -70,6 +71,7 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
   targetCoords
 }) => {
   const colorScheme = useColorScheme();
+  const { t } = useTranslation();
   const screenDimensions = Dimensions.get('window');
   const [animValue] = useState(new Animated.Value(0));
   
@@ -278,7 +280,7 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
               color={currentIndex > 0 ? buttonTextColor : secondaryTextColor} 
             />
             <Text style={{ color: currentIndex > 0 ? buttonTextColor : secondaryTextColor, fontWeight: '600' }}>
-              Previous
+              {t('tour.navigation.previous') || 'Previous'}
             </Text>
           </TouchableOpacity>
 
@@ -299,7 +301,10 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
             }}
           >
             <Text style={{ color: '#000000', fontWeight: '600' }}>
-              {currentIndex === totalSteps - 1 ? 'Finish' : 'Next'}
+              {currentIndex === totalSteps - 1 
+                ? (t('tour.navigation.finish') || 'Finish') 
+                : (t('tour.navigation.next') || 'Next')
+              }
             </Text>
             <Feather 
               name={currentIndex === totalSteps - 1 ? 'check' : 'chevron-right'} 

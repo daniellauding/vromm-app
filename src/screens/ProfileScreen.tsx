@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { YStack, XStack, Switch, useTheme, Card, Input } from 'tamagui';
+import { YStack, XStack, Switch, useTheme, Card, Input, TextArea } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { Database } from '../lib/database.types';
@@ -12,7 +12,6 @@ import {
   Image,
   ScrollView,
   RefreshControl,
-  TextInput,
   Dimensions,
   TouchableOpacity,
   Animated,
@@ -23,7 +22,6 @@ import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
-import { RadioButton, DropdownButton } from '../components/SelectButton';
 import { Header } from '../components/Header';
 import { getTabContentPadding } from '../utils/layout';
 import { useColorScheme } from 'react-native';
@@ -40,11 +38,15 @@ import { useLocation } from '../context/LocationContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePromotionalModal } from '../components/PromotionalModal';
 import { Language } from '../contexts/TranslationContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import Popover from 'react-native-popover-view';
+import { Platform, KeyboardAvoidingView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
 import { inviteNewUser, inviteMultipleUsers, inviteUsersWithPasswords, getPendingInvitations, cancelInvitation, resendInvitation } from '../services/invitationService_v2';
+import * as FileSystem from 'expo-file-system';
+import { RadioButton, DropdownButton } from '../components/SelectButton';
 import { RelationshipManagementModal } from '../components/RelationshipManagementModal';
 
 import { RelationshipReviewSection } from '../components/RelationshipReviewSection';
@@ -63,6 +65,7 @@ import {
 import { pushNotificationService } from '../services/pushNotificationService';
 import Svg, { Rect, Text as SvgText, Line } from 'react-native-svg';
 import { BarChart } from 'react-native-chart-kit';
+
 import { format, startOfWeek, eachDayOfInterval, endOfWeek, parseISO, getDay } from 'date-fns';
 
 type ExperienceLevel = Database['public']['Enums']['experience_level'];
@@ -201,7 +204,7 @@ const CustomBarChart = ({
   );
 };
 
-// Styles matching OnboardingInteractive patterns
+// Consolidated styles for ProfileScreen
 const styles = StyleSheet.create({
   sheetOption: {
     paddingVertical: 12,
@@ -209,16 +212,42 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginVertical: 4,
   },
+  selectButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+    marginVertical: 4,
+    borderWidth: 1,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    maxHeight: '80%',
+  },
 });
 
 export function ProfileScreen() {
-  const { user, profile, updateProfile, signOut } = useAuth();
+  const { user, profile, updateProfile, signOut, refreshProfile } = useAuth();
   const { language, setLanguage, t } = useTranslation();
   const { resetTour, startDatabaseTour } = useTour();
   const { setUserLocation } = useLocation();
   const { checkForPromotionalContent } = usePromotionalModal();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  
+  // Animated dots for "Detecting Location..."
+  const [dotsCount, setDotsCount] = useState(0);
+  
+  // Debug mode state
+  const [debugMode, setDebugMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [showExperienceModal, setShowExperienceModal] = useState(false);
@@ -238,6 +267,7 @@ export function ProfileScreen() {
   const [showLocationDrawer, setShowLocationDrawer] = useState(false);
   const [locationSearchResults, setLocationSearchResults] = useState<any[]>([]);
   const [locationSearchTimeout, setLocationSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'relationships'>('overview');
   
   const theme = useTheme();
   const colorScheme = useColorScheme();
@@ -307,6 +337,7 @@ export function ProfileScreen() {
   // Role, Experience, Language modal animation refs
   const roleBackdropOpacity = useRef(new Animated.Value(0)).current;
   const roleSheetTranslateY = useRef(new Animated.Value(300)).current;
+  const spinValue = useRef(new Animated.Value(0)).current;
   const experienceBackdropOpacity = useRef(new Animated.Value(0)).current;
   const experienceSheetTranslateY = useRef(new Animated.Value(300)).current;
   const languageBackdropOpacity = useRef(new Animated.Value(0)).current;
@@ -317,10 +348,41 @@ export function ProfileScreen() {
   const notificationBackdropOpacity = useRef(new Animated.Value(0)).current;
   const notificationSheetTranslateY = useRef(new Animated.Value(300)).current;
 
-  // Testing tools modal state and animation refs
-  const [showTestingModal, setShowTestingModal] = useState(false);
-  const testingBackdropOpacity = useRef(new Animated.Value(0)).current;
-  const testingSheetTranslateY = useRef(new Animated.Value(300)).current;
+
+
+  // Körkortsplan modal state and animation refs
+  const [showKorkortsplanModal, setShowKorkortsplanModal] = useState(false);
+  const korkortsplanBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const korkortsplanSheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // License plan form state (moved from LicensePlanScreen)
+  const [targetDate, setTargetDate] = useState<Date | null>(() => {
+    const planData = profile?.license_plan_data as any;
+    if (planData?.target_date) {
+      return new Date(planData.target_date);
+    }
+    return null;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDatePopover, setShowDatePopover] = useState(false);
+  const [selectedDateOption, setSelectedDateOption] = useState<string>('6months');
+  const dateButtonRef = useRef<any>(null);
+  const [hasTheory, setHasTheory] = useState<boolean>(() => {
+    const planData = profile?.license_plan_data as any;
+    return planData?.has_theory || false;
+  });
+  const [hasPractice, setHasPractice] = useState<boolean>(() => {
+    const planData = profile?.license_plan_data as any;
+    return planData?.has_practice || false;
+  });
+  const [previousExperience, setPreviousExperience] = useState<string>(() => {
+    const planData = profile?.license_plan_data as any;
+    return planData?.previous_experience || '';
+  });
+  const [specificGoals, setSpecificGoals] = useState<string>(() => {
+    const planData = profile?.license_plan_data as any;
+    return planData?.specific_goals || '';
+  });
 
   // Sound settings
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -373,54 +435,28 @@ export function ProfileScreen() {
         location_lng: (profile as any)?.preferred_city_coords?.longitude || profile?.location_lng || null,
         avatar_url: profile?.avatar_url || null,
       });
+
+      // Update license plan form data when profile changes
+      const planData = profile.license_plan_data as any;
+      if (planData?.target_date) {
+        setTargetDate(new Date(planData.target_date));
+      } else {
+        setTargetDate(null);
+      }
+      setHasTheory(planData?.has_theory || false);
+      setHasPractice(planData?.has_practice || false);
+      setPreviousExperience(planData?.previous_experience || '');
+      setSpecificGoals(planData?.specific_goals || '');
     }
   }, [profile]);
 
-  const handleUpdate = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Monitor the database call with expected fields
-      await monitorDatabaseCall(() => updateProfile(formData), 'profiles', 'update', [
-        'id',
-        'full_name',
-        'location',
-        'role',
-        'experience_level',
-        'private_profile',
-        'avatar_url',
-        'updated_at',
-      ]);
-
-      checkMemoryUsage('ProfileScreen.handleUpdate');
-      logInfo('Profile updated successfully', { formData });
-
-      // Refresh the PublicProfile when navigating back
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        // Navigate to the public profile view
-        navigation.navigate('PublicProfile', {
-          userId: profile?.id || '',
-        });
-      }
-
-      // Alert.alert('Success', 'Profile updated successfully');
-    } catch (err) {
-      logError('Profile update failed', err as Error);
-      setError(err instanceof Error ? err.message : 'Failed to update profile');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSignOut = async () => {
     try {
       setLoading(true);
       await signOut();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sign out');
+      setError(err instanceof Error ? err.message : t('errors.signOutFailed') || 'Failed to sign out');
     } finally {
       setLoading(false);
     }
@@ -451,8 +487,8 @@ export function ProfileScreen() {
     } catch (err) {
       console.error('Delete account error:', err);
       showToast({
-        title: 'Error',
-        message: (err as any)?.message || 'Failed to delete account',
+        title: t('errors.title') || 'Error',
+        message: (err as any)?.message || t('errors.deleteAccountFailed') || 'Failed to delete account',
         type: 'error'
       });
     } finally {
@@ -461,20 +497,41 @@ export function ProfileScreen() {
   };
 
   const detectLocation = useCallback(async () => {
+    let dotsInterval: NodeJS.Timeout | null = null;
     try {
-      setLoading(true);
+      setLocationLoading(true);
+      
+      // Always try to detect location, even if city is already selected (allow override)
+      
+      // Start dots animation
+      dotsInterval = setInterval(() => {
+        setDotsCount(prev => (prev + 1) % 4); // 0, 1, 2, 3, then back to 0
+      }, 500);
 
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         showToast({
-          title: 'Permission denied',
-          message: 'Please enable location services to use this feature',
+          title: t('errors.permissionDenied') || 'Permission denied',
+          message: t('errors.enableLocationServices') || 'Please enable location services to use this feature',
           type: 'error'
         });
+        setLocationLoading(false);
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
+      let location;
+      try {
+        location = await Location.getCurrentPositionAsync({});
+      } catch (locationError) {
+        console.log('📍 Location failed, using Lund, Sweden fallback');
+        // Fallback location for simulator - Lund, Sweden (same as OnboardingInteractive)
+        location = {
+          coords: {
+            latitude: 55.7047,
+            longitude: 13.1910,
+          },
+        };
+      }
 
       // Get address from coordinates
       const [address] = await Location.reverseGeocodeAsync({
@@ -482,26 +539,65 @@ export function ProfileScreen() {
         longitude: location.coords.longitude,
       });
 
-      const locationString = [address.street, address.city, address.region, address.country]
+      const locationString = [address.city, address.country]
         .filter(Boolean)
         .join(', ');
 
+      console.log('📍 Location detected:', locationString, 'overriding existing:', formData.location);
+
       setFormData((prev) => ({
         ...prev,
-        location: locationString,
+        location: locationString, // This should override existing location
         location_lat: location.coords.latitude,
         location_lng: location.coords.longitude,
       }));
+
+      // Auto-save detected location (save to both location and preferred_city fields)
+      if (user) {
+        try {
+          await updateProfile({
+            location: locationString,
+            location_lat: location.coords.latitude,
+            location_lng: location.coords.longitude,
+          });
+          console.log('✅ Location saved to profile:', locationString);
+        } catch (error) {
+          console.error('Error saving detected location:', error);
+        }
+      }
+
+      // Update LocationContext as well
+      await setUserLocation({
+        name: locationString,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        source: 'gps',
+        timestamp: new Date().toISOString(),
+      });
+
+      // Close location sheet and show success
+      hideLocationSheet();
+      showToast({
+        title: t('common.success') || 'Success',
+        message: `Location detected: ${locationString}`,
+        type: 'success'
+      });
+
     } catch (err) {
       showToast({
-        title: 'Error',
-        message: 'Failed to detect location',
+        title: t('errors.title') || 'Error',
+        message: t('errors.locationDetectionFailed') || 'Failed to detect location',
         type: 'error'
       });
     } finally {
-      setLoading(false);
+      setLocationLoading(false);
+      setDotsCount(0);
+      // Clear dots interval if it exists
+      if (dotsInterval) {
+        clearInterval(dotsInterval);
+      }
     }
-  }, []);
+  }, [user, updateProfile, setUserLocation, showToast, t]);
 
   // Location search function similar to OnboardingInteractive
   const handleLocationSearch = async (query: string) => {
@@ -601,6 +697,20 @@ export function ProfileScreen() {
       location_lat: locationData.coords?.latitude || null,
       location_lng: locationData.coords?.longitude || null,
     }));
+    
+    // Save to database profile (both location and preferred_city fields)
+    if (user && locationData.coords?.latitude && locationData.coords?.longitude) {
+      try {
+        await updateProfile({
+          location: locationName,
+          location_lat: locationData.coords.latitude,
+          location_lng: locationData.coords.longitude,
+        });
+        console.log('✅ Location saved to profile:', locationName);
+      } catch (error) {
+        console.error('Error saving selected location:', error);
+      }
+    }
     
     // Update LocationContext with selected location
     if (locationData.coords?.latitude && locationData.coords?.longitude) {
@@ -789,7 +899,7 @@ export function ProfileScreen() {
       console.error('Avatar upload error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload avatar';
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: errorMessage,
         type: 'error'
       });
@@ -811,7 +921,7 @@ export function ProfileScreen() {
       });
     } catch (err) {
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to delete avatar',
         type: 'error'
       });
@@ -1056,15 +1166,17 @@ export function ProfileScreen() {
     });
   };
 
-  // Testing tools modal show/hide functions
-  const showTestingSheet = () => {
-    setShowTestingModal(true);
-    Animated.timing(testingBackdropOpacity, {
+
+
+  // Körkortsplan modal show/hide functions
+  const showKorkortsplanSheet = () => {
+    setShowKorkortsplanModal(true);
+    Animated.timing(korkortsplanBackdropOpacity, {
       toValue: 1,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    Animated.timing(testingSheetTranslateY, {
+    Animated.timing(korkortsplanSheetTranslateY, {
       toValue: 0,
       duration: 300,
       easing: Easing.out(Easing.ease),
@@ -1072,20 +1184,77 @@ export function ProfileScreen() {
     }).start();
   };
 
-  const hideTestingSheet = () => {
-    Animated.timing(testingBackdropOpacity, {
+  const hideKorkortsplanSheet = () => {
+    Animated.timing(korkortsplanBackdropOpacity, {
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    Animated.timing(testingSheetTranslateY, {
+    Animated.timing(korkortsplanSheetTranslateY, {
       toValue: 300,
       duration: 300,
       easing: Easing.in(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
-      setShowTestingModal(false);
+      setShowKorkortsplanModal(false);
     });
+  };
+
+  // License plan functions (moved from LicensePlanScreen)
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setTargetDate(selectedDate);
+    }
+  };
+
+  const handleLicensePlanSubmit = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+
+      // Format the data to save
+      const licenseData = {
+        target_date: targetDate ? targetDate.toISOString() : null,
+        has_theory: hasTheory,
+        has_practice: hasPractice,
+        previous_experience: previousExperience,
+        specific_goals: specificGoals,
+      };
+
+      // Update the profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          license_plan_completed: true,
+          license_plan_data: licenseData,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      // Refresh the profile to get the updated data
+      await refreshProfile();
+
+      showToast({
+        title: 'Sparad!',
+        message: 'Din körkortsplan har sparats',
+        type: 'success'
+      });
+
+      // Hide the modal
+      hideKorkortsplanSheet();
+    } catch (err) {
+      console.error('Error saving license plan:', err);
+      showToast({
+        title: 'Fel',
+        message: 'Kunde inte spara körkortsplanen',
+        type: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Get user's complete profile with relationships
@@ -1112,8 +1281,8 @@ export function ProfileScreen() {
         // Transform supervisor data to match expected format
         const transformedSupervisors = supervisorsData?.map(rel => ({
           supervisor_id: rel.supervisor_id,
-          supervisor_name: rel.profiles?.full_name || 'Unknown Supervisor',
-          supervisor_email: rel.profiles?.email || '',
+          supervisor_name: (rel as any).profiles?.full_name || t('profile.unknownSupervisor') || 'Unknown Supervisor',
+          supervisor_email: (rel as any).profiles?.email || '',
           relationship_created: rel.created_at,
         })) || [];
 
@@ -1143,8 +1312,8 @@ export function ProfileScreen() {
           ? []
           : schoolsData?.map((membership) => ({
               school_id: membership.school_id,
-              school_name: membership.schools.name,
-              school_location: membership.schools.location,
+              school_name: (membership as any).schools.name,
+              school_location: (membership as any).schools.location,
             })) || [];
 
         if (schoolsError) {
@@ -1189,7 +1358,7 @@ export function ProfileScreen() {
     } catch (error) {
       logError('Error leaving supervisor', error as Error);
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to leave supervisor',
         type: 'error'
       });
@@ -1220,7 +1389,7 @@ export function ProfileScreen() {
     } catch (error) {
       logError('Error leaving school', error as Error);
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to leave school',
         type: 'error'
       });
@@ -1251,7 +1420,7 @@ export function ProfileScreen() {
       
       console.log(`🔍 Found ${data?.length || 0} potential supervisors`);
       if (data && data.length > 0) {
-        data.forEach(supervisor => {
+        data.forEach((supervisor: any) => {
           console.log('🔍 Supervisor found:', { 
             id: supervisor.id, 
             name: supervisor.full_name, 
@@ -1260,11 +1429,11 @@ export function ProfileScreen() {
           });
         });
       }
-      setAvailableSupervisors(data || []);
+      setAvailableSupervisors((data as any) || []);
     } catch (error) {
       logError('Error fetching supervisors', error as Error);
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to load available supervisors',
         type: 'error'
       });
@@ -1289,11 +1458,11 @@ export function ProfileScreen() {
       }
       
       console.log(`🔍 Found ${data?.length || 0} students`);
-      setAvailableStudents(data || []);
+      setAvailableStudents((data as any) || []);
     } catch (error) {
       logError('Error fetching students', error as Error);
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to load available students',
         type: 'error'
       });
@@ -1340,7 +1509,7 @@ export function ProfileScreen() {
       await pushNotificationService.sendInvitationNotification(
         profile.id,
         targetUserId,
-        profile.full_name || profile.email || 'Unknown User',
+        profile.full_name || profile.email || t('profile.unknownUser') || 'Unknown User',
         profile.role || 'user',
         invitationType,
       );
@@ -1362,7 +1531,7 @@ export function ProfileScreen() {
     } catch (error) {
       logError('Error sending invitation', error as Error);
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to send invitation. Please try again.',
         type: 'error'
       });
@@ -1375,7 +1544,7 @@ export function ProfileScreen() {
       const validEmails = inviteEmails.filter(email => email.includes('@'));
       if (validEmails.length === 0) {
         showToast({
-          title: 'Invalid Emails',
+          title: t('profile.invalidEmails') || 'Invalid Emails',
           message: 'Please enter valid email addresses',
           type: 'error'
         });
@@ -1440,7 +1609,7 @@ export function ProfileScreen() {
     } catch (error) {
       logError('Error sending bulk invitations', error as Error);
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to send invitations. Please try again.',
         type: 'error'
       });
@@ -1465,7 +1634,7 @@ export function ProfileScreen() {
       });
     } else {
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to resend invitation',
         type: 'error'
       });
@@ -1475,7 +1644,7 @@ export function ProfileScreen() {
   // Cancel an invitation
   const handleCancelInvite = async (invitationId: string) => {
     Alert.alert(
-      'Cancel Invitation',
+      t('profile.cancelInvitation') || 'Cancel Invitation',
       'Are you sure you want to cancel this invitation?',
       [
         { text: 'No', style: 'cancel' },
@@ -1493,7 +1662,7 @@ export function ProfileScreen() {
               });
             } else {
               showToast({
-                title: 'Error',
+                title: t('errors.title') || 'Error',
                 message: 'Failed to cancel invitation',
                 type: 'error'
               });
@@ -1544,7 +1713,7 @@ export function ProfileScreen() {
           const relationship = relationships.find(rel => rel.student_id === profile.id);
           return {
             id: profile.id,
-            full_name: profile.full_name || 'Unknown Student',
+            full_name: profile.full_name || t('profile.unknownStudent') || 'Unknown Student',
             email: profile.email || '',
             relationship_created: relationship?.created_at || '',
           };
@@ -1641,12 +1810,12 @@ export function ProfileScreen() {
 
       if (!data || data.length === 0) {
         console.warn('🏫 No schools found in database!');
-        Alert.alert('Debug Info', 'No schools found in database. Check console for details.');
+        Alert.alert(t('debug.title') || 'Debug Info', t('debug.noSchools') || 'No schools found in database. Check console for details.');
         return;
       }
 
       console.log(`🏫 SUCCESS: Found ${data.length} schools`);
-      setAvailableSchools(data);
+      setAvailableSchools((data as any) || []);
     } catch (error) {
       console.error('🏫 Error in fetchAvailableSchools:', error);
       Alert.alert('Error', `Exception in fetchAvailableSchools: ${error}`);
@@ -1947,12 +2116,121 @@ export function ProfileScreen() {
     } catch (error) {
       logError('Error joining school', error as Error);
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to join school',
         type: 'error'
       });
     }
   };
+
+  // Fetch driving statistics
+  const fetchDrivingStats = useCallback(async () => {
+    if (!profile?.id) return;
+
+    try {
+      setStatsLoading(true);
+
+      // Get active user ID (own or student being supervised)
+      const activeUserId = activeStudentId || profile.id;
+
+      // Fetch route recordings from the last 4 weeks for more data
+      const fourWeeksAgo = new Date();
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+
+      // Use driven_routes to get route activity data
+      const { data: recordings, error } = await supabase
+        .from('driven_routes')
+        .select(
+          `
+          *,
+          routes!inner(
+            id,
+            name,
+            metadata
+          )
+        `,
+        )
+        .eq('user_id', activeUserId)
+        .gte('driven_at', fourWeeksAgo.toISOString())
+        .order('driven_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching driving stats:', error);
+        return;
+      }
+
+      // Process the data into weekly stats
+      const now = new Date();
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+      const weekEnd = endOfWeek(now, { weekStartsOn: 1 }); // Sunday
+      const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+
+      // Initialize daily stats
+      const dailyStats: DayStats[] = weekDays.map((day) => ({
+        day: format(day, 'E'), // Mon, Tue, etc.
+        dayIndex: getDay(day),
+        distance: 0,
+        time: 0,
+        routes: 0,
+      }));
+
+      let totalDistance = 0;
+      let totalTime = 0;
+      const totalRoutes = recordings?.length || 0;
+
+      // Process recordings from driven_routes
+      recordings?.forEach((recording) => {
+        const recordingDate = parseISO(recording.driven_at || recording.created_at);
+        const dayOfWeek = getDay(recordingDate);
+
+        // Find matching day in our week (adjust for Monday start)
+        const adjustedDayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert Sunday=0 to Sunday=6
+        const dayStats = dailyStats[adjustedDayIndex];
+
+        if (dayStats) {
+          // Extract distance and time from route metadata if available
+          const metadata = recording.routes?.metadata || {};
+          const distance = metadata.distance || Math.random() * 15 + 2; // Fallback for demo
+          const time = metadata.duration || Math.random() * 45 + 10; // Fallback for demo
+
+          dayStats.distance += distance;
+          dayStats.time += time;
+          dayStats.routes += 1;
+
+          totalDistance += distance;
+          totalTime += time;
+        }
+      });
+
+      // Find most active day
+      const mostActiveDay = dailyStats.reduce((prev, current) =>
+        current.routes > prev.routes ? current : prev,
+      ).day;
+
+      const stats: DrivingStats = {
+        weeklyData: dailyStats,
+        totalDistance,
+        totalTime,
+        totalRoutes,
+        mostActiveDay,
+        averagePerDay: {
+          distance: totalDistance / 7,
+          time: totalTime / 7,
+        },
+      };
+
+      setDrivingStats(stats);
+      logInfo('Driving stats loaded', {
+        totalRoutes,
+        totalDistance: totalDistance.toFixed(1),
+        mostActiveDay,
+      });
+    } catch (error) {
+      logError('Error fetching driving stats', error as Error);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [profile?.id, activeStudentId, logInfo, logError]);
 
   // Refresh function for pull-to-refresh
   const handleRefresh = async () => {
@@ -2145,7 +2423,7 @@ export function ProfileScreen() {
         }
       } else {
         showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to remove supervisor',
         type: 'error'
       });
@@ -2153,7 +2431,7 @@ export function ProfileScreen() {
     } catch (error) {
       console.error('Error removing supervisor:', error);
       showToast({
-        title: 'Error',
+        title: t('errors.title') || 'Error',
         message: 'Failed to remove supervisor',
         type: 'error'
       });
@@ -2261,114 +2539,6 @@ export function ProfileScreen() {
     };
   }, [locationSearchTimeout]);
 
-  // Fetch driving statistics
-  const fetchDrivingStats = useCallback(async () => {
-    if (!profile?.id) return;
-
-    try {
-      setStatsLoading(true);
-
-      // Get active user ID (own or student being supervised)
-      const activeUserId = activeStudentId || profile.id;
-
-      // Fetch route recordings from the last 4 weeks for more data
-      const fourWeeksAgo = new Date();
-      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
-
-      // Use driven_routes to get route activity data
-      const { data: recordings, error } = await supabase
-        .from('driven_routes')
-        .select(
-          `
-          *,
-          routes!inner(
-            id,
-            name,
-            metadata
-          )
-        `,
-        )
-        .eq('user_id', activeUserId)
-        .gte('driven_at', fourWeeksAgo.toISOString())
-        .order('driven_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching driving stats:', error);
-        return;
-      }
-
-      // Process the data into weekly stats
-      const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
-      const weekEnd = endOfWeek(now, { weekStartsOn: 1 }); // Sunday
-      const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
-
-      // Initialize daily stats
-      const dailyStats: DayStats[] = weekDays.map((day) => ({
-        day: format(day, 'E'), // Mon, Tue, etc.
-        dayIndex: getDay(day),
-        distance: 0,
-        time: 0,
-        routes: 0,
-      }));
-
-      let totalDistance = 0;
-      let totalTime = 0;
-      const totalRoutes = recordings?.length || 0;
-
-      // Process recordings from driven_routes
-      recordings?.forEach((recording) => {
-        const recordingDate = parseISO(recording.driven_at || recording.created_at);
-        const dayOfWeek = getDay(recordingDate);
-
-        // Find matching day in our week (adjust for Monday start)
-        const adjustedDayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert Sunday=0 to Sunday=6
-        const dayStats = dailyStats[adjustedDayIndex];
-
-        if (dayStats) {
-          // Extract distance and time from route metadata if available
-          const metadata = recording.routes?.metadata || {};
-          const distance = metadata.distance || Math.random() * 15 + 2; // Fallback for demo
-          const time = metadata.duration || Math.random() * 45 + 10; // Fallback for demo
-
-          dayStats.distance += distance;
-          dayStats.time += time;
-          dayStats.routes += 1;
-
-          totalDistance += distance;
-          totalTime += time;
-        }
-      });
-
-      // Find most active day
-      const mostActiveDay = dailyStats.reduce((prev, current) =>
-        current.routes > prev.routes ? current : prev,
-      ).day;
-
-      const stats: DrivingStats = {
-        weeklyData: dailyStats,
-        totalDistance,
-        totalTime,
-        totalRoutes,
-        mostActiveDay,
-        averagePerDay: {
-          distance: totalDistance / 7,
-          time: totalTime / 7,
-        },
-      };
-
-      setDrivingStats(stats);
-      logInfo('Driving stats loaded', {
-        totalRoutes,
-        totalDistance: totalDistance.toFixed(1),
-        mostActiveDay,
-      });
-    } catch (error) {
-      logError('Error fetching driving stats', error as Error);
-    } finally {
-      setStatsLoading(false);
-    }
-  }, [profile?.id, activeStudentId, logInfo, logError]);
 
   // Load relationship reviews
   const loadRelationshipReviews = useCallback(async () => {
@@ -2408,7 +2578,6 @@ export function ProfileScreen() {
           onRefresh={handleRefresh}
           tintColor="#00E6C3"
           colors={['#00E6C3']}
-          backgroundColor="rgba(0, 0, 0, 0.1)"
           progressBackgroundColor="#1a1a1a"
         />
       }
@@ -2435,7 +2604,7 @@ export function ProfileScreen() {
                 >
                   <XStack alignItems="center" gap="$2">
                     <Feather name="user" size={16} color={colorScheme === 'dark' ? 'white' : 'black'} />
-                    <Text>View Student</Text>
+                    <Text>{t('profile.viewStudent') || 'View Student'}</Text>
                   </XStack>
                 </Button>
               )}
@@ -2450,7 +2619,7 @@ export function ProfileScreen() {
               >
                 <XStack alignItems="center" gap="$2">
                   <Feather name="eye" size={16} color={colorScheme === 'dark' ? 'white' : 'black'} />
-                  <Text>View Profile</Text>
+                  <Text>{t('profile.viewProfile') || 'View Profile'}</Text>
                 </XStack>
               </Button>
             </XStack>
@@ -2509,7 +2678,7 @@ export function ProfileScreen() {
                 </View>
               </TouchableOpacity>
               <Text size="sm" color="$gray11" textAlign="center" marginTop={8}>
-                Tap to change avatar
+                {t('profile.avatar.tapToChange') || 'Tap to change avatar'}
               </Text>
               
               {/* Display rating badge if user has reviews */}
@@ -2528,15 +2697,149 @@ export function ProfileScreen() {
                   />
                 </YStack>
               )}
+
+              {/* Tab Navigation */}
+              <XStack justifyContent="center" gap="$2" marginTop="$4" marginBottom="$2">
+                <TouchableOpacity
+                  onPress={async () => {
+                    // Auto-save current changes before switching
+                    if (user && (formData.full_name !== profile?.full_name || formData.location !== profile?.location)) {
+                      try {
+                        await updateProfile(formData);
+                        console.log('✅ Auto-saved before tab switch');
+                      } catch (error) {
+                        console.error('Error auto-saving:', error);
+                      }
+                    }
+                    setActiveTab('overview');
+                  }}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: activeTab === 'overview' ? '#00E6C3' : 'transparent',
+                    borderWidth: 1,
+                    borderColor: activeTab === 'overview' ? '#00E6C3' : '#ccc',
+                  }}
+                >
+                  <Text
+                    color={activeTab === 'overview' ? 'white' : '$color'}
+                    weight={activeTab === 'overview' ? 'bold' : 'normal'}
+                    size="sm"
+                  >
+                    {t('profile.tabs.overview') || 'Översikt'}
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={async () => {
+                    // Auto-save current changes before switching
+                    if (user && (formData.full_name !== profile?.full_name || formData.location !== profile?.location)) {
+                      try {
+                        await updateProfile(formData);
+                        console.log('✅ Auto-saved before tab switch');
+                      } catch (error) {
+                        console.error('Error auto-saving:', error);
+                      }
+                    }
+                    setActiveTab('stats');
+                  }}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: activeTab === 'stats' ? '#00E6C3' : 'transparent',
+                    borderWidth: 1,
+                    borderColor: activeTab === 'stats' ? '#00E6C3' : '#ccc',
+                  }}
+                >
+                  <Text
+                    color={activeTab === 'stats' ? 'white' : '$color'}
+                    weight={activeTab === 'stats' ? 'bold' : 'normal'}
+                    size="sm"
+                  >
+                    {t('profile.tabs.stats') || 'Stats'}
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={async () => {
+                    // Auto-save current changes before switching
+                    if (user && (formData.full_name !== profile?.full_name || formData.location !== profile?.location)) {
+                      try {
+                        await updateProfile(formData);
+                        console.log('✅ Auto-saved before tab switch');
+                      } catch (error) {
+                        console.error('Error auto-saving:', error);
+                      }
+                    }
+                    setActiveTab('relationships');
+                  }}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: activeTab === 'relationships' ? '#00E6C3' : 'transparent',
+                    borderWidth: 1,
+                    borderColor: activeTab === 'relationships' ? '#00E6C3' : '#ccc',
+                    position: 'relative',
+                  }}
+                >
+                  <Text
+                    color={activeTab === 'relationships' ? 'white' : '$color'}
+                    weight={activeTab === 'relationships' ? 'bold' : 'normal'}
+                    size="sm"
+                  >
+                    {t('profile.tabs.relationships') || 'Relationer'}
+                  </Text>
+                  {pendingInvitations.length > 0 && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: -4,
+                        right: -4,
+                        backgroundColor: '#FF4444',
+                        borderRadius: 10,
+                        minWidth: 20,
+                        height: 20,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        color="white"
+                        size="xs"
+                        weight="bold"
+                      >
+                        {pendingInvitations.length}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </XStack>
             </YStack>
 
-            <YStack>
-              <Text size="lg" weight="medium" mb="$2" color="$color">
-                {t('profile.fullName')}
-              </Text>
+            {/* Tab Content */}
+            {activeTab === 'overview' && (
+              <YStack gap="$4">
+                <YStack>
+                  <Text size="lg" weight="medium" mb="$2" color="$color">
+                    {t('profile.fullName')}
+                  </Text>
               <FormField
                 value={formData.full_name}
                 onChangeText={(text) => setFormData((prev) => ({ ...prev, full_name: text }))}
+                onBlur={async () => {
+                  // Save name when field loses focus
+                  if (user && formData.full_name !== profile?.full_name) {
+                    try {
+                      await updateProfile({ full_name: formData.full_name });
+                      console.log('✅ Name updated:', formData.full_name);
+                    } catch (error) {
+                      console.error('Error saving name:', error);
+                    }
+                  }
+                }}
                 placeholder={t('profile.fullNamePlaceholder')}
                 autoCapitalize="none"
               />
@@ -2560,26 +2863,6 @@ export function ProfileScreen() {
                   isActive={showLocationDrawer}
                 />
                 
-                <Button
-                  onPress={detectLocation}
-                  disabled={loading}
-                  variant="secondary"
-                  size="md"
-                  backgroundColor="transparent"
-                  borderWidth={1}
-                  borderColor="$borderColor"
-                >
-                  <XStack gap="$2" alignItems="center">
-                    <Feather
-                      name="map-pin"
-                      size={16}
-                      color="#00E6C3"
-                    />
-                    <Text color="$color">
-                      Detect My Location
-                    </Text>
-                  </XStack>
-                </Button>
               </YStack>
             </YStack>
 
@@ -2590,7 +2873,7 @@ export function ProfileScreen() {
                 : formData.role === 'instructor'
                   ? t('profile.roles.instructor')
                   : t('profile.roles.school')}
-              placeholder="Select Role"
+              placeholder={t('profile.selectRole') || 'Select Role'}
               isActive={showRoleModal}
             />
 
@@ -2608,11 +2891,110 @@ export function ProfileScreen() {
             <DropdownButton
               onPress={showLanguageSheet}
               value={LANGUAGE_LABELS[language]}
-              placeholder="Select Language"
+              placeholder={t('profile.selectLanguage') || 'Select Language'}
               isActive={showLanguageModal}
             />
 
-            {/* Supervised Students Section for Supervisors */}
+            {/* Private Profile Setting */}
+            <XStack
+              justifyContent="space-between"
+              alignItems="center"
+              backgroundColor={formData.private_profile ? '$blue4' : undefined}
+              padding="$4"
+              borderRadius="$4"
+              pressStyle={{
+                scale: 0.98,
+              }}
+              onPress={() =>
+                setFormData((prev) => ({ ...prev, private_profile: !prev.private_profile }))
+              }
+            >
+              <Text size="lg" color="$color">
+                {t('profile.privateProfile')}
+              </Text>
+              <Switch
+                size="$6"
+                checked={formData.private_profile}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, private_profile: checked }))
+                }
+                backgroundColor={formData.private_profile ? '$blue8' : '$gray6'}
+                scale={1.2}
+                margin="$2"
+                pressStyle={{
+                  scale: 0.95,
+                }}
+              >
+                <Switch.Thumb
+                  scale={1.2}
+                  pressStyle={{
+                    scale: 0.95,
+                  }}
+                />
+              </Switch>
+            </XStack>
+
+            {/* Notification Settings */}
+            <YStack marginVertical="$2">
+              <DropdownButton
+                onPress={showNotificationSheet}
+                value={t('profile.notificationSettings') || 'Notification Settings'}
+                placeholder="Notification Settings"
+              />
+            </YStack>
+
+            {/* Developer Tools (Combined Testing & Developer Options) - Only show if developer mode enabled */}
+            {(profile as any)?.developer_mode && (
+              <YStack marginVertical="$2">
+                <DropdownButton
+                  onPress={showDeveloperSheet}
+                  value="Developer Tools"
+                  placeholder="Developer Tools"
+                />
+              </YStack>
+            )}
+
+            {error ? (
+              <Text size="sm" intent="error" textAlign="center">
+                {error}
+              </Text>
+            ) : null}
+
+            {/* Körkortsplan */}
+            <YStack marginVertical="$2">
+              <DropdownButton
+                onPress={showKorkortsplanSheet}
+                value="Körkortsplan"
+                placeholder="Körkortsplan"
+              />
+            </YStack>
+              </YStack>
+            )}
+
+            {/* Account Actions */}
+            <YStack gap="$3" marginTop="$4">
+              <Button 
+                onPress={handleSignOut} 
+                disabled={loading} 
+                variant="outlined" 
+                size="lg"
+              >
+                {t('profile.signOut')}
+              </Button>
+              <Button
+                onPress={() => setShowDeleteDialog(true)}
+                disabled={loading}
+                variant="outlined"
+                size="lg"
+              >
+                {t('settings.deleteAccount') || 'Delete Account'}
+              </Button>
+            </YStack>
+
+            {/* Relationships Tab */}
+            {activeTab === 'relationships' && (
+              <YStack gap="$4">
+                {/* Supervised Students Section for Supervisors */}
             {canSuperviseStudents() && (
               <Card bordered padding="$4" marginVertical="$2">
                 <YStack gap="$2">
@@ -2637,7 +3019,7 @@ export function ProfileScreen() {
                         backgroundColor="$purple9"
                         onPress={() => navigation.navigate('StudentManagementScreen')}
                       >
-                        <Text color="white">Manage Students</Text>
+                        <Text color="white">{t('profile.manageStudents') || 'Manage Students'}</Text>
                       </Button>
                       <Button
                         size="sm"
@@ -2648,7 +3030,7 @@ export function ProfileScreen() {
                           setShowInviteModal(true);
                         }}
                       >
-                        <Text color="white">Invite Students</Text>
+                        <Text color="white">{t('profile.inviteStudents') || 'Invite Students'}</Text>
                       </Button>
                     </XStack>
                   </XStack>
@@ -2668,7 +3050,7 @@ export function ProfileScreen() {
                         onPress={() => switchActiveStudent(null)}
                         marginTop="$1"
                       >
-                        <Text>Switch Back to My View</Text>
+                        <Text>{t('profile.switchBackToMyView') || 'Switch Back to My View'}</Text>
                       </Button>
                     </YStack>
                   ) : supervisedStudents.length > 0 ? (
@@ -2775,7 +3157,7 @@ export function ProfileScreen() {
                         }}
                         disabled={relationshipsLoading}
                       >
-                        <Text color="white">Leave</Text>
+                        <Text color="white">{t('common.leave') || 'Leave'}</Text>
                       </Button>
                     </XStack>
                   ))
@@ -2852,7 +3234,7 @@ export function ProfileScreen() {
                         }}
                         disabled={relationshipsLoading}
                       >
-                        <Text color="white">Leave</Text>
+                        <Text color="white">{t('common.leave') || 'Leave'}</Text>
                       </Button>
                     </XStack>
                   ))
@@ -2860,35 +3242,24 @@ export function ProfileScreen() {
               </YStack>
             </Card>
 
-            <Card bordered padding="$4" marginVertical="$2">
-              <YStack gap="$2">
-                <Text size="lg" weight="bold" color="$color">
-                  Körkortsplan
-                </Text>
-                <Text color="$gray11">
-                  {profile?.license_plan_completed
-                    ? 'Din körkortsplan är ifylld'
-                    : 'Du har inte fyllt i din körkortsplan än'}
-                </Text>
-                <XStack justifyContent="space-between" alignItems="center" marginTop="$2">
-                  <Text
-                    weight="bold"
-                    color={profile?.license_plan_completed ? '$green10' : '$blue10'}
-                  >
-                    {profile?.license_plan_completed ? '100% Klar' : '0% Klar'}
-                  </Text>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onPress={() => navigation.navigate('LicensePlanScreen')}
-                  >
-                    {profile?.license_plan_completed ? 'Redigera' : 'Fyll i'}
-                  </Button>
-                </XStack>
+            {/* Relationship Reviews Section */}
+            {profile && (
+              <RelationshipReviewSection
+                profileUserId={profile.id}
+                profileUserRole={profile.role as any}
+                profileUserName={profile.full_name || profile.email || 'Unknown User'}
+                canReview={userRating.canReview}
+                reviews={relationshipReviews}
+                onReviewAdded={loadRelationshipReviews}
+              />
+            )}
               </YStack>
-            </Card>
+            )}
 
-            {/* Driving Statistics Section */}
+            {/* Stats Tab */}
+            {activeTab === 'stats' && (
+              <YStack gap="$4">
+                {/* Driving Statistics Section */}
             <Card bordered padding="$4" marginVertical="$2">
               <YStack gap="$3">
                 <XStack justifyContent="space-between" alignItems="center">
@@ -2967,6 +3338,8 @@ export function ProfileScreen() {
                         }}
                         width={Dimensions.get('window').width - 80}
                         height={120}
+                        yAxisLabel=""
+                        yAxisSuffix="km"
                         chartConfig={{
                           backgroundColor: '#1A1A1A',
                           backgroundGradientFrom: '#1A1A1A',
@@ -3010,6 +3383,8 @@ export function ProfileScreen() {
                         }}
                         width={Dimensions.get('window').width - 80}
                         height={120}
+                        yAxisLabel=""
+                        yAxisSuffix="h"
                         chartConfig={{
                           backgroundColor: '#1A1A1A',
                           backgroundGradientFrom: '#1A1A1A',
@@ -3072,115 +3447,15 @@ export function ProfileScreen() {
                       onPress={fetchDrivingStats}
                       marginTop="$2"
                     >
-                      <Text color="white">Check for Data</Text>
+                      <Text color="white">{t('profile.checkForData') || 'Check for Data'}</Text>
                     </Button>
                   </YStack>
                 )}
               </YStack>
             </Card>
-
-            <XStack
-              justifyContent="space-between"
-              alignItems="center"
-              backgroundColor={formData.private_profile ? '$blue4' : undefined}
-              padding="$4"
-              borderRadius="$4"
-              pressStyle={{
-                scale: 0.98,
-              }}
-              onPress={() =>
-                setFormData((prev) => ({ ...prev, private_profile: !prev.private_profile }))
-              }
-            >
-              <Text size="lg" color="$color">
-                {t('profile.privateProfile')}
-              </Text>
-              <Switch
-                size="$6"
-                checked={formData.private_profile}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev, private_profile: checked }))
-                }
-                backgroundColor={formData.private_profile ? '$blue8' : '$gray6'}
-                scale={1.2}
-                margin="$2"
-                pressStyle={{
-                  scale: 0.95,
-                }}
-              >
-                <Switch.Thumb
-                  scale={1.2}
-                  pressStyle={{
-                    scale: 0.95,
-                  }}
-                />
-              </Switch>
-            </XStack>
-
-            {/* Notification Settings */}
-            <DropdownButton
-              onPress={showNotificationSheet}
-              value="Notification Settings"
-              placeholder="Notification Settings"
-              marginVertical="$2"
-            />
-
-            {/* Testing Tools */}
-            <DropdownButton
-              onPress={showTestingSheet}
-              value="Testing Tools"
-              placeholder="Testing Tools"
-              marginVertical="$2"
-            />
-
-            {error ? (
-              <Text size="sm" intent="error" textAlign="center">
-                {error}
-              </Text>
-            ) : null}
-
-            <Button
-              onPress={handleUpdate}
-              disabled={loading}
-              variant="primary"
-              size="lg"
-              backgroundColor="$blue10"
-            >
-              {loading ? t('profile.updating') : t('profile.updateProfile')}
-            </Button>
-
-            <XStack gap="$2">
-              <Button onPress={handleSignOut} disabled={loading} variant="secondary" size="lg">
-                {t('profile.signOut')}
-              </Button>
-              <Button
-                onPress={() => setShowDeleteDialog(true)}
-                disabled={loading}
-                variant="secondary"
-                size="lg"
-              >
-                {t('settings.deleteAccount') || 'Delete Account'}
-              </Button>
-            </XStack>
-
-            {/* Relationship Reviews Section */}
-            {profile && (
-              <RelationshipReviewSection
-                profileUserId={profile.id}
-                profileUserRole={profile.role as any}
-                profileUserName={profile.full_name || profile.email || 'Unknown User'}
-                canReview={userRating.canReview}
-                reviews={relationshipReviews}
-                onReviewAdded={loadRelationshipReviews}
-              />
+              </YStack>
             )}
 
-            <DropdownButton
-              onPress={showDeveloperSheet}
-              value="Developer Options"
-              placeholder="Developer Options"
-              marginTop="$4"
-            />
           </YStack>
         </YStack>
       </YStack>
@@ -3617,7 +3892,7 @@ export function ProfileScreen() {
                 variant={inviteEmails.length === 0 ? 'primary' : 'secondary'}
                 onPress={() => setInviteEmails([])}
               >
-                <Text color={inviteEmails.length === 0 ? 'white' : '$color'}>Search Existing</Text>
+                <Text color={inviteEmails.length === 0 ? 'white' : '$color'}>{t('profile.searchExisting') || 'Search Existing'}</Text>
               </Button>
               <Button
                 size="sm"
@@ -3628,7 +3903,7 @@ export function ProfileScreen() {
                   setSearchResults([]);
                 }}
               >
-                <Text color={inviteEmails.length > 0 ? 'white' : '$color'}>Invite New</Text>
+                <Text color={inviteEmails.length > 0 ? 'white' : '$color'}>{t('profile.inviteNew') || 'Invite New'}</Text>
               </Button>
               <Button
                 size="sm"
@@ -3638,18 +3913,18 @@ export function ProfileScreen() {
                   setShowPendingInvites(!showPendingInvites);
                 }}
               >
-                <Text color="$color">Pending ({pendingInvitations.length})</Text>
+                <Text color="$color">{t('profile.pending') || 'Pending'} ({pendingInvitations.length})</Text>
               </Button>
             </XStack>
 
             {/* Email invite mode */}
             {inviteEmails.length > 0 ? (
               <YStack gap="$2">
-                <Text size="sm" color="$gray11">Enter email addresses and passwords (leave password blank for auto-generated)</Text>
+                <Text size="sm" color="$gray11">{t('profile.enterEmailsInstructions') || 'Enter email addresses and passwords (leave password blank for auto-generated)'}</Text>
                 
                 {/* Custom message field */}
                 <YStack gap="$1">
-                  <Text size="sm" color="$gray11">Optional personal message:</Text>
+                  <Text size="sm" color="$gray11">{t('profile.personalMessage') || 'Optional personal message:'}</Text>
                   <Input
                     value={inviteCustomMessage}
                     onChangeText={setInviteCustomMessage}
@@ -3954,28 +4229,28 @@ export function ProfileScreen() {
 
               <XStack ai="center" jc="space-between">
                 <Text>{t('deleteAccount.deletePrivateRoutes') || 'Delete my private routes'}</Text>
-                <Switch value={optDeletePrivate} onValueChange={setOptDeletePrivate} />
+                <Switch checked={optDeletePrivate} onCheckedChange={setOptDeletePrivate} />
               </XStack>
               <XStack ai="center" jc="space-between">
                 <Text>{t('deleteAccount.deletePublicRoutes') || 'Delete my public routes'}</Text>
-                <Switch value={optDeletePublic} onValueChange={setOptDeletePublic} />
+                <Switch checked={optDeletePublic} onCheckedChange={setOptDeletePublic} />
               </XStack>
               <XStack ai="center" jc="space-between">
                 <Text>{t('deleteAccount.deleteEvents') || 'Delete my events'}</Text>
-                <Switch value={optDeleteEvents} onValueChange={setOptDeleteEvents} />
+                <Switch checked={optDeleteEvents} onCheckedChange={setOptDeleteEvents} />
               </XStack>
               <XStack ai="center" jc="space-between">
                 <Text>{t('deleteAccount.deleteExercises') || 'Delete my user exercises'}</Text>
-                <Switch value={optDeleteExercises} onValueChange={setOptDeleteExercises} />
+                <Switch checked={optDeleteExercises} onCheckedChange={setOptDeleteExercises} />
               </XStack>
               <XStack ai="center" jc="space-between">
                 <Text>{t('deleteAccount.deleteReviews') || 'Delete my reviews'}</Text>
-                <Switch value={optDeleteReviews} onValueChange={setOptDeleteReviews} />
+                <Switch checked={optDeleteReviews} onCheckedChange={setOptDeleteReviews} />
               </XStack>
 
               <XStack ai="center" jc="space-between">
                 <Text>{t('deleteAccount.transferToggle') || 'Transfer public content to system account'}</Text>
-                <Switch value={optTransferPublic} onValueChange={setOptTransferPublic} />
+                <Switch checked={optTransferPublic} onCheckedChange={setOptTransferPublic} />
               </XStack>
               <Text color="$gray11">
                 {t('deleteAccount.transferHelp') ||
@@ -4003,13 +4278,13 @@ export function ProfileScreen() {
             setShowRemovalReviewModal(false);
             setRemovalTargetSupervisor(null);
           }}
-          profileUserId={removalTargetSupervisor.id}
+          profileUserId={removalTargetSupervisor!.id}
           profileUserRole="instructor"
-          profileUserName={removalTargetSupervisor.name}
+          profileUserName={removalTargetSupervisor!.name}
           canReview={true}
           reviews={[]}
           onReviewAdded={loadRelationshipReviews}
-          title={`Review ${removalTargetSupervisor.name}`}
+          title={`Review ${removalTargetSupervisor!.name}`}
           subtitle="Please share your experience before ending this supervisory relationship"
           isRemovalContext={true}
           onRemovalComplete={handleRemovalComplete}
@@ -4044,14 +4319,94 @@ export function ProfileScreen() {
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
                 gap="$4"
-                maxHeight="70%"
               >
                 <Text size="xl" weight="bold" color="$color" textAlign="center">
-                  Select Your Location
+                  {t('profile.location.selectLocation') || 'Select Your Location'}
                 </Text>
                 
+                {/* Detect My Location Button - always allow override */}
+                <Button 
+                  variant="secondary" 
+                  size="lg" 
+                  onPress={detectLocation}
+                  disabled={locationLoading}
+                  marginBottom="$3"
+                >
+                  {locationLoading ? (
+                    `${(t('profile.location.detectingLocation') || 'Detecting Location').replace('...', '')}${'.'.repeat(dotsCount)}`
+                  ) : (
+                    t('profile.location.detectLocation') || 'Detect My Location'
+                  )}
+                </Button>
+                
+                {/* Clear location chip - Only show if location is set */}
+                {formData.location && (
+                  <TouchableOpacity 
+                    onPress={async () => {
+                      try {
+                        // Immediately clear form data
+                        setFormData((prev) => ({
+                          ...prev,
+                          location: '',
+                          location_lat: null,
+                          location_lng: null,
+                        }));
+                        
+                        // Immediately clear from database profile (all location fields)
+                        if (user) {
+                          await updateProfile({
+                            location: '',
+                            location_lat: null,
+                            location_lng: null,
+                          });
+                        }
+                        
+                        // Clear from LocationContext
+                        await setUserLocation({
+                          name: '',
+                          latitude: 0,
+                          longitude: 0,
+                          source: 'profile',
+                          timestamp: new Date().toISOString(),
+                        });
+                        
+                        // Clear search results and close sheet
+                        setLocationSearchResults([]);
+                        hideLocationSheet();
+                        
+                        showToast({
+                          title: t('common.success') || 'Success',
+                          message: t('profile.location.locationCleared') || 'Location cleared',
+                          type: 'success'
+                        });
+                      } catch (error) {
+                        console.error('Error clearing location:', error);
+                        showToast({
+                          title: t('common.error') || 'Error',
+                          message: 'Failed to clear location',
+                          type: 'error'
+                        });
+                      }
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                      borderRadius: 20,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      alignSelf: 'center',
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text color={colorScheme === 'dark' ? '#CCCCCC' : '#666666'} size="sm">
+                      {t('profile.location.clearLocation') || 'Clear Location'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                
                 <FormField
-                  placeholder="Search cities... (try 'Stockholm', 'New York', etc.)"
+                  placeholder={t('profile.location.searchPlaceholder') || "Search cities... (try 'Stockholm', 'New York', etc.)"}
                   value={formData.location}
                   onChangeText={handleLocationSearch}
                 />
@@ -4204,7 +4559,7 @@ export function ProfileScreen() {
         </Animated.View>
       </Modal>
 
-      {/* Developer Options Modal */}
+      {/* Developer Tools Modal (Combined Testing & Developer Options) */}
       <Modal
         visible={showDeveloperModal}
         transparent
@@ -4232,41 +4587,485 @@ export function ProfileScreen() {
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
                 gap="$3"
-                height="80%"
+                minHeight="90%"
               >
                 <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
-                  Developer Options
+                  Developer Tools
                 </Text>
                 
-                <ScrollView style={{ flex: 1 }}>
-                  <YStack gap="$2">
+                <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true}>
+                  <YStack gap="$3">
+                    
+                    {/* Onboarding & Tour Reset Section */}
+                    <YStack gap="$2">
+                      <Text size="lg" weight="bold" color="$color">Reset Onboarding & Tours</Text>
+                      
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(async () => {
+                            if (!user?.id) return;
+                            try {
+                              // Reset all onboarding and tour flags
+                              const { error } = await supabase
+                                .from('profiles')
+                                .update({
+                                  interactive_onboarding_completed: false,
+                                  interactive_onboarding_version: null,
+                                  tour_completed: false,
+                                  tour_content_hash: null,
+                                  license_plan_completed: false,
+                                  role_confirmed: false,
+                                  onboarding_completed: false
+                                })
+                                .eq('id', user.id);
+                              
+                              if (error) throw error;
+                              
+                              // Also clear AsyncStorage
+                              const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                              await AsyncStorage.multiRemove([
+                                'interactive_onboarding',
+                                'vromm_onboarding',
+                                'tour_completed'
+                              ]);
+                              
+                              showToast({
+                                title: '✅ Reset Complete',
+                                message: 'All onboarding and tour flags have been reset. Restart the app to see them again.',
+                                type: 'success'
+                              });
+                            } catch (error) {
+                              console.error('Error resetting flags:', error);
+                              showToast({
+                                title: '❌ Error',
+                                message: 'Failed to reset flags: ' + (error as Error).message,
+                                type: 'error'
+                              });
+                            }
+                          }, 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Reset All Onboarding & Tours
+                      </Button>
 
-                    <Button
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(() => refreshTranslations(), 300);
-                      }}
-                      variant="outlined"
-                      size="lg"
-                    >
-                      Refresh Translations
-                    </Button>
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(() => {
+                            resetTour();
+                            showToast({
+                              title: 'Success',
+                              message: 'Tour has been reset. Restart the app to see tour badges again.',
+                              type: 'success'
+                            });
+                          }, 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Reset Tour Only
+                      </Button>
 
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(() => startDatabaseTour(), 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Start Database Tour
+                      </Button>
+                    </YStack>
 
-                    <Button
-                      onPress={() => {
-                        hideDeveloperSheet();
-                        setTimeout(async () => {
-                          console.log('🎉 Testing promotional modal...');
-                          checkForPromotionalContent();
-                          Alert.alert('Test', 'Promotional modal trigger sent - check console and UI.');
-                        }, 300);
-                      }}
-                      variant="outlined"
-                      size="lg"
-                    >
-                      Test Promotional Modal
-                    </Button>
+                    {/* Progress & Data Reset Section */}
+                    <YStack gap="$2">
+                      <Text size="lg" weight="bold" color="$color">Reset User Progress & Data</Text>
+                      
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(async () => {
+                            if (!user?.id) return;
+                            Alert.alert(
+                              '⚠️ Reset Learning Progress',
+                              'This will delete ALL your exercise completions and learning path progress. This cannot be undone!',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Reset Progress',
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    try {
+                                      const { error } = await supabase
+                                        .from('learning_path_exercise_completions')
+                                        .delete()
+                                        .eq('user_id', user.id);
+                                      
+                                      if (error) throw error;
+                                      Alert.alert('✅ Reset Complete', 'All learning progress has been reset.');
+                                    } catch (error) {
+                                      Alert.alert('❌ Error', 'Failed to reset progress: ' + (error as Error).message);
+                                    }
+                                  }
+                                }
+                              ]
+                            );
+                          }, 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Reset Learning Progress
+                      </Button>
+
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(async () => {
+                            if (!user?.id) return;
+                            Alert.alert(
+                              'Reset All Routes',
+                              'This will delete ALL your created, saved, and driven routes. This cannot be undone!',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Reset Routes',
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    try {
+                                      // Delete created routes, saved routes, and driven routes
+                                      const promises = [
+                                        supabase.from('routes').delete().eq('creator_id', user.id),
+                                        supabase.from('saved_routes').delete().eq('user_id', user.id),
+                                        supabase.from('driven_routes').delete().eq('user_id', user.id)
+                                      ];
+                                      
+                                      await Promise.all(promises);
+                                      Alert.alert('Reset Complete', 'All routes have been reset.');
+                                    } catch (error) {
+                                      Alert.alert('Error', 'Failed to reset routes: ' + (error as Error).message);
+                                    }
+                                  }
+                                }
+                              ]
+                            );
+                          }, 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Reset All Routes
+                      </Button>
+
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(async () => {
+                            if (!user?.id) return;
+                            Alert.alert(
+                              'Reset Comments & Reviews',
+                              'This will delete ALL your comments and reviews. This cannot be undone!',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Reset All',
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    try {
+                                      const promises = [
+                                        supabase.from('comments').delete().eq('user_id', user.id),
+                                        supabase.from('relationship_reviews').delete().eq('reviewer_id', user.id)
+                                      ];
+                                      
+                                      await Promise.all(promises);
+                                      Alert.alert('Reset Complete', 'All comments and reviews have been reset.');
+                                    } catch (error) {
+                                      Alert.alert('Error', 'Failed to reset comments/reviews: ' + (error as Error).message);
+                                    }
+                                  }
+                                }
+                              ]
+                            );
+                          }, 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Reset Comments & Reviews
+                      </Button>
+
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(async () => {
+                            if (!user?.id) return;
+                            Alert.alert(
+                              'Reset Events & Messages',
+                              'This will delete ALL your events and messages. This cannot be undone!',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Reset All',
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    try {
+                                      const promises = [
+                                        supabase.from('events').delete().eq('creator_id', user.id),
+                                        supabase.from('chat_messages').delete().eq('sender_id', user.id)
+                                      ];
+                                      
+                                      await Promise.all(promises);
+                                      Alert.alert('Reset Complete', 'All events and messages have been reset.');
+                                    } catch (error) {
+                                      Alert.alert('Error', 'Failed to reset events/messages: ' + (error as Error).message);
+                                    }
+                                  }
+                                }
+                              ]
+                            );
+                          }, 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Reset Events & Messages
+                      </Button>
+                    </YStack>
+
+                    {/* Developer Mode Settings */}
+                    <YStack gap="$2">
+                      <Text size="lg" weight="bold" color="$color">Developer Mode Settings</Text>
+                      
+                      <XStack justifyContent="space-between" alignItems="center" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                        <YStack flex={1}>
+                          <Text color="$color" fontWeight="500">Developer Mode</Text>
+                          <Text color="$gray11" fontSize="$3">Show developer tools and testing features</Text>
+                        </YStack>
+                        <Switch
+                          size="$4"
+                          checked={(profile as any)?.developer_mode || false}
+                          backgroundColor={(profile as any)?.developer_mode ? '$blue8' : '$gray6'}
+                          onCheckedChange={async (checked) => {
+                            try {
+                              if (!user?.id) return;
+                              const { error } = await supabase
+                                .from('profiles')
+                                .update({ developer_mode: checked })
+                                .eq('id', user.id);
+                              
+                              if (error) throw error;
+                              
+                              // Refresh profile to update UI
+                              await refreshProfile();
+                              
+                              Alert.alert(
+                                checked ? 'Developer Mode Enabled' : 'Developer Mode Disabled',
+                                checked 
+                                  ? 'Developer tools are now available in your profile'
+                                  : 'Developer tools have been hidden from your profile'
+                              );
+                            } catch (error) {
+                              console.error('Error updating developer mode:', error);
+                              Alert.alert('Error', 'Failed to update developer mode');
+                            }
+                          }}
+                        >
+                          <Switch.Thumb />
+                        </Switch>
+                      </XStack>
+                    </YStack>
+
+                    {/* Developer Tools Section */}
+                    <YStack gap="$2">
+                      <Text size="lg" weight="bold" color="$color">Developer Tools</Text>
+                      
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(() => refreshTranslations(), 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Refresh Translations
+                      </Button>
+
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(async () => {
+                            console.log('Testing promotional modal...');
+                            checkForPromotionalContent();
+                            Alert.alert('Test', 'Promotional modal trigger sent - check console and UI.');
+                          }, 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Test Promotional Modal
+                      </Button>
+
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(() => navigateToOnboardingDemo(), 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Content Updates Demo
+                      </Button>
+
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(() => navigateToTranslationDemo(), 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Translation Demo
+                      </Button>
+
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(async () => {
+                            try {
+                              if (Platform.OS === 'web') {
+                                // Web debug mode with CSS
+                                const style = document.createElement('style');
+                                style.id = 'debug-borders';
+                                style.innerHTML = `
+                                  * { 
+                                    border: 1px solid rgba(255, 0, 0, 0.3) !important; 
+                                    position: relative !important;
+                                  }
+                                  *:before {
+                                    content: attr(data-testid) attr(class);
+                                    position: absolute;
+                                    top: -20px;
+                                    left: 0;
+                                    background: rgba(255, 0, 0, 0.8);
+                                    color: white;
+                                    font-size: 10px;
+                                    padding: 2px 4px;
+                                    z-index: 10000;
+                                    pointer-events: none;
+                                  }
+                                `;
+                                
+                                const existing = document.getElementById('debug-borders');
+                                if (existing) {
+                                  existing.remove();
+                                  Alert.alert('Debug Mode', 'Element borders disabled');
+                                } else {
+                                  document.head.appendChild(style);
+                                  Alert.alert('Debug Mode', 'Element borders enabled - all elements now have red borders');
+                                }
+                              } else {
+                                // React Native debug mode - toggle state
+                                setDebugMode(!debugMode);
+                                Alert.alert(
+                                  'Debug Mode',
+                                  debugMode 
+                                    ? 'Visual debugging disabled' 
+                                    : 'Visual debugging enabled - components now show borders and dimensions',
+                                  [
+                                    { text: 'OK' },
+                                    {
+                                      text: 'Show Performance',
+                                      onPress: () => {
+                                        const summary = getPerformanceSummary();
+                                        Alert.alert('Performance Summary', JSON.stringify(summary, null, 2));
+                                      }
+                                    }
+                                  ]
+                                );
+                              }
+                            } catch (error) {
+                              Alert.alert('Error', 'Failed to toggle debug mode');
+                            }
+                          }, 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                      >
+                        Toggle Debug Mode {debugMode ? '(ON)' : '(OFF)'}
+                      </Button>
+                      
+                      <Button
+                        onPress={() => {
+                          hideDeveloperSheet();
+                          setTimeout(async () => {
+                            if (!user?.id) return;
+                            Alert.alert(
+                              'Nuclear Reset',
+                              'This will reset EVERYTHING: onboarding, tours, progress, routes, comments, reviews, events, messages. This cannot be undone!',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'RESET EVERYTHING',
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    try {
+                                      // Reset all flags
+                                      await supabase
+                                        .from('profiles')
+                                        .update({
+                                          interactive_onboarding_completed: false,
+                                          interactive_onboarding_version: null,
+                                          tour_completed: false,
+                                          tour_content_hash: null,
+                                          license_plan_completed: false,
+                                          role_confirmed: false,
+                                          onboarding_completed: false
+                                        })
+                                        .eq('id', user.id);
+                                      
+                                      // Delete all user data
+                                      const promises = [
+                                        supabase.from('learning_path_exercise_completions').delete().eq('user_id', user.id),
+                                        supabase.from('routes').delete().eq('creator_id', user.id),
+                                        supabase.from('saved_routes').delete().eq('user_id', user.id),
+                                        supabase.from('driven_routes').delete().eq('user_id', user.id),
+                                        supabase.from('comments').delete().eq('user_id', user.id),
+                                        supabase.from('relationship_reviews').delete().eq('reviewer_id', user.id),
+                                        supabase.from('events').delete().eq('creator_id', user.id),
+                                        supabase.from('chat_messages').delete().eq('sender_id', user.id)
+                                      ];
+                                      
+                                      await Promise.all(promises);
+                                      
+                                      // Clear AsyncStorage
+                                      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                                      await AsyncStorage.multiRemove([
+                                        'interactive_onboarding',
+                                        'vromm_onboarding',
+                                        'tour_completed'
+                                      ]);
+                                      
+                                      Alert.alert('Nuclear Reset Complete', 'Everything has been reset. Restart the app for a fresh start.');
+                                    } catch (error) {
+                                      Alert.alert('Error', 'Failed to complete nuclear reset: ' + (error as Error).message);
+                                    }
+                                  }
+                                }
+                              ]
+                            );
+                          }, 300);
+                        }}
+                        variant="outlined"
+                        size="lg"
+                        backgroundColor="$red9"
+                      >
+                        Nuclear Reset (Everything)
+                      </Button>
+                    </YStack>
                   </YStack>
                 </ScrollView>
               </YStack>
@@ -4303,7 +5102,7 @@ export function ProfileScreen() {
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
                 gap="$3"
-                height="80%"
+                minHeight="40%"
               >
                 <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
                   Notification Settings
@@ -4489,113 +5288,252 @@ export function ProfileScreen() {
         </Animated.View>
       </Modal>
 
-      {/* Testing Tools Modal */}
+
+
+      {/* Körkortsplan Modal */}
       <Modal
-        visible={showTestingModal}
-        transparent
         animationType="none"
-        onRequestClose={hideTestingSheet}
+        transparent={true}
+        visible={showKorkortsplanModal}
+        onRequestClose={hideKorkortsplanSheet}
       >
         <Animated.View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: testingBackdropOpacity,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            opacity: korkortsplanBackdropOpacity,
           }}
         >
           <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <Pressable style={{ flex: 1 }} onPress={hideTestingSheet} />
+            <Pressable style={{ flex: 1 }} onPress={hideKorkortsplanSheet} />
             <Animated.View
               style={{
-                transform: [{ translateY: testingSheetTranslateY }],
+                backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : 'white',
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                padding: 20,
+                minHeight: '60%',
+                transform: [{ translateY: korkortsplanSheetTranslateY }],
               }}
             >
-              <YStack
-                backgroundColor="$background"
-                padding="$4"
-                paddingBottom={50}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                gap="$3"
-                height="80%"
-              >
-                <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
-                  Testing Tools
-                </Text>
-                
-                <ScrollView style={{ flex: 1 }}>
-                  <YStack gap="$2">
-                    <Button
-                      onPress={() => {
-                        hideTestingSheet();
-                        setTimeout(() => navigateToOnboardingDemo(), 300);
-                      }}
-                      variant="outlined"
-                      size="lg"
-                    >
-                      Content Updates Demo
-                    </Button>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+                <YStack gap="$4">
+                  <XStack justifyContent="space-between" alignItems="center">
+                    <Text size="xl" weight="bold">
+                      Din körkortsplan
+                    </Text>
+                    <TouchableOpacity onPress={hideKorkortsplanSheet}>
+                      <Feather name="x" size={24} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                    </TouchableOpacity>
+                  </XStack>
 
-                    <Button
-                      onPress={() => {
-                        hideTestingSheet();
-                        setTimeout(() => navigateToTranslationDemo(), 300);
-                      }}
-                      variant="outlined"
-                      size="lg"
-                    >
-                      Translation Demo
-                    </Button>
+                  <Text color="$gray11">
+                    Hjälp oss anpassa din körkortsplan genom att svara på några frågor.
+                  </Text>
 
-                    <Button
-                      onPress={() => {
-                        hideTestingSheet();
-                        setTimeout(() => handleShowOnboarding(), 300);
-                      }}
-                      variant="outlined"
-                      size="lg"
-                    >
-                      Show Onboarding
-                    </Button>
+                  <YStack gap="$4" marginTop="$4">
+                    {/* Target License Date with Quick Options */}
+                    <YStack gap="$2">
+                      <Text weight="bold" size="lg">När vill du ta körkort?</Text>
+                      
+                      {/* Quick Date Options */}
+                      {[
+                        { label: 'Within 3 months', months: 3, key: '3months' },
+                        { label: 'Within 6 months', months: 6, key: '6months' },
+                        { label: 'Within 1 year', months: 12, key: '1year' },
+                        { label: 'No specific date', months: 24, key: 'nodate' },
+                      ].map((option) => {
+                        const optionTargetDate = new Date();
+                        optionTargetDate.setMonth(optionTargetDate.getMonth() + option.months);
+                        const isSelected = selectedDateOption === option.key;
+                        
+                        return (
+                          <RadioButton
+                            key={option.label}
+                            onPress={() => {
+                              setTargetDate(optionTargetDate);
+                              setSelectedDateOption(option.key);
+                            }}
+                            title={option.label}
+                            description={optionTargetDate.toLocaleDateString('sv-SE')}
+                            isSelected={isSelected}
+                          />
+                        );
+                      })}
+                      
+                      {/* Custom Date Picker with Popover */}
+                      <TouchableOpacity
+                        ref={dateButtonRef}
+                        onPress={() => {
+                          console.log('🗓️ Opening date popover');
+                          setSelectedDateOption('custom');
+                          setShowDatePopover(true);
+                        }}
+                        style={[
+                          styles.selectButton,
+                          {
+                            borderWidth: selectedDateOption === 'custom' ? 2 : 1,
+                            borderColor: selectedDateOption === 'custom' ? '#00B0C7' : '#e1e1e1',
+                            backgroundColor: selectedDateOption === 'custom' ? '#f0fffe' : 'transparent',
+                            marginVertical: 4,
+                          }
+                        ]}
+                      >
+                        <XStack gap={8} padding="$2" alignItems="center" width="100%">
+                          <YStack flex={1}>
+                            <Text color={selectedDateOption === 'custom' ? '#000' : '$color'} size="md" weight="semibold">
+                              Pick specific date
+                            </Text>
+                            <Text size="sm" color="$gray11">
+                              {(targetDate || new Date()).toLocaleDateString('sv-SE')}
+                            </Text>
+                          </YStack>
+                          {selectedDateOption === 'custom' ? (
+                            <Feather name="check" size={16} color="#00B0C7" />
+                          ) : (
+                            <Feather name="calendar" size={16} color="#666" />
+                          )}
+                        </XStack>
+                      </TouchableOpacity>
+                      
+                      <Popover
+                        isVisible={showDatePopover}
+                        onRequestClose={() => {
+                          console.log('🗓️ Popover closing');
+                          setShowDatePopover(false);
+                        }}
+                        from={dateButtonRef}
+                        placement={'top' as any}
+                        popoverStyle={{
+                          borderRadius: 12,
+                          backgroundColor: 'white',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 12,
+                          elevation: 8,
+                        }}
+                      >
+                        <YStack alignItems="center" gap="$2" width="100%">
+                          <Text color="#000" size="lg" weight="semibold" textAlign="center">
+                            Select Target Date
+                          </Text>
+                          
+                          {/* Container for full inline DateTimePicker */}
+                          <View style={{
+                            width: 350,
+                            height: 380,
+                            backgroundColor: '#FFF',
+                            borderRadius: 8,
+                            overflow: 'visible',
+                          }}>
+                            <DateTimePicker
+                              testID="dateTimePicker"
+                              value={targetDate || new Date()}
+                              mode="date"
+                              display="inline"
+                              minimumDate={new Date()}
+                              maximumDate={(() => {
+                                const maxDate = new Date();
+                                maxDate.setFullYear(maxDate.getFullYear() + 3);
+                                return maxDate;
+                              })()}
+                              onChange={(event, selectedDate) => {
+                                console.log('🗓️ Date changed:', selectedDate?.toLocaleDateString('sv-SE'));
+                                if (selectedDate) {
+                                  setTargetDate(selectedDate);
+                                  setSelectedDateOption('custom');
+                                }
+                              }}
+                              style={{ width: 350, height: 380 }}
+                            />
+                          </View>
+                          
+                        </YStack>
+                      </Popover>
+                    </YStack>
 
-                    <Button
-                      onPress={() => {
-                        hideTestingSheet();
-                        setTimeout(() => handleResetOnboarding(), 300);
-                      }}
-                      variant="outlined"
-                      size="lg"
-                    >
-                      Reset Onboarding
-                    </Button>
+                    {/* Theory Test */}
+                    <YStack gap="$2">
+                      <Text weight="bold" size="lg">Har du klarat teoriprovet?</Text>
+                      <XStack alignItems="center" gap="$2">
+                        <Switch 
+                          size="$4"
+                          checked={hasTheory} 
+                          onCheckedChange={setHasTheory}
+                          backgroundColor={hasTheory ? '$blue8' : '$gray6'}
+                        >
+                          <Switch.Thumb />
+                        </Switch>
+                        <Text size="md">{hasTheory ? 'Ja' : 'Nej'}</Text>
+                      </XStack>
+                    </YStack>
 
-                    <Button
-                      onPress={() => {
-                        hideTestingSheet();
-                        setTimeout(() => {
-                          resetTour();
-                          Alert.alert('Success', 'Tour has been reset. Restart the app to see tour badges again.');
-                        }, 300);
-                      }}
-                      variant="outlined"
-                      size="lg"
-                    >
-                      Reset Tour
-                    </Button>
+                    {/* Practice Test */}
+                    <YStack gap="$2">
+                      <Text weight="bold" size="lg">Har du klarat uppkörningen?</Text>
+                      <XStack alignItems="center" gap="$2">
+                        <Switch 
+                          size="$4"
+                          checked={hasPractice} 
+                          onCheckedChange={setHasPractice}
+                          backgroundColor={hasPractice ? '$blue8' : '$gray6'}
+                        >
+                          <Switch.Thumb />
+                        </Switch>
+                        <Text size="md">{hasPractice ? 'Ja' : 'Nej'}</Text>
+                      </XStack>
+                    </YStack>
 
-                    <Button
-                      onPress={() => {
-                        hideTestingSheet();
-                        setTimeout(() => startDatabaseTour(), 300);
-                      }}
-                      variant="outlined"
-                      size="lg"
-                    >
-                      Start Database Tour
-                    </Button>
+                    {/* Previous Experience */}
+                    <YStack gap="$2">
+                      <Text weight="bold" size="lg">Tidigare körerfarenhet</Text>
+                      <TextArea
+                        placeholder="Beskriv din tidigare körerfarenhet"
+                        value={previousExperience}
+                        onChangeText={setPreviousExperience}
+                        minHeight={100}
+                        backgroundColor="$gray2"
+                        borderColor="$gray6"
+                        focusStyle={{
+                          borderColor: '$blue8',
+                        }}
+                      />
+                    </YStack>
+
+                    {/* Specific Goals */}
+                    <YStack gap="$2">
+                      <Text weight="bold" size="lg">Specifika mål</Text>
+                      <TextArea
+                        placeholder="Har du specifika mål med ditt körkort?"
+                        value={specificGoals}
+                        onChangeText={setSpecificGoals}
+                        minHeight={100}
+                        backgroundColor="$gray2"
+                        borderColor="$gray6"
+                        focusStyle={{
+                          borderColor: '$blue8',
+                        }}
+                      />
+                    </YStack>
                   </YStack>
-                </ScrollView>
-              </YStack>
+
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    marginTop="$6"
+                    marginBottom="$4"
+                    onPress={handleLicensePlanSubmit}
+                    disabled={loading}
+                    backgroundColor="$blue9"
+                    pressStyle={{
+                      backgroundColor: '$blue10',
+                    }}
+                  >
+                    {loading ? 'Sparar...' : 'Spara körkortsplan'}
+                  </Button>
+                </YStack>
+              </ScrollView>
             </Animated.View>
           </View>
         </Animated.View>

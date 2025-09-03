@@ -32,6 +32,8 @@ import { Database } from '../lib/database.types';
 import { useLocation } from '../context/LocationContext';
 import { useThemeColor } from '../../hooks/useThemeColor';
 import { useTranslation } from '../contexts/TranslationContext';
+import { useToast } from '../contexts/ToastContext';
+import { useColorScheme } from 'react-native';
 import { StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Popover from 'react-native-popover-view';
@@ -101,7 +103,9 @@ export function OnboardingInteractive({
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { setUserLocation } = useLocation();
-  const { language } = useTranslation();
+  const { language, t } = useTranslation();
+  const { showToast } = useToast();
+  const colorScheme = useColorScheme();
   
   // Theme colors
   const iconColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
@@ -123,7 +127,10 @@ export function OnboardingInteractive({
   const focusBackgroundColor = useThemeColor({ light: '#EBEBEB', dark: '#282828' }, 'background'); // FormField focus background (match FormField)
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedRole, setSelectedRole] = useState<string | null>('student'); // Default to student
+  const [selectedRole, setSelectedRole] = useState<string | null>(() => {
+    // Set default role from profile if available, otherwise default to student
+    return profile?.role || 'student';
+  });
   const [locationStatus, setLocationStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set());
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
@@ -145,6 +152,27 @@ export function OnboardingInteractive({
   // Connection selection state
   const [selectedConnections, setSelectedConnections] = useState<Array<{ id: string; full_name: string; email: string; role?: string }>>([]);
   const [connectionCustomMessage, setConnectionCustomMessage] = useState('');
+  
+  // Existing relationships state
+  const [existingRelationships, setExistingRelationships] = useState<Array<{ 
+    id: string; 
+    name: string; 
+    email: string; 
+    role: string; 
+    relationship_type: string;
+    created_at: string;
+  }>>([]);
+  
+  // Relationship removal modal state
+  const [showRelationshipRemovalModal, setShowRelationshipRemovalModal] = useState(false);
+  const [relationshipRemovalTarget, setRelationshipRemovalTarget] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    relationship_type: string;
+  } | null>(null);
+  const [relationshipRemovalMessage, setRelationshipRemovalMessage] = useState('');
   
   // Experience level state
   const [showExperienceModal, setShowExperienceModal] = useState(false);
@@ -169,6 +197,9 @@ export function OnboardingInteractive({
   // Loading spinner animation
   const spinValue = useRef(new Animated.Value(0)).current;
   
+  // Animated dots for "Detecting Location..."
+  const [dotsCount, setDotsCount] = useState(0);
+  
   // Start spinner animation when loading
   useEffect(() => {
     if (locationLoading) {
@@ -181,9 +212,20 @@ export function OnboardingInteractive({
         })
       );
       spin.start();
-      return () => spin.stop();
+      
+      // Animate dots
+      const dotsInterval = setInterval(() => {
+        setDotsCount(prev => (prev + 1) % 4); // 0, 1, 2, 3, then back to 0
+      }, 500);
+      
+      return () => {
+        spin.stop();
+        clearInterval(dotsInterval);
+        setDotsCount(0);
+      };
     } else {
       spinValue.setValue(0);
+      setDotsCount(0);
     }
   }, [locationLoading, spinValue]);
   const [citySearchTimeout, setCitySearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
@@ -201,6 +243,10 @@ export function OnboardingInteractive({
   const transmissionSheetTranslateY = useRef(new Animated.Value(300)).current;
   const licenseBackdropOpacity = useRef(new Animated.Value(0)).current;
   const licenseSheetTranslateY = useRef(new Animated.Value(300)).current;
+  
+  // Relationship removal modal animation refs
+  const relationshipRemovalBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const relationshipRemovalSheetTranslateY = useRef(new Animated.Value(300)).current;
 
   // Dynamic category options from database
   const [vehicleTypes, setVehicleTypes] = useState<Array<{ id: string; title: string }>>([]);
@@ -252,7 +298,7 @@ export function OnboardingInteractive({
       icon: 'check-circle',
       type: 'info',
       actionButton: 'Start My Journey',
-      skipButton: undefined,
+      skipButton: 'Skip for now',
     },
   ];
 
@@ -402,6 +448,13 @@ export function OnboardingInteractive({
     };
   }, [citySearchTimeout]);
 
+  // Load existing relationships when relationships step is active
+  useEffect(() => {
+    if (currentIndex === steps.findIndex(s => s.id === 'relationships')) {
+      loadExistingRelationships();
+    }
+  }, [currentIndex, user?.id]);
+
   // Refresh completion status when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
@@ -505,43 +558,40 @@ export function OnboardingInteractive({
   };
 
   const handleLocationPermission = async () => {
-    if (locationStatus === 'granted') {
-      // Location already granted
-      return;
-    }
-    
     try {
       setLocationLoading(true);
-      // Requesting location permission
+      // Always try to detect location, even if city is already selected (allow override)
       
       // Check current permission status first
       const currentStatus = await Location.getForegroundPermissionsAsync();
       
-      if (currentStatus.status === 'granted') {
-        setLocationStatus('granted');
-        // Get current location and set it as selected city - but only once
-        if (!selectedCity) {
-          await detectAndSetCurrentLocation();
+      if (currentStatus.status !== 'granted') {
+        // Request permission - this shows the native dialog
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        
+        if (status !== 'granted') {
+          setLocationStatus('denied');
+          showToast({
+            title: 'Permission Denied',
+            message: 'Location permission is required to detect your location. You can still select a city manually.',
+            type: 'error'
+          });
+          return;
         }
-        return;
       }
       
-      // Request permission - this shows the native dialog
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      setLocationStatus('granted');
+      // Always detect and set current location (allow override of manual selection)
+      await detectAndSetCurrentLocation();
       
-      if (status === 'granted') {
-        setLocationStatus('granted');
-        // Get current location and set it as selected city - but only once
-        if (!selectedCity) {
-          await detectAndSetCurrentLocation();
-        }
-      } else {
-        setLocationStatus('denied');
-        // User can still select city manually
-      }
     } catch (error) {
       console.error('Error requesting location permission:', error);
       setLocationStatus('denied');
+      showToast({
+        title: 'Location Error',
+        message: 'Failed to detect location. You can select a city manually.',
+        type: 'error'
+      });
     } finally {
       setLocationLoading(false);
     }
@@ -760,6 +810,44 @@ export function OnboardingInteractive({
     });
   };
 
+  // Relationship removal modal show/hide functions
+  const openRelationshipRemovalModal = () => {
+    setShowRelationshipRemovalModal(true);
+    // Fade in the backdrop
+    Animated.timing(relationshipRemovalBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    // Slide up the sheet
+    Animated.timing(relationshipRemovalSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeRelationshipRemovalModal = () => {
+    // Fade out the backdrop
+    Animated.timing(relationshipRemovalBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    // Slide down the sheet
+    Animated.timing(relationshipRemovalSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowRelationshipRemovalModal(false);
+      setRelationshipRemovalTarget(null);
+      setRelationshipRemovalMessage('');
+    });
+  };
+
   const handleCitySelect = async (cityData: any) => {
     // Format city name as "City, SE" instead of full address
     const cityName = [cityData.city, cityData.country].filter(Boolean).join(', ');
@@ -912,7 +1000,11 @@ export function OnboardingInteractive({
 
       if (error) {
         console.error('Error saving license plan:', error);
-        Alert.alert('Error', 'Could not save your preferences. Please try again.');
+        showToast({
+          title: 'Error',
+          message: 'Could not save your preferences. Please try again.',
+          type: 'error'
+        });
       } else {
         setCompletedSteps((prev) => new Set(prev).add('license_plan'));
         checkStepCompletions();
@@ -923,7 +1015,11 @@ export function OnboardingInteractive({
       }
     } catch (err) {
       console.error('Error saving license plan:', err);
-      Alert.alert('Error', 'Could not save your preferences. Please try again.');
+              showToast({
+          title: t('common.error') || 'Error',
+          message: t('onboarding.licensePlan.saveError') || 'Could not save your preferences. Please try again.',
+          type: 'error'
+        });
     }
   };
 
@@ -947,7 +1043,11 @@ export function OnboardingInteractive({
 
       if (error) {
         console.error('Error saving role selection:', error);
-        Alert.alert('Error', 'Could not update your role. Please try again.');
+        showToast({
+          title: t('common.error') || 'Error',
+          message: t('onboarding.role.saveError') || 'Could not update your role. Please try again.',
+          type: 'error'
+        });
       } else {
         setCompletedSteps((prev) => new Set(prev).add('role'));
         checkStepCompletions();
@@ -956,7 +1056,11 @@ export function OnboardingInteractive({
       }
     } catch (err) {
       console.error('Error saving role selection:', err);
-      Alert.alert('Error', 'Could not update your role. Please try again.');
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('onboarding.role.saveError') || 'Could not update your role. Please try again.',
+        type: 'error'
+      });
     }
   };
 
@@ -994,6 +1098,51 @@ export function OnboardingInteractive({
       setSearchResults(data || []);
     } catch (error) {
       console.error('Error searching users:', error);
+    }
+  };
+
+  // Load existing relationships for the user
+  const loadExistingRelationships = async () => {
+    if (!user?.id) return;
+
+    try {
+      console.log('🔍 Loading existing relationships for user:', user.id);
+      
+      // Get relationships where user is either student or supervisor
+      const { data: relationships, error } = await supabase
+        .from('student_supervisor_relationships')
+        .select(`
+          student_id,
+          supervisor_id,
+          created_at,
+          student:profiles!ssr_student_id_fkey (id, full_name, email, role),
+          supervisor:profiles!ssr_supervisor_id_fkey (id, full_name, email, role)
+        `)
+        .or(`student_id.eq.${user.id},supervisor_id.eq.${user.id}`);
+
+      if (error) {
+        console.error('Error loading relationships:', error);
+        return;
+      }
+
+      const transformedRelationships = relationships?.map(rel => {
+        const isUserStudent = rel.student_id === user.id;
+        const otherUser = isUserStudent ? (rel as any).supervisor : (rel as any).student;
+        
+        return {
+          id: otherUser?.id || '',
+          name: otherUser?.full_name || 'Unknown User',
+          email: otherUser?.email || '',
+          role: otherUser?.role || '',
+          relationship_type: isUserStudent ? 'has_supervisor' : 'supervises_student',
+          created_at: rel.created_at,
+        };
+      }) || [];
+
+      console.log('🔍 Loaded existing relationships:', transformedRelationships);
+      setExistingRelationships(transformedRelationships);
+    } catch (error) {
+      console.error('Error loading existing relationships:', error);
     }
   };
 
@@ -1091,7 +1240,11 @@ export function OnboardingInteractive({
       
     } catch (error) {
       console.error('Error creating connections:', error);
-      Alert.alert('Error', 'Some invitations may not have been sent. Please try again.');
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('onboarding.connections.inviteError') || 'Some invitations may not have been sent. Please try again.',
+        type: 'error'
+      });
     }
   };
 
@@ -1325,18 +1478,16 @@ export function OnboardingInteractive({
           </YStack>
 
           {/* Save Button */}
-          <YStack width="100%" marginTop="$4">
+          <YStack width="100%" marginTop="$4" gap="$2">
             <Button variant="primary" size="lg" onPress={handleSaveRole}>
               Save Role & Continue
             </Button>
-          </YStack>
-
-          {/* Skip Button */}
-          {item.skipButton && (
-            <Button variant="link" size="md" onPress={() => handleSkipStep(item)} marginTop="$2">
-              {item.skipButton}
+            
+            {/* Always show skip button for role selection */}
+            <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
+              Skip for now
             </Button>
-          )}
+          </YStack>
         </YStack>
       </ScrollView>
     );
@@ -1381,34 +1532,59 @@ export function OnboardingInteractive({
                 <Button 
                   variant="secondary" 
                   size="lg" 
-                                onPress={handleLocationPermission}
-              disabled={locationLoading}
-            >
-              {locationLoading ? (
-                <XStack alignItems="center" gap="$2">
-                  <Animated.View
-                    style={{
-                      transform: [{
-                        rotate: spinValue.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0deg', '360deg']
-                        })
-                      }]
-                    }}
-                  >
-                    <Feather name="loader" size={16} color="#00E6C3" />
-                  </Animated.View>
-                  <Text>Detecting Location...</Text>
-                </XStack>
-              ) : locationStatus === 'granted' ? 'Location Enabled' : 'Enable Location Access'}
+                  onPress={handleLocationPermission}
+                  disabled={locationLoading}
+                >
+                  {locationLoading ? (
+                    <>
+                      <Animated.View
+                        style={{
+                          transform: [{
+                            rotate: spinValue.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: ['0deg', '360deg']
+                            })
+                          }]
+                        }}
+                      >
+                        <Feather name="loader" size={16} color="#145251" />
+                      </Animated.View>
+{(t('onboarding.location.detectingLocation') || 'Detecting Location').replace('...', '')}{'.'.repeat(dotsCount)}
+                    </>
+                  ) : (
+                    t('onboarding.location.detectLocation') || 'Detect My Location'
+                  )}
                 </Button>
 
                 <DropdownButton
                   onPress={showCityModal}
                   value={selectedCity}
-                  placeholder="Or Select Your City"
+                  placeholder={t('onboarding.location.selectCity') || 'Or Select Your City'}
                   isActive={showCityDrawer}
                 />
+                
+                {/* Clear location chip */}
+                {selectedCity && (
+                  <TouchableOpacity 
+                    onPress={() => {
+                      setSelectedCity('');
+                      setLocationStatus('unknown');
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                      borderRadius: 20,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      alignSelf: 'center',
+                    }}
+                  >
+                    <Text color={colorScheme === 'dark' ? '#CCCCCC' : '#666666'} size="sm">
+                      {t('onboarding.location.clearLocation') || 'Clear Selected Location'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 
                 {/* Save button when city is selected or location is detected */}
                 {selectedCity && (
@@ -1421,7 +1597,7 @@ export function OnboardingInteractive({
                 )}
                 
                 <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-                  Skip for now
+                  {t('onboarding.skipForNow') || 'Skip for now'}
                 </Button>
               </YStack>
             )}
@@ -1431,11 +1607,46 @@ export function OnboardingInteractive({
               <YStack gap="$4" marginTop="$6" width="100%">
                 {item.id === 'relationships' ? (
                   <YStack gap="$3" width="100%">
+                    {/* Show existing relationships */}
+                    {existingRelationships.length > 0 && (
+                      <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
+                        <Text size="md" fontWeight="600" color="$color">
+                          Your Existing Relationships ({existingRelationships.length}):
+                        </Text>
+                        {existingRelationships.map((relationship) => (
+                          <XStack key={relationship.id} gap="$2" alignItems="center">
+                            <YStack flex={1}>
+                              <RadioButton
+                                onPress={() => {}} // No action on tap for existing relationships
+                                title={relationship.name}
+                                description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? 'Your supervisor' : 'Student you supervise'} since ${new Date(relationship.created_at).toLocaleDateString()}`}
+                                isSelected={false} // Don't show as selected
+                              />
+                            </YStack>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setRelationshipRemovalTarget({
+                                  id: relationship.id,
+                                  name: relationship.name,
+                                  email: relationship.email,
+                                  role: relationship.role,
+                                  relationship_type: relationship.relationship_type,
+                                });
+                                openRelationshipRemovalModal();
+                              }}
+                            >
+                              <Feather name="trash-2" size={16} color="#EF4444" />
+                            </TouchableOpacity>
+                          </XStack>
+                        ))}
+                      </YStack>
+                    )}
+                    
                     {/* Show selected connections with message */}
                     {selectedConnections.length > 0 && (
                       <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
                         <Text size="md" fontWeight="600" color="$color">
-                          Selected {selectedConnections.length > 1 ? 'Connections' : 'Connection'}:
+                          New {selectedConnections.length > 1 ? 'Connections' : 'Connection'} to Add:
                         </Text>
                         {selectedConnections.map((connection) => (
                           <RadioButton
@@ -1464,7 +1675,7 @@ export function OnboardingInteractive({
                       </YStack>
                     )}
                     
-                    {/* Save button when connections are selected */}
+                    {/* Action buttons */}
                     {selectedConnections.length > 0 ? (
                       <Button variant="primary" size="lg" onPress={async () => {
                         await handleCreateSelectedConnections();
@@ -1475,25 +1686,51 @@ export function OnboardingInteractive({
                       }}>
                         Save {selectedConnections.length > 1 ? 'Connections' : 'Connection'} & Continue
                       </Button>
+                    ) : existingRelationships.length > 0 ? (
+                      <YStack gap="$2" width="100%">
+                        <Button variant="primary" size="lg" onPress={() => {
+                          // Skip to next step since user already has relationships
+                          setCompletedSteps((prev) => new Set(prev).add('relationships'));
+                          nextSlide();
+                        }}>
+                          Continue with Existing Relationships
+                        </Button>
+                        <Button variant="secondary" size="lg" onPress={showConnectionsModal}>
+                          Add More Connections
+                        </Button>
+                        <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
+                          Skip for now
+                        </Button>
+                      </YStack>
                     ) : (
-                      <Button variant="secondary" size="lg" onPress={showConnectionsModal}>
-                        Find Connections
-                      </Button>
+                      <YStack gap="$2" width="100%">
+                        <Button variant="secondary" size="lg" onPress={showConnectionsModal}>
+                          Find Connections
+                        </Button>
+                        <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
+                          Skip for now
+                        </Button>
+                      </YStack>
                     )}
                   </YStack>
                 ) : item.id === 'complete' ? (
-                  <Button variant="primary" size="lg" onPress={completeOnboarding}>
-                    Start Using Vromm!
-                  </Button>
+                  <YStack gap="$2" width="100%">
+                    <Button variant="primary" size="lg" onPress={completeOnboarding}>
+                      {t('onboarding.complete.startJourney') || 'Start Using Vromm!'}
+                    </Button>
+                    <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
+                      {t('onboarding.skipForNow') || 'Skip for now'}
+                    </Button>
+                  </YStack>
                 ) : (
                   <Button variant="primary" size="lg" onPress={() => nextSlide()}>
-                    Continue
+                    {t('onboarding.continue') || 'Continue'}
                   </Button>
                 )}
 
-                {item.skipButton && item.id !== 'relationships' && (
+                {item.skipButton && item.id !== 'relationships' && item.id !== 'complete' && (
                   <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-                    {item.skipButton}
+                    {t('onboarding.skipForNow') || item.skipButton}
                   </Button>
                 )}
               </YStack>
@@ -1668,11 +1905,11 @@ export function OnboardingInteractive({
 
               >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
-              Select Your City
+              {t('onboarding.city.title') || 'Select Your City'}
             </Text>
             
             <FormField
-              placeholder="Search cities... (try 'Ystad', 'New York', etc.)"
+              placeholder={t('onboarding.city.searchPlaceholder') || "Search cities... (try 'Ystad', 'New York', etc.)"}
               value={citySearchQuery}
               onChangeText={handleCitySearch}
             />
@@ -1681,13 +1918,13 @@ export function OnboardingInteractive({
               <YStack gap="$1">
                 {citySearchResults.length === 0 && citySearchQuery.length >= 2 && (
                   <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                    No cities found for "{citySearchQuery}"
+                    {t('onboarding.city.noCitiesFor') || 'No cities found for'} "{citySearchQuery}"
                   </Text>
                 )}
                 
                 {citySearchResults.length === 0 && citySearchQuery.length < 2 && (
                   <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                    Start typing to search for any city worldwide
+                    {t('onboarding.city.startTyping') || 'Start typing to search for any city worldwide'}
                   </Text>
                 )}
                 
@@ -2397,6 +2634,130 @@ export function OnboardingInteractive({
       </Modal>
 
     </Stack>
+    
+    {/* Relationship Removal Modal */}
+    <Modal
+      visible={showRelationshipRemovalModal}
+      transparent
+      animationType="none"
+      onRequestClose={closeRelationshipRemovalModal}
+    >
+      <Animated.View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          opacity: relationshipRemovalBackdropOpacity,
+        }}
+      >
+        <Pressable style={{ flex: 1 }} onPress={closeRelationshipRemovalModal}>
+          <Animated.View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              transform: [{ translateY: relationshipRemovalSheetTranslateY }],
+            }}
+          >
+            <YStack
+              backgroundColor={backgroundColor}
+              padding="$4"
+              paddingBottom={insets.bottom || 20}
+              borderTopLeftRadius="$4"
+              borderTopRightRadius="$4"
+              gap="$4"
+              minHeight="60%"
+            >
+              <Text size="xl" weight="bold" color={textColor} textAlign="center">
+                Remove {relationshipRemovalTarget?.relationship_type === 'has_supervisor' ? 'Supervisor' : 'Student'}
+              </Text>
+              
+              <Text size="sm" color={textColor}>
+                Are you sure you want to remove {relationshipRemovalTarget?.name} as your {relationshipRemovalTarget?.relationship_type === 'has_supervisor' ? 'supervisor' : 'student'}?
+              </Text>
+              
+              <YStack gap="$2">
+                <Text size="sm" color={handleColor}>Optional message:</Text>
+                <TextInput
+                  value={relationshipRemovalMessage}
+                  onChangeText={setRelationshipRemovalMessage}
+                  placeholder="Add a message explaining why (optional)..."
+                  multiline
+                  style={{
+                    backgroundColor: backgroundColor,
+                    color: textColor,
+                    borderColor: borderColor,
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    padding: 12,
+                    minHeight: 80,
+                    textAlignVertical: 'top',
+                  }}
+                  placeholderTextColor={handleColor}
+                />
+              </YStack>
+              
+              <YStack gap="$2">
+                <Button
+                  variant="primary"
+                  backgroundColor="$red9"
+                  size="lg"
+                  onPress={async () => {
+                    if (!relationshipRemovalTarget || !user?.id) return;
+                    
+                    try {
+                      // Remove the relationship
+                      const { error } = await supabase
+                        .from('student_supervisor_relationships')
+                        .delete()
+                        .or(
+                          relationshipRemovalTarget.relationship_type === 'has_supervisor' 
+                            ? `and(student_id.eq.${user.id},supervisor_id.eq.${relationshipRemovalTarget.id})`
+                            : `and(student_id.eq.${relationshipRemovalTarget.id},supervisor_id.eq.${user.id})`
+                        );
+
+                      if (error) throw error;
+                      
+                      // TODO: Save removal message if provided
+                      if (relationshipRemovalMessage.trim()) {
+                        console.log('Removal message:', relationshipRemovalMessage.trim());
+                        // Could save to a removal_logs table or as metadata
+                      }
+                      
+                      showToast({
+                        title: t('common.success') || 'Success',
+                        message: t('onboarding.relationships.removeSuccess') || 'Relationship removed successfully',
+                        type: 'success'
+                      });
+                      loadExistingRelationships(); // Refresh the list
+                      closeRelationshipRemovalModal(); // Use animated close
+                      
+                    } catch (error) {
+                      console.error('Error removing relationship:', error);
+                      showToast({
+                        title: t('common.error') || 'Error',
+                        message: t('onboarding.relationships.removeError') || 'Failed to remove relationship',
+                        type: 'error'
+                      });
+                    }
+                  }}
+                >
+                  <Text color="white">{t('common.remove') || 'Remove'}</Text>
+                </Button>
+                <Button
+                  variant="tertiary"
+                  size="lg"
+                  onPress={closeRelationshipRemovalModal}
+                >
+                  {t('common.cancel') || 'Cancel'}
+                </Button>
+              </YStack>
+            </YStack>
+          </Animated.View>
+        </Pressable>
+      </Animated.View>
+    </Modal>
+    
     </View>
   );
 }

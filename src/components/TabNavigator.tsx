@@ -45,6 +45,7 @@ import { useTranslation as useAppTranslation } from '../contexts/TranslationCont
 // Import services for badge counts
 import { messageService } from '../services/messageService';
 import { notificationService } from '../services/notificationService';
+import { getPendingInvitations } from '../services/invitationService_v2';
 import { supabase } from '../lib/supabase';
 // Screen tours import DISABLED
 // import { useScreenTours } from '../utils/screenTours';
@@ -153,6 +154,7 @@ const HamburgerDrawer = ({
   unreadMessageCount,
   unreadNotificationCount,
   unreadEventCount,
+  pendingInvitationsCount,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -170,6 +172,7 @@ const HamburgerDrawer = ({
   unreadMessageCount: number;
   unreadNotificationCount: number;
   unreadEventCount: number;
+  pendingInvitationsCount: number;
 }) => {
   const { t } = useTranslation();
   const { signOut, user, profile } = useAuth();
@@ -294,6 +297,8 @@ const HamburgerDrawer = ({
         onNavigateHome('ProfileScreen');
         onClose();
       },
+      badge: pendingInvitationsCount,
+      badgeColor: '#FF4444',
     },
     {
       icon: 'users',
@@ -729,6 +734,7 @@ export function TabNavigator() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [unreadEventCount, setUnreadEventCount] = useState(0);
+  const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0);
 
   // Load and update badge counts
   const loadBadgeCounts = async () => {
@@ -755,6 +761,14 @@ export function TabNavigator() {
         eventCount = eventInvitations?.length || 0;
       }
       setUnreadEventCount(eventCount);
+
+      // Load pending invitations count
+      let invitationCount = 0;
+      if (user) {
+        const pendingInvitations = await getPendingInvitations(user.id);
+        invitationCount = pendingInvitations?.length || 0;
+      }
+      setPendingInvitationsCount(invitationCount);
 
       // First-run initialization
       if (!seenInitializedRef.current) {
@@ -858,6 +872,23 @@ export function TabNavigator() {
       )
       .subscribe();
 
+    // Subscribe to pending invitations updates
+    const invitationSubscription = supabase
+      .channel('pending-invitations-menu')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pending_invitations',
+          filter: `status=eq.pending`,
+        },
+        () => {
+          loadBadgeCounts();
+        },
+      )
+      .subscribe();
+
     // Periodic refresh
     const refreshInterval = setInterval(() => {
       loadBadgeCounts();
@@ -871,6 +902,7 @@ export function TabNavigator() {
         notificationSubscription.unsubscribe();
       }
       supabase.removeChannel(eventSubscription);
+      supabase.removeChannel(invitationSubscription);
       clearInterval(refreshInterval);
     };
   }, []);
@@ -1497,6 +1529,7 @@ export function TabNavigator() {
         unreadMessageCount={unreadMessageCount}
         unreadNotificationCount={unreadNotificationCount}
         unreadEventCount={unreadEventCount}
+        pendingInvitationsCount={pendingInvitationsCount}
       />
 
       <BetaInfoModal visible={isBetaInfoOpen} onClose={() => setIsBetaInfoOpen(false)} />

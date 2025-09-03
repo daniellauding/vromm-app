@@ -5,6 +5,7 @@ import { Text } from '../components/Text';
 import { Button } from './Button';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
+import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import { Database } from '../lib/database.types';
 import {
@@ -53,6 +54,7 @@ export function RelationshipManagementModal({
 }: RelationshipManagementModalProps) {
   const { profile, user } = useAuth();
   const { activeStudentId } = useStudentSwitch();
+  const { showToast } = useToast();
   
   // Modal tabs/modes - default to 'manage' for instructors
   const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'invite' | 'pending'>(
@@ -353,15 +355,27 @@ export function RelationshipManagementModal({
       );
       
       if (success) {
-        Alert.alert('Success', 'Supervisor removed successfully and review submitted');
+        showToast({
+          title: 'Success',
+          message: 'Supervisor removed successfully and review submitted',
+          type: 'success'
+        });
         loadCurrentSupervisors();
         onRefresh?.();
       } else {
-        Alert.alert('Error', 'Failed to remove supervisor');
+        showToast({
+          title: 'Error',
+          message: 'Failed to remove supervisor',
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error('Error removing supervisor:', error);
-      Alert.alert('Error', 'Failed to remove supervisor');
+      showToast({
+        title: 'Error',
+        message: 'Failed to remove supervisor',
+        type: 'error'
+      });
     } finally {
       setRemovalTarget(null);
       setShowRemovalReviewModal(false);
@@ -389,13 +403,25 @@ export function RelationshipManagementModal({
                 profile.id
               );
               if (success) {
-                Alert.alert('Success', 'Student removed successfully');
+                showToast({
+                  title: 'Success',
+                  message: 'Student removed successfully',
+                  type: 'success'
+                });
                 onRefresh?.();
               } else {
-                Alert.alert('Error', 'Failed to remove student');
+                showToast({
+                  title: 'Error',
+                  message: 'Failed to remove student',
+                  type: 'error'
+                });
               }
             } catch (error) {
-              Alert.alert('Error', 'Failed to remove student');
+              showToast({
+                title: 'Error',
+                message: 'Failed to remove student',
+                type: 'error'
+              });
             }
           }
         }
@@ -482,7 +508,11 @@ export function RelationshipManagementModal({
       .filter(email => email.includes('@'));
 
     if (emails.length === 0) {
-      Alert.alert('Error', 'Please enter valid email addresses');
+      showToast({
+        title: 'Error',
+        message: 'Please enter valid email addresses',
+        type: 'error'
+      });
       return;
     }
 
@@ -505,7 +535,11 @@ export function RelationshipManagementModal({
       loadPendingInvitations();
     } catch (error) {
       console.error('Invitation error:', error);
-      Alert.alert('Error', `Failed to send invitations: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      showToast({
+        title: 'Error',
+        message: `Failed to send invitations: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        type: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -556,19 +590,21 @@ export function RelationshipManagementModal({
           const hoursOld = invitationAge / (1000 * 60 * 60);
           
           console.log('ℹ️ Pending invitation already exists (', hoursOld.toFixed(1), 'hours old)');
-          Alert.alert(
-            'Invitation Already Sent',
-            `You already sent an invitation to ${targetUser.full_name || targetUser.email} ${hoursOld < 1 ? 'less than an hour' : Math.round(hoursOld) + ' hours'} ago. Please wait for them to respond.`,
-          );
+          showToast({
+            title: 'Invitation Already Sent',
+            message: `You already sent an invitation to ${targetUser.full_name || targetUser.email} ${hoursOld < 1 ? 'less than an hour' : Math.round(hoursOld) + ' hours'} ago. Please wait for them to respond.`,
+            type: 'info'
+          });
           return;
         }
         
         if (acceptedInvitation) {
           console.log('ℹ️ Invitation already accepted - relationship should exist');
-          Alert.alert(
-            'Invitation Already Accepted',
-            `${targetUser.full_name || targetUser.email} has already accepted your invitation. The relationship should be active.`,
-          );
+          showToast({
+            title: 'Invitation Already Accepted',
+            message: `${targetUser.full_name || targetUser.email} has already accepted your invitation. The relationship should be active.`,
+            type: 'info'
+          });
           return;
         }
       }
@@ -608,7 +644,11 @@ export function RelationshipManagementModal({
       if (inviteError) {
         if (inviteError.code === '23505') {
           console.log('ℹ️ Invitation already exists (duplicate key)');
-          Alert.alert('Info', 'An invitation has already been sent to this user.');
+          showToast({
+            title: 'Info',
+            message: 'An invitation has already been sent to this user.',
+            type: 'info'
+          });
           return;
         } else {
           console.error('❌ Error creating invitation:', inviteError);
@@ -674,11 +714,12 @@ export function RelationshipManagementModal({
         console.log('✅ Invitation notification created successfully');
       }
       
-      console.log('🎉 Showing success alert...');
-      Alert.alert(
-        'Invitation Sent! 📤',
-        `An invitation has been sent to ${targetUser.full_name || 'the user'}. They will need to accept it before the relationship is created.`,
-      );
+      console.log('🎉 Showing success toast...');
+      showToast({
+        title: 'Invitation Sent! 📤',
+        message: `An invitation has been sent to ${targetUser.full_name || 'the user'}. They will need to accept it before the relationship is created.`,
+        type: 'success'
+      });
       
       // Clear search and refresh
       console.log('🔄 Clearing search and refreshing data...');
@@ -689,10 +730,11 @@ export function RelationshipManagementModal({
       
     } catch (error) {
       console.error('❌ Error creating invitation:', error);
-      Alert.alert(
-        'Error',
-        `Failed to send invitation: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      showToast({
+        title: 'Error',
+        message: `Failed to send invitation: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        type: 'error'
+      });
     } finally {
       console.log('🏁 Setting loading to false');
       setLoading(false);
@@ -710,10 +752,18 @@ export function RelationshipManagementModal({
         .eq('metadata->invitation_id', invitationId);
       
       loadPendingInvitations();
-      Alert.alert('Success', 'Invitation cancelled');
+      showToast({
+        title: 'Success',
+        message: 'Invitation cancelled',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error cancelling invitation:', error);
-      Alert.alert('Error', 'Failed to cancel invitation');
+      showToast({
+        title: 'Error',
+        message: 'Failed to cancel invitation',
+        type: 'error'
+      });
     }
   };
 
@@ -1229,38 +1279,15 @@ export function RelationshipManagementModal({
                         );
                         
                         if (hasPendingInvite) {
-                          Alert.alert(
-                            'Resend Invitation?', 
-                            `There's already a pending invitation to ${user.full_name || user.email}. Would you like to resend it?`, 
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { 
-                                text: 'Resend Invitation', 
-                                onPress: () => {
-                                  console.log('🔄 User confirmed resending invitation:', user);
-                                  handleInviteExistingUserDirectly(user);
-                                }
-                              }
-                            ]
-                          );
+                          showToast({
+                            title: 'Invitation Already Pending',
+                            message: `There's already a pending invitation to ${user.full_name || user.email}. Please wait for them to respond.`,
+                            type: 'info'
+                          });
                         } else {
-                          Alert.alert(
-                            'Send Invitation', 
-                            `Send an invitation to ${user.full_name || user.id} to become your ${userRole === 'student' ? 'supervisor' : 'student'}? They will need to accept it.`, 
-                            [
-                              { 
-                                text: 'Cancel',
-                                onPress: () => console.log('❌ User cancelled invitation')
-                              },
-                              { 
-                                text: 'Send Invitation', 
-                                onPress: () => {
-                                  console.log('✅ User confirmed sending invitation:', user);
-                                  handleInviteExistingUserDirectly(user);
-                                }
-                              }
-                            ]
-                          );
+                          // Directly send invitation without confirmation dialog
+                          console.log('✅ Sending invitation to:', user);
+                          handleInviteExistingUserDirectly(user);
                         }
                       }}
                     >
@@ -1527,7 +1554,11 @@ export function RelationshipManagementModal({
                                         console.log('🗑️ Related notification deleted after acceptance');
                                       }
                                       
-                                      Alert.alert('Success', 'Invitation accepted! Relationship created.');
+                                      showToast({
+                                        title: 'Success',
+                                        message: 'Invitation accepted! Relationship created.',
+                                        type: 'success'
+                                      });
                                       
                                       // Force refresh the UI immediately
                                       setTimeout(() => {
@@ -1536,11 +1567,19 @@ export function RelationshipManagementModal({
                                         onRefresh?.();
                                       }, 100);
                                     } else {
-                                      Alert.alert('Error', 'Failed to accept invitation - please try again');
+                                      showToast({
+                                        title: 'Error',
+                                        message: 'Failed to accept invitation - please try again',
+                                        type: 'error'
+                                      });
                                     }
                                   } catch (error) {
                                     console.error('❌ Error accepting invitation:', error);
-                                    Alert.alert('Error', 'Failed to accept invitation');
+                                    showToast({
+                                      title: 'Error',
+                                      message: 'Failed to accept invitation',
+                                      type: 'error'
+                                    });
                                   }
                                 }}
                               >
@@ -1562,7 +1601,11 @@ export function RelationshipManagementModal({
                                     
                                     if (inviteError) {
                                       console.error('❌ Error declining invitation:', inviteError);
-                                      Alert.alert('Error', 'Failed to decline invitation');
+                                      showToast({
+                                        title: 'Error',
+                                        message: 'Failed to decline invitation',
+                                        type: 'error'
+                                      });
                                       return;
                                     }
                                     
@@ -1580,7 +1623,11 @@ export function RelationshipManagementModal({
                                     }
                                     
                                     console.log('✅ Invitation declined successfully');
-                                    Alert.alert('Success', 'Invitation declined');
+                                    showToast({
+                                      title: 'Success',
+                                      message: 'Invitation declined',
+                                      type: 'success'
+                                    });
                                     
                                     // Force refresh the UI immediately
                                     setTimeout(() => {
@@ -1590,7 +1637,11 @@ export function RelationshipManagementModal({
                                     }, 100);
                                   } catch (error) {
                                     console.error('❌ Error in decline process:', error);
-                                    Alert.alert('Error', 'Failed to decline invitation');
+                                    showToast({
+                                      title: 'Error',
+                                      message: 'Failed to decline invitation',
+                                      type: 'error'
+                                    });
                                   }
                                 }}
                               >
