@@ -20,23 +20,24 @@ export function LicensePlanScreen() {
 
   // Form state
   const [targetDate, setTargetDate] = useState<Date | null>(() => {
-    if (profile?.license_plan_data?.target_date) {
-      return new Date(profile.license_plan_data.target_date);
+    const planData = (profile?.license_plan_data as any);
+    if (planData?.target_date) {
+      return new Date(planData.target_date);
     }
     return null;
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [hasTheory, setHasTheory] = useState<boolean>(
-    () => profile?.license_plan_data?.has_theory || false,
+    () => (profile?.license_plan_data as any)?.has_theory || false,
   );
   const [hasPractice, setHasPractice] = useState<boolean>(
-    () => profile?.license_plan_data?.has_practice || false,
+    () => (profile?.license_plan_data as any)?.has_practice || false,
   );
   const [previousExperience, setPreviousExperience] = useState<string>(
-    () => profile?.license_plan_data?.previous_experience || '',
+    () => (profile?.license_plan_data as any)?.previous_experience || '',
   );
   const [specificGoals, setSpecificGoals] = useState<string>(
-    () => profile?.license_plan_data?.specific_goals || '',
+    () => (profile?.license_plan_data as any)?.specific_goals || '',
   );
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
@@ -172,7 +173,7 @@ export function LicensePlanScreen() {
             </YStack>
 
             <Button
-              variant="primary"
+              variant="outlined"
               size="$4"
               marginTop="$6"
               onPress={handleSubmit}

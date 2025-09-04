@@ -15,7 +15,7 @@ import {
   Pressable,
   Image,
 } from 'react-native';
-import { YStack, XStack, Stack, Image as TamaguiImage } from 'tamagui';
+import { YStack, XStack, Stack, Image as TamaguiImage, Switch, TextArea } from 'tamagui';
 import { Text } from './Text';
 import { Button } from './Button';
 import { FormField } from './FormField';
@@ -35,11 +35,19 @@ import { useThemeColor } from '../../hooks/useThemeColor';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useToast } from '../contexts/ToastContext';
 import { useColorScheme } from 'react-native';
+import { Language } from '../contexts/TranslationContext';
 import { StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Popover from 'react-native-popover-view';
 
 const { width, height } = Dimensions.get('window');
+
+// Language constants (copied from ProfileScreen.tsx)
+const LANGUAGES: Language[] = ['en', 'sv'];
+const LANGUAGE_LABELS: Record<Language, string> = {
+  en: 'English',
+  sv: 'Svenska',
+};
 
 // Styles matching SplashScreen and FormField
 const styles = StyleSheet.create({
@@ -104,7 +112,7 @@ export function OnboardingInteractive({
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { setUserLocation } = useLocation();
-  const { language, t } = useTranslation();
+  const { language, t, setLanguage } = useTranslation();
   const { showToast } = useToast();
   const colorScheme = useColorScheme();
   
@@ -179,6 +187,13 @@ export function OnboardingInteractive({
   const [showExperienceModal, setShowExperienceModal] = useState(false);
   const [selectedExperienceLevel, setSelectedExperienceLevel] = useState<string>('Beginner'); // Use database value format (matches is_default=true)
   const [locationLoading, setLocationLoading] = useState(false);
+  
+  // Additional license plan modal states
+  const [showPreviousExperienceModal, setShowPreviousExperienceModal] = useState(false);
+  const [showSpecificGoalsModal, setShowSpecificGoalsModal] = useState(false);
+  
+  // Language selection modal state
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   const [selectedTargetDate, setSelectedTargetDate] = useState<Date>(() => {
     // Default to 6 months from now
@@ -191,6 +206,24 @@ export function OnboardingInteractive({
   const [showDatePopover, setShowDatePopover] = useState(false);
   const [selectedDateOption, setSelectedDateOption] = useState<string>('6months'); // Track which date option is selected
   const dateButtonRef = useRef<any>(null);
+  
+  // License plan additional fields (from LicensePlanScreen.tsx)
+  const [hasTheory, setHasTheory] = useState<boolean>(() => {
+    const planData = (profile?.license_plan_data as any);
+    return planData?.has_theory || false;
+  });
+  const [hasPractice, setHasPractice] = useState<boolean>(() => {
+    const planData = (profile?.license_plan_data as any);
+    return planData?.has_practice || false;
+  });
+  const [previousExperience, setPreviousExperience] = useState<string>(() => {
+    const planData = (profile?.license_plan_data as any);
+    return planData?.previous_experience || '';
+  });
+  const [specificGoals, setSpecificGoals] = useState<string>(() => {
+    const planData = (profile?.license_plan_data as any);
+    return planData?.specific_goals || '';
+  });
   
   // Dynamic experience levels from database
   const [experienceLevels, setExperienceLevels] = useState<Array<{ id: string; title: string; description?: string }>>([]);
@@ -248,6 +281,16 @@ export function OnboardingInteractive({
   // Relationship removal modal animation refs
   const relationshipRemovalBackdropOpacity = useRef(new Animated.Value(0)).current;
   const relationshipRemovalSheetTranslateY = useRef(new Animated.Value(300)).current;
+  
+  // Additional license plan modal animation refs
+  const previousExperienceBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const previousExperienceSheetTranslateY = useRef(new Animated.Value(300)).current;
+  const specificGoalsBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const specificGoalsSheetTranslateY = useRef(new Animated.Value(300)).current;
+  
+  // Language modal animation refs (copied from ProfileScreen.tsx)
+  const languageBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const languageSheetTranslateY = useRef(new Animated.Value(300)).current;
 
   // Dynamic category options from database
   const [vehicleTypes, setVehicleTypes] = useState<Array<{ id: string; title: string }>>([]);
@@ -950,6 +993,102 @@ export function OnboardingInteractive({
     });
   };
 
+  // Previous Experience modal show/hide functions
+  const showPreviousExperienceSheet = () => {
+    setShowPreviousExperienceModal(true);
+    Animated.timing(previousExperienceBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(previousExperienceSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hidePreviousExperienceSheet = () => {
+    Animated.timing(previousExperienceBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(previousExperienceSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowPreviousExperienceModal(false);
+    });
+  };
+
+  // Specific Goals modal show/hide functions
+  const showSpecificGoalsSheet = () => {
+    setShowSpecificGoalsModal(true);
+    Animated.timing(specificGoalsBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(specificGoalsSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideSpecificGoalsSheet = () => {
+    Animated.timing(specificGoalsBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(specificGoalsSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowSpecificGoalsModal(false);
+    });
+  };
+
+  // Language modal show/hide functions (copied from ProfileScreen.tsx)
+  const showLanguageSheet = () => {
+    setShowLanguageModal(true);
+    Animated.timing(languageBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(languageSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideLanguageSheet = () => {
+    Animated.timing(languageBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(languageSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowLanguageModal(false);
+    });
+  };
+
   const handleCitySelect = async (cityData: any) => {
     // Format city name as "City, SE" instead of full address
     const cityName = [cityData.city, cityData.country].filter(Boolean).join(', ');
@@ -1082,6 +1221,11 @@ export function OnboardingInteractive({
         transmission_type: transmissionType,
         license_type: licenseType,
         target_date: selectedTargetDate.toISOString(),
+        // Add new fields from LicensePlanScreen
+        has_theory: hasTheory,
+        has_practice: hasPractice,
+        previous_experience: previousExperience,
+        specific_goals: specificGoals,
       };
       
       console.log('💾 [OnboardingInteractive] Saving license plan data:', licenseData);
@@ -1500,6 +1644,62 @@ export function OnboardingInteractive({
               isActive={showLicenseDrawer}
             />
 
+            {/* Theory Test Toggle */}
+            <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+              <Text size="md" weight="semibold" color="$color">
+                {t('onboarding.licensePlan.hasTheory') || 'Have you passed the theory test?'}
+              </Text>
+              <XStack alignItems="center" gap="$2">
+                <Switch 
+                  size="$4"
+                  checked={hasTheory} 
+                  onCheckedChange={setHasTheory}
+                  backgroundColor={hasTheory ? '$blue8' : '$gray6'}
+                >
+                  <Switch.Thumb />
+                </Switch>
+                <Text size="md" color="$color">
+                  {hasTheory ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                </Text>
+              </XStack>
+            </YStack>
+
+            {/* Practice Test Toggle */}
+            <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+              <Text size="md" weight="semibold" color="$color">
+                {t('onboarding.licensePlan.hasPractice') || 'Have you passed the practical test?'}
+              </Text>
+              <XStack alignItems="center" gap="$2">
+                <Switch 
+                  size="$4"
+                  checked={hasPractice} 
+                  onCheckedChange={setHasPractice}
+                  backgroundColor={hasPractice ? '$blue8' : '$gray6'}
+                >
+                  <Switch.Thumb />
+                </Switch>
+                <Text size="md" color="$color">
+                  {hasPractice ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                </Text>
+              </XStack>
+            </YStack>
+
+            {/* Previous Experience Dropdown */}
+            <DropdownButton
+              onPress={showPreviousExperienceSheet}
+              value={previousExperience || (t('onboarding.licensePlan.experiencePlaceholder') || 'Describe your previous driving experience')}
+              placeholder={t('onboarding.licensePlan.previousExperience') || 'Previous driving experience'}
+              isActive={showPreviousExperienceModal}
+            />
+
+            {/* Specific Goals Dropdown */}
+            <DropdownButton
+              onPress={showSpecificGoalsSheet}
+              value={specificGoals || (t('onboarding.licensePlan.goalsPlaceholder') || 'Do you have specific goals with your license?')}
+              placeholder={t('onboarding.licensePlan.specificGoals') || 'Specific goals'}
+              isActive={showSpecificGoalsModal}
+            />
+
             {/* Save Button */}
             <Button variant="primary" size="lg" onPress={() => {
               handleSaveLicensePlan();
@@ -1834,6 +2034,14 @@ export function OnboardingInteractive({
                   </YStack>
                 ) : item.id === 'complete' ? (
                   <YStack gap="$2" width="100%">
+                    {/* Language Selection Dropdown */}
+                    <DropdownButton
+                      onPress={showLanguageSheet}
+                      value={LANGUAGE_LABELS[language]}
+                      placeholder={t('onboarding.complete.selectLanguage') || 'Select Language'}
+                      isActive={showLanguageModal}
+                    />
+                    
                     <Button variant="primary" size="lg" onPress={completeOnboarding}>
                       {t('onboarding.complete.startJourney') || 'Start Using Vromm!'}
                     </Button>
@@ -2893,6 +3101,209 @@ export function OnboardingInteractive({
             </YStack>
           </Animated.View>
         </Pressable>
+      </Animated.View>
+    </Modal>
+
+    {/* Previous Experience Modal */}
+    <Modal
+      visible={showPreviousExperienceModal}
+      transparent
+      animationType="none"
+      onRequestClose={() => setShowPreviousExperienceModal(false)}
+    >
+      <Animated.View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          opacity: previousExperienceBackdropOpacity,
+        }}
+      >
+        <Pressable style={{ flex: 1 }} onPress={() => setShowPreviousExperienceModal(false)}>
+          <Animated.View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              transform: [{ translateY: previousExperienceSheetTranslateY }],
+            }}
+          >
+            <YStack
+              backgroundColor={backgroundColor}
+              padding="$4"
+              paddingBottom={insets.bottom || 20}
+              borderTopLeftRadius="$4"
+              borderTopRightRadius="$4"
+              gap="$4"
+              minHeight="60%"
+            >
+              <Text size="xl" weight="bold" color="$color" textAlign="center">
+                {t('onboarding.licensePlan.previousExperience') || 'Previous driving experience'}
+              </Text>
+              
+              <TextArea
+                placeholder={t('onboarding.licensePlan.experiencePlaceholder') || 'Describe your previous driving experience'}
+                value={previousExperience}
+                onChangeText={setPreviousExperience}
+                minHeight={150}
+                backgroundColor="$background"
+                borderColor="$borderColor"
+                color="$color"
+                focusStyle={{
+                  borderColor: '$blue8',
+                }}
+              />
+              
+              <YStack gap="$2">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onPress={() => {
+                    setShowPreviousExperienceModal(false);
+                  }}
+                >
+                  {t('common.save') || 'Save'}
+                </Button>
+                <Button
+                  variant="tertiary"
+                  size="lg"
+                  onPress={() => {
+                    setShowPreviousExperienceModal(false);
+                  }}
+                >
+                  {t('common.cancel') || 'Cancel'}
+                </Button>
+              </YStack>
+            </YStack>
+          </Animated.View>
+        </Pressable>
+      </Animated.View>
+    </Modal>
+
+    {/* Specific Goals Modal */}
+    <Modal
+      visible={showSpecificGoalsModal}
+      transparent
+      animationType="none"
+      onRequestClose={() => setShowSpecificGoalsModal(false)}
+    >
+      <Animated.View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          opacity: specificGoalsBackdropOpacity,
+        }}
+      >
+        <Pressable style={{ flex: 1 }} onPress={() => setShowSpecificGoalsModal(false)}>
+          <Animated.View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              transform: [{ translateY: specificGoalsSheetTranslateY }],
+            }}
+          >
+            <YStack
+              backgroundColor={backgroundColor}
+              padding="$4"
+              paddingBottom={insets.bottom || 20}
+              borderTopLeftRadius="$4"
+              borderTopRightRadius="$4"
+              gap="$4"
+              minHeight="60%"
+            >
+              <Text size="xl" weight="bold" color="$color" textAlign="center">
+                {t('onboarding.licensePlan.specificGoals') || 'Specific goals'}
+              </Text>
+              
+              <TextArea
+                placeholder={t('onboarding.licensePlan.goalsPlaceholder') || 'Do you have specific goals with your license?'}
+                value={specificGoals}
+                onChangeText={setSpecificGoals}
+                minHeight={150}
+                backgroundColor="$background"
+                borderColor="$borderColor"
+                color="$color"
+                focusStyle={{
+                  borderColor: '$blue8',
+                }}
+              />
+              
+              <YStack gap="$2">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onPress={() => {
+                    setShowSpecificGoalsModal(false);
+                  }}
+                >
+                  {t('common.save') || 'Save'}
+                </Button>
+                <Button
+                  variant="tertiary"
+                  size="lg"
+                  onPress={() => {
+                    setShowSpecificGoalsModal(false);
+                  }}
+                >
+                  {t('common.cancel') || 'Cancel'}
+                </Button>
+              </YStack>
+            </YStack>
+          </Animated.View>
+        </Pressable>
+      </Animated.View>
+    </Modal>
+
+    {/* Language Selection Modal (copied from ProfileScreen.tsx) */}
+    <Modal
+      visible={showLanguageModal}
+      transparent
+      animationType="none"
+      onRequestClose={hideLanguageSheet}
+    >
+      <Animated.View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          opacity: languageBackdropOpacity,
+        }}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <Pressable style={{ flex: 1 }} onPress={hideLanguageSheet} />
+          <Animated.View
+            style={{
+              transform: [{ translateY: languageSheetTranslateY }],
+            }}
+          >
+            <YStack
+              backgroundColor={backgroundColor}
+              padding="$4"
+              paddingBottom={insets.bottom || 24}
+              borderTopLeftRadius="$4"
+              borderTopRightRadius="$4"
+              gap="$4"
+            >
+              <Text size="xl" weight="bold" color={textColor} textAlign="center">
+                {t('onboarding.complete.languageTitle') || 'Select Language'}
+              </Text>
+              <YStack gap="$2">
+                {LANGUAGES.map((lang) => (
+                  <RadioButton
+                    key={lang}
+                    onPress={async () => {
+                      await setLanguage(lang);
+                      hideLanguageSheet();
+                    }}
+                    title={LANGUAGE_LABELS[lang]}
+                    isSelected={language === lang}
+                  />
+                ))}
+              </YStack>
+            </YStack>
+          </Animated.View>
+        </View>
       </Animated.View>
     </Modal>
     
