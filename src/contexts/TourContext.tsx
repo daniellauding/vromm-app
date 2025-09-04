@@ -279,7 +279,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       setCurrentStep(0);
       setIsActive(true);
     }
-  }, []);
+  }, [language]); // 🔥 CRITICAL FIX: Add language dependency to reload tour when language changes
 
   const startCustomTour = useCallback((customSteps: TourStep[], tourKey?: string) => {
     // DISABLED: Custom tours cause console flooding (keep disabled even for HomeScreen)

@@ -108,7 +108,7 @@ export function OnboardingInteractive({
   showAgainKey = 'interactive_onboarding',
   onCloseModal,
 }: OnboardingInteractiveProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { setUserLocation } = useLocation();
@@ -776,6 +776,33 @@ export function OnboardingInteractive({
         timestamp: new Date().toISOString(),
       });
       
+      // 🔥 CRITICAL FIX: Also save to profiles table for cross-screen sync
+      if (user) {
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .update({
+              preferred_city: cityName,
+              preferred_city_coords: {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+              },
+              location: cityName, // Also update main location field
+              location_lat: location.coords.latitude,
+              location_lng: location.coords.longitude,
+            })
+            .eq('id', user.id);
+            
+          if (error) {
+            console.error('Error saving detected location to profile:', error);
+          } else {
+            console.log('✅ Detected location saved to profile:', cityName);
+          }
+        } catch (error) {
+          console.error('Error saving detected location:', error);
+        }
+      }
+      
       // Location detected and set
     } catch (error) {
       console.error('Error detecting location:', error);
@@ -1254,6 +1281,15 @@ export function OnboardingInteractive({
       } else {
         setCompletedSteps((prev) => new Set(prev).add('license_plan'));
         checkStepCompletions();
+        
+        // 🔥 CRITICAL FIX: Refresh profile data for cross-screen sync
+        try {
+          await refreshProfile();
+          console.log('✅ Profile data refreshed after license plan save');
+        } catch (error) {
+          console.error('Error refreshing profile:', error);
+        }
+        
         // Auto-advance to next slide after saving
         setTimeout(() => {
           nextSlide();
@@ -1297,6 +1333,15 @@ export function OnboardingInteractive({
       } else {
         setCompletedSteps((prev) => new Set(prev).add('role'));
         checkStepCompletions();
+        
+        // 🔥 CRITICAL FIX: Refresh profile for cross-screen sync
+        try {
+          await refreshProfile();
+          console.log('✅ Profile refreshed after role save');
+        } catch (error) {
+          console.error('Error refreshing profile after role save:', error);
+        }
+        
         // Advance to next slide after saving
         nextSlide();
       }
@@ -1653,7 +1698,36 @@ export function OnboardingInteractive({
                 <Switch 
                   size="$4"
                   checked={hasTheory} 
-                  onCheckedChange={setHasTheory}
+                  onCheckedChange={async (checked) => {
+                    setHasTheory(checked);
+                    // 🔥 CRITICAL FIX: Save theory status immediately to profile
+                    if (user) {
+                      try {
+                        const currentLicenseData = (profile?.license_plan_data as any) || {};
+                        const updatedLicenseData = {
+                          ...currentLicenseData,
+                          has_theory: checked,
+                        };
+                        
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({
+                            license_plan_data: updatedLicenseData,
+                          })
+                          .eq('id', user.id);
+                          
+                        if (error) {
+                          console.error('Error saving theory status:', error);
+                        } else {
+                          console.log('✅ Theory status saved:', checked);
+                          // Refresh profile for cross-screen sync
+                          await refreshProfile();
+                        }
+                      } catch (error) {
+                        console.error('Error updating theory status:', error);
+                      }
+                    }
+                  }}
                   backgroundColor={hasTheory ? '$blue8' : '$gray6'}
                 >
                   <Switch.Thumb />
@@ -1673,7 +1747,36 @@ export function OnboardingInteractive({
                 <Switch 
                   size="$4"
                   checked={hasPractice} 
-                  onCheckedChange={setHasPractice}
+                  onCheckedChange={async (checked) => {
+                    setHasPractice(checked);
+                    // 🔥 CRITICAL FIX: Save practice status immediately to profile
+                    if (user) {
+                      try {
+                        const currentLicenseData = (profile?.license_plan_data as any) || {};
+                        const updatedLicenseData = {
+                          ...currentLicenseData,
+                          has_practice: checked,
+                        };
+                        
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({
+                            license_plan_data: updatedLicenseData,
+                          })
+                          .eq('id', user.id);
+                          
+                        if (error) {
+                          console.error('Error saving practice status:', error);
+                        } else {
+                          console.log('✅ Practice status saved:', checked);
+                          // Refresh profile for cross-screen sync
+                          await refreshProfile();
+                        }
+                      } catch (error) {
+                        console.error('Error updating practice status:', error);
+                      }
+                    }
+                  }}
                   backgroundColor={hasPractice ? '$blue8' : '$gray6'}
                 >
                   <Switch.Thumb />
@@ -2538,9 +2641,35 @@ export function OnboardingInteractive({
                 {vehicleTypes.map((type) => (
                 <TouchableOpacity
                   key={type.id}
-                  onPress={() => {
+                  onPress={async () => {
                     setVehicleType(type.id);
                     hideVehicleModal();
+                    
+                    // 🔥 CRITICAL FIX: Save vehicle type immediately to profile for ProgressScreen sync
+                    if (user) {
+                      try {
+                        const currentLicenseData = (profile?.license_plan_data as any) || {};
+                        const updatedLicenseData = {
+                          ...currentLicenseData,
+                          vehicle_type: type.id,
+                        };
+                        
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({
+                            license_plan_data: updatedLicenseData,
+                            vehicle_type: type.id, // Also save to individual column
+                          })
+                          .eq('id', user.id);
+                          
+                        if (!error) {
+                          console.log('✅ Vehicle type saved for ProgressScreen sync:', type.id);
+                          await refreshProfile();
+                        }
+                      } catch (error) {
+                        console.error('Error saving vehicle type:', error);
+                      }
+                    }
                   }}
                   style={[
                     styles.sheetOption,
@@ -2606,9 +2735,35 @@ export function OnboardingInteractive({
                 {transmissionTypes.map((type) => (
                 <TouchableOpacity
                   key={type.id}
-                  onPress={() => {
+                  onPress={async () => {
                     setTransmissionType(type.id);
                     hideTransmissionModal();
+                    
+                    // 🔥 CRITICAL FIX: Save transmission type immediately to profile for ProgressScreen sync
+                    if (user) {
+                      try {
+                        const currentLicenseData = (profile?.license_plan_data as any) || {};
+                        const updatedLicenseData = {
+                          ...currentLicenseData,
+                          transmission_type: type.id,
+                        };
+                        
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({
+                            license_plan_data: updatedLicenseData,
+                            transmission_type: type.id, // Also save to individual column
+                          })
+                          .eq('id', user.id);
+                          
+                        if (!error) {
+                          console.log('✅ Transmission type saved for ProgressScreen sync:', type.id);
+                          await refreshProfile();
+                        }
+                      } catch (error) {
+                        console.error('Error saving transmission type:', error);
+                      }
+                    }
                   }}
                   style={[
                     styles.sheetOption,
@@ -2678,9 +2833,35 @@ export function OnboardingInteractive({
                 ]).map((level: { id: string; title: string; description?: string }) => (
                 <TouchableOpacity
                   key={level.id}
-                  onPress={() => {
+                  onPress={async () => {
                     setSelectedExperienceLevel(level.id);
                     setShowExperienceModal(false);
+                    
+                    // 🔥 CRITICAL FIX: Save experience level immediately to profile for ProgressScreen sync
+                    if (user) {
+                      try {
+                        const currentLicenseData = (profile?.license_plan_data as any) || {};
+                        const updatedLicenseData = {
+                          ...currentLicenseData,
+                          experience_level: level.id,
+                        };
+                        
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({
+                            license_plan_data: updatedLicenseData,
+                            experience_level: mapToValidExperienceLevel(level.id) as Database['public']['Enums']['experience_level'],
+                          })
+                          .eq('id', user.id);
+                          
+                        if (!error) {
+                          console.log('✅ Experience level saved for ProgressScreen sync:', level.id);
+                          await refreshProfile();
+                        }
+                      } catch (error) {
+                        console.error('Error saving experience level:', error);
+                      }
+                    }
                   }}
                   style={[
                     styles.sheetOption,
@@ -2753,9 +2934,35 @@ export function OnboardingInteractive({
                 {licenseTypes.map((type) => (
                 <TouchableOpacity
                   key={type.id}
-                  onPress={() => {
+                  onPress={async () => {
                     setLicenseType(type.id);
                     hideLicenseModal();
+                    
+                    // 🔥 CRITICAL FIX: Save license type immediately to profile for ProgressScreen sync
+                    if (user) {
+                      try {
+                        const currentLicenseData = (profile?.license_plan_data as any) || {};
+                        const updatedLicenseData = {
+                          ...currentLicenseData,
+                          license_type: type.id,
+                        };
+                        
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({
+                            license_plan_data: updatedLicenseData,
+                            license_type: type.id, // Also save to individual column
+                          })
+                          .eq('id', user.id);
+                          
+                        if (!error) {
+                          console.log('✅ License type saved for ProgressScreen sync:', type.id);
+                          await refreshProfile();
+                        }
+                      } catch (error) {
+                        console.error('Error saving license type:', error);
+                      }
+                    }
                   }}
                   style={[
                     styles.sheetOption,
