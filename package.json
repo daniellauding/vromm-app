@@ -24,7 +24,8 @@
     "build:preview": "eas build --platform all --profile preview",
     "patch-firebase": "node ./patch-firebase-analytics.js",
     "eslint-fix": "eslint --fix",
-    "build:web": "npx expo export:web"
+    "build:web": "npx expo export:web",
+    "update": "eas update"
   },
   "jest": {
     "preset": "jest-expo"
@@ -54,6 +55,7 @@
     "base64-arraybuffer": "^1.0.2",
     "date-fns": "^4.1.0",
     "eas": "^0.1.0",
+    "eas-cli": "^16.18.0",
     "expo": "^53.0.9",
     "expo-apple-authentication": "~7.2.4",
     "expo-auth-session": "~6.2.1",
