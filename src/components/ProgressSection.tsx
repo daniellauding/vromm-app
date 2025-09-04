@@ -229,13 +229,15 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     }
   };
 
-  // Load filter preferences from AsyncStorage (same as ProgressScreen)
+  // Load filter preferences from AsyncStorage - USER-SPECIFIC (same as ProgressScreen)
   const loadFilterPreferences = async (): Promise<Record<CategoryType, string> | null> => {
     try {
-      const saved = await AsyncStorage.getItem('vromm_progress_filters');
+      // Make filter loading user-specific for supervisors viewing different students
+      const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
+      const saved = await AsyncStorage.getItem(filterKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        console.log('✅ [ProgressSection] Loaded saved filter preferences:', parsed);
+        console.log('✅ [ProgressSection] Loaded saved filter preferences for user:', effectiveUserId, parsed);
         return parsed;
       }
     } catch (error) {

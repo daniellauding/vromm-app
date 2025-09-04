@@ -1738,7 +1738,7 @@ export function OnboardingInteractive({
                               <RadioButton
                                 onPress={() => {}} // No action on tap for existing relationships
                                 title={relationship.name}
-                                description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? 'Your supervisor' : 'Student you supervise'} since ${new Date(relationship.created_at).toLocaleDateString()}`}
+                                description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? (t('onboarding.relationships.yourSupervisor') || 'Your supervisor') : (t('onboarding.relationships.studentYouSupervise') || 'Student you supervise')} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
                                 isSelected={false} // Don't show as selected
                               />
                             </YStack>
@@ -1777,7 +1777,7 @@ export function OnboardingInteractive({
                               );
                             }}
                             title={connection.full_name || connection.email}
-                            description={`${connection.email} • ${connection.role || 'instructor'} • Tap to remove`}
+                            description={`${connection.email} • ${connection.role || 'instructor'} • ${t('onboarding.connections.tapToRemove') || 'Tap to remove'}`}
                             isSelected={true}
                           />
                         ))}
@@ -1952,8 +1952,6 @@ export function OnboardingInteractive({
         <XStack justifyContent="center" gap="$1" paddingVertical="$2">
           {steps.map((_, i) => {
             const isActive = currentIndex === i;
-            const isCompleted = completedSteps.has(steps[i].id);
-            const isSkipped = skippedSteps.has(steps[i].id);
 
             return (
               <TouchableOpacity
@@ -1968,13 +1966,7 @@ export function OnboardingInteractive({
                     width: isActive ? 16 : 8,
                     height: 8,
                     borderRadius: 4,
-                    backgroundColor: isCompleted 
-                      ? '#10B981' 
-                      : isSkipped 
-                        ? '#F59E0B'
-                        : isActive 
-                          ? '#00FFBC' 
-                          : '#374151',
+                    backgroundColor: isActive ? '#00FFBC' : textColor,
                     marginHorizontal: 2,
                     opacity: isActive ? 1 : 0.5,
                     shadowColor: isActive ? '#00FFBC' : 'transparent',

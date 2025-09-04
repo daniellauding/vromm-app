@@ -654,23 +654,27 @@ export function ProgressScreen() {
     }
   }, [showFilterDrawer, drawerTranslateY, drawerOpacity]);
 
-  // Save filter preferences to AsyncStorage
+  // Save filter preferences to AsyncStorage - USER-SPECIFIC
   const saveFilterPreferences = async (filters: Record<CategoryType, string>) => {
     try {
-      await AsyncStorage.setItem('vromm_progress_filters', JSON.stringify(filters));
-      console.log('✅ Saved filter preferences:', filters);
+      // Make filter storage user-specific for supervisors viewing different students
+      const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
+      await AsyncStorage.setItem(filterKey, JSON.stringify(filters));
+      console.log('✅ Saved filter preferences for user:', effectiveUserId, filters);
     } catch (error) {
       console.error('Error saving filter preferences:', error);
     }
   };
 
-  // Load filter preferences from AsyncStorage
+  // Load filter preferences from AsyncStorage - USER-SPECIFIC
   const loadFilterPreferences = async (): Promise<Record<CategoryType, string> | null> => {
     try {
-      const saved = await AsyncStorage.getItem('vromm_progress_filters');
+      // Make filter loading user-specific for supervisors viewing different students
+      const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
+      const saved = await AsyncStorage.getItem(filterKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        console.log('✅ Loaded saved filter preferences:', parsed);
+        console.log('✅ Loaded saved filter preferences for user:', effectiveUserId, parsed);
         return parsed;
       }
     } catch (error) {
