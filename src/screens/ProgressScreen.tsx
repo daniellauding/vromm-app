@@ -196,6 +196,9 @@ interface UserPayment {
 
 // Use translation context that's available in the app
 import { useTranslation } from '../contexts/TranslationContext';
+import { useToast } from '../contexts/ToastContext';
+import { useStudentSwitch } from '../context/StudentSwitchContext';
+import { useStripe } from '@stripe/stripe-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // Tour imports DISABLED to prevent performance issues
 // import { useTourTarget } from '../components/TourOverlay';
@@ -272,6 +275,9 @@ export function ProgressScreen() {
   const route = useRoute<RouteProp<TabParamList, 'ProgressTab'>>();
   const { language: lang, t } = useTranslation(); // Get user's language preference and t function
   const { profile, user: authUser } = useAuth(); // Get user profile for auth context
+  const { showToast } = useToast();
+  const { activeStudentId, getEffectiveUserId } = useStudentSwitch();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { selectedPathId, showDetail, activeUserId } = (route.params || {}) as any;
   const focusExerciseId: string | undefined = (route.params as any)?.focusExerciseId;
   const colorScheme = useColorScheme();
@@ -289,8 +295,25 @@ export function ProgressScreen() {
   // const { triggerScreenTour } = useScreenTours();
   // const tourContext = useTour();
   
-  // Use activeUserId from navigation if provided (for student switching)
-  const effectiveUserId = activeUserId || authUser?.id;
+  // Use activeUserId from navigation if provided, otherwise check StudentSwitchContext, then fall back to authUser
+  const effectiveUserId = activeUserId || getEffectiveUserId();
+  
+  // Debug logging for user switching
+  useEffect(() => {
+    console.log('🔍 [ProgressScreen] ==================== USER SWITCHING DEBUG ====================');
+    console.log('🔍 [ProgressScreen] User ID Debug:', {
+      activeUserId: activeUserId,
+      authUserId: authUser?.id,
+      activeStudentId: activeStudentId,
+      effectiveUserId: effectiveUserId,
+      isViewingStudent: activeUserId && activeUserId !== authUser?.id,
+      isViewingStudentFromContext: !!activeStudentId,
+      routeParams: route.params,
+      authUserName: authUser?.email,
+      profileRole: profile?.role
+    });
+    console.log('🔍 [ProgressScreen] ============================================================');
+  }, [activeUserId, authUser?.id, activeStudentId, effectiveUserId]);
 
   const [activePath, setActivePath] = useState<string>(selectedPathId || '');
   const [showDetailView, setShowDetailView] = useState<boolean>(!!showDetail);
@@ -396,6 +419,13 @@ export function ProgressScreen() {
   const [hasQuizQuestions, setHasQuizQuestions] = useState<{ [exerciseId: string]: boolean }>({});
   const [lastAuditByExercise, setLastAuditByExercise] = useState<Record<string, { action: string; actor_name: string | null; created_at: string }>>({});
 
+  // Paywall modal state
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [paywallPath, setPaywallPath] = useState<LearningPath | null>(null);
+
+  // Student profile state for when viewing as student
+  const [studentProfile, setStudentProfile] = useState<any>(null);
+
     // Load categories from Supabase - RESTORED with proper error handling
   useEffect(() => {
     const fetchCategories = async () => {
@@ -493,7 +523,14 @@ export function ProgressScreen() {
         if (savedFilters) {
           // Use saved preferences
           setCategoryFilters(savedFilters);
-          console.log('✅ Using saved filter preferences:', savedFilters);
+          console.log('✅ [ProgressScreen] Filter loading debug:', {
+            activeUserId,
+            effectiveUserId,
+            isViewingStudent: activeUserId && activeUserId !== authUser?.id,
+            studentProfile: studentProfile ? 'loaded' : 'not loaded',
+            hasSavedFilters: true
+          });
+          console.log('✅ [ProgressScreen] Using saved filter preferences for user:', effectiveUserId, savedFilters);
         } else {
           // Set defaults based on most recent is_default=true values from database (like OnboardingInteractive)
           const defaultVehicle = data
@@ -573,7 +610,54 @@ export function ProgressScreen() {
     };
 
     fetchCategories();
-  }, []);
+  }, [studentProfile, activeStudentId]); // Reload filters when student profile changes
+
+  // Load student profile when viewing as student
+  useEffect(() => {
+    const loadStudentProfile = async () => {
+      // Check if we're viewing a student (either from navigation params or StudentSwitchContext)
+      const isViewingStudent = (activeUserId && activeUserId !== authUser?.id) || !!activeStudentId;
+      const targetUserId = activeUserId || activeStudentId;
+      
+      if (!isViewingStudent || !targetUserId || targetUserId === authUser?.id) {
+        setStudentProfile(null);
+        return;
+      }
+      
+      try {
+        console.log('🎯 [ProgressScreen] ==================== LOADING STUDENT PROFILE ====================');
+        console.log('🎯 [ProgressScreen] Loading student profile for user:', targetUserId);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', targetUserId)
+          .single();
+          
+        if (!error && data) {
+          setStudentProfile(data);
+          console.log('✅ [ProgressScreen] Loaded student profile:', {
+            userId: data.id,
+            name: data.full_name,
+            email: data.email,
+            role: data.role,
+            experienceLevel: data.experience_level,
+            vehicleType: data.vehicle_type,
+            transmissionType: data.transmission_type,
+            licenseType: data.license_type,
+            licensePlanData: data.license_plan_data
+          });
+        } else {
+          setStudentProfile(null);
+          console.log('❌ [ProgressScreen] Failed to load student profile:', error);
+        }
+      } catch (error) {
+        console.error('❌ [ProgressScreen] Exception loading student profile:', error);
+        setStudentProfile(null);
+      }
+    };
+    
+    loadStudentProfile();
+  }, [effectiveUserId, activeUserId, activeStudentId, authUser?.id]);
 
   // Filter drawer state
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
@@ -597,23 +681,25 @@ export function ProgressScreen() {
     type: t('filters.contentType') || 'Content Type',
   };
 
-  // Helper function to get user profile preferences with value mapping
+  // Helper function to get user profile preferences with value mapping (use student profile when viewing student)
   const getProfilePreference = (key: string, defaultValue: string): string => {
-    if (!profile) return defaultValue;
+    const activeProfile = activeUserId && activeUserId !== authUser?.id ? studentProfile : profile;
+    if (!activeProfile) return defaultValue;
     
     try {
       // Check if profile has license_plan_data from onboarding
-      const licenseData = (profile as any)?.license_plan_data;
+      const licenseData = (activeProfile as any)?.license_plan_data;
       if (licenseData && typeof licenseData === 'object') {
         let value = licenseData[key];
-        console.log(`🔍 [ProgressScreen] Reading profile preference ${key}:`, value, 'from licenseData:', licenseData);
+        console.log(`🔍 [ProgressScreen] Reading profile preference ${key}:`, value, 'from user:', effectiveUserId, 'isStudent:', activeUserId && activeUserId !== authUser?.id);
         
         // Keep onboarding values as they are - they now match database values
         return value || defaultValue;
       }
       
       // Fallback to direct profile properties - no mapping needed
-      const value = (profile as any)[key];
+      const value = (activeProfile as any)[key];
+      console.log(`🔍 [ProgressScreen] Reading profile preference ${key}:`, value, 'from direct profile for user:', effectiveUserId);
       return value || defaultValue;
     } catch (error) {
       console.log('Error getting profile preference:', error);
@@ -1726,7 +1812,8 @@ export function ProgressScreen() {
     
     try {
       setCompletionsLoading(true);
-      console.log('🔍 Attempting to fetch exercise completions...');
+      console.log('🔍 [ProgressScreen] Fetching exercise completions for user:', effectiveUserId);
+      console.log('🔍 [ProgressScreen] Is viewing student:', activeUserId && activeUserId !== authUser?.id);
 
       // Fetch regular exercise completions
       const { data: regularData, error: regularError } = await supabase
@@ -1744,7 +1831,9 @@ export function ProgressScreen() {
         console.error('❌ Error fetching regular completions:', regularError);
         setCompletedIds([]);
       } else {
-        setCompletedIds(regularData?.map((c: { exercise_id: string }) => c.exercise_id) || []);
+        const completions = regularData?.map((c: { exercise_id: string }) => c.exercise_id) || [];
+        setCompletedIds(completions);
+        console.log('✅ [ProgressScreen] Loaded completions for user:', effectiveUserId, 'count:', completions.length);
       }
 
       if (virtualError) {
@@ -2210,8 +2299,51 @@ export function ProgressScreen() {
     return true;
   };
 
-  // Modified handlePathPress to allow clicking on future paths
-  const handlePathPress = (path: LearningPath, index: number) => {
+  // 🔒 Check if learning path requires payment
+  const checkPathPaywall = async (path: LearningPath): Promise<boolean> => {
+    // If paywall is not enabled, allow access
+    if (!path.paywall_enabled) {
+      return true;
+    }
+
+    // Check if user has already paid for this path
+    try {
+      const { data: payments, error } = await supabase
+        .from('payment_transactions')
+        .select('*')
+        .eq('user_id', effectiveUserId)
+        .eq('status', 'completed')
+        .contains('metadata', { feature_key: `learning_path_${path.id}` });
+
+      if (error) {
+        console.error('Error checking payment status:', error);
+        return false; // Block access on error
+      }
+
+      if (payments && payments.length > 0) {
+        console.log('✅ User has paid for path:', path.title.en);
+        return true; // User has paid
+      }
+
+      // User hasn't paid - show paywall
+      console.log('🔒 Path requires payment:', path.title.en, `$${path.price_usd}`);
+      setPaywallPath(path);
+      setShowPaywallModal(true);
+      return false;
+    } catch (error) {
+      console.error('Error checking path paywall:', error);
+      return false;
+    }
+  };
+
+  // Modified handlePathPress to include paywall check
+  const handlePathPress = async (path: LearningPath, index: number) => {
+    // 🔒 Check paywall before allowing access
+    const canAccess = await checkPathPaywall(path);
+    if (!canAccess) {
+      return; // Paywall modal will be shown
+    }
+
     setActivePath(path.id);
     setDetailPath(path);
     setShowDetailView(true);
@@ -2225,7 +2357,19 @@ export function ProgressScreen() {
     if (ids.length === 0) return 0;
 
     const completed = ids.filter((id) => completedIds.includes(id)).length;
-    return completed / ids.length;
+    const progress = completed / ids.length;
+    
+    console.log(`📊 [ProgressScreen] Path progress for ${pathId}:`, {
+      pathId,
+      totalExercises: ids.length,
+      completedExercises: completed,
+      progressPercent: Math.round(progress * 100),
+      effectiveUserId,
+      isViewingStudent: activeUserId && activeUserId !== authUser?.id,
+      completedExerciseIds: ids.filter(id => completedIds.includes(id))
+    });
+    
+    return progress;
   };
 
   // Render the filter modals
@@ -4635,6 +4779,7 @@ export function ProgressScreen() {
                 // More permissive access - only block if password-locked
                 const isPasswordLocked = isPathPasswordLocked(path);
                 const hasPassword = pathHasPassword(path);
+                const isPaywallEnabled = path.paywall_enabled || false; // 🔒 Check if paywall is enabled
                 const isEnabled = !isPasswordLocked; // Much more permissive
 
                 return (
@@ -4646,12 +4791,12 @@ export function ProgressScreen() {
                     style={{
                       marginBottom: 20,
                       opacity: isEnabled ? 1 : 0.5,
-                      borderWidth: isPasswordLocked ? 2 : 0,
-                      borderColor: isPasswordLocked ? '#FF9500' : 'transparent',
+                      borderWidth: (isPasswordLocked || isPaywallEnabled) ? 2 : 0,
+                      borderColor: isPasswordLocked ? '#FF9500' : isPaywallEnabled ? '#00E6C3' : 'transparent',
                       borderRadius: 24,
-                      shadowColor: isPasswordLocked ? '#FF9500' : 'transparent',
-                      shadowOpacity: isPasswordLocked ? 0.3 : 0,
-                      shadowRadius: isPasswordLocked ? 8 : 0,
+                      shadowColor: isPasswordLocked ? '#FF9500' : isPaywallEnabled ? '#00E6C3' : 'transparent',
+                      shadowOpacity: (isPasswordLocked || isPaywallEnabled) ? 0.3 : 0,
+                      shadowRadius: (isPasswordLocked || isPaywallEnabled) ? 8 : 0,
                       shadowOffset: { width: 0, height: 0 },
                     }}
                   >
@@ -4734,6 +4879,23 @@ export function ProgressScreen() {
                                 </Text>
                               </XStack>
                             )}
+
+                            {/* 🔒 Show paywall indicator if needed */}
+                            {isPaywallEnabled && (
+                              <XStack
+                                backgroundColor="#00E6C3"
+                                paddingHorizontal={8}
+                                paddingVertical={4}
+                                borderRadius={12}
+                                alignItems="center"
+                                gap={4}
+                              >
+                                <Feather name="credit-card" size={14} color="black" />
+                                <Text fontSize={12} color="black" fontWeight="bold">
+                                  ${path.price_usd || 1.00}
+                                </Text>
+                              </XStack>
+                            )}
                           </XStack>
 
                           <Text color="$gray11" fontSize={14} marginTop={2}>
@@ -4799,6 +4961,284 @@ export function ProgressScreen() {
       {reportExerciseId && (
         <ReportDialog reportableId={reportExerciseId} reportableType="exercise" onClose={() => setReportExerciseId(null)} />
       )}
+
+      {/* 🔒 Paywall Modal for Learning Paths */}
+      <RNModal
+        visible={showPaywallModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPaywallModal(false)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}
+          activeOpacity={1}
+          onPress={() => setShowPaywallModal(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: Dimensions.get('window').width - 60,
+              maxHeight: Dimensions.get('window').height * 0.8,
+            }}
+          >
+            <ScrollView 
+              style={{ maxHeight: Dimensions.get('window').height * 0.8 }}
+              showsVerticalScrollIndicator={false}
+            >
+              <YStack
+                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
+                borderRadius={24}
+                padding={20}
+                gap={16}
+                borderWidth={1}
+                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                shadowColor="#000"
+                shadowOffset={{ width: 0, height: 8 }}
+                shadowOpacity={0.3}
+                shadowRadius={16}
+              >
+                {/* Header */}
+                <XStack justifyContent="space-between" alignItems="center">
+                  <XStack alignItems="center" gap={8} flex={1}>
+                    <Feather name="lock" size={24} color="#FF9500" />
+                    <Text fontSize={20} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'} flex={1}>
+                      {t('progressScreen.paywall.title') || 'Premium Learning Path'}
+                    </Text>
+                  </XStack>
+                  <TouchableOpacity onPress={() => setShowPaywallModal(false)}>
+                    <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#666'} />
+                  </TouchableOpacity>
+                </XStack>
+
+                {paywallPath && (
+                  <>
+                    {/* Path Info */}
+                    <YStack gap={12}>
+                      <Text fontSize={24} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                        {paywallPath.title[lang] || paywallPath.title.en}
+                      </Text>
+                      <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                        {paywallPath.description[lang] || paywallPath.description.en}
+                      </Text>
+                    </YStack>
+
+                    {/* Preview */}
+                    <View
+                      style={{
+                        width: '100%',
+                        height: 200,
+                        borderRadius: 12,
+                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Feather name="book-open" size={64} color="#00E6C3" />
+                      <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'} marginTop={8}>
+                        {t('progressScreen.paywall.preview') || 'Premium Learning Content'}
+                      </Text>
+                    </View>
+
+                    {/* Features */}
+                    <YStack gap={8} padding={16} backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F8F8'} borderRadius={12}>
+                      <Text fontSize={16} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                        {t('progressScreen.paywall.includes') || 'This Premium Path Includes:'}
+                      </Text>
+                      {[
+                        t('progressScreen.paywall.feature1') || '🎯 Advanced driving exercises',
+                        t('progressScreen.paywall.feature2') || '📚 Detailed learning content',
+                        t('progressScreen.paywall.feature3') || '🎬 Exclusive video tutorials',
+                        t('progressScreen.paywall.feature4') || '✅ Progress tracking',
+                      ].map((feature, index) => (
+                        <Text key={index} fontSize={14} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                          {feature}
+                        </Text>
+                      ))}
+                    </YStack>
+
+                    {/* Pricing */}
+                    <YStack gap={8} padding={16} backgroundColor="rgba(0, 230, 195, 0.1)" borderRadius={12}>
+                      <XStack alignItems="center" justifyContent="center" gap={8}>
+                        <Text fontSize={28} fontWeight="bold" color="#00E6C3">
+                          ${paywallPath.price_usd || 1.00}
+                        </Text>
+                        <Text fontSize={14} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                          {t('progressScreen.paywall.oneTime') || 'one-time unlock'}
+                        </Text>
+                      </XStack>
+                      <Text fontSize={12} color={colorScheme === 'dark' ? '#CCC' : '#666'} textAlign="center">
+                        {t('progressScreen.paywall.lifetime') || 'Lifetime access to this learning path'}
+                      </Text>
+                    </YStack>
+
+                    {/* Action Buttons */}
+                    <XStack gap={12} justifyContent="center">
+                      <Button
+                        backgroundColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                        onPress={() => setShowPaywallModal(false)}
+                        borderRadius={12}
+                        flex={1}
+                        paddingVertical={16}
+                      >
+                        <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                          {t('common.cancel') || 'Maybe Later'}
+                        </Text>
+                      </Button>
+                      <Button
+                        backgroundColor="#00E6C3"
+                        onPress={async () => {
+                          console.log('💳 [ProgressScreen] ==================== STRIPE PAYMENT FLOW ====================');
+                          console.log('💳 [ProgressScreen] Payment button pressed for path:', paywallPath.title.en);
+                          console.log('💳 [ProgressScreen] Payment amount:', paywallPath.price_usd || 1.00);
+                          console.log('💳 [ProgressScreen] User ID:', effectiveUserId);
+                          console.log('💳 [ProgressScreen] ================================================================');
+                          
+                          try {
+                            // Show processing toast
+                            showToast({
+                              title: t('stripe.processing') || 'Processing Payment',
+                              message: `Stripe Payment: $${paywallPath.price_usd || 1.00} USD`,
+                              type: 'info'
+                            });
+
+                            // For now, simulate creating a payment intent
+                            // In a real app, you'd call your backend to create the payment intent
+                            const mockPaymentIntent = {
+                              client_secret: 'pi_test_' + Math.random().toString(36).substr(2, 9) + '_secret_test',
+                              id: 'pi_test_' + Math.random().toString(36).substr(2, 9)
+                            };
+
+                            console.log('💳 [ProgressScreen] Mock payment intent created:', mockPaymentIntent.id);
+                            
+                            // Initialize PaymentSheet
+                            const { error: initError } = await initPaymentSheet({
+                              merchantDisplayName: 'Vromm Driving School',
+                              paymentIntentClientSecret: mockPaymentIntent.client_secret,
+                              defaultBillingDetails: {
+                                name: profile?.full_name || 'User',
+                                email: authUser?.email || '',
+                              },
+                              appearance: {
+                                colors: {
+                                  primary: '#00E6C3',
+                                  background: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                                  componentBackground: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                },
+                              },
+                            });
+
+                            if (initError) {
+                              console.error('💳 [ProgressScreen] PaymentSheet init error:', initError);
+                              showToast({
+                                title: t('errors.title') || 'Error',
+                                message: t('stripe.initError') || 'Failed to initialize payment',
+                                type: 'error'
+                              });
+                              return;
+                            }
+
+                            // Close paywall modal first
+                            setShowPaywallModal(false);
+                            
+                            // Show connecting message
+                            showToast({
+                              title: t('stripe.connecting') || 'Connecting to Stripe payment gateway...',
+                              message: t('stripe.pleaseWait') || 'Please wait...',
+                              type: 'info'
+                            });
+
+                            // Small delay for UX
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+
+                            // Present PaymentSheet
+                            console.log('💳 [ProgressScreen] Presenting Stripe PaymentSheet...');
+                            const { error: paymentError } = await presentPaymentSheet();
+
+                            if (paymentError) {
+                              console.log('💳 [ProgressScreen] Payment was cancelled or failed:', paymentError);
+                              if (paymentError.code !== 'Canceled') {
+                                showToast({
+                                  title: t('errors.title') || 'Payment Error',
+                                  message: paymentError.message || t('stripe.paymentFailed') || 'Payment failed',
+                                  type: 'error'
+                                });
+                              }
+                              return;
+                            }
+
+                            // Payment successful - create record
+                            const { data: paymentRecord, error } = await supabase
+                              .from('payment_transactions')
+                              .insert({
+                                user_id: effectiveUserId,
+                                amount: paywallPath.price_usd || 1.00,
+                                currency: 'USD',
+                                payment_method: 'stripe',
+                                payment_provider_id: mockPaymentIntent.id,
+                                status: 'completed',
+                                transaction_type: 'purchase',
+                                description: `Unlock "${paywallPath.title.en}" learning path`,
+                                metadata: {
+                                  feature_key: `learning_path_${paywallPath.id}`,
+                                  path_id: paywallPath.id,
+                                  path_title: paywallPath.title.en,
+                                  unlock_type: 'one_time'
+                                },
+                                processed_at: new Date().toISOString()
+                              })
+                              .select()
+                              .single();
+                              
+                            if (!error) {
+                              console.log('✅ [ProgressScreen] Payment record created:', paymentRecord.id);
+                              showToast({
+                                title: t('stripe.paymentSuccessful') || 'Payment Successful!',
+                                message: t('progressScreen.paywall.unlocked') || 'Learning path unlocked!',
+                                type: 'success'
+                              });
+                              
+                              // Refresh the screen to show unlocked content
+                              await handleRefresh();
+                            } else {
+                              console.error('❌ [ProgressScreen] Error saving payment record:', error);
+                            }
+                            
+                          } catch (error) {
+                            console.error('💳 [ProgressScreen] Payment flow error:', error);
+                            showToast({
+                              title: t('errors.title') || 'Error',
+                              message: t('progressScreen.paywall.paymentError') || 'Payment failed',
+                              type: 'error'
+                            });
+                          }
+                        }}
+                        borderRadius={12}
+                        flex={1}
+                        paddingVertical={16}
+                      >
+                        <XStack alignItems="center" gap={6}>
+                          <Feather name="credit-card" size={16} color="black" />
+                          <Text color="black" fontWeight="bold">
+                            {t('progressScreen.paywall.unlock') || `Unlock for $${paywallPath.price_usd || 1.00}`}
+                          </Text>
+                        </XStack>
+                      </Button>
+                    </XStack>
+                  </>
+                )}
+              </YStack>
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </RNModal>
     </YStack>
   );
 }
