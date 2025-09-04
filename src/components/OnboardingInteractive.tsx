@@ -13,8 +13,9 @@ import {
   TextInput,
   Easing,
   Pressable,
+  Image,
 } from 'react-native';
-import { YStack, XStack, Stack } from 'tamagui';
+import { YStack, XStack, Stack, Image as TamaguiImage } from 'tamagui';
 import { Text } from './Text';
 import { Button } from './Button';
 import { FormField } from './FormField';
@@ -75,21 +76,21 @@ interface OnboardingInteractiveProps {
   onCloseModal?: () => void;
 }
 
-// Map experience levels to valid enum values with fallbacks
+// Map experience levels to valid enum values - keep all database values
 const mapToValidExperienceLevel = (level: string): string => {
   const mapping: Record<string, string> = {
     'beginner': 'beginner',
     'intermediate': 'intermediate', 
     'advanced': 'advanced',
-    'expert': 'advanced', // Map expert to advanced as fallback
-    'refresher': 'intermediate', // Map refresher to intermediate as fallback
+    'expert': 'advanced', // Map expert to advanced as fallback (since enum only has beginner/intermediate/advanced)
+    'refresher': 'intermediate', // Map refresher to intermediate as fallback (since enum only has beginner/intermediate/advanced)
     'all': 'beginner', // Default fallback
   };
   
   const normalizedLevel = level.toLowerCase();
   const mappedLevel = mapping[normalizedLevel] || 'beginner';
   
-  console.log(`🎯 [OnboardingInteractive] Mapping experience level: ${level} → ${mappedLevel}`);
+  console.log(`🎯 [OnboardingInteractive] Mapping experience level: ${level} → ${mappedLevel} (for enum compatibility)`);
   return mappedLevel;
 };
 
@@ -134,10 +135,10 @@ export function OnboardingInteractive({
   const [locationStatus, setLocationStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set());
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
-  const [vehicleType, setVehicleType] = useState<string>('passenger_car');
-  const [transmissionType, setTransmissionType] = useState<string>('manual');
-  const [licenseType, setLicenseType] = useState<string>('b');
-  const [experienceLevel, setExperienceLevel] = useState<string>('beginner'); // Default to beginner
+  const [vehicleType, setVehicleType] = useState<string>('Car'); // Match database default (is_default=true)
+  const [transmissionType, setTransmissionType] = useState<string>('Manual'); // Match database default (is_default=true)
+  const [licenseType, setLicenseType] = useState<string>('Standard Driving License (B)'); // Match database default (is_default=true)
+  const [experienceLevel, setExperienceLevel] = useState<string>('Beginner'); // Match database default (is_default=true)
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [showCityDrawer, setShowCityDrawer] = useState(false);
   const [citySearchQuery, setCitySearchQuery] = useState('');
@@ -176,7 +177,7 @@ export function OnboardingInteractive({
   
   // Experience level state
   const [showExperienceModal, setShowExperienceModal] = useState(false);
-  const [selectedExperienceLevel, setSelectedExperienceLevel] = useState<string>('beginner');
+  const [selectedExperienceLevel, setSelectedExperienceLevel] = useState<string>('Beginner'); // Use database value format (matches is_default=true)
   const [locationLoading, setLocationLoading] = useState(false);
 
   const [selectedTargetDate, setSelectedTargetDate] = useState<Date>(() => {
@@ -257,48 +258,48 @@ export function OnboardingInteractive({
   const steps: OnboardingStep[] = [
     {
       id: 'location',
-      title: 'Enable Location Access',
-      description: 'Allow location access to find practice routes near you',
+      title: t('onboarding.location.title') || 'Enable Location Access',
+      description: t('onboarding.location.description') || 'Allow location access to find practice routes near you',
       icon: 'map-pin',
       type: 'permission',
-      actionButton: 'Enable Location',
-      skipButton: 'Skip for now',
+      actionButton: t('onboarding.location.enableLocation') || 'Enable Location',
+      skipButton: t('onboarding.skipForNow') || 'Skip for now',
     },
     {
       id: 'license_plan',
-      title: 'Your License Journey',
-      description: 'Tell us about your experience level, driving goals and vehicle preferences',
+      title: t('onboarding.licensePlan.title') || 'Your License Journey',
+      description: t('onboarding.licensePlan.description') || 'Tell us about your experience level, driving goals and vehicle preferences',
       icon: 'clipboard',
       type: 'selection',
-      actionButton: 'Set My Preferences',
-      skipButton: 'Skip for now',
+      actionButton: t('onboarding.licensePlan.setPreferences') || 'Set My Preferences',
+      skipButton: t('onboarding.skipForNow') || 'Skip for now',
     },
     {
       id: 'role',
-      title: 'Select Your Role',
-      description: 'Are you learning to drive or teaching others?',
+      title: t('onboarding.role.title') || 'Select Your Role',
+      description: t('onboarding.role.description') || 'Are you learning to drive or teaching others?',
       icon: 'user',
       type: 'selection',
-      actionButton: 'Choose Role',
-      skipButton: 'Skip for now',
+      actionButton: t('onboarding.role.chooseRole') || 'Choose Role',
+      skipButton: t('onboarding.skipForNow') || 'Skip for now',
     },
     {
       id: 'relationships',
-      title: 'Connect with Others',
-      description: 'Connect with instructors or students based on your role',
+      title: t('onboarding.relationships.title') || 'Connect with Others',
+      description: t('onboarding.relationships.description') || 'Connect with instructors or students based on your role',
       icon: 'users',
       type: 'action',
-      actionButton: 'Find Connections',
-      skipButton: 'Maybe later',
+      actionButton: t('onboarding.relationships.findConnections') || 'Find Connections',
+      skipButton: t('onboarding.maybeLater') || 'Maybe later',
     },
     {
       id: 'complete',
-      title: 'Ready for Your Journey!',
-      description: 'Ready to become a confident driver! Explore the app, progress in exercises, save and upload routes, and discover a community of drivers like you.',
+      title: t('onboarding.complete.title') || 'Ready for Your Journey!',
+      description: t('onboarding.complete.description') || 'Ready to become a confident driver! Explore the app, progress in exercises, save and upload routes, and discover a community of drivers like you.',
       icon: 'check-circle',
       type: 'info',
-      actionButton: 'Start My Journey',
-      skipButton: 'Skip for now',
+      actionButton: t('onboarding.complete.startMyJourney') || 'Start My Journey',
+      skipButton: t('onboarding.skipForNow') || 'Skip for now',
     },
   ];
 
@@ -322,6 +323,9 @@ export function OnboardingInteractive({
   useEffect(() => {
     const loadCategories = async () => {
       try {
+        console.log('🔍 Fetching categories from database...');
+        console.log('🌍 Current language in OnboardingInteractive:', language);
+        
         const { data, error } = await supabase
           .from('learning_path_categories')
           .select('category, value, label, is_default, created_at, order_index')
@@ -330,66 +334,164 @@ export function OnboardingInteractive({
 
         if (error) {
           console.error('Error loading categories:', error);
-          // Fallback to hardcoded values
+          // Fallback to hardcoded values that match database values
           setVehicleTypes([
-            { id: 'passenger_car', title: 'Car' },
-            { id: 'motorcycle', title: 'Motorcycle' },
-            { id: 'truck', title: 'Truck' },
+            { id: 'Car', title: language === 'sv' ? 'Bil' : 'Car' },
+            { id: 'Motorcycle', title: language === 'sv' ? 'Motorcykel' : 'Motorcycle' },
+            { id: 'Truck / Lorry', title: language === 'sv' ? 'Lastbil' : 'Truck / Lorry' },
           ]);
           setTransmissionTypes([
-            { id: 'manual', title: 'Manual' },
-            { id: 'automatic', title: 'Automatic' },
+            { id: 'Manual', title: language === 'sv' ? 'Manuell' : 'Manual' },
+            { id: 'Automatic', title: language === 'sv' ? 'Automat' : 'Automatic' },
           ]);
           setLicenseTypes([
-            { id: 'b', title: 'Standard License (B)' },
-            { id: 'a', title: 'Motorcycle License (A)' },
-            { id: 'c', title: 'Truck License (C)' },
+            { id: 'Standard Driving License (B)', title: language === 'sv' ? 'Standardkörkort (t.ex. klass B i Europa / klass C i USA)' : 'Standard Driving License (e.g. Class B in Europe / Class C in the US)' },
+            { id: 'Motorcycle License (A)', title: language === 'sv' ? 'Motorcykelkörkort (t.ex. klass A)' : 'Motorcycle License (e.g. Class A)' },
+            { id: 'Commercial Driving License', title: language === 'sv' ? 'Yrkeskörkort (CDL / klass C/D etc.)' : 'Commercial Driving License (CDL / Class C/D etc.)' },
           ]);
           return;
         }
 
         if (data) {
           // Database categories loaded
+          console.log('🔍 Database categories loaded:', data.length, 'items');
+          console.log('🌍 Language for label selection:', language);
           
-          // Group by category and extract titles with proper language support
+          // Group by category and extract titles with proper language support from label field
           const vehicles = data
-            .filter((item) => item.category === 'vehicle_type')
-            .map((item) => ({
-              id: item.value,
-              title: (item.label as { en?: string; sv?: string })?.[language] || 
-                     (item.label as { en?: string; sv?: string })?.en || 
-                     item.value,
-            }));
+            .filter((item) => item.category === 'vehicle_type' && item.value !== 'all')
+            .map((item) => {
+              // Handle JSON parsing - Supabase returns JSON columns as objects but sometimes they need string parsing
+              let labelObj: { en?: string; sv?: string };
+              try {
+                if (typeof item.label === 'string') {
+                  labelObj = JSON.parse(item.label);
+                } else if (item.label && typeof item.label === 'object') {
+                  // If it's already an object, use it directly
+                  labelObj = item.label as { en?: string; sv?: string };
+                } else {
+                  labelObj = { en: item.value, sv: item.value };
+                }
+                
+                // Additional check: if the object doesn't have en/sv keys, try to access them differently
+                if (!labelObj.en && !labelObj.sv && item.label) {
+                  console.log(`🔍 Trying alternative access for ${item.value}:`, item.label);
+                  const rawLabel = item.label as any;
+                  labelObj = {
+                    en: rawLabel.en || rawLabel['en'] || item.value,
+                    sv: rawLabel.sv || rawLabel['sv'] || item.value,
+                  };
+                }
+              } catch (e) {
+                console.warn(`Failed to parse label for ${item.value}:`, item.label, e);
+                labelObj = { en: item.value, sv: item.value };
+              }
+              
+              console.log(`🚗 Raw label for ${item.value}:`, item.label);
+              console.log(`🚗 Parsed labelObj:`, labelObj);
+              console.log(`🚗 Available keys:`, Object.keys(labelObj || {}));
+              console.log(`🚗 Swedish value:`, labelObj?.sv);
+              console.log(`🚗 English value:`, labelObj?.en);
+              const title = labelObj?.[language] || labelObj?.en || item.value;
+              console.log(`🚗 Final title: ${item.value} → ${title} (lang: ${language})`);
+              return {
+                id: item.value,
+                title,
+              };
+            });
           
           const transmissions = data
-            .filter((item) => item.category === 'transmission_type')
-            .map((item) => ({
-              id: item.value,
-              title: (item.label as { en?: string; sv?: string })?.[language] || 
-                     (item.label as { en?: string; sv?: string })?.en || 
-                     item.value,
-            }));
+            .filter((item) => item.category === 'transmission_type' && item.value !== 'all')
+            .map((item) => {
+              // Parse JSON string to object if needed
+              let labelObj: { en?: string; sv?: string };
+              if (typeof item.label === 'string') {
+                try {
+                  labelObj = JSON.parse(item.label);
+                } catch (e) {
+                  console.warn(`Failed to parse label JSON for ${item.value}:`, item.label);
+                  labelObj = { en: item.value, sv: item.value };
+                }
+              } else {
+                labelObj = item.label as { en?: string; sv?: string };
+              }
+              
+              const title = labelObj?.[language] || labelObj?.en || item.value;
+              console.log(`⚙️ Transmission: ${item.value} → ${title} (lang: ${language})`);
+              return {
+                id: item.value,
+                title,
+              };
+            });
           
           const licenses = data
-            .filter((item) => item.category === 'license_type')
-            .map((item) => ({
-              id: item.value,
-              title: (item.label as { en?: string; sv?: string })?.[language] || 
-                     (item.label as { en?: string; sv?: string })?.en || 
-                     item.value,
-            }));
+            .filter((item) => item.category === 'license_type' && item.value !== 'all')
+            .map((item) => {
+              // Handle JSON parsing
+              let labelObj: { en?: string; sv?: string };
+              try {
+                if (typeof item.label === 'string') {
+                  labelObj = JSON.parse(item.label);
+                } else if (item.label && typeof item.label === 'object') {
+                  labelObj = item.label as { en?: string; sv?: string };
+                } else {
+                  labelObj = { en: item.value, sv: item.value };
+                }
+                
+                if (!labelObj.en && !labelObj.sv && item.label) {
+                  const rawLabel = item.label as any;
+                  labelObj = {
+                    en: rawLabel.en || rawLabel['en'] || item.value,
+                    sv: rawLabel.sv || rawLabel['sv'] || item.value,
+                  };
+                }
+              } catch (e) {
+                labelObj = { en: item.value, sv: item.value };
+              }
+              
+              const title = labelObj?.[language] || labelObj?.en || item.value;
+              console.log(`📄 License: ${item.value} → ${title} (lang: ${language})`);
+              return {
+                id: item.value,
+                title,
+              };
+            });
           
           const experiences = data
-            .filter((item) => item.category === 'experience_level')
-            .filter((item) => item.value !== 'all' && item.value !== 'All') // Filter out 'all' and 'All' options
+            .filter((item) => item.category === 'experience_level' && item.value !== 'all')
             .sort((a, b) => a.order_index - b.order_index)
-            .map((item) => ({
-              id: item.value.toLowerCase(), // Normalize to lowercase for enum compatibility
-              title: (item.label as { en?: string; sv?: string })?.[language] || 
-                     (item.label as { en?: string; sv?: string })?.en || 
-                     item.value,
-              description: undefined, // No descriptions in database
-            }));
+            .map((item) => {
+              // Handle JSON parsing
+              let labelObj: { en?: string; sv?: string };
+              try {
+                if (typeof item.label === 'string') {
+                  labelObj = JSON.parse(item.label);
+                } else if (item.label && typeof item.label === 'object') {
+                  labelObj = item.label as { en?: string; sv?: string };
+                } else {
+                  labelObj = { en: item.value, sv: item.value };
+                }
+                
+                if (!labelObj.en && !labelObj.sv && item.label) {
+                  const rawLabel = item.label as any;
+                  labelObj = {
+                    en: rawLabel.en || rawLabel['en'] || item.value,
+                    sv: rawLabel.sv || rawLabel['sv'] || item.value,
+                  };
+                }
+              } catch (e) {
+                labelObj = { en: item.value, sv: item.value };
+              }
+              
+              const title = labelObj?.[language] || labelObj?.en || item.value;
+              const description = labelObj?.[language] || labelObj?.en || undefined;
+              console.log(`🎓 Experience: ${item.value} → ${title} (lang: ${language})`);
+              return {
+                id: item.value.toLowerCase(), // Normalize to lowercase for enum compatibility
+                title,
+                description,
+              };
+            });
 
           setVehicleTypes(vehicles);
           setTransmissionTypes(transmissions);
@@ -1321,9 +1423,11 @@ export function OnboardingInteractive({
     // Render license plan step without excessive logging
     
     const availableExperienceLevels = experienceLevels.length > 0 ? experienceLevels : [
-      { id: 'beginner', title: 'Beginner (Fallback)', description: 'Just starting out' },
-      { id: 'intermediate', title: 'Intermediate (Fallback)', description: 'Some experience' }, 
-      { id: 'advanced', title: 'Advanced (Fallback)', description: 'Very experienced' },
+      { id: 'beginner', title: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)', description: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)' },
+      { id: 'intermediate', title: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)', description: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)' }, 
+      { id: 'advanced', title: language === 'sv' ? 'Avancerad (behöver förfinas / förberedas inför prov)' : 'Advanced (needs refinement / preparing for test)', description: language === 'sv' ? 'Avancerad (behöver förfinas / förberedas inför prov)' : 'Advanced (needs refinement / preparing for test)' },
+      { id: 'refresher', title: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)', description: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)' },
+      { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert', description: language === 'sv' ? 'Expert' : 'Expert' },
     ];
 
     return (
@@ -1362,35 +1466,37 @@ export function OnboardingInteractive({
             <DropdownButton
               onPress={() => setShowExperienceModal(true)}
               value={(experienceLevels.length > 0 ? experienceLevels : [
-                { id: 'beginner', title: 'Beginner (Fallback)' },
-                { id: 'intermediate', title: 'Intermediate (Fallback)' },
-                { id: 'advanced', title: 'Advanced (Fallback)' },
-              ]).find((e) => e.id === selectedExperienceLevel)?.title || 'Beginner'}
+                { id: 'beginner', title: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)' },
+                { id: 'intermediate', title: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)' },
+                { id: 'advanced', title: language === 'sv' ? 'Avancerad (behöver förfinas / förberedas inför prov)' : 'Advanced (needs refinement / preparing for test)' },
+                { id: 'refresher', title: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)' },
+                { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert' },
+              ]).find((e) => e.id.toLowerCase() === selectedExperienceLevel.toLowerCase())?.title || (language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')}
               isActive={showExperienceModal}
             />
             
             {/* License Target Date */}
             <DropdownButton
               onPress={() => setShowDateModal(true)}
-              value={`Want my license on: ${selectedTargetDate.toLocaleDateString()}`}
+              value={`${t('onboarding.date.targetDate') || 'Want my license on'}: ${selectedTargetDate.toLocaleDateString()}`}
               isActive={showDateModal}
             />
 
             <DropdownButton
               onPress={showVehicleModal}
-              value={vehicleTypes.find((v) => v.id === vehicleType)?.title || 'Car'}
+              value={vehicleTypes.find((v) => v.id === vehicleType)?.title || (language === 'sv' ? 'Bil' : 'Car')}
               isActive={showVehicleDrawer}
             />
 
             <DropdownButton
               onPress={showTransmissionModal}
-              value={transmissionTypes.find((t) => t.id === transmissionType)?.title || 'Manual'}
+              value={transmissionTypes.find((t) => t.id === transmissionType)?.title || (language === 'sv' ? 'Manuell' : 'Manual')}
               isActive={showTransmissionDrawer}
             />
 
             <DropdownButton
               onPress={showLicenseModal}
-              value={licenseTypes.find((l) => l.id === licenseType)?.title || 'Standard License (B)'}
+              value={licenseTypes.find((l) => l.id === licenseType)?.title || (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')}
               isActive={showLicenseDrawer}
             />
 
@@ -1398,7 +1504,7 @@ export function OnboardingInteractive({
             <Button variant="primary" size="lg" onPress={() => {
               handleSaveLicensePlan();
             }} marginTop="$4">
-              Save My Preferences
+              {t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
             </Button>
 
             {/* Skip Button */}
@@ -1419,18 +1525,18 @@ export function OnboardingInteractive({
     const roles = [
       {
         id: 'student',
-        title: 'Student',
-        description: 'I want to learn to drive',
+        title: t('onboarding.role.student') || 'Student',
+        description: t('onboarding.role.studentDescription') || 'I want to learn to drive',
       },
       {
         id: 'instructor',
-        title: 'Instructor',
-        description: 'I teach others to drive',
+        title: t('onboarding.role.instructor') || 'Instructor',
+        description: t('onboarding.role.instructorDescription') || 'I teach others to drive',
       },
       {
         id: 'school',
-        title: 'Driving School',
-        description: 'I represent a driving school',
+        title: t('onboarding.role.school') || 'Driving School',
+        description: t('onboarding.role.schoolDescription') || 'I represent a driving school',
       },
     ];
 
@@ -1479,13 +1585,13 @@ export function OnboardingInteractive({
 
           {/* Save Button */}
           <YStack width="100%" marginTop="$4" gap="$2">
-            <Button variant="primary" size="lg" onPress={handleSaveRole}>
-              Save Role & Continue
-            </Button>
+                              <Button variant="primary" size="lg" onPress={handleSaveRole}>
+                {t('onboarding.role.saveRole') || 'Save Role & Continue'}
+              </Button>
             
             {/* Always show skip button for role selection */}
             <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-              Skip for now
+              {t('onboarding.skipForNow') || 'Skip for now'}
             </Button>
           </YStack>
         </YStack>
@@ -1509,6 +1615,19 @@ export function OnboardingInteractive({
         <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300} paddingHorizontal="$4">
           {/* Simplified Step Content */}
           <YStack alignItems="center" gap="$4" width="100%">
+            {/* Show Vromm logo on complete step */}
+            {item.id === 'complete' && (
+              <Image
+                source={require('../../assets/images/vromm_symbol.png')}
+                style={{
+                  width: 120,
+                  height: 120,
+                  marginBottom: 16,
+                }}
+                resizeMode="contain"
+              />
+            )}
+            
             <Text 
               size="3xl" 
               fontWeight="800" 
@@ -1592,7 +1711,7 @@ export function OnboardingInteractive({
                     setCompletedSteps((prev) => new Set(prev).add('location'));
                     nextSlide();
                   }}>
-                    Save Location & Continue
+                    {t('onboarding.location.saveLocation') || 'Save Location & Continue'}
                   </Button>
                 )}
                 
@@ -1611,7 +1730,7 @@ export function OnboardingInteractive({
                     {existingRelationships.length > 0 && (
                       <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
                         <Text size="md" fontWeight="600" color="$color">
-                          Your Existing Relationships ({existingRelationships.length}):
+                          {t('onboarding.relationships.existingTitle') || 'Your Existing Relationships'} ({existingRelationships.length}):
                         </Text>
                         {existingRelationships.map((relationship) => (
                           <XStack key={relationship.id} gap="$2" alignItems="center">
@@ -1646,7 +1765,7 @@ export function OnboardingInteractive({
                     {selectedConnections.length > 0 && (
                       <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
                         <Text size="md" fontWeight="600" color="$color">
-                          New {selectedConnections.length > 1 ? 'Connections' : 'Connection'} to Add:
+                          {t('onboarding.relationships.newConnectionsTitle') || 'New Connection to Add'} ({selectedConnections.length}):
                         </Text>
                         {selectedConnections.map((connection) => (
                           <RadioButton
@@ -1693,22 +1812,22 @@ export function OnboardingInteractive({
                           setCompletedSteps((prev) => new Set(prev).add('relationships'));
                           nextSlide();
                         }}>
-                          Continue with Existing Relationships
+                          {t('onboarding.relationships.continueExisting') || 'Continue with Existing Relationships'}
                         </Button>
                         <Button variant="secondary" size="lg" onPress={showConnectionsModal}>
-                          Add More Connections
+                          {t('onboarding.relationships.addMore') || 'Add More Connections'}
                         </Button>
                         <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-                          Skip for now
+                          {t('onboarding.skipForNow') || 'Skip for now'}
                         </Button>
                       </YStack>
                     ) : (
                       <YStack gap="$2" width="100%">
                         <Button variant="secondary" size="lg" onPress={showConnectionsModal}>
-                          Find Connections
+                          {t('onboarding.relationships.findConnections') || 'Find Connections'}
                         </Button>
                         <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-                          Skip for now
+                          {t('onboarding.skipForNow') || 'Skip for now'}
                         </Button>
                       </YStack>
                     )}
@@ -2032,20 +2151,30 @@ export function OnboardingInteractive({
                 maxHeight={height * 0.5}
               >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
-              Find {selectedRole === 'student' ? 'Instructors' : selectedRole === 'instructor' || selectedRole === 'school' ? 'Students' : 'Users'}
+              {selectedRole === 'student' 
+                ? (t('onboarding.connections.findInstructors') || 'Find Instructors')
+                : selectedRole === 'instructor' || selectedRole === 'school' 
+                  ? (t('onboarding.connections.findStudents') || 'Find Students')
+                  : (t('onboarding.connections.findUsers') || 'Find Users')
+              }
             </Text>
             
             <Text size="sm" color="$gray11">
-              Search for {selectedRole === 'student' ? 'driving instructors' : selectedRole === 'instructor' || selectedRole === 'school' ? 'students' : 'users'} to connect with
+              {selectedRole === 'student' 
+                ? (t('onboarding.connections.searchInstructors') || 'Search for driving instructors to connect with')
+                : selectedRole === 'instructor' || selectedRole === 'school' 
+                  ? (t('onboarding.connections.searchStudents') || 'Search for students to connect with')
+                  : (t('onboarding.connections.searchUsers') || 'Search for users to connect with')
+              }
             </Text>
             
             {/* Custom message input - using FormField styling */}
             <YStack gap="$2">
-              <Text size="sm" color="$gray11">Optional message:</Text>
+              <Text size="sm" color="$gray11">{t('onboarding.connections.optionalMessage') || 'Optional message:'}</Text>
               <TextInput
                 value={connectionCustomMessage}
                 onChangeText={setConnectionCustomMessage}
-                placeholder="Add a personal message..."
+                placeholder={t('onboarding.connections.messagePlaceholder') || 'Add a personal message...'}
                 multiline
                 style={[
                   {
@@ -2068,7 +2197,7 @@ export function OnboardingInteractive({
             </YStack>
             
             <FormField
-              placeholder="Search by name or email..."
+              placeholder={t('onboarding.connections.searchPlaceholder') || 'Search by name or email...'}
               value={connectionSearchQuery}
               onChangeText={handleSearchUsers}
             />
@@ -2077,13 +2206,13 @@ export function OnboardingInteractive({
               <YStack gap="$2">
                 {searchResults.length === 0 && connectionSearchQuery.length >= 2 && (
                   <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                    No users found
+                    {t('onboarding.connections.noUsers') || 'No users found'}
                   </Text>
                 )}
                 
                 {searchResults.length === 0 && connectionSearchQuery.length < 2 && (
                   <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                    Start typing to search for users
+                    {t('onboarding.connections.startTyping') || 'Start typing to search for users'}
                   </Text>
                 )}
                 
@@ -2159,7 +2288,7 @@ export function OnboardingInteractive({
                   }, 0);
                 }}
               >
-                Cancel
+                {t('common.cancel') || 'Cancel'}
               </Button>
             </YStack>
               </YStack>
@@ -2201,7 +2330,7 @@ export function OnboardingInteractive({
                 gap="$4"
               >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
-              Select Vehicle Type
+              {t('onboarding.vehicle.title') || 'Select Vehicle Type'}
             </Text>
             
             <ScrollView style={{ maxHeight: 300 }}>
@@ -2269,7 +2398,7 @@ export function OnboardingInteractive({
                 gap="$4"
               >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
-              Select Transmission
+              {t('onboarding.transmission.title') || 'Select Transmission'}
             </Text>
             
             <ScrollView style={{ maxHeight: 300 }}>
@@ -2335,15 +2464,17 @@ export function OnboardingInteractive({
                 gap="$4"
               >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
-              Select Experience Level
+              {t('onboarding.experience.title') || 'Select Experience Level'}
             </Text>
             
             <ScrollView style={{ maxHeight: 300 }}>
               <YStack gap="$1">
                 {(experienceLevels.length > 0 ? experienceLevels : [
-                  { id: 'beginner', title: 'Beginner (Fallback)', description: 'Just starting out' },
-                  { id: 'intermediate', title: 'Intermediate (Fallback)', description: 'Some experience' },
-                  { id: 'advanced', title: 'Advanced (Fallback)', description: 'Very experienced' },
+                  { id: 'beginner', title: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)', description: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)' },
+                  { id: 'intermediate', title: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)', description: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)' },
+                  { id: 'advanced', title: language === 'sv' ? 'Avancerad (behöver förfinas / förberedas inför prov)' : 'Advanced (needs refinement / preparing for test)', description: language === 'sv' ? 'Avancerad (behöver förfinas / förberedas inför prov)' : 'Advanced (needs refinement / preparing for test)' },
+                  { id: 'refresher', title: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)', description: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)' },
+                  { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert', description: language === 'sv' ? 'Expert' : 'Expert' },
                 ]).map((level: { id: string; title: string; description?: string }) => (
                 <TouchableOpacity
                   key={level.id}
@@ -2414,7 +2545,7 @@ export function OnboardingInteractive({
                 gap="$4"
               >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
-              Select License Type
+              {t('onboarding.license.title') || 'Select License Type'}
             </Text>
             
             <ScrollView style={{ maxHeight: 300 }}>
@@ -2480,16 +2611,16 @@ export function OnboardingInteractive({
                 gap="$4"
               >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
-              When do you want your license?
+              {t('onboarding.date.title') || 'When do you want your license?'}
             </Text>
             
             <YStack gap="$3">
               {/* Quick date options */}
               {[
-                { label: 'Within 3 months', months: 3, key: '3months' },
-                { label: 'Within 6 months', months: 6, key: '6months' },
-                { label: 'Within 1 year', months: 12, key: '1year' },
-                { label: 'No specific date', months: 24, key: 'nodate' },
+                { label: t('onboarding.date.within3months') || 'Within 3 months', months: 3, key: '3months' },
+                { label: t('onboarding.date.within6months') || 'Within 6 months', months: 6, key: '6months' },
+                { label: t('onboarding.date.within1year') || 'Within 1 year', months: 12, key: '1year' },
+                { label: t('onboarding.date.noSpecific') || 'No specific date', months: 24, key: 'nodate' },
               ].map((option) => {
                 const targetDate = new Date();
                 targetDate.setMonth(targetDate.getMonth() + option.months);
@@ -2531,7 +2662,7 @@ export function OnboardingInteractive({
                 <XStack gap={8} padding="$2" alignItems="center" width="100%">
                   <YStack flex={1}>
                     <Text color={selectedDateOption === 'custom' ? textColor : '$color'} size="md" weight="semibold">
-                      Pick specific date
+                      {t('onboarding.date.pickSpecific') || 'Pick specific date'}
                     </Text>
                     <Text size="sm" color="$gray11">
                       {selectedTargetDate.toLocaleDateString()}
@@ -2560,7 +2691,7 @@ export function OnboardingInteractive({
                 placement={'top' as any}
                 backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
                 popoverStyle={{
-                  backgroundColor: backgroundColor,
+                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
                   borderRadius: 12,
                   padding: 16,
                   shadowColor: '#000',
@@ -2570,19 +2701,21 @@ export function OnboardingInteractive({
                   elevation: 12,
                   width: 380,
                   height: 480,
+                  borderWidth: colorScheme === 'dark' ? 1 : 0,
+                  borderColor: colorScheme === 'dark' ? '#333' : 'transparent',
                 }}
 
               >
                 <YStack alignItems="center" gap="$2" width="100%">
                   <Text color={textColor} size="lg" weight="semibold" textAlign="center">
-                    Select Target Date
+                    {t('onboarding.date.selectTarget') || 'Select Target Date'}
                   </Text>
                   
                   {/* Container for full inline DateTimePicker */}
                   <View style={{
                     width: 350,
                     height: 380,
-                    backgroundColor: '#FFF',
+                    backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
                     borderRadius: 8,
                     overflow: 'visible',
                   }}>
@@ -2606,7 +2739,14 @@ export function OnboardingInteractive({
                           console.log('🗓️ [OnboardingInteractive] Date updated, waiting for save button');
                         }
                       }}
-                      style={{ width: 350, height: 380 }}
+                      style={{ 
+                        width: 350, 
+                        height: 380,
+                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                      }}
+                      themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
+                      accentColor="#00E6C3"
+                      locale={language === 'sv' ? 'sv-SE' : 'en-US'}
                     />
                   </View>
                   
@@ -2624,7 +2764,7 @@ export function OnboardingInteractive({
                 marginTop="$4"
                 width="100%"
               >
-                Save Selected Date
+                {t('onboarding.date.saveSelectedDate') || 'Save Selected Date'}
               </Button>
             </YStack>
               </YStack>
@@ -2669,19 +2809,25 @@ export function OnboardingInteractive({
               minHeight="60%"
             >
               <Text size="xl" weight="bold" color={textColor} textAlign="center">
-                Remove {relationshipRemovalTarget?.relationship_type === 'has_supervisor' ? 'Supervisor' : 'Student'}
+                {relationshipRemovalTarget?.relationship_type === 'has_supervisor' 
+                  ? (t('onboarding.relationships.removeSupervisorTitle') || 'Remove Supervisor')
+                  : (t('onboarding.relationships.removeStudentTitle') || 'Remove Student')
+                }
               </Text>
               
               <Text size="sm" color={textColor}>
-                Are you sure you want to remove {relationshipRemovalTarget?.name} as your {relationshipRemovalTarget?.relationship_type === 'has_supervisor' ? 'supervisor' : 'student'}?
+                {relationshipRemovalTarget?.relationship_type === 'has_supervisor'
+                  ? (t('onboarding.relationships.removeSupervisorConfirm') || 'Are you sure you want to remove {name} as your supervisor?').replace('{name}', relationshipRemovalTarget?.name || '')
+                  : (t('onboarding.relationships.removeStudentConfirm') || 'Are you sure you want to remove {name} as your student?').replace('{name}', relationshipRemovalTarget?.name || '')
+                }
               </Text>
               
               <YStack gap="$2">
-                <Text size="sm" color={handleColor}>Optional message:</Text>
+                <Text size="sm" color={handleColor}>{t('onboarding.relationships.optionalMessage') || 'Optional message:'}</Text>
                 <TextInput
                   value={relationshipRemovalMessage}
                   onChangeText={setRelationshipRemovalMessage}
-                  placeholder="Add a message explaining why (optional)..."
+                  placeholder={t('onboarding.relationships.messagePlaceholder') || 'Add a message explaining why (optional)...'}
                   multiline
                   style={{
                     backgroundColor: backgroundColor,
