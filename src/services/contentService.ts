@@ -6,6 +6,7 @@ export enum ContentType {
   ONBOARDING = 'onboarding',
   MARKETING = 'marketing',
   AUTH = 'auth',
+  PROMOTION = 'promotion',
 }
 
 // Define languages

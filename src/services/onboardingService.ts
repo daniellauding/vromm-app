@@ -1,25 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { OnboardingSlide } from '../components/Onboarding';
-import { FontAwesome } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchOnboardingContent } from './contentService';
+import { fetchContentByType, ContentType } from './contentService';
 import { contentItemsToOnboardingSlides } from '../adapters/contentAdapter';
 
-// Define the database slide structure
-interface SupabaseOnboardingSlide {
-  id: string;
-  title_en: string;
-  title_sv: string;
-  text_en: string;
-  text_sv: string;
-  image_url: string | null;
-  icon: string | null;
-  icon_color: string | null;
-  order: number;
-  active: boolean;
-  created_at: string;
-  updated_at: string; // Track the last update time
-}
+// Legacy database slide structure removed - now using content promotion system
 
 // Content version key in AsyncStorage
 const ONBOARDING_CONTENT_HASH_KEY = 'onboarding_content_hash';
@@ -77,12 +62,12 @@ export const fetchOnboardingSlides = async (): Promise<OnboardingSlide[]> => {
       return [];
     }
 
-    // Try the new content structure first
+    // Use promotion content type for onboarding slides
     try {
-      const contentItems = await fetchOnboardingContent();
+      const contentItems = await fetchContentByType(ContentType.PROMOTION, 'mobile');
 
       if (contentItems && contentItems.length > 0) {
-        console.log('Using new content structure for onboarding slides');
+        console.log('Using promotion content for onboarding slides');
 
         // Convert content items to onboarding slides using adapter
         const slides = contentItemsToOnboardingSlides(contentItems);
@@ -92,65 +77,17 @@ export const fetchOnboardingSlides = async (): Promise<OnboardingSlide[]> => {
 
         return slides;
       }
+
+      // If no content found, log and return empty array (no fallback)
+      console.warn('No promotion content found for onboarding');
+      return [];
     } catch (contentError) {
-      console.error('Error fetching content-based onboarding:', contentError);
-    }
-
-    // Fall back to the old structure if no content is found
-    console.log('No content found in new structure, trying legacy onboarding_slides table');
-
-    try {
-      const { data, error } = await supabase
-        .from('onboarding_slides')
-        .select('*')
-        .eq('active', true)
-        .order('order', { ascending: true });
-
-      if (error) {
-        // Log the specific error message
-        console.error('Error fetching onboarding slides:', error.message);
-
-        // Handle table doesn't exist specifically
-        if (error.code === '42P01') {
-          console.error(
-            'The onboarding_slides table does not exist. Please run the migration script.',
-          );
-        }
-
-        // Return fallback slides when there's any error
-        return getFallbackSlides();
-      }
-
-      if (!data || data.length === 0) {
-        console.warn('No onboarding slides found, using fallback slides');
-        return getFallbackSlides();
-      }
-
-      // Check if content has changed and update version hash if needed
-      await checkContentVersion(data);
-
-      // Transform the data to match the OnboardingSlide interface
-      return data.map((slide: SupabaseOnboardingSlide) => ({
-        id: slide.id,
-        title_en: slide.title_en,
-        title_sv: slide.title_sv,
-        text_en: slide.text_en,
-        text_sv: slide.text_sv,
-        image: slide.image_url
-          ? { uri: slide.image_url }
-          : !slide.icon && !slide.icon_color // Only use default image if no icon is provided
-            ? require('../../assets/images/default-onboarding.png')
-            : undefined,
-        icon: slide.icon || undefined,
-        iconColor: slide.icon_color || undefined,
-      }));
-    } catch (dbError) {
-      console.error('Error fetching from database:', dbError);
-      return getFallbackSlides();
+      console.error('Error fetching promotion-based onboarding:', contentError);
+      return [];
     }
   } catch (error) {
     console.error('Error in fetchOnboardingSlides:', error);
-    return getFallbackSlides();
+    return [];
   }
 };
 
@@ -209,81 +146,9 @@ async function checkContentVersionSimple(contentItems: any[]) {
   }
 }
 
-// Check if content has changed and update the stored content hash
-async function checkContentVersion(data: SupabaseOnboardingSlide[]) {
-  try {
-    // Create a simple content hash based on slide IDs, titles and update times
-    const contentHash = data
-      .map((slide) => `${slide.id}-${slide.title_en}-${slide.updated_at}`)
-      .join('|');
+// Legacy function removed - now using content promotion system only
 
-    // Get the stored hash
-    const storedHash = await AsyncStorage.getItem(ONBOARDING_CONTENT_HASH_KEY);
-
-    // If hash has changed, we should reset the onboarding flag to show again
-    if (storedHash !== contentHash) {
-      console.log('Onboarding content hash changed:', {
-        storedHash,
-        newHash: contentHash,
-      });
-
-      // Store the new hash
-      await AsyncStorage.setItem(ONBOARDING_CONTENT_HASH_KEY, contentHash);
-
-      // Only reset onboarding if:
-      // 1. We had a previous hash (not first time)
-      // 2. User has already completed onboarding before (ONBOARDING_KEY exists)
-      if (storedHash !== null) {
-        // Check if user has completed onboarding before resetting
-        const onboardingStatus = await AsyncStorage.getItem(ONBOARDING_KEY);
-        // Only reset if user has completed onboarding before (not null or "true")
-        if (onboardingStatus !== null && onboardingStatus !== 'true') {
-          console.log('Onboarding was previously completed. Resetting for content update.');
-          // This will force onboarding to show again on next check
-          await AsyncStorage.removeItem(ONBOARDING_KEY);
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error checking content version:', error);
-  }
-}
-
-// Provide fallback slides in case of error or empty data
-const getFallbackSlides = (): OnboardingSlide[] => {
-  return [
-    {
-      id: 'welcome',
-      title_en: 'Welcome to Vromm',
-      title_sv: 'Välkommen till Vromm',
-      text_en: 'Your new companion for driver training',
-      text_sv: 'Din nya kompanjon för körkortsutbildning',
-      image: require('../../assets/images/default-onboarding.png'),
-      icon: 'road',
-      iconColor: '#3498db',
-    },
-    {
-      id: 'features',
-      title_en: 'Discover Routes',
-      title_sv: 'Upptäck Rutter',
-      text_en: 'Find training routes created by driving schools and other learners',
-      text_sv: 'Hitta övningsrutter skapade av trafikskolor och andra elever',
-      image: require('../../assets/images/default-onboarding.png'),
-      icon: 'map-marker',
-      iconColor: '#2ecc71',
-    },
-    {
-      id: 'community',
-      title_en: 'Join the Community',
-      title_sv: 'Gå med i gemenskapen',
-      text_en: 'Share your experiences and learn from others',
-      text_sv: 'Dela med dig av dina erfarenheter och lär från andra',
-      image: require('../../assets/images/default-onboarding.png'),
-      icon: 'users',
-      iconColor: '#e74c3c',
-    },
-  ];
-};
+// Static fallback slides removed - now using content promotion system exclusively
 
 // ============= Onboarding Reset Functions for Testing and A/B Testing =============
 
