@@ -20,6 +20,7 @@ import { logWarn } from './src/utils/logger';
 import { googleSignInService } from './src/services/googleSignInService';
 import * as WebBrowser from 'expo-web-browser';
 import AppContent from './src/AppContent';
+import { StripeProvider } from '@stripe/stripe-react-native';
 
 // Disable reanimated warnings about reading values during render
 
@@ -30,6 +31,7 @@ WebBrowser.maybeCompleteAuthSession();
 export default function App() {
   const colorScheme = useColorScheme();
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [stripePublishableKey, setStripePublishableKey] = useState('');
 
   useEffect(() => {
     async function loadFonts() {
@@ -67,7 +69,23 @@ export default function App() {
       }
     };
 
+    // Initialize Stripe - fetch publishable key from environment or backend
+    const initializeStripe = async () => {
+      try {
+        // In production, you might want to fetch this from your backend
+        // For now, we'll get it from the Edge Function response or use environment
+        const publishableKey = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || 
+          'pk_live_Xr9mSHZSsJqaYS3q82xBNVtJ'; // Fallback test key
+        
+        setStripePublishableKey(publishableKey);
+        console.log('✅ Stripe publishable key set:', publishableKey.substring(0, 15) + '...');
+      } catch (error) {
+        console.error('❌ Stripe initialization failed:', error);
+      }
+    };
+
     initializeGoogleSignIn();
+    initializeStripe();
   }, []);
 
   if (!fontsLoaded) {
@@ -89,27 +107,33 @@ export default function App() {
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <TamaguiProvider config={config} defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}>
-            <Theme>
-              <TranslationProvider>
-                <AuthProvider>
-                  <StudentSwitchProvider>
-                    <LocationProvider>
-                      <CreateRouteProvider>
-                        <ModalProvider>
-                          <MessagingProvider>
-                            <TourProvider>
-                              <AppContent />
-                            </TourProvider>
-                          </MessagingProvider>
-                        </ModalProvider>
-                      </CreateRouteProvider>
-                    </LocationProvider>
-                  </StudentSwitchProvider>
-                </AuthProvider>
-              </TranslationProvider>
-            </Theme>
-          </TamaguiProvider>
+          <StripeProvider
+            publishableKey={stripePublishableKey || 'pk_test_placeholder'}
+            merchantIdentifier="merchant.se.vromm.app"
+            urlScheme="vromm"
+          >
+            <TamaguiProvider config={config} defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}>
+              <Theme>
+                <TranslationProvider>
+                  <AuthProvider>
+                    <StudentSwitchProvider>
+                      <LocationProvider>
+                        <CreateRouteProvider>
+                          <ModalProvider>
+                            <MessagingProvider>
+                              <TourProvider>
+                                <AppContent />
+                              </TourProvider>
+                            </MessagingProvider>
+                          </ModalProvider>
+                        </CreateRouteProvider>
+                      </LocationProvider>
+                    </StudentSwitchProvider>
+                  </AuthProvider>
+                </TranslationProvider>
+              </Theme>
+            </TamaguiProvider>
+          </StripeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>

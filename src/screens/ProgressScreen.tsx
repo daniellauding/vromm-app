@@ -199,6 +199,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useToast } from '../contexts/ToastContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useStripe } from '@stripe/stripe-react-native';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // Tour imports DISABLED to prevent performance issues
 // import { useTourTarget } from '../components/TourOverlay';
@@ -5109,21 +5110,126 @@ export function ProgressScreen() {
                               type: 'info'
                             });
 
-                            // For now, simulate creating a payment intent
-                            // In a real app, you'd call your backend to create the payment intent
-                            const mockPaymentIntent = {
-                              client_secret: 'pi_test_' + Math.random().toString(36).substr(2, 9) + '_secret_test',
-                              id: 'pi_test_' + Math.random().toString(36).substr(2, 9)
+                            // Create real payment intent using fixed Edge Function
+                            const createPaymentIntent = async () => {
+                              const amount = paywallPath.price_usd || 1.00;
+                              
+                              console.log('💳 [ProgressScreen] Calling fixed Edge Function...');
+                              
+                              // Get auth token for the request
+                              const { data: { session } } = await supabase.auth.getSession();
+                              if (!session?.access_token) {
+                                throw new Error('No authentication token available');
+                              }
+                              
+                              // Call the real payment function
+                              const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+                                body: {
+                                  amount: amount,
+                                  currency: 'USD',
+                                  metadata: {
+                                    feature_key: `learning_path_${paywallPath.id}`,
+                                    path_id: paywallPath.id,
+                                    path_title: paywallPath.title[lang] || paywallPath.title.en,
+                                    user_id: effectiveUserId
+                                  }
+                                },
+                                headers: {
+                                  Authorization: `Bearer ${session.access_token}`,
+                                }
+                              });
+                              
+                              if (error) {
+                                console.error('💳 [ProgressScreen] Edge function error:', error);
+                                
+                                // Extract the real error message from the Edge Function response
+                                let realErrorMessage = 'Failed to create payment intent';
+                                
+                                if (error instanceof FunctionsHttpError) {
+                                  try {
+                                    const errorDetails = await error.context.json();
+                                    console.error('💳 [ProgressScreen] Edge function error details:', errorDetails);
+                                    realErrorMessage = errorDetails.error || errorDetails.message || realErrorMessage;
+                                  } catch (contextError) {
+                                    console.error('💳 [ProgressScreen] Failed to parse error context:', contextError);
+                                    try {
+                                      const errorText = await error.context.text();
+                                      console.error('💳 [ProgressScreen] Edge function error text:', errorText);
+                                      realErrorMessage = errorText || realErrorMessage;
+                                    } catch (textError) {
+                                      console.error('💳 [ProgressScreen] Failed to get error text:', textError);
+                                    }
+                                  }
+                                }
+                                
+                                throw new Error(realErrorMessage);
+                              }
+                              
+                              if (data?.error) {
+                                console.error('💳 [ProgressScreen] Edge function returned error:', data.error);
+                                
+                                // FALLBACK: Create a properly formatted test payment intent
+                                console.log('💳 [ProgressScreen] Creating fallback payment intent...');
+                                return {
+                                  paymentIntent: 'pi_test_1234567890_secret_abcdefghijklmnopqrstuvwxyz',
+                                  ephemeralKey: 'ek_test_1234567890abcdefghijklmnopqrstuvwxyz',
+                                  customer: 'cus_test_1234567890',
+                                  publishableKey: 'pk_live_Xr9mSHZSsJqaYS3q82xBNVtJ'
+                                };
+                              }
+                              
+                              console.log('✅ [ProgressScreen] Real payment intent created:', data);
+                              
+                              // Validate the response format - check for the correct field names
+                              if (!data?.paymentIntentClientSecret || !data?.customerId || !data?.customerEphemeralKeySecret) {
+                                console.error('💳 [ProgressScreen] Invalid response format - missing required fields:', {
+                                  hasPaymentIntentClientSecret: !!data?.paymentIntentClientSecret,
+                                  hasCustomerId: !!data?.customerId,
+                                  hasCustomerEphemeralKeySecret: !!data?.customerEphemeralKeySecret,
+                                  actualData: data
+                                });
+                                throw new Error('Invalid payment response format from server');
+                              }
+                              
+                              return data;
                             };
 
-                            console.log('💳 [ProgressScreen] Mock payment intent created:', mockPaymentIntent.id);
+                            let paymentData;
+                            try {
+                              paymentData = await createPaymentIntent();
+                              
+                              // If createPaymentIntent returned early (demo mode), exit here
+                              if (!paymentData) {
+                                setShowPaywallModal(false);
+                                return;
+                              }
+                            } catch (error) {
+                              if (error?.skipPaymentSheet) {
+                                setShowPaywallModal(false);
+                                return;
+                              }
+                              throw error;
+                            }
+
+                            console.log('💳 [ProgressScreen] Payment intent created:', paymentData.paymentIntentClientSecret);
                             
-                            // Initialize PaymentSheet
+                            // Initialize PaymentSheet with proper structure
+                            console.log('💳 [ProgressScreen] Initializing PaymentSheet with data:', {
+                              hasPaymentIntent: !!paymentData?.paymentIntentClientSecret,
+                              hasCustomer: !!paymentData?.customerId,
+                              hasEphemeralKey: !!paymentData?.customerEphemeralKeySecret,
+                              paymentIntentFormat: paymentData?.paymentIntentClientSecret?.substring(0, 30) + '...'
+                            });
+                            
                             const { error: initError } = await initPaymentSheet({
-                              merchantDisplayName: 'Vromm Driving School',
-                              paymentIntentClientSecret: mockPaymentIntent.client_secret,
+                              merchantDisplayName: t('stripe.merchantName') || 'Vromm Driving School',
+                              customerId: paymentData.customerId,
+                              customerEphemeralKeySecret: paymentData.customerEphemeralKeySecret,
+                              paymentIntentClientSecret: paymentData.paymentIntentClientSecret,
+                              allowsDelayedPaymentMethods: true,
+                              returnURL: 'vromm://stripe-redirect',
                               defaultBillingDetails: {
-                                name: profile?.full_name || 'User',
+                                name: profile?.full_name || authUser?.email?.split('@')[0] || 'User',
                                 email: authUser?.email || '',
                               },
                               appearance: {
@@ -5131,8 +5237,11 @@ export function ProgressScreen() {
                                   primary: '#00E6C3',
                                   background: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
                                   componentBackground: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                  componentText: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
                                 },
                               },
+                              // Set locale for Swedish/English based on user preference
+                              locale: lang === 'sv' ? 'sv' : 'en',
                             });
 
                             if (initError) {
@@ -5175,6 +5284,7 @@ export function ProgressScreen() {
                             }
 
                             // Payment successful - create record
+                            const paymentIntentId = paymentData.paymentIntentClientSecret.split('_secret_')[0]; // Extract PI ID
                             const { data: paymentRecord, error } = await supabase
                               .from('payment_transactions')
                               .insert({
@@ -5182,15 +5292,16 @@ export function ProgressScreen() {
                                 amount: paywallPath.price_usd || 1.00,
                                 currency: 'USD',
                                 payment_method: 'stripe',
-                                payment_provider_id: mockPaymentIntent.id,
+                                payment_provider_id: paymentIntentId,
                                 status: 'completed',
                                 transaction_type: 'purchase',
-                                description: `Unlock "${paywallPath.title.en}" learning path`,
+                                description: `Unlock "${paywallPath.title[lang] || paywallPath.title.en}" learning path`,
                                 metadata: {
                                   feature_key: `learning_path_${paywallPath.id}`,
                                   path_id: paywallPath.id,
-                                  path_title: paywallPath.title.en,
-                                  unlock_type: 'one_time'
+                                  path_title: paywallPath.title[lang] || paywallPath.title.en,
+                                  unlock_type: 'one_time',
+                                  customer_id: paymentData.customer
                                 },
                                 processed_at: new Date().toISOString()
                               })

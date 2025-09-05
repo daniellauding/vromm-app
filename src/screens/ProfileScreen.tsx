@@ -267,7 +267,7 @@ export function ProfileScreen() {
   const [showLocationDrawer, setShowLocationDrawer] = useState(false);
   const [locationSearchResults, setLocationSearchResults] = useState<any[]>([]);
   const [locationSearchTimeout, setLocationSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'relationships'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'relationships' | 'billing'>('overview');
   
   const theme = useTheme();
   const colorScheme = useColorScheme();
@@ -390,6 +390,12 @@ export function ProfileScreen() {
   // Add driving stats state
   const [drivingStats, setDrivingStats] = useState<DrivingStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  
+  // Billing state
+  const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [currentSubscription, setCurrentSubscription] = useState<any>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
   
   // Relationship reviews state
   const [userRating, setUserRating] = useState({ averageRating: 0, reviewCount: 0, canReview: false, alreadyReviewed: false });
@@ -2232,6 +2238,55 @@ export function ProfileScreen() {
     }
   }, [profile?.id, activeStudentId, logInfo, logError]);
 
+  // Fetch subscription plans from database
+  const fetchSubscriptionPlans = useCallback(async () => {
+    try {
+      setBillingLoading(true);
+      
+      const { data: plans, error } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('is_active', true)
+        .order('price_amount', { ascending: true });
+        
+      if (error) {
+        console.error('Error fetching subscription plans:', error);
+        return;
+      }
+      
+      setSubscriptionPlans(plans || []);
+      console.log('✅ Loaded subscription plans:', plans?.length || 0);
+    } catch (error) {
+      logError('Error fetching subscription plans', error as Error);
+    } finally {
+      setBillingLoading(false);
+    }
+  }, [logError]);
+
+  // Fetch payment history for current user
+  const fetchPaymentHistory = useCallback(async () => {
+    if (!profile?.id) return;
+    
+    try {
+      const { data: payments, error } = await supabase
+        .from('payment_transactions')
+        .select('*')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+        
+      if (error) {
+        console.error('Error fetching payment history:', error);
+        return;
+      }
+      
+      setPaymentHistory(payments || []);
+      console.log('✅ Loaded payment history:', payments?.length || 0, 'transactions');
+    } catch (error) {
+      logError('Error fetching payment history', error as Error);
+    }
+  }, [profile?.id, logError]);
+
   // Refresh function for pull-to-refresh
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -2816,6 +2871,40 @@ export function ProfileScreen() {
                     </View>
                   )}
                 </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={async () => {
+                    // Auto-save current changes before switching
+                    if (user && (formData.full_name !== profile?.full_name || formData.location !== profile?.location)) {
+                      try {
+                        await updateProfile(formData);
+                        console.log('✅ Auto-saved before tab switch');
+                      } catch (error) {
+                        console.error('Error auto-saving:', error);
+                      }
+                    }
+                    setActiveTab('billing');
+                    // Load billing data when tab is opened
+                    fetchSubscriptionPlans();
+                    fetchPaymentHistory();
+                  }}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: activeTab === 'billing' ? '#00E6C3' : 'transparent',
+                    borderWidth: 1,
+                    borderColor: activeTab === 'billing' ? '#00E6C3' : '#ccc',
+                  }}
+                >
+                  <Text
+                    color={activeTab === 'billing' ? 'white' : '$color'}
+                    weight={activeTab === 'billing' ? 'bold' : 'normal'}
+                    size="sm"
+                  >
+                    {t('profile.tabs.billing') || 'Billing'}
+                  </Text>
+                </TouchableOpacity>
               </XStack>
             </YStack>
 
@@ -3253,6 +3342,253 @@ export function ProfileScreen() {
                 onReviewAdded={loadRelationshipReviews}
               />
             )}
+              </YStack>
+            )}
+
+            {/* Billing Tab */}
+            {activeTab === 'billing' && (
+              <YStack gap="$4">
+                {/* Current Subscription */}
+                <Card bordered padding="$4" marginVertical="$2">
+                  <YStack gap="$3">
+                    <Text size="lg" weight="bold" color="$color">
+                      {t('profile.billing.currentPlan') || 'Current Plan'}
+                    </Text>
+                    <Card padding="$3" backgroundColor="$blue4" borderRadius="$3">
+                      <YStack alignItems="center" gap="$2">
+                        <Text fontSize="$6" fontWeight="bold" color="$blue11">
+                          {t('profile.billing.freePlan') || 'Free Plan'}
+                        </Text>
+                        <Text fontSize="$3" color="$blue11" textAlign="center">
+                          {t('profile.billing.basicAccess') || 'Basic access to learning paths'}
+                        </Text>
+                        <Text fontSize="$2" color="$blue11" textAlign="center">
+                          {t('profile.billing.upgradeForMore') || 'Upgrade for unlimited access and premium features'}
+                        </Text>
+                      </YStack>
+                    </Card>
+                  </YStack>
+                </Card>
+
+                {/* Subscription Plans */}
+                <Card bordered padding="$4" marginVertical="$2">
+                  <YStack gap="$3">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <Text size="lg" weight="bold" color="$color">
+                        {t('profile.billing.availablePlans') || 'Available Plans'}
+                      </Text>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$blue9"
+                        onPress={fetchSubscriptionPlans}
+                        disabled={billingLoading}
+                      >
+                        <Feather
+                          name={billingLoading ? 'loader' : 'refresh-cw'}
+                          size={14}
+                          color="white"
+                        />
+                        <Text color="white" ml="$1">
+                          {billingLoading ? 'Loading...' : 'Refresh'}
+                        </Text>
+                      </Button>
+                    </XStack>
+
+                    {subscriptionPlans.length === 0 ? (
+                      <YStack alignItems="center" padding="$4" gap="$2">
+                        <Feather name="credit-card" size={48} color="$gray11" />
+                        <Text color="$gray11" textAlign="center">
+                          {t('profile.billing.noPlans') || 'No subscription plans available'}
+                        </Text>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          backgroundColor="$blue9"
+                          onPress={fetchSubscriptionPlans}
+                          marginTop="$2"
+                        >
+                          <Text color="white">{t('profile.billing.loadPlans') || 'Load Plans'}</Text>
+                        </Button>
+                      </YStack>
+                    ) : (
+                      <YStack gap="$3">
+                        {subscriptionPlans.map((plan) => {
+                          const isCurrent = plan.name === 'Free Plan'; // For now, assume everyone is on free plan
+                          const isEnterprise = plan.name === 'Enterprise Plan';
+                          const isPro = plan.name === 'Pro Plan';
+                          
+                          return (
+                            <Card 
+                              key={plan.id} 
+                              padding="$4" 
+                              backgroundColor={isCurrent ? '$green4' : isPro ? '$blue4' : isEnterprise ? '$purple4' : '$backgroundHover'}
+                              borderRadius="$3"
+                              borderWidth={isCurrent ? 2 : 1}
+                              borderColor={isCurrent ? '$green8' : isPro ? '$blue8' : isEnterprise ? '$purple8' : '$borderColor'}
+                            >
+                              <YStack gap="$2">
+                                <XStack justifyContent="space-between" alignItems="center">
+                                  <Text fontSize="$5" fontWeight="bold" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$color'}>
+                                    {plan.name}
+                                  </Text>
+                                  {isCurrent && (
+                                    <XStack
+                                      backgroundColor="$green8"
+                                      paddingHorizontal={8}
+                                      paddingVertical={4}
+                                      borderRadius={12}
+                                      alignItems="center"
+                                      gap={4}
+                                    >
+                                      <Feather name="check" size={14} color="white" />
+                                      <Text fontSize={12} color="white" fontWeight="bold">
+                                        {t('profile.billing.current') || 'Current'}
+                                      </Text>
+                                    </XStack>
+                                  )}
+                                </XStack>
+                                
+                                <Text fontSize="$3" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$gray11'}>
+                                  {plan.description}
+                                </Text>
+                                
+                                <XStack justifyContent="space-between" alignItems="center" marginTop="$2">
+                                  <YStack>
+                                    <Text fontSize="$6" fontWeight="bold" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$color'}>
+                                      ${plan.price_amount.toFixed(2)}
+                                    </Text>
+                                    <Text fontSize="$2" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$gray11'}>
+                                      {t('profile.billing.perMonth') || 'per month'}
+                                    </Text>
+                                  </YStack>
+                                  
+                                  {!isCurrent && (
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      backgroundColor={isPro ? '$blue9' : isEnterprise ? '$purple9' : '$green9'}
+                                      onPress={() => {
+                                        // TODO: Implement subscription upgrade
+                                        showToast({
+                                          title: t('profile.billing.upgradeTitle') || 'Upgrade Plan',
+                                          message: `${t('profile.billing.upgradeMessage') || 'Upgrade to'} ${plan.name}`,
+                                          type: 'info'
+                                        });
+                                      }}
+                                    >
+                                      <Text color="white">
+                                        {t('profile.billing.upgrade') || 'Upgrade'}
+                                      </Text>
+                                    </Button>
+                                  )}
+                                </XStack>
+                                
+                                {/* Features */}
+                                {plan.features && (
+                                  <YStack gap="$1" marginTop="$2">
+                                    <Text fontSize="$3" fontWeight="600" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$color'}>
+                                      {t('profile.billing.features') || 'Features:'}
+                                    </Text>
+                                    {Object.entries(plan.features as any).map(([key, value]) => (
+                                      <XStack key={key} alignItems="center" gap="$2">
+                                        <Feather 
+                                          name={value ? "check" : "x"} 
+                                          size={12} 
+                                          color={value ? (isCurrent ? '#10b981' : isPro ? '#3b82f6' : isEnterprise ? '#8b5cf6' : '#10b981') : '#ef4444'} 
+                                        />
+                                        <Text fontSize="$2" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$gray11'}>
+                                          {key.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())}
+                                        </Text>
+                                      </XStack>
+                                    ))}
+                                  </YStack>
+                                )}
+                              </YStack>
+                            </Card>
+                          );
+                        })}
+                      </YStack>
+                    )}
+                  </YStack>
+                </Card>
+
+                {/* Payment History */}
+                <Card bordered padding="$4" marginVertical="$2">
+                  <YStack gap="$3">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <Text size="lg" weight="bold" color="$color">
+                        {t('profile.billing.paymentHistory') || 'Payment History'}
+                      </Text>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$blue9"
+                        onPress={fetchPaymentHistory}
+                      >
+                        <Feather name="refresh-cw" size={14} color="white" />
+                        <Text color="white" ml="$1">
+                          {t('common.refresh') || 'Refresh'}
+                        </Text>
+                      </Button>
+                    </XStack>
+
+                    {paymentHistory.length === 0 ? (
+                      <YStack alignItems="center" padding="$4" gap="$2">
+                        <Feather name="receipt" size={48} color="$gray11" />
+                        <Text color="$gray11" textAlign="center">
+                          {t('profile.billing.noPayments') || 'No payment history yet'}
+                        </Text>
+                        <Text color="$gray11" fontSize="$3" textAlign="center">
+                          {t('profile.billing.paymentsWillAppear') || 'Your payments will appear here'}
+                        </Text>
+                      </YStack>
+                    ) : (
+                      <YStack gap="$2">
+                        {paymentHistory.map((payment) => (
+                          <Card 
+                            key={payment.id} 
+                            padding="$3" 
+                            backgroundColor="$backgroundHover" 
+                            borderRadius="$3"
+                          >
+                            <XStack justifyContent="space-between" alignItems="center">
+                              <YStack flex={1}>
+                                <Text fontWeight="bold" color="$color">
+                                  {payment.description || t('profile.billing.unknownPayment') || 'Unknown Payment'}
+                                </Text>
+                                <Text fontSize="$3" color="$gray11">
+                                  {new Date(payment.created_at).toLocaleDateString(language === 'sv' ? 'sv-SE' : 'en-US')} • {payment.payment_method}
+                                </Text>
+                                <Text fontSize="$2" color="$gray11">
+                                  ID: {payment.payment_provider_id || payment.id}
+                                </Text>
+                              </YStack>
+                              <YStack alignItems="flex-end">
+                                <Text fontSize="$4" fontWeight="bold" color="$color">
+                                  ${payment.amount.toFixed(2)} {payment.currency}
+                                </Text>
+                                <XStack
+                                  backgroundColor={payment.status === 'completed' ? '$green8' : payment.status === 'pending' ? '$orange8' : '$red8'}
+                                  paddingHorizontal={8}
+                                  paddingVertical={2}
+                                  borderRadius={8}
+                                  alignItems="center"
+                                >
+                                  <Text fontSize={10} color="white" fontWeight="bold">
+                                    {payment.status === 'completed' ? (t('profile.billing.completed') || 'Completed') :
+                                     payment.status === 'pending' ? (t('profile.billing.pending') || 'Pending') :
+                                     (t('profile.billing.failed') || 'Failed')}
+                                  </Text>
+                                </XStack>
+                              </YStack>
+                            </XStack>
+                          </Card>
+                        ))}
+                      </YStack>
+                    )}
+                  </YStack>
+                </Card>
               </YStack>
             )}
 
