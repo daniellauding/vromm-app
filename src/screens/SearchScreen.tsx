@@ -6,7 +6,9 @@ import {
   Dimensions,
   Platform,
   StatusBar,
+  Alert,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { XStack, YStack, Input, Text, View, ScrollView } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -244,22 +246,94 @@ export function SearchScreen() {
     }, 100);
   };
 
-  const handleNearMe = () => {
-    // TODO: Get user's current location and navigate back with it
-    handleClose();
+  const handleNearMe = async () => {
+    try {
+      // Try to get device location permissions first
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      let location;
+      let placeName = 'Near Me';
+      
+      if (status === 'granted') {
+        try {
+          // Get current device location
+          location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          placeName = 'Current Location';
+        } catch (locationError) {
+          console.log('Device location failed, using fallback...');
+          // Fallback to Lund, Sweden (same as OnboardingInteractive)
+          location = {
+            coords: {
+              latitude: 55.7047,
+              longitude: 13.1910,
+            },
+          };
+          placeName = 'Lund, Sweden';
+        }
+      } else {
+        // Permission denied, use Lund as default (same as OnboardingInteractive)
+        location = {
+          coords: {
+            latitude: 55.7047,
+            longitude: 13.1910,
+          },
+        };
+        placeName = 'Lund, Sweden';
+      }
+
+      // Create search result with location
+      const nearMeResult: SearchResult = {
+        id: 'near-me-location',
+        place_name: placeName,
+        center: [location.coords.longitude, location.coords.latitude],
+        place_type: ['address'],
+      };
+
+      // Navigate to map with location
+      handleResultSelect(nearMeResult);
+      
+    } catch (error) {
+      console.error('Error in handleNearMe:', error);
+      // Final fallback - still use Lund
+      const fallbackResult: SearchResult = {
+        id: 'fallback-location',
+        place_name: 'Lund, Sweden',
+        center: [13.1910, 55.7047], // [longitude, latitude]
+        place_type: ['place'],
+      };
+      handleResultSelect(fallbackResult);
+    }
   };
 
   const handleResultSelect = (result: SearchResult) => {
-    console.log('[Search] navigating to Map with selectedLocation', {
-      id: result?.id,
-      place: result?.place_name,
-      center: result?.center,
-    });
-    // @ts-ignore
-    navigation.navigate('MainTabs', {
-      screen: 'MapTab',
-      params: { selectedLocation: result, fromSearch: true, ts: Date.now() },
-    });
+    console.log('🔍 [SearchScreen] ==================== SEARCH RESULT SELECTED ====================');
+    console.log('🔍 [SearchScreen] Result:', result);
+    console.log('🔍 [SearchScreen] Place name:', result?.place_name);
+    console.log('🔍 [SearchScreen] Coordinates:', result?.center);
+    console.log('🔍 [SearchScreen] Navigation target: MainTabs -> MapTab');
+    
+    const navParams = {
+      selectedLocation: result,
+      fromSearch: true,
+      ts: Date.now()
+    };
+    console.log('🔍 [SearchScreen] Navigation params:', navParams);
+    
+    try {
+      // @ts-ignore - Navigate to nested screen in stack
+      navigation.navigate('MainTabs', {
+        screen: 'MapTab',
+        params: {
+          screen: 'MapScreen',
+          params: navParams,
+        },
+      });
+      console.log('🔍 [SearchScreen] Navigation initiated successfully');
+    } catch (error) {
+      console.error('🔍 [SearchScreen] Navigation failed:', error);
+    }
   };
 
   const handleClose = () => {

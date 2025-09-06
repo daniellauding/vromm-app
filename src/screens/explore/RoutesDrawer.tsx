@@ -13,6 +13,7 @@ import { useTranslation } from '@/src/contexts/TranslationContext';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Text, XStack } from 'tamagui';
+import { EmptyFilterState } from '@/src/components/EmptyFilterState';
 
 const BOTTOM_NAV_HEIGHT = 80;
 const DARK_THEME = {
@@ -137,7 +138,10 @@ export const RoutesDrawer = React.forwardRef<View, {
   selectedRoute: Route | null;
   filteredRoutes: Route[];
   loadRoutes: () => void;
-}>(({ selectedRoute, filteredRoutes }, ref) => {
+  onClearFilters?: () => void;
+  hasActiveFilters?: boolean;
+  onExpandSearch?: () => void;
+}>(({ selectedRoute, filteredRoutes, onClearFilters, hasActiveFilters = false, onExpandSearch }, ref) => {
   const { t } = useTranslation();
   const scrollOffset = useRef(0);
   const { height: screenHeight } = Dimensions.get('window');
@@ -260,7 +264,15 @@ export const RoutesDrawer = React.forwardRef<View, {
           </XStack>
         </View>
         <View style={styles.routeListContainer}>
-          <RouteList routes={filteredRoutes} onScroll={handleScroll} />
+          {filteredRoutes.length > 0 ? (
+            <RouteList routes={filteredRoutes} onScroll={handleScroll} />
+          ) : (
+            <EmptyFilterState 
+              hasActiveFilters={hasActiveFilters}
+              onClearFilters={onClearFilters}
+              onExpandSearch={onExpandSearch}
+            />
+          )}
         </View>
       </Animated.View>
     </GestureDetector>

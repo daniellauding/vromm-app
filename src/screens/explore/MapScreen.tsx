@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Animated, Easing } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map } from '../../components/Map';
 
@@ -16,6 +17,8 @@ import { AppHeader } from '../../components/AppHeader';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
 import { useModal } from '../../contexts/ModalContext';
+import { Text } from 'tamagui';
+import { Feather } from '@expo/vector-icons';
 import { SelectedRoute } from './SelectedRoute';
 import { useActiveRoutes, useRoutesFilters, useWaypoints } from './hooks';
 import { calculateDistance, getDistanceFromLatLonInKm } from './utils';
@@ -61,15 +64,21 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   // const tourContext = useTour();
   const mapRef = useRef<MapView>(null);
   const [region, setRegion] = useState({
-    latitude: 60.1282,
-    longitude: 18.6435,
+    latitude: 55.7047, // Lund, Sweden
+    longitude: 13.1910,
     latitudeDelta: 0.1,
     longitudeDelta: 0.1,
   });
+  const [originalRegion, setOriginalRegion] = useState(region);
   const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
 
   // Add selectedPin state
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
+
+  // Loading animation state (similar to OnboardingInteractive)
+  const [locationLoading, setLocationLoading] = useState(false);
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const [dotsCount, setDotsCount] = useState(0);
 
   // Tour targets disabled for MapScreen to prevent performance issues
   // const locateButtonRef = useTourTarget('MapScreen.LocateButton');
@@ -88,8 +97,37 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   }, [routes]);
 
   const availableFilters = useRoutesFilters(routes);
+
+  // Loading animation effect (similar to OnboardingInteractive)
+  useEffect(() => {
+    if (locationLoading) {
+      const spin = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      spin.start();
+      
+      // Animate dots
+      const dotsInterval = setInterval(() => {
+        setDotsCount(prev => (prev + 1) % 4); // 0, 1, 2, 3, then back to 0
+      }, 500);
+      
+      return () => {
+        spin.stop();
+        clearInterval(dotsInterval);
+        setDotsCount(0);
+      };
+    } else {
+      spinValue.setValue(0);
+      setDotsCount(0);
+    }
+  }, [locationLoading, spinValue]);
   const { activeRoutes, filters, setFilters, setActiveRoutes } = useActiveRoutes(routes);
-  const activeWaypoints = useWaypoints(activeRoutes);
+  const allWaypoints = useWaypoints(routes, activeRoutes); // Show all waypoints with filtered status
 
   const handleMarkerPress = useCallback(
     (waypointId: string) => {
@@ -175,7 +213,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
   const handleLocationSelect = useCallback(
     (result: SearchResult) => {
-      console.log('Location selected:', {
+      console.log('🗺️ [MapScreen] handleLocationSelect called with:', {
         result,
         center: result?.center,
         place_type: result?.place_type?.[0],
@@ -183,12 +221,12 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
       try {
         if (!result?.center || result.center.length !== 2) {
-          console.error('Invalid location data:', result);
+          console.error('🗺️ [MapScreen] Invalid location data:', result);
           return;
         }
 
         const [longitude, latitude] = result.center;
-        console.log('Parsed coordinates:', { latitude, longitude });
+        console.log('🗺️ [MapScreen] Parsed coordinates:', { latitude, longitude });
 
         // Validate coordinates
         if (
@@ -197,7 +235,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           isNaN(latitude) ||
           isNaN(longitude)
         ) {
-          console.error('Invalid coordinates:', { latitude, longitude });
+          console.error('🗺️ [MapScreen] Invalid coordinates:', { latitude, longitude });
           return;
         }
 
@@ -218,8 +256,18 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           longitudeDelta: zoomLevel,
         };
 
+        console.log('🗺️ [MapScreen] Setting new region:', newRegion);
+        
         // Update map region
         setRegion(newRegion);
+        
+        // Also animate map if ref is available
+        if (mapRef.current) {
+          console.log('🗺️ [MapScreen] Animating map to region');
+          mapRef.current.animateToRegion(newRegion, 1000);
+        } else {
+          console.log('🗺️ [MapScreen] MapRef not available for animation');
+        }
 
         // Filter routes based on proximity to selected location
         const MAX_DISTANCE_KM = 50; // Maximum distance to show routes
@@ -239,13 +287,14 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           return isKm ? distanceNum <= MAX_DISTANCE_KM : true;
         });
 
+        console.log('🗺️ [MapScreen] Filtered routes by location:', filteredByLocation.length, 'out of', routes.length);
         setFilteredRoutes(filteredByLocation);
 
         // Collapse bottom sheet to show more of the map
         // snapTo(snapPoints.collapsed);
       } catch (error: unknown) {
-        console.error('Error in handleLocationSelect:', error);
-        console.error('Error details:', {
+        console.error('🗺️ [MapScreen] Error in handleLocationSelect:', error);
+        console.error('🗺️ [MapScreen] Error details:', {
           error_message: error instanceof Error ? error.message : 'Unknown error',
           error_stack: error instanceof Error ? error.stack : 'No stack available',
           result_data: result,
@@ -257,24 +306,147 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
   // React to navigation from SearchScreen: center map on selectedLocation
   useEffect(() => {
+    console.log('🗺️ [MapScreen] Route params changed:', {
+      hasParams: !!route?.params,
+      selectedLocation: route?.params?.selectedLocation,
+      fromSearch: route?.params?.fromSearch,
+      ts: route?.params?.ts,
+      fullParams: route?.params
+    });
+    
     const selected = route?.params?.selectedLocation as SearchResult | undefined;
     const fromSearch = (route?.params as any)?.fromSearch;
     const ts = (route?.params as any)?.ts;
+    
     if (selected && selected.center?.length === 2) {
-      console.log('[MapScreen] received selectedLocation from Search', {
+      console.log('🗺️ [MapScreen] Processing selectedLocation from Search:', {
         id: selected.id,
         place: selected.place_name,
         center: selected.center,
         fromSearch,
         ts,
       });
+      
+      // Clear any existing filters when navigating from search
+      console.log('🗺️ [MapScreen] Clearing filters due to search navigation');
+      setFilters({});
+      setAppliedFilters({});
+      
       handleLocationSelect(selected);
+    } else if (selected) {
+      console.log('🗺️ [MapScreen] Invalid selectedLocation data:', selected);
     }
-  }, [route?.params?.selectedLocation, route?.params?.fromSearch, route?.params?.ts, handleLocationSelect]);
+  }, [route?.params?.selectedLocation, route?.params?.fromSearch, route?.params?.ts, handleLocationSelect, setFilters]);
+
+  // Function to zoom to show filtered results
+  const zoomToFilteredResults = useCallback(() => {
+    if (!activeRoutes.length || !mapRef.current) return;
+    
+    console.log('🔴 [MapScreen] Zooming to', activeRoutes.length, 'filtered results');
+    
+    // Get coordinates of filtered routes with enhanced validation
+    const filteredCoordinates = activeRoutes
+      .map(route => {
+        const waypoints = route.waypoint_details || route.metadata?.waypoints || [];
+        const firstWaypoint = waypoints[0];
+        if (!firstWaypoint) {
+          console.warn('🚨 [MapScreen] No waypoints for route:', route.id, route.name);
+          return null;
+        }
+        
+        // Debug the waypoint structure to understand the data format
+        console.log('🔍 [MapScreen] Raw waypoint data for route', route.name, ':', {
+          waypoint: firstWaypoint,
+          type: typeof firstWaypoint.lat,
+          latValue: firstWaypoint.lat,
+          lngValue: firstWaypoint.lng
+        });
+        
+        const lat = Number(firstWaypoint.lat);
+        const lng = Number(firstWaypoint.lng);
+        
+        // Enhanced coordinate validation 
+        const isValidLat = !isNaN(lat) && lat >= -90 && lat <= 90 && lat !== 0;
+        const isValidLng = !isNaN(lng) && lng >= -180 && lng <= 180 && lng !== 0;
+        
+        // Only accept coordinates that are clearly in Sweden/Europe region (lat: 55-70, lng: 10-25)
+        // This is a temporary fix to ensure we only zoom to realistic Swedish coordinates
+        const isInSweden = lat >= 50 && lat <= 70 && lng >= 5 && lng <= 30;
+        
+        if (!isValidLat || !isValidLng || !isInSweden) {
+          console.warn('🚨 [MapScreen] Invalid/non-Swedish coordinates for route:', route.id, route.name, {
+            lat,
+            lng,
+            validLat: isValidLat,
+            validLng: isValidLng,
+            isInSweden,
+            rawData: firstWaypoint
+          });
+          return null;
+        }
+        
+        console.log('✅ [MapScreen] Valid route coordinate:', route.name, { lat, lng });
+        return {
+          latitude: lat,
+          longitude: lng,
+        };
+      })
+      .filter((coord): coord is NonNullable<typeof coord> => coord !== null);
+    
+    console.log('📍 [MapScreen] Filtered coordinates count:', filteredCoordinates.length);
+    if (filteredCoordinates.length > 0) {
+      console.log('📍 [MapScreen] Sample coordinates:', filteredCoordinates.slice(0, 3));
+    }
+    
+    if (filteredCoordinates.length === 0) {
+      console.log('🚨 [MapScreen] No valid coordinates found, staying at current location');
+      return;
+    }
+    
+    if (filteredCoordinates.length === 1) {
+      // Single result - zoom to it
+      const coord = filteredCoordinates[0];
+      const newRegion = {
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      };
+      console.log('🔴 [MapScreen] Zooming to single result:', newRegion);
+      setRegion(newRegion);
+      mapRef.current.animateToRegion(newRegion, 1000);
+    } else {
+      // Multiple results - fit all
+      const lats = filteredCoordinates.map(c => c.latitude);
+      const lngs = filteredCoordinates.map(c => c.longitude);
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs);
+      const maxLng = Math.max(...lngs);
+      
+      const newRegion = {
+        latitude: (minLat + maxLat) / 2,
+        longitude: (minLng + maxLng) / 2,
+        latitudeDelta: Math.max(maxLat - minLat, 0.02) * 1.3, // Add padding
+        longitudeDelta: Math.max(maxLng - minLng, 0.02) * 1.3,
+      };
+      
+      console.log('🔴 [MapScreen] Multiple results region calculation:', {
+        coordinates: filteredCoordinates,
+        minLat, maxLat, minLng, maxLng,
+        finalRegion: newRegion
+      });
+      setRegion(newRegion);
+      mapRef.current.animateToRegion(newRegion, 1500);
+    }
+  }, [activeRoutes, mapRef]);
 
   // Handle filter selection
   const handleFilterPress = useCallback(
     (filter: FilterCategory) => {
+      console.log('🔴 [MapScreen] Filter pressed:', filter);
+      console.log('🔴 [MapScreen] Current filters before:', filters);
+      
       // Apply filter based on filter type
       const currentFilters = filters || {};
       const updatedFilters = { ...currentFilters };
@@ -290,33 +462,90 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
             ? updatedFilters.spotType.filter(v => v !== filter.value) 
             : [...(updatedFilters.spotType || []), filter.value];
           break;
-        // Add other filter types as needed
+        case 'category':
+          updatedFilters.category = updatedFilters.category?.includes(filter.value)
+            ? updatedFilters.category.filter(v => v !== filter.value)
+            : [...(updatedFilters.category || []), filter.value];
+          break;
+        case 'transmission_type':
+          updatedFilters.transmissionType = updatedFilters.transmissionType?.includes(filter.value)
+            ? updatedFilters.transmissionType.filter(v => v !== filter.value)
+            : [...(updatedFilters.transmissionType || []), filter.value];
+          break;
+        case 'activity_level':
+          updatedFilters.activityLevel = updatedFilters.activityLevel?.includes(filter.value)
+            ? updatedFilters.activityLevel.filter(v => v !== filter.value)
+            : [...(updatedFilters.activityLevel || []), filter.value];
+          break;
+        case 'best_season':
+          updatedFilters.bestSeason = updatedFilters.bestSeason?.includes(filter.value)
+            ? updatedFilters.bestSeason.filter(v => v !== filter.value)
+            : [...(updatedFilters.bestSeason || []), filter.value];
+          break;
+        case 'vehicle_types':
+          updatedFilters.vehicleTypes = updatedFilters.vehicleTypes?.includes(filter.value)
+            ? updatedFilters.vehicleTypes.filter(v => v !== filter.value)
+            : [...(updatedFilters.vehicleTypes || []), filter.value];
+          break;
         default:
+          console.log('🔴 [MapScreen] Unknown filter type:', filter.type);
           break;
       }
       
+      console.log('🔴 [MapScreen] Updated filters:', updatedFilters);
       setFilters(updatedFilters);
+      
+      // Auto-zoom to filtered results after a short delay
+      setTimeout(() => {
+        if (Object.keys(updatedFilters).length > 0) {
+          zoomToFilteredResults();
+        }
+      }, 100);
     },
-    [filters, setFilters],
+    [filters, setFilters, zoomToFilteredResults],
   );
 
   const handleLocateMe = useCallback(async () => {
     try {
+      setLocationLoading(true);
       // Check current permission status first
       const currentStatus = await Location.getForegroundPermissionsAsync();
       
       if (currentStatus.status === 'granted') {
         // Permission already granted, get location
-        const location = await Location.getCurrentPositionAsync({});
-        if (location && mapRef.current) {
-          mapRef.current.animateToRegion({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
+        console.log('📍 [MapScreen] Permission already granted, getting location...');
+        try {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          if (location && mapRef.current) {
+            const newRegion = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              latitudeDelta: 0.1,
+              longitudeDelta: 0.1,
+            };
+            console.log('📍 [MapScreen] Got user location:', newRegion);
+            setRegion(newRegion);
+            setOriginalRegion(newRegion); // Save as original location
+            mapRef.current.animateToRegion(newRegion, 1000);
+            return;
+          }
+        } catch (locationError) {
+          console.log('📍 [MapScreen] Location failed despite permission, using Lund fallback');
+          const fallbackRegion = {
+            latitude: 55.7047,
+            longitude: 13.1910,
             latitudeDelta: 0.1,
             longitudeDelta: 0.1,
-          });
+          };
+          setRegion(fallbackRegion);
+          setOriginalRegion(fallbackRegion);
+          if (mapRef.current) {
+            mapRef.current.animateToRegion(fallbackRegion, 1000);
+          }
+          return;
         }
-        return;
       }
       
       // Request permission - this shows the native dialog
@@ -324,29 +553,65 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       
       if (status === 'granted') {
         // Permission granted, get location
-        const location = await Location.getCurrentPositionAsync({});
-        if (location && mapRef.current) {
-          mapRef.current.animateToRegion({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
+        try {
+          const location = await Location.getCurrentPositionAsync({});
+          if (location && mapRef.current) {
+            const newRegion = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              latitudeDelta: 0.1,
+              longitudeDelta: 0.1,
+            };
+            setRegion(newRegion);
+            setOriginalRegion(newRegion);
+            mapRef.current.animateToRegion(newRegion, 1000);
+          }
+        } catch (locationError) {
+          console.log('📍 [MapScreen] Location failed after permission granted, using Lund fallback');
+          const fallbackRegion = {
+            latitude: 55.7047,
+            longitude: 13.1910,
             latitudeDelta: 0.1,
             longitudeDelta: 0.1,
-          });
+          };
+          setRegion(fallbackRegion);
+          setOriginalRegion(fallbackRegion);
+          if (mapRef.current) {
+            mapRef.current.animateToRegion(fallbackRegion, 1000);
+          }
         }
       } else {
-        // Permission denied, show helpful message
-        Alert.alert(
-          '📍 Location Permission Required',
-          'To use "Locate Me", please enable location access for this app in your device settings.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Try Again', onPress: handleLocateMe }
-          ]
-        );
+        // Permission denied, use Lund, Sweden as fallback (same as OnboardingInteractive)
+        console.log('📍 [MapScreen] Permission denied, using Lund fallback');
+        const fallbackRegion = {
+          latitude: 55.7047,
+          longitude: 13.1910,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+        };
+        setRegion(fallbackRegion);
+        setOriginalRegion(fallbackRegion);
+        if (mapRef.current) {
+          mapRef.current.animateToRegion(fallbackRegion, 1000);
+        }
       }
     } catch (err) {
       console.error('Error getting location:', err);
-      Alert.alert('Error', 'Unable to get your location. Please try again.');
+      // Use Lund, Sweden as fallback instead of showing error (same as OnboardingInteractive)
+      console.log('📍 [MapScreen] Location error, using Lund fallback');
+      const fallbackRegion = {
+        latitude: 55.7047,
+        longitude: 13.1910,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+      };
+      setRegion(fallbackRegion);
+      setOriginalRegion(fallbackRegion);
+      if (mapRef.current) {
+        mapRef.current.animateToRegion(fallbackRegion, 1000);
+      }
+    } finally {
+      setLocationLoading(false);
     }
   }, []);
 
@@ -355,6 +620,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     (filters: FilterOptions) => {
       console.log('[MapScreen] applying filters', filters);
       setFilters(filters);
+      setAppliedFilters(filters); // Update appliedFilters to keep FilterSheet in sync
       // When filters change, try to center to first matching route to give feedback
       try {
         const next = activeRoutes?.[0] || filteredRoutes?.[0] || routes?.[0];
@@ -371,6 +637,41 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     },
     [setFilters, activeRoutes, filteredRoutes, routes],
   );
+
+  // Handle expanding search area for smart suggestions
+  const handleExpandSearch = useCallback(async () => {
+    console.log('[MapScreen] expanding search area');
+    
+    try {
+      // Try to center on user's current location if available
+      if (userLocation?.coords) {
+        setRegion({
+          latitude: userLocation.coords.latitude,
+          longitude: userLocation.coords.longitude,
+          latitudeDelta: Math.min(region.latitudeDelta * 2, 1.0), // Double the search radius
+          longitudeDelta: Math.min(region.longitudeDelta * 2, 1.0),
+        });
+      } else {
+        // Fallback to just expanding current region
+        setRegion(prevRegion => ({
+          ...prevRegion,
+          latitudeDelta: Math.min(prevRegion.latitudeDelta * 2, 1.0),
+          longitudeDelta: Math.min(prevRegion.longitudeDelta * 2, 1.0),
+        }));
+      }
+    } catch (error) {
+      // If location fails, just expand current region
+      setRegion(prevRegion => ({
+        ...prevRegion,
+        latitudeDelta: Math.min(prevRegion.latitudeDelta * 2, 1.0),
+        longitudeDelta: Math.min(prevRegion.longitudeDelta * 2, 1.0),
+      }));
+    }
+    
+    // Clear any active filters to show more results
+    setFilters({});
+    setAppliedFilters({});
+  }, [setFilters, userLocation, region]);
 
   // Handle filter button press
   const handleFilterButtonPress = useCallback(() => {
@@ -395,19 +696,67 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
-      <SafeAreaView edges={['top']} style={{ zIndex: 1000 }}>
-        <View>
-          <AppHeader
+      <AppHeader
             onLocateMe={handleLocateMe}
             filters={availableFilters}
             onFilterPress={handleFilterPress}
             onFilterButtonPress={handleFilterButtonPress}
+            locationLoading={locationLoading}
+            activeFilters={(() => {
+              const activeFilterIds = filters ? availableFilters.filter(filter => {
+                let filterValue;
+                // Map filter types to FilterOptions keys
+                switch(filter.type) {
+                  case 'spot_type':
+                    filterValue = filters.spotType;
+                    break;
+                  case 'transmission_type':
+                    filterValue = filters.transmissionType;
+                    break;
+                  case 'activity_level':
+                    filterValue = filters.activityLevel;
+                    break;
+                  case 'best_season':
+                    filterValue = filters.bestSeason;
+                    break;
+                  case 'vehicle_types':
+                    filterValue = filters.vehicleTypes;
+                    break;
+                  default:
+                    filterValue = filters[filter.type as keyof FilterOptions];
+                }
+                
+                if (Array.isArray(filterValue)) {
+                  return filterValue.includes(filter.value);
+                }
+                return filterValue === filter.value;
+              }).map(filter => filter.id) : [];
+              console.log('🔴 [MapScreen] Active filter IDs:', activeFilterIds);
+              console.log('🔴 [MapScreen] Current filters:', filters);
+              return activeFilterIds;
+            })()}
+            filterCounts={availableFilters.reduce((acc, filter) => {
+              // Count how many routes have this filter value
+              const count = routes.filter(route => {
+                switch (filter.type) {
+                  case 'difficulty': return route.difficulty === filter.value;
+                  case 'spot_type': return route.spot_type === filter.value;
+                  case 'category': return route.category === filter.value;
+                  case 'transmission_type': return route.transmission_type === filter.value;
+                  case 'activity_level': return route.activity_level === filter.value;
+                  case 'best_season': return route.best_season === filter.value;
+                  case 'vehicle_types': return route.vehicle_types?.includes(filter.value);
+                  default: return false;
+                }
+              }).length;
+              acc[filter.id] = count;
+              return acc;
+            }, {} as Record<string, number>)}
+            hasActiveFilters={filters && Object.keys(filters).length > 0}
           />
-        </View>
-      </SafeAreaView>
       <View style={{ flex: 1 }}>
         <Map
-          waypoints={activeWaypoints}
+          waypoints={allWaypoints}
           region={region}
           onPress={handleMapPress}
           style={StyleSheet.absoluteFillObject}
@@ -415,12 +764,76 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           onMarkerPress={handleMarkerPress}
           ref={mapRef}
         />
+        
+        {/* Clear Filters Button */}
+        {filters && Object.keys(filters).some(key => {
+          const value = filters[key as keyof FilterOptions];
+          return Array.isArray(value) ? value.length > 0 : value;
+        }) && (
+          <View style={{
+            position: 'absolute',
+            top: 160, // Position below header chips
+            right: 16,
+            zIndex: 1000,
+          }}>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#00E6C3',
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 20,
+                flexDirection: 'row',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 4,
+                elevation: 5,
+              }}
+              onPress={async () => {
+                console.log('🔴 [MapScreen] Clear filters pressed - clearing all filters');
+                
+                // Clear local filters
+                setFilters({});
+                setAppliedFilters({});
+                setFilteredRoutes([]);
+                setActiveRoutes(routes);
+                
+                // Clear saved filters from AsyncStorage
+                try {
+                  await AsyncStorage.removeItem('saved_filters');
+                  console.log('🗑️ [MapScreen] Cleared saved filters from storage');
+                } catch (error) {
+                  console.error('❌ [MapScreen] Failed to clear saved filters:', error);
+                }
+                
+                // Return to original/user location
+                if (mapRef.current) {
+                  setRegion(originalRegion);
+                  mapRef.current.animateToRegion(originalRegion, 1000);
+                  console.log('🔄 [MapScreen] Returned to original location:', originalRegion);
+                }
+              }}
+            >
+              <Feather name="x" size={16} color="#000000" />
+              <Text style={{ color: '#000000', fontWeight: '600', marginLeft: 4, fontSize: 14 }}>
+                Clear filters
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
       {selectedRoute ? null : (
         <RoutesDrawer
           selectedRoute={selectedRoute}
           filteredRoutes={activeRoutes}
           loadRoutes={loadRoutes}
+          onClearFilters={() => {
+            setFilters({});
+            setAppliedFilters({});
+          }}
+          hasActiveFilters={filters && Object.keys(filters).length > 0}
+          onExpandSearch={handleExpandSearch}
   // ref={routesDrawerRef} // Disabled
         />
       )}

@@ -9,6 +9,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text, XStack, YStack, Slider, Button, Checkbox, Switch, SizableText } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -191,11 +192,22 @@ export function FilterSheet({
 
   // Reset filters
   const handleReset = React.useCallback(() => {
+    console.log('🔄 [FilterSheet] Reset button pressed - clearing all filters');
     setFilters({});
   }, []);
 
   // Apply filters and close sheet
-  const handleApply = React.useCallback(() => {
+  const handleApply = React.useCallback(async () => {
+    console.log('✅ [FilterSheet] Apply filters pressed with:', filters);
+    
+    // Save filters to AsyncStorage for persistence
+    try {
+      await AsyncStorage.setItem('saved_filters', JSON.stringify(filters));
+      console.log('💾 [FilterSheet] Saved filters to storage:', filters);
+    } catch (error) {
+      console.error('❌ [FilterSheet] Failed to save filters:', error);
+    }
+    
     onApplyFilters(filters);
     onClose();
   }, [onApplyFilters, filters, onClose]);
@@ -698,7 +710,17 @@ export function FilterSheetModal({
 
   // Handle apply filters and close
   const handleApply = React.useCallback(
-    (filters: FilterOptions) => {
+    async (filters: FilterOptions) => {
+      console.log('✅ [FilterSheetModal] Apply filters with:', filters);
+      
+      // Save filters to AsyncStorage for persistence
+      try {
+        await AsyncStorage.setItem('saved_filters', JSON.stringify(filters));
+        console.log('💾 [FilterSheetModal] Saved filters to storage:', filters);
+      } catch (error) {
+        console.error('❌ [FilterSheetModal] Failed to save filters:', error);
+      }
+      
       onApplyFilters(filters);
       hideModal();
     },

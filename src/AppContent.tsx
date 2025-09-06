@@ -156,7 +156,16 @@ function AuthenticatedAppContent() {
         component={CreateRouteScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="Search" 
+        component={SearchScreen} 
+        options={{ 
+          headerShown: false,
+          presentation: 'modal',
+          animationTypeForReplace: 'push',
+          animation: 'slide_from_bottom'
+        }} 
+      />
       <Stack.Screen name="AddReview" component={AddReviewScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="OnboardingDemo"

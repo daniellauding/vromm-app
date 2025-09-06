@@ -13,6 +13,7 @@ export type Waypoint = {
   description?: string;
   id?: string;
   onPress?: () => void;
+  isFiltered?: boolean;
 };
 
 export type RoutePathPoint = {
@@ -112,6 +113,12 @@ const WaypointMarker = React.memo(
         return '#3B82F6'; // Blue for middle waypoints
       }
       if (drawingMode === 'pen') return '#FF6B35'; // Orange for pen points
+      
+      // Check if this waypoint is in filtered results
+      if (cluster.properties.isFiltered !== undefined) {
+        return cluster.properties.isFiltered ? '#00E6C3' : '#666'; // Brand color for filtered, gray for unfiltered
+      }
+      
       return selectedPin === cluster.properties.id ? 'red' : 'coral';
     };
 
@@ -132,6 +139,12 @@ const WaypointMarker = React.memo(
         return 'blue';
       }
       if (drawingMode === 'pen') return 'orange';
+      
+      // Check if this waypoint is in filtered results
+      if (cluster.properties.isFiltered !== undefined) {
+        return cluster.properties.isFiltered ? 'blue' : 'orange'; // Blue for filtered, orange for unfiltered
+      }
+      
       return selectedPin === cluster.properties.id ? 'red' : 'orange';
     };
 

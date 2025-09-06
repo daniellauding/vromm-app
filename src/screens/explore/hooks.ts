@@ -4,28 +4,49 @@ import { FilterCategory } from '@/src/types/navigation';
 import { Route, WaypointData } from '@/src/types/route';
 import React from 'react';
 import * as Location from 'expo-location';
+import { useTranslation } from '../../contexts/TranslationContext';
 
-export const useWaypoints = (routes: Route[]): Waypoint[] => {
+export const useWaypoints = (routes: Route[], activeRoutes?: Route[]): Waypoint[] => {
   const getAllWaypoints = React.useMemo(() => {
-    console.log('🗺️ getAllWaypoints', routes.length);
-    return routes
+    console.log('🗺️ useWaypoints: total routes', routes.length, 'active routes', activeRoutes?.length);
+    
+    // Only show waypoints from activeRoutes, not all routes
+    const routesToShow = activeRoutes || routes;
+    
+    const waypoints = routesToShow
       .map((route) => {
         const waypointsData = (route.waypoint_details ||
           route.metadata?.waypoints ||
           []) as WaypointData[];
         const firstWaypoint = waypointsData[0];
-        if (!firstWaypoint) return null;
+        if (!firstWaypoint) {
+          console.log('🚨 No waypoint for route:', route.name, route.id);
+          return null;
+        }
+
+        const lat = Number(firstWaypoint.lat);
+        const lng = Number(firstWaypoint.lng);
+        
+        // Validate coordinates before adding waypoint
+        if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+          console.warn('🚨 Invalid coordinates for route:', route.name, { lat, lng });
+          return null;
+        }
 
         return {
-          latitude: Number(firstWaypoint.lat),
-          longitude: Number(firstWaypoint.lng),
+          latitude: lat,
+          longitude: lng,
           title: route.name,
           description: route.description || undefined,
           id: route.id,
+          isFiltered: true, // All waypoints shown are from active/filtered routes
         };
       })
       .filter((wp): wp is NonNullable<typeof wp> => wp !== null);
-  }, [routes]);
+      
+    console.log('🗺️ Final waypoints count:', waypoints.length);
+    return waypoints;
+  }, [routes, activeRoutes]);
 
   return getAllWaypoints;
 };
@@ -124,6 +145,8 @@ export const useActiveRoutes = (
 };
 
 export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
+  const { t } = useTranslation();
+  
   // Extract filters from routes
   return React.useMemo(() => {
     const filterMap: Record<string, FilterCategory> = {};
@@ -133,7 +156,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.difficulty) {
         filterMap[`difficulty-${route.difficulty}`] = {
           id: `difficulty-${route.difficulty}`,
-          label: route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
+          label: t(`filters.difficulty.${route.difficulty}`) || route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
           value: route.difficulty,
           type: 'difficulty',
         };
@@ -143,7 +166,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.spot_type) {
         filterMap[`spot-${route.spot_type}`] = {
           id: `spot-${route.spot_type}`,
-          label:
+          label: t(`filters.spotType.${route.spot_type}`) || 
             route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
           value: route.spot_type,
           type: 'spot_type',
@@ -154,7 +177,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.category) {
         filterMap[`category-${route.category}`] = {
           id: `category-${route.category}`,
-          label:
+          label: t(`filters.category.${route.category}`) ||
             route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
           value: route.category,
           type: 'category',
@@ -165,7 +188,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.transmission_type) {
         filterMap[`transmission-${route.transmission_type}`] = {
           id: `transmission-${route.transmission_type}`,
-          label:
+          label: t(`filters.transmissionType.${route.transmission_type}`) ||
             route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() +
             route.transmission_type.slice(1),
           value: route.transmission_type,
@@ -177,7 +200,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.activity_level) {
         filterMap[`activity-${route.activity_level}`] = {
           id: `activity-${route.activity_level}`,
-          label:
+          label: t(`filters.activityLevel.${route.activity_level}`) ||
             route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() +
             route.activity_level.slice(1),
           value: route.activity_level,
@@ -189,7 +212,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.best_season) {
         filterMap[`season-${route.best_season}`] = {
           id: `season-${route.best_season}`,
-          label:
+          label: t(`filters.bestSeason.${route.best_season}`) ||
             route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() +
             route.best_season.slice(1),
           value: route.best_season,
@@ -202,7 +225,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
         route.vehicle_types.forEach((type) => {
           filterMap[`vehicle-${type}`] = {
             id: `vehicle-${type}`,
-            label: type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
+            label: t(`filters.vehicleTypes.${type}`) || type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
             value: type,
             type: 'vehicle_types',
           };
@@ -211,7 +234,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
     });
 
     return Object.values(filterMap);
-  }, [routes]);
+  }, [routes, t]);
 };
 
 export const useUserLocation = () => {
