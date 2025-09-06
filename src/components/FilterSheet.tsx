@@ -1,22 +1,36 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
-  useColorScheme,
   TouchableOpacity,
   Dimensions,
   ScrollView,
   Animated,
   Platform,
-  TextInput,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Text, XStack, YStack, Slider, Button, Checkbox, Switch, SizableText, Input } from 'tamagui';
+import { Text, XStack, YStack, Slider, Button, SizableText, Input } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
-import { useNavigation } from '@react-navigation/native';
-import * as Location from 'expo-location';
+
+// Route type definition
+type Route = {
+  id: string;
+  difficulty?: string;
+  spot_type?: string;
+  category?: string;
+  transmission_type?: string;
+  activity_level?: string;
+  best_season?: string;
+  vehicle_types?: string[];
+  suggested_exercises?: string | unknown[];
+  media_attachments?: string | unknown[];
+  is_verified?: boolean;
+  average_rating?: number;
+  drawing_mode?: string;
+  description?: string;
+};
 
 export type FilterOptions = {
   difficulty?: string[];
@@ -49,7 +63,7 @@ interface FilterSheetProps {
   onClose: () => void;
   onApplyFilters: (filters: FilterOptions) => void;
   routeCount: number;
-  routes?: any[]; // Full list of routes to calculate filtered count
+  routes?: Route[]; // Full list of routes to calculate filtered count
   initialFilters?: FilterOptions;
   onSearchResultSelect?: (result: SearchResult) => void;
   onNearMePress?: () => void; // Callback to trigger MapScreen locate animation
@@ -144,7 +158,8 @@ const styles = StyleSheet.create({
   },
 });
 
-const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
+const MAPBOX_ACCESS_TOKEN =
+  'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
 
 // Popular Swedish cities for quick selection
 const POPULAR_CITIES = [
@@ -170,9 +185,8 @@ export function FilterSheet({
   onSearchResultSelect,
   onNearMePress,
 }: FilterSheetProps) {
-  if (!isVisible) return null;
   const { t } = useTranslation();
-  
+
   // Force dark theme
   const backgroundColor = '#1A1A1A';
   const textColor = 'white';
@@ -180,7 +194,7 @@ export function FilterSheet({
   const handleColor = '#666';
 
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -189,54 +203,99 @@ export function FilterSheet({
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Calculate filtered route count based on current filters
-  const calculateFilteredCount = useCallback(() => {
-    if (!routes || routes.length === 0) return routeCount;
-    
+  const filteredCount = useMemo(() => {
+    console.log('🔢 [FilterSheet] Calculating filtered count with filters:', filters);
+    console.log('🔢 [FilterSheet] Routes available:', routes?.length || 0);
+
+    if (!routes || routes.length === 0) {
+      console.log('🔢 [FilterSheet] No routes available, returning routeCount:', routeCount);
+      return routeCount;
+    }
+
+    // Check if any filters are actually applied (excluding sort since it doesn't filter, just reorders)
+    const hasActiveFilters = 
+      (filters.difficulty?.length ?? 0) > 0 ||
+      (filters.spotType?.length ?? 0) > 0 ||
+      (filters.category?.length ?? 0) > 0 ||
+      (filters.transmissionType?.length ?? 0) > 0 ||
+      (filters.activityLevel?.length ?? 0) > 0 ||
+      (filters.bestSeason?.length ?? 0) > 0 ||
+      (filters.vehicleTypes?.length ?? 0) > 0 ||
+      (filters.routeType?.length ?? 0) > 0 ||
+      filters.hasExercises ||
+      filters.hasMedia ||
+      filters.isVerified ||
+      (filters.minRating !== undefined && filters.minRating > 0);
+
+    console.log('🔢 [FilterSheet] Has active filters:', hasActiveFilters);
+
+    // If no filters are applied, return the total route count
+    if (!hasActiveFilters) {
+      console.log('🔢 [FilterSheet] No active filters, returning total routes:', routes.length);
+      return routes.length;
+    }
+
     let filtered = [...routes];
+    console.log('🔢 [FilterSheet] Starting with', filtered.length, 'routes');
 
     // Apply difficulty filter
     if (filters.difficulty?.length) {
+      const before = filtered.length;
       filtered = filtered.filter((route) => filters.difficulty?.includes(route.difficulty || ''));
+      console.log('🔢 [FilterSheet] Difficulty filter:', before, '->', filtered.length);
     }
 
     // Apply spot type filter
     if (filters.spotType?.length) {
+      const before = filtered.length;
       filtered = filtered.filter((route) => filters.spotType?.includes(route.spot_type || ''));
+      console.log('🔢 [FilterSheet] Spot type filter:', before, '->', filtered.length);
     }
 
     // Apply category filter
     if (filters.category?.length) {
+      const before = filtered.length;
       filtered = filtered.filter((route) => filters.category?.includes(route.category || ''));
+      console.log('🔢 [FilterSheet] Category filter:', before, '->', filtered.length);
     }
 
     // Apply transmission type filter
     if (filters.transmissionType?.length) {
+      const before = filtered.length;
       filtered = filtered.filter((route) =>
         filters.transmissionType?.includes(route.transmission_type || ''),
       );
+      console.log('🔢 [FilterSheet] Transmission filter:', before, '->', filtered.length);
     }
 
     // Apply activity level filter
     if (filters.activityLevel?.length) {
+      const before = filtered.length;
       filtered = filtered.filter((route) =>
         filters.activityLevel?.includes(route.activity_level || ''),
       );
+      console.log('🔢 [FilterSheet] Activity level filter:', before, '->', filtered.length);
     }
 
     // Apply best season filter
     if (filters.bestSeason?.length) {
+      const before = filtered.length;
       filtered = filtered.filter((route) => filters.bestSeason?.includes(route.best_season || ''));
+      console.log('🔢 [FilterSheet] Best season filter:', before, '->', filtered.length);
     }
 
     // Apply vehicle types filter
     if (filters.vehicleTypes?.length) {
+      const before = filtered.length;
       filtered = filtered.filter((route) =>
         route.vehicle_types?.some((type: string) => filters.vehicleTypes?.includes(type)),
       );
+      console.log('🔢 [FilterSheet] Vehicle types filter:', before, '->', filtered.length);
     }
 
     // Apply has exercises filter
     if (filters.hasExercises) {
+      const before = filtered.length;
       filtered = filtered.filter((route) => {
         if (route.suggested_exercises) {
           try {
@@ -250,18 +309,20 @@ export function FilterSheet({
         }
         return false;
       });
+      console.log('🔢 [FilterSheet] Has exercises filter:', before, '->', filtered.length);
     }
 
     // Apply has media filter
     if (filters.hasMedia) {
+      const before = filtered.length;
       filtered = filtered.filter((route) => {
         if (route.media_attachments) {
           try {
             const media = Array.isArray(route.media_attachments)
               ? route.media_attachments
               : typeof route.media_attachments === 'string'
-              ? JSON.parse(route.media_attachments)
-              : [];
+                ? JSON.parse(route.media_attachments)
+                : [];
             return Array.isArray(media) && media.length > 0;
           } catch {
             return false;
@@ -269,29 +330,37 @@ export function FilterSheet({
         }
         return false;
       });
+      console.log('🔢 [FilterSheet] Has media filter:', before, '->', filtered.length);
     }
 
     // Apply verified filter
     if (filters.isVerified) {
+      const before = filtered.length;
       filtered = filtered.filter((route) => route.is_verified === true);
+      console.log('🔢 [FilterSheet] Verified filter:', before, '->', filtered.length);
     }
 
     // Apply minimum rating filter
     if (filters.minRating !== undefined && filters.minRating > 0) {
+      const before = filtered.length;
       filtered = filtered.filter((route) => {
         if (!route.average_rating) return false;
-        return route.average_rating >= filters.minRating;
+        return route.average_rating >= (filters.minRating || 0);
       });
+      console.log('🔢 [FilterSheet] Min rating filter:', before, '->', filtered.length);
     }
 
     // Apply route type filter
     if (filters.routeType?.length) {
+      const before = filtered.length;
       filtered = filtered.filter((route) => {
         if (filters.routeType?.includes('recorded')) {
-          if (route.drawing_mode === 'record' || 
-              route.description?.includes('Recorded drive') ||
-              route.description?.includes('Distance:') ||
-              route.description?.includes('Duration:')) {
+          if (
+            route.drawing_mode === 'record' ||
+            route.description?.includes('Recorded drive') ||
+            route.description?.includes('Distance:') ||
+            route.description?.includes('Duration:')
+          ) {
             return true;
           }
         }
@@ -303,12 +372,17 @@ export function FilterSheet({
         }
         return false;
       });
+      console.log('🔢 [FilterSheet] Route type filter:', before, '->', filtered.length);
     }
 
+    // Apply sort filter (doesn't affect count, just ordering)
+    if (filters.sort) {
+      console.log('🔢 [FilterSheet] Sort filter applied:', filters.sort);
+    }
+
+    console.log('🔢 [FilterSheet] Final filtered count:', filtered.length);
     return filtered.length;
   }, [filters, routes, routeCount]);
-
-  const filteredCount = calculateFilteredCount();
 
   // Animation values
   const translateY = useRef(new Animated.Value(screenHeight)).current;
@@ -366,7 +440,7 @@ export function FilterSheet({
   // Apply filters and close sheet
   const handleApply = React.useCallback(async () => {
     console.log('✅ [FilterSheet] Apply filters pressed with:', filters);
-    
+
     // Save filters to AsyncStorage for persistence
     try {
       await AsyncStorage.setItem('saved_filters', JSON.stringify(filters));
@@ -374,7 +448,7 @@ export function FilterSheet({
     } catch (error) {
       console.error('❌ [FilterSheet] Failed to save filters:', error);
     }
-    
+
     onApplyFilters(filters);
     onClose();
   }, [onApplyFilters, filters, onClose]);
@@ -409,12 +483,23 @@ export function FilterSheet({
   };
 
   // Set single value filter
-  const setSingleFilter = React.useCallback((type: keyof FilterOptions, value: string | number) => {
-    setFilters((prev) => ({
-      ...prev,
-      [type]: value,
-    }));
-  }, []);
+  const setSingleFilter = React.useCallback(
+    (type: keyof FilterOptions, value: string | number | boolean | undefined) => {
+      setFilters((prev) => {
+        if (value === undefined) {
+          // Remove the property by destructuring it out
+          const newFilters = { ...prev };
+          delete newFilters[type];
+          return newFilters;
+        }
+        return {
+          ...prev,
+          [type]: value,
+        };
+      });
+    },
+    [],
+  );
 
   // Check if a filter chip is selected
   const isSelected = React.useCallback(
@@ -471,77 +556,82 @@ export function FilterSheet({
   }, []);
 
   // Handle search result selection
-  const handleResultSelect = React.useCallback((result: SearchResult) => {
-    console.log('🔍 [FilterSheet] Search result selected:', result);
-    
-    if (onSearchResultSelect) {
-      onSearchResultSelect(result);
-    }
-    
-    // Clear the search query and results after selection
-    setSearchQuery('');
-    setSearchResults([]);
-    
-    onClose(); // Close the filter sheet
-  }, [onSearchResultSelect, onClose]);
+  const handleResultSelect = React.useCallback(
+    (result: SearchResult) => {
+      console.log('🔍 [FilterSheet] Search result selected:', result);
 
-  // Handle city selection from popular cities
-  const handleCitySelect = React.useCallback((city: string, country: string) => {
-    const query = `${city}, ${country}`;
-    
-    // Clear search query immediately when selecting a city
-    setSearchQuery('');
-    setSearchResults([]);
-
-    // Manually trigger search
-    setTimeout(() => {
-      if (searchTimeout.current) {
-        clearTimeout(searchTimeout.current);
+      if (onSearchResultSelect) {
+        onSearchResultSelect(result);
       }
 
-      setIsSearching(true);
-      fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-          query,
-        )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality&language=en`,
-      )
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then((data) => {
-          if (data.features && data.features.length > 0) {
-            handleResultSelect(data.features[0]);
-          }
-        })
-        .catch((error) => {
-          console.error('Error selecting city:', error);
-        })
-        .finally(() => {
-          setIsSearching(false);
-        });
-    }, 100);
-  }, [handleResultSelect]);
+      // Clear the search query and results after selection
+      setSearchQuery('');
+      setSearchResults([]);
+
+      onClose(); // Close the filter sheet
+    },
+    [onSearchResultSelect, onClose],
+  );
+
+  // Handle city selection from popular cities
+  const handleCitySelect = React.useCallback(
+    (city: string, country: string) => {
+      const query = `${city}, ${country}`;
+
+      // Clear search query immediately when selecting a city
+      setSearchQuery('');
+      setSearchResults([]);
+
+      // Manually trigger search
+      setTimeout(() => {
+        if (searchTimeout.current) {
+          clearTimeout(searchTimeout.current);
+        }
+
+        setIsSearching(true);
+        fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+            query,
+          )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality&language=en`,
+        )
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            if (data.features && data.features.length > 0) {
+              handleResultSelect(data.features[0]);
+            }
+          })
+          .catch((error) => {
+            console.error('Error selecting city:', error);
+          })
+          .finally(() => {
+            setIsSearching(false);
+          });
+      }, 100);
+    },
+    [handleResultSelect],
+  );
 
   // Handle Near Me functionality
   const handleNearMe = React.useCallback(async () => {
     try {
       setIsLocating(true);
-      
+
       // Trigger MapScreen locate animation if callback provided
       if (onNearMePress) {
         onNearMePress();
       }
-      
+
       // Close the filter sheet immediately and let MapScreen handle the location
       onClose();
-      
+
       // Clear search state
       setSearchQuery('');
       setSearchResults([]);
-      
     } catch (error) {
       console.error('Error in handleNearMe:', error);
     } finally {
@@ -600,7 +690,7 @@ export function FilterSheet({
             <SizableText fontWeight="600" style={styles.sectionTitle}>
               {t('search.title') || 'Search'}
             </SizableText>
-            
+
             {/* Search Input */}
             <XStack alignItems="center" gap="$2" marginBottom="$3">
               <Input
@@ -689,18 +779,27 @@ export function FilterSheet({
                     <Animated.View
                       style={{
                         marginRight: 12,
-                        transform: [{
-                          rotate: '45deg' // Static rotation for navigation icon during loading
-                        }]
+                        transform: [
+                          {
+                            rotate: '45deg', // Static rotation for navigation icon during loading
+                          },
+                        ],
                       }}
                     >
                       <Feather name="navigation" size={20} color={textColor} />
                     </Animated.View>
                   ) : (
-                    <Feather name="navigation" size={20} color={textColor} style={{ marginRight: 12 }} />
+                    <Feather
+                      name="navigation"
+                      size={20}
+                      color={textColor}
+                      style={{ marginRight: 12 }}
+                    />
                   )}
                   <Text color={textColor} fontWeight="500">
-                    {isLocating ? (t('search.locating') || 'Locating...') : (t('search.nearMe') || 'Near Me')}
+                    {isLocating
+                      ? t('search.locating') || 'Locating...'
+                      : t('search.nearMe') || 'Near Me'}
                   </Text>
                 </TouchableOpacity>
 
@@ -721,9 +820,7 @@ export function FilterSheet({
                         },
                       ]}
                     >
-                      <Text style={[styles.chipText, { color: textColor }]}>
-                        {city.name}
-                      </Text>
+                      <Text style={[styles.chipText, { color: textColor }]}>{city.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -1048,7 +1145,12 @@ export function FilterSheet({
                         filters.experienceLevel === level ? '#00E6C3' : 'transparent',
                     },
                   ]}
-                  onPress={() => setSingleFilter('experienceLevel', filters.experienceLevel === level ? undefined : level)}
+                  onPress={() =>
+                    setSingleFilter(
+                      'experienceLevel',
+                      filters.experienceLevel === level ? undefined : level,
+                    )
+                  }
                 >
                   <Text
                     style={[
@@ -1081,13 +1183,15 @@ export function FilterSheet({
                     backgroundColor: filters.hasExercises ? '#00E6C3' : 'transparent',
                   },
                 ]}
-                onPress={() => setSingleFilter('hasExercises', filters.hasExercises ? undefined : true)}
+                onPress={() =>
+                  setSingleFilter('hasExercises', filters.hasExercises ? undefined : true)
+                }
               >
                 <XStack alignItems="center" gap="$1">
-                  <Feather 
-                    name="activity" 
-                    size={14} 
-                    color={filters.hasExercises ? '#000000' : textColor} 
+                  <Feather
+                    name="activity"
+                    size={14}
+                    color={filters.hasExercises ? '#000000' : textColor}
                   />
                   <Text
                     style={[
@@ -1115,10 +1219,10 @@ export function FilterSheet({
                 onPress={() => setSingleFilter('hasMedia', filters.hasMedia ? undefined : true)}
               >
                 <XStack alignItems="center" gap="$1">
-                  <Feather 
-                    name="image" 
-                    size={14} 
-                    color={filters.hasMedia ? '#000000' : textColor} 
+                  <Feather
+                    name="image"
+                    size={14}
+                    color={filters.hasMedia ? '#000000' : textColor}
                   />
                   <Text
                     style={[
@@ -1146,10 +1250,10 @@ export function FilterSheet({
                 onPress={() => setSingleFilter('isVerified', filters.isVerified ? undefined : true)}
               >
                 <XStack alignItems="center" gap="$1">
-                  <Feather 
-                    name="check-circle" 
-                    size={14} 
-                    color={filters.isVerified ? '#000000' : textColor} 
+                  <Feather
+                    name="check-circle"
+                    size={14}
+                    color={filters.isVerified ? '#000000' : textColor}
                   />
                   <Text
                     style={[
@@ -1180,16 +1284,20 @@ export function FilterSheet({
                     styles.filterChip,
                     {
                       borderColor,
-                      backgroundColor: filters.routeType?.includes(type) ? '#00E6C3' : 'transparent',
+                      backgroundColor: filters.routeType?.includes(type)
+                        ? '#00E6C3'
+                        : 'transparent',
                     },
                   ]}
                   onPress={() => toggleFilter('routeType', type)}
                 >
                   <XStack alignItems="center" gap="$1">
-                    <Feather 
-                      name={type === 'recorded' ? 'navigation' : type === 'pen' ? 'edit-3' : 'map-pin'} 
-                      size={14} 
-                      color={filters.routeType?.includes(type) ? '#000000' : textColor} 
+                    <Feather
+                      name={
+                        type === 'recorded' ? 'navigation' : type === 'pen' ? 'edit-3' : 'map-pin'
+                      }
+                      size={14}
+                      color={filters.routeType?.includes(type) ? '#000000' : textColor}
                     />
                     <Text
                       style={[
@@ -1224,13 +1332,15 @@ export function FilterSheet({
                       backgroundColor: filters.minRating === rating ? '#00E6C3' : 'transparent',
                     },
                   ]}
-                  onPress={() => setSingleFilter('minRating', filters.minRating === rating ? undefined : rating)}
+                  onPress={() =>
+                    setSingleFilter('minRating', filters.minRating === rating ? undefined : rating)
+                  }
                 >
                   <XStack alignItems="center" gap="$1">
-                    <Feather 
-                      name="star" 
-                      size={14} 
-                      color={filters.minRating === rating ? '#000000' : textColor} 
+                    <Feather
+                      name="star"
+                      size={14}
+                      color={filters.minRating === rating ? '#000000' : textColor}
                     />
                     <Text
                       style={[
@@ -1334,7 +1444,7 @@ export function FilterSheetModal({
   const handleApply = React.useCallback(
     async (filters: FilterOptions) => {
       console.log('✅ [FilterSheetModal] Apply filters with:', filters);
-      
+
       // Save filters to AsyncStorage for persistence
       try {
         await AsyncStorage.setItem('saved_filters', JSON.stringify(filters));
@@ -1342,7 +1452,7 @@ export function FilterSheetModal({
       } catch (error) {
         console.error('❌ [FilterSheetModal] Failed to save filters:', error);
       }
-      
+
       onApplyFilters(filters);
       hideModal();
     },

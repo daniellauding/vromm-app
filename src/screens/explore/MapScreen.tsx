@@ -808,22 +808,26 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           <View style={{
             position: 'absolute',
             top: 160, // Position below header chips
-            right: 16,
+            left: 0,
+            right: 0,
+            alignItems: 'center',
             zIndex: 1000,
           }}>
             <TouchableOpacity
               style={{
-                backgroundColor: '#00E6C3',
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 20,
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 22,
                 flexDirection: 'row',
                 alignItems: 'center',
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.25,
-                shadowRadius: 4,
-                elevation: 5,
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                elevation: 4,
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.1)',
               }}
               onPress={async () => {
                 console.log('🔴 [MapScreen] Clear filters pressed - clearing all filters');
@@ -850,8 +854,8 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                 }
               }}
             >
-              <Feather name="x" size={16} color="#000000" />
-              <Text style={{ color: '#000000', fontWeight: '600', marginLeft: 4, fontSize: 14 }}>
+              <Feather name="x" size={16} color="rgba(255, 255, 255, 0.9)" />
+              <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: '600', marginLeft: 6, fontSize: 14 }}>
                 Clear filters
               </Text>
             </TouchableOpacity>
