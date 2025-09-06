@@ -212,7 +212,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   );
 
   const handleLocationSelect = useCallback(
-    (result: SearchResult) => {
+    async (result: SearchResult) => {
       console.log('🗺️ [MapScreen] handleLocationSelect called with:', {
         result,
         center: result?.center,
@@ -290,6 +290,19 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         console.log('🗺️ [MapScreen] Filtered routes by location:', filteredByLocation.length, 'out of', routes.length);
         setFilteredRoutes(filteredByLocation);
 
+        // Clear filters when using search results to show all routes in the area
+        console.log('🗺️ [MapScreen] Clearing filters due to location selection');
+        setFilters({});
+        setAppliedFilters({});
+        
+        // Clear saved filters from AsyncStorage
+        try {
+          await AsyncStorage.removeItem('saved_filters');
+          console.log('🗑️ [MapScreen] Cleared saved filters from storage due to location selection');
+        } catch (error) {
+          console.error('❌ [MapScreen] Failed to clear saved filters due to location selection:', error);
+        }
+        
         // Collapse bottom sheet to show more of the map
         // snapTo(snapPoints.collapsed);
       } catch (error: unknown) {
@@ -306,36 +319,48 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
   // React to navigation from SearchScreen: center map on selectedLocation
   useEffect(() => {
-    console.log('🗺️ [MapScreen] Route params changed:', {
-      hasParams: !!route?.params,
-      selectedLocation: route?.params?.selectedLocation,
-      fromSearch: route?.params?.fromSearch,
-      ts: route?.params?.ts,
-      fullParams: route?.params
-    });
-    
-    const selected = route?.params?.selectedLocation as SearchResult | undefined;
-    const fromSearch = (route?.params as any)?.fromSearch;
-    const ts = (route?.params as any)?.ts;
-    
-    if (selected && selected.center?.length === 2) {
-      console.log('🗺️ [MapScreen] Processing selectedLocation from Search:', {
-        id: selected.id,
-        place: selected.place_name,
-        center: selected.center,
-        fromSearch,
-        ts,
+    const handleRouteParams = async () => {
+      console.log('🗺️ [MapScreen] Route params changed:', {
+        hasParams: !!route?.params,
+        selectedLocation: route?.params?.selectedLocation,
+        fromSearch: route?.params?.fromSearch,
+        ts: route?.params?.ts,
+        fullParams: route?.params
       });
       
-      // Clear any existing filters when navigating from search
-      console.log('🗺️ [MapScreen] Clearing filters due to search navigation');
-      setFilters({});
-      setAppliedFilters({});
+      const selected = route?.params?.selectedLocation as SearchResult | undefined;
+      const fromSearch = (route?.params as any)?.fromSearch;
+      const ts = (route?.params as any)?.ts;
       
-      handleLocationSelect(selected);
-    } else if (selected) {
-      console.log('🗺️ [MapScreen] Invalid selectedLocation data:', selected);
-    }
+      if (selected && selected.center?.length === 2) {
+        console.log('🗺️ [MapScreen] Processing selectedLocation from Search:', {
+          id: selected.id,
+          place: selected.place_name,
+          center: selected.center,
+          fromSearch,
+          ts,
+        });
+        
+        // Clear any existing filters when navigating from search
+        console.log('🗺️ [MapScreen] Clearing filters due to search navigation');
+        setFilters({});
+        setAppliedFilters({});
+        
+        // Clear saved filters from AsyncStorage
+        try {
+          await AsyncStorage.removeItem('saved_filters');
+          console.log('🗑️ [MapScreen] Cleared saved filters from storage due to search');
+        } catch (error) {
+          console.error('❌ [MapScreen] Failed to clear saved filters due to search:', error);
+        }
+        
+        handleLocationSelect(selected);
+      } else if (selected) {
+        console.log('🗺️ [MapScreen] Invalid selectedLocation data:', selected);
+      }
+    };
+    
+    handleRouteParams();
   }, [route?.params?.selectedLocation, route?.params?.fromSearch, route?.params?.ts, handleLocationSelect, setFilters]);
 
   // Function to zoom to show filtered results
@@ -508,6 +533,22 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const handleLocateMe = useCallback(async () => {
     try {
       setLocationLoading(true);
+      
+      // Clear filters when locating user
+      console.log('📍 [MapScreen] Clearing filters on locate me');
+      setFilters({});
+      setAppliedFilters({});
+      setFilteredRoutes([]);
+      setActiveRoutes(routes);
+      
+      // Clear saved filters from AsyncStorage
+      try {
+        await AsyncStorage.removeItem('saved_filters');
+        console.log('🗑️ [MapScreen] Cleared saved filters from storage on locate me');
+      } catch (error) {
+        console.error('❌ [MapScreen] Failed to clear saved filters on locate me:', error);
+      }
+      
       // Check current permission status first
       const currentStatus = await Location.getForegroundPermissionsAsync();
       
@@ -613,7 +654,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     } finally {
       setLocationLoading(false);
     }
-  }, []);
+  }, [setFilters, routes, setActiveRoutes]);
 
   // Apply filters from the filter sheet
   const handleApplyFilters = useCallback(
@@ -621,21 +662,14 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       console.log('[MapScreen] applying filters', filters);
       setFilters(filters);
       setAppliedFilters(filters); // Update appliedFilters to keep FilterSheet in sync
-      // When filters change, try to center to first matching route to give feedback
-      try {
-        const next = activeRoutes?.[0] || filteredRoutes?.[0] || routes?.[0];
-        const firstWp = next?.waypoint_details?.[0] || next?.metadata?.waypoints?.[0];
-        if (firstWp && typeof firstWp.lat === 'number' && typeof firstWp.lng === 'number') {
-          setRegion({
-            latitude: firstWp.lat,
-            longitude: firstWp.lng,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          });
-        }
-      } catch {}
+      
+      // Zoom to filtered results after filters are applied
+      // Use setTimeout to ensure state updates have propagated
+      setTimeout(() => {
+        zoomToFilteredResults();
+      }, 100);
     },
-    [setFilters, activeRoutes, filteredRoutes, routes],
+    [setFilters, zoomToFilteredResults],
   );
 
   // Handle expanding search area for smart suggestions
@@ -678,11 +712,14 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     showModal(
       <FilterSheetModal
         onApplyFilters={handleApplyFilters}
-        routeCount={filteredRoutes.length}
+        routeCount={activeRoutes.length}
+        routes={routes}
         initialFilters={appliedFilters}
+        onSearchResultSelect={handleLocationSelect}
+        onNearMePress={handleLocateMe}
       />,
     );
-  }, [showModal, handleApplyFilters, filteredRoutes.length, appliedFilters]);
+  }, [showModal, handleApplyFilters, activeRoutes.length, routes, appliedFilters, handleLocationSelect, handleLocateMe]);
 
   if (!isMapReady) {
     return (
@@ -697,11 +734,9 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
       <AppHeader
-            onLocateMe={handleLocateMe}
+            onSearchFilterPress={handleFilterButtonPress}
             filters={availableFilters}
             onFilterPress={handleFilterPress}
-            onFilterButtonPress={handleFilterButtonPress}
-            locationLoading={locationLoading}
             activeFilters={(() => {
               const activeFilterIds = filters ? availableFilters.filter(filter => {
                 let filterValue;
@@ -822,6 +857,51 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Locate Me Button - Bottom Right */}
+        <View style={{
+          position: 'absolute',
+          bottom: 160, // Position above routes drawer
+          right: 16,
+          zIndex: 1000,
+        }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: locationLoading ? 'rgba(26, 26, 26, 0.9)' : 'rgba(26, 26, 26, 0.85)',
+              borderRadius: 25,
+              width: 50,
+              height: 50,
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 4,
+              elevation: 5,
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+            }}
+            onPress={handleLocateMe}
+            disabled={locationLoading}
+          >
+            {locationLoading ? (
+              <Animated.View
+                style={{
+                  transform: [{
+                    rotate: spinValue.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0deg', '360deg']
+                    })
+                  }]
+                }}
+              >
+                <Feather name="loader" size={20} color="white" />
+              </Animated.View>
+            ) : (
+              <Feather name="navigation" size={20} color="white" />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
       {selectedRoute ? null : (
         <RoutesDrawer

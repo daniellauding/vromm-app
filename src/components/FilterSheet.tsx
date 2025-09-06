@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,12 +8,15 @@ import {
   ScrollView,
   Animated,
   Platform,
+  TextInput,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Text, XStack, YStack, Slider, Button, Checkbox, Switch, SizableText } from 'tamagui';
+import { Text, XStack, YStack, Slider, Button, Checkbox, Switch, SizableText, Input } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
+import { useNavigation } from '@react-navigation/native';
+import * as Location from 'expo-location';
 
 export type FilterOptions = {
   difficulty?: string[];
@@ -24,6 +27,11 @@ export type FilterOptions = {
   bestSeason?: string[];
   vehicleTypes?: string[];
   maxDistance?: number;
+  hasExercises?: boolean;
+  hasMedia?: boolean;
+  isVerified?: boolean;
+  minRating?: number;
+  routeType?: string[]; // 'recorded' | 'drawn' | 'waypoint' | 'pen'
   sort?:
     | 'best_match'
     | 'most_popular'
@@ -41,8 +49,18 @@ interface FilterSheetProps {
   onClose: () => void;
   onApplyFilters: (filters: FilterOptions) => void;
   routeCount: number;
+  routes?: any[]; // Full list of routes to calculate filtered count
   initialFilters?: FilterOptions;
+  onSearchResultSelect?: (result: SearchResult) => void;
+  onNearMePress?: () => void; // Callback to trigger MapScreen locate animation
 }
+
+type SearchResult = {
+  id: string;
+  place_name: string;
+  center: [number, number];
+  place_type: string[];
+};
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
@@ -126,15 +144,35 @@ const styles = StyleSheet.create({
   },
 });
 
+const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiZGFuaWVsbGF1ZGluZyIsImEiOiJjbTV3bmgydHkwYXAzMmtzYzh2NXBkOWYzIn0.n4aKyM2uvZD5Snou2OHF7w';
+
+// Popular Swedish cities for quick selection
+const POPULAR_CITIES = [
+  { name: 'Stockholm', country: 'Sweden' },
+  { name: 'Malmö', country: 'Sweden' },
+  { name: 'Göteborg', country: 'Sweden' },
+  { name: 'Umeå', country: 'Sweden' },
+  { name: 'Norrköping', country: 'Sweden' },
+  { name: 'Västerås', country: 'Sweden' },
+  { name: 'Lund', country: 'Sweden' },
+  { name: 'Helsingborg', country: 'Sweden' },
+  { name: 'Jönköping', country: 'Sweden' },
+  { name: 'Karlstad', country: 'Sweden' },
+];
+
 export function FilterSheet({
   isVisible,
   onClose,
   onApplyFilters,
   routeCount,
+  routes = [],
   initialFilters = {},
+  onSearchResultSelect,
+  onNearMePress,
 }: FilterSheetProps) {
   if (!isVisible) return null;
   const { t } = useTranslation();
+  
   // Force dark theme
   const backgroundColor = '#1A1A1A';
   const textColor = 'white';
@@ -142,6 +180,135 @@ export function FilterSheet({
   const handleColor = '#666';
 
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Calculate filtered route count based on current filters
+  const calculateFilteredCount = useCallback(() => {
+    if (!routes || routes.length === 0) return routeCount;
+    
+    let filtered = [...routes];
+
+    // Apply difficulty filter
+    if (filters.difficulty?.length) {
+      filtered = filtered.filter((route) => filters.difficulty?.includes(route.difficulty || ''));
+    }
+
+    // Apply spot type filter
+    if (filters.spotType?.length) {
+      filtered = filtered.filter((route) => filters.spotType?.includes(route.spot_type || ''));
+    }
+
+    // Apply category filter
+    if (filters.category?.length) {
+      filtered = filtered.filter((route) => filters.category?.includes(route.category || ''));
+    }
+
+    // Apply transmission type filter
+    if (filters.transmissionType?.length) {
+      filtered = filtered.filter((route) =>
+        filters.transmissionType?.includes(route.transmission_type || ''),
+      );
+    }
+
+    // Apply activity level filter
+    if (filters.activityLevel?.length) {
+      filtered = filtered.filter((route) =>
+        filters.activityLevel?.includes(route.activity_level || ''),
+      );
+    }
+
+    // Apply best season filter
+    if (filters.bestSeason?.length) {
+      filtered = filtered.filter((route) => filters.bestSeason?.includes(route.best_season || ''));
+    }
+
+    // Apply vehicle types filter
+    if (filters.vehicleTypes?.length) {
+      filtered = filtered.filter((route) =>
+        route.vehicle_types?.some((type: string) => filters.vehicleTypes?.includes(type)),
+      );
+    }
+
+    // Apply has exercises filter
+    if (filters.hasExercises) {
+      filtered = filtered.filter((route) => {
+        if (route.suggested_exercises) {
+          try {
+            const exercises = Array.isArray(route.suggested_exercises)
+              ? route.suggested_exercises
+              : JSON.parse(String(route.suggested_exercises));
+            return Array.isArray(exercises) && exercises.length > 0;
+          } catch {
+            return false;
+          }
+        }
+        return false;
+      });
+    }
+
+    // Apply has media filter
+    if (filters.hasMedia) {
+      filtered = filtered.filter((route) => {
+        if (route.media_attachments) {
+          try {
+            const media = Array.isArray(route.media_attachments)
+              ? route.media_attachments
+              : typeof route.media_attachments === 'string'
+              ? JSON.parse(route.media_attachments)
+              : [];
+            return Array.isArray(media) && media.length > 0;
+          } catch {
+            return false;
+          }
+        }
+        return false;
+      });
+    }
+
+    // Apply verified filter
+    if (filters.isVerified) {
+      filtered = filtered.filter((route) => route.is_verified === true);
+    }
+
+    // Apply minimum rating filter
+    if (filters.minRating !== undefined && filters.minRating > 0) {
+      filtered = filtered.filter((route) => {
+        if (!route.average_rating) return false;
+        return route.average_rating >= filters.minRating;
+      });
+    }
+
+    // Apply route type filter
+    if (filters.routeType?.length) {
+      filtered = filtered.filter((route) => {
+        if (filters.routeType?.includes('recorded')) {
+          if (route.drawing_mode === 'record' || 
+              route.description?.includes('Recorded drive') ||
+              route.description?.includes('Distance:') ||
+              route.description?.includes('Duration:')) {
+            return true;
+          }
+        }
+        if (filters.routeType?.includes('waypoint') && route.drawing_mode === 'waypoint') {
+          return true;
+        }
+        if (filters.routeType?.includes('pen') && route.drawing_mode === 'pen') {
+          return true;
+        }
+        return false;
+      });
+    }
+
+    return filtered.length;
+  }, [filters, routes, routeCount]);
+
+  const filteredCount = calculateFilteredCount();
 
   // Animation values
   const translateY = useRef(new Animated.Value(screenHeight)).current;
@@ -263,6 +430,134 @@ export function FilterSheet({
     onClose();
   }, [onClose]);
 
+  // Search functionality (similar to SearchScreen)
+  const handleSearch = React.useCallback(async (text: string) => {
+    setSearchQuery(text);
+
+    // Clear any existing timeout
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+
+    // Set a new timeout for search
+    const timeout = setTimeout(async () => {
+      if (text.length > 0) {
+        setIsSearching(true);
+        try {
+          const response = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+              text,
+            )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality,address,country,region&language=en`,
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          setSearchResults(data.features || []);
+        } catch (error: unknown) {
+          console.error('Search error:', error);
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    }, 300);
+
+    searchTimeout.current = timeout;
+  }, []);
+
+  // Handle search result selection
+  const handleResultSelect = React.useCallback((result: SearchResult) => {
+    console.log('🔍 [FilterSheet] Search result selected:', result);
+    
+    if (onSearchResultSelect) {
+      onSearchResultSelect(result);
+    }
+    
+    // Clear the search query and results after selection
+    setSearchQuery('');
+    setSearchResults([]);
+    
+    onClose(); // Close the filter sheet
+  }, [onSearchResultSelect, onClose]);
+
+  // Handle city selection from popular cities
+  const handleCitySelect = React.useCallback((city: string, country: string) => {
+    const query = `${city}, ${country}`;
+    
+    // Clear search query immediately when selecting a city
+    setSearchQuery('');
+    setSearchResults([]);
+
+    // Manually trigger search
+    setTimeout(() => {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+
+      setIsSearching(true);
+      fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+          query,
+        )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&types=place,locality&language=en`,
+      )
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          if (data.features && data.features.length > 0) {
+            handleResultSelect(data.features[0]);
+          }
+        })
+        .catch((error) => {
+          console.error('Error selecting city:', error);
+        })
+        .finally(() => {
+          setIsSearching(false);
+        });
+    }, 100);
+  }, [handleResultSelect]);
+
+  // Handle Near Me functionality
+  const handleNearMe = React.useCallback(async () => {
+    try {
+      setIsLocating(true);
+      
+      // Trigger MapScreen locate animation if callback provided
+      if (onNearMePress) {
+        onNearMePress();
+      }
+      
+      // Close the filter sheet immediately and let MapScreen handle the location
+      onClose();
+      
+      // Clear search state
+      setSearchQuery('');
+      setSearchResults([]);
+      
+    } catch (error) {
+      console.error('Error in handleNearMe:', error);
+    } finally {
+      setIsLocating(false);
+    }
+  }, [onNearMePress, onClose]);
+
+  // Clean up search timeout
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+    };
+  }, []);
+
   if (!isVisible) return null;
 
   return (
@@ -300,6 +595,147 @@ export function FilterSheet({
         </View>
 
         <ScrollView style={{ flex: 1 }}>
+          {/* Search Section */}
+          <YStack style={styles.filterSection}>
+            <SizableText fontWeight="600" style={styles.sectionTitle}>
+              {t('search.title') || 'Search'}
+            </SizableText>
+            
+            {/* Search Input */}
+            <XStack alignItems="center" gap="$2" marginBottom="$3">
+              <Input
+                flex={1}
+                value={searchQuery}
+                onChangeText={handleSearch}
+                placeholder={t('search.placeholder') || 'Search for cities, places...'}
+                backgroundColor="$backgroundHover"
+                borderColor={borderColor}
+                color={textColor}
+                placeholderTextColor="$gray10"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Feather name="x" size={20} color={textColor} />
+                </TouchableOpacity>
+              )}
+            </XStack>
+
+            {/* Search Results */}
+            {isSearching ? (
+              <XStack padding="$2" justifyContent="center">
+                <Text color={textColor}>{t('search.searching') || 'Searching...'}</Text>
+              </XStack>
+            ) : searchResults.length > 0 ? (
+              <YStack gap="$1" maxHeight={200}>
+                <ScrollView>
+                  {searchResults.slice(0, 5).map((result) => (
+                    <TouchableOpacity
+                      key={result.id}
+                      onPress={() => handleResultSelect(result)}
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderBottomWidth: 1,
+                        borderBottomColor: borderColor,
+                      }}
+                    >
+                      <XStack alignItems="center" gap="$2">
+                        <Feather
+                          name={
+                            result.place_type[0] === 'country'
+                              ? 'flag'
+                              : result.place_type[0] === 'region'
+                                ? 'map'
+                                : result.place_type[0] === 'place'
+                                  ? 'map-pin'
+                                  : 'navigation'
+                          }
+                          size={16}
+                          color={textColor}
+                        />
+                        <YStack flex={1}>
+                          <Text numberOfLines={1} fontWeight="600" color={textColor}>
+                            {result.place_name.split(',')[0]}
+                          </Text>
+                          <Text numberOfLines={1} fontSize="$1" color="$gray10">
+                            {result.place_name.split(',').slice(1).join(',').trim()}
+                          </Text>
+                        </YStack>
+                      </XStack>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </YStack>
+            ) : searchQuery.length === 0 ? (
+              /* Default content when no search */
+              <YStack gap="$2">
+                {/* Near Me Button */}
+                <TouchableOpacity
+                  onPress={handleNearMe}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderWidth: 1,
+                    borderColor: borderColor,
+                    borderRadius: 8,
+                    backgroundColor: 'transparent',
+                    opacity: isLocating ? 0.6 : 1,
+                  }}
+                  disabled={isLocating}
+                >
+                  {isLocating ? (
+                    <Animated.View
+                      style={{
+                        marginRight: 12,
+                        transform: [{
+                          rotate: '45deg' // Static rotation for navigation icon during loading
+                        }]
+                      }}
+                    >
+                      <Feather name="navigation" size={20} color={textColor} />
+                    </Animated.View>
+                  ) : (
+                    <Feather name="navigation" size={20} color={textColor} style={{ marginRight: 12 }} />
+                  )}
+                  <Text color={textColor} fontWeight="500">
+                    {isLocating ? (t('search.locating') || 'Locating...') : (t('search.nearMe') || 'Near Me')}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Popular Swedish Cities - All 10 with wrapping */}
+                <Text color="$gray10" fontSize="$2" marginTop="$2" marginBottom="$2">
+                  {t('search.popularCities') || 'Popular Cities'}
+                </Text>
+                <View style={[styles.filterRow, { flexWrap: 'wrap' }]}>
+                  {POPULAR_CITIES.map((city, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => handleCitySelect(city.name, city.country)}
+                      style={[
+                        styles.filterChip,
+                        {
+                          borderColor,
+                          backgroundColor: 'transparent',
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.chipText, { color: textColor }]}>
+                        {city.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </YStack>
+            ) : (
+              /* No results found */
+              <XStack padding="$2" justifyContent="center">
+                <Text color={textColor}>{t('search.noResults') || 'No results found'}</Text>
+              </XStack>
+            )}
+          </YStack>
+
           {/* Sort Options */}
           <YStack style={styles.filterSection}>
             <SizableText fontWeight="600" style={styles.sectionTitle}>
@@ -325,7 +761,7 @@ export function FilterSheet({
                       backgroundColor: filters.sort === sort ? '#00E6C3' : 'transparent',
                     },
                   ]}
-                  onPress={() => setSingleFilter('sort', sort)}
+                  onPress={() => setSingleFilter('sort', filters.sort === sort ? undefined : sort)}
                 >
                   <Text
                     style={[
@@ -612,7 +1048,7 @@ export function FilterSheet({
                         filters.experienceLevel === level ? '#00E6C3' : 'transparent',
                     },
                   ]}
-                  onPress={() => setSingleFilter('experienceLevel', level)}
+                  onPress={() => setSingleFilter('experienceLevel', filters.experienceLevel === level ? undefined : level)}
                 >
                   <Text
                     style={[
@@ -625,6 +1061,189 @@ export function FilterSheet({
                   >
                     {t(`filters.experienceLevel.${level}`)}
                   </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </YStack>
+
+          {/* Content Filters */}
+          <YStack style={styles.filterSection}>
+            <SizableText fontWeight="600" style={styles.sectionTitle}>
+              {t('filters.content')}
+            </SizableText>
+            <View style={styles.filterRow}>
+              {/* Has Exercises */}
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  {
+                    borderColor,
+                    backgroundColor: filters.hasExercises ? '#00E6C3' : 'transparent',
+                  },
+                ]}
+                onPress={() => setSingleFilter('hasExercises', filters.hasExercises ? undefined : true)}
+              >
+                <XStack alignItems="center" gap="$1">
+                  <Feather 
+                    name="activity" 
+                    size={14} 
+                    color={filters.hasExercises ? '#000000' : textColor} 
+                  />
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color: filters.hasExercises ? '#000000' : textColor,
+                        fontWeight: filters.hasExercises ? '600' : '500',
+                      },
+                    ]}
+                  >
+                    {t('filters.hasExercises')}
+                  </Text>
+                </XStack>
+              </TouchableOpacity>
+
+              {/* Has Media */}
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  {
+                    borderColor,
+                    backgroundColor: filters.hasMedia ? '#00E6C3' : 'transparent',
+                  },
+                ]}
+                onPress={() => setSingleFilter('hasMedia', filters.hasMedia ? undefined : true)}
+              >
+                <XStack alignItems="center" gap="$1">
+                  <Feather 
+                    name="image" 
+                    size={14} 
+                    color={filters.hasMedia ? '#000000' : textColor} 
+                  />
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color: filters.hasMedia ? '#000000' : textColor,
+                        fontWeight: filters.hasMedia ? '600' : '500',
+                      },
+                    ]}
+                  >
+                    {t('filters.hasMedia')}
+                  </Text>
+                </XStack>
+              </TouchableOpacity>
+
+              {/* Verified Routes */}
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  {
+                    borderColor,
+                    backgroundColor: filters.isVerified ? '#00E6C3' : 'transparent',
+                  },
+                ]}
+                onPress={() => setSingleFilter('isVerified', filters.isVerified ? undefined : true)}
+              >
+                <XStack alignItems="center" gap="$1">
+                  <Feather 
+                    name="check-circle" 
+                    size={14} 
+                    color={filters.isVerified ? '#000000' : textColor} 
+                  />
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color: filters.isVerified ? '#000000' : textColor,
+                        fontWeight: filters.isVerified ? '600' : '500',
+                      },
+                    ]}
+                  >
+                    {t('filters.verified')}
+                  </Text>
+                </XStack>
+              </TouchableOpacity>
+            </View>
+          </YStack>
+
+          {/* Route Type */}
+          <YStack style={styles.filterSection}>
+            <SizableText fontWeight="600" style={styles.sectionTitle}>
+              {t('filters.routeType')}
+            </SizableText>
+            <View style={styles.filterRow}>
+              {['recorded', 'waypoint', 'pen'].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.filterChip,
+                    {
+                      borderColor,
+                      backgroundColor: filters.routeType?.includes(type) ? '#00E6C3' : 'transparent',
+                    },
+                  ]}
+                  onPress={() => toggleFilter('routeType', type)}
+                >
+                  <XStack alignItems="center" gap="$1">
+                    <Feather 
+                      name={type === 'recorded' ? 'navigation' : type === 'pen' ? 'edit-3' : 'map-pin'} 
+                      size={14} 
+                      color={filters.routeType?.includes(type) ? '#000000' : textColor} 
+                    />
+                    <Text
+                      style={[
+                        styles.chipText,
+                        {
+                          color: filters.routeType?.includes(type) ? '#000000' : textColor,
+                          fontWeight: filters.routeType?.includes(type) ? '600' : '500',
+                        },
+                      ]}
+                    >
+                      {t(`filters.routeType.${type}`)}
+                    </Text>
+                  </XStack>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </YStack>
+
+          {/* Minimum Rating */}
+          <YStack style={styles.filterSection}>
+            <SizableText fontWeight="600" style={styles.sectionTitle}>
+              {t('filters.minRating')}
+            </SizableText>
+            <View style={styles.filterRow}>
+              {[0, 3, 4, 5].map((rating) => (
+                <TouchableOpacity
+                  key={rating}
+                  style={[
+                    styles.filterChip,
+                    {
+                      borderColor,
+                      backgroundColor: filters.minRating === rating ? '#00E6C3' : 'transparent',
+                    },
+                  ]}
+                  onPress={() => setSingleFilter('minRating', filters.minRating === rating ? undefined : rating)}
+                >
+                  <XStack alignItems="center" gap="$1">
+                    <Feather 
+                      name="star" 
+                      size={14} 
+                      color={filters.minRating === rating ? '#000000' : textColor} 
+                    />
+                    <Text
+                      style={[
+                        styles.chipText,
+                        {
+                          color: filters.minRating === rating ? '#000000' : textColor,
+                          fontWeight: filters.minRating === rating ? '600' : '500',
+                        },
+                      ]}
+                    >
+                      {rating === 0 ? t('filters.allRatings') : `${rating}+`}
+                    </Text>
+                  </XStack>
                 </TouchableOpacity>
               ))}
             </View>
@@ -687,7 +1306,7 @@ export function FilterSheet({
         >
           <Button backgroundColor="#00E6C3" color="#000000" size="$5" onPress={handleApply}>
             <Text color="#000000" fontWeight="700">
-              {t('filters.seeRoutes')} ({routeCount})
+              {t('filters.seeRoutes')} ({filteredCount})
             </Text>
           </Button>
         </View>
@@ -699,7 +1318,10 @@ export function FilterSheet({
 export function FilterSheetModal({
   onApplyFilters,
   routeCount,
+  routes,
   initialFilters = {},
+  onSearchResultSelect,
+  onNearMePress,
 }: Omit<FilterSheetProps, 'isVisible' | 'onClose'>) {
   const { hideModal } = useModal();
 
@@ -733,7 +1355,10 @@ export function FilterSheetModal({
       onClose={handleClose}
       onApplyFilters={handleApply}
       routeCount={routeCount}
+      routes={routes}
       initialFilters={initialFilters}
+      onSearchResultSelect={onSearchResultSelect}
+      onNearMePress={onNearMePress}
     />
   );
 }

@@ -317,6 +317,7 @@ export function Map({
             id: point.id || `waypoint-${index}`,
             title: point.title,
             cluster: false,
+            isFiltered: point.isFiltered, // Pass through the isFiltered property
           },
           geometry: {
             type: 'Point' as const,
@@ -355,6 +356,7 @@ export function Map({
         properties: {
           id: point.id || `waypoint-${waypoints.indexOf(point)}`,
           title: point.title || 'Waypoint',
+          isFiltered: point.isFiltered, // Pass through the isFiltered property
         },
         geometry: {
           type: 'Point' as const,

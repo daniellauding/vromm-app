@@ -28,14 +28,12 @@ interface FilterCategory {
 }
 
 interface AppHeaderProps {
-  onLocateMe: () => void;
+  onSearchFilterPress: () => void; // Combined search + filter button
   filters?: FilterCategory[];
   onFilterPress?: (filter: FilterCategory) => void;
-  onFilterButtonPress?: () => void;
   activeFilters?: string[]; // IDs of currently active filters
   filterCounts?: Record<string, number>; // Route count for each filter
   hasActiveFilters?: boolean; // Whether filters are currently applied
-  locationLoading?: boolean; // Whether location detection is in progress
 }
 
 const styles = StyleSheet.create({
@@ -53,14 +51,12 @@ const styles = StyleSheet.create({
 });
 
 export function AppHeader({
-  onLocateMe,
+  onSearchFilterPress,
   filters = [],
   onFilterPress,
-  onFilterButtonPress,
   activeFilters = [],
   filterCounts = {},
   hasActiveFilters = false,
-  locationLoading = false,
 }: AppHeaderProps) {
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
@@ -74,32 +70,14 @@ export function AppHeader({
     ? 'rgba(255, 255, 255, 0.15)' 
     : 'rgba(0, 0, 0, 0.15)';
 
-  const handleSearchPress = () => {
-    navigation.navigate('Search');
-  };
+  // Remove separate search navigation since we're merging with filter
 
   return (
     <View style={styles.container}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={styles.content}>
           <XStack gap="$2" alignItems="center">
-        {/* Search Icon Button */}
-        <XStack
-          backgroundColor={buttonBackgroundColor}
-          borderRadius="$4"
-          width="$4"
-          height="$4"
-          alignItems="center"
-          justifyContent="center"
-          borderWidth={1}
-          borderColor={borderColor}
-          onPress={handleSearchPress}
-          pressStyle={{ opacity: 0.7 }}
-        >
-          <Feather name="search" size={16} color={iconColor} />
-        </XStack>
-
-        {/* Filter Icon Button with Badge */}
+        {/* Combined Search + Filter Button */}
         <View style={{ position: 'relative' }}>
           <XStack
             backgroundColor={buttonBackgroundColor}
@@ -110,10 +88,10 @@ export function AppHeader({
             justifyContent="center"
             borderWidth={1}
             borderColor={borderColor}
-            onPress={onFilterButtonPress}
+            onPress={onSearchFilterPress}
             pressStyle={{ opacity: 0.7 }}
           >
-            <Feather name="filter" size={16} color={iconColor} />
+            <Feather name="search" size={16} color={iconColor} />
           </XStack>
           {hasActiveFilters && (
             <View
@@ -131,31 +109,6 @@ export function AppHeader({
             />
           )}
         </View>
-
-        {/* Locate Me Button */}
-        <XStack
-          backgroundColor={buttonBackgroundColor}
-          borderRadius="$4"
-          width="$4"
-          height="$4"
-          alignItems="center"
-          justifyContent="center"
-          borderWidth={1}
-          borderColor={borderColor}
-          onPress={onLocateMe}
-          pressStyle={{ opacity: locationLoading ? 1 : 0.7 }}
-          opacity={locationLoading ? 0.8 : 1}
-        >
-          {locationLoading ? (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Feather name="loader" size={16} color={iconColor} style={{
-                transform: [{ rotate: '45deg' }] // Simple rotation instead of animation for header
-              }} />
-            </View>
-          ) : (
-            <Feather name="navigation" size={16} color={iconColor} />
-          )}
-        </XStack>
 
         {/* Horizontal Filter Chips */}
         {filters.length > 0 && (

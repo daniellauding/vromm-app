@@ -10,8 +10,8 @@ export const useWaypoints = (routes: Route[], activeRoutes?: Route[]): Waypoint[
   const getAllWaypoints = React.useMemo(() => {
     console.log('🗺️ useWaypoints: total routes', routes.length, 'active routes', activeRoutes?.length);
     
-    // Only show waypoints from activeRoutes, not all routes
-    const routesToShow = activeRoutes || routes;
+    // Only show waypoints from filtered/active routes when filters are applied
+    const routesToShow = activeRoutes && activeRoutes.length > 0 ? activeRoutes : routes;
     
     const waypoints = routesToShow
       .map((route) => {
@@ -39,12 +39,13 @@ export const useWaypoints = (routes: Route[], activeRoutes?: Route[]): Waypoint[
           title: route.name,
           description: route.description || undefined,
           id: route.id,
-          isFiltered: true, // All waypoints shown are from active/filtered routes
+          isFiltered: true, // All shown waypoints are from filtered routes
         };
       })
       .filter((wp): wp is NonNullable<typeof wp> => wp !== null);
       
     console.log('🗺️ Final waypoints count:', waypoints.length);
+    console.log('🗺️ Sample waypoints:', waypoints.slice(0, 3).map(w => ({ id: w.id, title: w.title, lat: w.latitude, lng: w.longitude })));
     return waypoints;
   }, [routes, activeRoutes]);
 
@@ -67,13 +68,16 @@ export const useActiveRoutes = (
   }, [routes]);
 
   React.useEffect(() => {
-    console.log('🔍 filters', filters);
-    if (!filters) {
+    console.log('🔍 [useActiveRoutes] Applying filters:', filters);
+    console.log('🔍 [useActiveRoutes] Total routes available:', routes.length);
+    
+    if (!filters || Object.keys(filters).length === 0) {
+      console.log('🔍 [useActiveRoutes] No filters active, showing all routes:', routes.length);
       setActiveRoutes(routes);
       return;
     }
 
-    let filtered = routes;
+    let filtered = [...routes];
 
     // Apply difficulty filter
     if (filters.difficulty?.length) {
@@ -116,6 +120,96 @@ export const useActiveRoutes = (
       );
     }
 
+    // Apply has exercises filter
+    if (filters.hasExercises) {
+      const beforeExerciseFilter = filtered.length;
+      filtered = filtered.filter((route) => {
+        // Check if route has exercises in suggested_exercises field
+        if (route.suggested_exercises) {
+          try {
+            const exercises = Array.isArray(route.suggested_exercises)
+              ? route.suggested_exercises
+              : typeof route.suggested_exercises === 'string' && route.suggested_exercises.trim() !== ''
+              ? JSON.parse(route.suggested_exercises)
+              : null;
+            const hasExercises = Array.isArray(exercises) && exercises.length > 0;
+            if (hasExercises) {
+              console.log('✅ Route has exercises:', route.name, exercises.length);
+            }
+            return hasExercises;
+          } catch (error) {
+            console.warn('Error parsing suggested_exercises for route:', route.name, error);
+            return false;
+          }
+        }
+        return false;
+      });
+      console.log('🔍 [useActiveRoutes] Exercise filter:', beforeExerciseFilter, '→', filtered.length);
+    }
+
+    // Apply has media filter
+    if (filters.hasMedia) {
+      filtered = filtered.filter((route) => {
+        // Check if route has media attachments
+        if (route.media_attachments) {
+          try {
+            const media = Array.isArray(route.media_attachments)
+              ? route.media_attachments
+              : typeof route.media_attachments === 'string'
+              ? JSON.parse(route.media_attachments)
+              : [];
+            return Array.isArray(media) && media.length > 0;
+          } catch (error) {
+            console.warn('Error parsing media_attachments:', error);
+            return false;
+          }
+        }
+        return false;
+      });
+    }
+
+    // Apply verified filter
+    if (filters.isVerified) {
+      filtered = filtered.filter((route) => route.is_verified === true);
+    }
+
+    // Apply minimum rating filter
+    if (filters.minRating !== undefined && filters.minRating > 0) {
+      filtered = filtered.filter((route) => {
+        // Routes without ratings should be excluded when filtering by rating
+        if (!route.average_rating) return false;
+        return route.average_rating >= filters.minRating;
+      });
+    }
+
+    // Apply route type filter
+    if (filters.routeType?.length) {
+      const beforeRouteTypeFilter = filtered.length;
+      filtered = filtered.filter((route) => {
+        // Check drawing mode for route type
+        let matches = false;
+        
+        if (filters.routeType?.includes('recorded')) {
+          // Recorded routes have 'record' drawing mode or contain recording stats in description
+          if (route.drawing_mode === 'record' || 
+              route.description?.includes('Recorded drive') ||
+              route.description?.includes('Distance:') ||
+              route.description?.includes('Duration:')) {
+            matches = true;
+          }
+        }
+        if (filters.routeType?.includes('waypoint') && route.drawing_mode === 'waypoint') {
+          matches = true;
+        }
+        if (filters.routeType?.includes('pen') && route.drawing_mode === 'pen') {
+          matches = true;
+        }
+        
+        return matches;
+      });
+      console.log('🔍 [useActiveRoutes] Route type filter:', beforeRouteTypeFilter, '→', filtered.length);
+    }
+
     /*
     // Apply max distance filter (would need current location)
     if (filters.maxDistance && region.latitude && region.longitude) {
@@ -138,6 +232,9 @@ export const useActiveRoutes = (
       });
     }
     */
+    
+    console.log('🔍 [useActiveRoutes] Final filtered routes:', filtered.length);
+    console.log('🔍 [useActiveRoutes] Sample filtered routes:', filtered.slice(0, 3).map(r => ({ id: r.id, name: r.name, difficulty: r.difficulty, category: r.category })));
     setActiveRoutes(filtered);
   }, [filters, routes]);
 
