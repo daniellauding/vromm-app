@@ -58,7 +58,7 @@ interface RouteCardProps {
   route: Route;
 }
 
-export function RouteCard({ route }: RouteCardProps) {
+export function RouteCard({ route, onPress }: RouteCardProps) {
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
@@ -78,12 +78,22 @@ export function RouteCard({ route }: RouteCardProps) {
 
   // Navigation function to be called from runOnJS
   const navigateToRoute = () => {
-    // Open route detail under Map tab so Map tab remains active
-    // @ts-ignore
-    navigation.navigate('MainTabs', {
-      screen: 'MapTab',
-      params: { screen: 'RouteDetail', params: { routeId: route.id } },
-    });
+    if (onPress) {
+      // When called from modal (like RouteListSheet), navigate in current tab context
+      navigation.navigate('RouteDetail', { routeId: route.id });
+      
+      // Then close the modal after navigation
+      setTimeout(() => {
+        onPress();
+      }, 100);
+    } else {
+      // Default behavior: Open route detail under Map tab so Map tab remains active
+      // @ts-ignore
+      navigation.navigate('MainTabs', {
+        screen: 'MapTab',
+        params: { screen: 'RouteDetail', params: { routeId: route.id } },
+      });
+    }
   };
 
   // Enhanced press handler with animations

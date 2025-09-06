@@ -50,10 +50,11 @@ interface RouteListProps {
   routes: Route[];
   onRefresh?: () => Promise<void>;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onRoutePress?: () => void;
 }
 
 export const RouteList = forwardRef<FlatList<RouteCardRoute>, RouteListProps>(function RouteList(
-  { routes, onRefresh, onScroll },
+  { routes, onRefresh, onScroll, onRoutePress },
   ref,
 ) {
   const [refreshing, setRefreshing] = React.useState(false);
@@ -73,10 +74,10 @@ export const RouteList = forwardRef<FlatList<RouteCardRoute>, RouteListProps>(fu
   const renderItem = React.useCallback(
     ({ item }: { item: RouteCardRoute }) => (
       <YStack padding="$2">
-        <RouteCard route={item} />
+        <RouteCard route={item} onPress={onRoutePress} />
       </YStack>
     ),
-    [],
+    [onRoutePress],
   );
 
   const keyExtractor = React.useCallback(

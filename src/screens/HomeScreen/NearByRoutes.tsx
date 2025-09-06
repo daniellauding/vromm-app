@@ -1,5 +1,6 @@
 import { RouteCard } from '@/src/components/RouteCard';
 import { SectionHeader } from '@/src/components/SectionHeader';
+import { RouteListSheet } from '@/src/components/RouteListSheet';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
@@ -18,6 +19,7 @@ export const NearByRoutes = () => {
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const [nearbyRoutes, setNearbyRoutes] = React.useState<Route[]>([]);
+  const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
   const userLocation = useUserLocation();
 
   // User location tracking without null logging
@@ -46,13 +48,9 @@ export const NearByRoutes = () => {
   }, [user, userLocation]);
 
   const onNavigateToRouteList = React.useCallback(() => {
-    console.log('[NAV][HomeSection] NearByRoutes → RouteList');
-    navigation.navigate('RouteList', {
-      type: 'nearby',
-      title: t('home.nearbyRoutes'),
-      routes: nearbyRoutes,
-    });
-  }, [nearbyRoutes, navigation, t]);
+    console.log('[SHEET][HomeSection] NearByRoutes → RouteListSheet');
+    setShowRouteListSheet(true);
+  }, []);
 
   // If no user location, don't show this section
   if (!userLocation) {
@@ -97,6 +95,15 @@ export const NearByRoutes = () => {
           contentContainerStyle={{ paddingHorizontal: 16 }}
         />
       )}
+
+      {/* Route List Sheet */}
+      <RouteListSheet
+        visible={showRouteListSheet}
+        onClose={() => setShowRouteListSheet(false)}
+        title={t('home.nearbyRoutes')}
+        routes={nearbyRoutes}
+        type="nearby"
+      />
     </YStack>
   );
 };

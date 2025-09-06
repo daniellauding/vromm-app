@@ -1,5 +1,6 @@
 import { RouteCard } from '@/src/components/RouteCard';
 import { SectionHeader } from '@/src/components/SectionHeader';
+import { RouteListSheet } from '@/src/components/RouteListSheet';
 import { useAuth } from '@/src/context/AuthContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
@@ -64,6 +65,7 @@ export const DrivenRoutes = () => {
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const [drivenRoutes, setDrivenRoutes] = React.useState<Route[]>([]);
+  const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
   const colorScheme = useColorScheme();
   
   // Use effective user ID (student if viewing as student, otherwise current user)
@@ -116,15 +118,9 @@ export const DrivenRoutes = () => {
   }, [effectiveUserId]);
 
   const onNavigateToRouteList = React.useCallback(() => {
-    console.log('[NAV][HomeSection] DrivenRoutes → RouteList');
-    navigation.navigate('RouteList', {
-      title: isViewingAsStudent 
-        ? `${activeStudentName || 'Student'}'s Driven Routes`
-        : t('home.drivenRoutes'),
-      routes: drivenRoutes,
-      type: 'driven',
-    });
-  }, [drivenRoutes, navigation, t, isViewingAsStudent, activeStudentName]);
+    console.log('[SHEET][HomeSection] DrivenRoutes → RouteListSheet');
+    setShowRouteListSheet(true);
+  }, []);
 
   return (
     <YStack gap="$2">
@@ -230,6 +226,19 @@ export const DrivenRoutes = () => {
           onSecondaryAction={() => (navigation as any).navigate('CreateRoute')}
         />
       )}
+
+      {/* Route List Sheet */}
+      <RouteListSheet
+        visible={showRouteListSheet}
+        onClose={() => setShowRouteListSheet(false)}
+        title={
+          isViewingAsStudent 
+            ? `${activeStudentName || 'Student'}'s Driven Routes`
+            : t('home.drivenRoutes')
+        }
+        routes={drivenRoutes}
+        type="driven"
+      />
     </YStack>
   );
 };

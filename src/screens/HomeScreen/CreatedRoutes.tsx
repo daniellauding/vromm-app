@@ -1,5 +1,6 @@
 import { HeroCarousel } from '@/src/components/HeroCarousel';
 import { SectionHeader } from '@/src/components/SectionHeader';
+import { RouteListSheet } from '@/src/components/RouteListSheet';
 import { useAuth } from '@/src/context/AuthContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
@@ -19,6 +20,7 @@ export const CreatedRoutes = () => {
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const [createdRoutes, setCreatedRoutes] = React.useState<Route[]>([]);
+  const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
   
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
@@ -52,13 +54,9 @@ export const CreatedRoutes = () => {
     const titleText = isViewingAsStudent 
       ? `${activeStudentName || 'Student'}'s Created Routes`
       : t('home.createdRoutes');
-    console.log('[NAV][HomeSection] CreatedRoutes → RouteList with title:', titleText);
-    navigation.navigate('RouteList', {
-      type: 'created',
-      title: titleText,
-      routes: createdRoutes,
-    });
-  }, [createdRoutes, navigation, t, isViewingAsStudent, activeStudentName]);
+    console.log('[SHEET][HomeSection] CreatedRoutes → RouteListSheet with title:', titleText);
+    setShowRouteListSheet(true);
+  }, [isViewingAsStudent, activeStudentName, t]);
 
   // Helper function to get route image (same as SavedRoutes)
   const getRouteImage = (route: Route): string | null => {
@@ -83,47 +81,62 @@ export const CreatedRoutes = () => {
   };
 
   return (
-    <YStack space="$4">
-      <SectionHeader
-        title={isViewingAsStudent 
-          ? `${activeStudentName || 'Student'}'s Created Routes`
-          : t('home.createdRoutes')
+    <>
+      <YStack space="$4">
+        <SectionHeader
+          title={isViewingAsStudent 
+            ? `${activeStudentName || 'Student'}'s Created Routes`
+            : t('home.createdRoutes')
+          }
+          variant="chevron"
+          onAction={onNavigateToRouteList}
+          actionLabel={t('common.seeAll')}
+        />
+        
+        {createdRoutes.length === 0 ? (
+          <YStack px="$4">
+            <EmptyState
+              title={isViewingAsStudent ? "No Routes Created" : "Create Your First Route"}
+              message={
+                isViewingAsStudent
+                  ? `${activeStudentName || 'This student'} hasn't created any routes yet`
+                  : 'Share your favorite practice spots with the community! Create detailed routes with exercises and help other learners.'
+              }
+              icon="map-pin"
+              variant="success"
+              actionLabel={isViewingAsStudent ? undefined : "Create Route"}
+              actionIcon="plus"
+              onAction={isViewingAsStudent ? undefined : () => navigation.navigate('CreateRoute')}
+              secondaryLabel={isViewingAsStudent ? undefined : "Get Inspired"}
+              secondaryIcon="map"
+              onSecondaryAction={isViewingAsStudent ? undefined : () => navigation.navigate('MapTab')}
+            />
+          </YStack>
+        ) : (
+          <XStack paddingHorizontal="$4">
+            <HeroCarousel
+              title={t('home.createdRoutes')}
+              items={createdRoutes}
+              getImageUrl={getRouteImage}
+              showTitle={false}
+              showMapPreview={true}
+            />
+          </XStack>
+        )}
+      </YStack>
+
+      {/* Route List Sheet */}
+      <RouteListSheet
+        visible={showRouteListSheet}
+        onClose={() => setShowRouteListSheet(false)}
+        title={
+          isViewingAsStudent 
+            ? `${activeStudentName || 'Student'}'s Created Routes`
+            : t('home.createdRoutes')
         }
-        variant="chevron"
-        onAction={onNavigateToRouteList}
-        actionLabel={t('common.seeAll')}
+        routes={createdRoutes}
+        type="created"
       />
-      
-      {createdRoutes.length === 0 ? (
-        <YStack px="$4">
-          <EmptyState
-            title={isViewingAsStudent ? "No Routes Created" : "Create Your First Route"}
-            message={
-              isViewingAsStudent
-                ? `${activeStudentName || 'This student'} hasn't created any routes yet`
-                : 'Share your favorite practice spots with the community! Create detailed routes with exercises and help other learners.'
-            }
-            icon="map-pin"
-            variant="success"
-            actionLabel={isViewingAsStudent ? undefined : "Create Route"}
-            actionIcon="plus"
-            onAction={isViewingAsStudent ? undefined : () => navigation.navigate('CreateRoute')}
-            secondaryLabel={isViewingAsStudent ? undefined : "Get Inspired"}
-            secondaryIcon="map"
-            onSecondaryAction={isViewingAsStudent ? undefined : () => navigation.navigate('MapTab')}
-          />
-        </YStack>
-      ) : (
-        <XStack paddingHorizontal="$4">
-          <HeroCarousel
-            title={t('home.createdRoutes')}
-            items={createdRoutes}
-            getImageUrl={getRouteImage}
-            showTitle={false}
-            showMapPreview={true}
-          />
-        </XStack>
-      )}
-    </YStack>
+    </>
   );
 };

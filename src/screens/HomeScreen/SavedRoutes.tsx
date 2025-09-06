@@ -7,6 +7,7 @@ import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { navigateDomain } from '@/src/utils/navigation';
 import { SectionHeader } from '../../components/SectionHeader';
+import { RouteListSheet } from '../../components/RouteListSheet';
 import { EmptyState } from './EmptyState';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { useAuth } from '@/src/context/AuthContext';
@@ -49,6 +50,7 @@ export const SavedRoutes = () => {
   const navigation = useNavigation<NavigationProp>();
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const [savedRoutes, setSavedRoutes] = React.useState<SavedRoute[]>([]);
+  const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
 
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
@@ -144,36 +146,47 @@ export const SavedRoutes = () => {
   }
 
   return (
-    <YStack gap="$6">
-      <SectionHeader
+    <>
+      <YStack gap="$6">
+        <SectionHeader
+          title={
+            isViewingAsStudent
+              ? `${activeStudentName || 'Student'}'s Saved Routes`
+              : t('home.savedRoutes')
+          }
+          variant="chevron"
+          onAction={() => {
+            const titleText = isViewingAsStudent
+              ? `${activeStudentName || 'Student'}'s Saved Routes`
+              : t('home.savedRoutes');
+            console.log('[SHEET][HomeSection] SavedRoutes → RouteListSheet with title:', titleText);
+            setShowRouteListSheet(true);
+          }}
+          actionLabel={t('common.seeAll')}
+        />
+        <XStack paddingHorizontal="$4">
+          <HeroCarousel
+            title={t('home.savedRoutes')}
+            items={savedRoutes}
+            getImageUrl={getRouteImage}
+            showTitle={false}
+            showMapPreview={true}
+          />
+        </XStack>
+      </YStack>
+
+      {/* Route List Sheet */}
+      <RouteListSheet
+        visible={showRouteListSheet}
+        onClose={() => setShowRouteListSheet(false)}
         title={
           isViewingAsStudent
             ? `${activeStudentName || 'Student'}'s Saved Routes`
             : t('home.savedRoutes')
         }
-        variant="chevron"
-        onAction={() => {
-          const titleText = isViewingAsStudent
-            ? `${activeStudentName || 'Student'}'s Saved Routes`
-            : t('home.savedRoutes');
-          console.log('[NAV][HomeSection] SavedRoutes → RouteList with title:', titleText);
-          navigation.navigate('RouteList', {
-            title: titleText,
-            routes: savedRoutes,
-            type: 'saved',
-          });
-        }}
-        actionLabel={t('common.seeAll')}
+        routes={savedRoutes}
+        type="saved"
       />
-      <XStack paddingHorizontal="$4">
-        <HeroCarousel
-          title={t('home.savedRoutes')}
-          items={savedRoutes}
-          getImageUrl={getRouteImage}
-          showTitle={false}
-          showMapPreview={true}
-        />
-      </XStack>
-    </YStack>
+    </>
   );
 };
