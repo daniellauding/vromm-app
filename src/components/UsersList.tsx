@@ -27,10 +27,12 @@ function UserItem({
   user,
   currentUser,
   currentUserRole,
+  onUserPress,
 }: {
   user: User;
   currentUser: User | null;
   currentUserRole: string | null;
+  onUserPress?: (userId: string) => void;
 }) {
   const navigation = useNavigation<NavigationProp>();
   const [isInvited, setIsInvited] = useState(user.invited);
@@ -38,9 +40,13 @@ function UserItem({
   const [isFollowLoading, setIsFollowLoading] = useState<boolean>(false);
   const colorScheme = useColorScheme();
   const navigateToProfile = React.useCallback(() => {
-    console.log('[NAV][UsersList] → MainTabs > MenuTab > PublicProfile', { userId: user.id });
-    (navigation as any).navigate('MainTabs', { screen: 'MenuTab', params: { screen: 'PublicProfile', params: { userId: user.id } } });
-  }, [navigation, user.id]);
+    if (onUserPress) {
+      onUserPress(user.id);
+    } else {
+      console.log('[NAV][UsersList] → MainTabs > MenuTab > PublicProfile', { userId: user.id });
+      (navigation as any).navigate('MainTabs', { screen: 'MenuTab', params: { screen: 'PublicProfile', params: { userId: user.id } } });
+    }
+  }, [navigation, user.id, onUserPress]);
 
   const handleInvite = React.useCallback(async () => {
     if (!currentUser?.id) return;
@@ -283,7 +289,11 @@ function UserItem({
   );
 }
 
-export function UsersList() {
+interface UsersListProps {
+  onUserPress?: (userId: string) => void;
+}
+
+export function UsersList({ onUserPress }: UsersListProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const { user: currentUser } = useAuth();
@@ -364,6 +374,7 @@ export function UsersList() {
             user={user}
             currentUser={currentUser}
             currentUserRole={currentUserRole}
+            onUserPress={onUserPress}
           />
         ))}
       </XStack>

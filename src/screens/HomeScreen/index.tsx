@@ -22,6 +22,10 @@ import { PromotionalModal, usePromotionalModal } from '../../components/Promotio
 import type { FilterCategory } from '../../types/navigation';
 import { SectionHeader } from '../../components/SectionHeader';
 import { UsersList } from '../../components/UsersList';
+import { UserListSheet } from '../../components/UserListSheet';
+import { UserProfileSheet } from '../../components/UserProfileSheet';
+import { RouteDetailSheet } from '../../components/RouteDetailSheet';
+import { CommunityFeedSheet } from '../../components/CommunityFeedSheet';
 import { HomeHeader } from './Header';
 import { GettingStarted } from './GettingStarted';
 import { SavedRoutes } from './SavedRoutes';
@@ -65,6 +69,14 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   
   // Debug state for development
   const [showDebugOptions, setShowDebugOptions] = useState(false);
+
+  // Sheet states
+  const [showUserListSheet, setShowUserListSheet] = useState(false);
+  const [showUserProfileSheet, setShowUserProfileSheet] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [showRouteDetailSheet, setShowRouteDetailSheet] = useState(false);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [showCommunityFeedSheet, setShowCommunityFeedSheet] = useState(false);
 
   // Use the effective user ID (either activeUserId prop, activeStudentId from context, or current user id)
   const effectiveUserId = activeUserId || getEffectiveUserId();
@@ -259,6 +271,11 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
     });
   };
 
+  const handleRoutePress = (routeId: string) => {
+    setSelectedRouteId(routeId);
+    setShowRouteDetailSheet(true);
+  };
+
   // Scroll to top and optionally trigger refresh when resetKey changes
   useEffect(() => {
     const resetKey = (navigation as any)?.getState?.()?.routes?.find((r: any) => r.name === 'HomeScreen')?.params?.resetKey;
@@ -388,9 +405,16 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             <GettingStarted />
 
             <ProgressSection activeUserId={effectiveUserId} />
-            <DraftRoutes />
-            <SavedRoutes />
-            <CommunityFeed />
+            <DraftRoutes onRoutePress={handleRoutePress} />
+            <SavedRoutes onRoutePress={handleRoutePress} />
+            <CommunityFeed 
+              onOpenFeedSheet={() => setShowCommunityFeedSheet(true)}
+              onUserPress={(userId) => {
+                setSelectedUserId(userId);
+                setShowUserProfileSheet(true);
+              }}
+              onRoutePress={handleRoutePress}
+            />
             <QuickFilters handleFilterPress={handleFilterPress} />
             <Button
               onPress={() => navigation.navigate('CreateRoute', {})}
@@ -400,22 +424,99 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
               {t('home.createNewRoute')}
             </Button>
             <YStack gap="$4">
-              <CityRoutes />
-              <CreatedRoutes />
-              <NearByRoutes />
-              <DrivenRoutes />
+              <CityRoutes onRoutePress={handleRoutePress} />
+              <CreatedRoutes onRoutePress={handleRoutePress} />
+              <NearByRoutes onRoutePress={handleRoutePress} />
+              <DrivenRoutes onRoutePress={handleRoutePress} />
             </YStack>
             <YStack gap="$4" marginTop="$6" marginBottom="$6">
               <SectionHeader
                 title="Users"
                 variant="chevron"
-                onAction={() => navigation.navigate('UsersScreen')}
+                onAction={() => setShowUserListSheet(true)}
                 actionLabel={t('common.seeAll')}
               />
-              <UsersList />
+              <UsersList 
+                onUserPress={(userId: string) => {
+                  setSelectedUserId(userId);
+                  setShowUserProfileSheet(true);
+                }} 
+              />
             </YStack>
           </YStack>
         )}
+      />
+
+      {/* User List Sheet */}
+      <UserListSheet
+        visible={showUserListSheet}
+        onClose={() => setShowUserListSheet(false)}
+        title="All Users"
+        onUserPress={(userId) => {
+          setSelectedUserId(userId);
+          setShowUserListSheet(false);
+          setShowUserProfileSheet(true);
+        }}
+      />
+
+      {/* User Profile Sheet */}
+      <UserProfileSheet
+        visible={showUserProfileSheet}
+        onClose={() => setShowUserProfileSheet(false)}
+        userId={selectedUserId}
+        onViewAllRoutes={(userId) => {
+          // Close profile sheet and navigate to RouteList
+          setShowUserProfileSheet(false);
+          navigation.navigate('RouteList', {
+            title: 'User Routes',
+            routes: [], // Routes will be loaded in RouteListScreen based on type
+            type: 'created',
+          });
+        }}
+      />
+
+      {/* Route Detail Sheet */}
+      <RouteDetailSheet
+        visible={showRouteDetailSheet}
+        onClose={() => setShowRouteDetailSheet(false)}
+        routeId={selectedRouteId}
+        onStartRoute={(routeId) => {
+          // Close sheet and navigate to map
+          setShowRouteDetailSheet(false);
+          (navigation as any).navigate('MainTabs', {
+            screen: 'MapTab',
+            params: { screen: 'MapScreen', params: { routeId } },
+          });
+        }}
+        onNavigateToProfile={(userId) => {
+          // Close route sheet and open user profile sheet
+          setShowRouteDetailSheet(false);
+          setSelectedUserId(userId);
+          setShowUserProfileSheet(true);
+        }}
+      />
+
+      {/* Community Feed Sheet */}
+      <CommunityFeedSheet
+        visible={showCommunityFeedSheet}
+        onClose={() => setShowCommunityFeedSheet(false)}
+        onUserPress={(userId) => {
+          // Close community feed sheet and open user profile sheet
+          setShowCommunityFeedSheet(false);
+          setSelectedUserId(userId);
+          setShowUserProfileSheet(true);
+        }}
+        onRoutePress={(routeId) => {
+          // Close community feed sheet and open route detail sheet
+          setShowCommunityFeedSheet(false);
+          setSelectedRouteId(routeId);
+          setShowRouteDetailSheet(true);
+        }}
+        onEventPress={(eventId) => {
+          // Close community feed sheet and navigate to event detail
+          setShowCommunityFeedSheet(false);
+          navigation.navigate('EventDetail', { eventId });
+        }}
       />
     </Screen>
   );

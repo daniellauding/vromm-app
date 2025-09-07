@@ -45,7 +45,11 @@ const getRouteImage: (route: Route) => string | null = (route) => {
   return null;
 };
 
-export const SavedRoutes = () => {
+interface SavedRoutesProps {
+  onRoutePress?: (routeId: string) => void;
+}
+
+export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
@@ -171,6 +175,7 @@ export const SavedRoutes = () => {
             getImageUrl={getRouteImage}
             showTitle={false}
             showMapPreview={true}
+            onItemPress={onRoutePress ? (route) => onRoutePress(route.id) : undefined}
           />
         </XStack>
       </YStack>

@@ -14,7 +14,11 @@ import { navigateDomain } from '@/src/utils/navigation';
 import { supabase } from '../../lib/supabase';
 import { EmptyState } from './EmptyState';
 
-export const CreatedRoutes = () => {
+interface CreatedRoutesProps {
+  onRoutePress?: (routeId: string) => void;
+}
+
+export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
@@ -120,6 +124,7 @@ export const CreatedRoutes = () => {
               getImageUrl={getRouteImage}
               showTitle={false}
               showMapPreview={true}
+              onItemPress={onRoutePress ? (route) => onRoutePress(route.id) : undefined}
             />
           </XStack>
         )}

@@ -118,12 +118,22 @@ const ActivityMediaPreview = ({ mediaItems }: { mediaItems: ActivityItem['data']
   );
 };
 
-const ActivityRouteCreated = ({ activity }: { activity: ActivityItem }) => {
+const ActivityRouteCreated = ({ 
+  activity, 
+  onRoutePress 
+}: { 
+  activity: ActivityItem;
+  onRoutePress?: (routeId: string) => void;
+}) => {
   const navigation = useNavigation<NavigationProp>();
 
   const navigateToRouteDetail = React.useCallback(() => {
-    navigation.navigate('RouteDetail', { routeId: activity.data.id });
-  }, [activity.data.id, navigation]);
+    if (onRoutePress) {
+      onRoutePress(activity.data.id);
+    } else {
+      navigation.navigate('RouteDetail', { routeId: activity.data.id });
+    }
+  }, [activity.data.id, navigation, onRoutePress]);
 
   return (
     <TouchableOpacity onPress={navigateToRouteDetail}>
@@ -220,12 +230,22 @@ const ActivityExerciseCompleted = ({ activity }: { activity: ActivityItem }) => 
   );
 };
 
-const ActivityUserInfo = ({ activity }: { activity: ActivityItem }) => {
+const ActivityUserInfo = ({ 
+  activity, 
+  onUserPress 
+}: { 
+  activity: ActivityItem;
+  onUserPress?: (userId: string) => void;
+}) => {
   const colorScheme = useColorScheme();
   const navigation = useNavigation<NavigationProp>();
   const navigateToProfile = React.useCallback(() => {
-    navigation.navigate('PublicProfile', { userId: activity.user.id });
-  }, [activity.user.id, navigation]);
+    if (onUserPress) {
+      onUserPress(activity.user.id);
+    } else {
+      navigation.navigate('PublicProfile', { userId: activity.user.id });
+    }
+  }, [activity.user.id, navigation, onUserPress]);
 
   const activityIcon = React.useMemo(() => {
     switch (activity.type) {
@@ -316,7 +336,15 @@ const ActivityUserInfo = ({ activity }: { activity: ActivityItem }) => {
   );
 };
 
-const ActivityItem = ({ activity }: { activity: ActivityItem }) => {
+const ActivityItem = ({ 
+  activity, 
+  onUserPress, 
+  onRoutePress 
+}: { 
+  activity: ActivityItem;
+  onUserPress?: (userId: string) => void;
+  onRoutePress?: (routeId: string) => void;
+}) => {
   // Helper function to generate route media items like RouteCard
   const getRouteMediaItems = React.useCallback((route: any) => {
     const items = [];
@@ -502,13 +530,13 @@ const ActivityItem = ({ activity }: { activity: ActivityItem }) => {
       width="100%"
     >
       {/* User info header */}
-      <ActivityUserInfo activity={activity} />
+      <ActivityUserInfo activity={activity} onUserPress={onUserPress} />
 
       {/* Media Preview (like RouteCard/EventCard) */}
       {mediaItems.length > 0 && <ActivityMediaPreview mediaItems={mediaItems} />}
 
       {/* Activity content */}
-      {activity.type === 'route_created' && <ActivityRouteCreated activity={activity} />}
+      {activity.type === 'route_created' && <ActivityRouteCreated activity={activity} onRoutePress={onRoutePress} />}
 
       {activity.type === 'event_created' && <ActivityEventCreated activity={activity} />}
 
@@ -517,7 +545,13 @@ const ActivityItem = ({ activity }: { activity: ActivityItem }) => {
   );
 };
 
-export const CommunityFeed = () => {
+interface CommunityFeedProps {
+  onOpenFeedSheet?: () => void;
+  onUserPress?: (userId: string) => void;
+  onRoutePress?: (routeId: string) => void;
+}
+
+export const CommunityFeed = ({ onOpenFeedSheet, onUserPress, onRoutePress }: CommunityFeedProps = {}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
@@ -647,9 +681,13 @@ export const CommunityFeed = () => {
   };
 
   const onNavigateToFeedScreen = React.useCallback(() => {
-    console.log('[NAV][HomeSection] CommunityFeed → CommunityFeedScreen');
-    (navigation as any).navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CommunityFeedScreen' } });
-  }, [navigation]);
+    if (onOpenFeedSheet) {
+      onOpenFeedSheet();
+    } else {
+      console.log('[NAV][HomeSection] CommunityFeed → CommunityFeedScreen');
+      (navigation as any).navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CommunityFeedScreen' } });
+    }
+  }, [navigation, onOpenFeedSheet]);
 
   if (loading) {
     return (
@@ -724,7 +762,11 @@ export const CommunityFeed = () => {
           data={activities}
           renderItem={({ item }) => (
             <View style={{ width: 260, marginRight: 16 }} key={item.id}>
-              <ActivityItem activity={item} />
+              <ActivityItem 
+                activity={item} 
+                onUserPress={onUserPress} 
+                onRoutePress={onRoutePress} 
+              />
             </View>
           )}
           keyExtractor={(item) => item.id}

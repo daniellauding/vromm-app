@@ -23,6 +23,8 @@ import { SelectedRoute } from './SelectedRoute';
 import { useActiveRoutes, useRoutesFilters, useWaypoints } from './hooks';
 import { calculateDistance, getDistanceFromLatLonInKm } from './utils';
 import { useLocation } from '../../context/LocationContext';
+import { RouteDetailSheet } from '../../components/RouteDetailSheet';
+import { UserProfileSheet } from '../../components/UserProfileSheet';
 // Tour imports disabled to prevent performance issues
 // import { useTourTarget } from '../../components/TourOverlay';
 // import { useScreenTours } from '../../utils/screenTours';
@@ -74,6 +76,12 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
 
   // Add selectedPin state
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
+
+  // Sheet states
+  const [showRouteDetailSheet, setShowRouteDetailSheet] = useState(false);
+  const [showUserProfileSheet, setShowUserProfileSheet] = useState(false);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   // Loading animation state (similar to OnboardingInteractive)
   const [locationLoading, setLocationLoading] = useState(false);
@@ -154,6 +162,18 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const handleMapPress = useCallback(() => {
     setSelectedRoute(null);
     setSelectedPin(null);
+  }, []);
+
+  const handleRoutePress = useCallback((routeId: string) => {
+    setSelectedRouteId(routeId);
+    setShowRouteDetailSheet(true);
+    setSelectedRoute(null);
+    setSelectedPin(null);
+  }, []);
+
+  const handleUserPress = useCallback((userId: string) => {
+    setSelectedUserId(userId);
+    setShowUserProfileSheet(true);
   }, []);
 
   // Optimize loadRoutes to prevent unnecessary re-renders
@@ -918,6 +938,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           }}
           hasActiveFilters={filters && Object.keys(filters).length > 0}
           onExpandSearch={handleExpandSearch}
+          onRoutePress={handleRoutePress}
   // ref={routesDrawerRef} // Disabled
         />
       )}
@@ -926,8 +947,35 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           selectedRoute={selectedRoute}
           setSelectedRoute={setSelectedRoute}
           setSelectedPin={setSelectedPin}
+          onRoutePress={handleRoutePress}
         />
       )}
+
+      {/* Route Detail Sheet */}
+      <RouteDetailSheet
+        visible={showRouteDetailSheet}
+        onClose={() => setShowRouteDetailSheet(false)}
+        routeId={selectedRouteId}
+        onStartRoute={(routeId) => {
+          // Close sheet and navigate to map with route
+          setShowRouteDetailSheet(false);
+          // Already on map, just load the route
+          console.log('Starting route on MapScreen:', routeId);
+        }}
+        onNavigateToProfile={handleUserPress}
+      />
+
+      {/* User Profile Sheet */}
+      <UserProfileSheet
+        visible={showUserProfileSheet}
+        onClose={() => setShowUserProfileSheet(false)}
+        userId={selectedUserId}
+        onViewAllRoutes={(userId) => {
+          // Close profile sheet and show routes (could implement RouteListSheet here)
+          setShowUserProfileSheet(false);
+          console.log('View all routes for user:', userId);
+        }}
+      />
     </Screen>
   );
 }

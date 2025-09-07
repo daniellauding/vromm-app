@@ -795,43 +795,43 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                       <Feather name="credit-card" size={20} color="black" />
                     ) : (
                       <>
-                        <ProgressCircle
-                          percent={percent}
-                          size={40}
-                          color={isActive ? '#fff' : '#00E6C3'}
-                          bg={isActive ? '#00E6C3' : '#E5E5E5'}
-                        />
-                        <Text
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: 40,
-                            height: 40,
-                            textAlign: 'center',
-                            textAlignVertical: 'center',
-                            lineHeight: 40,
-                            fontSize: 10,
-                            fontWeight: 'bold',
-                          }}
-                          color={isActive ? '$color' : '$gray11'}
-                        >
-                          {Math.round(percent * 100)}%
-                        </Text>
+                    <ProgressCircle
+                      percent={percent}
+                      size={40}
+                      color={isActive ? '#fff' : '#00E6C3'}
+                      bg={isActive ? '#00E6C3' : '#E5E5E5'}
+                    />
+                    <Text
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: 40,
+                        height: 40,
+                        textAlign: 'center',
+                        textAlignVertical: 'center',
+                        lineHeight: 40,
+                        fontSize: 10,
+                        fontWeight: 'bold',
+                      }}
+                      color={isActive ? '$color' : '$gray11'}
+                    >
+                      {Math.round(percent * 100)}%
+                    </Text>
                       </>
                     )}
                   </View>
                   
                   <YStack alignItems="center" gap={2}>
-                    <Text
-                      fontSize={14}
-                      fontWeight={isActive ? 'bold' : '600'}
+                  <Text
+                    fontSize={14}
+                    fontWeight={isActive ? 'bold' : '600'}
                       color={isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : isActive ? '$color' : '$gray11'}
-                      numberOfLines={2}
-                      textAlign="center"
-                    >
-                      {path.title[lang]}
-                    </Text>
+                    numberOfLines={2}
+                    textAlign="center"
+                  >
+                    {path.title[lang]}
+                  </Text>
                     
                     {/* Status indicator text */}
                     {isPasswordLocked && (

@@ -18,7 +18,11 @@ type DraftRoute = {
   drawing_mode?: string;
 };
 
-export function DraftRoutes() {
+interface DraftRoutesProps {
+  onRoutePress?: (routeId: string) => void;
+}
+
+export function DraftRoutes({ onRoutePress }: DraftRoutesProps = {}) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
@@ -55,8 +59,12 @@ export function DraftRoutes() {
   };
 
   const handleDraftPress = (draft: DraftRoute) => {
-    // Navigate to RouteDetailScreen to view the draft
-    navigation.navigate('RouteDetail', { routeId: draft.id });
+    if (onRoutePress) {
+      onRoutePress(draft.id);
+    } else {
+      // Navigate to RouteDetailScreen to view the draft
+      navigation.navigate('RouteDetail', { routeId: draft.id });
+    }
   };
 
   const handleSeeAllDrafts = () => {

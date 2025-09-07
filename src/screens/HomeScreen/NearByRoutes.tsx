@@ -14,7 +14,11 @@ import { EmptyState } from './EmptyState';
 import { supabase } from '../../lib/supabase';
 import { useUserLocation } from '../explore/hooks';
 
-export const NearByRoutes = () => {
+interface NearByRoutesProps {
+  onRoutePress?: (routeId: string) => void;
+}
+
+export const NearByRoutes = ({ onRoutePress }: NearByRoutesProps = {}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
@@ -88,7 +92,10 @@ export const NearByRoutes = () => {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <XStack paddingHorizontal="$4" marginRight="$4">
-              <RouteCard route={item} />
+              <RouteCard 
+                route={item} 
+                onPress={onRoutePress ? () => onRoutePress(item.id) : undefined}
+              />
             </XStack>
           )}
           showsHorizontalScrollIndicator={false}

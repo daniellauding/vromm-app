@@ -56,6 +56,7 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
 
 interface RouteCardProps {
   route: Route;
+  onPress?: () => void;
 }
 
 export function RouteCard({ route, onPress }: RouteCardProps) {
@@ -79,13 +80,8 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
   // Navigation function to be called from runOnJS
   const navigateToRoute = () => {
     if (onPress) {
-      // When called from modal (like RouteListSheet), navigate in current tab context
-      navigation.navigate('RouteDetail', { routeId: route.id });
-      
-      // Then close the modal after navigation
-      setTimeout(() => {
-        onPress();
-      }, 100);
+      // When onPress is provided, ONLY call the callback (for sheets)
+      onPress();
     } else {
       // Default behavior: Open route detail under Map tab so Map tab remains active
       // @ts-ignore

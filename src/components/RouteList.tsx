@@ -50,7 +50,7 @@ interface RouteListProps {
   routes: Route[];
   onRefresh?: () => Promise<void>;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  onRoutePress?: () => void;
+  onRoutePress?: (routeId: string) => void;
 }
 
 export const RouteList = forwardRef<FlatList<RouteCardRoute>, RouteListProps>(function RouteList(
@@ -74,7 +74,10 @@ export const RouteList = forwardRef<FlatList<RouteCardRoute>, RouteListProps>(fu
   const renderItem = React.useCallback(
     ({ item }: { item: RouteCardRoute }) => (
       <YStack padding="$2">
-        <RouteCard route={item} onPress={onRoutePress} />
+        <RouteCard 
+          route={item} 
+          onPress={onRoutePress ? () => onRoutePress(item.id) : undefined} 
+        />
       </YStack>
     ),
     [onRoutePress],

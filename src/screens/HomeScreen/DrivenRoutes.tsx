@@ -59,7 +59,11 @@ const isValidRoute = (route: any): route is Route => {
   );
 };
 
-export const DrivenRoutes = () => {
+interface DrivenRoutesProps {
+  onRoutePress?: (routeId: string) => void;
+}
+
+export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
@@ -150,7 +154,13 @@ export const DrivenRoutes = () => {
                   backgroundColor="$backgroundStrong"
                   width={200}
                   height={240}
-                  onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
+                  onPress={() => {
+                    if (onRoutePress) {
+                      onRoutePress(route.id);
+                    } else {
+                      navigation.navigate('RouteDetail', { routeId: route.id });
+                    }
+                  }}
                 >
                   <YStack f={1}>
                     {imageUrl ? (

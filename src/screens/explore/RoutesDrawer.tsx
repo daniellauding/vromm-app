@@ -141,7 +141,8 @@ export const RoutesDrawer = React.forwardRef<View, {
   onClearFilters?: () => void;
   hasActiveFilters?: boolean;
   onExpandSearch?: () => void;
-}>(({ selectedRoute, filteredRoutes, onClearFilters, hasActiveFilters = false, onExpandSearch }, ref) => {
+  onRoutePress?: (routeId: string) => void;
+}>(({ selectedRoute, filteredRoutes, onClearFilters, hasActiveFilters = false, onExpandSearch, onRoutePress }, ref) => {
   const { t } = useTranslation();
   const scrollOffset = useRef(0);
   const { height: screenHeight } = Dimensions.get('window');
@@ -265,7 +266,7 @@ export const RoutesDrawer = React.forwardRef<View, {
         </View>
         <View style={styles.routeListContainer}>
           {filteredRoutes.length > 0 ? (
-            <RouteList routes={filteredRoutes} onScroll={handleScroll} />
+            <RouteList routes={filteredRoutes} onScroll={handleScroll} onRoutePress={onRoutePress} />
           ) : (
             <EmptyFilterState 
               hasActiveFilters={hasActiveFilters}

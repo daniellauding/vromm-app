@@ -77,7 +77,11 @@ const getRouteImage: (route: Route) => string | null = (route) => {
   return null;
 };
 
-export const CityRoutes = () => {
+interface CityRoutesProps {
+  onRoutePress?: (routeId: string) => void;
+}
+
+export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
   const [selectedCity, setSelectedCity] = React.useState<string | null>(null);
   const [cityRoutes, setCityRoutes] = React.useState<{ [key: string]: Route[] }>({});
   const [routes, setRoutes] = React.useState<Route[]>([]);
@@ -206,7 +210,13 @@ export const CityRoutes = () => {
               backgroundColor="$backgroundStrong"
               width="100%"
               height={280}
-              onPress={() => navigation.navigate('RouteDetail', { routeId: route.id })}
+              onPress={() => {
+                if (onRoutePress) {
+                  onRoutePress(route.id);
+                } else {
+                  navigation.navigate('RouteDetail', { routeId: route.id });
+                }
+              }}
             >
               <YStack f={1}>
                 {getRouteImage(route) ? (

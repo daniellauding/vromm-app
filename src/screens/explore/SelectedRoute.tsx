@@ -38,16 +38,22 @@ export function SelectedRoute({
   selectedRoute,
   setSelectedRoute,
   setSelectedPin,
+  onRoutePress,
 }: {
   selectedRoute: Route;
   setSelectedRoute: (route: Route | null) => void;
   setSelectedPin: (pin: Pin | null) => void;
+  onRoutePress?: (routeId: string) => void;
 }) {
   const navigation = useNavigation<NavigationProp>();
 
   const onPress = useCallback(() => {
-    navigation.navigate('RouteDetail', { routeId: selectedRoute.id });
-    setSelectedRoute(null);
+    if (onRoutePress) {
+      onRoutePress(selectedRoute.id);
+    } else {
+      navigation.navigate('RouteDetail', { routeId: selectedRoute.id });
+      setSelectedRoute(null);
+    }
     setSelectedPin(null);
   }, [navigation, selectedRoute, setSelectedRoute, setSelectedPin]);
 
