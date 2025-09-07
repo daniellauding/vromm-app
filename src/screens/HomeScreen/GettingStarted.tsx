@@ -20,6 +20,7 @@ import Popover from 'react-native-popover-view';
 import { RadioButton } from '../../components/SelectButton';
 import { Button } from '../../components/Button';
 import { FormField } from '../../components/FormField';
+import * as Haptics from 'expo-haptics';
 
 import { SectionHeader } from '../../components/SectionHeader';
 import { useAuth } from '@/src/context/AuthContext';
@@ -33,7 +34,7 @@ export const GettingStarted = () => {
   const { profile, user, updateProfile, refreshProfile } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const { isActive: tourActive, currentStep, steps } = useTour();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const colorScheme = useColorScheme();
   
   // Register license plan card for tour targeting
@@ -1185,30 +1186,26 @@ export const GettingStarted = () => {
             >
               <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
                 <YStack gap="$4">
-                  <XStack justifyContent="space-between" alignItems="center">
-                    <Text size="xl" weight="bold">
-                      Din körkortsplan
-                    </Text>
-                    <TouchableOpacity onPress={hideKorkortsplanSheet}>
-                      <Feather name="x" size={24} color={colorScheme === 'dark' ? 'white' : 'black'} />
-                    </TouchableOpacity>
-                  </XStack>
+                  {/* Header - matching connections modal style (centered, no X) */}
+                  <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                    {t('onboarding.licensePlan.title') || 'Your License Journey'}
+                  </Text>
 
-                  <Text color="$gray11">
-                    Hjälp oss anpassa din körkortsplan genom att svara på några frågor.
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {t('onboarding.licensePlan.description') || 'Tell us about your experience level, driving goals and vehicle preferences'}
                   </Text>
 
                   <YStack gap="$4" marginTop="$4">
                     {/* Target License Date with Quick Options */}
                     <YStack gap="$2">
-                      <Text weight="bold" size="lg">När vill du ta körkort?</Text>
+                      <Text weight="bold" size="lg">{t('onboarding.date.title') || 'When do you want your license?'}</Text>
                       
                       {/* Quick Date Options */}
                       {[
-                        { label: 'Within 3 months', months: 3, key: '3months' },
-                        { label: 'Within 6 months', months: 6, key: '6months' },
-                        { label: 'Within 1 year', months: 12, key: '1year' },
-                        { label: 'No specific date', months: 24, key: 'nodate' },
+                        { label: t('onboarding.date.within3months') || 'Within 3 months', months: 3, key: '3months' },
+                        { label: t('onboarding.date.within6months') || 'Within 6 months', months: 6, key: '6months' },
+                        { label: t('onboarding.date.within1year') || 'Within 1 year', months: 12, key: '1year' },
+                        { label: t('onboarding.date.noSpecific') || 'No specific date', months: 24, key: 'nodate' },
                       ].map((option) => {
                         const optionTargetDate = new Date();
                         optionTargetDate.setMonth(optionTargetDate.getMonth() + option.months);
@@ -1228,69 +1225,59 @@ export const GettingStarted = () => {
                         );
                       })}
                       
-                      {/* Custom Date Picker with Popover */}
-                      <TouchableOpacity
-                        ref={dateButtonRef}
-                        onPress={() => {
-                          console.log('🗓️ Opening date popover');
-                          setSelectedDateOption('custom');
-                          setShowDatePopover(true);
-                        }}
-                        style={{
-                          paddingVertical: 12,
-                          paddingHorizontal: 16,
-                          borderRadius: 4,
-                          marginVertical: 4,
-                          borderWidth: selectedDateOption === 'custom' ? 2 : 1,
-                          borderColor: selectedDateOption === 'custom' ? '#00B0C7' : '#e1e1e1',
-                          backgroundColor: selectedDateOption === 'custom' ? '#f0fffe' : 'transparent',
-                        }}
-                      >
-                        <XStack gap={8} padding="$2" alignItems="center" width="100%">
-                          <YStack flex={1}>
-                            <Text color={selectedDateOption === 'custom' ? '#000' : '$color'} size="md" weight="semibold">
-                              Pick specific date
-                            </Text>
-                            <Text size="sm" color="$gray11">
-                              {(targetDate || new Date()).toLocaleDateString('sv-SE')}
-                            </Text>
-                          </YStack>
-                          {selectedDateOption === 'custom' ? (
-                            <Feather name="check" size={16} color="#00B0C7" />
-                          ) : (
-                            <Feather name="calendar" size={16} color="#666" />
-                          )}
-                        </XStack>
-                      </TouchableOpacity>
+                      {/* Custom Date Picker with Popover - using RadioButton component */}
+                      <View ref={dateButtonRef}>
+                        <RadioButton
+                          onPress={() => {
+                            console.log('🗓️ [GettingStarted] Opening date popover');
+                            setSelectedDateOption('custom');
+                            setShowDatePopover(true);
+                          }}
+                          title={t('onboarding.date.pickSpecific') || 'Pick specific date'}
+                          description={targetDate ? targetDate.toLocaleDateString() : new Date().toLocaleDateString()}
+                          isSelected={selectedDateOption === 'custom'}
+                        />
+                      </View>
                       
                       <Popover
                         isVisible={showDatePopover}
                         onRequestClose={() => {
-                          console.log('🗓️ Popover closing');
+                          console.log('🗓️ [GettingStarted] Popover onRequestClose called');
                           setShowDatePopover(false);
+                          // Complete cleanup to prevent any blocking issues
+                          setTimeout(() => {
+                            console.log('🗓️ [GettingStarted] Complete cleanup after popover close');
+                            setSelectedDateOption('custom');
+                          }, 10);
                         }}
                         from={dateButtonRef}
                         placement={'top' as any}
+                        backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
                         popoverStyle={{
+                          backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
                           borderRadius: 12,
-                          backgroundColor: 'white',
+                          padding: 16,
                           shadowColor: '#000',
                           shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.25,
+                          shadowOpacity: 0.3,
                           shadowRadius: 12,
-                          elevation: 8,
+                          elevation: 12,
+                          width: 380,
+                          height: 480,
+                          borderWidth: colorScheme === 'dark' ? 1 : 0,
+                          borderColor: colorScheme === 'dark' ? '#333' : 'transparent',
                         }}
                       >
                         <YStack alignItems="center" gap="$2" width="100%">
-                          <Text color="#000" size="lg" weight="semibold" textAlign="center">
-                            Select Target Date
+                          <Text color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} size="lg" weight="semibold" textAlign="center">
+                            {t('onboarding.date.selectTarget') || 'Select Target Date'}
                           </Text>
                           
                           {/* Container for full inline DateTimePicker */}
                           <View style={{
                             width: 350,
                             height: 380,
-                            backgroundColor: '#FFF',
+                            backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
                             borderRadius: 8,
                             overflow: 'visible',
                           }}>
@@ -1306,13 +1293,22 @@ export const GettingStarted = () => {
                                 return maxDate;
                               })()}
                               onChange={(event, selectedDate) => {
-                                console.log('🗓️ Date changed:', selectedDate?.toLocaleDateString('sv-SE'));
+                                console.log('🗓️ [GettingStarted] Date changed:', selectedDate?.toLocaleDateString());
                                 if (selectedDate) {
                                   setTargetDate(selectedDate);
                                   setSelectedDateOption('custom');
+                                  // Don't auto-close - let user press save button
+                                  console.log('🗓️ [GettingStarted] Date updated, waiting for save button');
                                 }
                               }}
-                              style={{ width: 350, height: 380 }}
+                              style={{ 
+                                width: 350, 
+                                height: 380,
+                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                              }}
+                              themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
+                              accentColor="#00E6C3"
+                              locale={language === 'sv' ? 'sv-SE' : 'en-US'}
                             />
                           </View>
                           
@@ -1320,9 +1316,11 @@ export const GettingStarted = () => {
                       </Popover>
                     </YStack>
 
-                    {/* Theory Test */}
-                    <YStack gap="$2">
-                      <Text weight="bold" size="lg">Har du klarat teoriprovet?</Text>
+                    {/* Theory Test Toggle */}
+                    <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                      <Text size="md" weight="semibold" color="$color">
+                        {t('onboarding.licensePlan.hasTheory') || 'Have you passed the theory test?'}
+                      </Text>
                       <XStack alignItems="center" gap="$2">
                         <Switch 
                           size="$4"
@@ -1332,13 +1330,17 @@ export const GettingStarted = () => {
                         >
                           <Switch.Thumb />
                         </Switch>
-                        <Text size="md">{hasTheory ? 'Ja' : 'Nej'}</Text>
+                        <Text size="md" color="$color">
+                          {hasTheory ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                        </Text>
                       </XStack>
                     </YStack>
 
-                    {/* Practice Test */}
-                    <YStack gap="$2">
-                      <Text weight="bold" size="lg">Har du klarat uppkörningen?</Text>
+                    {/* Practice Test Toggle */}
+                    <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                      <Text size="md" weight="semibold" color="$color">
+                        {t('onboarding.licensePlan.hasPractice') || 'Have you passed the practical test?'}
+                      </Text>
                       <XStack alignItems="center" gap="$2">
                         <Switch 
                           size="$4"
@@ -1348,20 +1350,23 @@ export const GettingStarted = () => {
                         >
                           <Switch.Thumb />
                         </Switch>
-                        <Text size="md">{hasPractice ? 'Ja' : 'Nej'}</Text>
+                        <Text size="md" color="$color">
+                          {hasPractice ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                        </Text>
                       </XStack>
                     </YStack>
 
                     {/* Previous Experience */}
                     <YStack gap="$2">
-                      <Text weight="bold" size="lg">Tidigare körerfarenhet</Text>
+                      <Text weight="bold" size="lg">{t('onboarding.licensePlan.previousExperience') || 'Previous driving experience'}</Text>
                       <TextArea
-                        placeholder="Beskriv din tidigare körerfarenhet"
+                        placeholder={t('onboarding.licensePlan.experiencePlaceholder') || 'Describe your previous driving experience'}
                         value={previousExperience}
                         onChangeText={setPreviousExperience}
                         minHeight={100}
-                        backgroundColor="$gray2"
-                        borderColor="$gray6"
+                        backgroundColor="$background"
+                        borderColor="$borderColor"
+                        color="$color"
                         focusStyle={{
                           borderColor: '$blue8',
                         }}
@@ -1370,14 +1375,15 @@ export const GettingStarted = () => {
 
                     {/* Specific Goals */}
                     <YStack gap="$2">
-                      <Text weight="bold" size="lg">Specifika mål</Text>
+                      <Text weight="bold" size="lg">{t('onboarding.licensePlan.specificGoals') || 'Specific goals'}</Text>
                       <TextArea
-                        placeholder="Har du specifika mål med ditt körkort?"
+                        placeholder={t('onboarding.licensePlan.goalsPlaceholder') || 'Do you have specific goals with your license?'}
                         value={specificGoals}
                         onChangeText={setSpecificGoals}
                         minHeight={100}
-                        backgroundColor="$gray2"
-                        borderColor="$gray6"
+                        backgroundColor="$background"
+                        borderColor="$borderColor"
+                        color="$color"
                         focusStyle={{
                           borderColor: '$blue8',
                         }}
@@ -1385,19 +1391,8 @@ export const GettingStarted = () => {
                     </YStack>
                   </YStack>
 
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    marginTop="$6"
-                    marginBottom="$4"
-                    onPress={handleLicensePlanSubmit}
-                    disabled={loading}
-                    backgroundColor="$blue9"
-                    pressStyle={{
-                      backgroundColor: '$blue10',
-                    }}
-                  >
-                    {loading ? 'Sparar...' : 'Spara körkortsplan'}
+                  <Button variant="primary" size="lg" onPress={handleLicensePlanSubmit} marginTop="$4">
+                    {t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
                   </Button>
                 </YStack>
               </ScrollView>
