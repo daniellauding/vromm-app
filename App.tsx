@@ -15,6 +15,7 @@ import { ModalProvider } from './src/contexts/ModalContext';
 import { CreateRouteProvider } from './src/contexts/CreateRouteContext';
 import { MessagingProvider } from './src/contexts/MessagingContext';
 import { TourProvider } from './src/contexts/TourContext';
+import { UnlockProvider } from './src/contexts/UnlockContext';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { logWarn } from './src/utils/logger';
 import { googleSignInService } from './src/services/googleSignInService';
@@ -121,9 +122,11 @@ export default function App() {
                         <CreateRouteProvider>
                           <ModalProvider>
                             <MessagingProvider>
-                              <TourProvider>
-                                <AppContent />
-                              </TourProvider>
+                              <UnlockProvider>
+                                <TourProvider>
+                                  <AppContent />
+                                </TourProvider>
+                              </UnlockProvider>
                             </MessagingProvider>
                           </ModalProvider>
                         </CreateRouteProvider>

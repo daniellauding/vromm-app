@@ -171,80 +171,18 @@ export const CreateEventScreen: React.FC = () => {
     }
   }, [eventId]);
 
-  // Auto-location detection for new events (like CreateRouteScreen)
+  // Set default map region on mount (no automatic location request)
   useEffect(() => {
-    // Only try to get current location if we're creating a new event (not editing) and there are no waypoints
     if (!isEditing && formData.waypoints.length === 0) {
-      (async () => {
-        try {
-          if (!locationPermission) {
-            await requestLocationPermission();
-          }
-
-          if (locationPermission) {
-            const location = await getCurrentLocation();
-            if (location) {
-              const { latitude, longitude } = location.coords;
-
-              // Update region
-              setMapRegion({
-                latitude,
-                longitude,
-                latitudeDelta: 0.02,
-                longitudeDelta: 0.02,
-              });
-
-              // Only add automatic waypoint in pin mode
-              if (formData.drawingMode === 'pin') {
-                // Get address from coordinates
-                const [address] = await Location.reverseGeocodeAsync({
-                  latitude,
-                  longitude,
-                });
-
-                if (address) {
-                  // Create location title
-                  const title = [address.street, address.city, address.country]
-                    .filter(Boolean)
-                    .join(', ');
-
-                  // Add pin for current location
-                  const newWaypoint = {
-                    latitude,
-                    longitude,
-                    title,
-                    description: 'Current location',
-                  };
-
-                  setFormData(prev => ({
-                    ...prev,
-                    waypoints: [newWaypoint],
-                    location: title,
-                    eventLocation: {
-                      coordinates: { latitude, longitude },
-                      address: title,
-                    },
-                  }));
-
-                  // Update search input with location name
-                  setSearchQuery(title);
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.error('Error getting current location:', err);
-          // Fallback to default location if there's an error
-          setMapRegion({
-            latitude: 55.7047,
-            longitude: 13.191,
-            latitudeDelta: 0.1,
-            longitudeDelta: 0.1,
-          });
-        }
-      })();
+      // Use a default location (Stockholm) without requesting permission
+      setMapRegion({
+        latitude: 59.3293, // Stockholm
+        longitude: 18.0686,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+      });
     }
-  }, [isEditing, locationPermission, formData.waypoints.length, formData.drawingMode]);
+  }, [isEditing, formData.waypoints.length]);
 
   const loadEvent = async () => {
     try {
@@ -734,28 +672,51 @@ export const CreateEventScreen: React.FC = () => {
 
   const handleLocateMe = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission denied', 'Location permission is required to use this feature');
-        return;
+      // Check if permission is already granted
+      const { status: currentStatus } = await Location.getForegroundPermissionsAsync();
+      
+      if (currentStatus !== 'granted') {
+        // Request permission only when user explicitly wants it
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'Location Permission Required', 
+            'Please allow location access to use the "Locate Me" feature. You can also search for locations or tap on the map instead.',
+            [
+              { text: 'OK', style: 'default' }
+            ]
+          );
+          return;
+        }
+        setLocationPermission(true);
       }
 
       const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
+      if (location) {
+        const { latitude, longitude } = location.coords;
 
-      // Get address for the location
-      const address = await Location.reverseGeocodeAsync({ latitude, longitude });
-      const locationName = address[0] ? 
-        [address[0].street, address[0].city, address[0].country].filter(Boolean).join(', ') :
-        `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        // Get address for the location
+        const address = await Location.reverseGeocodeAsync({ latitude, longitude });
+        const locationName = address[0] ? 
+          [address[0].street, address[0].city, address[0].country].filter(Boolean).join(', ') :
+          `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
-      handlePinMode(latitude, longitude);
-      setSearchQuery(locationName);
+        // Update map region to user's location
+        setMapRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        });
 
-      Alert.alert('Location found', `Set event location to: ${locationName}`);
+        handlePinMode(latitude, longitude);
+        setSearchQuery(locationName);
+
+        console.log('📍 [CreateEventScreen] Location set to:', locationName);
+      }
     } catch (error) {
       console.error('Location error:', error);
-      Alert.alert('Error', 'Failed to get current location');
+      Alert.alert('Error', 'Failed to get current location. You can search for a location or tap on the map instead.');
     }
   };
 

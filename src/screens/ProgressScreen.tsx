@@ -199,6 +199,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useToast } from '../contexts/ToastContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useStripe } from '@stripe/stripe-react-native';
+import { useUnlock } from '../contexts/UnlockContext';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // Tour imports DISABLED to prevent performance issues
@@ -299,6 +300,15 @@ export function ProgressScreen() {
   // Use activeUserId from navigation if provided, otherwise check StudentSwitchContext, then fall back to authUser
   const effectiveUserId = activeUserId || getEffectiveUserId();
   
+  // Load shared unlock data when user changes
+  useEffect(() => {
+    if (effectiveUserId) {
+      loadUserPayments(effectiveUserId);
+      loadUnlockedContent(effectiveUserId);
+      console.log('🔓 [ProgressScreen] Loading shared unlock data for user:', effectiveUserId);
+    }
+  }, [effectiveUserId, loadUserPayments, loadUnlockedContent]);
+  
   // Debug logging for user switching
   useEffect(() => {
     console.log('🔍 [ProgressScreen] ==================== USER SWITCHING DEBUG ====================');
@@ -325,6 +335,19 @@ export function ProgressScreen() {
   const [exercises, setExercises] = useState<PathExercise[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<PathExercise | null>(null);
   const { user } = useAuth();
+  const {
+    unlockedPaths,
+    unlockedExercises,
+    userPayments,
+    addUnlockedPath,
+    addUnlockedExercise,
+    loadUserPayments,
+    loadUnlockedContent,
+    isPathUnlocked,
+    isExerciseUnlocked,
+    hasPathPayment,
+    hasExercisePayment,
+  } = useUnlock();
   
   // Debug logging for ProgressScreen
   // User and profile tracking without excessive logging
@@ -365,18 +388,10 @@ export function ProgressScreen() {
     type: '', // NEW
   });
 
-  // Add state for password inputs and unlocked items
+  // Add state for password inputs and virtual repeat completions
   const [pathPasswordInput, setPathPasswordInput] = useState('');
   const [exercisePasswordInput, setExercisePasswordInput] = useState('');
-  const [unlockedPaths, setUnlockedPaths] = useState<string[]>([]);
-  const [unlockedExercises, setUnlockedExercises] = useState<string[]>([]);
   const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
-
-  // Add state for database-persisted unlocks
-  const [persistedUnlocks, setPersistedUnlocks] = useState<{
-    paths: string[];
-    exercises: string[];
-  }>({ paths: [], exercises: [] });
   const [refreshing, setRefreshing] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [viewingUserName, setViewingUserName] = useState<string | null>(null);
@@ -385,8 +400,7 @@ export function ProgressScreen() {
   const [reportPath, setReportPath] = useState(false);
   const [reportExerciseId, setReportExerciseId] = useState<string | null>(null);
 
-  // NEW: Payment and access control state
-  const [userPayments, setUserPayments] = useState<UserPayment[]>([]);
+  // NEW: Access control state
   const [accessiblePaths, setAccessiblePaths] = useState<string[]>([]);
   const [accessibleExercises, setAccessibleExercises] = useState<string[]>([]);
 
@@ -423,6 +437,14 @@ export function ProgressScreen() {
   // Paywall modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallPath, setPaywallPath] = useState<LearningPath | null>(null);
+  
+  // Password modal state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordPath, setPasswordPath] = useState<LearningPath | null>(null);
+  
+  // Exercise password modal state
+  const [showExercisePasswordModal, setShowExercisePasswordModal] = useState(false);
+  const [passwordExercise, setPasswordExercise] = useState<PathExercise | null>(null);
 
   // Student profile state for when viewing as student
   const [studentProfile, setStudentProfile] = useState<any>(null);
@@ -2337,7 +2359,7 @@ export function ProgressScreen() {
     }
   };
 
-  // Modified handlePathPress to include paywall check
+  // Modified handlePathPress to include paywall and password checks
   const handlePathPress = async (path: LearningPath, index: number) => {
     // 🔒 Check paywall before allowing access
     const canAccess = await checkPathPaywall(path);
@@ -2345,9 +2367,28 @@ export function ProgressScreen() {
       return; // Paywall modal will be shown
     }
 
+    // 🔒 Check password lock before allowing access
+    if (path.is_locked && !isPathUnlocked(path.id)) {
+      setPasswordPath(path);
+      setShowPasswordModal(true);
+      return; // Password modal will be shown
+    }
+
     setActivePath(path.id);
     setDetailPath(path);
     setShowDetailView(true);
+  };
+
+  // Handle exercise selection with lock checks
+  const handleExerciseSelect = async (exercise: PathExercise) => {
+    // 🔒 Check exercise password lock before allowing access
+    if (exercise.is_locked && !isExerciseUnlocked(exercise.id)) {
+      setPasswordExercise(exercise);
+      setShowExercisePasswordModal(true);
+      return; // Password modal will be shown
+    }
+
+    setSelectedExercise(exercise);
   };
 
   // Calculate progress for each path using exercisesByPath mapping
@@ -2908,26 +2949,16 @@ export function ProgressScreen() {
     return unlockedExercises.includes(exercise.id);
   };
 
-  // Enhanced isPathPasswordLocked function to check for locked status (includes database unlocks)
+  // Enhanced isPathPasswordLocked function to check for locked status (uses shared context)
   const isPathPasswordLocked = (path: LearningPath): boolean => {
     // Use !! to convert undefined to false, ensuring boolean return
-    return (
-      !!path.is_locked &&
-      !unlockedPaths.includes(path.id) &&
-      !persistedUnlocks.paths.includes(path.id)
-    );
+    return !!path.is_locked && !isPathUnlocked(path.id);
   };
 
-  // NEW: Check if path is behind paywall
+  // NEW: Check if path is behind paywall (uses shared context)
   const isPathPaywallLocked = (path: LearningPath): boolean => {
     if (!path.paywall_enabled) return false;
-
-    // Check if user has paid for this path
-    const hasPaid = userPayments.some(
-      (payment) => payment.learning_path_id === path.id && payment.status === 'completed',
-    );
-
-    return !hasPaid;
+    return !hasPathPayment(path.id);
   };
 
   // Separate function to check if a path specifically has a password
@@ -2935,27 +2966,16 @@ export function ProgressScreen() {
     return !!path.is_locked && !!path.lock_password;
   };
 
-  // Function to check if an exercise is locked with password (includes database unlocks)
+  // Function to check if an exercise is locked with password (uses shared context)
   const isExercisePasswordLocked = (exercise: PathExercise): boolean => {
     // Use !! to convert undefined to false, ensuring boolean return
-    return (
-      !!exercise.is_locked &&
-      !!exercise.lock_password &&
-      !unlockedExercises.includes(exercise.id) &&
-      !persistedUnlocks.exercises.includes(exercise.id)
-    );
+    return !!exercise.is_locked && !!exercise.lock_password && !isExerciseUnlocked(exercise.id);
   };
 
-  // NEW: Check if exercise is behind paywall
+  // NEW: Check if exercise is behind paywall (uses shared context)
   const isExercisePaywallLocked = (exercise: PathExercise): boolean => {
     if (!exercise.paywall_enabled) return false;
-
-    // Check if user has paid for this exercise
-    const hasPaid = userPayments.some(
-      (payment) => payment.exercise_id === exercise.id && payment.status === 'completed',
-    );
-
-    return !hasPaid;
+    return !hasExercisePayment(exercise.id);
   };
 
   // Function to unlock a path with password (now with persistence)
@@ -3615,70 +3635,7 @@ export function ProgressScreen() {
             </YStack>
           )}
 
-          {/* Password Locked Exercise State - ALWAYS takes precedence */}
-          {isPasswordLocked ? (
-            <YStack gap={16} padding={24} alignItems="center">
-              <MaterialIcons name="lock" size={80} color="#FF9500" />
-              <Text fontSize={24} fontWeight="bold" color="#FF9500" textAlign="center">
-                This Exercise is Locked
-              </Text>
-
-              {selectedExercise.lock_password ? (
-                <YStack width="100%" gap={8} marginTop={16} alignItems="center">
-                  <Text color="$gray11" fontSize={16} marginBottom={8}>
-                    Enter password to unlock:
-                  </Text>
-                  <View
-                    style={{
-                      width: '100%',
-                      maxWidth: 350,
-                      padding: 8,
-                      backgroundColor: 'rgba(255, 147, 0, 0.2)',
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: '#FF9500',
-                      marginBottom: 16,
-                    }}
-                  >
-                    <TextInput
-                      value={exercisePasswordInput}
-                      onChangeText={setExercisePasswordInput}
-                      secureTextEntry
-                      style={{
-                        backgroundColor: '#222',
-                        color: '#fff',
-                        padding: 16,
-                        borderRadius: 8,
-                        width: '100%',
-                        fontSize: 18,
-                      }}
-                      placeholder="Enter password"
-                      placeholderTextColor="#666"
-                      autoCapitalize="none"
-                    />
-                  </View>
-                  <Button
-                    size="$5"
-                    backgroundColor="#FF9500"
-                    color="#000"
-                    fontWeight="bold"
-                    onPress={unlockExercise}
-                    pressStyle={{ backgroundColor: '#FF7B00' }}
-                    borderRadius={12}
-                    paddingHorizontal={32}
-                  >
-                    Unlock
-                  </Button>
-                </YStack>
-              ) : (
-                <Text color="$gray11" fontSize={16} marginTop={16} textAlign="center">
-                  This exercise is locked and cannot be accessed at this time.
-                </Text>
-              )}
-            </YStack>
-          ) : (
-            /* Normal Exercise Content when Available and Not Locked */
-            <>
+          {/* Always show normal exercise content - lock check happens before navigation */}
               {/* Media Rendering Section - Only show if exercise is accessible */}
               {renderExerciseMedia(selectedExercise)}
 
@@ -4029,8 +3986,6 @@ export function ProgressScreen() {
                 </Text>
                 <CommentsSection targetType="exercise" targetId={selectedExercise.id} />
               </YStack>
-            </>
-          )}
         </ScrollView>
         {/* Add Quiz Interface */}
         <QuizInterface />
@@ -4138,73 +4093,7 @@ export function ProgressScreen() {
             <Text color="#EF4444">Report Learning Path</Text>
           </TouchableOpacity>
 
-          {/* Locked Path State - ALWAYS takes precedence over Unavailable */}
-          {isPasswordLocked ? (
-            <YStack gap={16} padding={24} alignItems="center">
-              <MaterialIcons name="lock" size={80} color="#FF9500" />
-              <Text fontSize={24} fontWeight="bold" color="#FF9500" textAlign="center">
-                This Learning Path is Locked
-              </Text>
-
-              {hasPassword ? (
-                <YStack width="100%" gap={8} marginTop={16} alignItems="center">
-                  <Text color="$gray11" fontSize={16} marginBottom={8}>
-                    Enter password to unlock:
-                  </Text>
-                  <View
-                    style={{
-                      width: '100%',
-                      maxWidth: 350,
-                      padding: 8,
-                      backgroundColor: 'rgba(255, 147, 0, 0.2)',
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: '#FF9500',
-                      marginBottom: 16,
-                    }}
-                  >
-                    <TextInput
-                      value={pathPasswordInput}
-                      onChangeText={setPathPasswordInput}
-                      secureTextEntry
-                      style={{
-                        backgroundColor: '#222',
-                        color: '#fff',
-                        padding: 16,
-                        borderRadius: 8,
-                        width: '100%',
-                        fontSize: 18,
-                      }}
-                      placeholder="Enter password"
-                      placeholderTextColor="#666"
-                      autoCapitalize="none"
-                    />
-                  </View>
-                  <Button
-                    size="$5"
-                    backgroundColor="#FF9500"
-                    color="#000"
-                    fontWeight="bold"
-                    onPress={unlockPath}
-                    pressStyle={{ backgroundColor: '#FF7B00' }}
-                    borderRadius={12}
-                    paddingHorizontal={32}
-                  >
-                    Unlock
-                  </Button>
-                </YStack>
-              ) : (
-                <Text color="$gray11" fontSize={16} marginTop={16} textAlign="center">
-                  This content is locked and cannot be accessed at this time.
-                </Text>
-              )}
-            </YStack>
-          ) : !isAvailable ? (
-            /* Unavailable Path State - Show when path isn't available yet */
-            <UnavailablePathView />
-          ) : (
-            /* Normal Path Content when Available and Not Locked */
-            <>
+          {/* Always show normal path content - lock check happens before navigation */}
               {/* Completion progress */}
               {totalCount > 0 && (
                 <YStack marginTop={8} marginBottom={24}>
@@ -4278,7 +4167,7 @@ export function ProgressScreen() {
                         {/* Main Exercise */}
                         <TouchableOpacity 
                           // ref={exerciseIndex === 0 ? exerciseItemRef : undefined} // DISABLED
-                          onPress={() => setSelectedExercise(main)}
+                          onPress={() => handleExerciseSelect(main)}
                         >
                           <XStack alignItems="center" gap={12}>
                             <TouchableOpacity
@@ -4400,8 +4289,6 @@ export function ProgressScreen() {
                     );
                 })
               )}
-            </>
-          )}
         </ScrollView>
         {/* History Modal */}
         <RNModal
@@ -5203,7 +5090,7 @@ export function ProgressScreen() {
                                 setShowPaywallModal(false);
                                 return;
                               }
-                            } catch (error) {
+                            } catch (error: any) {
                               if (error?.skipPaymentSheet) {
                                 setShowPaywallModal(false);
                                 return;
@@ -5240,8 +5127,6 @@ export function ProgressScreen() {
                                   componentText: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
                                 },
                               },
-                              // Set locale for Swedish/English based on user preference
-                              locale: lang === 'sv' ? 'sv' : 'en',
                             });
 
                             if (initError) {
@@ -5347,6 +5232,318 @@ export function ProgressScreen() {
                 )}
               </YStack>
             </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </RNModal>
+
+      {/* 🔒 Password Modal for Learning Paths (COPY from ProgressSection.tsx) */}
+      <RNModal
+        visible={showPasswordModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPasswordModal(false)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}
+          activeOpacity={1}
+          onPress={() => setShowPasswordModal(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 350 }}
+          >
+            <YStack
+              backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
+              borderRadius={24}
+              padding={20}
+              gap={16}
+              borderWidth={1}
+              borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+            >
+              <XStack justifyContent="space-between" alignItems="center">
+                <XStack alignItems="center" gap={8} flex={1}>
+                  <MaterialIcons name="lock" size={24} color="#FF9500" />
+                  <Text fontSize={20} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'} flex={1}>
+                    Locked Learning Path
+                  </Text>
+                </XStack>
+                <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
+                  <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#666'} />
+                </TouchableOpacity>
+              </XStack>
+
+              {passwordPath && (
+                <>
+                  <YStack gap={12}>
+                    <Text fontSize={24} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                      {passwordPath.title[lang] || passwordPath.title.en}
+                    </Text>
+                    <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                      This learning path is locked and requires a password to access.
+                    </Text>
+                  </YStack>
+
+                  {passwordPath.lock_password && (
+                    <YStack gap={12}>
+                      <Text color={colorScheme === 'dark' ? '#CCC' : '#666'} fontSize={16}>
+                        Enter password to unlock:
+                      </Text>
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(255, 147, 0, 0.2)',
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: '#FF9500',
+                          padding: 8,
+                        }}
+                      >
+                        <TextInput
+                          value={pathPasswordInput}
+                          onChangeText={setPathPasswordInput}
+                          secureTextEntry
+                          style={{
+                            backgroundColor: colorScheme === 'dark' ? '#222' : '#F5F5F5',
+                            color: colorScheme === 'dark' ? '#fff' : '#000',
+                            padding: 16,
+                            borderRadius: 8,
+                            fontSize: 18,
+                          }}
+                          placeholder="Enter password"
+                          placeholderTextColor="#666"
+                          autoCapitalize="none"
+                        />
+                      </View>
+                    </YStack>
+                  )}
+
+                  <XStack gap={12} justifyContent="center">
+                    <TouchableOpacity
+                      onPress={() => setShowPasswordModal(false)}
+                      style={{
+                        backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                        padding: 16,
+                        borderRadius: 12,
+                        flex: 1,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={async () => {
+                        if (!passwordPath?.lock_password) return;
+                        
+                        if (pathPasswordInput === passwordPath.lock_password) {
+                          // Use shared context to unlock
+                          addUnlockedPath(passwordPath.id);
+                          setPathPasswordInput('');
+                          setShowPasswordModal(false);
+                          
+                          // Store unlock in database
+                          try {
+                            await supabase.from('user_unlocked_content').insert({
+                              user_id: effectiveUserId,
+                              content_id: passwordPath.id,
+                              content_type: 'learning_path',
+                            });
+                          } catch (error) {
+                            console.log('Error storing unlock:', error);
+                          }
+                          
+                          showToast({
+                            title: 'Unlocked!',
+                            message: 'Learning path has been unlocked',
+                            type: 'success'
+                          });
+                          
+                          // Now show the path content
+                          setActivePath(passwordPath.id);
+                          setDetailPath(passwordPath);
+                          setShowDetailView(true);
+                        } else {
+                          Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
+                        }
+                      }}
+                      style={{
+                        backgroundColor: '#FF9500',
+                        padding: 16,
+                        borderRadius: 12,
+                        flex: 1,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text color="#000" fontWeight="bold">
+                        Unlock
+                      </Text>
+                    </TouchableOpacity>
+                  </XStack>
+                </>
+              )}
+            </YStack>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </RNModal>
+
+      {/* 🔒 Exercise Password Modal */}
+      <RNModal
+        visible={showExercisePasswordModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowExercisePasswordModal(false)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}
+          activeOpacity={1}
+          onPress={() => setShowExercisePasswordModal(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 350 }}
+          >
+            <YStack
+              backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
+              borderRadius={24}
+              padding={20}
+              gap={16}
+              borderWidth={1}
+              borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+            >
+              <XStack justifyContent="space-between" alignItems="center">
+                <XStack alignItems="center" gap={8} flex={1}>
+                  <MaterialIcons name="lock" size={24} color="#FF9500" />
+                  <Text fontSize={20} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'} flex={1}>
+                    Locked Exercise
+                  </Text>
+                </XStack>
+                <TouchableOpacity onPress={() => setShowExercisePasswordModal(false)}>
+                  <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#666'} />
+                </TouchableOpacity>
+              </XStack>
+
+              {passwordExercise && (
+                <>
+                  <YStack gap={12}>
+                    <Text fontSize={24} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                      {passwordExercise.title[lang] || passwordExercise.title.en}
+                    </Text>
+                    <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                      This exercise is locked and requires a password to access.
+                    </Text>
+                  </YStack>
+
+                  {passwordExercise.lock_password && (
+                    <YStack gap={12}>
+                      <Text color={colorScheme === 'dark' ? '#CCC' : '#666'} fontSize={16}>
+                        Enter password to unlock:
+                      </Text>
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(255, 147, 0, 0.2)',
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: '#FF9500',
+                          padding: 8,
+                        }}
+                      >
+                        <TextInput
+                          value={exercisePasswordInput}
+                          onChangeText={setExercisePasswordInput}
+                          secureTextEntry
+                          style={{
+                            backgroundColor: colorScheme === 'dark' ? '#222' : '#F5F5F5',
+                            color: colorScheme === 'dark' ? '#fff' : '#000',
+                            padding: 16,
+                            borderRadius: 8,
+                            fontSize: 18,
+                          }}
+                          placeholder="Enter password"
+                          placeholderTextColor="#666"
+                          autoCapitalize="none"
+                        />
+                      </View>
+                    </YStack>
+                  )}
+
+                  <XStack gap={12} justifyContent="center">
+                    <TouchableOpacity
+                      onPress={() => setShowExercisePasswordModal(false)}
+                      style={{
+                        backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                        padding: 16,
+                        borderRadius: 12,
+                        flex: 1,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={async () => {
+                        if (!passwordExercise?.lock_password) return;
+                        
+                        if (exercisePasswordInput === passwordExercise.lock_password) {
+                          // Use shared context to unlock
+                          addUnlockedExercise(passwordExercise.id);
+                          setExercisePasswordInput('');
+                          setShowExercisePasswordModal(false);
+                          
+                          // Store unlock in database
+                          try {
+                            await supabase.from('user_unlocked_content').insert({
+                              user_id: effectiveUserId,
+                              content_id: passwordExercise.id,
+                              content_type: 'exercise',
+                            });
+                          } catch (error) {
+                            console.log('Error storing exercise unlock:', error);
+                          }
+                          
+                          showToast({
+                            title: 'Unlocked!',
+                            message: 'Exercise has been unlocked',
+                            type: 'success'
+                          });
+                          
+                          // Now show the exercise
+                          setSelectedExercise(passwordExercise);
+                        } else {
+                          Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
+                        }
+                      }}
+                      style={{
+                        backgroundColor: '#FF9500',
+                        padding: 16,
+                        borderRadius: 12,
+                        flex: 1,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text color="#000" fontWeight="bold">
+                        Unlock
+                      </Text>
+                    </TouchableOpacity>
+                  </XStack>
+                </>
+              )}
+            </YStack>
           </TouchableOpacity>
         </TouchableOpacity>
       </RNModal>

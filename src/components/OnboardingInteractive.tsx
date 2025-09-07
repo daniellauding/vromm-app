@@ -346,7 +346,7 @@ export function OnboardingInteractive({
     },
   ];
 
-    // Mark onboarding as viewed
+  // Mark onboarding as viewed
   const completeOnboarding = async () => {
     try {
       await completeOnboardingWithVersion(showAgainKey, user?.id);
@@ -711,11 +711,11 @@ export function OnboardingInteractive({
       const currentStatus = await Location.getForegroundPermissionsAsync();
       
       if (currentStatus.status !== 'granted') {
-        // Request permission - this shows the native dialog
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        
+      // Request permission - this shows the native dialog
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
         if (status !== 'granted') {
-          setLocationStatus('denied');
+        setLocationStatus('denied');
           showToast({
             title: 'Permission Denied',
             message: 'Location permission is required to detect your location. You can still select a city manually.',
@@ -765,7 +765,7 @@ export function OnboardingInteractive({
       });
 
       const cityName = [address.city, address.country].filter(Boolean).join(', ');
-      setSelectedCity(cityName);
+    setSelectedCity(cityName);
       
       // Save to LocationContext
       await setUserLocation({
@@ -841,7 +841,7 @@ export function OnboardingInteractive({
       easing: Easing.in(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
-      setShowCityDrawer(false);
+    setShowCityDrawer(false);
     });
   };
 
@@ -1306,10 +1306,10 @@ export function OnboardingInteractive({
   };
 
   const handleRoleSelect = (roleId: string) => {
-    setSelectedRole(roleId);
+      setSelectedRole(roleId);
     // Don't auto-advance - wait for save button
   };
-  
+
   const handleSaveRole = async () => {
     if (!user || !selectedRole) return;
 
@@ -1566,7 +1566,7 @@ export function OnboardingInteractive({
           hideConnectionsModal();
         }, 0);
         setCompletedSteps((prev) => new Set(prev).add('relationships'));
-        nextSlide();
+            nextSlide();
         return;
       }
       
@@ -1586,7 +1586,7 @@ export function OnboardingInteractive({
             hideConnectionsModal();
           }, 0);
           setCompletedSteps((prev) => new Set(prev).add('relationships'));
-          nextSlide();
+            nextSlide();
           return;
         }
         throw error;
@@ -1597,7 +1597,7 @@ export function OnboardingInteractive({
         hideConnectionsModal();
       }, 0);
       setCompletedSteps((prev) => new Set(prev).add('relationships'));
-      nextSlide();
+    nextSlide();
     } catch (error) {
       console.error('Error creating connection:', error);
       // Silently continue even on error
@@ -1890,7 +1890,7 @@ export function OnboardingInteractive({
           <YStack width="100%" marginTop="$4" gap="$2">
                               <Button variant="primary" size="lg" onPress={handleSaveRole}>
                 {t('onboarding.role.saveRole') || 'Save Role & Continue'}
-              </Button>
+            </Button>
             
             {/* Always show skip button for role selection */}
             <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
@@ -1916,7 +1916,7 @@ export function OnboardingInteractive({
         bounces={false}
       >
         <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300} paddingHorizontal="$4">
-          {/* Simplified Step Content */}
+                    {/* Simplified Step Content */}
           <YStack alignItems="center" gap="$4" width="100%">
             {/* Show Vromm logo on complete step */}
             {item.id === 'complete' && (
@@ -1951,9 +1951,9 @@ export function OnboardingInteractive({
             {/* Location options - always available */}
             {item.id === 'location' && (
               <YStack gap="$4" marginTop="$6" width="100%">
-                <Button 
-                  variant="secondary" 
-                  size="lg" 
+                <Button
+                  variant="secondary"
+                  size="lg"
                   onPress={handleLocationPermission}
                   disabled={locationLoading}
                 >
@@ -2107,7 +2107,7 @@ export function OnboardingInteractive({
                         nextSlide();
                       }}>
                         Save {selectedConnections.length > 1 ? 'Connections' : 'Connection'} & Continue
-                      </Button>
+                  </Button>
                     ) : existingRelationships.length > 0 ? (
                       <YStack gap="$2" width="100%">
                         <Button variant="primary" size="lg" onPress={() => {
@@ -2161,9 +2161,9 @@ export function OnboardingInteractive({
                 {item.skipButton && item.id !== 'relationships' && item.id !== 'complete' && (
                   <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
                     {t('onboarding.skipForNow') || item.skipButton}
-                  </Button>
-                )}
-              </YStack>
+                </Button>
+              )}
+            </YStack>
             )}
           </YStack>
         </YStack>
@@ -2199,11 +2199,11 @@ export function OnboardingInteractive({
 
       {/* Back Button - Header Style */}
       {currentIndex > 0 && (
-        <View
-          style={{
-            position: 'absolute',
-            top: insets.top || 40,
-            left: 16,
+      <View
+        style={{
+          position: 'absolute',
+          top: insets.top || 40,
+          left: 16,
             zIndex: 1000,
           }}
         >
@@ -2211,14 +2211,14 @@ export function OnboardingInteractive({
             onPress={() => {
               scrollTo(currentIndex - 1);
             }}
-            style={{
+          style={{
               padding: 12,
               marginLeft: -8,
-            }}
-          >
+          }}
+        >
             <Feather name="arrow-left" size={24} color={iconColor} />
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
+      </View>
       )}
 
       {/* Main Content */}
@@ -2317,15 +2317,15 @@ export function OnboardingInteractive({
                 transform: [{ translateY: citySheetTranslateY }],
               }}
             >
-              <YStack
+          <YStack
                 backgroundColor={backgroundColor}
-                padding="$4"
+            padding="$4"
                 paddingBottom={insets.bottom || 20}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
                 gap="$4"
 
-              >
+          >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
               {t('onboarding.city.title') || 'Select Your City'}
             </Text>
@@ -2387,8 +2387,8 @@ export function OnboardingInteractive({
                     >
                       <XStack gap={8} padding="$2" alignItems="center">
                         <Text color={textColor} size="lg">
-                          {cityName}
-                        </Text>
+                            {cityName}
+                          </Text>
                         {selectedCity === cityName && (
                           <Check size={16} color={focusBorderColor} style={{ marginLeft: 'auto' }} />
                         )}
@@ -2398,7 +2398,7 @@ export function OnboardingInteractive({
                 })}
               </YStack>
             </ScrollView>
-              </YStack>
+          </YStack>
             </Animated.View>
           </Pressable>
         </Animated.View>
@@ -2425,7 +2425,7 @@ export function OnboardingInteractive({
           }}
         >
           <Pressable 
-            style={{ flex: 1 }} 
+            style={{ flex: 1 }}
             onPress={() => {
               console.log('🔒 [OnboardingInteractive] Background pressed');
               // Use setTimeout to avoid state conflicts
@@ -2443,12 +2443,12 @@ export function OnboardingInteractive({
                 transform: [{ translateY: connectionsSheetTranslateY }],
               }}
             >
-              <YStack
+          <YStack
                 backgroundColor={backgroundColor}
-                padding="$4"
+            padding="$4"
                 paddingBottom={insets.bottom || 20}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
                 gap="$4"
                 height={height * 0.5}
                 maxHeight={height * 0.5}
@@ -2460,7 +2460,7 @@ export function OnboardingInteractive({
                   ? (t('onboarding.connections.findStudents') || 'Find Students')
                   : (t('onboarding.connections.findUsers') || 'Find Users')
               }
-            </Text>
+              </Text>
             
             <Text size="sm" color="$gray11">
               {selectedRole === 'student' 
@@ -2474,7 +2474,7 @@ export function OnboardingInteractive({
             {/* Custom message input - using FormField styling */}
             <YStack gap="$2">
               <Text size="sm" color="$gray11">{t('onboarding.connections.optionalMessage') || 'Optional message:'}</Text>
-              <TextInput
+            <TextInput
                 value={connectionCustomMessage}
                 onChangeText={setConnectionCustomMessage}
                 placeholder={t('onboarding.connections.messagePlaceholder') || 'Add a personal message...'}
@@ -2484,8 +2484,8 @@ export function OnboardingInteractive({
                     minHeight: 40,
                     textAlignVertical: 'top',
                     padding: 8,
-                    borderRadius: 8,
-                    borderWidth: 1,
+                borderRadius: 8,
+                borderWidth: 1,
                     fontSize: 14,
                   },
                   // Dynamic theming
@@ -2522,8 +2522,8 @@ export function OnboardingInteractive({
                 {searchResults.map((user) => {
                   const isSelected = selectedConnections.some(conn => conn.id === user.id);
                   return (
-                    <TouchableOpacity
-                      key={user.id}
+                  <TouchableOpacity
+                    key={user.id}
                       onPress={() => {
                         if (isSelected) {
                           // Remove from selection
@@ -2546,28 +2546,28 @@ export function OnboardingInteractive({
                       <XStack gap={8} padding="$2" alignItems="center" width="100%">
                         <YStack flex={1}>
                           <Text color={isSelected ? textColor : '$color'} size="md" weight="semibold">
-                            {user.full_name || 'Unknown User'}
-                          </Text>
-                          <Text size="sm" color="$gray11">
-                            {user.email} • {user.role}
-                          </Text>
-                        </YStack>
+                          {user.full_name || 'Unknown User'}
+                        </Text>
+                        <Text size="sm" color="$gray11">
+                          {user.email} • {user.role}
+                        </Text>
+                      </YStack>
                         {isSelected ? (
                           <Check size={16} color={focusBorderColor} />
                         ) : (
                           <Feather name="plus-circle" size={16} color={textColor} />
                         )}
-                      </XStack>
-                    </TouchableOpacity>
+                    </XStack>
+                  </TouchableOpacity>
                   );
                 })}
               </YStack>
             </ScrollView>
-            
+                
                         {/* Action buttons - stacked vertically */}
             <YStack gap="$2">
               {selectedConnections.length > 0 && (
-                <Button 
+          <Button 
                   variant="primary"
                   size="md"
                   onPress={() => {
@@ -2592,9 +2592,9 @@ export function OnboardingInteractive({
                 }}
               >
                 {t('common.cancel') || 'Cancel'}
-              </Button>
-            </YStack>
-              </YStack>
+          </Button>
+        </YStack>
+          </YStack>
             </Animated.View>
           </Pressable>
         </Animated.View>
@@ -2624,21 +2624,21 @@ export function OnboardingInteractive({
                 transform: [{ translateY: vehicleSheetTranslateY }],
               }}
             >
-              <YStack
+          <YStack
                 backgroundColor={backgroundColor}
-                padding="$4"
+            padding="$4"
                 paddingBottom={insets.bottom || 20}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
                 gap="$4"
-              >
+          >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
               {t('onboarding.vehicle.title') || 'Select Vehicle Type'}
-            </Text>
+        </Text>
             
             <ScrollView style={{ maxHeight: 300 }}>
-              <YStack gap="$1">
-                {vehicleTypes.map((type) => (
+            <YStack gap="$1">
+              {vehicleTypes.map((type) => (
                 <TouchableOpacity
                   key={type.id}
                   onPress={async () => {
@@ -2686,9 +2686,9 @@ export function OnboardingInteractive({
                   </XStack>
                 </TouchableOpacity>
               ))}
-              </YStack>
+      </YStack>
             </ScrollView>
-              </YStack>
+          </YStack>
             </Animated.View>
           </Pressable>
         </Animated.View>
@@ -2718,21 +2718,21 @@ export function OnboardingInteractive({
                 transform: [{ translateY: transmissionSheetTranslateY }],
               }}
             >
-              <YStack
+          <YStack
                 backgroundColor={backgroundColor}
-                padding="$4"
+            padding="$4"
                 paddingBottom={insets.bottom || 20}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
                 gap="$4"
-              >
+          >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
               {t('onboarding.transmission.title') || 'Select Transmission'}
             </Text>
             
             <ScrollView style={{ maxHeight: 300 }}>
-              <YStack gap="$1">
-                {transmissionTypes.map((type) => (
+            <YStack gap="$1">
+              {transmissionTypes.map((type) => (
                 <TouchableOpacity
                   key={type.id}
                   onPress={async () => {
@@ -2779,10 +2779,10 @@ export function OnboardingInteractive({
                     )}
                   </XStack>
                 </TouchableOpacity>
-                              ))}
-              </YStack>
+              ))}
+            </YStack>
             </ScrollView>
-              </YStack>
+          </YStack>
             </Animated.View>
           </Pressable>
         </Animated.View>
@@ -2917,21 +2917,21 @@ export function OnboardingInteractive({
                 transform: [{ translateY: licenseSheetTranslateY }],
               }}
             >
-              <YStack
+          <YStack
                 backgroundColor={backgroundColor}
-                padding="$4"
+            padding="$4"
                 paddingBottom={insets.bottom || 20}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
+            borderTopLeftRadius="$4"
+            borderTopRightRadius="$4"
                 gap="$4"
-              >
+          >
             <Text size="xl" weight="bold" color="$color" textAlign="center">
               {t('onboarding.license.title') || 'Select License Type'}
             </Text>
             
             <ScrollView style={{ maxHeight: 300 }}>
-              <YStack gap="$1">
-                {licenseTypes.map((type) => (
+            <YStack gap="$1">
+              {licenseTypes.map((type) => (
                 <TouchableOpacity
                   key={type.id}
                   onPress={async () => {
@@ -2978,10 +2978,10 @@ export function OnboardingInteractive({
                     )}
                   </XStack>
                 </TouchableOpacity>
-                              ))}
-              </YStack>
+              ))}
+            </YStack>
             </ScrollView>
-              </YStack>
+          </YStack>
             </Animated.View>
           </Pressable>
         </Animated.View>
@@ -3155,7 +3155,7 @@ export function OnboardingInteractive({
                       accentColor="#00E6C3"
                       locale={language === 'sv' ? 'sv-SE' : 'en-US'}
                     />
-                  </View>
+        </View>
                   
                 </YStack>
               </Popover>
