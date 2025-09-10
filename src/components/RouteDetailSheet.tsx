@@ -160,6 +160,7 @@ export function RouteDetailSheet({
   const [isDriven, setIsDriven] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAdminControls, setShowAdminControls] = useState(false);
 
   // Exercise-related state
   const [exerciseStats, setExerciseStats] = useState<{
@@ -450,6 +451,129 @@ export function RouteDetailSheet({
     }
   };
 
+  const handleShowOptions = () => {
+    // Track options button press
+    AppAnalytics.trackButtonPress('options_menu', 'RouteDetailSheet', {
+      route_id: routeData?.id,
+    }).catch(() => {
+      // Silently fail analytics
+    });
+
+    const alertButtons: any[] = [
+      {
+        text: t('routeDetail.openInMaps') || 'Open in Maps',
+        onPress: handleOpenInMaps,
+      },
+      {
+        text: t('routeDetail.shareRoute') || 'Share Route',
+        onPress: handleShare,
+      },
+      user?.id === routeData?.creator_id
+        ? {
+            text: t('routeDetail.deleteRoute') || 'Delete Route',
+            onPress: handleDelete,
+            style: 'destructive',
+          }
+        : undefined,
+      user?.id !== routeData?.creator_id
+        ? {
+            text: t('routeDetail.reportRoute') || 'Report Route',
+            onPress: () => setShowReportDialog(true),
+            style: 'destructive',
+          }
+        : undefined,
+      {
+        text: t('common.cancel') || 'Cancel',
+        style: 'cancel',
+      },
+    ].filter(Boolean);
+
+    Alert.alert(t('routeDetail.routeOptions') || 'Route Options', '', alertButtons);
+  };
+
+  const handleOpenInMaps = () => {
+    if (!routeData?.waypoint_details?.length) {
+      Alert.alert('Error', 'No waypoints available for this route');
+      return;
+    }
+
+    const waypoints = routeData.waypoint_details;
+    const origin = `${waypoints[0].lat},${waypoints[0].lng}`;
+    const destination = `${waypoints[waypoints.length - 1].lat},${waypoints[waypoints.length - 1].lng}`;
+
+    const maxIntermediateWaypoints = 8;
+    const intermediateWaypoints = waypoints.slice(1, -1);
+    let selectedWaypoints = intermediateWaypoints;
+    
+    if (intermediateWaypoints.length > maxIntermediateWaypoints) {
+      const step = Math.floor(intermediateWaypoints.length / maxIntermediateWaypoints);
+      selectedWaypoints = intermediateWaypoints
+        .filter((_, index) => index % step === 0)
+        .slice(0, maxIntermediateWaypoints);
+    }
+
+    const waypointsStr = selectedWaypoints.map((wp) => `${wp.lat},${wp.lng}`).join('|');
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypointsStr ? `&waypoints=${waypointsStr}` : ''}`;
+    
+    Linking.openURL(googleMapsUrl);
+  };
+
+  const handleDelete = async () => {
+    if (!user || !routeData) {
+      Alert.alert('Error', 'Unable to delete route');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Route',
+      'Are you sure you want to delete this route? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.from('routes').delete().eq('id', routeData.id);
+              if (error) throw error;
+              onClose();
+            } catch (err) {
+              console.error('Delete error:', err);
+              Alert.alert('Error', 'Failed to delete route');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleAdminDelete = async () => {
+    if (!showAdminControls || !routeData) return;
+
+    Alert.alert(
+      'Admin: Delete Route',
+      'Are you sure you want to delete this route as an admin? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.from('routes').delete().eq('id', routeData.id);
+              if (error) throw error;
+              onClose();
+              Alert.alert('Success', 'Route deleted by admin');
+            } catch (err) {
+              console.error('Admin delete error:', err);
+              Alert.alert('Error', 'Failed to delete route');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // Get map region
   const getMapRegion = useCallback(() => {
     if (!routeData?.waypoint_details?.length) return null;
@@ -632,6 +756,29 @@ export function RouteDetailSheet({
     }
   }, [visible, routeId, user]);
 
+  // Check admin status
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && data && data.role === 'admin') {
+          setShowAdminControls(true);
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
+
   // Animation effects
   useEffect(() => {
     if (visible) {
@@ -713,9 +860,37 @@ export function RouteDetailSheet({
                 <Text fontSize="$6" fontWeight="bold" color="$color" numberOfLines={1} flex={1}>
                   {routeData?.name || t('routeDetail.loading') || 'Loading...'}
                 </Text>
-                <TouchableOpacity onPress={onClose}>
-                  <Feather name="x" size={24} color={iconColor} />
-                </TouchableOpacity>
+                <XStack gap="$2">
+                  {showAdminControls && (
+                    <TouchableOpacity onPress={() => {
+                      AppAnalytics.trackButtonPress('admin_delete', 'RouteDetailSheet', {
+                        route_id: routeData?.id,
+                      }).catch(() => {});
+                      handleAdminDelete();
+                    }}>
+                      <Feather name="trash-2" size={20} color="red" />
+                    </TouchableOpacity>
+                  )}
+                  {user?.id === routeData?.creator_id && (
+                    <TouchableOpacity 
+                      onPress={() => {
+                        AppAnalytics.trackButtonPress('edit_route', 'RouteDetailSheet', {
+                          route_id: routeData?.id,
+                        }).catch(() => {});
+                        navigation.navigate('CreateRoute', { routeId: routeData?.id });
+                        onClose();
+                      }}
+                    >
+                      <Feather name="edit-2" size={20} color={iconColor} />
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity onPress={handleShowOptions}>
+                    <Feather name="more-vertical" size={20} color={iconColor} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={onClose}>
+                    <Feather name="x" size={24} color={iconColor} />
+                  </TouchableOpacity>
+                </XStack>
               </XStack>
 
               {loading ? (
@@ -789,29 +964,42 @@ export function RouteDetailSheet({
                     )}
 
                     {/* Action Buttons */}
-                    <XStack gap="$2" justifyContent="space-between">
-                      <Button
-                        onPress={handleStartRoute}
-                        backgroundColor="$blue10"
-                        icon={<Feather name="navigation" size={18} color="white" />}
-                        flex={1}
-                      >
-                        <Text color="white" fontSize="$3" fontWeight="600">
-                          Start Route
-                        </Text>
-                      </Button>
+                    <YStack gap="$3">
+                      <XStack gap="$2" justifyContent="space-between">
+                        <Button
+                          onPress={handleStartRoute}
+                          backgroundColor="$blue10"
+                          icon={<Feather name="navigation" size={18} color="white" />}
+                          flex={1}
+                        >
+                          <Text color="white" fontSize="$3" fontWeight="600">
+                            Start Route
+                          </Text>
+                        </Button>
+
+                        <Button
+                          onPress={handleSaveRoute}
+                          backgroundColor={isSaved ? '$gray10' : '$blue10'}
+                          icon={<Feather name="bookmark" size={18} color="white" />}
+                          flex={1}
+                        >
+                          <Text color="white" fontSize="$3">
+                            {isSaved ? 'Saved' : 'Save'}
+                          </Text>
+                        </Button>
+                      </XStack>
 
                       <Button
-                        onPress={handleSaveRoute}
-                        backgroundColor={isSaved ? '$gray10' : '$blue10'}
-                        icon={<Feather name="bookmark" size={18} color="white" />}
-                        flex={1}
+                        onPress={handleMarkDriven}
+                        backgroundColor={isDriven ? '$gray10' : '$green10'}
+                        icon={<Feather name="check-circle" size={18} color="white" />}
+                        width="100%"
                       >
-                        <Text color="white" fontSize="$3">
-                          {isSaved ? 'Saved' : 'Save'}
+                        <Text color="white" fontSize="$3" fontWeight="600">
+                          {isDriven ? 'Marked as Driven' : 'Mark as Driven'}
                         </Text>
                       </Button>
-                    </XStack>
+                    </YStack>
 
                     {/* Basic Info Card */}
                     <Card backgroundColor="$backgroundStrong" bordered padding="$4">

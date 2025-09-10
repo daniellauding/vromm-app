@@ -19,6 +19,7 @@ import { db, supabase } from '../lib/supabase';
 import { EventCard } from '../components/EventCard';
 import { useAuth } from '../context/AuthContext';
 import { getTabContentPadding } from '../utils/layout';
+import { AppAnalytics } from '../utils/analytics';
 
 interface Event {
   id: string;
@@ -42,7 +43,11 @@ interface Event {
   attendees?: Array<{ count: number }>;
 }
 
-export const EventsScreen: React.FC = () => {
+interface EventsScreenProps {
+  onEventPress?: (eventId: string) => void;
+}
+
+export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [invitations, setInvitations] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +59,11 @@ export const EventsScreen: React.FC = () => {
   useEffect(() => {
     loadEvents();
     loadInvitations();
+    
+    // Track screen view
+    AppAnalytics.trackScreenView('EventsScreen', {
+      tab: activeTab,
+    }).catch(() => {});
   }, []);
 
   // Auto-refresh when screen comes into focus (e.g., returning from editing)
@@ -128,6 +138,11 @@ export const EventsScreen: React.FC = () => {
 
   const handleAcceptInvitation = async (eventId: string) => {
     try {
+      AppAnalytics.trackFeatureUsage('events', 'invitation_accepted', {
+        event_id: eventId,
+        screen: 'EventsScreen',
+      }).catch(() => {});
+
       const { error } = await supabase
         .from('event_attendees')
         .update({ status: 'accepted' })
@@ -146,6 +161,11 @@ export const EventsScreen: React.FC = () => {
 
   const handleRejectInvitation = async (eventId: string) => {
     try {
+      AppAnalytics.trackFeatureUsage('events', 'invitation_rejected', {
+        event_id: eventId,
+        screen: 'EventsScreen',
+      }).catch(() => {});
+
       const { error } = await supabase
         .from('event_attendees')
         .update({ status: 'rejected' })
@@ -162,6 +182,7 @@ export const EventsScreen: React.FC = () => {
   };
 
   const handleCreateEvent = () => {
+    AppAnalytics.trackButtonPress('create_event', 'EventsScreen').catch(() => {});
     navigation.navigate('CreateEvent', {});
   };
 
@@ -170,7 +191,7 @@ export const EventsScreen: React.FC = () => {
   };
 
   const renderEvent = ({ item }: { item: Event }) => {
-    return <EventCard event={item} />;
+    return <EventCard event={item} onEventPress={onEventPress} />;
   };
 
   if (loading) {
@@ -217,7 +238,13 @@ export const EventsScreen: React.FC = () => {
       {/* Tabs */}
       <XStack padding={16} gap={8}>
         <TouchableOpacity
-          onPress={() => setActiveTab('all')}
+          onPress={() => {
+            AppAnalytics.trackFeatureUsage('events', 'tab_switch', {
+              tab: 'all_events',
+              screen: 'EventsScreen',
+            }).catch(() => {});
+            setActiveTab('all');
+          }}
           style={{
             backgroundColor: activeTab === 'all' ? '#00FFBC' : 'rgba(255, 255, 255, 0.1)',
             borderRadius: 8,
@@ -240,7 +267,13 @@ export const EventsScreen: React.FC = () => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => setActiveTab('invitations')}
+          onPress={() => {
+            AppAnalytics.trackFeatureUsage('events', 'tab_switch', {
+              tab: 'invitations',
+              screen: 'EventsScreen',
+            }).catch(() => {});
+            setActiveTab('invitations');
+          }}
           style={{
             backgroundColor: activeTab === 'invitations' ? '#F59E0B' : 'rgba(255, 255, 255, 0.1)',
             borderRadius: 8,
@@ -315,7 +348,7 @@ export const EventsScreen: React.FC = () => {
                 borderColor="#F59E0B"
                 gap={12}
               >
-                <EventCard event={item} />
+                <EventCard event={item} onEventPress={onEventPress} />
                 
                 {/* Invitation Actions */}
                 <XStack gap={12} paddingTop={8} borderTopWidth={1} borderTopColor="rgba(255, 255, 255, 0.1)">
@@ -360,7 +393,7 @@ export const EventsScreen: React.FC = () => {
               </YStack>
             ) : (
               // Regular event card
-              <EventCard event={item} />
+              <EventCard event={item} onEventPress={onEventPress} />
             )
           )}
           keyExtractor={(item) => item.id}

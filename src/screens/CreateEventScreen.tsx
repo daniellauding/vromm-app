@@ -95,7 +95,11 @@ type SearchResult = Location.LocationGeocodedAddress & {
   coords?: { latitude: number; longitude: number };
 };
 
-export const CreateEventScreen: React.FC = () => {
+interface CreateEventScreenProps {
+  onEventCreated?: () => void;
+}
+
+export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCreated }) => {
   const [formData, setFormData] = useState<CreateEventFormData>({
     title: '',
     description: '',
@@ -251,7 +255,11 @@ export const CreateEventScreen: React.FC = () => {
   };
 
   const handleBack = () => {
-    navigation.goBack();
+    if (onEventCreated) {
+      onEventCreated();
+    } else {
+      navigation.goBack();
+    }
   };
 
   const handleSave = async () => {
@@ -351,7 +359,11 @@ export const CreateEventScreen: React.FC = () => {
         isEditing
       );
       
-      navigation.goBack();
+      if (onEventCreated) {
+        onEventCreated();
+      } else {
+        navigation.goBack();
+      }
     } catch (error) {
       console.error('Error saving event:', error);
       Alert.alert('Error', 'Failed to save event. Please try again.');

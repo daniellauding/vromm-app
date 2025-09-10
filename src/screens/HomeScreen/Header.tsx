@@ -9,9 +9,12 @@ import { useColorScheme } from 'react-native';
 import { Calendar } from '@tamagui/lucide-icons';
 
 // ADD MESSAGING COMPONENTS
-// import { MessageBell } from '../../components/MessageBell';
-// import { NotificationBell } from '../../components/NotificationBell';
-// import { EventsBell } from '../../components/EventsBell';
+import { MessageBell } from '../../components/MessageBell';
+import { NotificationBell } from '../../components/NotificationBell';
+import { EventsBell } from '../../components/EventsBell';
+import { MessagesSheet } from '../../components/MessagesSheet';
+import { NotificationsSheet } from '../../components/NotificationsSheet';
+import { EventsSheet } from '../../components/EventsSheet';
 
 import { useAuth } from '@/src/context/AuthContext';
 import { NavigationProp } from '@/src/types/navigation';
@@ -34,6 +37,11 @@ export const HomeHeader = () => {
   const [showStudentPicker, setShowStudentPicker] = React.useState(false);
   const [students, setStudents] = React.useState<Array<{ id: string; full_name: string; email: string; created_at?: string }>>([]);
   const isSupervisorRole = ['instructor', 'admin', 'school'].includes((profile as any)?.role || '');
+  
+  // Sheet states
+  const [showMessagesSheet, setShowMessagesSheet] = React.useState(false);
+  const [showNotificationsSheet, setShowNotificationsSheet] = React.useState(false);
+  const [showEventsSheet, setShowEventsSheet] = React.useState(false);
 
   const loadSupervisedStudents = React.useCallback(async (): Promise<Array<{ id: string; full_name: string; email: string; created_at?: string }>> => {
     if (!profile?.id) {
@@ -142,7 +150,9 @@ export const HomeHeader = () => {
         </YStack>
 
         <XStack gap={12} alignItems="center">
-          {/* Hidden temporarily: MessageBell, NotificationBell, EventsBell, Users button */}
+          <MessageBell onPress={() => setShowMessagesSheet(true)} />
+          <NotificationBell onPress={() => setShowNotificationsSheet(true)} />
+          <EventsBell onPress={() => setShowEventsSheet(true)} />
         </XStack>
       </XStack>
 
@@ -212,6 +222,24 @@ export const HomeHeader = () => {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Messages Sheet */}
+      <MessagesSheet
+        visible={showMessagesSheet}
+        onClose={() => setShowMessagesSheet(false)}
+      />
+
+      {/* Notifications Sheet */}
+      <NotificationsSheet
+        visible={showNotificationsSheet}
+        onClose={() => setShowNotificationsSheet(false)}
+      />
+
+      {/* Events Sheet */}
+      <EventsSheet
+        visible={showEventsSheet}
+        onClose={() => setShowEventsSheet(false)}
+      />
     </YStack>
   );
 };

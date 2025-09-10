@@ -17,7 +17,15 @@ interface RouteParams {
   conversationId: string;
 }
 
-export const ConversationScreen: React.FC = () => {
+interface ConversationScreenProps {
+  route?: {
+    params: {
+      conversationId: string;
+    };
+  };
+}
+
+export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,8 +43,11 @@ export const ConversationScreen: React.FC = () => {
   const [showAllActions, setShowAllActions] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const navigation = useNavigation();
-  const route = useRoute();
-  const { conversationId } = route.params as RouteParams;
+  const routeFromHook = useRoute();
+  
+  // Use route prop if provided, otherwise use hook (for navigation compatibility)
+  const finalRoute = route || routeFromHook;
+  const { conversationId } = finalRoute.params as RouteParams;
 
   // Theme-aware colors (must be before any early returns)
   const colorScheme = useColorScheme();

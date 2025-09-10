@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { TouchableOpacity, View, Text } from 'react-native';
+import { TouchableOpacity, View, Text, useColorScheme } from 'react-native';
 import { Calendar } from '@tamagui/lucide-icons';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
+import { AppAnalytics } from '../utils/analytics';
 
 interface EventsBellProps {
   size?: number;
   color?: string;
+  onPress?: () => void;
 }
 
-export const EventsBell: React.FC<EventsBellProps> = ({ size = 24, color = '#FFFFFF' }) => {
+export const EventsBell: React.FC<EventsBellProps> = ({ size = 24, color, onPress }) => {
   const navigation = useNavigation();
   const [invitationCount, setInvitationCount] = useState(0);
+  const colorScheme = useColorScheme();
+  
+  // Dynamic color based on theme if not provided
+  const iconColor = color || (colorScheme === 'dark' ? '#FFFFFF' : '#000000');
 
   useEffect(() => {
     loadInvitationCount();
@@ -60,13 +66,21 @@ export const EventsBell: React.FC<EventsBellProps> = ({ size = 24, color = '#FFF
   };
 
   const handlePress = () => {
-    // @ts-expect-error - navigation type issue
-    navigation.navigate('Events');
+    AppAnalytics.trackButtonPress('events_bell', 'Header', {
+      invitation_count: invitationCount,
+    }).catch(() => {});
+
+    if (onPress) {
+      onPress();
+    } else {
+      // @ts-expect-error - navigation type issue
+      navigation.navigate('Events');
+    }
   };
 
   return (
     <TouchableOpacity onPress={handlePress} style={{ position: 'relative' }}>
-      <Calendar size={size} color={color} />
+      <Calendar size={size} color={iconColor} />
 
       {/* Notification Badge */}
       {invitationCount > 0 && (

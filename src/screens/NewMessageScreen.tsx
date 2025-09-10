@@ -8,7 +8,11 @@ import { Database } from '../lib/database.types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
-export const NewMessageScreen: React.FC = () => {
+interface NewMessageScreenProps {
+  onMessageSent?: () => void;
+}
+
+export const NewMessageScreen: React.FC<NewMessageScreenProps> = ({ onMessageSent }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,7 +40,11 @@ export const NewMessageScreen: React.FC = () => {
   };
 
   const handleBack = () => {
-    navigation.goBack();
+    if (onMessageSent) {
+      onMessageSent();
+    } else {
+      navigation.goBack();
+    }
   };
 
   const startConversation = async (user: Profile) => {
@@ -50,14 +58,22 @@ export const NewMessageScreen: React.FC = () => {
       );
 
       if (existingConversation) {
-        // Navigate to existing conversation
-        // @ts-ignore - navigation type issue
-        navigation.navigate('Conversation', { conversationId: existingConversation.id });
+        // Navigate to existing conversation or call callback
+        if (onMessageSent) {
+          onMessageSent();
+        } else {
+          // @ts-ignore - navigation type issue
+          navigation.navigate('Conversation', { conversationId: existingConversation.id });
+        }
       } else {
         // Create new conversation
         const conversation = await messageService.createConversation([user.id]);
-        // @ts-ignore - navigation type issue
-        navigation.navigate('Conversation', { conversationId: conversation.id });
+        if (onMessageSent) {
+          onMessageSent();
+        } else {
+          // @ts-ignore - navigation type issue
+          navigation.navigate('Conversation', { conversationId: conversation.id });
+        }
       }
     } catch (error) {
       console.error('Error starting conversation:', error);

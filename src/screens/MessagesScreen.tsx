@@ -9,7 +9,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 import { getTabContentPadding } from '../utils/layout';
 
-export const MessagesScreen: React.FC = () => {
+interface MessagesScreenProps {
+  onConversationPress?: (conversationId: string) => void;
+}
+
+export const MessagesScreen: React.FC<MessagesScreenProps> = ({ onConversationPress }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,8 +82,12 @@ export const MessagesScreen: React.FC = () => {
   };
 
   const handleConversationPress = (conversation: Conversation) => {
-    // @ts-ignore - navigation type issue
-    navigation.navigate('Conversation', { conversationId: conversation.id });
+    if (onConversationPress) {
+      onConversationPress(conversation.id);
+    } else {
+      // @ts-ignore - navigation type issue
+      navigation.navigate('Conversation', { conversationId: conversation.id });
+    }
   };
 
   const handleNewMessage = () => {

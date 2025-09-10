@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View, useColorScheme } from 'react-native';
 import { Text, YStack } from 'tamagui';
 import { MessageCircle } from '@tamagui/lucide-icons';
 import { messageService } from '../services/messageService';
 import { useNavigation } from '@react-navigation/native';
+import { AppAnalytics } from '../utils/analytics';
 
 interface MessageBellProps {
   size?: number;
   color?: string;
+  onPress?: () => void;
 }
 
-export const MessageBell: React.FC<MessageBellProps> = ({ size = 24, color = '#FFFFFF' }) => {
+export const MessageBell: React.FC<MessageBellProps> = ({ size = 24, color, onPress }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const navigation = useNavigation();
+  const colorScheme = useColorScheme();
+  
+  // Dynamic color based on theme if not provided
+  const iconColor = color || (colorScheme === 'dark' ? '#FFFFFF' : '#000000');
 
   useEffect(() => {
     loadUnreadCount();
@@ -46,13 +52,21 @@ export const MessageBell: React.FC<MessageBellProps> = ({ size = 24, color = '#F
   };
 
   const handlePress = () => {
-    // @ts-ignore - navigation type issue
-    navigation.navigate('Messages');
+    AppAnalytics.trackButtonPress('messages_bell', 'Header', {
+      unread_count: unreadCount,
+    }).catch(() => {});
+
+    if (onPress) {
+      onPress();
+    } else {
+      // @ts-ignore - navigation type issue
+      navigation.navigate('Messages');
+    }
   };
 
   return (
     <TouchableOpacity onPress={handlePress} style={{ position: 'relative' }}>
-      <MessageCircle size={size} color={color} />
+      <MessageCircle size={size} color={iconColor} />
 
       {unreadCount > 0 && (
         <View

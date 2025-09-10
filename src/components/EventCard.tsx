@@ -58,9 +58,10 @@ interface Event {
 
 interface EventCardProps {
   event: Event;
+  onEventPress?: (eventId: string) => void;
 }
 
-export function EventCard({ event }: EventCardProps) {
+export function EventCard({ event, onEventPress }: EventCardProps) {
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
@@ -266,7 +267,11 @@ export function EventCard({ event }: EventCardProps) {
   }, [event.media, event.location]);
 
   const handleEventPress = () => {
-    navigation.navigate('EventDetail', { eventId: event.id });
+    if (onEventPress) {
+      onEventPress(event.id);
+    } else {
+      navigation.navigate('EventDetail', { eventId: event.id });
+    }
   };
 
   return (

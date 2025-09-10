@@ -26,6 +26,10 @@ import { UserListSheet } from '../../components/UserListSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
 import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { CommunityFeedSheet } from '../../components/CommunityFeedSheet';
+import { MessagesSheet } from '../../components/MessagesSheet';
+import { NotificationsSheet } from '../../components/NotificationsSheet';
+import { EventsSheet } from '../../components/EventsSheet';
+import { ProfileSheet } from '../../components/ProfileSheet';
 import { HomeHeader } from './Header';
 import { GettingStarted } from './GettingStarted';
 import { SavedRoutes } from './SavedRoutes';
@@ -36,6 +40,8 @@ import { NearByRoutes } from './NearByRoutes';
 import { DrivenRoutes } from './DrivenRoutes';
 import { DraftRoutes } from './DraftRoutes';
 import { CommunityFeed } from './CommunityFeed';
+import { UpcomingEvents } from './UpcomingEvents';
+import { CommunicationTools } from './CommunicationTools';
 
 // Update the Route type to include creator id
 type Route = {
@@ -77,6 +83,12 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   const [showRouteDetailSheet, setShowRouteDetailSheet] = useState(false);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [showCommunityFeedSheet, setShowCommunityFeedSheet] = useState(false);
+  
+  // Communication sheet states
+  const [showMessagesSheet, setShowMessagesSheet] = useState(false);
+  const [showNotificationsSheet, setShowNotificationsSheet] = useState(false);
+  const [showEventsSheet, setShowEventsSheet] = useState(false);
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
 
   // Use the effective user ID (either activeUserId prop, activeStudentId from context, or current user id)
   const effectiveUserId = activeUserId || getEffectiveUserId();
@@ -404,6 +416,19 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             )}
             <GettingStarted />
 
+            <CommunicationTools 
+              onMessagePress={() => setShowMessagesSheet(true)}
+              onNotificationPress={() => setShowNotificationsSheet(true)}
+              onEventPress={() => setShowEventsSheet(true)}
+            />
+
+            <UpcomingEvents 
+              onEventPress={(eventId) => {
+                navigation.navigate('EventDetail', { eventId });
+              }}
+              onShowEventsSheet={() => setShowEventsSheet(true)}
+            />
+
             <ProgressSection activeUserId={effectiveUserId} />
             <DraftRoutes onRoutePress={handleRoutePress} />
             <SavedRoutes onRoutePress={handleRoutePress} />
@@ -517,6 +542,27 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
           setShowCommunityFeedSheet(false);
           navigation.navigate('EventDetail', { eventId });
         }}
+      />
+
+      {/* Communication Sheets */}
+      <MessagesSheet
+        visible={showMessagesSheet}
+        onClose={() => setShowMessagesSheet(false)}
+      />
+
+      <NotificationsSheet
+        visible={showNotificationsSheet}
+        onClose={() => setShowNotificationsSheet(false)}
+      />
+
+      <EventsSheet
+        visible={showEventsSheet}
+        onClose={() => setShowEventsSheet(false)}
+      />
+
+      <ProfileSheet
+        visible={showProfileSheet}
+        onClose={() => setShowProfileSheet(false)}
       />
     </Screen>
   );

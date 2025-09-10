@@ -67,14 +67,25 @@ interface Event {
   }>;
 }
 
-export const EventDetailScreen: React.FC = () => {
+interface EventDetailScreenProps {
+  route?: {
+    params: {
+      eventId: string;
+    };
+  };
+}
+
+export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) => {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [userStatus, setUserStatus] = useState<'invited' | 'accepted' | 'rejected' | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute();
-  const { eventId } = route.params as { eventId: string };
+  const routeFromHook = useRoute();
+  
+  // Use route prop if provided, otherwise use hook (for navigation compatibility)
+  const finalRoute = route || routeFromHook;
+  const { eventId } = finalRoute.params as { eventId: string };
   const colorScheme = useColorScheme();
   const [commentCount, setCommentCount] = useState<number>(0);
   const [showReport, setShowReport] = useState(false);
