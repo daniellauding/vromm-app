@@ -4,6 +4,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import * as Updates from 'expo-updates';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 
 import { useAuth } from './context/AuthContext';
 import { RootStackParamList } from './types/navigation';
@@ -105,6 +108,54 @@ import { InvitationNotification } from './components/InvitationNotification';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+async function registerForPushNotificationsAsync() {
+  let token;
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('myNotificationChannel', {
+      name: 'A channel is needed for the permissions prompt to appear',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      alert('Failed to get push token for push notification!');
+      return;
+    }
+    // Learn more about projectId:
+    // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
+    // EAS projectId is used here.
+    try {
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+      if (!projectId) {
+        throw new Error('Project ID not found');
+      }
+      token = (
+        await Notifications.getExpoPushTokenAsync({
+          projectId,
+        })
+      ).data;
+      console.log(token);
+    } catch (e) {
+      token = `${e}`;
+    }
+  } else {
+    alert('Must use physical device for Push Notifications');
+  }
+
+  return token;
+}
+
 function UnauthenticatedAppContent() {
   const options = React.useMemo(
     () => ({
@@ -124,6 +175,44 @@ function UnauthenticatedAppContent() {
 }
 
 function AuthenticatedAppContent() {
+  const authData = useAuth();
+
+  useEffect(() => {
+    if (!authData?.user?.id) {
+      return;
+    }
+
+    registerForPushNotificationsAsync().then(async (token) => {
+      try {
+        if (!token || !authData?.user?.id) {
+          return;
+        }
+
+        const resp = await supabase.from('user_push_tokens').upsert(
+          {
+            user_id: authData.user.id,
+            token: token,
+            device_type: Platform.OS,
+          },
+          {
+            onConflict: 'user_id,token',
+          },
+        );
+
+        const { error } = resp;
+
+        if (error) {
+          console.log(resp);
+          console.error('Error storing push token:', error);
+        } else {
+          console.log('✅ Push token stored successfully');
+        }
+      } catch (error) {
+        console.error('Failed to store push token:', error);
+      }
+    });
+  }, [authData?.user?.id]);
+
   return (
     <Stack.Navigator
       initialRouteName="MainTabs"
@@ -156,15 +245,15 @@ function AuthenticatedAppContent() {
         component={CreateRouteScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="Search" 
-        component={SearchScreen} 
-        options={{ 
+      <Stack.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
           headerShown: false,
           presentation: 'modal',
           animationTypeForReplace: 'push',
-          animation: 'slide_from_bottom'
-        }} 
+          animation: 'slide_from_bottom',
+        }}
       />
       <Stack.Screen name="AddReview" component={AddReviewScreen} options={{ headerShown: false }} />
       <Stack.Screen
