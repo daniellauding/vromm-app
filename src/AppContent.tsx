@@ -184,7 +184,7 @@ function AuthenticatedAppContent() {
 
     registerForPushNotificationsAsync().then(async (token) => {
       try {
-        if (!token || !authData?.user?.id) {
+        if (!token || !authData?.user?.id || token.includes('Error')) {
           return;
         }
 
@@ -202,7 +202,6 @@ function AuthenticatedAppContent() {
         const { error } = resp;
 
         if (error) {
-          console.log(resp);
           console.error('Error storing push token:', error);
         } else {
           console.log('✅ Push token stored successfully');
