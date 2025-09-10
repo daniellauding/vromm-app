@@ -21,6 +21,7 @@ import { NetworkAlert } from './components/NetworkAlert';
 import { logInfo, logWarn, logError } from './utils/logger';
 import { pushNotificationService } from './services/pushNotificationService';
 import { registerInvitationModalOpener } from './utils/invitationModalBridge';
+import { AppAnalytics } from './utils/analytics';
 import { TourOverlay } from './components/TourOverlay';
 import { PromotionalModal, usePromotionalModal } from './components/PromotionalModal';
 import type { NavigationContainerRef } from '@react-navigation/native';
@@ -831,6 +832,35 @@ function AppContent() {
       }
     });
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Initialize Firebase Analytics session tracking
+  useEffect(() => {
+    const initializeAnalytics = async () => {
+      try {
+        // Start session tracking when app initializes
+        await AppAnalytics.startSession();
+        logInfo('Firebase Analytics session started');
+      } catch (error) {
+        logWarn('Failed to start Firebase Analytics session', error as Error);
+      }
+    };
+
+    initializeAnalytics();
+
+    // End session when app is about to close
+    const handleAppTermination = async () => {
+      try {
+        await AppAnalytics.endSession();
+      } catch (error) {
+        // Silently fail session end tracking
+      }
+    };
+
+    // Clean up session on unmount
+    return () => {
+      handleAppTermination();
+    };
   }, []);
 
   // Check for database tables on startup

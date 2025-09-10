@@ -26,6 +26,7 @@ import { HomeIcon, MapIcon, ProfileIcon, PractiseIcon } from './icons/TabIcons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme, YStack, XStack, Text, Card } from 'tamagui';
 import { logNavigation, logInfo, logError } from '../utils/logger';
+import { AppAnalytics } from '../utils/analytics';
 import { useNavigationState, useNavigation, CommonActions } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
@@ -1113,8 +1114,10 @@ export function TabNavigator() {
     };
   }, [colorScheme]); // Removed handleCreateRoute dependency to prevent recreating
 
-  // Navigation listener to hide tab bar on specific screens
+  // Navigation listener to hide tab bar on specific screens and track navigation
   useEffect(() => {
+    let previousRouteName: string | null = null;
+
     const unsubscribe = navigation.addListener('state', (e) => {
       const state = e.data.state;
       if (!state) return;
@@ -1135,6 +1138,16 @@ export function TabNavigator() {
       };
 
       const currentRouteName = getCurrentRouteName(state);
+
+      // Track navigation flow in Firebase Analytics
+      if (currentRouteName && previousRouteName && currentRouteName !== previousRouteName) {
+        AppAnalytics.trackNavigation(previousRouteName, currentRouteName, 'tab_navigation').catch(() => {
+          // Silently fail analytics
+        });
+        logNavigation(previousRouteName, currentRouteName);
+      }
+      
+      previousRouteName = currentRouteName;
 
       // List of screens that should hide the tab bar
       const hideTabBarScreens = [

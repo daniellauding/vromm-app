@@ -11,6 +11,7 @@ import {
   logError,
   logWarn,
 } from '../utils/logger';
+import { AppAnalytics } from '../utils/analytics';
 
 interface ScreenLoggerOptions {
   screenName: string;
@@ -44,8 +45,18 @@ export function useScreenLogger({
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
         logInfo('App came to foreground', { previousState: appStateRef.current }, screenName);
+        
+        // Track app foreground in Firebase Analytics
+        AppAnalytics.trackAppForeground().catch(() => {
+          // Silently fail analytics
+        });
       } else if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
         logInfo('App went to background', { nextState: nextAppState }, screenName);
+
+        // Track app background in Firebase Analytics
+        AppAnalytics.trackAppBackground().catch(() => {
+          // Silently fail analytics
+        });
 
         // Log memory warning if app is backgrounded (might indicate memory pressure)
         if (nextAppState === 'background') {
@@ -79,6 +90,11 @@ export function useScreenLogger({
       focusTime.current = startTime;
 
       logScreenFocus(screenName);
+      
+      // Track screen view in Firebase Analytics
+      AppAnalytics.trackScreenView(screenName).catch(() => {
+        // Silently fail analytics
+      });
 
       if (trackPerformance) {
         logInfo('Screen focused', null, screenName);

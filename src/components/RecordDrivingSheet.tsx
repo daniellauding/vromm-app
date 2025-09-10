@@ -18,6 +18,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { CreateRouteModal } from './CreateRouteModal';
 import MapView, { Polyline, Marker } from './MapView';
+import { AppAnalytics } from '../utils/analytics';
 
 // Enhanced Haversine formula for accurate distance calculation
 const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -817,6 +818,11 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         distance,
       });
 
+      // Track recording start in Firebase Analytics
+      await AppAnalytics.trackRouteRecordingStart().catch(() => {
+        // Silently fail analytics
+      });
+
       // Reset all state and refs for clean start
       setWaypoints([]);
       wayPointsRef.current = [];
@@ -995,6 +1001,15 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const stopRecording = useCallback(() => {
     try {
       console.log('🛑 STOP RECORDING CALLED');
+
+      // Track recording end in Firebase Analytics
+      AppAnalytics.trackRouteRecordingEnd(
+        'temp_route_' + Date.now(), // Temporary ID since route isn't created yet
+        drivingTime, // Duration in seconds
+        distance // Distance in kilometers
+      ).catch(() => {
+        // Silently fail analytics
+      });
 
       // Clean up location subscription
       if (locationSubscription) {

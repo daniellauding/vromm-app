@@ -17,6 +17,7 @@ import Carousel from 'react-native-reanimated-carousel';
 import { ImageWithFallback } from './ImageWithFallback';
 import { Database } from '../lib/database.types';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
+import { AppAnalytics } from '../utils/analytics';
 
 type WaypointData = {
   lat: number;
@@ -79,6 +80,20 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
 
   // Navigation function to be called from runOnJS
   const navigateToRoute = () => {
+    // Track route card interaction
+    AppAnalytics.trackButtonPress(
+      'route_card', 
+      'RouteCard',
+      {
+        route_id: route.id,
+        route_title: route.title,
+        route_type: route.spot_type,
+        has_onpress_callback: !!onPress,
+      }
+    ).catch(() => {
+      // Silently fail analytics
+    });
+
     if (onPress) {
       // When onPress is provided, ONLY call the callback (for sheets)
       onPress();

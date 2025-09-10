@@ -39,6 +39,7 @@ import { Language } from '../contexts/TranslationContext';
 import { StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Popover from 'react-native-popover-view';
+import { AppAnalytics } from '../utils/analytics';
 
 const { width, height } = Dimensions.get('window');
 
@@ -349,6 +350,11 @@ export function OnboardingInteractive({
   // Mark onboarding as viewed
   const completeOnboarding = async () => {
     try {
+      // Track onboarding completion
+      await AppAnalytics.trackOnboardingComplete(steps.length).catch(() => {
+        // Silently fail analytics
+      });
+
       await completeOnboardingWithVersion(showAgainKey, user?.id);
       onDone();
     } catch (error) {
@@ -357,9 +363,16 @@ export function OnboardingInteractive({
     }
   };
 
-  // Check completion status on mount
+  // Check completion status on mount and track onboarding start
   useEffect(() => {
     checkStepCompletions();
+    
+    // Track onboarding start when component mounts (only once)
+    if (currentIndex === 0) {
+      AppAnalytics.trackOnboardingStart().catch(() => {
+        // Silently fail analytics
+      });
+    }
   }, [user, profile]);
 
   // Load categories from database
@@ -683,6 +696,14 @@ export function OnboardingInteractive({
   const nextSlide = () => {
     if (currentIndex < steps.length - 1) {
       const nextIndex = currentIndex + 1;
+      const currentStep = steps[currentIndex];
+      const nextStep = steps[nextIndex];
+
+      // Track onboarding step progression
+      AppAnalytics.trackOnboardingStep(currentStep.id, currentIndex + 1).catch(() => {
+        // Silently fail analytics
+      });
+
       scrollTo(nextIndex);
     } else {
       completeOnboarding();
@@ -698,6 +719,11 @@ export function OnboardingInteractive({
   };
 
   const handleSkipStep = (step: OnboardingStep) => {
+    // Track step skip
+    AppAnalytics.trackOnboardingSkip(step.id, currentIndex + 1).catch(() => {
+      // Silently fail analytics
+    });
+
     setSkippedSteps((prev) => new Set(prev).add(step.id));
     nextSlide();
   };
