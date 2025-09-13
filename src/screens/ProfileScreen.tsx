@@ -37,6 +37,7 @@ import { useTour } from '../contexts/TourContext';
 import { useLocation } from '../context/LocationContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePromotionalModal } from '../components/PromotionalModal';
+import { LockModal, useLockModal } from '../components/LockModal';
 import { Language } from '../contexts/TranslationContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Popover from 'react-native-popover-view';
@@ -240,6 +241,15 @@ export function ProfileScreen() {
   const { setUserLocation } = useLocation();
   const { checkForPromotionalContent } = usePromotionalModal();
   const { showToast } = useToast();
+  
+  // Lock modal state
+  const {
+    showModal: showLockModal,
+    modalContentType,
+    featureName,
+    showLockModal: showLockModalAction,
+    hideLockModal,
+  } = useLockModal();
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   
@@ -2856,7 +2866,8 @@ export function ProfileScreen() {
                         console.error('Error auto-saving:', error);
                       }
                     }
-                    setActiveTab('stats');
+                    // Show lock modal instead of switching to stats tab
+                    showLockModalAction('lock_stats', 'Statistics');
                   }}
                   style={{
                     paddingHorizontal: 12,
@@ -2887,7 +2898,8 @@ export function ProfileScreen() {
                         console.error('Error auto-saving:', error);
                       }
                     }
-                    setActiveTab('relationships');
+                    // Show lock modal instead of switching to relationships tab
+                    showLockModalAction('lock_relationships', 'Relationships');
                   }}
                   style={{
                     paddingHorizontal: 12,
@@ -2942,10 +2954,8 @@ export function ProfileScreen() {
                         console.error('Error auto-saving:', error);
                       }
                     }
-                    setActiveTab('billing');
-                    // Load billing data when tab is opened
-                    fetchSubscriptionPlans();
-                    fetchPaymentHistory();
+                    // Show lock modal instead of switching to billing tab
+                    showLockModalAction('lock_billing', 'Billing');
                   }}
                   style={{
                     paddingHorizontal: 12,
@@ -3594,7 +3604,7 @@ export function ProfileScreen() {
 
                     {paymentHistory.length === 0 ? (
                       <YStack alignItems="center" padding="$4" gap="$2">
-                        <Feather name="receipt" size={48} color="$gray11" />
+                        <Feather name="file-text" size={48} color="$gray11" />
                         <Text color="$gray11" textAlign="center">
                           {t('profile.billing.noPayments') || 'No payment history yet'}
                         </Text>
@@ -6027,6 +6037,14 @@ export function ProfileScreen() {
           </View>
         </Animated.View>
       </Modal>
+      
+      {/* Lock Modal */}
+      <LockModal
+        visible={showLockModal}
+        onClose={hideLockModal}
+        contentType={modalContentType}
+        featureName={featureName}
+      />
     </Screen>
   );
 }

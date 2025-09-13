@@ -11,6 +11,7 @@ import { AppAnalytics } from '../../utils/analytics';
 import { messageService } from '../../services/messageService';
 import { notificationService } from '../../services/notificationService';
 import { supabase } from '../../lib/supabase';
+import { LockModal, useLockModal } from '../../components/LockModal';
 
 interface CommunicationToolsProps {
   onMessagePress?: () => void;
@@ -31,6 +32,15 @@ export function CommunicationTools({
   const [messageBadge, setMessageBadge] = useState(0);
   const [notificationBadge, setNotificationBadge] = useState(0);
   const [eventBadge, setEventBadge] = useState(0);
+  
+  // Lock modal state
+  const {
+    showModal: showLockModal,
+    modalContentType,
+    featureName,
+    showLockModal: showLockModalAction,
+    hideLockModal,
+  } = useLockModal();
 
   useEffect(() => {
     loadBadgeCounts();
@@ -72,11 +82,8 @@ export function CommunicationTools({
       badge_count: messageBadge,
     }).catch(() => {});
 
-    if (onMessagePress) {
-      onMessagePress();
-    } else {
-      navigation.navigate('Messages');
-    }
+    // Show lock modal instead of navigating
+    showLockModalAction('lock_messages', 'Messages');
   };
 
   const handleNotificationPress = () => {
@@ -96,11 +103,8 @@ export function CommunicationTools({
       badge_count: eventBadge,
     }).catch(() => {});
 
-    if (onEventPress) {
-      onEventPress();
-    } else {
-      navigation.navigate('Events');
-    }
+    // Show lock modal instead of navigating
+    showLockModalAction('lock_events', 'Events');
   };
 
   const renderBadge = (count: number) => {
@@ -216,6 +220,14 @@ export function CommunicationTools({
           </XStack>
         </YStack>
       </Card>
+      
+      {/* Lock Modal */}
+      <LockModal
+        visible={showLockModal}
+        onClose={hideLockModal}
+        contentType={modalContentType}
+        featureName={featureName}
+      />
     </YStack>
   );
 }

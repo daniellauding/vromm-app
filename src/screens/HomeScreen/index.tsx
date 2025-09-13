@@ -119,7 +119,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
           await AsyncStorage.setItem(key, 'false');
         } else {
           // Check if interactive onboarding should be shown (USER-BASED)
-          const shouldShow = await shouldShowInteractiveOnboarding('interactive_onboarding', user.id);
+          const shouldShow = await shouldShowInteractiveOnboarding('interactive_onboarding', user?.id);
           console.log('🎯 [HomeScreen] Should show interactive onboarding:', shouldShow);
           
           setShowOnboarding(shouldShow);
@@ -440,7 +440,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
               }}
               onRoutePress={handleRoutePress}
             />
-            <QuickFilters handleFilterPress={handleFilterPress} />
+            {/* <QuickFilters handleFilterPress={handleFilterPress} /> */}
             <Button
               onPress={() => navigation.navigate('CreateRoute', {})}
               variant="primary"
