@@ -266,7 +266,7 @@ export function ProfileScreen() {
   
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const deleteBackdropOpacity = useRef(new Animated.Value(0)).current;
-  const deleteSheetTranslateY = useRef(new Animated.Value(300)).current;
+  const deleteModalScale = useRef(new Animated.Value(0.8)).current;
   const [optDeletePrivate, setOptDeletePrivate] = useState(false);
   const [optDeletePublic, setOptDeletePublic] = useState(false);
   const [optDeleteEvents, setOptDeleteEvents] = useState(false);
@@ -1251,10 +1251,10 @@ export function ProfileScreen() {
       duration: 200,
       useNativeDriver: true,
     }).start();
-    Animated.timing(deleteSheetTranslateY, {
-      toValue: 0,
+    Animated.timing(deleteModalScale, {
+      toValue: 1,
       duration: 300,
-      easing: Easing.out(Easing.ease),
+      easing: Easing.out(Easing.back(1.1)),
       useNativeDriver: true,
     }).start();
   };
@@ -1265,8 +1265,8 @@ export function ProfileScreen() {
       duration: 200,
       useNativeDriver: true,
     }).start();
-    Animated.timing(deleteSheetTranslateY, {
-      toValue: 300,
+    Animated.timing(deleteModalScale, {
+      toValue: 0.8,
       duration: 300,
       easing: Easing.in(Easing.ease),
       useNativeDriver: true,
@@ -3879,16 +3879,22 @@ export function ProfileScreen() {
             opacity: deleteBackdropOpacity,
           }}
         >
-          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <Pressable style={{ flex: 1 }} onPress={hideDeleteSheet} />
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Pressable style={{ flex: 1, width: '100%' }} onPress={hideDeleteSheet} />
             <Animated.View
               style={{
                 backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : 'white',
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
+                borderRadius: 20,
                 padding: 20,
-                minHeight: '70%',
-                transform: [{ translateY: deleteSheetTranslateY }],
+                width: '90%',
+                maxWidth: 400,
+                maxHeight: '80%',
+                transform: [{ scale: deleteModalScale }],
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 8,
               }}
             >
               <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, TouchableOpacity, Animated, Easing } from 'react-native';
+import { Modal, TouchableOpacity, Animated, Easing, Image } from 'react-native';
 import { YStack, XStack, Text, Button } from 'tamagui';
 import { Lock, X } from '@tamagui/lucide-icons';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -37,7 +37,7 @@ export function LockModal({
   const [content, setContent] = useState<PromotionalContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [backdropOpacity] = useState(new Animated.Value(0));
-  const [sheetTranslateY] = useState(new Animated.Value(300));
+  const [modalScale] = useState(new Animated.Value(0.8));
 
   useEffect(() => {
     if (visible) {
@@ -98,10 +98,10 @@ export function LockModal({
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
-      Animated.timing(sheetTranslateY, {
-        toValue: 0,
+      Animated.timing(modalScale, {
+        toValue: 1,
         duration: 300,
-        easing: Easing.out(Easing.quad),
+        easing: Easing.out(Easing.back(1.1)),
         useNativeDriver: true,
       }),
     ]).start();
@@ -115,8 +115,8 @@ export function LockModal({
         easing: Easing.in(Easing.quad),
         useNativeDriver: true,
       }),
-      Animated.timing(sheetTranslateY, {
-        toValue: 300,
+      Animated.timing(modalScale, {
+        toValue: 0.8,
         duration: 200,
         easing: Easing.in(Easing.quad),
         useNativeDriver: true,
@@ -157,27 +157,30 @@ export function LockModal({
         }}
       >
         <TouchableOpacity
-          style={{ flex: 1 }}
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
           activeOpacity={1}
           onPress={handleClose}
         >
           <TouchableOpacity
             activeOpacity={1}
             onPress={(e) => e.stopPropagation()}
-            style={{ flex: 1, justifyContent: 'flex-end' }}
+            style={{ width: '90%', maxWidth: 400 }}
           >
             <Animated.View
               style={{
-                transform: [{ translateY: sheetTranslateY }],
+                transform: [{ scale: modalScale }],
               }}
             >
               <YStack
                 backgroundColor="$background"
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
+                borderRadius="$4"
                 padding="$4"
-                maxHeight="80%"
-                minHeight="50%"
+                maxHeight="85%"
+                shadowColor="$shadowColor"
+                shadowOffset={{ width: 0, height: 4 }}
+                shadowOpacity={0.3}
+                shadowRadius={8}
+                elevation={8}
               >
                 {/* Header */}
                 <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
@@ -194,44 +197,49 @@ export function LockModal({
 
                 {/* Content */}
                 {loading ? (
-                  <YStack alignItems="center" justifyContent="center" flex={1}>
+                  <YStack alignItems="center" justifyContent="center" padding="$8">
                     <Text color="$gray11">Loading...</Text>
                   </YStack>
                 ) : content ? (
-                  <YStack gap="$4" flex={1}>
+                  <YStack gap="$4">
                     {/* Feature Name */}
-                    <Text fontSize="$5" fontWeight="600" color="$color">
+                    <Text fontSize="$5" fontWeight="600" color="$color" textAlign="center">
                       {featureName}
                     </Text>
 
                     {/* Promotional Content */}
                     <YStack gap="$3">
-                      <Text fontSize="$4" fontWeight="600" color="$color">
+                      <Text fontSize="$4" fontWeight="600" color="$color" textAlign="center">
                         {content.title}
                       </Text>
                       
-                      <Text fontSize="$3" color="$gray11" lineHeight="$1">
+                      <Text fontSize="$3" color="$gray11" lineHeight="$1" textAlign="center">
                         {content.body}
                       </Text>
 
                       {/* Image if available */}
                       {content.image_url && (
                         <YStack
-                          height={200}
+                          height={150}
                           backgroundColor="$gray3"
                           borderRadius="$3"
                           overflow="hidden"
+                          marginTop="$2"
                         >
-                          {/* You could add an Image component here */}
-                          <Text color="$gray11" textAlign="center" marginTop="$8">
-                            Image: {content.image_url}
-                          </Text>
+                          <Image
+                            source={{ uri: content.image_url }}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              resizeMode: 'cover',
+                            }}
+                          />
                         </YStack>
                       )}
                     </YStack>
 
                     {/* Action Buttons */}
-                    <XStack gap="$3" marginTop="auto">
+                    <XStack gap="$3" marginTop="$4">
                       <Button
                         flex={1}
                         variant="outlined"
@@ -254,12 +262,11 @@ export function LockModal({
                     </XStack>
                   </YStack>
                 ) : (
-                  <YStack alignItems="center" justifyContent="center" flex={1}>
+                  <YStack alignItems="center" justifyContent="center" padding="$8" gap="$4">
                     <Text color="$gray11" textAlign="center">
                       {t('lockModal.noContent') || 'No promotional content available'}
                     </Text>
                     <Button
-                      marginTop="$4"
                       variant="outlined"
                       onPress={handleClose}
                     >
