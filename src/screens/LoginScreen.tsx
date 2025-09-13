@@ -10,6 +10,7 @@ import { Header } from '../components/Header';
 import { useTranslation } from '../contexts/TranslationContext';
 import { Button } from '../components/Button';
 import { Text } from '../components/Text';
+import { useToast } from '../contexts/ToastContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
@@ -31,6 +32,7 @@ export function LoginScreen() {
   const [oauthLoading, setOauthLoading] = useState(false);
   const { signIn, user } = useAuth();
   const { t, clearCache } = useTranslation();
+  const { showToast } = useToast();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
 
@@ -92,6 +94,11 @@ export function LoginScreen() {
           console.log('[LOGIN_DEBUG] User account is deleted, signing out...');
           await supabase.auth.signOut();
           setError('This account has been deleted. Please contact support if you believe this is an error.');
+          showToast({
+            title: 'Account Deleted',
+            message: 'This account has been deleted. Please contact support if you believe this is an error.',
+            type: 'error'
+          });
           return;
         }
         console.log('[LOGIN_DEBUG] User account status:', profile?.account_status);
@@ -129,6 +136,32 @@ export function LoginScreen() {
         return;
       }
       console.log('[GOOGLE_NATIVE] Google native sign-in completed for:', result.user?.email);
+      
+      // Check if user account is deleted after OAuth sign-in
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('account_status, full_name')
+          .eq('id', user.id)
+          .single();
+          
+        if (profileError) {
+          console.log('[GOOGLE_NATIVE] Error checking profile:', profileError);
+        } else if (profile?.account_status === 'deleted') {
+          console.log('[GOOGLE_NATIVE] User account is deleted, signing out...');
+          await supabase.auth.signOut();
+          Alert.alert('Account Deleted', 'This account has been deleted. Please contact support if you believe this is an error.');
+          showToast({
+            title: 'Account Deleted',
+            message: 'This account has been deleted. Please contact support if you believe this is an error.',
+            type: 'error'
+          });
+          return;
+        }
+        console.log('[GOOGLE_NATIVE] User account status:', profile?.account_status);
+      }
+      
       // App.tsx listens to Supabase SIGNED_IN and will remount the navigator
     } catch (e) {
       console.error('[GOOGLE_NATIVE] Error:', e);

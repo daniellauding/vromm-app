@@ -18,8 +18,6 @@ INSERT INTO translations (key, language, value, platform, created_at, updated_at
 ('onboarding.location.permissionDenied', 'sv', 'Tillstånd nekad', 'mobile', NOW(), NOW()),
 ('onboarding.location.permissionDeniedMessage', 'en', 'Location permission is required to detect your location. You can still select a city manually.', 'mobile', NOW(), NOW()),
 ('onboarding.location.permissionDeniedMessage', 'sv', 'Platstillstånd krävs för att hitta din plats. Du kan fortfarande välja en stad manuellt.', 'mobile', NOW(), NOW()),
-('onboarding.location.detectingLocation', 'en', 'Detecting Location...', 'mobile', NOW(), NOW()),
-('onboarding.location.detectingLocation', 'sv', 'Identifierar plats...', 'mobile', NOW(), NOW()),
 ('onboarding.location.selectCity', 'en', 'Or Select Your City', 'mobile', NOW(), NOW()),
 ('onboarding.location.selectCity', 'sv', 'Eller välj din stad', 'mobile', NOW(), NOW()),
 ('onboarding.location.clearLocation', 'en', 'Clear Selected Location', 'mobile', NOW(), NOW()),
@@ -250,6 +248,10 @@ INSERT INTO translations (key, language, value, platform, created_at, updated_at
 ('deleteAccount.deleteExercises', 'sv', 'Ta bort mina användarövningar', 'mobile', NOW(), NOW()),
 ('deleteAccount.deleteReviews', 'en', 'Delete my reviews', 'mobile', NOW(), NOW()),
 ('deleteAccount.deleteReviews', 'sv', 'Ta bort mina recensioner', 'mobile', NOW(), NOW()),
+('deleteAccount.deleteComments', 'en', 'Delete my comments', 'mobile', NOW(), NOW()),
+('deleteAccount.deleteComments', 'sv', 'Ta bort mina kommentarer', 'mobile', NOW(), NOW()),
+('deleteAccount.deleteOptions', 'en', 'What would you like to delete?', 'mobile', NOW(), NOW()),
+('deleteAccount.deleteOptions', 'sv', 'Vad vill du ta bort?', 'mobile', NOW(), NOW()),
 ('deleteAccount.transferToggle', 'en', 'Transfer public content to system account', 'mobile', NOW(), NOW()),
 ('deleteAccount.transferToggle', 'sv', 'Överför offentligt innehåll till systemkonto', 'mobile', NOW(), NOW()),
 ('deleteAccount.transferHelp', 'en', 'If off, public content will be deleted if that option is selected.', 'mobile', NOW(), NOW()),
@@ -262,6 +264,8 @@ INSERT INTO translations (key, language, value, platform, created_at, updated_at
 ('deleteAccount.successTitle', 'sv', 'Konto borttaget', 'mobile', NOW(), NOW()),
 ('deleteAccount.successMessage', 'en', 'Your account was deleted.', 'mobile', NOW(), NOW()),
 ('deleteAccount.successMessage', 'sv', 'Ditt konto har tagits bort.', 'mobile', NOW(), NOW()),
+('settings.deleteAccountConfirmation', 'en', 'Are you sure you want to delete your account? This action cannot be undone.', 'mobile', NOW(), NOW()),
+('settings.deleteAccountConfirmation', 'sv', 'Är du säker på att du vill ta bort ditt konto? Denna åtgärd kan inte ångras.', 'mobile', NOW(), NOW()),
 
 -- Error translations
 ('errors.title', 'en', 'Error', 'mobile', NOW(), NOW()),

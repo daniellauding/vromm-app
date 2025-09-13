@@ -254,8 +254,9 @@ export function ProfileScreen() {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   
-  // Delete account modal state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const deleteBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const deleteSheetTranslateY = useRef(new Animated.Value(300)).current;
   const [optDeletePrivate, setOptDeletePrivate] = useState(false);
   const [optDeletePublic, setOptDeletePublic] = useState(false);
   const [optDeleteEvents, setOptDeleteEvents] = useState(false);
@@ -473,7 +474,20 @@ export function ProfileScreen() {
   const handleConfirmDeleteAccount = async () => {
     try {
       if (!user?.id) return;
-      const { error } = await supabase.rpc('process_user_account_deletion', {
+      
+      console.log('🗑️ [DELETE_ACCOUNT] Starting delete process...');
+      console.log('🗑️ [DELETE_ACCOUNT] User ID:', user.id);
+      console.log('🗑️ [DELETE_ACCOUNT] Options:', {
+        optDeletePrivate,
+        optDeletePublic,
+        optDeleteEvents,
+        optDeleteExercises,
+        optDeleteReviews,
+        optTransferPublic,
+        SYSTEM_PROFILE_UUID
+      });
+      
+      const { data, error } = await supabase.rpc('process_user_account_deletion', {
         p_user_id: user.id,
         p_delete_private_routes: optDeletePrivate,
         p_delete_public_routes: optDeletePublic,
@@ -482,7 +496,20 @@ export function ProfileScreen() {
         p_delete_reviews: optDeleteReviews,
         p_transfer_public_to: optTransferPublic ? SYSTEM_PROFILE_UUID : null,
       });
-      if (error) throw error;
+      
+      console.log('🗑️ [DELETE_ACCOUNT] RPC Result:', { data, error });
+      
+      if (error) {
+        console.error('🗑️ [DELETE_ACCOUNT] RPC Error:', error);
+        throw error;
+      }
+      
+      if (data && !data.success) {
+        console.error('🗑️ [DELETE_ACCOUNT] Function returned error:', data);
+        throw new Error(data.message || 'Delete account failed');
+      }
+      
+      console.log('🗑️ [DELETE_ACCOUNT] Account deletion successful:', data);
 
       await supabase.auth.signOut();
       showToast({
@@ -490,6 +517,7 @@ export function ProfileScreen() {
         message: t('deleteAccount.successMessage') || 'Your account was deleted.',
         type: 'success'
       });
+      hideDeleteSheet();
     } catch (err) {
       console.error('Delete account error:', err);
       showToast({
@@ -914,7 +942,6 @@ export function ProfileScreen() {
     }
   };
 
-  // Delete avatar handler
   const handleDeleteAvatar = async () => {
     try {
       setAvatarUploading(true);
@@ -1203,6 +1230,38 @@ export function ProfileScreen() {
       useNativeDriver: true,
     }).start(() => {
       setShowKorkortsplanModal(false);
+    });
+  };
+
+  // Delete account modal show/hide functions
+  const showDeleteSheet = () => {
+    setShowDeleteDialog(true);
+    Animated.timing(deleteBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(deleteSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideDeleteSheet = () => {
+    Animated.timing(deleteBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(deleteSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowDeleteDialog(false);
     });
   };
 
@@ -3071,7 +3130,7 @@ export function ProfileScreen() {
                 {t('profile.signOut')}
               </Button>
               <Button
-                onPress={() => setShowDeleteDialog(true)}
+                onPress={showDeleteSheet}
                 disabled={loading}
                 variant="outlined"
                 size="lg"
@@ -3798,56 +3857,158 @@ export function ProfileScreen() {
 
       {/* Delete Account Modal */}
       <Modal
+        animationType="none"
+        transparent={true}
         visible={showDeleteDialog}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDeleteDialog(false)}
+        onRequestClose={hideDeleteSheet}
       >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onPress={() => setShowDeleteDialog(false)}
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            opacity: deleteBackdropOpacity,
+          }}
         >
-          <YStack
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            backgroundColor="$background"
-            padding="$4"
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-            gap="$4"
-          >
-            <Text size="xl" weight="bold" color="$color">
-              {t('settings.deleteAccount')}
-            </Text>
-            <Text color="$color">
-              {t('settings.deleteAccountConfirmation')}
-            </Text>
-            <XStack gap="$2">
-              <Button
-                flex={1}
-                onPress={() => setShowDeleteDialog(false)}
-                variant="secondary"
-                size="lg"
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button
-                flex={1}
-                onPress={() => {
-                  setShowDeleteDialog(false);
-                  // Add delete account logic here
-                }}
-                variant="primary"
-                backgroundColor="$red10"
-                size="lg"
-              >
-                {t('common.delete')}
-              </Button>
-            </XStack>
-          </YStack>
-        </Pressable>
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <Pressable style={{ flex: 1 }} onPress={hideDeleteSheet} />
+            <Animated.View
+              style={{
+                backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : 'white',
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                padding: 20,
+                minHeight: '70%',
+                transform: [{ translateY: deleteSheetTranslateY }],
+              }}
+            >
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+                <YStack gap="$4">
+                  {/* Header */}
+                  <Text size="xl" weight="bold" color="$color" textAlign="center">
+                    {t('deleteAccount.title') || 'Delete Account'}
+                  </Text>
+
+                  <Text color="$gray11" textAlign="center">
+                    {t('deleteAccount.description') ||
+                      'Deleting your account will anonymize your profile. Your content remains unless you choose to remove it below.'}
+                  </Text>
+
+                  <YStack gap="$4" marginTop="$4">
+                    {/* Delete Options */}
+                    <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                      <Text size="md" weight="semibold" color="$color">
+                        {t('deleteAccount.deleteOptions') || 'What would you like to delete?'}
+                      </Text>
+                      
+                      <XStack ai="center" jc="space-between">
+                        <Text>{t('deleteAccount.deletePrivateRoutes') || 'Delete my private routes'}</Text>
+                        <Switch 
+                          size="$4"
+                          checked={optDeletePrivate} 
+                          onCheckedChange={setOptDeletePrivate}
+                          backgroundColor={optDeletePrivate ? '$blue8' : '$gray6'}
+                        >
+                          <Switch.Thumb />
+                        </Switch>
+                      </XStack>
+                      
+                      <XStack ai="center" jc="space-between">
+                        <Text>{t('deleteAccount.deletePublicRoutes') || 'Delete my public routes'}</Text>
+                        <Switch 
+                          size="$4"
+                          checked={optDeletePublic} 
+                          onCheckedChange={setOptDeletePublic}
+                          backgroundColor={optDeletePublic ? '$blue8' : '$gray6'}
+                        >
+                          <Switch.Thumb />
+                        </Switch>
+                      </XStack>
+                      
+                      <XStack ai="center" jc="space-between">
+                        <Text>{t('deleteAccount.deleteEvents') || 'Delete my events'}</Text>
+                        <Switch 
+                          size="$4"
+                          checked={optDeleteEvents} 
+                          onCheckedChange={setOptDeleteEvents}
+                          backgroundColor={optDeleteEvents ? '$blue8' : '$gray6'}
+                        >
+                          <Switch.Thumb />
+                        </Switch>
+                      </XStack>
+                      
+                      <XStack ai="center" jc="space-between">
+                        <Text>{t('deleteAccount.deleteExercises') || 'Delete my user exercises'}</Text>
+                        <Switch 
+                          size="$4"
+                          checked={optDeleteExercises} 
+                          onCheckedChange={setOptDeleteExercises}
+                          backgroundColor={optDeleteExercises ? '$blue8' : '$gray6'}
+                        >
+                          <Switch.Thumb />
+                        </Switch>
+                      </XStack>
+                      
+                      <XStack ai="center" jc="space-between">
+                        <Text>{t('deleteAccount.deleteReviews') || 'Delete my reviews'}</Text>
+                        <Switch 
+                          size="$4"
+                          checked={optDeleteReviews} 
+                          onCheckedChange={setOptDeleteReviews}
+                          backgroundColor={optDeleteReviews ? '$blue8' : '$gray6'}
+                        >
+                          <Switch.Thumb />
+                        </Switch>
+                      </XStack>
+                      
+                    </YStack>
+
+                    {/* Transfer Option */}
+                    <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                      <Text size="md" weight="semibold" color="$color">
+                        {t('deleteAccount.transferToggle') || 'Transfer public content to system account'}
+                      </Text>
+                      <XStack ai="center" gap="$2">
+                        <Switch 
+                          size="$4"
+                          checked={optTransferPublic} 
+                          onCheckedChange={setOptTransferPublic}
+                          backgroundColor={optTransferPublic ? '$blue8' : '$gray6'}
+                        >
+                          <Switch.Thumb />
+                        </Switch>
+                        <Text size="md" color="$color">
+                          {optTransferPublic ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                        </Text>
+                      </XStack>
+                      <Text color="$gray11" fontSize="$2">
+                        {t('deleteAccount.transferHelp') ||
+                          'If off, public content will be deleted if that option is selected.'}
+                      </Text>
+                    </YStack>
+                  </YStack>
+
+                  <YStack gap="$2" marginTop="$4">
+                    <Button 
+                      variant="primary"
+                      backgroundColor="$red9"
+                      size="lg" 
+                      onPress={handleConfirmDeleteAccount}
+                    >
+                      <Text color="white">{t('deleteAccount.confirm') || 'Delete my account'}</Text>
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="lg"
+                      onPress={hideDeleteSheet}
+                    >
+                      {t('common.cancel') || 'Cancel'}
+                    </Button>
+                  </YStack>
+                </YStack>
+              </ScrollView>
+            </Animated.View>
+          </View>
+        </Animated.View>
       </Modal>
 
       <Modal
@@ -5073,7 +5234,6 @@ export function ProfileScreen() {
                                   style: 'destructive',
                                   onPress: async () => {
                                     try {
-                                      // Delete created routes, saved routes, and driven routes
                                       const promises = [
                                         supabase.from('routes').delete().eq('creator_id', user.id),
                                         supabase.from('saved_routes').delete().eq('user_id', user.id),
@@ -5363,7 +5523,6 @@ export function ProfileScreen() {
                                         })
                                         .eq('id', user.id);
                                       
-                                      // Delete all user data
                                       const promises = [
                                         supabase.from('learning_path_exercise_completions').delete().eq('user_id', user.id),
                                         supabase.from('routes').delete().eq('creator_id', user.id),
