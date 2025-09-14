@@ -185,37 +185,6 @@ type RecordedWaypoint = {
 
 const { height: screenHeight } = Dimensions.get('window');
 
-// Define task for background location tracking
-TaskManager.defineTask(LOCATION_TRACKING, async ({ data, error }) => {
-  if (error) {
-    console.error('LOCATION_TRACKING task error:', error);
-    return;
-  }
-  if (data) {
-    // @ts-ignore
-    const { locations } = data;
-    const location = locations[0];
-
-    // Store this location in AsyncStorage or another persistent storage
-    if (location) {
-      try {
-        // Send location to the global variable for access when app is in foreground
-        if (global && (global as any).addBackgroundWaypoint) {
-          (global as any).addBackgroundWaypoint({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            timestamp: location.timestamp,
-            speed: location.coords.speed,
-            accuracy: location.coords.accuracy,
-          });
-        }
-      } catch (err) {
-        console.error('Error saving background location:', err);
-      }
-    }
-  }
-});
-
 interface RecordDrivingSheetProps {
   isVisible: boolean;
   onClose: () => void;
@@ -330,7 +299,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const lastErrorRef = useRef<string | null>(null);
   const lastStateUpdateRef = useRef<number>(0); // Throttle state updates
   const deviceDataRef = useRef(defaultDeviceData);
-  
+
   // Auto-save refs
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastAutoSaveRef = useRef<number>(0);
@@ -455,34 +424,46 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     } catch (error) {
       console.error('❌ Auto-save failed:', error);
     }
-  }, [isRecording, isPaused, totalElapsedTime, drivingTime, distance, currentSpeed, maxSpeed, averageSpeed, recordingStartTime, pausedTime, formatTime]);
+  }, [
+    isRecording,
+    isPaused,
+    totalElapsedTime,
+    drivingTime,
+    distance,
+    currentSpeed,
+    maxSpeed,
+    averageSpeed,
+    recordingStartTime,
+    pausedTime,
+    formatTime,
+  ]);
 
   // Check for recovery data on component mount
   const checkForRecoveryData = useCallback(async () => {
     try {
       const recoveryCheck = await AsyncStorage.getItem(RECOVERY_CHECK_KEY);
       const sessionData = await AsyncStorage.getItem(AUTO_SAVE_KEY);
-      
+
       if (recoveryCheck === 'true' && sessionData) {
         const parsed = JSON.parse(sessionData);
-        
+
         // Check if the session is recent (within last 24 hours)
         const lastSaveTime = parsed.lastSaveTime || 0;
         const hoursSinceLastSave = (Date.now() - lastSaveTime) / (1000 * 60 * 60);
-        
+
         if (hoursSinceLastSave < 24 && parsed.waypoints && parsed.waypoints.length > 0) {
           console.log('🔄 Found recovery data:', {
             waypoints: parsed.waypoints.length,
             distance: parsed.distance,
             hoursSinceLastSave: hoursSinceLastSave.toFixed(1),
           });
-          
+
           setHasRecoveryData(true);
           setShowRecoveryPrompt(true);
           return parsed;
         }
       }
-      
+
       // Clean up old recovery data
       await clearRecoveryData();
     } catch (error) {
@@ -499,11 +480,11 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       if (!sessionData) return;
 
       const parsed = JSON.parse(sessionData);
-      
+
       // Restore waypoints
       wayPointsRef.current = parsed.waypoints || [];
       setWaypoints([...wayPointsRef.current]);
-      
+
       // Restore stats
       setDistance(parsed.distance || 0);
       setCurrentSpeed(parsed.currentSpeed || 0);
@@ -511,16 +492,16 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       setAverageSpeed(parsed.averageSpeed || 0);
       setTotalElapsedTime(parsed.totalElapsedTime || 0);
       setDrivingTime(parsed.drivingTime || 0);
-      
+
       // Restore recording state
       if (parsed.recordingStartTime) {
         setRecordingStartTime(new Date(parsed.recordingStartTime));
       }
-      
+
       setPausedTime(parsed.pausedTime || 0);
       setShowMap(true); // Show map to display recovered route
       setShowSummary(true); // Go directly to summary
-      
+
       console.log('✅ Restored recording session:', {
         waypoints: wayPointsRef.current.length,
         distance: parsed.distance,
@@ -530,9 +511,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       Alert.alert(
         'Recording Recovered',
         `Found a previous recording session with ${wayPointsRef.current.length} waypoints and ${(parsed.distance || 0).toFixed(2)} km. You can now create a route from this data.`,
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
-      
     } catch (error) {
       console.error('❌ Recovery restore failed:', error);
       Alert.alert('Recovery Failed', 'Could not restore the previous recording session.');
@@ -562,14 +542,15 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       }
 
       console.log('🚨 Emergency draft save triggered');
-      
+
       // Create emergency draft data
-      const validWaypoints = wayPointsRef.current.filter((wp) => 
-        wp && 
-        typeof wp.latitude === 'number' && 
-        typeof wp.longitude === 'number' &&
-        !isNaN(wp.latitude) && 
-        !isNaN(wp.longitude)
+      const validWaypoints = wayPointsRef.current.filter(
+        (wp) =>
+          wp &&
+          typeof wp.latitude === 'number' &&
+          typeof wp.longitude === 'number' &&
+          !isNaN(wp.latitude) &&
+          !isNaN(wp.longitude),
       );
 
       if (validWaypoints.length === 0) {
@@ -605,21 +586,23 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           latitude: firstWaypoint.latitude,
           longitude: firstWaypoint.longitude,
         },
-        endPoint: validWaypoints.length > 1 ? {
-          latitude: validWaypoints[validWaypoints.length - 1].latitude,
-          longitude: validWaypoints[validWaypoints.length - 1].longitude,
-        } : undefined,
+        endPoint:
+          validWaypoints.length > 1
+            ? {
+                latitude: validWaypoints[validWaypoints.length - 1].latitude,
+                longitude: validWaypoints[validWaypoints.length - 1].longitude,
+              }
+            : undefined,
       };
 
       // Store emergency draft data
       await AsyncStorage.setItem('@emergency_draft', JSON.stringify(emergencyDraftData));
-      
+
       console.log('🚨 Emergency draft saved successfully:', {
         waypoints: waypointsForRoute.length,
         distance: distance.toFixed(2),
         name: routeName,
       });
-
     } catch (error) {
       console.error('🚨 Emergency draft save failed:', error);
     }
@@ -636,9 +619,10 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       }
 
       // Verify permission is granted
-      const { status } = await Location.requestForegroundPermissionsAsync().catch(() => ({
+      const { status } = await Location.requestBackgroundPermissionsAsync().catch(() => ({
         status: 'error',
       }));
+
       if (status !== 'granted') {
         setDebugMessage('Location permission denied');
         return;
@@ -646,152 +630,166 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
 
       // Set up watch position with error handling
       try {
-        const subscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Balanced, // Lower accuracy for better performance
-            timeInterval: MIN_TIME_FILTER,
-            distanceInterval: MIN_DISTANCE_FILTER,
-          },
-          (location) => {
-            try {
-              const now = Date.now();
+        TaskManager.defineTask(LOCATION_TRACKING, ({ data: { locations }, error }) => {
+          if (error) {
+            // check `error.message` for more details.
+            return;
+          }
 
-              // Validate location data before processing
-              if (!location || !location.coords) {
-                return;
-              }
+          if (locations.length === 0) {
+            return;
+          }
 
-              // Calculate metrics even if we don't save the waypoint
-              const newWaypoint: RecordedWaypoint = {
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-                timestamp: location.timestamp,
-                speed: location.coords.speed,
-                accuracy: location.coords.accuracy,
-              };
+          const location = locations[0];
 
-              // Calculate distance from last waypoint if we have one
-              let distanceFromLast = 0;
-              let shouldAddWaypoint = true;
+          try {
+            const now = Date.now();
 
-              if (wayPointsRef.current.length > 0) {
-                const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 1];
-                distanceFromLast =
-                  calculateDistance(
-                    lastWaypoint.latitude,
-                    lastWaypoint.longitude,
-                    newWaypoint.latitude,
-                    newWaypoint.longitude,
-                  ) * 1000; // Convert to meters
-
-                // Only add waypoint if it's a significant movement
-                if (distanceFromLast < MIN_DISTANCE_FILTER) {
-                  shouldAddWaypoint = false;
-                }
-              }
-
-              // Enhanced speed calculation with GPS fallback
-              const gpsSpeed =
-                location.coords.speed !== null && location.coords.speed >= 0
-                  ? location.coords.speed * 3.6 // Convert m/s to km/h
-                  : null;
-
-              // Calculated speed from distance/time if we have previous waypoint
-              let calculatedSpeed = 0;
-              if (wayPointsRef.current.length > 0) {
-                const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 1];
-                const timeDiff = (newWaypoint.timestamp - lastWaypoint.timestamp) / 1000; // seconds
-                if (timeDiff > 0 && distanceFromLast > 0) {
-                  calculatedSpeed = distanceFromLast / 1000 / (timeDiff / 3600); // km/h
-                }
-              }
-
-              // Use most reliable speed source
-              const finalSpeed = gpsSpeed !== null && gpsSpeed < 200 ? gpsSpeed : calculatedSpeed;
-
-              // Update speed tracking
-              setCurrentSpeed(Math.max(0, finalSpeed));
-              setMaxSpeed((prev) => Math.max(prev, finalSpeed));
-
-              // Enhanced waypoint filtering - DISABLED FOR TESTING
-              const minimumWaypointDistance = 0; // 0 meters - TESTING MODE
-              const minimumSpeed = 0; // 0 km/h - TESTING MODE
-              shouldAddWaypoint =
-                shouldAddWaypoint &&
-                (distanceFromLast >= minimumWaypointDistance || finalSpeed >= minimumSpeed);
-
-              console.log('🚗 WAYPOINT FILTER DEBUG:', {
-                distanceFromLast,
-                finalSpeed,
-                minimumWaypointDistance,
-                minimumSpeed,
-                shouldAddWaypoint,
-                isPaused,
-                totalWaypoints: wayPointsRef.current.length,
-              });
-
-              // Throttle waypoint updates to reduce memory pressure
-              if (
-                now - waypointThrottleRef.current < MIN_TIME_FILTER &&
-                waypointThrottleRef.current !== 0
-              ) {
-                return;
-              }
-
-              waypointThrottleRef.current = now;
-
-              // Only log occasionally to reduce console spam
-              if (now % 10000 < 100) {
-                // Log every 10 seconds
-                console.log(
-                  `Recording: ${wayPointsRef.current.length} points, ${distance.toFixed(2)}km`,
-                );
-              }
-
-              // Add waypoint if recording and not paused and significant movement
-              if (!isPaused && shouldAddWaypoint) {
-                // Update waypoints ref immediately for calculations
-                wayPointsRef.current = [...wayPointsRef.current, newWaypoint];
-
-                // Throttle state updates to reduce re-renders (update every 5 waypoints or 2 seconds)
-                const shouldUpdateState =
-                  wayPointsRef.current.length % 5 === 0 || now - lastStateUpdateRef.current > 2000;
-
-                if (shouldUpdateState) {
-                  setWaypoints([...wayPointsRef.current]);
-                  lastStateUpdateRef.current = now;
-                }
-
-                // Calculate total distance
-                if (wayPointsRef.current.length > 1) {
-                  const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 2];
-                  const segmentDistance = calculateDistance(
-                    lastWaypoint.latitude,
-                    lastWaypoint.longitude,
-                    newWaypoint.latitude,
-                    newWaypoint.longitude,
-                  );
-                  setDistance((prevDistance) => prevDistance + segmentDistance);
-                }
-
-                // Update debug message occasionally
-                if (now % 5000 < 100) {
-                  setDebugMessage(`Last update: ${new Date().toLocaleTimeString()}`);
-                }
-              }
-            } catch (error) {
-              console.error('Error processing location update:', error);
-              lastErrorRef.current = 'Location update error';
-              // Continue tracking despite errors
+            // Validate location data before processing
+            if (!location || !location.coords) {
+              return;
             }
-          },
-        );
 
-        setLocationSubscription(subscription);
+            // Calculate metrics even if we don't save the waypoint
+            const newWaypoint: RecordedWaypoint = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              timestamp: location.timestamp,
+              speed: location.coords.speed,
+              accuracy: location.coords.accuracy,
+            };
+
+            // Calculate distance from last waypoint if we have one
+            let distanceFromLast = 0;
+            let shouldAddWaypoint = true;
+
+            if (wayPointsRef.current.length > 0) {
+              const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 1];
+              distanceFromLast =
+                calculateDistance(
+                  lastWaypoint.latitude,
+                  lastWaypoint.longitude,
+                  newWaypoint.latitude,
+                  newWaypoint.longitude,
+                ) * 1000; // Convert to meters
+
+              // Only add waypoint if it's a significant movement
+              if (distanceFromLast < MIN_DISTANCE_FILTER) {
+                shouldAddWaypoint = false;
+              }
+            }
+
+            // Enhanced speed calculation with GPS fallback
+            const gpsSpeed =
+              location.coords.speed !== null && location.coords.speed >= 0
+                ? location.coords.speed * 3.6 // Convert m/s to km/h
+                : null;
+
+            // Calculated speed from distance/time if we have previous waypoint
+            let calculatedSpeed = 0;
+            if (wayPointsRef.current.length > 0) {
+              const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 1];
+              const timeDiff = (newWaypoint.timestamp - lastWaypoint.timestamp) / 1000; // seconds
+              if (timeDiff > 0 && distanceFromLast > 0) {
+                calculatedSpeed = distanceFromLast / 1000 / (timeDiff / 3600); // km/h
+              }
+            }
+
+            // Use most reliable speed source
+            const finalSpeed = gpsSpeed !== null && gpsSpeed < 200 ? gpsSpeed : calculatedSpeed;
+
+            // Update speed tracking
+            setCurrentSpeed(Math.max(0, finalSpeed));
+            setMaxSpeed((prev) => Math.max(prev, finalSpeed));
+
+            // Enhanced waypoint filtering - DISABLED FOR TESTING
+            const minimumWaypointDistance = 0; // 0 meters - TESTING MODE
+            const minimumSpeed = 0; // 0 km/h - TESTING MODE
+            shouldAddWaypoint =
+              shouldAddWaypoint &&
+              (distanceFromLast >= minimumWaypointDistance || finalSpeed >= minimumSpeed);
+
+            console.log('🚗 WAYPOINT FILTER DEBUG:', {
+              distanceFromLast,
+              finalSpeed,
+              minimumWaypointDistance,
+              minimumSpeed,
+              shouldAddWaypoint,
+              isPaused,
+              totalWaypoints: wayPointsRef.current.length,
+            });
+
+            // Throttle waypoint updates to reduce memory pressure
+            if (
+              now - waypointThrottleRef.current < MIN_TIME_FILTER &&
+              waypointThrottleRef.current !== 0
+            ) {
+              return;
+            }
+
+            waypointThrottleRef.current = now;
+
+            // Only log occasionally to reduce console spam
+            if (now % 10000 < 100) {
+              // Log every 10 seconds
+              console.log(
+                `Recording: ${wayPointsRef.current.length} points, ${distance.toFixed(2)}km`,
+              );
+            }
+
+            // Add waypoint if recording and not paused and significant movement
+            if (!isPaused && shouldAddWaypoint) {
+              // Update waypoints ref immediately for calculations
+              wayPointsRef.current = [...wayPointsRef.current, newWaypoint];
+
+              // Throttle state updates to reduce re-renders (update every 5 waypoints or 2 seconds)
+              const shouldUpdateState =
+                wayPointsRef.current.length % 5 === 0 || now - lastStateUpdateRef.current > 2000;
+
+              if (shouldUpdateState) {
+                setWaypoints([...wayPointsRef.current]);
+                lastStateUpdateRef.current = now;
+              }
+
+              // Calculate total distance
+              if (wayPointsRef.current.length > 1) {
+                const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 2];
+                const segmentDistance = calculateDistance(
+                  lastWaypoint.latitude,
+                  lastWaypoint.longitude,
+                  newWaypoint.latitude,
+                  newWaypoint.longitude,
+                );
+                setDistance((prevDistance) => prevDistance + segmentDistance);
+              }
+
+              // Update debug message occasionally
+              if (now % 5000 < 100) {
+                setDebugMessage(`Last update: ${new Date().toLocaleTimeString()}`);
+              }
+            }
+          } catch (error) {
+            console.error('Error processing location update:', error);
+            lastErrorRef.current = 'Location update error';
+            // Continue tracking despite errors
+          }
+        });
+
+        await Location.startLocationUpdatesAsync(LOCATION_TRACKING, {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 1000,
+          deferredUpdatesInterval: 5,
+        });
+
+        setLocationSubscription({
+          remove: async () => {
+            await Location.stopLocationUpdatesAsync(LOCATION_TRACKING);
+          },
+        });
 
         // Try to restart background tracking
         try {
-          await startBackgroundLocationTask();
+          // await startBackgroundLocationTask();
         } catch (err) {
           console.warn('Failed to restart background tracking:', err);
         }
@@ -1006,7 +1004,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       AppAnalytics.trackRouteRecordingEnd(
         'temp_route_' + Date.now(), // Temporary ID since route isn't created yet
         drivingTime, // Duration in seconds
-        distance // Distance in kilometers
+        distance, // Distance in kilometers
       ).catch(() => {
         // Silently fail analytics
       });
@@ -1427,18 +1425,18 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       console.log('📱 App state changed:', appState.current, '->', nextAppState);
-      
+
       if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
         // App going to background - emergency save
         console.log('📱 App going to background, triggering emergency save');
         saveAsDraftEmergency();
       }
-      
+
       appState.current = nextAppState;
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
+
     return () => {
       subscription?.remove();
     };
@@ -1454,7 +1452,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
-      
+
       // Emergency save if recording
       if (isRecording && wayPointsRef.current.length > 0) {
         console.log('🚨 Component unmounting during recording - emergency save');
@@ -1530,24 +1528,25 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             {/* Recovery Prompt */}
             {showRecoveryPrompt && (
               <View style={styles.recoveryPrompt}>
-                <YStack gap="$3" padding="$4" backgroundColor={DARK_THEME.cardBackground} borderRadius={12}>
+                <YStack
+                  gap="$3"
+                  padding="$4"
+                  backgroundColor={DARK_THEME.cardBackground}
+                  borderRadius={12}
+                >
                   <XStack alignItems="center" gap="$2">
                     <Feather name="alert-circle" size={20} color="#FF9500" />
                     <Text color={DARK_THEME.text} fontSize={16} fontWeight="600">
                       Recording Recovery
                     </Text>
                   </XStack>
-                  
+
                   <Text color={DARK_THEME.secondaryText} fontSize={14}>
                     Found an incomplete recording session. Would you like to restore it?
                   </Text>
-                  
+
                   <XStack gap="$3" justifyContent="flex-end">
-                    <Button
-                      variant="outlined"
-                      onPress={clearRecoveryData}
-                      backgroundColor="$gray5"
-                    >
+                    <Button variant="outlined" onPress={clearRecoveryData} backgroundColor="$gray5">
                       <Text color="$gray11">Discard</Text>
                     </Button>
                     <Button
@@ -1555,7 +1554,9 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                       onPress={restoreFromRecovery}
                       backgroundColor="#FF9500"
                     >
-                      <Text color="white" fontWeight="600">Restore</Text>
+                      <Text color="white" fontWeight="600">
+                        Restore
+                      </Text>
                     </Button>
                   </XStack>
                 </YStack>
