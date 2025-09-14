@@ -106,7 +106,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
         showCreateOption={true}
         showEditOption={true}
         showDeleteOption={true}
-        title={t('mapPresets.createNew') || 'Create New Preset'}
+        title={t('routeCollections.createNew') || 'Create New Collection'}
       />
     );
   }, [showModal, t]);
@@ -124,7 +124,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
         showCreateOption={true}
         showEditOption={true}
         showDeleteOption={true}
-        title={t('mapPresets.manage') || 'Manage Presets'}
+        title={t('routeCollections.manage') || 'Manage Collections'}
       />
     );
   }, [showModal, t]);
@@ -145,7 +145,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
         <YStack gap="$3">
           <XStack alignItems="center" justifyContent="space-between">
             <Text fontWeight="600" fontSize="$5" color="$color">
-              {t('mapPresets.myPresets') || 'My Map Presets'}
+              {t('routeCollections.myCollections') || 'My Collections'}
             </Text>
             <TouchableOpacity onPress={handleCreatePreset}>
               <Feather name="plus" size={20} color="#00E6C3" />
@@ -155,10 +155,10 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
           <YStack alignItems="center" gap="$3" padding="$4">
             <Feather name="map" size={48} color="$gray10" />
             <Text textAlign="center" color="$gray10" fontSize="$3">
-              {t('mapPresets.noPresets') || 'No custom map presets yet'}
+              {t('routeCollections.noCollections') || 'No custom collections yet'}
             </Text>
             <Text textAlign="center" color="$gray10" fontSize="$2">
-              {t('mapPresets.createFirst') || 'Create your first preset to organize routes'}
+              {t('routeCollections.createFirst') || 'Create your first collection to organize routes'}
             </Text>
             <Button
               backgroundColor="#00E6C3"
@@ -167,7 +167,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
               size="$4"
             >
               <Text color="#000000" fontWeight="600">
-                {t('mapPresets.createFirst') || 'Create First Preset'}
+                {t('routeCollections.createFirst') || 'Create First Collection'}
               </Text>
             </Button>
           </YStack>
@@ -181,7 +181,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
       <YStack gap="$3">
         <XStack alignItems="center" justifyContent="space-between">
           <Text fontWeight="600" fontSize="$5" color="$color">
-            {t('mapPresets.myPresets') || 'My Map Presets'}
+            {t('routeCollections.myCollections') || 'My Collections'}
           </Text>
           <XStack gap="$2">
             <TouchableOpacity onPress={handleCreatePreset}>
@@ -220,7 +220,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
                       {preset.is_default && (
                         <View style={styles.defaultBadge}>
                           <Text fontSize="$1" fontWeight="600" color="#000000">
-                            {t('mapPresets.default') || 'Default'}
+                            {t('routeCollections.default') || 'Default'}
                           </Text>
                         </View>
                       )}
@@ -231,7 +231,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
                       </Text>
                     )}
                     <Text fontSize="$1" color="$gray10">
-                      {preset.route_count || 0} {t('mapPresets.routes') || 'routes'}
+                      {preset.route_count || 0} {t('routeCollections.routes') || 'routes'}
                     </Text>
                   </YStack>
                 </XStack>
@@ -251,7 +251,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
             size="$3"
           >
             <Text color="$color">
-              {t('mapPresets.viewAll') || 'View All Presets'}
+              {t('routeCollections.viewAll') || 'View All Collections'}
             </Text>
           </Button>
         )}

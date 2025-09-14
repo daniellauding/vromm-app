@@ -39,6 +39,7 @@ import { RecordDrivingModal } from '../components/RecordDrivingSheet';
 import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector';
 import { AdvancedExerciseCreator } from '../components/AdvancedExerciseCreator';
 import * as mediaUtils from '../utils/mediaUtils';
+import { AddToPresetSheetModal } from '../components/AddToPresetSheet';
 
 // Helper function to extract YouTube video ID
 const extractYoutubeVideoId = (url: string): string | null => {
@@ -201,6 +202,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const windowWidth = Dimensions.get('window').width;
   const HERO_HEIGHT = windowHeight * 0.6;
   const [youtubeLink, setYoutubeLink] = useState('');
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [showCollectionSelector, setShowCollectionSelector] = useState(false);
 
   // Drawing modes system - set to 'record' if coming from recorded route
   const [drawingMode, setDrawingMode] = useState<'pin' | 'waypoint' | 'pen' | 'record'>(
@@ -1349,6 +1352,22 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     }
   };
 
+  // Handle collection selection
+  const handleSelectCollection = () => {
+    setShowCollectionSelector(true);
+  };
+
+  const handleCollectionSelected = (collectionId: string, collectionName: string) => {
+    setSelectedCollectionId(collectionId);
+    setShowCollectionSelector(false);
+    // Show success message
+    Alert.alert(
+      getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected'),
+      getTranslation(t, 'createRoute.routeWillBeSavedTo', 'Route will be saved to "{collectionName}"').replace('{collectionName}', collectionName),
+      [{ text: getTranslation(t, 'common.ok', 'OK') }]
+    );
+  };
+
   const handleCreate = async () => {
     if (!user?.id) {
       Alert.alert('Error', 'Please sign in to create a route');
@@ -1607,6 +1626,29 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
         // Track route creation
         await AppAnalytics.trackRouteCreate(formData.spot_type);
+
+        // Add route to selected collection if one was selected
+        if (selectedCollectionId && route?.id) {
+          try {
+            const { error: collectionError } = await supabase
+              .from('map_preset_routes')
+              .insert({
+                preset_id: selectedCollectionId,
+                route_id: route.id,
+                added_at: new Date().toISOString(),
+              });
+
+            if (collectionError) {
+              console.error('Error adding route to collection:', collectionError);
+              // Don't throw here, just log the error
+            } else {
+              console.log('✅ Route added to collection successfully');
+            }
+          } catch (error) {
+            console.error('Error adding route to collection:', error);
+            // Don't throw here, just log the error
+          }
+        }
 
         // Show success message only in non-modal mode
         if (!isModal) {
@@ -3309,7 +3351,29 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         backgroundColor="$background"
         borderTopWidth={1}
         borderTopColor="$borderColor"
+        gap="$3"
       >
+        {/* Collection Selector Button */}
+        <Button
+          onPress={handleSelectCollection}
+          backgroundColor="transparent"
+          borderColor="$borderColor"
+          borderWidth={1}
+          size="md"
+          width="100%"
+        >
+          <XStack gap="$2" alignItems="center">
+            <Feather name="map" size={18} color="$color" />
+            <Text color="$color">
+              {selectedCollectionId 
+                ? getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected')
+                : getTranslation(t, 'createRoute.selectCollection', 'Select Collection (Optional)')
+              }
+            </Text>
+          </XStack>
+        </Button>
+
+        {/* Create Route Button */}
         <Button
           onPress={handleCreate}
           disabled={loading || !formData.name.trim()}
@@ -3450,6 +3514,29 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           </Animated.View>
         </View>
       </Modal>
+
+      {/* Collection Selector Modal */}
+      {showCollectionSelector && (
+        <AddToPresetSheetModal
+          routeId={null} // No route ID since we're creating a new route
+          onRouteAdded={handleCollectionSelected}
+          onRouteRemoved={() => {}} // Not applicable for new routes
+          onPresetCreated={(preset) => {
+            setSelectedCollectionId(preset.id);
+            setShowCollectionSelector(false);
+            Alert.alert(
+              getTranslation(t, 'createRoute.collectionCreated', 'Collection Created'),
+              getTranslation(t, 'createRoute.newCollectionCreated', 'New collection "{collectionName}" has been created').replace('{collectionName}', preset.name),
+              [{ text: getTranslation(t, 'common.ok', 'OK') }]
+            );
+          }}
+          onClose={() => setShowCollectionSelector(false)}
+          showCreateOption={true}
+          showEditOption={false}
+          showDeleteOption={false}
+          title={getTranslation(t, 'createRoute.selectCollection', 'Select Collection')}
+        />
+      )}
     </Screen>
   );
 }

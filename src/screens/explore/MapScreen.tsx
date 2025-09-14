@@ -971,7 +971,11 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       {/* Route Detail Sheet */}
       <RouteDetailSheet
         visible={showRouteDetailSheet}
-        onClose={() => setShowRouteDetailSheet(false)}
+        onClose={() => {
+          console.log('🎯 MapScreen: RouteDetailSheet closing - selectedRouteId:', selectedRouteId);
+          setShowRouteDetailSheet(false);
+          // Don't clear selectedRouteId here to allow for reopening
+        }}
         routeId={selectedRouteId}
         onStartRoute={(routeId) => {
           // Close sheet and navigate to map with route
@@ -981,8 +985,12 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         }}
         onNavigateToProfile={handleUserPress}
         onReopen={() => {
-          console.log('🎯 MapScreen: Reopening RouteDetailSheet');
-          setShowRouteDetailSheet(true);
+          console.log('🎯 MapScreen: Reopening RouteDetailSheet - selectedRouteId:', selectedRouteId);
+          if (selectedRouteId) {
+            setShowRouteDetailSheet(true);
+          } else {
+            console.warn('🎯 MapScreen: No selectedRouteId, cannot reopen RouteDetailSheet');
+          }
         }}
       />
 

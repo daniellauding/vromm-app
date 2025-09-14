@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Modal, Animated, Pressable, Easing, View, Dimensions, ScrollView, TouchableOpacity, RefreshControl, Alert, Image, Share, Linking, Platform } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { YStack, XStack, Text, Card, Button, Progress } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
@@ -25,6 +27,7 @@ import { parseRecordingStats, isRecordedRoute, formatRecordingStatsDisplay } fro
 import { RouteExerciseList } from './RouteExerciseList';
 import { AddToPresetSheetModal } from './AddToPresetSheet';
 import { useModal } from '../contexts/ModalContext';
+import { IconButton } from './IconButton';
 
 const { height, width } = Dimensions.get('window');
 
@@ -154,6 +157,46 @@ export function RouteDetailSheet({
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Gesture handling for drag-to-dismiss
+  const translateY = useSharedValue(0);
+  const isDragging = useRef(false);
+
+  const dismissSheet = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      isDragging.current = true;
+    })
+    .onUpdate((event) => {
+      const { translationY } = event;
+      // Only allow downward dragging
+      if (translationY > 0) {
+        translateY.value = translationY;
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      isDragging.current = false;
+      
+      // If dragged down more than 100px or with high velocity, dismiss
+      if (translationY > 100 || velocityY > 500) {
+        runOnJS(dismissSheet)();
+      } else {
+        // Snap back to original position
+        translateY.value = withSpring(0, {
+          damping: 20,
+          mass: 1,
+          stiffness: 100,
+        });
+      }
+    });
+
+  const animatedGestureStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   // State (exact copy from RouteDetailScreen)
   const [loading, setLoading] = useState(true);
@@ -344,7 +387,7 @@ export function RouteDetailSheet({
   // Handle functions (exact copy from RouteDetailScreen)
   const handleSaveRoute = async () => {
     if (!user) {
-      Alert.alert('Sign in required', 'Please sign in to save routes');
+      Alert.alert(t('routeDetail.signInRequired') || 'Sign in required', t('routeDetail.pleaseSignInToSave') || 'Please sign in to save routes');
       return;
     }
 
@@ -361,18 +404,21 @@ export function RouteDetailSheet({
       setIsSaved(!isSaved);
     } catch (err) {
       console.error('Error toggling save status:', err);
-      Alert.alert('Error', 'Failed to update save status');
+      Alert.alert(t('common.error') || 'Error', t('routeDetail.failedToUpdateSave') || 'Failed to update save status');
     }
   };
 
   // Handle adding route to preset
   const handleAddToPreset = () => {
     if (!user || !routeId) {
-      Alert.alert('Sign in required', 'Please sign in to add routes to presets');
+      Alert.alert(t('routeDetail.signInRequired') || 'Sign in required', t('routeDetail.pleaseSignInToAdd') || 'Please sign in to add routes to presets');
       return;
     }
 
-    console.log('🎯 RouteDetailSheet: Closing and opening AddToPresetSheet modal');
+    console.log('🎯 RouteDetailSheet: Closing and opening AddToPresetSheet modal - routeId:', routeId);
+    
+    // Store the routeId to ensure it's available when reopening
+    const currentRouteId = routeId;
     
     // Close the current sheet first
     onClose();
@@ -381,34 +427,38 @@ export function RouteDetailSheet({
     setTimeout(() => {
       showModal(
         <AddToPresetSheetModal
-          routeId={routeId}
+          routeId={currentRouteId}
           onRouteAdded={(presetId, presetName) => {
             Alert.alert(
-              'Added to Preset',
-              `Route has been added to "${presetName}"`,
-              [{ text: 'OK' }]
+              t('routeDetail.addedToCollection') || 'Added to Collection',
+              t('routeDetail.routeHasBeenAdded')?.replace('{collectionName}', presetName) || `Route has been added to "${presetName}"`,
+              [{ text: t('common.ok') || 'OK' }]
             );
           }}
           onRouteRemoved={(presetId, presetName) => {
             Alert.alert(
-              'Removed from Preset',
-              `Route has been removed from "${presetName}"`,
-              [{ text: 'OK' }]
+              t('routeDetail.removedFromCollection') || 'Removed from Collection',
+              t('routeDetail.routeHasBeenRemoved')?.replace('{collectionName}', presetName) || `Route has been removed from "${presetName}"`,
+              [{ text: t('common.ok') || 'OK' }]
             );
           }}
           onPresetCreated={(preset) => {
             Alert.alert(
-              'Preset Created',
-              `New preset "${preset.name}" has been created and route added to it`,
-              [{ text: 'OK' }]
+              t('routeDetail.collectionCreated') || 'Collection Created',
+              t('routeDetail.newCollectionCreated')?.replace('{collectionName}', preset.name) || `New collection "${preset.name}" has been created and route added to it`,
+              [{ text: t('common.ok') || 'OK' }]
             );
           }}
           onClose={() => {
             // When AddToPresetSheet closes, reopen the RouteDetailSheet
             setTimeout(() => {
-              console.log('🎯 AddToPresetSheet closed, reopening RouteDetailSheet');
-              onReopen?.();
-            }, 100);
+              console.log('🎯 AddToPresetSheet closed, reopening RouteDetailSheet - currentRouteId:', currentRouteId);
+              if (onReopen) {
+                onReopen();
+              } else {
+                console.warn('🎯 onReopen callback not provided to RouteDetailSheet');
+              }
+            }, 200); // Increased delay to ensure proper timing
           }}
         />
       );
@@ -417,22 +467,25 @@ export function RouteDetailSheet({
 
   const handleMarkDriven = async () => {
     if (!user?.id) {
-      Alert.alert('Error', 'Please sign in to mark this route as driven');
+      Alert.alert(t('common.error') || 'Error', t('routeDetail.pleaseSignInToMark') || 'Please sign in to mark this route as driven');
       return;
     }
 
     if (isDriven) {
       // If already driven, show options
-      Alert.alert('Route Review', 'What would you like to do?', [
+      Alert.alert(t('routeDetail.routeReview') || 'Route Review', t('routeDetail.whatWouldYouLikeToDo') || 'What would you like to do?', [
         {
-          text: 'Add New Review',
+          text: t('routeDetail.addNewReview') || 'Add New Review',
           onPress: () => {
-            navigation.navigate('AddReview', { routeId: routeId });
+            navigation.navigate('AddReview', { 
+              routeId: routeId,
+              returnToRouteDetail: true 
+            });
             onClose();
           },
         },
         {
-          text: 'Unmark as Driven',
+          text: t('routeDetail.unmarkAsDriven') || 'Unmark as Driven',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -445,21 +498,24 @@ export function RouteDetailSheet({
               if (error) throw error;
 
               setIsDriven(false);
-              Alert.alert('Success', 'Route unmarked as driven');
+              Alert.alert(t('common.success') || 'Success', t('routeDetail.routeUnmarkedAsDriven') || 'Route unmarked as driven');
             } catch (err) {
               console.error('Error unmarking route:', err);
-              Alert.alert('Error', 'Failed to unmark route as driven');
+              Alert.alert(t('common.error') || 'Error', t('routeDetail.failedToUnmark') || 'Failed to unmark route as driven');
             }
           },
         },
         {
-          text: 'Cancel',
+          text: t('common.cancel') || 'Cancel',
           style: 'cancel',
         },
       ]);
     } else {
       // First time marking as driven
-      navigation.navigate('AddReview', { routeId: routeId });
+      navigation.navigate('AddReview', { 
+        routeId: routeId,
+        returnToRouteDetail: true 
+      });
       onClose();
     }
   };
@@ -478,7 +534,7 @@ export function RouteDetailSheet({
       });
     } catch (error) {
       console.error('Error sharing:', error);
-      Alert.alert('Error', 'Failed to share route');
+      Alert.alert(t('common.error') || 'Error', t('routeDetail.failedToShare') || 'Failed to share route');
     }
   };
 
@@ -548,7 +604,7 @@ export function RouteDetailSheet({
 
   const handleOpenInMaps = () => {
     if (!routeData?.waypoint_details?.length) {
-      Alert.alert('Error', 'No waypoints available for this route');
+      Alert.alert(t('common.error') || 'Error', t('routeDetail.noWaypointsAvailable') || 'No waypoints available for this route');
       return;
     }
 
@@ -575,17 +631,17 @@ export function RouteDetailSheet({
 
   const handleDelete = async () => {
     if (!user || !routeData) {
-      Alert.alert('Error', 'Unable to delete route');
+      Alert.alert(t('common.error') || 'Error', t('routeDetail.unableToDelete') || 'Unable to delete route');
       return;
     }
 
     Alert.alert(
-      'Delete Route',
-      'Are you sure you want to delete this route? This action cannot be undone.',
+      t('routeDetail.deleteRouteTitle') || 'Delete Route',
+      t('routeDetail.deleteRouteConfirm') || 'Are you sure you want to delete this route? This action cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel') || 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete') || 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -594,7 +650,7 @@ export function RouteDetailSheet({
               onClose();
             } catch (err) {
               console.error('Delete error:', err);
-              Alert.alert('Error', 'Failed to delete route');
+              Alert.alert(t('common.error') || 'Error', t('routeDetail.failedToDelete') || 'Failed to delete route');
             }
           },
         },
@@ -606,22 +662,22 @@ export function RouteDetailSheet({
     if (!showAdminControls || !routeData) return;
 
     Alert.alert(
-      'Admin: Delete Route',
-      'Are you sure you want to delete this route as an admin? This action cannot be undone.',
+      t('routeDetail.adminDeleteTitle') || 'Admin: Delete Route',
+      t('routeDetail.adminDeleteConfirm') || 'Are you sure you want to delete this route as an admin? This action cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel') || 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete') || 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               const { error } = await supabase.from('routes').delete().eq('id', routeData.id);
               if (error) throw error;
               onClose();
-              Alert.alert('Success', 'Route deleted by admin');
+              Alert.alert(t('common.success') || 'Success', t('routeDetail.routeDeletedByAdmin') || 'Route deleted by admin');
             } catch (err) {
               console.error('Admin delete error:', err);
-              Alert.alert('Error', 'Failed to delete route');
+              Alert.alert(t('common.error') || 'Error', t('routeDetail.failedToDelete') || 'Failed to delete route');
             }
           },
         },
@@ -837,6 +893,9 @@ export function RouteDetailSheet({
   // Animation effects
   useEffect(() => {
     if (visible) {
+      // Reset gesture translateY when opening
+      translateY.value = 0;
+      
       Animated.timing(backdropOpacity, {
         toValue: 1,
         duration: 200,
@@ -861,7 +920,7 @@ export function RouteDetailSheet({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible, backdropOpacity, sheetTranslateY]);
+  }, [visible, backdropOpacity, sheetTranslateY, translateY]);
 
   // Refresh function
   const handleRefresh = async () => {
@@ -902,16 +961,32 @@ export function RouteDetailSheet({
               transform: [{ translateY: sheetTranslateY }],
             }}
           >
-            <YStack
-              backgroundColor={backgroundColor}
-              padding="$4"
-              paddingBottom={insets.bottom || 20}
-              borderTopLeftRadius="$4"
-              borderTopRightRadius="$4"
-              gap="$4"
-              height={height * 0.9}
-              maxHeight={height * 0.9}
-            >
+            <GestureDetector gesture={panGesture}>
+              <ReanimatedAnimated.View style={animatedGestureStyle}>
+                <YStack
+                  backgroundColor={backgroundColor}
+                  padding="$4"
+                  paddingBottom={insets.bottom || 20}
+                  borderTopLeftRadius="$4"
+                  borderTopRightRadius="$4"
+                  gap="$4"
+                  height={height * 0.9}
+                  maxHeight={height * 0.9}
+                >
+                  {/* Drag Handle */}
+                  <View style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}>
+                    <View style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC',
+                    }} />
+                  </View>
+
               {/* Header */}
               <XStack justifyContent="space-between" alignItems="center">
                 <Text fontSize="$6" fontWeight="bold" color="$color" numberOfLines={1} flex={1}>
@@ -1034,39 +1109,50 @@ export function RouteDetailSheet({
                           </Text>
                         </Button> */}
 
-                        <Button
+                        <IconButton
+                          icon="bookmark"
+                          label={isSaved ? (t('routeDetail.saved') || 'Saved') : (t('routeDetail.saveRoute') || 'Save')}
                           onPress={handleSaveRoute}
-                          backgroundColor={isSaved ? '$color' : '$color'}
-                          icon={<Feather name="bookmark" size={24} color="$color" />}
+                          selected={isSaved}
+                          backgroundColor={isSaved ? 'transparent' : 'transparent'}
+                          borderColor={isSaved ? 'transparent' : 'transparent'}
                           flex={1}
-                        >
-                          <Text fontSize="$3" fontWeight="600" color="$color" textAlign="center">
-                            {isSaved ? 'Saved' : 'Save'}
-                          </Text>
-                        </Button>
-
-                        <Button
+                        />
+                        <IconButton
+                          icon="check-circle"
+                          label={isDriven ? (t('routeDetail.markedAsDriven') || 'Marked as Driven') : (t('routeDetail.markAsDriven') || 'Mark as Driven')}
+                          onPress={handleMarkDriven}
+                          backgroundColor={isSaved ? 'transparent' : 'transparent'}
+                          borderColor={isSaved ? 'transparent' : 'transparent'}
+                          flex={1}
+                        />
+                        <IconButton
+                          icon="map"
+                          label={t('routeDetail.addToCollection') || 'Add to Collection'}
                           onPress={handleAddToPreset}
-                          backgroundColor="$green10"
-                          icon={<Feather name="map" size={18} color="white" />}
+                          backgroundColor={isSaved ? 'transparent' : 'transparent'}
+                          borderColor={isSaved ? 'transparent' : 'transparent'}                    
                           flex={1}
-                        >
-                          <Text color="white" fontSize="$3">
-                            Add to Preset
-                          </Text>
-                        </Button>
+                        />
+                        <IconButton
+                          icon="map"
+                          label={t('routeDetail.addToCollection') || 'Add to Collection'}
+                          onPress={() => {
+                            if (routeData?.exercises) {
+                              navigation.navigate('RouteExercise', {
+                                routeId: routeId!,
+                                exercises: routeData.exercises,
+                                routeName: routeData.name,
+                                startIndex: 0,
+                              });
+                              onClose();
+                            }
+                          }}
+                          backgroundColor={isSaved ? 'transparent' : 'transparent'}
+                          borderColor={isSaved ? 'transparent' : 'transparent'}                    
+                          flex={1}
+                        />
                       </XStack>
-
-                      <Button
-                        onPress={handleMarkDriven}
-                        backgroundColor={isDriven ? '$gray10' : '$green10'}
-                        icon={<Feather name="check-circle" size={18} color="white" />}
-                        width="100%"
-                      >
-                        <Text color="white" fontSize="$3" fontWeight="600">
-                          {isDriven ? 'Marked as Driven' : 'Mark as Driven'}
-                        </Text>
-                      </Button>
                     </YStack>
 
                     {/* Basic Info Card */}
@@ -1131,7 +1217,7 @@ export function RouteDetailSheet({
                               <XStack alignItems="center" gap="$2">
                                 <Feather name="activity" size={20} color={iconColor} />
                                 <Text fontSize="$5" fontWeight="600" color="$color">
-                                  Recording Stats
+                                  {t('routeDetail.recordingStats') || 'Recording Stats'}
                                 </Text>
                               </XStack>
 
@@ -1152,7 +1238,7 @@ export function RouteDetailSheet({
                               </YStack>
 
                               <Text fontSize="$3" color="$gray9" fontStyle="italic">
-                                Recorded with live GPS tracking
+                                {t('routeDetail.recordedWithGPS') || 'Recorded with live GPS tracking'}
                               </Text>
                             </YStack>
                           </Card>
@@ -1246,7 +1332,7 @@ export function RouteDetailSheet({
 
                     {/* Comments Section */}
                     <YStack gap="$2">
-                      <Text fontSize="$5" fontWeight="600" color="$color">Comments</Text>
+                      <Text fontSize="$5" fontWeight="600" color="$color">{t('routeDetail.comments') || 'Comments'}</Text>
                       <CommentsSection targetType="route" targetId={routeId!} />
                     </YStack>
                   </YStack>
@@ -1261,7 +1347,9 @@ export function RouteDetailSheet({
                   onClose={() => setShowReportDialog(false)}
                 />
               )}
-            </YStack>
+                </YStack>
+              </ReanimatedAnimated.View>
+            </GestureDetector>
           </Animated.View>
         </View>
       </Animated.View>

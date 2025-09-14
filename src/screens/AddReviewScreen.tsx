@@ -24,12 +24,13 @@ type Props = {
   route: {
     params: {
       routeId: string;
+      returnToRouteDetail?: boolean;
     };
   };
 };
 
 export function AddReviewScreen({ route }: Props) {
-  const { routeId } = route.params;
+  const { routeId, returnToRouteDetail } = route.params;
   const navigation = useNavigation<NavigationProp>();
   const { language, t } = useTranslation();
   const { user } = useAuth();
@@ -42,6 +43,24 @@ export function AddReviewScreen({ route }: Props) {
   const [visitDate, setVisitDate] = useState<string>(new Date().toISOString());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleBackPress = () => {
+    if (returnToRouteDetail) {
+      // Return to HomeScreen with params to reopen RouteDetailSheet
+      navigation.navigate('MainTabs', {
+        screen: 'HomeTab',
+        params: {
+          screen: 'HomeScreen',
+          params: {
+            reopenRouteDetail: true,
+            routeId: routeId
+          }
+        }
+      });
+    } else {
+      navigation.goBack();
+    }
+  };
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -227,7 +246,21 @@ export function AddReviewScreen({ route }: Props) {
       }
 
       // Navigate back and ensure reviews are refreshed immediately
-      navigation.navigate('RouteDetail', { routeId, shouldRefreshReviews: true });
+      if (returnToRouteDetail) {
+        // Return to HomeScreen with params to reopen RouteDetailSheet
+        navigation.navigate('MainTabs', {
+          screen: 'HomeTab',
+          params: {
+            screen: 'HomeScreen',
+            params: {
+              reopenRouteDetail: true,
+              routeId: routeId
+            }
+          }
+        });
+      } else {
+        navigation.navigate('RouteDetail', { routeId, shouldRefreshReviews: true });
+      }
     } catch (err) {
       console.error('Submit review error:', err);
       setError(err instanceof Error ? err.message : t('review.uploadError'));
@@ -422,7 +455,7 @@ export function AddReviewScreen({ route }: Props) {
   return (
     <Screen>
       <YStack f={1} gap="$4">
-        <Header title={t('review.title')} showBack />
+        <Header title={t('review.title')} showBack onBackPress={handleBackPress} />
 
         {error ? (
           <Text size="sm" color="$red10" textAlign="center">

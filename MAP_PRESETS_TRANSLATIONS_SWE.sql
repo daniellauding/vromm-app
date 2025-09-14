@@ -1,98 +1,88 @@
--- Swedish translations for Map Presets feature
--- Insert Swedish translations for map presets
+-- Map Presets Swedish Translations
+-- Copy and paste this into your Supabase SQL editor
 
-INSERT INTO translations (key, language, value) VALUES
+INSERT INTO translations (key, value, language, platform) VALUES
 -- Map Presets General
-('mapPresets.title', 'sv', 'Kartförinställningar'),
-('mapPresets.addToPreset', 'sv', 'Lägg till i förinställning'),
-('mapPresets.createNew', 'sv', 'Skapa ny'),
-('mapPresets.allRoutes', 'sv', 'Alla rutter'),
-('mapPresets.allRoutesDescription', 'sv', 'Visa alla tillgängliga rutter'),
-('mapPresets.default', 'sv', 'Standard'),
-('mapPresets.routes', 'sv', 'rutter'),
-('mapPresets.name', 'sv', 'Förinställningsnamn'),
-('mapPresets.namePlaceholder', 'sv', 'Ange förinställningsnamn...'),
-('mapPresets.description', 'sv', 'Beskrivning (valfritt)'),
-('mapPresets.descriptionPlaceholder', 'sv', 'Ange beskrivning...'),
-('mapPresets.visibility', 'sv', 'Synlighet'),
-('mapPresets.private', 'sv', 'Privat'),
-('mapPresets.public', 'sv', 'Offentlig'),
-('mapPresets.shared', 'sv', 'Delad'),
-('mapPresets.createFirstPreset', 'sv', 'Skapa din första anpassade förinställning'),
-('mapPresets.createFirstPresetDescription', 'sv', 'Organisera dina rutter genom att skapa anpassade kartförinställningar som "Sommarutrutter" eller "Stadskörning".'),
+('mapPresets.title', 'Kartförinställningar', 'sv', 'mobile'),
+('mapPresets.description', 'Organisera dina rutter i anpassade samlingar', 'sv', 'mobile'),
+('mapPresets.createNew', 'Skapa ny', 'sv', 'mobile'),
+('mapPresets.edit', 'Redigera', 'sv', 'mobile'),
+('mapPresets.delete', 'Ta bort', 'sv', 'mobile'),
+('mapPresets.save', 'Spara', 'sv', 'mobile'),
+('mapPresets.cancel', 'Avbryt', 'sv', 'mobile'),
+('mapPresets.done', 'Klar', 'sv', 'mobile'),
+('mapPresets.loading', 'Laddar...', 'sv', 'mobile'),
+
+-- Map Presets List
+('mapPresets.selectPreset', 'Välj förinställning', 'sv', 'mobile'),
+('mapPresets.allRoutes', 'Alla rutter', 'sv', 'mobile'),
+('mapPresets.allRoutesDescription', 'Visa alla tillgängliga rutter', 'sv', 'mobile'),
+('mapPresets.default', 'Standard', 'sv', 'mobile'),
+('mapPresets.routes', 'rutter', 'sv', 'mobile'),
+('mapPresets.noPresets', 'Inga förinställningar hittades', 'sv', 'mobile'),
+('mapPresets.createFirstPreset', 'Skapa din första anpassade förinställning', 'sv', 'mobile'),
+('mapPresets.createFirstPresetDescription', 'Organisera dina rutter genom att skapa anpassade kartförinställningar som "Sommarutflykter" eller "Stadskörning".', 'sv', 'mobile'),
+
+-- Map Presets Form
+('mapPresets.name', 'Förinställningsnamn', 'sv', 'mobile'),
+('mapPresets.namePlaceholder', 'Ange förinställningsnamn...', 'sv', 'mobile'),
+('mapPresets.description', 'Beskrivning (Valfritt)', 'sv', 'mobile'),
+('mapPresets.descriptionPlaceholder', 'Ange beskrivning...', 'sv', 'mobile'),
+('mapPresets.visibility', 'Synlighet', 'sv', 'mobile'),
+('mapPresets.private', 'Privat', 'sv', 'mobile'),
+('mapPresets.public', 'Offentlig', 'sv', 'mobile'),
+('mapPresets.shared', 'Delad', 'sv', 'mobile'),
 
 -- Map Presets Actions
-('mapPresets.addedToPreset', 'sv', 'Lagt till i förinställning'),
-('mapPresets.removedFromPreset', 'sv', 'Borttagen från förinställning'),
-('mapPresets.presetCreated', 'sv', 'Förinställning skapad'),
-('mapPresets.presetUpdated', 'sv', 'Förinställning uppdaterad'),
-('mapPresets.presetDeleted', 'sv', 'Förinställning borttagen'),
-('mapPresets.cannotDeleteDefault', 'sv', 'Standardförinställningar kan inte tas bort'),
-('mapPresets.deleteConfirm', 'sv', 'Är du säker på att du vill ta bort denna förinställning? Denna åtgärd kan inte ångras.'),
-('mapPresets.deleteTitle', 'sv', 'Ta bort förinställning'),
+('mapPresets.addToPreset', 'Lägg till i förinställning', 'sv', 'mobile'),
+('mapPresets.removeFromPreset', 'Ta bort från förinställning', 'sv', 'mobile'),
+('mapPresets.addedToPreset', 'Tillagd i förinställning', 'sv', 'mobile'),
+('mapPresets.removedFromPreset', 'Borttagen från förinställning', 'sv', 'mobile'),
+('mapPresets.presetCreated', 'Förinställning skapad', 'sv', 'mobile'),
+('mapPresets.presetUpdated', 'Förinställning uppdaterad', 'sv', 'mobile'),
+('mapPresets.presetDeleted', 'Förinställning borttagen', 'sv', 'mobile'),
+
+-- Map Presets Messages
+('mapPresets.routeAdded', 'Rutt har lagts till i "{presetName}"', 'sv', 'mobile'),
+('mapPresets.routeRemoved', 'Rutt har tagits bort från "{presetName}"', 'sv', 'mobile'),
+('mapPresets.presetCreatedMessage', 'Ny förinställning "{presetName}" har skapats och rutt lagts till', 'sv', 'mobile'),
+('mapPresets.presetUpdatedMessage', 'Förinställning "{presetName}" har uppdaterats', 'sv', 'mobile'),
+('mapPresets.presetDeletedMessage', 'Förinställning "{presetName}" har tagits bort', 'sv', 'mobile'),
+('mapPresets.confirmDelete', 'Är du säker på att du vill ta bort denna förinställning?', 'sv', 'mobile'),
+('mapPresets.deleteWarning', 'Denna åtgärd kan inte ångras.', 'sv', 'mobile'),
 
 -- Map Presets Errors
-('mapPresets.errorLoading', 'sv', 'Kunde inte ladda kartförinställningar'),
-('mapPresets.errorSaving', 'sv', 'Kunde inte spara kartförinställning'),
-('mapPresets.errorDeleting', 'sv', 'Kunde inte ta bort kartförinställning'),
-('mapPresets.errorUpdating', 'sv', 'Kunde inte uppdatera kartförinställning'),
-('mapPresets.errorAddingRoute', 'sv', 'Kunde inte lägga till rutt i förinställning'),
-('mapPresets.errorRemovingRoute', 'sv', 'Kunde inte ta bort rutt från förinställning'),
-
--- Map Presets Success Messages
-('mapPresets.routeAddedSuccess', 'sv', 'Rutt har lagts till i "{presetName}"'),
-('mapPresets.routeRemovedSuccess', 'sv', 'Rutt har tagits bort från "{presetName}"'),
-('mapPresets.presetCreatedSuccess', 'sv', 'Ny förinställning "{presetName}" har skapats och rutt lagts till i den'),
-('mapPresets.presetUpdatedSuccess', 'sv', 'Förinställning "{presetName}" har uppdaterats'),
-('mapPresets.presetDeletedSuccess', 'sv', 'Förinställning "{presetName}" har tagits bort'),
-
--- Map Presets Validation
-('mapPresets.nameRequired', 'sv', 'Förinställningsnamn krävs'),
-('mapPresets.nameTooLong', 'sv', 'Förinställningsnamn får inte vara längre än 50 tecken'),
-('mapPresets.descriptionTooLong', 'sv', 'Beskrivning får inte vara längre än 200 tecken'),
-
--- Map Presets Info
-('mapPresets.noPresets', 'sv', 'Inga förinställningar hittades'),
-('mapPresets.noPresetsDescription', 'sv', 'Skapa din första förinställning för att organisera dina rutter'),
-('mapPresets.presetCount', 'sv', '{count} förinställningar'),
-('mapPresets.routeCount', 'sv', '{count} rutter'),
+('mapPresets.errorLoading', 'Misslyckades att ladda kartförinställningar', 'sv', 'mobile'),
+('mapPresets.errorCreating', 'Misslyckades att skapa kartförinställning', 'sv', 'mobile'),
+('mapPresets.errorUpdating', 'Misslyckades att uppdatera kartförinställning', 'sv', 'mobile'),
+('mapPresets.errorDeleting', 'Misslyckades att ta bort kartförinställning', 'sv', 'mobile'),
+('mapPresets.errorAddingRoute', 'Misslyckades att lägga till rutt i förinställning', 'sv', 'mobile'),
+('mapPresets.errorRemovingRoute', 'Misslyckades att ta bort rutt från förinställning', 'sv', 'mobile'),
+('mapPresets.nameRequired', 'Förinställningsnamn krävs', 'sv', 'mobile'),
+('mapPresets.nameTooLong', 'Förinställningsnamn är för långt', 'sv', 'mobile'),
+('mapPresets.descriptionTooLong', 'Beskrivning är för lång', 'sv', 'mobile'),
 
 -- Map Presets Filter
-('mapPresets.filterByPreset', 'sv', 'Filtrera efter förinställning'),
-('mapPresets.selectPreset', 'sv', 'Välj förinställning'),
-('mapPresets.clearPresetFilter', 'sv', 'Rensa förinställningsfilter'),
+('mapPresets.filterByPreset', 'Filtrera efter förinställning', 'sv', 'mobile'),
+('mapPresets.clearFilters', 'Rensa filter', 'sv', 'mobile'),
+('mapPresets.activeFilter', 'Aktivt filter', 'sv', 'mobile'),
 
 -- Map Presets Home Screen
-('mapPresets.homeTitle', 'sv', 'Mina kartförinställningar'),
-('mapPresets.homeDescription', 'sv', 'Organisera dina rutter i anpassade förinställningar'),
-('mapPresets.homeCreateFirst', 'sv', 'Skapa din första förinställning'),
-('mapPresets.homeViewAll', 'sv', 'Visa alla'),
+('mapPresets.myPresets', 'Mina förinställningar', 'sv', 'mobile'),
+('mapPresets.viewAll', 'Visa alla', 'sv', 'mobile'),
+('mapPresets.recentPresets', 'Senaste förinställningar', 'sv', 'mobile'),
+('mapPresets.popularPresets', 'Populära förinställningar', 'sv', 'mobile'),
 
--- Map Presets Navigation
-('mapPresets.navigateToMap', 'sv', 'Navigera till karta'),
-('mapPresets.navigateToMapWithPreset', 'sv', 'Navigera till karta med förinställning'),
-('mapPresets.backToMap', 'sv', 'Tillbaka till karta'),
-
--- Map Presets Sharing
-('mapPresets.sharePreset', 'sv', 'Dela förinställning'),
-('mapPresets.inviteToPreset', 'sv', 'Bjud in till förinställning'),
-('mapPresets.acceptInvite', 'sv', 'Acceptera inbjudan'),
-('mapPresets.declineInvite', 'sv', 'Avslå inbjudan'),
-
--- Map Presets Settings
-('mapPresets.settings', 'sv', 'Förinställningsinställningar'),
-('mapPresets.setAsDefault', 'sv', 'Ange som standard'),
-('mapPresets.removeAsDefault', 'sv', 'Ta bort som standard'),
-('mapPresets.exportPreset', 'sv', 'Exportera förinställning'),
-('mapPresets.importPreset', 'sv', 'Importera förinställning'),
-
--- Map Presets Help
-('mapPresets.help', 'sv', 'Hjälp'),
-('mapPresets.whatArePresets', 'sv', 'Vad är kartförinställningar?'),
-('mapPresets.howToCreate', 'sv', 'Hur skapar jag en förinställning?'),
-('mapPresets.howToShare', 'sv', 'Hur delar jag en förinställning?'),
-('mapPresets.howToUse', 'sv', 'Hur använder jag förinställningar?')
-
-ON CONFLICT (key, language) DO UPDATE SET
-    value = EXCLUDED.value,
-    updated_at = NOW();
+-- Common words that might be used
+('common.create', 'Skapa', 'sv', 'mobile'),
+('common.edit', 'Redigera', 'sv', 'mobile'),
+('common.delete', 'Ta bort', 'sv', 'mobile'),
+('common.save', 'Spara', 'sv', 'mobile'),
+('common.cancel', 'Avbryt', 'sv', 'mobile'),
+('common.done', 'Klar', 'sv', 'mobile'),
+('common.loading', 'Laddar...', 'sv', 'mobile'),
+('common.error', 'Fel', 'sv', 'mobile'),
+('common.success', 'Framgång', 'sv', 'mobile'),
+('common.confirm', 'Bekräfta', 'sv', 'mobile'),
+('common.yes', 'Ja', 'sv', 'mobile'),
+('common.no', 'Nej', 'sv', 'mobile');

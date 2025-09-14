@@ -659,7 +659,7 @@ export function FilterSheet({
         showCreateOption={true}
         showEditOption={true}
         showDeleteOption={true}
-        title={t('mapPresets.selectPreset') || 'Select Map Preset'}
+        title={t('routeCollections.selectCollection') || 'Select Collection'}
       />
     );
   }, [showModal, handlePresetSelect, selectedPresetId, t]);
@@ -713,7 +713,7 @@ export function FilterSheet({
           {/* Map Presets Section */}
           <YStack style={styles.filterSection}>
             <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('mapPresets.title') || 'Map Presets'}
+              {t('routeCollections.title') || 'Collections'}
             </SizableText>
             
             <TouchableOpacity
@@ -742,13 +742,13 @@ export function FilterSheet({
                   fontWeight={selectedPresetId ? '600' : '500'}
                 >
                   {selectedPresetId 
-                    ? t('mapPresets.selectedPreset') || 'Selected Preset'
-                    : t('mapPresets.selectPreset') || 'Select Map Preset'
+                    ? t('routeCollections.selectedCollection') || 'Selected Collection'
+                    : t('routeCollections.selectCollection') || 'Select Collection'
                   }
                 </Text>
                 {selectedPresetId && (
                   <Text fontSize="$2" color="$gray10">
-                    {t('mapPresets.tapToChange') || 'Tap to change'}
+                    {t('routeCollections.tapToChange') || 'Tap to change'}
                   </Text>
                 )}
               </YStack>

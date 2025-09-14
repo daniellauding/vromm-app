@@ -190,8 +190,8 @@ export function MapPresetSheet({
       // Always include a default "All Routes" preset at the top
       const defaultPreset: MapPreset = {
         id: 'all-routes',
-        name: t('mapPresets.allRoutes') || 'All Routes',
-        description: t('mapPresets.allRoutesDescription') || 'View all available routes',
+        name: t('routeCollections.allRoutes') || 'All Routes',
+        description: t('routeCollections.allRoutesDescription') || 'View all available routes',
         visibility: 'public',
         creator_id: effectiveUserId,
         created_at: new Date().toISOString(),
@@ -421,12 +421,12 @@ export function MapPresetSheet({
               <YStack gap="$3">
                 <YStack style={styles.formField}>
                   <SizableText fontWeight="600" marginBottom="$2" color={textColor}>
-                    {t('mapPresets.name') || 'Preset Name'}
+                    {t('routeCollections.name') || 'Collection Name'}
                   </SizableText>
                   <Input
                     value={formData.name}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                    placeholder={t('mapPresets.namePlaceholder') || 'Enter preset name...'}
+                    placeholder={t('routeCollections.namePlaceholder') || 'Enter collection name...'}
                     backgroundColor="$backgroundHover"
                     borderColor={borderColor}
                     color={textColor}
@@ -436,12 +436,12 @@ export function MapPresetSheet({
 
                 <YStack style={styles.formField}>
                   <SizableText fontWeight="600" marginBottom="$2" color={textColor}>
-                    {t('mapPresets.description') || 'Description (Optional)'}
+                    {t('routeCollections.description') || 'Description (Optional)'}
                   </SizableText>
                   <Input
                     value={formData.description}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                    placeholder={t('mapPresets.descriptionPlaceholder') || 'Enter description...'}
+                    placeholder={t('routeCollections.descriptionPlaceholder') || 'Enter description...'}
                     backgroundColor="$backgroundHover"
                     borderColor={borderColor}
                     color={textColor}
@@ -453,13 +453,13 @@ export function MapPresetSheet({
 
                 <YStack style={styles.formField}>
                   <SizableText fontWeight="600" marginBottom="$2" color={textColor}>
-                    {t('mapPresets.visibility') || 'Visibility'}
+                    {t('routeCollections.visibility') || 'Visibility'}
                   </SizableText>
                   <View style={styles.visibilitySelector}>
                     {[
-                      { value: 'private', label: t('mapPresets.private') || 'Private', icon: 'lock' },
-                      { value: 'public', label: t('mapPresets.public') || 'Public', icon: 'globe' },
-                      { value: 'shared', label: t('mapPresets.shared') || 'Shared', icon: 'users' },
+                      { value: 'private', label: t('routeCollections.private') || 'Private', icon: 'lock' },
+                      { value: 'public', label: t('routeCollections.public') || 'Public', icon: 'globe' },
+                      { value: 'shared', label: t('routeCollections.shared') || 'Shared', icon: 'users' },
                     ].map((option) => (
                       <TouchableOpacity
                         key={option.value}
@@ -528,7 +528,7 @@ export function MapPresetSheet({
                             }}
                           >
                             <Text fontSize="$1" fontWeight="600" color="#000000">
-                              {t('mapPresets.default') || 'Default'}
+                              {t('routeCollections.default') || 'Default'}
                             </Text>
                           </View>
                         )}
@@ -547,7 +547,7 @@ export function MapPresetSheet({
                         </Text>
                       )}
                       <Text fontSize="$1" color="$gray10" marginTop="$1">
-                        {preset.route_count || 0} {t('mapPresets.routes') || 'routes'}
+                        {preset.route_count || 0} {t('routeCollections.routes') || 'routes'}
                       </Text>
                     </View>
                     <View style={styles.presetActions}>
@@ -572,11 +572,11 @@ export function MapPresetSheet({
                       <XStack alignItems="center" gap="$2" marginBottom="$1">
                         <Feather name="info" size={16} color="#00E6C3" />
                         <Text fontWeight="500" color={textColor}>
-                          {t('mapPresets.createFirstPreset') || 'Create your first custom preset'}
+                          {t('routeCollections.createFirstCollection') || 'Create your first custom collection'}
                         </Text>
                       </XStack>
                       <Text fontSize="$2" color="$gray10">
-                        {t('mapPresets.createFirstPresetDescription') || 'Organize your routes by creating custom map presets like "Summer Routes" or "City Driving".'}
+                        {t('routeCollections.createFirstCollectionDescription') || 'Organize your routes by creating custom collections like "Summer Routes" or "City Driving".'}
                       </Text>
                     </View>
                   </View>
@@ -630,7 +630,7 @@ export function MapPresetSheet({
                   color={textColor}
                   onPress={() => setShowCreateForm(true)}
                 >
-                  <Text color={textColor}>{t('mapPresets.createNew') || 'Create New'}</Text>
+                  <Text color={textColor}>{t('routeCollections.createNew') || 'Create New'}</Text>
                 </Button>
               )}
               <Button

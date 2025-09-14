@@ -1,10 +1,10 @@
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { YStack, Text } from 'tamagui';
 import { FlatList, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../../types/navigation';
 import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
@@ -300,6 +300,24 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
     }
   }, [navigation]);
 
+  // Listen for navigation focus to reopen RouteDetailSheet if needed
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🎯 HomeScreen: Screen focused');
+      
+      // Check if we should reopen RouteDetailSheet after returning from AddReview
+      const routeParams = (navigation as any)?.getState?.()?.routes?.find((r: any) => r.name === 'HomeScreen')?.params;
+      if (routeParams?.reopenRouteDetail && routeParams?.routeId) {
+        console.log('🎯 HomeScreen: Reopening RouteDetailSheet after AddReview - routeId:', routeParams.routeId);
+        setSelectedRouteId(routeParams.routeId);
+        setShowRouteDetailSheet(true);
+        
+        // Clear the params to prevent reopening again
+        navigation.setParams({ reopenRouteDetail: undefined, routeId: undefined });
+      }
+    }, [navigation])
+  );
+
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
       {/* Interactive Onboarding Modal */}
@@ -505,7 +523,11 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       {/* Route Detail Sheet */}
       <RouteDetailSheet
         visible={showRouteDetailSheet}
-        onClose={() => setShowRouteDetailSheet(false)}
+        onClose={() => {
+          console.log('🎯 HomeScreen: RouteDetailSheet closing - selectedRouteId:', selectedRouteId);
+          setShowRouteDetailSheet(false);
+          // Don't clear selectedRouteId here to allow for reopening
+        }}
         routeId={selectedRouteId}
         onStartRoute={(routeId) => {
           // Close sheet and navigate to map
@@ -522,8 +544,12 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
           setShowUserProfileSheet(true);
         }}
         onReopen={() => {
-          console.log('🎯 HomeScreen: Reopening RouteDetailSheet');
-          setShowRouteDetailSheet(true);
+          console.log('🎯 HomeScreen: Reopening RouteDetailSheet - selectedRouteId:', selectedRouteId);
+          if (selectedRouteId) {
+            setShowRouteDetailSheet(true);
+          } else {
+            console.warn('🎯 HomeScreen: No selectedRouteId, cannot reopen RouteDetailSheet');
+          }
         }}
       />
 
