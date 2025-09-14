@@ -1154,6 +1154,45 @@ export function RouteDetailSheet({
 
               {/* Header - removed route name, will be placed below carousel */}
 
+              {/* Show carousel in mini mode */}
+              {currentSnapPoint === snapPoints.mini && getCarouselItems().length > 0 && (
+                <View style={{ height: height * 0.3, borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+                  <Carousel
+                    loop
+                    width={width - 32}
+                    height={height * 0.3}
+                    data={getCarouselItems()}
+                    renderItem={renderCarouselItem}
+                    onSnapToItem={setActiveMediaIndex}
+                  />
+                  {/* Pagination dots */}
+                  {getCarouselItems().length > 1 && (
+                    <XStack
+                      position="absolute"
+                      bottom={16}
+                      alignSelf="center"
+                      gap="$2"
+                      padding="$2"
+                      backgroundColor="rgba(0,0,0,0.5)"
+                      borderRadius="$4"
+                    >
+                      {getCarouselItems().map((_, index) => (
+                        <View
+                          key={index}
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor:
+                              index === activeMediaIndex ? 'white' : 'rgba(255,255,255,0.5)',
+                          }}
+                        />
+                      ))}
+                    </XStack>
+                  )}
+                </View>
+              )}
+
               {/* Show content only if not in mini mode */}
               {currentSnapPoint !== snapPoints.mini && (
                 <View style={{ flex: 1 }}>
@@ -1318,7 +1357,15 @@ export function RouteDetailSheet({
                               AppAnalytics.trackButtonPress('edit_route', 'RouteDetailSheet', {
                                 route_id: routeData?.id,
                               }).catch(() => {});
-                              navigation.navigate('CreateRoute', { routeId: routeData?.id });
+                              navigation.navigate('CreateRoute', { 
+                                routeId: routeData?.id,
+                                onClose: () => {
+                                  // When user presses back from CreateRoute, reopen the RouteDetailSheet
+                                  if (onReopen) {
+                                    onReopen();
+                                  }
+                                }
+                              });
                               onClose();
                             }}
                             backgroundColor={isSaved ? 'transparent' : 'transparent'}

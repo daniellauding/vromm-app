@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, TouchableOpacity, useColorScheme } from 'react-native';
 import { YStack, XStack, Text, Card, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../../contexts/TranslationContext';
@@ -282,57 +282,70 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
               <XStack key={preset.id} alignItems="center" gap="$2">
                 <TouchableOpacity
                   onPress={() => handlePresetPress(preset)}
-                  style={[
-                    styles.presetItem,
-                    isSelected && {
-                      backgroundColor: colorScheme === 'dark' ? 'rgba(0, 230, 195, 0.15)' : 'rgba(0, 230, 195, 0.1)',
-                      borderColor: '#00E6C3',
-                    }
-                  ]}
                   activeOpacity={0.7}
+                  style={{ flex: 1 }}
                 >
-                  <XStack alignItems="center" justifyContent="space-between" flex={1}>
-                    <XStack alignItems="center" gap="$3" flex={1}>
-                      <View style={[
-                        styles.presetIcon,
-                        isSelected && {
-                          backgroundColor: colorScheme === 'dark' ? 'rgba(0, 230, 195, 0.2)' : 'rgba(0, 230, 195, 0.15)',
-                        }
-                      ]}>
-                        <Feather
-                          name={
-                            preset.visibility === 'public' ? 'globe' :
-                            preset.visibility === 'shared' ? 'users' : 'lock'
-                          }
-                          size={16}
-                          color="#00E6C3"
-                        />
-                      </View>
-                      <YStack flex={1}>
-                        <XStack alignItems="center" gap="$2">
-                          <Text fontWeight="600" color="$color" numberOfLines={1}>
-                            {preset.name}
-                          </Text>
-                          {preset.is_default && (
-                            <View style={styles.defaultBadge}>
-                              <Text fontSize="$1" fontWeight="600" color="#000000">
-                                {t('routeCollections.default') || 'Default'}
-                              </Text>
-                            </View>
+                  <Card
+                    backgroundColor={isSelected ? "$backgroundHover" : "$background"}
+                    borderColor={isSelected ? "#00E6C3" : "$borderColor"}
+                    borderWidth={1}
+                    padding="$3"
+                    borderRadius="$3"
+                    pressStyle={{
+                      backgroundColor: "$backgroundHover",
+                      borderColor: "#00E6C3",
+                    }}
+                  >
+                    <XStack alignItems="center" justifyContent="space-between" flex={1}>
+                      <XStack alignItems="center" gap="$3" flex={1}>
+                        <Card
+                          backgroundColor={isSelected ? "rgba(0, 230, 195, 0.15)" : "rgba(0, 230, 195, 0.1)"}
+                          width={32}
+                          height={32}
+                          borderRadius="$6"
+                          alignItems="center"
+                          justifyContent="center"
+                        >
+                          <Feather
+                            name={
+                              preset.visibility === 'public' ? 'globe' :
+                              preset.visibility === 'shared' ? 'users' : 'lock'
+                            }
+                            size={16}
+                            color="#00E6C3"
+                          />
+                        </Card>
+                        <YStack flex={1}>
+                          <XStack alignItems="center" gap="$2">
+                            <Text fontWeight="600" color="$color" numberOfLines={1}>
+                              {preset.name}
+                            </Text>
+                            {preset.is_default && (
+                              <Card
+                                backgroundColor="#00E6C3"
+                                paddingHorizontal="$2"
+                                paddingVertical="$1"
+                                borderRadius="$2"
+                              >
+                                <Text fontSize="$1" fontWeight="600" color="#000000">
+                                  {t('routeCollections.default') || 'Default'}
+                                </Text>
+                              </Card>
+                            )}
+                          </XStack>
+                          {preset.description && (
+                            <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+                              {preset.description}
+                            </Text>
                           )}
-                        </XStack>
-                        {preset.description && (
-                          <Text fontSize="$2" color="$gray10" numberOfLines={1}>
-                            {preset.description}
+                          <Text fontSize="$1" color="$gray10">
+                            {preset.route_count || 0} {t('routeCollections.routes') || 'routes'}
                           </Text>
-                        )}
-                        <Text fontSize="$1" color="$gray10">
-                          {preset.route_count || 0} {t('routeCollections.routes') || 'routes'}
-                        </Text>
-                      </YStack>
+                        </YStack>
+                      </XStack>
+                      <Feather name="chevron-right" size={16} color="$gray10" />
                     </XStack>
-                    <Feather name="chevron-right" size={16} color="$gray10" />
-                  </XStack>
+                  </Card>
                 </TouchableOpacity>
                 
                 {/* Edit, Share and Delete buttons for user's own collections */}
@@ -340,38 +353,44 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
                   <XStack gap="$1">
                     <TouchableOpacity
                       onPress={() => handleEditPreset(preset)}
-                      style={{
-                        padding: 8,
-                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
-                        borderRadius: 6,
-                      }}
                       activeOpacity={0.7}
                     >
-                      <Feather name="edit-2" size={16} color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} />
+                      <Card
+                        backgroundColor="$backgroundHover"
+                        padding="$2"
+                        borderRadius="$2"
+                        pressStyle={{ backgroundColor: "$backgroundStrong" }}
+                      >
+                        <Feather name="edit-2" size={16} color="$color" />
+                      </Card>
                     </TouchableOpacity>
                     
                     <TouchableOpacity
                       onPress={() => handleSharePreset(preset)}
-                      style={{
-                        padding: 8,
-                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
-                        borderRadius: 6,
-                      }}
                       activeOpacity={0.7}
                     >
-                      <Feather name="share-2" size={16} color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} />
+                      <Card
+                        backgroundColor="$backgroundHover"
+                        padding="$2"
+                        borderRadius="$2"
+                        pressStyle={{ backgroundColor: "$backgroundStrong" }}
+                      >
+                        <Feather name="share-2" size={16} color="$color" />
+                      </Card>
                     </TouchableOpacity>
                     
                     <TouchableOpacity
                       onPress={() => handleDeletePreset(preset)}
-                      style={{
-                        padding: 8,
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        borderRadius: 6,
-                      }}
                       activeOpacity={0.7}
                     >
-                      <Feather name="trash-2" size={16} color="#EF4444" />
+                      <Card
+                        backgroundColor="rgba(239, 68, 68, 0.1)"
+                        padding="$2"
+                        borderRadius="$2"
+                        pressStyle={{ backgroundColor: "rgba(239, 68, 68, 0.2)" }}
+                      >
+                        <Feather name="trash-2" size={16} color="#EF4444" />
+                      </Card>
                     </TouchableOpacity>
                   </XStack>
                 )}
@@ -421,28 +440,4 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
   );
 };
 
-const styles = StyleSheet.create({
-  presetItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 230, 195, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 230, 195, 0.2)',
-    flex: 1,
-  },
-  presetIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 230, 195, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  defaultBadge: {
-    backgroundColor: '#00E6C3',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-});
+// Styles removed - now using Tamagui components for consistent theming
