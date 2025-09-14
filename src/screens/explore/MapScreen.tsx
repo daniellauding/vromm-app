@@ -341,21 +341,66 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     [routes, setRegion],
   );
 
-  // React to navigation from SearchScreen: center map on selectedLocation
+  // React to navigation from SearchScreen or HomeScreen: center map on selectedLocation or apply preset
   useEffect(() => {
     const handleRouteParams = async () => {
       console.log('🗺️ [MapScreen] Route params changed:', {
         hasParams: !!route?.params,
         selectedLocation: route?.params?.selectedLocation,
+        selectedPresetId: route?.params?.selectedPresetId,
+        presetName: route?.params?.presetName,
         fromSearch: route?.params?.fromSearch,
+        fromHomeScreen: route?.params?.fromHomeScreen,
         ts: route?.params?.ts,
         fullParams: route?.params
       });
       
       const selected = route?.params?.selectedLocation as SearchResult | undefined;
+      const selectedPresetId = (route?.params as any)?.selectedPresetId;
+      const presetName = (route?.params as any)?.presetName;
       const fromSearch = (route?.params as any)?.fromSearch;
+      const fromHomeScreen = (route?.params as any)?.fromHomeScreen;
       const ts = (route?.params as any)?.ts;
       
+      // Handle preset selection from HomeScreen
+      if (selectedPresetId && fromHomeScreen) {
+        console.log('🗺️ [MapScreen] Processing preset selection from HomeScreen:', {
+          presetId: selectedPresetId,
+          presetName: presetName,
+        });
+        
+        // Set the selected preset
+        setSelectedPresetId(selectedPresetId);
+        
+        // Clear other filters when selecting a preset
+        console.log('🗺️ [MapScreen] Clearing filters due to preset selection');
+        setFilters({});
+        setAppliedFilters({});
+        
+        // Clear saved filters from AsyncStorage
+        try {
+          await AsyncStorage.removeItem('saved_filters');
+          console.log('🗑️ [MapScreen] Cleared saved filters from storage due to preset selection');
+        } catch (error) {
+          console.error('❌ [MapScreen] Failed to clear saved filters due to preset selection:', error);
+        }
+        
+        // Apply the preset filter
+        const presetFilters = {
+          selectedPresetId: selectedPresetId,
+        };
+        setFilters(presetFilters);
+        setAppliedFilters(presetFilters);
+        
+        // Zoom to filtered results after a short delay
+        setTimeout(() => {
+          zoomToFilteredResults();
+        }, 100);
+        
+        return;
+      }
+      
+      // Handle location selection from SearchScreen
       if (selected && selected.center?.length === 2) {
         console.log('🗺️ [MapScreen] Processing selectedLocation from Search:', {
           id: selected.id,
@@ -385,7 +430,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     };
     
     handleRouteParams();
-  }, [route?.params?.selectedLocation, route?.params?.fromSearch, route?.params?.ts, handleLocationSelect, setFilters]);
+  }, [route?.params?.selectedLocation, route?.params?.selectedPresetId, route?.params?.presetName, route?.params?.fromSearch, route?.params?.fromHomeScreen, route?.params?.ts, handleLocationSelect, setFilters, zoomToFilteredResults]);
 
   // Function to zoom to show filtered results
   const zoomToFilteredResults = useCallback(() => {

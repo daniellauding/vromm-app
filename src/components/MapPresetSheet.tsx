@@ -177,10 +177,9 @@ export function MapPresetSheet({
         .from('map_presets')
         .select(`
           *,
-          route_count:map_preset_routes(count),
-          shared_members:map_preset_members!inner(user_id)
+          route_count:map_preset_routes(count)
         `)
-        .or(`creator_id.eq.${effectiveUserId},visibility.eq.public,shared_members.user_id.eq.${effectiveUserId}`)
+        .or(`creator_id.eq.${effectiveUserId},visibility.eq.public`)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: false });
 

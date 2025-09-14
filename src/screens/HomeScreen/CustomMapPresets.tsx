@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
 import { YStack, XStack, Text, Card, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useModal } from '../../contexts/ModalContext';
+import { useToast } from '../../contexts/ToastContext';
 import { MapPresetSheetModal } from '../../components/MapPresetSheet';
+import { CollectionSharingModal } from '../../components/CollectionSharingModal';
 import { supabase } from '../../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../../types/navigation';
@@ -33,10 +35,15 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
   const { user } = useAuth();
   const { getEffectiveUserId } = useStudentSwitch();
   const { showModal } = useModal();
+  const { showToast } = useToast();
   const navigation = useNavigation<NavigationProp>();
+  const colorScheme = useColorScheme();
 
   const [presets, setPresets] = useState<MapPreset[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+  const [showSharingModal, setShowSharingModal] = useState(false);
+  const [sharingPreset, setSharingPreset] = useState<MapPreset | null>(null);
 
   const effectiveUserId = getEffectiveUserId();
 
@@ -79,17 +86,85 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
 
   // Handle preset press - navigate to map with preset selected
   const handlePresetPress = useCallback((preset: MapPreset) => {
-    navigation.navigate('MainTabs', {
+    console.log('🗺️ [CustomMapPresets] Navigating to MapScreen with preset:', preset.id, preset.name);
+    setSelectedPresetId(preset.id);
+    (navigation as any).navigate('MainTabs', {
       screen: 'MapTab',
       params: {
         screen: 'MapScreen',
         params: {
           selectedPresetId: preset.id,
           presetName: preset.name,
+          fromHomeScreen: true, // Flag to indicate this came from home screen
         },
       },
     });
   }, [navigation]);
+
+  // Handle edit preset
+  const handleEditPreset = useCallback((preset: MapPreset) => {
+    showModal(
+      <MapPresetSheetModal
+        onEditPreset={(updatedPreset) => {
+          setPresets(prev => prev.map(p => p.id === updatedPreset.id ? updatedPreset : p));
+          showToast({
+            title: t('routeCollections.updated') || 'Collection Updated',
+            message: t('routeCollections.collectionUpdated')?.replace('{name}', updatedPreset.name) || `Collection "${updatedPreset.name}" has been updated`,
+            type: 'success'
+          });
+        }}
+        showCreateOption={false}
+        showEditOption={true}
+        showDeleteOption={false}
+        title={t('routeCollections.editCollection') || 'Edit Collection'}
+      />
+    );
+  }, [showModal, showToast, t]);
+
+  // Handle delete preset
+  const handleDeletePreset = useCallback(async (preset: MapPreset) => {
+    if (!effectiveUserId || preset.creator_id !== effectiveUserId) return;
+
+    try {
+      // First remove all routes from this preset
+      const { error: removeRoutesError } = await supabase
+        .from('map_preset_routes')
+        .delete()
+        .eq('preset_id', preset.id);
+
+      if (removeRoutesError) throw removeRoutesError;
+
+      // Then delete the preset itself
+      const { error: deleteError } = await supabase
+        .from('map_presets')
+        .delete()
+        .eq('id', preset.id);
+
+      if (deleteError) throw deleteError;
+
+      // Update local state
+      setPresets(prev => prev.filter(p => p.id !== preset.id));
+
+      showToast({
+        title: t('routeCollections.deleted') || 'Collection Deleted',
+        message: t('routeCollections.collectionDeleted')?.replace('{name}', preset.name) || `Collection "${preset.name}" has been deleted`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error deleting preset:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeCollections.failedToDelete') || 'Failed to delete collection',
+        type: 'error'
+      });
+    }
+  }, [effectiveUserId, showToast, t]);
+
+  // Handle share preset
+  const handleSharePreset = useCallback((preset: MapPreset) => {
+    setSharingPreset(preset);
+    setShowSharingModal(true);
+  }, []);
 
   // Handle create new preset
   const handleCreatePreset = useCallback(() => {
@@ -97,11 +172,11 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
       <MapPresetSheetModal
         onCreatePreset={(preset) => {
           setPresets(prev => [preset, ...prev]);
-          Alert.alert(
-            'Preset Created',
-            `"${preset.name}" has been created successfully`,
-            [{ text: 'OK' }]
-          );
+          showToast({
+            title: t('routeCollections.created') || 'Collection Created',
+            message: t('routeCollections.collectionCreated')?.replace('{name}', preset.name) || `Collection "${preset.name}" has been created`,
+            type: 'success'
+          });
         }}
         showCreateOption={true}
         showEditOption={true}
@@ -109,7 +184,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
         title={t('routeCollections.createNew') || 'Create New Collection'}
       />
     );
-  }, [showModal, t]);
+  }, [showModal, showToast, t]);
 
   // Handle manage presets
   const handleManagePresets = useCallback(() => {
@@ -117,6 +192,11 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
       <MapPresetSheetModal
         onEditPreset={(preset) => {
           setPresets(prev => prev.map(p => p.id === preset.id ? preset : p));
+          showToast({
+            title: t('routeCollections.updated') || 'Collection Updated',
+            message: t('routeCollections.collectionUpdated')?.replace('{name}', preset.name) || `Collection "${preset.name}" has been updated`,
+            type: 'success'
+          });
         }}
         onDeletePreset={(presetId) => {
           setPresets(prev => prev.filter(p => p.id !== presetId));
@@ -127,7 +207,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
         title={t('routeCollections.manage') || 'Manage Collections'}
       />
     );
-  }, [showModal, t]);
+  }, [showModal, showToast, t]);
 
   if (loading) {
     return (
@@ -194,51 +274,110 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
         </XStack>
 
         <YStack gap="$2">
-          {presets.map((preset) => (
-            <TouchableOpacity
-              key={preset.id}
-              onPress={() => handlePresetPress(preset)}
-              style={styles.presetItem}
-            >
-              <XStack alignItems="center" justifyContent="space-between" flex={1}>
-                <XStack alignItems="center" gap="$3" flex={1}>
-                  <View style={styles.presetIcon}>
-                    <Feather
-                      name={
-                        preset.visibility === 'public' ? 'globe' :
-                        preset.visibility === 'shared' ? 'users' : 'lock'
-                      }
-                      size={16}
-                      color="#00E6C3"
-                    />
-                  </View>
-                  <YStack flex={1}>
-                    <XStack alignItems="center" gap="$2">
-                      <Text fontWeight="600" color="$color" numberOfLines={1}>
-                        {preset.name}
-                      </Text>
-                      {preset.is_default && (
-                        <View style={styles.defaultBadge}>
-                          <Text fontSize="$1" fontWeight="600" color="#000000">
-                            {t('routeCollections.default') || 'Default'}
+          {presets.map((preset) => {
+            const isSelected = selectedPresetId === preset.id;
+            const canEdit = preset.creator_id === effectiveUserId;
+            
+            return (
+              <XStack key={preset.id} alignItems="center" gap="$2">
+                <TouchableOpacity
+                  onPress={() => handlePresetPress(preset)}
+                  style={[
+                    styles.presetItem,
+                    isSelected && {
+                      backgroundColor: colorScheme === 'dark' ? 'rgba(0, 230, 195, 0.15)' : 'rgba(0, 230, 195, 0.1)',
+                      borderColor: '#00E6C3',
+                    }
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <XStack alignItems="center" justifyContent="space-between" flex={1}>
+                    <XStack alignItems="center" gap="$3" flex={1}>
+                      <View style={[
+                        styles.presetIcon,
+                        isSelected && {
+                          backgroundColor: colorScheme === 'dark' ? 'rgba(0, 230, 195, 0.2)' : 'rgba(0, 230, 195, 0.15)',
+                        }
+                      ]}>
+                        <Feather
+                          name={
+                            preset.visibility === 'public' ? 'globe' :
+                            preset.visibility === 'shared' ? 'users' : 'lock'
+                          }
+                          size={16}
+                          color="#00E6C3"
+                        />
+                      </View>
+                      <YStack flex={1}>
+                        <XStack alignItems="center" gap="$2">
+                          <Text fontWeight="600" color="$color" numberOfLines={1}>
+                            {preset.name}
                           </Text>
-                        </View>
-                      )}
+                          {preset.is_default && (
+                            <View style={styles.defaultBadge}>
+                              <Text fontSize="$1" fontWeight="600" color="#000000">
+                                {t('routeCollections.default') || 'Default'}
+                              </Text>
+                            </View>
+                          )}
+                        </XStack>
+                        {preset.description && (
+                          <Text fontSize="$2" color="$gray10" numberOfLines={1}>
+                            {preset.description}
+                          </Text>
+                        )}
+                        <Text fontSize="$1" color="$gray10">
+                          {preset.route_count || 0} {t('routeCollections.routes') || 'routes'}
+                        </Text>
+                      </YStack>
                     </XStack>
-                    {preset.description && (
-                      <Text fontSize="$2" color="$gray10" numberOfLines={1}>
-                        {preset.description}
-                      </Text>
-                    )}
-                    <Text fontSize="$1" color="$gray10">
-                      {preset.route_count || 0} {t('routeCollections.routes') || 'routes'}
-                    </Text>
-                  </YStack>
-                </XStack>
-                <Feather name="chevron-right" size={16} color="$gray10" />
+                    <Feather name="chevron-right" size={16} color="$gray10" />
+                  </XStack>
+                </TouchableOpacity>
+                
+                {/* Edit, Share and Delete buttons for user's own collections */}
+                {canEdit && (
+                  <XStack gap="$1">
+                    <TouchableOpacity
+                      onPress={() => handleEditPreset(preset)}
+                      style={{
+                        padding: 8,
+                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                        borderRadius: 6,
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="edit-2" size={16} color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      onPress={() => handleSharePreset(preset)}
+                      style={{
+                        padding: 8,
+                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                        borderRadius: 6,
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="share-2" size={16} color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      onPress={() => handleDeletePreset(preset)}
+                      style={{
+                        padding: 8,
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderRadius: 6,
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="trash-2" size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </XStack>
+                )}
               </XStack>
-            </TouchableOpacity>
-          ))}
+            );
+          })}
         </YStack>
 
         {presets.length >= 5 && (
@@ -256,6 +395,28 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
           </Button>
         )}
       </YStack>
+
+      {/* Collection Sharing Modal */}
+      {sharingPreset && (
+        <CollectionSharingModal
+          isVisible={showSharingModal}
+          onClose={() => {
+            setShowSharingModal(false);
+            setSharingPreset(null);
+          }}
+          collectionId={sharingPreset.id}
+          collectionName={sharingPreset.name}
+          onInvitationSent={() => {
+            showToast({
+              title: t('routeCollections.invitationsSent') || 'Invitations Sent',
+              message: t('routeCollections.invitationsSentMessage')?.replace('{count}', '1') || 'Invitation sent successfully',
+              type: 'success'
+            });
+            setShowSharingModal(false);
+            setSharingPreset(null);
+          }}
+        />
+      )}
     </Card>
   );
 };
@@ -268,6 +429,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 230, 195, 0.05)',
     borderWidth: 1,
     borderColor: 'rgba(0, 230, 195, 0.2)',
+    flex: 1,
   },
   presetIcon: {
     width: 32,

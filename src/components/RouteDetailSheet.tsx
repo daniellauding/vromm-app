@@ -282,6 +282,10 @@ export function RouteDetailSheet({
   const [showMetadataDetails, setShowMetadataDetails] = useState(false);
   const [showReviewsDetails, setShowReviewsDetails] = useState(false);
   const [showCommentsDetails, setShowCommentsDetails] = useState(false);
+  const [showDrivenOptionsSheet, setShowDrivenOptionsSheet] = useState(false);
+  const [showDeleteConfirmSheet, setShowDeleteConfirmSheet] = useState(false);
+  const [showAdminDeleteConfirmSheet, setShowAdminDeleteConfirmSheet] = useState(false);
+  const [showOptionsSheet, setShowOptionsSheet] = useState(false);
 
   // Exercise-related state
   const [exerciseStats, setExerciseStats] = useState<{
@@ -519,7 +523,11 @@ export function RouteDetailSheet({
   // Handle adding route to preset
   const handleAddToPreset = () => {
     if (!user || !routeId) {
-      Alert.alert(t('routeDetail.signInRequired') || 'Sign in required', t('routeDetail.pleaseSignInToAdd') || 'Please sign in to add routes to presets');
+      showToast({
+        title: t('routeDetail.signInRequired') || 'Sign in required',
+        message: t('routeDetail.pleaseSignInToAdd') || 'Please sign in to add routes to presets',
+        type: 'error'
+      });
       return;
     }
 
@@ -581,49 +589,17 @@ export function RouteDetailSheet({
 
   const handleMarkDriven = async () => {
     if (!user?.id) {
-      Alert.alert(t('common.error') || 'Error', t('routeDetail.pleaseSignInToMark') || 'Please sign in to mark this route as driven');
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.pleaseSignInToMark') || 'Please sign in to mark this route as driven',
+        type: 'error'
+      });
       return;
     }
 
     if (isDriven) {
-      // If already driven, show options
-      Alert.alert(t('routeDetail.routeReview') || 'Route Review', t('routeDetail.whatWouldYouLikeToDo') || 'What would you like to do?', [
-        {
-          text: t('routeDetail.addNewReview') || 'Add New Review',
-          onPress: () => {
-            navigation.navigate('AddReview', { 
-              routeId: routeId!,
-              returnToRouteDetail: true 
-            } as any);
-            onClose();
-          },
-        },
-        {
-          text: t('routeDetail.unmarkAsDriven') || 'Unmark as Driven',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('driven_routes')
-                .delete()
-                .eq('route_id', routeId)
-                .eq('user_id', user.id);
-
-              if (error) throw error;
-
-              setIsDriven(false);
-              Alert.alert(t('common.success') || 'Success', t('routeDetail.routeUnmarkedAsDriven') || 'Route unmarked as driven');
-            } catch (err) {
-              console.error('Error unmarking route:', err);
-              Alert.alert(t('common.error') || 'Error', t('routeDetail.failedToUnmark') || 'Failed to unmark route as driven');
-            }
-          },
-        },
-        {
-          text: t('common.cancel') || 'Cancel',
-          style: 'cancel',
-        },
-      ]);
+      // If already driven, show options sheet instead of alert
+      setShowDrivenOptionsSheet(true);
     } else {
       // First time marking as driven
       navigation.navigate('AddReview', { 
@@ -646,9 +622,18 @@ export function RouteDetailSheet({
         url: shareUrl,
         title: routeData.name || 'Route',
       });
+      showToast({
+        title: t('routeDetail.shared') || 'Shared',
+        message: t('routeDetail.routeShared') || 'Route has been shared successfully',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error sharing:', error);
-      Alert.alert(t('common.error') || 'Error', t('routeDetail.failedToShare') || 'Failed to share route');
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.failedToShare') || 'Failed to share route',
+        type: 'error'
+      });
     }
   };
 
@@ -684,41 +669,17 @@ export function RouteDetailSheet({
       // Silently fail analytics
     });
 
-    const alertButtons: any[] = [
-      {
-        text: t('routeDetail.openInMaps') || 'Open in Maps',
-        onPress: handleOpenInMaps,
-      },
-      {
-        text: t('routeDetail.shareRoute') || 'Share Route',
-        onPress: handleShare,
-      },
-      user?.id === routeData?.creator_id
-        ? {
-            text: t('routeDetail.deleteRoute') || 'Delete Route',
-            onPress: handleDelete,
-            style: 'destructive',
-          }
-        : undefined,
-      user?.id !== routeData?.creator_id
-        ? {
-            text: t('routeDetail.reportRoute') || 'Report Route',
-            onPress: () => setShowReportDialog(true),
-            style: 'destructive',
-          }
-        : undefined,
-      {
-        text: t('common.cancel') || 'Cancel',
-        style: 'cancel',
-      },
-    ].filter(Boolean);
-
-    Alert.alert(t('routeDetail.routeOptions') || 'Route Options', '', alertButtons);
+    // Show options sheet instead of alert
+    setShowOptionsSheet(true);
   };
 
   const handleOpenInMaps = () => {
     if (!routeData?.waypoint_details?.length) {
-      Alert.alert(t('common.error') || 'Error', t('routeDetail.noWaypointsAvailable') || 'No waypoints available for this route');
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.noWaypointsAvailable') || 'No waypoints available for this route',
+        type: 'error'
+      });
       return;
     }
 
@@ -745,58 +706,71 @@ export function RouteDetailSheet({
 
   const handleDelete = async () => {
     if (!user || !routeData) {
-      Alert.alert(t('common.error') || 'Error', t('routeDetail.unableToDelete') || 'Unable to delete route');
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.unableToDelete') || 'Unable to delete route',
+        type: 'error'
+      });
       return;
     }
 
-    Alert.alert(
-      t('routeDetail.deleteRouteTitle') || 'Delete Route',
-      t('routeDetail.deleteRouteConfirm') || 'Are you sure you want to delete this route? This action cannot be undone.',
-      [
-        { text: t('common.cancel') || 'Cancel', style: 'cancel' },
-        {
-          text: t('common.delete') || 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase.from('routes').delete().eq('id', routeData.id || '');
-              if (error) throw error;
-              onClose();
-            } catch (err) {
-              console.error('Delete error:', err);
-              Alert.alert(t('common.error') || 'Error', t('routeDetail.failedToDelete') || 'Failed to delete route');
-            }
-          },
-        },
-      ],
-    );
+    // Show confirmation sheet instead of alert
+    setShowDeleteConfirmSheet(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!user || !routeData) return;
+    
+    try {
+      const { error } = await supabase.from('routes').delete().eq('id', routeData.id || '');
+      if (error) throw error;
+      
+      showToast({
+        title: t('routeDetail.deleted') || 'Route Deleted',
+        message: t('routeDetail.routeDeleted') || 'Route has been deleted successfully',
+        type: 'success'
+      });
+      
+      onClose();
+    } catch (err) {
+      console.error('Delete error:', err);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.failedToDelete') || 'Failed to delete route',
+        type: 'error'
+      });
+    }
   };
 
   const handleAdminDelete = async () => {
     if (!showAdminControls || !routeData) return;
 
-    Alert.alert(
-      t('routeDetail.adminDeleteTitle') || 'Admin: Delete Route',
-      t('routeDetail.adminDeleteConfirm') || 'Are you sure you want to delete this route as an admin? This action cannot be undone.',
-      [
-        { text: t('common.cancel') || 'Cancel', style: 'cancel' },
-        {
-          text: t('common.delete') || 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase.from('routes').delete().eq('id', routeData.id || '');
-              if (error) throw error;
-              onClose();
-              Alert.alert(t('common.success') || 'Success', t('routeDetail.routeDeletedByAdmin') || 'Route deleted by admin');
-            } catch (err) {
-              console.error('Admin delete error:', err);
-              Alert.alert(t('common.error') || 'Error', t('routeDetail.failedToDelete') || 'Failed to delete route');
-            }
-          },
-        },
-      ],
-    );
+    // Show admin delete confirmation sheet
+    setShowAdminDeleteConfirmSheet(true);
+  };
+
+  const handleConfirmAdminDelete = async () => {
+    if (!showAdminControls || !routeData) return;
+    
+    try {
+      const { error } = await supabase.from('routes').delete().eq('id', routeData.id || '');
+      if (error) throw error;
+      
+      showToast({
+        title: t('routeDetail.deleted') || 'Route Deleted',
+        message: t('routeDetail.routeDeletedByAdmin') || 'Route has been deleted by admin',
+        type: 'success'
+      });
+      
+      onClose();
+    } catch (err) {
+      console.error('Admin delete error:', err);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.failedToDelete') || 'Failed to delete route',
+        type: 'error'
+      });
+    }
   };
 
   // Get map region
@@ -1178,12 +1152,7 @@ export function RouteDetailSheet({
                     }} />
                   </View>
 
-              {/* Header */}
-              <XStack justifyContent="space-between" alignItems="center">
-                <Text fontSize="$6" fontWeight="bold" color="$color" numberOfLines={1} flex={1}>
-                  {routeData?.name || t('routeDetail.loading') || 'Loading...'}
-                </Text>
-              </XStack>
+              {/* Header - removed route name, will be placed below carousel */}
 
               {/* Show content only if not in mini mode */}
               {currentSnapPoint !== snapPoints.mini && (
@@ -1258,6 +1227,11 @@ export function RouteDetailSheet({
                         )}
                       </View>
                     )}
+
+                    {/* Route Name - placed below carousel */}
+                    <Text fontSize="$5" fontWeight="bold" color="$color" textAlign="left" marginTop="$2">
+                      {routeData?.name || t('routeDetail.loading') || 'Loading...'}
+                    </Text>
 
                     {/* Action Buttons */}
                     <YStack gap="$3">
@@ -1657,6 +1631,137 @@ export function RouteDetailSheet({
                   reportableType="route"
                   onClose={() => setShowReportDialog(false)}
                 />
+              )}
+
+              {/* Options Sheet */}
+              {showOptionsSheet && (
+                <Modal
+                  visible={showOptionsSheet}
+                  transparent
+                  animationType="none"
+                  onRequestClose={() => setShowOptionsSheet(false)}
+                >
+                  <Animated.View
+                    style={{
+                      flex: 1,
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      opacity: backdropOpacity,
+                    }}
+                  >
+                    <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+                      <Pressable style={{ flex: 1 }} onPress={() => setShowOptionsSheet(false)} />
+                      <Animated.View
+                        style={{
+                          backgroundColor: backgroundColor,
+                          borderTopLeftRadius: 20,
+                          borderTopRightRadius: 20,
+                          padding: 20,
+                          paddingBottom: 40,
+                        }}
+                      >
+                        <YStack gap="$4">
+                          <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                            {t('routeDetail.routeOptions') || 'Route Options'}
+                          </Text>
+
+                          <YStack gap="$2">
+                            <TouchableOpacity
+                              onPress={() => {
+                                setShowOptionsSheet(false);
+                                handleOpenInMaps();
+                              }}
+                              style={{
+                                padding: 16,
+                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                borderRadius: 12,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 12,
+                              }}
+                            >
+                              <Feather name="map" size={20} color={iconColor} />
+                              <Text fontSize="$4" color="$color">
+                                {t('routeDetail.openInMaps') || 'Open in Maps'}
+                              </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              onPress={() => {
+                                setShowOptionsSheet(false);
+                                handleShare();
+                              }}
+                              style={{
+                                padding: 16,
+                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                borderRadius: 12,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 12,
+                              }}
+                            >
+                              <Feather name="share" size={20} color={iconColor} />
+                              <Text fontSize="$4" color="$color">
+                                {t('routeDetail.shareRoute') || 'Share Route'}
+                              </Text>
+                            </TouchableOpacity>
+
+                            {user?.id === routeData?.creator_id && (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setShowOptionsSheet(false);
+                                  handleDelete();
+                                }}
+                                style={{
+                                  padding: 16,
+                                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                  borderRadius: 12,
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  gap: 12,
+                                }}
+                              >
+                                <Feather name="trash-2" size={20} color="#EF4444" />
+                                <Text fontSize="$4" color="#EF4444">
+                                  {t('routeDetail.deleteRoute') || 'Delete Route'}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+
+                            {user?.id !== routeData?.creator_id && (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setShowOptionsSheet(false);
+                                  setShowReportDialog(true);
+                                }}
+                                style={{
+                                  padding: 16,
+                                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                  borderRadius: 12,
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  gap: 12,
+                                }}
+                              >
+                                <Feather name="flag" size={20} color="#EF4444" />
+                                <Text fontSize="$4" color="#EF4444">
+                                  {t('routeDetail.reportRoute') || 'Report Route'}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                          </YStack>
+
+                          <Button
+                            variant="outlined"
+                            size="lg"
+                            onPress={() => setShowOptionsSheet(false)}
+                          >
+                            {t('common.cancel') || 'Cancel'}
+                          </Button>
+                        </YStack>
+                      </Animated.View>
+                    </View>
+                  </Animated.View>
+                </Modal>
               )}
                 </View>
               )}

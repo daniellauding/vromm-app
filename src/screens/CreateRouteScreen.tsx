@@ -39,7 +39,7 @@ import { RecordDrivingModal } from '../components/RecordDrivingSheet';
 import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector';
 import { AdvancedExerciseCreator } from '../components/AdvancedExerciseCreator';
 import * as mediaUtils from '../utils/mediaUtils';
-import { AddToPresetSheetModal } from '../components/AddToPresetSheet';
+import { AddToPresetSheet } from '../components/AddToPresetSheet';
 
 // Helper function to extract YouTube video ID
 const extractYoutubeVideoId = (url: string): string | null => {
@@ -142,7 +142,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const { t } = useTranslation();
   const { showModal } = useModal();
-  const { showRouteCreatedToast } = useToast();
+  const { showRouteCreatedToast, showToast } = useToast();
   const createRouteContext = useCreateRoute();
   const routeId = route?.params?.routeId;
   const initialWaypoints = route?.params?.initialWaypoints;
@@ -3515,32 +3515,32 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         </View>
       </Modal>
 
-      {/* Collection Selector Modal */}
-      {showCollectionSelector && (
-        <AddToPresetSheetModal
-          routeId="temp-route-id" // Temporary ID for new routes
-          onRouteAdded={(presetId, presetName) => {
-            setSelectedCollectionId(presetId);
-            setShowCollectionSelector(false);
-            Alert.alert(
-              getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected'),
-              getTranslation(t, 'createRoute.routeWillBeSavedTo', 'Route will be saved to "{collectionName}"').replace('{collectionName}', presetName),
-              [{ text: getTranslation(t, 'common.ok', 'OK') }]
-            );
-          }}
-          onRouteRemoved={() => {}} // Not applicable for new routes
-          onPresetCreated={(preset) => {
-            setSelectedCollectionId(preset.id);
-            setShowCollectionSelector(false);
-            Alert.alert(
-              getTranslation(t, 'createRoute.collectionCreated', 'Collection Created'),
-              getTranslation(t, 'createRoute.newCollectionCreated', 'New collection "{collectionName}" has been created').replace('{collectionName}', preset.name),
-              [{ text: getTranslation(t, 'common.ok', 'OK') }]
-            );
-          }}
-          onClose={() => setShowCollectionSelector(false)}
-        />
-      )}
+      {/* Collection Selector Sheet */}
+      <AddToPresetSheet
+        isVisible={showCollectionSelector}
+        routeId={isEditing && routeId ? routeId : "temp-route-id"} // Use actual route ID when editing, temp ID for new routes
+        selectedCollectionId={selectedCollectionId} // Pass the currently selected collection ID
+        onRouteAdded={(presetId, presetName) => {
+          setSelectedCollectionId(presetId);
+          setShowCollectionSelector(false);
+          showToast({
+            title: getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected'),
+            message: getTranslation(t, 'createRoute.routeWillBeSavedTo', 'Route will be saved to "{collectionName}"').replace('{collectionName}', presetName),
+            type: 'success'
+          });
+        }}
+        onRouteRemoved={() => {}} // Not applicable for new routes
+        onPresetCreated={(preset) => {
+          setSelectedCollectionId(preset.id);
+          setShowCollectionSelector(false);
+          showToast({
+            title: getTranslation(t, 'createRoute.collectionCreated', 'Collection Created'),
+            message: getTranslation(t, 'createRoute.newCollectionCreated', 'New collection "{collectionName}" has been created').replace('{collectionName}', preset.name),
+            type: 'success'
+          });
+        }}
+        onClose={() => setShowCollectionSelector(false)}
+      />
     </Screen>
   );
 }
