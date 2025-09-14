@@ -13,6 +13,7 @@ import { Text, XStack, YStack, Slider, Button, SizableText, Input } from 'tamagu
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
+import { MapPresetSheetModal } from './MapPresetSheet';
 
 // Route type definition
 type Route = {
@@ -67,6 +68,8 @@ interface FilterSheetProps {
   initialFilters?: FilterOptions;
   onSearchResultSelect?: (result: SearchResult) => void;
   onNearMePress?: () => void; // Callback to trigger MapScreen locate animation
+  onPresetSelect?: (presetId: string | null) => void; // Callback for preset selection
+  selectedPresetId?: string | null; // Currently selected preset
 }
 
 type SearchResult = {
@@ -184,8 +187,11 @@ export function FilterSheet({
   initialFilters = {},
   onSearchResultSelect,
   onNearMePress,
+  onPresetSelect,
+  selectedPresetId,
 }: FilterSheetProps) {
   const { t } = useTranslation();
+  const { showModal } = useModal();
 
   // Force dark theme
   const backgroundColor = '#1A1A1A';
@@ -639,6 +645,25 @@ export function FilterSheet({
     }
   }, [onNearMePress, onClose]);
 
+  // Handle preset selection
+  const handlePresetSelect = React.useCallback((presetId: string | null) => {
+    onPresetSelect?.(presetId);
+  }, [onPresetSelect]);
+
+  // Show preset selection modal
+  const handleShowPresets = React.useCallback(() => {
+    showModal(
+      <MapPresetSheetModal
+        onSelectPreset={(preset) => handlePresetSelect(preset.id)}
+        selectedPresetId={selectedPresetId}
+        showCreateOption={true}
+        showEditOption={true}
+        showDeleteOption={true}
+        title={t('mapPresets.selectPreset') || 'Select Map Preset'}
+      />
+    );
+  }, [showModal, handlePresetSelect, selectedPresetId, t]);
+
   // Clean up search timeout
   useEffect(() => {
     return () => {
@@ -685,6 +710,56 @@ export function FilterSheet({
         </View>
 
         <ScrollView style={{ flex: 1 }}>
+          {/* Map Presets Section */}
+          <YStack style={styles.filterSection}>
+            <SizableText fontWeight="600" style={styles.sectionTitle}>
+              {t('mapPresets.title') || 'Map Presets'}
+            </SizableText>
+            
+            <TouchableOpacity
+              onPress={handleShowPresets}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderWidth: 1,
+                borderColor: borderColor,
+                borderRadius: 8,
+                backgroundColor: selectedPresetId ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
+                marginBottom: 16,
+              }}
+            >
+              <Feather
+                name="map"
+                size={20}
+                color={selectedPresetId ? '#00E6C3' : textColor}
+                style={{ marginRight: 12 }}
+              />
+              <YStack flex={1}>
+                <Text 
+                  color={selectedPresetId ? '#00E6C3' : textColor} 
+                  fontWeight={selectedPresetId ? '600' : '500'}
+                >
+                  {selectedPresetId 
+                    ? t('mapPresets.selectedPreset') || 'Selected Preset'
+                    : t('mapPresets.selectPreset') || 'Select Map Preset'
+                  }
+                </Text>
+                {selectedPresetId && (
+                  <Text fontSize="$2" color="$gray10">
+                    {t('mapPresets.tapToChange') || 'Tap to change'}
+                  </Text>
+                )}
+              </YStack>
+              <Feather
+                name="chevron-right"
+                size={16}
+                color={selectedPresetId ? '#00E6C3' : textColor}
+              />
+            </TouchableOpacity>
+          </YStack>
+
           {/* Search Section */}
           <YStack style={styles.filterSection}>
             <SizableText fontWeight="600" style={styles.sectionTitle}>
@@ -1432,6 +1507,8 @@ export function FilterSheetModal({
   initialFilters = {},
   onSearchResultSelect,
   onNearMePress,
+  onPresetSelect,
+  selectedPresetId,
 }: Omit<FilterSheetProps, 'isVisible' | 'onClose'>) {
   const { hideModal } = useModal();
 
@@ -1469,6 +1546,8 @@ export function FilterSheetModal({
       initialFilters={initialFilters}
       onSearchResultSelect={onSearchResultSelect}
       onNearMePress={onNearMePress}
+      onPresetSelect={onPresetSelect}
+      selectedPresetId={selectedPresetId}
     />
   );
 }

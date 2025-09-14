@@ -42,6 +42,7 @@ import { DraftRoutes } from './DraftRoutes';
 import { CommunityFeed } from './CommunityFeed';
 import { UpcomingEvents } from './UpcomingEvents';
 import { CommunicationTools } from './CommunicationTools';
+import { CustomMapPresets } from './CustomMapPresets';
 
 // Update the Route type to include creator id
 type Route = {
@@ -432,6 +433,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             <ProgressSection activeUserId={effectiveUserId} />
             <DraftRoutes onRoutePress={handleRoutePress} />
             <SavedRoutes onRoutePress={handleRoutePress} />
+            <CustomMapPresets onRoutePress={handleRoutePress} />
             <CommunityFeed 
               onOpenFeedSheet={() => setShowCommunityFeedSheet(true)}
               onUserPress={(userId) => {
@@ -518,6 +520,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
           setShowRouteDetailSheet(false);
           setSelectedUserId(userId);
           setShowUserProfileSheet(true);
+        }}
+        onReopen={() => {
+          console.log('🎯 HomeScreen: Reopening RouteDetailSheet');
+          setShowRouteDetailSheet(true);
         }}
       />
 

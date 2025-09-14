@@ -19,6 +19,7 @@ import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
 import { useModal } from '../../contexts/ModalContext';
 import { Text } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
+import { MapPresetSheetModal } from '../../components/MapPresetSheet';
 import { SelectedRoute } from './SelectedRoute';
 import { useActiveRoutes, useRoutesFilters, useWaypoints } from './hooks';
 import { calculateDistance, getDistanceFromLatLonInKm } from './utils';
@@ -73,6 +74,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   });
   const [originalRegion, setOriginalRegion] = useState(region);
   const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
 
   // Add selectedPin state
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
@@ -134,7 +136,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       setDotsCount(0);
     }
   }, [locationLoading, spinValue]);
-  const { activeRoutes, filters, setFilters, setActiveRoutes } = useActiveRoutes(routes);
+  const { activeRoutes, filters, setFilters, setActiveRoutes } = useActiveRoutes(routes, selectedPresetId);
   const allWaypoints = useWaypoints(routes, activeRoutes); // Show all waypoints with filtered status
 
   const handleMarkerPress = useCallback(
@@ -727,6 +729,18 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     setAppliedFilters({});
   }, [setFilters, userLocation, region]);
 
+  // Handle preset selection
+  const handlePresetSelect = useCallback((presetId: string | null) => {
+    console.log('🗺️ [MapScreen] Preset selected:', presetId);
+    setSelectedPresetId(presetId);
+    
+    // Clear other filters when selecting a preset
+    if (presetId) {
+      setFilters({});
+      setAppliedFilters({});
+    }
+  }, [setFilters]);
+
   // Handle filter button press
   const handleFilterButtonPress = useCallback(() => {
     showModal(
@@ -737,9 +751,11 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         initialFilters={appliedFilters}
         onSearchResultSelect={handleLocationSelect}
         onNearMePress={handleLocateMe}
+        onPresetSelect={handlePresetSelect}
+        selectedPresetId={selectedPresetId}
       />,
     );
-  }, [showModal, handleApplyFilters, activeRoutes.length, routes, appliedFilters, handleLocationSelect, handleLocateMe]);
+  }, [showModal, handleApplyFilters, activeRoutes.length, routes, appliedFilters, handleLocationSelect, handleLocateMe, handlePresetSelect, selectedPresetId]);
 
   if (!isMapReady) {
     return (
@@ -821,10 +837,10 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         />
         
         {/* Clear Filters Button */}
-        {filters && Object.keys(filters).some(key => {
+        {(filters && Object.keys(filters).some(key => {
           const value = filters[key as keyof FilterOptions];
           return Array.isArray(value) ? value.length > 0 : value;
-        }) && (
+        })) || selectedPresetId && (
           <View style={{
             position: 'absolute',
             top: 160, // Position below header chips
@@ -850,13 +866,14 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                 borderColor: 'rgba(255, 255, 255, 0.1)',
               }}
               onPress={async () => {
-                console.log('🔴 [MapScreen] Clear filters pressed - clearing all filters');
+                console.log('🔴 [MapScreen] Clear filters pressed - clearing all filters and presets');
                 
-                // Clear local filters
+                // Clear local filters and preset
                 setFilters({});
                 setAppliedFilters({});
                 setFilteredRoutes([]);
                 setActiveRoutes(routes);
+                setSelectedPresetId(null);
                 
                 // Clear saved filters from AsyncStorage
                 try {
@@ -876,7 +893,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
             >
               <Feather name="x" size={16} color="rgba(255, 255, 255, 0.9)" />
               <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: '600', marginLeft: 6, fontSize: 14 }}>
-                Clear filters
+                Clear {selectedPresetId ? 'preset & filters' : 'filters'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -963,6 +980,10 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           console.log('Starting route on MapScreen:', routeId);
         }}
         onNavigateToProfile={handleUserPress}
+        onReopen={() => {
+          console.log('🎯 MapScreen: Reopening RouteDetailSheet');
+          setShowRouteDetailSheet(true);
+        }}
       />
 
       {/* User Profile Sheet */}

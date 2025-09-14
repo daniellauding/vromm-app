@@ -23,6 +23,8 @@ import { Region } from '../types/maps';
 import { ReportDialog } from './report/ReportDialog';
 import { parseRecordingStats, isRecordedRoute, formatRecordingStatsDisplay } from '../utils/routeUtils';
 import { RouteExerciseList } from './RouteExerciseList';
+import { AddToPresetSheetModal } from './AddToPresetSheet';
+import { useModal } from '../contexts/ModalContext';
 
 const { height, width } = Dimensions.get('window');
 
@@ -127,6 +129,7 @@ interface RouteDetailSheetProps {
   routeId: string | null;
   onStartRoute?: (routeId: string) => void;
   onNavigateToProfile?: (userId: string) => void;
+  onReopen?: () => void;
 }
 
 export function RouteDetailSheet({
@@ -135,12 +138,14 @@ export function RouteDetailSheet({
   routeId,
   onStartRoute,
   onNavigateToProfile,
+  onReopen,
 }: RouteDetailSheetProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
+  const { showModal } = useModal();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
 
   // Theme colors - matching OnboardingInteractive exactly
@@ -358,6 +363,56 @@ export function RouteDetailSheet({
       console.error('Error toggling save status:', err);
       Alert.alert('Error', 'Failed to update save status');
     }
+  };
+
+  // Handle adding route to preset
+  const handleAddToPreset = () => {
+    if (!user || !routeId) {
+      Alert.alert('Sign in required', 'Please sign in to add routes to presets');
+      return;
+    }
+
+    console.log('🎯 RouteDetailSheet: Closing and opening AddToPresetSheet modal');
+    
+    // Close the current sheet first
+    onClose();
+    
+    // Use setTimeout to ensure the current modal is closed before showing the new one
+    setTimeout(() => {
+      showModal(
+        <AddToPresetSheetModal
+          routeId={routeId}
+          onRouteAdded={(presetId, presetName) => {
+            Alert.alert(
+              'Added to Preset',
+              `Route has been added to "${presetName}"`,
+              [{ text: 'OK' }]
+            );
+          }}
+          onRouteRemoved={(presetId, presetName) => {
+            Alert.alert(
+              'Removed from Preset',
+              `Route has been removed from "${presetName}"`,
+              [{ text: 'OK' }]
+            );
+          }}
+          onPresetCreated={(preset) => {
+            Alert.alert(
+              'Preset Created',
+              `New preset "${preset.name}" has been created and route added to it`,
+              [{ text: 'OK' }]
+            );
+          }}
+          onClose={() => {
+            // When AddToPresetSheet closes, reopen the RouteDetailSheet
+            setTimeout(() => {
+              console.log('🎯 AddToPresetSheet closed, reopening RouteDetailSheet');
+              onReopen?.();
+            }, 100);
+          }}
+        />
+      );
+    }, 300); // Wait for the close animation to complete
   };
 
   const handleMarkDriven = async () => {
@@ -825,6 +880,8 @@ export function RouteDetailSheet({
 
   if (!visible) return null;
 
+  console.log('🎯 RouteDetailSheet rendering with visible:', visible);
+  
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <Animated.View
@@ -966,7 +1023,7 @@ export function RouteDetailSheet({
                     {/* Action Buttons */}
                     <YStack gap="$3">
                       <XStack gap="$2" justifyContent="space-between">
-                        <Button
+                        {/* <Button
                           onPress={handleStartRoute}
                           backgroundColor="$blue10"
                           icon={<Feather name="navigation" size={18} color="white" />}
@@ -975,16 +1032,27 @@ export function RouteDetailSheet({
                           <Text color="white" fontSize="$3" fontWeight="600">
                             Start Route
                           </Text>
-                        </Button>
+                        </Button> */}
 
                         <Button
                           onPress={handleSaveRoute}
-                          backgroundColor={isSaved ? '$gray10' : '$blue10'}
-                          icon={<Feather name="bookmark" size={18} color="white" />}
+                          backgroundColor={isSaved ? '$color' : '$color'}
+                          icon={<Feather name="bookmark" size={24} color="$color" />}
+                          flex={1}
+                        >
+                          <Text fontSize="$3" fontWeight="600" color="$color" textAlign="center">
+                            {isSaved ? 'Saved' : 'Save'}
+                          </Text>
+                        </Button>
+
+                        <Button
+                          onPress={handleAddToPreset}
+                          backgroundColor="$green10"
+                          icon={<Feather name="map" size={18} color="white" />}
                           flex={1}
                         >
                           <Text color="white" fontSize="$3">
-                            {isSaved ? 'Saved' : 'Save'}
+                            Add to Preset
                           </Text>
                         </Button>
                       </XStack>
