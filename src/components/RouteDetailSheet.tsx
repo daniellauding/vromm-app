@@ -202,9 +202,9 @@ export function RouteDetailSheet({
         const { translationY } = event;
         const newPosition = currentState.value + translationY;
         
-        // Constrain to snap points range (large is smallest Y, mini is largest Y)
+        // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
         const minPosition = snapPoints.large; // Smallest Y (show most - like expanded)
-        const maxPosition = snapPoints.mini; // Largest Y (show least - just title)
+        const maxPosition = snapPoints.mini + 100; // Allow dragging past mini for dismissal
         const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
         
         // Set translateY directly like RoutesDrawer
@@ -219,8 +219,8 @@ export function RouteDetailSheet({
       
       const currentPosition = currentState.value + translationY;
       
-      // Only dismiss if dragged way down past the mini snap point with high velocity
-      if (currentPosition > snapPoints.mini + 100 && velocityY > 800) {
+      // Only dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
         runOnJS(dismissSheet)();
         return;
       }
