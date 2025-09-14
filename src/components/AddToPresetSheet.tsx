@@ -124,15 +124,15 @@ export function AddToPresetSheet({
       // Only check which presets contain this route if routeId is a valid UUID
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(routeId)) {
-        const { data: routePresetsData, error: routePresetsError } = await supabase
-          .from('map_preset_routes')
-          .select('preset_id')
-          .eq('route_id', routeId);
+      const { data: routePresetsData, error: routePresetsError } = await supabase
+        .from('map_preset_routes')
+        .select('preset_id')
+        .eq('route_id', routeId);
 
-        if (routePresetsError) throw routePresetsError;
+      if (routePresetsError) throw routePresetsError;
 
-        const routePresetIds = routePresetsData?.map(item => item.preset_id) || [];
-        setRoutePresets(routePresetIds);
+      const routePresetIds = routePresetsData?.map(item => item.preset_id) || [];
+      setRoutePresets(routePresetIds);
       } else {
         // For temp route IDs, don't check which presets contain the route
         console.log('⚠️ [AddToPresetSheet] Using temp routeId, skipping route preset check:', routeId);
@@ -318,37 +318,37 @@ export function AddToPresetSheet({
         });
       } else {
         // Create new preset
-        const { data: newPreset, error: createError } = await supabase
-          .from('map_presets')
-          .insert({
-            name: formData.name.trim(),
-            description: formData.description.trim() || null,
-            visibility: formData.visibility,
-            creator_id: effectiveUserId,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
+      const { data: newPreset, error: createError } = await supabase
+        .from('map_presets')
+        .insert({
+          name: formData.name.trim(),
+          description: formData.description.trim() || null,
+          visibility: formData.visibility,
+          creator_id: effectiveUserId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
-        if (createError) throw createError;
+      if (createError) throw createError;
 
-        // Add route to the new preset
-        const { error: addError } = await supabase
-          .from('map_preset_routes')
-          .insert({
-            preset_id: newPreset.id,
-            route_id: routeId,
-            added_by: effectiveUserId,
-            added_at: new Date().toISOString(),
-          });
+      // Add route to the new preset
+      const { error: addError } = await supabase
+        .from('map_preset_routes')
+        .insert({
+          preset_id: newPreset.id,
+          route_id: routeId,
+          added_by: effectiveUserId,
+          added_at: new Date().toISOString(),
+        });
 
-        if (addError) throw addError;
+      if (addError) throw addError;
 
-        setPresets(prev => [{ ...newPreset, route_count: 1 }, ...prev]);
-        setRoutePresets(prev => [...prev, newPreset.id]);
-        onPresetCreated?.(newPreset);
-        onRouteAdded?.(newPreset.id, newPreset.name);
+      setPresets(prev => [{ ...newPreset, route_count: 1 }, ...prev]);
+      setRoutePresets(prev => [...prev, newPreset.id]);
+      onPresetCreated?.(newPreset);
+      onRouteAdded?.(newPreset.id, newPreset.name);
 
         showToast({
           title: t('routeCollections.created') || 'Collection Created',
@@ -676,7 +676,7 @@ export function AddToPresetSheet({
                     ? (t('routeCollections.editCollection') || 'Edit Collection')
                     : (t('routeCollections.addToCollection') || 'Add to Collection')
                   }
-                </Text>
+              </Text>
                 {showCreateForm && <View style={{ width: 36 }} />}
               </XStack>
 
@@ -761,38 +761,38 @@ export function AddToPresetSheet({
                         return (
                           <XStack key={preset.id} alignItems="center" gap="$2">
                             <YStack flex={1}>
-                              <RadioButton
-                                onPress={() => handleTogglePreset(preset)}
-                                title={preset.name}
-                                description={`${preset.description || ''} • ${preset.route_count || 0} ${t('routeCollections.routes') || 'routes'}`}
-                                isSelected={isInPreset}
-                                rightElement={
-                                  <XStack alignItems="center" gap="$2">
-                                    {preset.is_default && (
-                                      <View
-                                        style={{
-                                          backgroundColor: '#00E6C3',
-                                          paddingHorizontal: 6,
-                                          paddingVertical: 2,
-                                          borderRadius: 4,
-                                        }}
-                                      >
-                                        <Text fontSize="$1" fontWeight="600" color="#000000">
-                                          {t('routeCollections.default') || 'Default'}
-                                        </Text>
-                                      </View>
-                                    )}
-                                    <Feather
-                                      name={
-                                        preset.visibility === 'public' ? 'globe' :
-                                        preset.visibility === 'shared' ? 'users' : 'lock'
-                                      }
-                                      size={14}
-                                      color="$color"
-                                    />
-                                  </XStack>
-                                }
-                              />
+                          <RadioButton
+                            onPress={() => handleTogglePreset(preset)}
+                            title={preset.name}
+                            description={`${preset.description || ''} • ${preset.route_count || 0} ${t('routeCollections.routes') || 'routes'}`}
+                            isSelected={isInPreset}
+                            rightElement={
+                              <XStack alignItems="center" gap="$2">
+                                {preset.is_default && (
+                                  <View
+                                    style={{
+                                      backgroundColor: '#00E6C3',
+                                      paddingHorizontal: 6,
+                                      paddingVertical: 2,
+                                      borderRadius: 4,
+                                    }}
+                                  >
+                                    <Text fontSize="$1" fontWeight="600" color="#000000">
+                                      {t('routeCollections.default') || 'Default'}
+                                    </Text>
+                                  </View>
+                                )}
+                                <Feather
+                                  name={
+                                    preset.visibility === 'public' ? 'globe' :
+                                    preset.visibility === 'shared' ? 'users' : 'lock'
+                                  }
+                                  size={14}
+                                  color="$color"
+                                />
+                              </XStack>
+                            }
+                          />
                             </YStack>
                             
                             {/* Edit, Share, and Delete buttons for user's own collections */}
