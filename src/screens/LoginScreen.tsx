@@ -41,10 +41,6 @@ export function LoginScreen() {
   // Navigation is handled globally in App.tsx after session is set
 
   const handleLogin = async () => {
-    console.log('[LOGIN_DEBUG] Starting login process...');
-    console.log('[LOGIN_DEBUG] Email:', email);
-    console.log('[LOGIN_DEBUG] Password length:', password.length);
-
     let hasError = false;
     setEmailError('');
     setPasswordError('');
@@ -53,33 +49,25 @@ export function LoginScreen() {
     // Client-side validation
     if (!email) {
       setEmailError(t('auth.invalidEmail') || 'Please enter an email address');
-      console.log('[LOGIN_DEBUG] Email validation failed: empty email');
       hasError = true;
     }
     if (!password) {
       setPasswordError(t('auth.invalidPassword') || 'Please enter a password');
-      console.log('[LOGIN_DEBUG] Password validation failed: empty password');
       hasError = true;
     }
 
     if (hasError) {
-      console.log('[LOGIN_DEBUG] Client validation failed, stopping login attempt');
       return;
     }
-
-    console.log('[LOGIN_DEBUG] Client validation passed, attempting sign in...');
 
     try {
       setLoading(true);
       setError('');
       setPasswordError('');
 
-      console.log('[LOGIN_DEBUG] Calling signIn function...');
       await signIn(email, password);
-      console.log('[LOGIN_DEBUG] signIn completed successfully');
 
       // Check if user account is deleted after successful auth
-      console.log('[LOGIN_DEBUG] Checking user account status...');
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -93,21 +81,9 @@ export function LoginScreen() {
         if (profileError) {
           console.log('[LOGIN_DEBUG] Error checking profile:', profileError);
         } else if (profile?.account_status === 'deleted') {
-          console.log('[LOGIN_DEBUG] User account is deleted, signing out...');
-          setError(
-            'This account has been deleted. Please contact support if you believe this is an error.',
-          );
-          showToast({
-            title: 'Account Deleted',
-            message:
-              'This account has been deleted. Please contact support if you believe this is an error.',
-            type: 'error',
-          });
-
           await supabase.auth.signOut();
           return;
         }
-        console.log('[LOGIN_DEBUG] User account status:', profile?.account_status);
       }
     } catch (err) {
       const error = err as Error;
@@ -134,14 +110,12 @@ export function LoginScreen() {
     if (oauthLoading) return;
     try {
       setOauthLoading(true);
-      console.log('[GOOGLE_NATIVE] Google login pressed');
       const result = await googleSignInService.signIn();
       if (!result.success) {
         console.log('[GOOGLE_NATIVE] Sign-in failed:', result.error);
         Alert.alert('Google Sign-In', result.error || 'Google sign-in failed');
         return;
       }
-      console.log('[GOOGLE_NATIVE] Google native sign-in completed for:', result.user?.email);
 
       // Check if user account is deleted after OAuth sign-in
       const {
@@ -157,18 +131,7 @@ export function LoginScreen() {
         if (profileError) {
           console.log('[GOOGLE_NATIVE] Error checking profile:', profileError);
         } else if (profile?.account_status === 'deleted') {
-          console.log('[GOOGLE_NATIVE] User account is deleted, signing out...');
           await supabase.auth.signOut();
-          Alert.alert(
-            'Account Deleted',
-            'This account has been deleted. Please contact support if you believe this is an error.',
-          );
-          showToast({
-            title: 'Account Deleted',
-            message:
-              'This account has been deleted. Please contact support if you believe this is an error.',
-            type: 'error',
-          });
           return;
         }
         console.log('[GOOGLE_NATIVE] User account status:', profile?.account_status);
@@ -187,7 +150,6 @@ export function LoginScreen() {
     if (oauthLoading) return;
     try {
       setOauthLoading(true);
-      console.log('Apple login pressed');
 
       // 1) Create nonce and hash
       const bytes = await Crypto.getRandomBytesAsync(16);
@@ -220,7 +182,6 @@ export function LoginScreen() {
       });
       if (error) throw error;
 
-      console.log('✅ Apple Sign-In successful (Supabase session set)');
     } catch (error) {
       console.error('Apple login error:', error);
       const msg = (error as Error)?.message?.toLowerCase?.() || '';
@@ -236,7 +197,6 @@ export function LoginScreen() {
 
     try {
       setOauthLoading(true);
-      console.log('Facebook login pressed');
       const redirectTo = makeRedirectUri({ scheme: 'myapp', path: 'redirect' });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
@@ -248,23 +208,18 @@ export function LoginScreen() {
       });
       if (error) throw error;
       const authUrl = data?.url;
-      console.log('[OAUTH][Facebook] redirectTo =', redirectTo);
-      console.log('[OAUTH][Facebook] authUrl =', authUrl);
+
       if (!authUrl) throw new Error('No auth URL from Supabase');
 
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
-      console.log('[OAUTH][Facebook] WebBrowser result =', result);
+
       if (result.type !== 'success') return; // silent cancel
       if (result.url) {
-        console.log('[OAUTH][Facebook] result.url =', result.url);
         const parsed = Linking.parse(result.url);
-        console.log('[OAUTH][Facebook] parsed =', parsed);
         const code = (parsed.queryParams?.code as string) || '';
-        console.log('[OAUTH][Facebook] code =', code ? '[present]' : '[missing]');
         let didSetSession = false;
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
-          console.log('[OAUTH][Facebook] exchangeCode error =', error);
           if (error) throw error;
           // Ensure session object is available before navigating
           await supabase.auth.getSession();
@@ -276,13 +231,11 @@ export function LoginScreen() {
             const sp = new URLSearchParams(fragment);
             const access_token = sp.get('access_token') || '';
             const refresh_token = sp.get('refresh_token') || '';
-            console.log('[OAUTH][Facebook] fragment tokens present =', Boolean(access_token));
             if (access_token) {
               const { error } = await supabase.auth.setSession({
                 access_token,
                 refresh_token: refresh_token || '',
               });
-              console.log('[OAUTH][Facebook] setSession error =', error);
               if (error) throw error;
               // Ensure session object is available before navigating
               await supabase.auth.getSession();
