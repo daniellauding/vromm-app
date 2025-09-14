@@ -172,18 +172,89 @@ export function MapPresetSheet({
 
     setLoading(true);
     try {
-      // Load user's own presets, public presets, and shared presets
-      const { data, error } = await supabase
+      console.log('🔍 [MapPresetSheet] Loading presets for user:', effectiveUserId);
+      
+      // Get collections where user is creator OR public OR member
+      // First get collections where user is the creator
+      const { data: ownedData, error: ownedError } = await supabase
         .from('map_presets')
         .select(`
           *,
           route_count:map_preset_routes(count)
         `)
-        .or(`creator_id.eq.${effectiveUserId},visibility.eq.public`)
+        .eq('creator_id', effectiveUserId)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (ownedError) {
+        console.error('❌ [MapPresetSheet] Error loading owned presets:', ownedError);
+        throw ownedError;
+      }
+
+      console.log('✅ [MapPresetSheet] Owned presets:', ownedData?.length || 0, ownedData);
+
+      // Get public collections
+      const { data: publicData, error: publicError } = await supabase
+        .from('map_presets')
+        .select(`
+          *,
+          route_count:map_preset_routes(count)
+        `)
+        .eq('visibility', 'public')
+        .neq('creator_id', effectiveUserId) // Exclude ones they already own
+        .order('created_at', { ascending: false });
+
+      if (publicError) {
+        console.error('❌ [MapPresetSheet] Error loading public presets:', publicError);
+        throw publicError;
+      }
+
+      console.log('✅ [MapPresetSheet] Public presets:', publicData?.length || 0, publicData);
+
+      // Get collections where user is a member (but not creator)
+      const { data: memberData, error: memberError } = await supabase
+        .from('map_preset_members')
+        .select(`
+          preset_id,
+          map_presets!inner(
+            *,
+            route_count:map_preset_routes(count)
+          )
+        `)
+        .eq('user_id', effectiveUserId)
+        .neq('map_presets.creator_id', effectiveUserId); // Exclude ones they already own
+
+      if (memberError) {
+        console.error('❌ [MapPresetSheet] Error loading member presets:', memberError);
+        throw memberError;
+      }
+
+      console.log('✅ [MapPresetSheet] Member presets raw data:', memberData?.length || 0, memberData);
+
+      // Combine the results
+      const ownedPresets = ownedData || [];
+      const publicPresets = publicData || [];
+      const memberPresets = memberData?.map(item => item.map_presets).filter(Boolean) || [];
+      
+      console.log('✅ [MapPresetSheet] Processed member presets:', memberPresets.length, memberPresets);
+      
+      const allPresets = [...ownedPresets, ...publicPresets, ...memberPresets];
+      
+      // Sort combined results
+      const data = allPresets.sort((a, b) => {
+        // Default presets first
+        if (a.is_default && !b.is_default) return -1;
+        if (!a.is_default && b.is_default) return 1;
+        // Then by creation date
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+      console.log('✅ [MapPresetSheet] Loaded presets:', {
+        owned: ownedPresets.length,
+        public: publicPresets.length,
+        member: memberPresets.length,
+        total: data.length
+      });
 
       const transformedPresets = data?.map(preset => ({
         ...preset,

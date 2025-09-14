@@ -176,11 +176,9 @@ export function CollectionSharingModal({
         console.log('🔄 [CollectionSharingModal] Calling onInvitationSent callback');
         onInvitationSent?.();
         
-        console.log('🚪 [CollectionSharingModal] Closing modal with delay to show toast');
-        // Add delay to ensure toast is visible before closing modal
-        setTimeout(() => {
-          onClose();
-        }, 1500);
+        console.log('🚪 [CollectionSharingModal] Closing modal immediately - toast should be visible');
+        // Close modal immediately, toast should be visible above it
+        onClose();
       } else {
         console.log('❌ [CollectionSharingModal] All invitations failed, showing error toast');
         showToast({
@@ -246,7 +244,7 @@ export function CollectionSharingModal({
       <Animated.View
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          backgroundColor: colorScheme === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)',
           opacity: backdropOpacity,
         }}
       >
@@ -258,13 +256,15 @@ export function CollectionSharingModal({
             }}
           >
             <YStack
-              backgroundColor="$background"
+              backgroundColor={colorScheme === 'dark' ? '#1C1C1C' : '#FFFFFF'}
               padding="$4"
               paddingBottom={24}
               borderTopLeftRadius="$4"
               borderTopRightRadius="$4"
               gap="$4"
               minHeight="60%"
+              borderWidth={1}
+              borderColor={colorScheme === 'dark' ? '#333333' : '#E5E5E5'}
             >
               {/* Header */}
               <XStack alignItems="center" justifyContent="space-between">

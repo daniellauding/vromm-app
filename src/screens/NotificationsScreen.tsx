@@ -281,6 +281,36 @@ export const NotificationsScreen: React.FC = () => {
           break;
         }
 
+        case 'collection_invitation': {
+          console.log('📍 Collection invitation notification pressed:', notification);
+          // For collection invitations, we need to find the invitation ID from metadata
+          const notificationData = getNotificationData(notification);
+          const invitationId = notificationData.invitation_id || notificationData.collection_invitation_id;
+          
+          if (invitationId) {
+            console.log('📍 Found invitation ID:', invitationId);
+            // Navigate to collection invitation handling
+            // For now, just show a toast - the global modal should handle this
+            showToast({
+              title: 'Collection Invitation',
+              message: 'Please check your collection invitations',
+              type: 'info'
+            });
+          } else {
+            console.error('❌ Missing invitation ID in collection invitation notification:', {
+              notificationId: notification.id,
+              metadata: notification.metadata,
+              notificationData
+            });
+            showToast({
+              title: 'Error',
+              message: 'Invalid invitation notification',
+              type: 'error'
+            });
+          }
+          break;
+        }
+
         case 'new_message': {
           // Check if this is actually a relationship review notification
           const notificationData = getNotificationData(notification);

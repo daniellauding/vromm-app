@@ -716,10 +716,17 @@ export function FilterSheet({
 
   // Show preset selection modal
   const handleShowPresets = React.useCallback(() => {
+    console.log('🔍 [FilterSheet] Opening preset selection modal for user:', effectiveUserId);
+    console.log('🔍 [FilterSheet] User context:', { 
+      effectiveUserId,
+      selectedPresetId 
+    });
+    
     showModal(
       <MapPresetSheetModal
         onSelectPreset={(preset) => {
           if (preset && preset.id) {
+            console.log('✅ [FilterSheet] Preset selected:', preset.id, preset.name);
             handlePresetSelect(preset.id);
           } else {
             console.warn('⚠️ [FilterSheet] Invalid preset object:', preset);
@@ -733,7 +740,7 @@ export function FilterSheet({
         title={t('routeCollections.selectCollection') || 'Select Collection'}
       />
     );
-  }, [showModal, handlePresetSelect, selectedPresetId, t]);
+  }, [showModal, handlePresetSelect, selectedPresetId, t, effectiveUserId]);
 
   // Clean up search timeout
   useEffect(() => {

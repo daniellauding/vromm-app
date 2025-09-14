@@ -203,12 +203,61 @@ class CollectionSharingService {
         })
         .eq('id', invitationId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        // If it's a duplicate key error, that's okay - invitation was already processed
+        if (updateError.code === '23505') {
+          console.log('Invitation already processed, continuing...');
+        } else {
+          throw updateError;
+        }
+      }
+
+      // Also clean up any related notifications
+      try {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .delete()
+          .eq('metadata->>invitation_id', invitationId)
+          .or(`metadata->>collection_id.eq.${collectionId},metadata->>collection_name.eq.${invitation.metadata?.collectionName}`);
+        
+        if (notificationError) {
+          console.warn('⚠️ Could not delete related notification:', notificationError);
+        } else {
+          console.log('🗑️ Related notification deleted after acceptance');
+        }
+      } catch (notificationCleanupError) {
+        console.warn('⚠️ Error cleaning up notification:', notificationCleanupError);
+      }
 
       return { success: true };
     } catch (error) {
       console.error('Error accepting collection invitation:', error);
       return { success: false, error: 'Failed to accept invitation' };
+    }
+  }
+
+  // Leave a collection
+  async leaveCollection(collectionId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Remove user from the collection
+      const { error: removeError } = await supabase
+        .from('map_preset_members')
+        .delete()
+        .eq('preset_id', collectionId)
+        .eq('user_id', userId);
+
+      if (removeError) {
+        // If user is not a member, that's okay
+        if (removeError.code === 'PGRST116') { // No rows found
+          return { success: true };
+        }
+        throw removeError;
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error leaving collection:', error);
+      return { success: false, error: 'Failed to leave collection' };
     }
   }
 
@@ -238,6 +287,22 @@ class CollectionSharingService {
         .eq('role', 'collection_sharing');
 
       if (error) throw error;
+
+      // Also clean up any related notifications
+      try {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .delete()
+          .eq('metadata->>invitation_id', invitationId);
+        
+        if (notificationError) {
+          console.warn('⚠️ Could not delete related notification:', notificationError);
+        } else {
+          console.log('🗑️ Related notification deleted after rejection');
+        }
+      } catch (notificationCleanupError) {
+        console.warn('⚠️ Error cleaning up notification:', notificationCleanupError);
+      }
 
       return { success: true };
     } catch (error) {
@@ -271,6 +336,18 @@ class CollectionSharingService {
         .or('role.eq.collection_sharing,metadata->>invitationType.eq.collection_sharing')
         .order('created_at', { ascending: false });
 
+      console.log('🔍 [CollectionSharingService] Raw invitations query result:', {
+        userId,
+        email: userData.email,
+        invitationsCount: invitations?.length || 0,
+        invitations: invitations?.map(inv => ({
+          id: inv.id,
+          status: inv.status,
+          role: inv.role,
+          metadata: inv.metadata
+        }))
+      });
+
       if (invitationsError) throw invitationsError;
 
       if (!invitations || invitations.length === 0) {
@@ -280,8 +357,20 @@ class CollectionSharingService {
       // Filter for collection sharing invitations and extract data from metadata
       const collectionInvitations = invitations.filter(inv => 
         inv.role === 'collection_sharing' && 
-        inv.metadata?.collectionName
+        inv.metadata?.collectionName &&
+        inv.status === 'pending' // Double-check status is pending
       );
+
+      console.log('🔍 [CollectionSharingService] Filtered collection invitations:', {
+        totalInvitations: invitations.length,
+        collectionInvitations: collectionInvitations.length,
+        filteredInvitations: collectionInvitations.map(inv => ({
+          id: inv.id,
+          collectionName: inv.metadata?.collectionName,
+          status: inv.status,
+          created_at: inv.created_at
+        }))
+      });
 
       return collectionInvitations.map(inv => ({
         id: inv.id,

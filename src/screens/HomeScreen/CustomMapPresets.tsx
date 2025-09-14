@@ -50,13 +50,22 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
 
   const effectiveUserId = getEffectiveUserId();
 
-  // Load user's custom presets
+  // Load user's custom presets (owned + shared/member)
   const loadPresets = useCallback(async () => {
     if (!effectiveUserId) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      console.log('🔍 [CustomMapPresets] Loading presets for user:', effectiveUserId);
+      console.log('🔍 [CustomMapPresets] User context:', { 
+        authUser: user?.id, 
+        effectiveUserId,
+        isViewingStudent: effectiveUserId !== user?.id 
+      });
+      
+      // Get collections where user is creator OR member
+      // First get collections where user is the creator
+      const { data: ownedData, error: ownedError } = await supabase
         .from('map_presets')
         .select(`
           *,
@@ -64,14 +73,55 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
         `)
         .eq('creator_id', effectiveUserId)
         .order('is_default', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(5); // Show only first 5 presets
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (ownedError) {
+        console.error('❌ [CustomMapPresets] Error loading owned presets:', ownedError);
+        throw ownedError;
+      }
+
+      console.log('✅ [CustomMapPresets] Owned presets:', ownedData?.length || 0, ownedData);
+
+      // Then get collections where user is a member (but not creator)
+      const { data: memberData, error: memberError } = await supabase
+        .from('map_preset_members')
+        .select(`
+          map_presets!inner(
+            *,
+            route_count:map_preset_routes(count)
+          )
+        `)
+        .eq('user_id', effectiveUserId)
+        .neq('map_presets.creator_id', effectiveUserId); // Exclude ones they already own
+
+      if (memberError) {
+        console.error('❌ [CustomMapPresets] Error loading member presets:', memberError);
+        throw memberError;
+      }
+
+      console.log('✅ [CustomMapPresets] Member presets raw data:', memberData?.length || 0, memberData);
+
+      // Combine the results
+      const ownedPresets = ownedData || [];
+      const memberPresets = memberData?.map(item => item.map_presets).filter(Boolean) || [];
+      
+      const allPresets = [...ownedPresets, ...memberPresets];
+      
+      // Sort combined results
+      const data = allPresets.sort((a, b) => {
+        // Default presets first
+        if (a.is_default && !b.is_default) return -1;
+        if (!a.is_default && b.is_default) return 1;
+        // Then by creation date
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }).slice(0, 10); // Limit to 10
+
+      console.log('✅ [CustomMapPresets] Loaded presets:', data?.length || 0);
 
       const transformedPresets = data?.map(preset => ({
         ...preset,
         route_count: preset.route_count?.[0]?.count || 0,
+        is_owner: preset.creator_id === effectiveUserId, // Add flag to identify ownership
       })) || [];
 
       setPresets(transformedPresets);

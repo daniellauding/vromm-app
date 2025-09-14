@@ -224,6 +224,37 @@ export function AddToPresetSheet({
     }
   };
 
+  // Handle leave collection (for shared collections)
+  const handleLeaveCollection = async (preset: MapPreset) => {
+    if (!effectiveUserId) return;
+
+    try {
+      const { error } = await supabase
+        .from('map_preset_members')
+        .delete()
+        .eq('preset_id', preset.id)
+        .eq('user_id', effectiveUserId);
+
+      if (error) throw error;
+
+      // Update local state - remove from presets list
+      setPresets(prev => prev.filter(p => p.id !== preset.id));
+
+      showToast({
+        title: t('routeCollections.left') || 'Left Collection',
+        message: t('routeCollections.leftMessage')?.replace('{name}', preset.name) || `You have left "${preset.name}"`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error leaving collection:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeCollections.failedToLeave') || 'Failed to leave collection',
+        type: 'error'
+      });
+    }
+  };
+
   // Handle adding/removing route from preset
   const handleTogglePreset = async (preset: MapPreset) => {
     if (!effectiveUserId) return;
@@ -538,6 +569,8 @@ export function AddToPresetSheet({
               message: fullMessage,
               metadata: {
                 collection_name: formData.name,
+                collection_id: collectionId,
+                invitation_id: invitationResult.invitationId, // Store the invitation ID
                 from_user_id: effectiveUserId,
                 from_user_name: user?.email,
                 customMessage: sharingCustomMessage.trim() || undefined,
@@ -843,6 +876,23 @@ export function AddToPresetSheet({
                                   activeOpacity={0.7}
                                 >
                                   <Feather name="trash-2" size={16} color="#EF4444" />
+                                </TouchableOpacity>
+                              </XStack>
+                            )}
+                            
+                            {/* Leave Collection button for shared collections where user is not owner */}
+                            {!canEdit && preset.visibility === 'shared' && (
+                              <XStack gap="$1">
+                                <TouchableOpacity
+                                  onPress={() => handleLeaveCollection(preset)}
+                                  style={{
+                                    padding: 8,
+                                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                                    borderRadius: 6,
+                                  }}
+                                  activeOpacity={0.7}
+                                >
+                                  <Feather name="log-out" size={16} color="#FFC107" />
                                 </TouchableOpacity>
                               </XStack>
                             )}
