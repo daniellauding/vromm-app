@@ -146,7 +146,6 @@ async function registerForPushNotificationsAsync() {
           projectId,
         })
       ).data;
-      console.log(token);
     } catch (e) {
       token = `${e}`;
     }
@@ -204,8 +203,6 @@ function AuthenticatedAppContent() {
 
         if (error) {
           console.error('Error storing push token:', error);
-        } else {
-          console.log('✅ Push token stored successfully');
         }
       } catch (error) {
         console.error('Failed to store push token:', error);
@@ -420,15 +417,11 @@ function AppContent() {
 
   // Global invitation checking function
   const checkForGlobalInvitations = async () => {
-    console.log('🌍 [AppContent] checkForGlobalInvitations called for user:', user?.email);
     if (!user?.email) {
-      console.log('🌍 [AppContent] No user email - skipping invitation check');
       return;
     }
 
     try {
-      console.log('🌍 Checking for global invitations for:', user.email);
-
       const { data: invitations, error } = await supabase
         .from('pending_invitations')
         .select('id, invited_by, created_at')
@@ -440,8 +433,6 @@ function AppContent() {
         console.error('🌍 Global invitation check error:', error);
         return;
       }
-
-      console.log('🌍 Found pending invitations:', invitations?.length || 0);
 
       if (invitations && invitations.length > 0) {
         // Check if any of these invitations don't already have relationships
@@ -459,9 +450,7 @@ function AppContent() {
 
           if (!existingRelationship || existingRelationship.length === 0) {
             hasValidInvitation = true;
-            console.log('🌍 Valid invitation found:', inv.id);
           } else {
-            console.log('🌍 Skipping invitation - relationship exists (will cleanup):', inv.id);
             toCleanup.push(inv.id);
           }
         }
@@ -471,30 +460,18 @@ function AppContent() {
           try {
             await supabase.from('pending_invitations').delete().in('id', toCleanup);
             await supabase.from('notifications').delete().in('metadata->>invitation_id', toCleanup);
-            console.log(
-              '🧹 Cleaned up stale invitations and related notifications:',
-              toCleanup.length,
-            );
           } catch (cleanupErr) {
             console.warn('⚠️ Cleanup of stale invitations failed:', cleanupErr);
           }
         }
 
         if (hasValidInvitation && !showGlobalInvitationNotification) {
-          console.log('🌍 Global invitation check: Found valid invitations, showing modal');
           setShowGlobalInvitationNotification(true);
         } else if (!hasValidInvitation) {
-          console.log('🌍 No valid invitations found');
-
           // If no invitations, check for promotional content
-          console.log('🎉 [AppContent] Checking for promotional content...');
           setTimeout(async () => {
-            console.log('🎉 [AppContent] About to call checkForPromotionalContent...');
             const result = await checkForPromotionalContent('modal');
-            console.log('🎉 [AppContent] checkForPromotionalContent result:', result);
           }, 1000);
-        } else {
-          console.log('🌍 Modal already showing, not triggering again');
         }
       }
     } catch (error) {
@@ -529,16 +506,7 @@ function AppContent() {
             const row = payload?.new;
             const targetEmail = (row?.email || '').toLowerCase();
             if (targetEmail === (user.email || '').toLowerCase() && row?.status === 'pending') {
-              console.log(
-                '🌍 Global: Pending invitation INSERT matches current user → opening modal',
-              );
               setTimeout(() => setShowGlobalInvitationNotification(true), 150);
-            } else {
-              console.log(
-                '🌍 Global: Invitation INSERT ignored (different email or status)',
-                row?.email,
-                row?.status,
-              );
             }
           } catch (e) {
             console.log('🌍 Global: INSERT handler error', e);
@@ -557,7 +525,6 @@ function AppContent() {
             const row = payload?.new;
             const targetEmail = (row?.email || '').toLowerCase();
             if (targetEmail === (user.email || '').toLowerCase()) {
-              console.log('🌍 Global: Invitation UPDATE for current user, rechecking...');
               setTimeout(() => checkForGlobalInvitations(), 250);
             }
           } catch (e) {
@@ -582,7 +549,6 @@ function AppContent() {
           try {
             const row = payload?.new;
             if (row?.type === 'supervisor_invitation' || row?.type === 'student_invitation') {
-              console.log('🌍 Fallback: Invitation notification inserted, opening modal');
               setShowGlobalInvitationNotification(true);
             }
           } catch {}
@@ -669,8 +635,6 @@ function AppContent() {
     // Set up real-time translation updates
     const cleanup = setupTranslationSubscription();
 
-    console.log('[APP] Translation subscription initialized');
-
     // Clean up subscription when app unmounts
     return cleanup;
   }, []);
@@ -752,21 +716,12 @@ function AppContent() {
   // AGGRESSIVE DEBUG: Check for SIGNED_IN events and force navigation
   useEffect(() => {
     // Simple debug logging - let React handle everything
-    console.log('[AUTH_WATCHER] Monitoring auth state changes...');
+
   }, []);
 
   // Simple fallback: just dismiss browser and let React's conditional rendering handle navigation
   useEffect(() => {
-    console.log('[NAV_FALLBACK] useEffect triggered', {
-      initialized,
-      hasUser: !!user,
-      userId: user?.id,
-    });
     if (initialized && user) {
-      console.log(
-        '[NAV_FALLBACK] User authenticated, dismissing OAuth browser and letting React handle stack switch',
-      );
-
       // Just dismiss the OAuth browser
       (async () => {
         try {
@@ -784,13 +739,11 @@ function AppContent() {
       // Production-safe fallback: if React hasn't switched stacks shortly, force a full reload
       setTimeout(() => {
         const currentRoute = navigationRef.current?.getCurrentRoute?.()?.name;
-        console.log('[FALLBACK_CHECK] Current route after auth:', currentRoute);
         if (
           currentRoute === 'Login' ||
           currentRoute === 'SplashScreen' ||
           currentRoute === 'Signup'
         ) {
-          console.log('[FALLBACK_CHECK] Still on auth route after sign-in, forcing app reload');
           Updates.reloadAsync().catch((e) => console.warn('Updates.reloadAsync failed', e));
         }
       }, 1200);
@@ -802,12 +755,7 @@ function AppContent() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('[SUPABASE_AUTH]', _event, 'hasSession:', !!session, 'hasUser:', !!session?.user);
       if (_event === 'SIGNED_IN') {
-        console.log(
-          '[SUPABASE_AUTH] Login successful, waiting for React to switch navigation stack...',
-        );
-
         // Dismiss any auth browser just in case
         (async () => {
           try {
@@ -914,11 +862,9 @@ function AppContent() {
       <InvitationNotification
         visible={showGlobalInvitationNotification}
         onClose={() => {
-          console.log('🌍 Global invitation modal closed');
           setShowGlobalInvitationNotification(false);
         }}
         onInvitationHandled={() => {
-          console.log('🌍 Global invitation handled - checking for more');
           // Close modal immediately; if more invites exist, we'll reopen
           setShowGlobalInvitationNotification(false);
           // Check for more invitations after handling one
@@ -932,15 +878,6 @@ function AppContent() {
         key={`${user ? 'nav-app' : 'nav-auth'}-${authKey}`}
         ref={navigationRef}
         onStateChange={(state) => {
-          const currentRoute = state?.routes[state?.index || 0]?.name;
-
-          logInfo('Navigation state changed', {
-            currentRoute,
-            routeCount: state?.routes?.length,
-            stackIndex: state?.index,
-            timestamp: Date.now(),
-          });
-
           // Track screen views for analytics - works on both iOS and Android
           if (state) {
             const route = state.routes[state.index];

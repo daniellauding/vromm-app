@@ -77,28 +77,34 @@ export function LoginScreen() {
       console.log('[LOGIN_DEBUG] Calling signIn function...');
       await signIn(email, password);
       console.log('[LOGIN_DEBUG] signIn completed successfully');
-      
+
       // Check if user account is deleted after successful auth
       console.log('[LOGIN_DEBUG] Checking user account status...');
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('account_status, full_name')
           .eq('id', user.id)
           .single();
-          
+
         if (profileError) {
           console.log('[LOGIN_DEBUG] Error checking profile:', profileError);
         } else if (profile?.account_status === 'deleted') {
           console.log('[LOGIN_DEBUG] User account is deleted, signing out...');
-          await supabase.auth.signOut();
-          setError('This account has been deleted. Please contact support if you believe this is an error.');
+          setError(
+            'This account has been deleted. Please contact support if you believe this is an error.',
+          );
           showToast({
             title: 'Account Deleted',
-            message: 'This account has been deleted. Please contact support if you believe this is an error.',
-            type: 'error'
+            message:
+              'This account has been deleted. Please contact support if you believe this is an error.',
+            type: 'error',
           });
+
+          await supabase.auth.signOut();
           return;
         }
         console.log('[LOGIN_DEBUG] User account status:', profile?.account_status);
@@ -136,32 +142,38 @@ export function LoginScreen() {
         return;
       }
       console.log('[GOOGLE_NATIVE] Google native sign-in completed for:', result.user?.email);
-      
+
       // Check if user account is deleted after OAuth sign-in
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('account_status, full_name')
           .eq('id', user.id)
           .single();
-          
+
         if (profileError) {
           console.log('[GOOGLE_NATIVE] Error checking profile:', profileError);
         } else if (profile?.account_status === 'deleted') {
           console.log('[GOOGLE_NATIVE] User account is deleted, signing out...');
           await supabase.auth.signOut();
-          Alert.alert('Account Deleted', 'This account has been deleted. Please contact support if you believe this is an error.');
+          Alert.alert(
+            'Account Deleted',
+            'This account has been deleted. Please contact support if you believe this is an error.',
+          );
           showToast({
             title: 'Account Deleted',
-            message: 'This account has been deleted. Please contact support if you believe this is an error.',
-            type: 'error'
+            message:
+              'This account has been deleted. Please contact support if you believe this is an error.',
+            type: 'error',
           });
           return;
         }
         console.log('[GOOGLE_NATIVE] User account status:', profile?.account_status);
       }
-      
+
       // App.tsx listens to Supabase SIGNED_IN and will remount the navigator
     } catch (e) {
       console.error('[GOOGLE_NATIVE] Error:', e);
@@ -176,7 +188,7 @@ export function LoginScreen() {
     try {
       setOauthLoading(true);
       console.log('Apple login pressed');
-      
+
       // 1) Create nonce and hash
       const bytes = await Crypto.getRandomBytesAsync(16);
       const rawNonce = Array.from(bytes)
@@ -221,7 +233,7 @@ export function LoginScreen() {
 
   const handleFacebookLogin = async () => {
     if (oauthLoading) return;
-    
+
     try {
       setOauthLoading(true);
       console.log('Facebook login pressed');
@@ -344,10 +356,10 @@ export function LoginScreen() {
             </Button>
 
             {/* OAuth Login Buttons */}
-            <XStack 
-              justifyContent="space-around" 
-              alignItems="center" 
-              marginTop={20} 
+            <XStack
+              justifyContent="space-around"
+              alignItems="center"
+              marginTop={20}
               paddingHorizontal={60}
               width="100%"
             >
@@ -361,9 +373,13 @@ export function LoginScreen() {
                 accessibilityRole="button"
                 pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
               >
-                <Ionicons name="logo-google" size={32} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                <Ionicons
+                  name="logo-google"
+                  size={32}
+                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                />
               </Button>
-              
+
               <Button
                 size="md"
                 backgroundColor="transparent"
@@ -374,9 +390,13 @@ export function LoginScreen() {
                 accessibilityRole="button"
                 pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
               >
-                <Ionicons name="logo-facebook" size={32} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                <Ionicons
+                  name="logo-facebook"
+                  size={32}
+                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                />
               </Button>
-              
+
               <Button
                 size="md"
                 backgroundColor="transparent"
@@ -387,10 +407,10 @@ export function LoginScreen() {
                 accessibilityRole="button"
                 pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
               >
-                <Ionicons 
-                  name="logo-apple" 
-                  size={32} 
-                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
+                <Ionicons
+                  name="logo-apple"
+                  size={32}
+                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
                 />
               </Button>
             </XStack>

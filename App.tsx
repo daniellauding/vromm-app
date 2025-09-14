@@ -75,9 +75,9 @@ export default function App() {
       try {
         // In production, you might want to fetch this from your backend
         // For now, we'll get it from the Edge Function response or use environment
-        const publishableKey = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || 
-          'pk_live_Xr9mSHZSsJqaYS3q82xBNVtJ'; // Fallback test key
-        
+        const publishableKey =
+          process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_live_Xr9mSHZSsJqaYS3q82xBNVtJ'; // Fallback test key
+
         setStripePublishableKey(publishableKey);
         console.log('✅ Stripe publishable key set:', publishableKey.substring(0, 15) + '...');
       } catch (error) {
@@ -113,7 +113,10 @@ export default function App() {
             merchantIdentifier="merchant.se.vromm.app"
             urlScheme="vromm"
           >
-            <TamaguiProvider config={config} defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}>
+            <TamaguiProvider
+              config={config}
+              defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}
+            >
               <Theme>
                 <TranslationProvider>
                   <AuthProvider>

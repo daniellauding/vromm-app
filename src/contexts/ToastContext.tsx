@@ -21,7 +21,12 @@ export interface ToastData {
 interface ToastContextType {
   showToast: (toast: Omit<ToastData, 'id'>) => void;
   hideToast: (id: string) => void;
-  showRouteCreatedToast: (routeId: string, routeName: string, isUpdate?: boolean, isDraft?: boolean) => void;
+  showRouteCreatedToast: (
+    routeId: string,
+    routeName: string,
+    isUpdate?: boolean,
+    isDraft?: boolean,
+  ) => void;
   showEventCreatedToast: (eventId: string, eventName: string, isUpdate?: boolean) => void;
   showEventInviteToast: (eventId: string, eventName: string, inviteCount: number) => void;
 }
@@ -44,29 +49,42 @@ export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const navigation = useNavigation<NavigationProp>();
 
-  const showToast = (toastData: Omit<ToastData, 'id'>) => {
-    const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-    const newToast: ToastData = {
-      ...toastData,
-      id,
-      duration: toastData.duration || 4000,
-    };
+  React.useEffect(() => {
+    console.log('Created ToastProvider');
+  }, []);
 
-    setToasts((prev) => [...prev, newToast]);
-
-    // Auto-dismiss after duration
-    if (newToast.duration > 0) {
-      setTimeout(() => {
-        hideToast(id);
-      }, newToast.duration);
-    }
-  };
-
-  const hideToast = (id: string) => {
+  const hideToast = React.useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
+  }, []);
 
-  const showRouteCreatedToast = (routeId: string, routeName: string, isUpdate = false, isDraft = false) => {
+  const showToast = React.useCallback(
+    (toastData: Omit<ToastData, 'id'>) => {
+      console.log('showToast', toastData);
+      const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+      const newToast: ToastData = {
+        ...toastData,
+        id,
+        duration: toastData.duration || 4000,
+      };
+
+      setToasts((prev) => [...prev, newToast]);
+
+      // Auto-dismiss after duration
+      if (newToast.duration > 0) {
+        setTimeout(() => {
+          hideToast(id);
+        }, newToast.duration);
+      }
+    },
+    [hideToast],
+  );
+
+  const showRouteCreatedToast = (
+    routeId: string,
+    routeName: string,
+    isUpdate = false,
+    isDraft = false,
+  ) => {
     const getTitle = () => {
       if (isDraft) return 'Draft Saved!';
       if (isUpdate) return 'Route Updated!';
@@ -124,8 +142,18 @@ export function ToastProvider({ children }: ToastProviderProps) {
     });
   };
 
+  console.log('toasts', toasts);
+
   return (
-    <ToastContext.Provider value={{ showToast, hideToast, showRouteCreatedToast, showEventCreatedToast, showEventInviteToast }}>
+    <ToastContext.Provider
+      value={{
+        showToast,
+        hideToast,
+        showRouteCreatedToast,
+        showEventCreatedToast,
+        showEventInviteToast,
+      }}
+    >
       {children}
       <ToastContainer toasts={toasts} onDismiss={hideToast} />
     </ToastContext.Provider>

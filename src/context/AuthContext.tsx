@@ -101,22 +101,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('[AUTH_STATE_DEBUG] Auth state changed:', {
-        event: _event,
-        hasSession: !!session,
-        hasUser: !!session?.user,
-        userId: session?.user?.id,
-        userEmail: session?.user?.email,
-      });
 
       // If user just signed in, ensure they have a profile
       if (_event === 'SIGNED_IN' && session?.user) {
-        console.log('[AUTH_STATE_DEBUG] User signed in, checking profile...');
         try {
           // Check if profile exists
           const { data: profile, error: fetchError } = await supabase
             .from('profiles')
-            .select('id, full_name, role')
+            .select('id, full_name, role, account_status')
             .eq('id', session.user.id)
             .single();
 
@@ -143,16 +135,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               console.log('[AUTH_STATE_DEBUG] Profile created successfully');
             }
           } else {
-            console.log('[AUTH_STATE_DEBUG] Profile already exists');
-            
             // Check if user account is deleted
             if (profile?.account_status === 'deleted') {
               console.log('🚫 Deleted user attempted login:', session.user.email);
               await supabase.auth.signOut();
               Alert.alert(
-                'Account Deleted', 
+                'Account Deleted',
                 'This account has been deleted. Please contact support if you believe this is an error.',
-                [{ text: 'OK' }]
+                [{ text: 'OK' }],
               );
               return;
             }
