@@ -3518,8 +3518,16 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       {/* Collection Selector Modal */}
       {showCollectionSelector && (
         <AddToPresetSheetModal
-          routeId={null} // No route ID since we're creating a new route
-          onRouteAdded={handleCollectionSelected}
+          routeId="temp-route-id" // Temporary ID for new routes
+          onRouteAdded={(presetId, presetName) => {
+            setSelectedCollectionId(presetId);
+            setShowCollectionSelector(false);
+            Alert.alert(
+              getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected'),
+              getTranslation(t, 'createRoute.routeWillBeSavedTo', 'Route will be saved to "{collectionName}"').replace('{collectionName}', presetName),
+              [{ text: getTranslation(t, 'common.ok', 'OK') }]
+            );
+          }}
           onRouteRemoved={() => {}} // Not applicable for new routes
           onPresetCreated={(preset) => {
             setSelectedCollectionId(preset.id);
@@ -3531,10 +3539,6 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             );
           }}
           onClose={() => setShowCollectionSelector(false)}
-          showCreateOption={true}
-          showEditOption={false}
-          showDeleteOption={false}
-          title={getTranslation(t, 'createRoute.selectCollection', 'Select Collection')}
         />
       )}
     </Screen>

@@ -15,7 +15,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { StatusBar } from 'expo-status-bar';
 import { setupTranslationSubscription } from './services/translationService';
-import { ToastProvider } from './contexts/ToastContext';
+import { ToastProvider, useToast } from './contexts/ToastContext';
 import { clearOldCrashReports } from './components/ErrorBoundary';
 import { NetworkAlert } from './components/NetworkAlert';
 import { logInfo, logWarn, logError } from './utils/logger';
@@ -109,7 +109,7 @@ import { InvitationNotification } from './components/InvitationNotification';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-async function registerForPushNotificationsAsync() {
+async function registerForPushNotificationsAsync(showToast?: (toast: { title: string; message: string; type: 'success' | 'error' | 'info' }) => void) {
   let token;
 
   if (Platform.OS === 'android') {
@@ -129,7 +129,15 @@ async function registerForPushNotificationsAsync() {
       finalStatus = status;
     }
     if (finalStatus !== 'granted') {
-      alert('Failed to get push token for push notification!');
+      if (showToast) {
+        showToast({
+          title: 'Push Notifications',
+          message: 'Failed to get push token for push notification!',
+          type: 'error'
+        });
+      } else {
+        alert('Failed to get push token for push notification!');
+      }
       return;
     }
     // Learn more about projectId:
@@ -151,7 +159,15 @@ async function registerForPushNotificationsAsync() {
       token = `${e}`;
     }
   } else {
-    alert('Must use physical device for Push Notifications');
+    if (showToast) {
+      showToast({
+        title: 'Push Notifications',
+        message: 'Must use physical device for Push Notifications',
+        type: 'info'
+      });
+    } else {
+      alert('Must use physical device for Push Notifications');
+    }
   }
 
   return token;
@@ -177,13 +193,14 @@ function UnauthenticatedAppContent() {
 
 function AuthenticatedAppContent() {
   const authData = useAuth();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!authData?.user?.id) {
       return;
     }
 
-    registerForPushNotificationsAsync().then(async (token) => {
+    registerForPushNotificationsAsync(showToast).then(async (token) => {
       try {
         if (!token || !authData?.user?.id || token.includes('Error')) {
           return;

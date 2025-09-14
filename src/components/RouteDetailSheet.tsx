@@ -1106,7 +1106,7 @@ export function RouteDetailSheet({
                   top: 0,
                   left: 0,
                   right: 0,
-                  height: height,
+                  height: height, // Keep original height
                   backgroundColor: backgroundColor,
                   borderTopLeftRadius: 16,
                   borderTopRightRadius: 16,
@@ -1115,9 +1115,9 @@ export function RouteDetailSheet({
               ]}
             >
               <YStack
-                padding="$4"
-                paddingBottom={insets.bottom || 20}
-                gap="$4"
+                padding="$3"
+                paddingBottom={insets.bottom || 10}
+                gap="$3"
                 flex={1}
               >
                   {/* Drag Handle */}
@@ -1174,7 +1174,7 @@ export function RouteDetailSheet({
 
               {/* Show content only if not in mini mode */}
               {currentSnapPoint !== snapPoints.mini && (
-                <>
+                <View style={{ flex: 1 }}>
               {loading ? (
                 <YStack f={1} jc="center" ai="center">
                   <Text>{t('routeDetail.loading') || 'Loading route data...'}</Text>
@@ -1193,6 +1193,8 @@ export function RouteDetailSheet({
                 </YStack>
               ) : (
                 <ScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
                   showsVerticalScrollIndicator={true}
                   refreshControl={
                     <RefreshControl
@@ -1285,8 +1287,8 @@ export function RouteDetailSheet({
                           flex={1}
                         />
                         <IconButton
-                          icon="map"
-                          label={t('routeDetail.addToCollection') || 'Add to Collection'}
+                          icon="play"
+                          label={allExercisesCompleted ? (t('routeDetail.reviewExercises') || 'Review') : (t('routeDetail.startExercises') || 'Start')}
                           onPress={() => {
                             if (routeData?.exercises) {
                               navigation.navigate('RouteExercise', {
@@ -1600,7 +1602,7 @@ export function RouteDetailSheet({
                   onClose={() => setShowReportDialog(false)}
                 />
               )}
-                </>
+                </View>
               )}
 
               </YStack>
