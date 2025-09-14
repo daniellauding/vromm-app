@@ -1,10 +1,10 @@
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { YStack, Text } from 'tamagui';
 import { FlatList, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../../types/navigation';
 import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
@@ -28,20 +28,21 @@ import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { CommunityFeedSheet } from '../../components/CommunityFeedSheet';
 import { MessagesSheet } from '../../components/MessagesSheet';
 import { NotificationsSheet } from '../../components/NotificationsSheet';
-import { EventsSheet } from '../../components/EventsSheet';
+// import { EventsSheet } from '../../components/EventsSheet';
 import { ProfileSheet } from '../../components/ProfileSheet';
 import { HomeHeader } from './Header';
 import { GettingStarted } from './GettingStarted';
 import { SavedRoutes } from './SavedRoutes';
-import { QuickFilters } from './QuickFilters';
+// import { QuickFilters } from './QuickFilters';
 import { CityRoutes } from './CityRoutes';
 import { CreatedRoutes } from './CreatedRoutes';
 import { NearByRoutes } from './NearByRoutes';
 import { DrivenRoutes } from './DrivenRoutes';
 import { DraftRoutes } from './DraftRoutes';
 import { CommunityFeed } from './CommunityFeed';
-import { UpcomingEvents } from './UpcomingEvents';
+// import { UpcomingEvents } from './UpcomingEvents';
 import { CommunicationTools } from './CommunicationTools';
+import { CustomMapPresets } from './CustomMapPresets';
 
 // Update the Route type to include creator id
 type Route = {
@@ -299,6 +300,24 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
     }
   }, [navigation]);
 
+  // Listen for navigation focus to reopen RouteDetailSheet if needed
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🎯 HomeScreen: Screen focused');
+      
+      // Check if we should reopen RouteDetailSheet after returning from AddReview
+      const routeParams = (navigation as any)?.getState?.()?.routes?.find((r: any) => r.name === 'HomeScreen')?.params;
+      if (routeParams?.reopenRouteDetail && routeParams?.routeId) {
+        console.log('🎯 HomeScreen: Reopening RouteDetailSheet after AddReview - routeId:', routeParams.routeId);
+        setSelectedRouteId(routeParams.routeId);
+        setShowRouteDetailSheet(true);
+        
+        // Clear the params to prevent reopening again
+        navigation.setParams({ reopenRouteDetail: undefined, routeId: undefined });
+      }
+    }, [navigation])
+  );
+
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
       {/* Interactive Onboarding Modal */}
@@ -422,16 +441,17 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
               onEventPress={() => setShowEventsSheet(true)}
             />
 
-            <UpcomingEvents 
+            {/* <UpcomingEvents 
               onEventPress={(eventId) => {
                 navigation.navigate('EventDetail', { eventId });
               }}
               onShowEventsSheet={() => setShowEventsSheet(true)}
-            />
+            /> */}
 
             <ProgressSection activeUserId={effectiveUserId} />
             <DraftRoutes onRoutePress={handleRoutePress} />
             <SavedRoutes onRoutePress={handleRoutePress} />
+            <CustomMapPresets onRoutePress={handleRoutePress} />
             <CommunityFeed 
               onOpenFeedSheet={() => setShowCommunityFeedSheet(true)}
               onUserPress={(userId) => {
@@ -476,7 +496,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       <UserListSheet
         visible={showUserListSheet}
         onClose={() => setShowUserListSheet(false)}
-        title="All Users"
+        title={t('home.users.allUsers') || 'All Users'}
         onUserPress={(userId) => {
           setSelectedUserId(userId);
           setShowUserListSheet(false);
@@ -503,7 +523,11 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       {/* Route Detail Sheet */}
       <RouteDetailSheet
         visible={showRouteDetailSheet}
-        onClose={() => setShowRouteDetailSheet(false)}
+        onClose={() => {
+          console.log('🎯 HomeScreen: RouteDetailSheet closing - selectedRouteId:', selectedRouteId);
+          setShowRouteDetailSheet(false);
+          // Don't clear selectedRouteId here to allow for reopening
+        }}
         routeId={selectedRouteId}
         onStartRoute={(routeId) => {
           // Close sheet and navigate to map
@@ -518,6 +542,14 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
           setShowRouteDetailSheet(false);
           setSelectedUserId(userId);
           setShowUserProfileSheet(true);
+        }}
+        onReopen={() => {
+          console.log('🎯 HomeScreen: Reopening RouteDetailSheet - selectedRouteId:', selectedRouteId);
+          if (selectedRouteId) {
+            setShowRouteDetailSheet(true);
+          } else {
+            console.warn('🎯 HomeScreen: No selectedRouteId, cannot reopen RouteDetailSheet');
+          }
         }}
       />
 
@@ -555,10 +587,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         onClose={() => setShowNotificationsSheet(false)}
       />
 
-      <EventsSheet
+      {/* <EventsSheet
         visible={showEventsSheet}
         onClose={() => setShowEventsSheet(false)}
-      />
+      /> */}
 
       <ProfileSheet
         visible={showProfileSheet}

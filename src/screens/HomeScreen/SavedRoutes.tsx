@@ -138,10 +138,10 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
           }
           icon="bookmark"
           variant="info"
-          actionLabel={isViewingAsStudent ? undefined : "Explore Routes"}
+          actionLabel={isViewingAsStudent ? undefined : (t('home.savedRoutes.exploreRoutes') || 'Explore Routes')}
           actionIcon="map"
           onAction={isViewingAsStudent ? undefined : () => navigation.navigate('MapTab')}
-          secondaryLabel={isViewingAsStudent ? undefined : "View Community"}
+          secondaryLabel={isViewingAsStudent ? undefined : (t('home.savedRoutes.viewCommunity') || 'View Community')}
           secondaryIcon="users"
           onSecondaryAction={isViewingAsStudent ? undefined : () => navigation.navigate('CommunityFeedScreen')}
         />

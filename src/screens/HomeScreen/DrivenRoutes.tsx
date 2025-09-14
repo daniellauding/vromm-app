@@ -228,10 +228,10 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
           message="Start driving practice routes to track your progress and see them here"
           icon="map-pin"
           variant="info"
-          actionLabel="Find Routes"
+          actionLabel={t('home.drivenRoutes.findRoutes') || 'Find Routes'}
           actionIcon="map"
           onAction={() => (navigation as any).navigate('MapTab')}
-          secondaryLabel="Create Route"
+          secondaryLabel={t('home.drivenRoutes.createRoute') || 'Create Route'}
           secondaryIcon="plus"
           onSecondaryAction={() => (navigation as any).navigate('CreateRoute')}
         />

@@ -154,11 +154,11 @@ export function CommunicationTools({
                 <YStack alignItems="center" gap="$2">
                   <MessageCircle size={24} color="$color" />
                   <Text fontSize="$3" fontWeight="600" color="$color" textAlign="center">
-                    Messages
+                    {t('communication.messages') || 'Messages'}
                   </Text>
                   {messageBadge > 0 && (
                     <Text fontSize="$2" color="$color">
-                      {messageBadge} new
+                      {messageBadge} {t('communication.newMessages') || 'new'}
                     </Text>
                   )}
                 </YStack>
@@ -180,11 +180,11 @@ export function CommunicationTools({
                 <YStack alignItems="center" gap="$2">
                   <Calendar size={24} color="$color" />
                   <Text fontSize="$3" fontWeight="600" color="$color" textAlign="center">
-                    Events
+                    {t('communication.events') || 'Events'}
                   </Text>
                   {eventBadge > 0 && (
                     <Text fontSize="$2" color="$color">
-                      {eventBadge} invite{eventBadge === 1 ? '' : 's'}
+                      {eventBadge} {t('communication.newEvents') || 'new'}
                     </Text>
                   )}
                 </YStack>
@@ -206,11 +206,11 @@ export function CommunicationTools({
                 <YStack alignItems="center" gap="$2">
                   <Bell size={24} color="$color" />
                   <Text fontSize="$3" fontWeight="600" color="$color" textAlign="center">
-                    Notifications
+                    {t('communication.notifications') || 'Notifications'}
                   </Text>
                   {notificationBadge > 0 && (
                     <Text fontSize="$2" color="$color">
-                      {notificationBadge} new
+                      {notificationBadge} {t('communication.newNotifications') || 'new'}
                     </Text>
                   )}
                 </YStack>

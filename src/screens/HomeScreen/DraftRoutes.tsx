@@ -84,7 +84,7 @@ export function DraftRoutes({ onRoutePress }: DraftRoutesProps = {}) {
   return (
     <YStack gap="$3" paddingHorizontal="$4">
       <SectionHeader
-        title="Draft Routes"
+        title={t('home.draftRoutes.title') || 'Draft Routes'}
         subtitle={`${drafts.length} draft${drafts.length !== 1 ? 's' : ''}`}
         variant="chevron"
         onAction={handleSeeAllDrafts}

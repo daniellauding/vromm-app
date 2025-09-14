@@ -24,7 +24,10 @@
     "reviewExercises": "Granska övningar",
     "yourProgress": "Dina framsteg",
     "completed": "Slutförd",
-    "lastSession": "Senaste session"
+    "lastSession": "Senaste session",
+    "additionalInfo": "Ytterligare information",
+    "reviews": "Recensioner",
+    "comments": "Kommentarer"
   },
   "routeExercise": {
     "completeExercise": "Slutför övning",

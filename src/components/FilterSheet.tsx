@@ -13,6 +13,8 @@ import { Text, XStack, YStack, Slider, Button, SizableText, Input } from 'tamagu
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
+import { useStudentSwitch } from '../context/StudentSwitchContext';
+import { MapPresetSheetModal } from './MapPresetSheet';
 
 // Route type definition
 type Route = {
@@ -56,6 +58,7 @@ export type FilterOptions = {
     | 'best_review'
     | 'has_image';
   experienceLevel?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  selectedPresetId?: string | null; // NEW: Collection/preset selection
 };
 
 interface FilterSheetProps {
@@ -67,6 +70,8 @@ interface FilterSheetProps {
   initialFilters?: FilterOptions;
   onSearchResultSelect?: (result: SearchResult) => void;
   onNearMePress?: () => void; // Callback to trigger MapScreen locate animation
+  onPresetSelect?: (presetId: string | null) => void; // Callback for preset selection
+  selectedPresetId?: string | null; // Currently selected preset
 }
 
 type SearchResult = {
@@ -184,8 +189,12 @@ export function FilterSheet({
   initialFilters = {},
   onSearchResultSelect,
   onNearMePress,
+  onPresetSelect,
+  selectedPresetId,
 }: FilterSheetProps) {
   const { t } = useTranslation();
+  const { showModal } = useModal();
+  const { getEffectiveUserId } = useStudentSwitch();
 
   // Force dark theme
   const backgroundColor = '#1A1A1A';
@@ -194,6 +203,38 @@ export function FilterSheet({
   const handleColor = '#666';
 
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
+  
+  // Get effective user ID for student-specific storage
+  const effectiveUserId = getEffectiveUserId();
+
+  // Save filter preferences to AsyncStorage - USER-SPECIFIC (similar to ProgressScreen)
+  const saveFilterPreferences = async (filters: FilterOptions) => {
+    try {
+      // Make filter storage user-specific for supervisors viewing different students
+      const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
+      await AsyncStorage.setItem(filterKey, JSON.stringify(filters));
+      console.log('✅ [FilterSheet] Saved filter preferences for user:', effectiveUserId, filters);
+    } catch (error) {
+      console.error('❌ [FilterSheet] Error saving filter preferences:', error);
+    }
+  };
+
+  // Load filter preferences from AsyncStorage - USER-SPECIFIC (similar to ProgressScreen)
+  const loadFilterPreferences = async (): Promise<FilterOptions | null> => {
+    try {
+      // Make filter loading user-specific for supervisors viewing different students
+      const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
+      const saved = await AsyncStorage.getItem(filterKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('✅ [FilterSheet] Loaded saved filter preferences for user:', effectiveUserId, parsed);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('❌ [FilterSheet] Error loading filter preferences:', error);
+    }
+    return null;
+  };
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -388,6 +429,23 @@ export function FilterSheet({
   const translateY = useRef(new Animated.Value(screenHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
+  // Load saved filters when component mounts or effectiveUserId changes
+  useEffect(() => {
+    const loadSavedFilters = async () => {
+      if (isVisible && effectiveUserId) {
+        const savedFilters = await loadFilterPreferences();
+        if (savedFilters) {
+          // Merge saved filters with initial filters, giving priority to initial filters
+          const mergedFilters = { ...savedFilters, ...initialFilters };
+          setFilters(mergedFilters);
+          console.log('✅ [FilterSheet] Loaded and merged saved filters:', mergedFilters);
+        }
+      }
+    };
+    
+    loadSavedFilters();
+  }, [isVisible, effectiveUserId, initialFilters]);
+
   // Animate when visibility changes
   useEffect(() => {
     if (isVisible) {
@@ -441,17 +499,18 @@ export function FilterSheet({
   const handleApply = React.useCallback(async () => {
     console.log('✅ [FilterSheet] Apply filters pressed with:', filters);
 
-    // Save filters to AsyncStorage for persistence
-    try {
-      await AsyncStorage.setItem('saved_filters', JSON.stringify(filters));
-      console.log('💾 [FilterSheet] Saved filters to storage:', filters);
-    } catch (error) {
-      console.error('❌ [FilterSheet] Failed to save filters:', error);
-    }
+    // Include selectedPresetId in filters
+    const filtersWithPreset = {
+      ...filters,
+      selectedPresetId: selectedPresetId,
+    };
 
-    onApplyFilters(filters);
+    // Save filters to AsyncStorage for persistence (user-specific)
+    await saveFilterPreferences(filtersWithPreset);
+
+    onApplyFilters(filtersWithPreset);
     onClose();
-  }, [onApplyFilters, filters, onClose]);
+  }, [onApplyFilters, filters, selectedPresetId, onClose, saveFilterPreferences]);
 
   // Toggle array-based filter selection
   const toggleFilter = (type: keyof FilterOptions, value: string) => {
@@ -639,6 +698,43 @@ export function FilterSheet({
     }
   }, [onNearMePress, onClose]);
 
+  // Handle preset selection
+  const handlePresetSelect = React.useCallback(async (presetId: string | null) => {
+    console.log('✅ [FilterSheet] Preset selected:', presetId);
+    onPresetSelect?.(presetId);
+    
+    // Save the preset selection immediately as part of filters
+    const updatedFilters = {
+      ...filters,
+      selectedPresetId: presetId,
+    };
+    
+    // Save to storage immediately
+    await saveFilterPreferences(updatedFilters);
+    console.log('💾 [FilterSheet] Saved preset selection immediately:', presetId);
+  }, [onPresetSelect, filters, saveFilterPreferences]);
+
+  // Show preset selection modal
+  const handleShowPresets = React.useCallback(() => {
+    showModal(
+      <MapPresetSheetModal
+        onSelectPreset={(preset) => {
+          if (preset && preset.id) {
+            handlePresetSelect(preset.id);
+          } else {
+            console.warn('⚠️ [FilterSheet] Invalid preset object:', preset);
+            handlePresetSelect(null);
+          }
+        }}
+        selectedPresetId={selectedPresetId}
+        showCreateOption={true}
+        showEditOption={true}
+        showDeleteOption={true}
+        title={t('routeCollections.selectCollection') || 'Select Collection'}
+      />
+    );
+  }, [showModal, handlePresetSelect, selectedPresetId, t]);
+
   // Clean up search timeout
   useEffect(() => {
     return () => {
@@ -685,6 +781,56 @@ export function FilterSheet({
         </View>
 
         <ScrollView style={{ flex: 1 }}>
+          {/* Map Presets Section */}
+          <YStack style={styles.filterSection}>
+            <SizableText fontWeight="600" style={styles.sectionTitle}>
+              {t('routeCollections.title') || 'Collections'}
+            </SizableText>
+            
+            <TouchableOpacity
+              onPress={handleShowPresets}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderWidth: 1,
+                borderColor: borderColor,
+                borderRadius: 8,
+                backgroundColor: selectedPresetId ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
+                marginBottom: 16,
+              }}
+            >
+              <Feather
+                name="map"
+                size={20}
+                color={selectedPresetId ? '#00E6C3' : textColor}
+                style={{ marginRight: 12 }}
+              />
+              <YStack flex={1}>
+                <Text 
+                  color={selectedPresetId ? '#00E6C3' : textColor} 
+                  fontWeight={selectedPresetId ? '600' : '500'}
+                >
+                  {selectedPresetId 
+                    ? t('routeCollections.selectedCollection') || 'Selected Collection'
+                    : t('routeCollections.selectCollection') || 'Select Collection'
+                  }
+                </Text>
+                {selectedPresetId && (
+                  <Text fontSize="$2" color="$gray10">
+                    {t('routeCollections.tapToChange') || 'Tap to change'}
+                  </Text>
+                )}
+              </YStack>
+              <Feather
+                name="chevron-right"
+                size={16}
+                color={selectedPresetId ? '#00E6C3' : textColor}
+              />
+            </TouchableOpacity>
+          </YStack>
+
           {/* Search Section */}
           <YStack style={styles.filterSection}>
             <SizableText fontWeight="600" style={styles.sectionTitle}>
@@ -718,7 +864,12 @@ export function FilterSheet({
             ) : searchResults.length > 0 ? (
               <YStack gap="$1" maxHeight={200}>
                 <ScrollView>
-                  {searchResults.slice(0, 5).map((result) => (
+                  {searchResults.slice(0, 5).map((result) => {
+                    if (!result || !result.id) {
+                      console.warn('⚠️ [FilterSheet] Invalid search result:', result);
+                      return null;
+                    }
+                    return (
                     <TouchableOpacity
                       key={result.id}
                       onPress={() => handleResultSelect(result)}
@@ -753,7 +904,8 @@ export function FilterSheet({
                         </YStack>
                       </XStack>
                     </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </ScrollView>
               </YStack>
             ) : searchQuery.length === 0 ? (
@@ -1432,6 +1584,8 @@ export function FilterSheetModal({
   initialFilters = {},
   onSearchResultSelect,
   onNearMePress,
+  onPresetSelect,
+  selectedPresetId,
 }: Omit<FilterSheetProps, 'isVisible' | 'onClose'>) {
   const { hideModal } = useModal();
 
@@ -1445,14 +1599,8 @@ export function FilterSheetModal({
     async (filters: FilterOptions) => {
       console.log('✅ [FilterSheetModal] Apply filters with:', filters);
 
-      // Save filters to AsyncStorage for persistence
-      try {
-        await AsyncStorage.setItem('saved_filters', JSON.stringify(filters));
-        console.log('💾 [FilterSheetModal] Saved filters to storage:', filters);
-      } catch (error) {
-        console.error('❌ [FilterSheetModal] Failed to save filters:', error);
-      }
-
+      // Note: Filter persistence is now handled in the main FilterSheet component
+      // This ensures user-specific storage works correctly with student switching
       onApplyFilters(filters);
       hideModal();
     },
@@ -1469,6 +1617,8 @@ export function FilterSheetModal({
       initialFilters={initialFilters}
       onSearchResultSelect={onSearchResultSelect}
       onNearMePress={onNearMePress}
+      onPresetSelect={onPresetSelect}
+      selectedPresetId={selectedPresetId}
     />
   );
 }

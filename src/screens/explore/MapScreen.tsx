@@ -19,6 +19,7 @@ import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
 import { useModal } from '../../contexts/ModalContext';
 import { Text } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
+import { MapPresetSheetModal } from '../../components/MapPresetSheet';
 import { SelectedRoute } from './SelectedRoute';
 import { useActiveRoutes, useRoutesFilters, useWaypoints } from './hooks';
 import { calculateDistance, getDistanceFromLatLonInKm } from './utils';
@@ -30,6 +31,7 @@ import { UserProfileSheet } from '../../components/UserProfileSheet';
 // import { useScreenTours } from '../../utils/screenTours';
 // import { useTour } from '../../contexts/TourContext';
 import { useAuth } from '../../context/AuthContext';
+import { useStudentSwitch } from '../../context/StudentSwitchContext';
 
 type SearchResult = {
   id: string;
@@ -57,6 +59,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const { fetchRoutes } = useRoutes();
   const { userLocation } = useLocation();
   const { profile } = useAuth();
+  const { getEffectiveUserId } = useStudentSwitch();
 
   const [isMapReady, setIsMapReady] = useState(false);
   const { showModal } = useModal();
@@ -73,6 +76,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   });
   const [originalRegion, setOriginalRegion] = useState(region);
   const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
 
   // Add selectedPin state
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
@@ -134,7 +138,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       setDotsCount(0);
     }
   }, [locationLoading, spinValue]);
-  const { activeRoutes, filters, setFilters, setActiveRoutes } = useActiveRoutes(routes);
+  const { activeRoutes, filters, setFilters, setActiveRoutes } = useActiveRoutes(routes, selectedPresetId);
   const allWaypoints = useWaypoints(routes, activeRoutes); // Show all waypoints with filtered status
 
   const handleMarkerPress = useCallback(
@@ -337,21 +341,66 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     [routes, setRegion],
   );
 
-  // React to navigation from SearchScreen: center map on selectedLocation
+  // React to navigation from SearchScreen or HomeScreen: center map on selectedLocation or apply preset
   useEffect(() => {
     const handleRouteParams = async () => {
       console.log('🗺️ [MapScreen] Route params changed:', {
         hasParams: !!route?.params,
         selectedLocation: route?.params?.selectedLocation,
+        selectedPresetId: route?.params?.selectedPresetId,
+        presetName: route?.params?.presetName,
         fromSearch: route?.params?.fromSearch,
+        fromHomeScreen: route?.params?.fromHomeScreen,
         ts: route?.params?.ts,
         fullParams: route?.params
       });
       
       const selected = route?.params?.selectedLocation as SearchResult | undefined;
+      const selectedPresetId = (route?.params as any)?.selectedPresetId;
+      const presetName = (route?.params as any)?.presetName;
       const fromSearch = (route?.params as any)?.fromSearch;
+      const fromHomeScreen = (route?.params as any)?.fromHomeScreen;
       const ts = (route?.params as any)?.ts;
       
+      // Handle preset selection from HomeScreen
+      if (selectedPresetId && fromHomeScreen) {
+        console.log('🗺️ [MapScreen] Processing preset selection from HomeScreen:', {
+          presetId: selectedPresetId,
+          presetName: presetName,
+        });
+        
+        // Set the selected preset
+        setSelectedPresetId(selectedPresetId);
+        
+        // Clear other filters when selecting a preset
+        console.log('🗺️ [MapScreen] Clearing filters due to preset selection');
+        setFilters({});
+        setAppliedFilters({});
+        
+        // Clear saved filters from AsyncStorage
+        try {
+          await AsyncStorage.removeItem('saved_filters');
+          console.log('🗑️ [MapScreen] Cleared saved filters from storage due to preset selection');
+        } catch (error) {
+          console.error('❌ [MapScreen] Failed to clear saved filters due to preset selection:', error);
+        }
+        
+        // Apply the preset filter
+        const presetFilters = {
+          selectedPresetId: selectedPresetId,
+        };
+        setFilters(presetFilters);
+        setAppliedFilters(presetFilters);
+        
+        // Zoom to filtered results after a short delay
+        setTimeout(() => {
+          zoomToFilteredResults();
+        }, 100);
+        
+        return;
+      }
+      
+      // Handle location selection from SearchScreen
       if (selected && selected.center?.length === 2) {
         console.log('🗺️ [MapScreen] Processing selectedLocation from Search:', {
           id: selected.id,
@@ -381,7 +430,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     };
     
     handleRouteParams();
-  }, [route?.params?.selectedLocation, route?.params?.fromSearch, route?.params?.ts, handleLocationSelect, setFilters]);
+  }, [route?.params?.selectedLocation, route?.params?.selectedPresetId, route?.params?.presetName, route?.params?.fromSearch, route?.params?.fromHomeScreen, route?.params?.ts, handleLocationSelect, setFilters, zoomToFilteredResults]);
 
   // Function to zoom to show filtered results
   const zoomToFilteredResults = useCallback(() => {
@@ -683,6 +732,12 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       setFilters(filters);
       setAppliedFilters(filters); // Update appliedFilters to keep FilterSheet in sync
       
+      // Handle selectedPresetId from filters
+      if (filters.selectedPresetId !== undefined) {
+        setSelectedPresetId(filters.selectedPresetId);
+        console.log('🗺️ [MapScreen] Updated selectedPresetId from filters:', filters.selectedPresetId);
+      }
+      
       // Zoom to filtered results after filters are applied
       // Use setTimeout to ensure state updates have propagated
       setTimeout(() => {
@@ -727,6 +782,18 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     setAppliedFilters({});
   }, [setFilters, userLocation, region]);
 
+  // Handle preset selection
+  const handlePresetSelect = useCallback((presetId: string | null) => {
+    console.log('🗺️ [MapScreen] Preset selected:', presetId);
+    setSelectedPresetId(presetId);
+    
+    // Clear other filters when selecting a preset
+    if (presetId) {
+      setFilters({});
+      setAppliedFilters({});
+    }
+  }, [setFilters]);
+
   // Handle filter button press
   const handleFilterButtonPress = useCallback(() => {
     showModal(
@@ -737,9 +804,11 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         initialFilters={appliedFilters}
         onSearchResultSelect={handleLocationSelect}
         onNearMePress={handleLocateMe}
+        onPresetSelect={handlePresetSelect}
+        selectedPresetId={selectedPresetId}
       />,
     );
-  }, [showModal, handleApplyFilters, activeRoutes.length, routes, appliedFilters, handleLocationSelect, handleLocateMe]);
+  }, [showModal, handleApplyFilters, activeRoutes.length, routes, appliedFilters, handleLocationSelect, handleLocateMe, handlePresetSelect, selectedPresetId]);
 
   if (!isMapReady) {
     return (
@@ -821,10 +890,12 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         />
         
         {/* Clear Filters Button */}
-        {filters && Object.keys(filters).some(key => {
+        {(filters && Object.keys(filters).some(key => {
           const value = filters[key as keyof FilterOptions];
+          // Don't show clear button for selectedPresetId alone - only when user changes it
+          if (key === 'selectedPresetId') return false;
           return Array.isArray(value) ? value.length > 0 : value;
-        }) && (
+        })) || (selectedPresetId && filters?.selectedPresetId !== selectedPresetId) && (
           <View style={{
             position: 'absolute',
             top: 160, // Position below header chips
@@ -850,13 +921,14 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                 borderColor: 'rgba(255, 255, 255, 0.1)',
               }}
               onPress={async () => {
-                console.log('🔴 [MapScreen] Clear filters pressed - clearing all filters');
+                console.log('🔴 [MapScreen] Clear filters pressed - clearing all filters and presets');
                 
-                // Clear local filters
+                // Clear local filters and preset
                 setFilters({});
                 setAppliedFilters({});
                 setFilteredRoutes([]);
                 setActiveRoutes(routes);
+                setSelectedPresetId(null);
                 
                 // Clear saved filters from AsyncStorage
                 try {
@@ -876,7 +948,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
             >
               <Feather name="x" size={16} color="rgba(255, 255, 255, 0.9)" />
               <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: '600', marginLeft: 6, fontSize: 14 }}>
-                Clear filters
+                Clear {selectedPresetId && filters?.selectedPresetId !== selectedPresetId ? 'preset & filters' : 'filters'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -954,7 +1026,11 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       {/* Route Detail Sheet */}
       <RouteDetailSheet
         visible={showRouteDetailSheet}
-        onClose={() => setShowRouteDetailSheet(false)}
+        onClose={() => {
+          console.log('🎯 MapScreen: RouteDetailSheet closing - selectedRouteId:', selectedRouteId);
+          setShowRouteDetailSheet(false);
+          // Don't clear selectedRouteId here to allow for reopening
+        }}
         routeId={selectedRouteId}
         onStartRoute={(routeId) => {
           // Close sheet and navigate to map with route
@@ -963,6 +1039,14 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           console.log('Starting route on MapScreen:', routeId);
         }}
         onNavigateToProfile={handleUserPress}
+        onReopen={() => {
+          console.log('🎯 MapScreen: Reopening RouteDetailSheet - selectedRouteId:', selectedRouteId);
+          if (selectedRouteId) {
+            setShowRouteDetailSheet(true);
+          } else {
+            console.warn('🎯 MapScreen: No selectedRouteId, cannot reopen RouteDetailSheet');
+          }
+        }}
       />
 
       {/* User Profile Sheet */}

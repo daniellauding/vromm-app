@@ -5,6 +5,7 @@ import { Route, WaypointData } from '@/src/types/route';
 import React from 'react';
 import * as Location from 'expo-location';
 import { useTranslation } from '../../contexts/TranslationContext';
+import { supabase } from '../../lib/supabase';
 
 export const useWaypoints = (routes: Route[], activeRoutes?: Route[]): Waypoint[] => {
   const getAllWaypoints = React.useMemo(() => {
@@ -54,6 +55,7 @@ export const useWaypoints = (routes: Route[], activeRoutes?: Route[]): Waypoint[
 
 export const useActiveRoutes = (
   routes: Route[],
+  selectedPresetId?: string | null,
 ): {
   activeRoutes: Route[];
   filters: FilterOptions | null;
@@ -62,22 +64,56 @@ export const useActiveRoutes = (
 } => {
   const [activeRoutes, setActiveRoutes] = React.useState<Route[]>(routes);
   const [filters, setFilters] = React.useState<FilterOptions | null>(null);
+  const [presetRoutes, setPresetRoutes] = React.useState<Route[]>([]);
 
   React.useEffect(() => {
     setActiveRoutes(routes);
   }, [routes]);
 
+  // Load preset routes when preset is selected
+  React.useEffect(() => {
+    const loadPresetRoutes = async () => {
+      if (!selectedPresetId) {
+        setPresetRoutes([]);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('map_preset_routes')
+          .select('route_id')
+          .eq('preset_id', selectedPresetId);
+
+        if (error) throw error;
+
+        const presetRouteIds = data?.map(item => item.route_id) || [];
+        const filteredRoutes = routes.filter(route => presetRouteIds.includes(route.id));
+        setPresetRoutes(filteredRoutes);
+        console.log('🗺️ [useActiveRoutes] Loaded preset routes:', filteredRoutes.length);
+      } catch (error) {
+        console.error('Error loading preset routes:', error);
+        setPresetRoutes([]);
+      }
+    };
+
+    loadPresetRoutes();
+  }, [selectedPresetId, routes]);
+
   React.useEffect(() => {
     console.log('🔍 [useActiveRoutes] Applying filters:', filters);
+    console.log('🔍 [useActiveRoutes] Selected preset:', selectedPresetId);
     console.log('🔍 [useActiveRoutes] Total routes available:', routes.length);
     
+    // If preset is selected, use preset routes as base
+    let baseRoutes = selectedPresetId ? presetRoutes : routes;
+    
     if (!filters || Object.keys(filters).length === 0) {
-      console.log('🔍 [useActiveRoutes] No filters active, showing all routes:', routes.length);
-      setActiveRoutes(routes);
+      console.log('🔍 [useActiveRoutes] No filters active, showing base routes:', baseRoutes.length);
+      setActiveRoutes(baseRoutes);
       return;
     }
 
-    let filtered = [...routes];
+    let filtered = [...baseRoutes];
 
     // Apply difficulty filter
     if (filters.difficulty?.length) {
@@ -236,7 +272,7 @@ export const useActiveRoutes = (
     console.log('🔍 [useActiveRoutes] Final filtered routes:', filtered.length);
     console.log('🔍 [useActiveRoutes] Sample filtered routes:', filtered.slice(0, 3).map(r => ({ id: r.id, name: r.name, difficulty: r.difficulty, category: r.category })));
     setActiveRoutes(filtered);
-  }, [filters, routes]);
+  }, [filters, routes, selectedPresetId, presetRoutes]);
 
   return { activeRoutes, filters, setFilters, setActiveRoutes };
 };
