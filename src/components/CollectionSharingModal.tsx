@@ -83,7 +83,14 @@ export function CollectionSharingModal({
   }, [isVisible]);
 
   const handleSendInvitation = async () => {
+    console.log('🎯 [CollectionSharingModal] handleSendInvitation called');
+    console.log('🎯 [CollectionSharingModal] selectedUsers:', selectedUsers.length);
+    console.log('🎯 [CollectionSharingModal] user:', user?.id);
+    console.log('🎯 [CollectionSharingModal] collectionId:', collectionId);
+    console.log('🎯 [CollectionSharingModal] message:', message);
+
     if (selectedUsers.length === 0) {
+      console.log('❌ [CollectionSharingModal] No users selected');
       showToast({
         title: t('common.error') || 'Error',
         message: t('collectionSharing.selectUsersRequired') || 'Please select at least one user',
@@ -93,6 +100,7 @@ export function CollectionSharingModal({
     }
 
     if (!user?.id) {
+      console.log('❌ [CollectionSharingModal] User not authenticated');
       showToast({
         title: t('common.error') || 'Error',
         message: t('common.notAuthenticated') || 'Not authenticated',
@@ -101,6 +109,7 @@ export function CollectionSharingModal({
       return;
     }
 
+    console.log('🚀 [CollectionSharingModal] Starting to send invitations...');
     setIsLoading(true);
 
     try {
@@ -109,7 +118,10 @@ export function CollectionSharingModal({
 
       // Send invitations to each selected user
       for (const targetUser of selectedUsers) {
+        console.log('📤 [CollectionSharingModal] Sending invitation to:', targetUser.email);
+        
         if (!targetUser.email) {
+          console.log('❌ [CollectionSharingModal] No email for user:', targetUser);
           failCount++;
           continue;
         }
@@ -122,23 +134,37 @@ export function CollectionSharingModal({
             message: message.trim() || undefined,
           };
 
+          console.log('📤 [CollectionSharingModal] Request:', request);
           const result = await collectionSharingService.createCollectionInvitation(request, user.id);
+          console.log('📤 [CollectionSharingModal] Result:', result);
 
           if (result.success) {
+            console.log('✅ [CollectionSharingModal] Success for:', targetUser.email);
             successCount++;
+          } else if (result.error?.includes('already has a pending invitation')) {
+            console.log('⚠️ [CollectionSharingModal] Already invited:', targetUser.email);
+            successCount++; // Treat as success since invitation already exists
           } else {
+            console.log('❌ [CollectionSharingModal] Failed for:', targetUser.email, result.error);
             failCount++;
           }
         } catch (error) {
-          console.error('Error sending invitation to:', targetUser.email, error);
+          console.error('❌ [CollectionSharingModal] Error sending invitation to:', targetUser.email, error);
           failCount++;
         }
       }
 
+      console.log('📊 [CollectionSharingModal] Final results - Success:', successCount, 'Failed:', failCount);
+
       if (successCount > 0) {
+        console.log('✅ [CollectionSharingModal] Showing success toast and closing modal');
+        const message = failCount > 0 
+          ? `${successCount} invitation(s) processed (some users were already invited)`
+          : t('collectionSharing.invitationsSentMessage')?.replace('{count}', successCount.toString()) || `${successCount} invitation(s) sent successfully`;
+        
         showToast({
           title: t('collectionSharing.invitationsSent') || 'Invitations Sent',
-          message: t('collectionSharing.invitationsSentMessage')?.replace('{count}', successCount.toString()) || `${successCount} invitation(s) sent successfully`,
+          message: message,
           type: 'success'
         });
         
@@ -146,9 +172,17 @@ export function CollectionSharingModal({
         setMessage('');
         setSearchQuery('');
         setSearchResults([]);
+        
+        console.log('🔄 [CollectionSharingModal] Calling onInvitationSent callback');
         onInvitationSent?.();
-        onClose();
+        
+        console.log('🚪 [CollectionSharingModal] Closing modal with delay to show toast');
+        // Add delay to ensure toast is visible before closing modal
+        setTimeout(() => {
+          onClose();
+        }, 1500);
       } else {
+        console.log('❌ [CollectionSharingModal] All invitations failed, showing error toast');
         showToast({
           title: t('common.error') || 'Error',
           message: t('collectionSharing.failedToSend') || 'Failed to send invitations',
@@ -156,13 +190,14 @@ export function CollectionSharingModal({
         });
       }
     } catch (error) {
-      console.error('Error sending collection invitations:', error);
+      console.error('❌ [CollectionSharingModal] Unexpected error:', error);
       showToast({
         title: t('common.error') || 'Error',
         message: t('collectionSharing.failedToSend') || 'Failed to send invitations',
         type: 'error'
       });
     } finally {
+      console.log('🏁 [CollectionSharingModal] Setting loading to false');
       setIsLoading(false);
     }
   };
@@ -391,7 +426,10 @@ export function CollectionSharingModal({
                     backgroundColor="#00E6C3"
                     color="#000000"
                     size="lg"
-                    onPress={handleSendInvitation}
+                    onPress={() => {
+                      console.log('🔘 [CollectionSharingModal] Send button pressed');
+                      handleSendInvitation();
+                    }}
                     disabled={isLoading || selectedUsers.length === 0}
                   >
                     <Text color="#000000" fontWeight="700">

@@ -9,6 +9,7 @@ import { useModal } from '../../contexts/ModalContext';
 import { useToast } from '../../contexts/ToastContext';
 import { MapPresetSheetModal } from '../../components/MapPresetSheet';
 import { CollectionSharingModal } from '../../components/CollectionSharingModal';
+import { AddToPresetSheet } from '../../components/AddToPresetSheet';
 import { supabase } from '../../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../../types/navigation';
@@ -44,6 +45,8 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [showSharingModal, setShowSharingModal] = useState(false);
   const [sharingPreset, setSharingPreset] = useState<MapPreset | null>(null);
+  const [showCollectionSelector, setShowCollectionSelector] = useState(false);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
 
   const effectiveUserId = getEffectiveUserId();
 
@@ -208,6 +211,22 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
       />
     );
   }, [showModal, showToast, t]);
+
+  // Handle collection selection (similar to CreateRouteScreen)
+  const handleSelectCollection = useCallback(() => {
+    setShowCollectionSelector(true);
+  }, []);
+
+  // Handle collection selected from AddToPresetSheet
+  const handleCollectionSelected = useCallback((collectionId: string, collectionName: string) => {
+    setSelectedCollectionId(collectionId);
+    setShowCollectionSelector(false);
+    showToast({
+      title: t('routeCollections.collectionSelected') || 'Collection Selected',
+      message: t('routeCollections.collectionSelectedMessage')?.replace('{collectionName}', collectionName) || `Selected "${collectionName}"`,
+      type: 'success'
+    });
+  }, [showToast, t]);
 
   if (loading) {
     return (
@@ -399,6 +418,26 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
           })}
         </YStack>
 
+        {/* Collection Selector Button (similar to CreateRouteScreen) */}
+        <Button
+          onPress={handleSelectCollection}
+          backgroundColor="transparent"
+          borderColor="$borderColor"
+          borderWidth={1}
+          size="md"
+          width="100%"
+        >
+          <XStack gap="$2" alignItems="center">
+            <Feather name="map" size={18} color="$color" />
+            <Text color="$color">
+              {selectedCollectionId 
+                ? t('routeCollections.collectionSelected') || 'Collection Selected'
+                : t('routeCollections.selectCollection') || 'Select Collection (Optional)'
+              }
+            </Text>
+          </XStack>
+        </Button>
+
         {presets.length >= 5 && (
           <Button
             backgroundColor="transparent"
@@ -414,6 +453,33 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
           </Button>
         )}
       </YStack>
+
+      {/* Collection Selector Sheet (similar to CreateRouteScreen) */}
+      <AddToPresetSheet
+        isVisible={showCollectionSelector}
+        routeId="temp-route-id" // Use temp ID since this is for selection only
+        selectedCollectionId={selectedCollectionId || undefined}
+        onRouteAdded={handleCollectionSelected}
+        onRouteRemoved={(presetId, presetName) => {
+          if (selectedCollectionId === presetId) {
+            setSelectedCollectionId(null);
+            showToast({
+              title: t('routeCollections.collectionRemoved') || 'Collection Removed',
+              message: t('routeCollections.collectionRemovedMessage')?.replace('{collectionName}', presetName) || `Removed from "${presetName}"`,
+              type: 'info'
+            });
+          }
+        }}
+        onPresetCreated={(preset) => {
+          setSelectedCollectionId(preset.id);
+          showToast({
+            title: t('routeCollections.collectionCreated') || 'Collection Created',
+            message: t('routeCollections.newCollectionCreated')?.replace('{collectionName}', preset.name) || `New collection "${preset.name}" has been created`,
+            type: 'success'
+          });
+        }}
+        onClose={() => setShowCollectionSelector(false)}
+      />
 
       {/* Collection Sharing Modal */}
       {sharingPreset && (

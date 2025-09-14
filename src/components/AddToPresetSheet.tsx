@@ -377,7 +377,12 @@ export function AddToPresetSheet({
 
   // Sharing modal functions (similar to GettingStarted.tsx)
   const showSharingSheet = () => {
+    console.log('🎯 [AddToPresetSheet] showSharingSheet called');
+    console.log('🎯 [AddToPresetSheet] editingPreset:', editingPreset?.name);
+    console.log('🎯 [AddToPresetSheet] formData:', formData);
     setShowSharingModal(true);
+    // Load pending invitations for the current collection
+    loadPendingCollectionInvitations();
     Animated.timing(sharingBackdropOpacity, {
       toValue: 1,
       duration: 200,
@@ -388,6 +393,7 @@ export function AddToPresetSheet({
       duration: 300,
       useNativeDriver: true,
     }).start();
+    console.log('🎯 [AddToPresetSheet] showSharingModal set to true, animations started');
   };
 
   const hideSharingSheet = () => {
@@ -410,12 +416,22 @@ export function AddToPresetSheet({
     if (!effectiveUserId) return;
     
     try {
-      const { data, error } = await supabase
+      // Get the collection ID - use editingPreset if available (for existing collections)
+      const collectionId = editingPreset?.id;
+      
+      let query = supabase
         .from('pending_invitations')
         .select('*')
         .eq('invited_by', effectiveUserId)
         .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+        .eq('role', 'collection_sharing');
+
+      // If we're sharing a specific collection, filter by that collection
+      if (collectionId) {
+        query = query.eq('metadata->>collectionId', collectionId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error loading pending collection invitations:', error);
@@ -459,6 +475,19 @@ export function AddToPresetSheet({
       let successCount = 0;
       let failCount = 0;
 
+      // Get the collection info - use editingPreset if available (for existing collections), otherwise use formData (for new collections)
+      const collectionId = editingPreset?.id;
+      const collectionName = editingPreset?.name || formData.name;
+
+      if (!collectionId && !formData.name) {
+        showToast({
+          title: t('common.error') || 'Error',
+          message: t('routeCollections.collectionNotFound') || 'Collection not found',
+          type: 'error'
+        });
+        return;
+      }
+
       // Create invitations for each selected user
       for (const targetUser of selectedUsers) {
         if (!targetUser.email) {
@@ -475,12 +504,14 @@ export function AddToPresetSheet({
               role: 'collection_sharing',
               invited_by: effectiveUserId,
               metadata: {
-                collectionName: formData.name,
+                collectionId: collectionId,
+                collectionName: collectionName,
                 inviterName: user?.email || 'Someone',
                 customMessage: sharingCustomMessage.trim() || undefined,
                 invitedAt: new Date().toISOString(),
                 targetUserId: targetUser.id,
                 targetUserName: targetUser.full_name,
+                invitationType: 'collection_sharing',
               },
               status: 'pending',
             });
@@ -492,7 +523,7 @@ export function AddToPresetSheet({
           }
 
           // Create notification for the target user
-          const baseMessage = `${user?.email || 'Someone'} wants to share the collection "${formData.name}" with you`;
+          const baseMessage = `${user?.email || 'Someone'} wants to share the collection "${collectionName}" with you`;
           const fullMessage = sharingCustomMessage.trim() 
             ? `${baseMessage}\n\nPersonal message: "${sharingCustomMessage.trim()}"`
             : baseMessage;
@@ -764,7 +795,7 @@ export function AddToPresetSheet({
                               />
                             </YStack>
                             
-                            {/* Edit and Delete buttons for user's own collections */}
+                            {/* Edit, Share, and Delete buttons for user's own collections */}
                             {canEdit && (
                               <XStack gap="$1">
                                 <TouchableOpacity
@@ -777,6 +808,29 @@ export function AddToPresetSheet({
                                   activeOpacity={0.7}
                                 >
                                   <Feather name="edit-2" size={16} color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} />
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    console.log('🔘 [AddToPresetSheet] Sharing button pressed for preset:', preset.name);
+                                    // Set the current preset for sharing and show sharing modal
+                                    setEditingPreset(preset);
+                                    setFormData({
+                                      name: preset.name,
+                                      description: preset.description || '',
+                                      visibility: preset.visibility,
+                                    });
+                                    console.log('🔘 [AddToPresetSheet] Calling showSharingSheet()');
+                                    showSharingSheet();
+                                  }}
+                                  style={{
+                                    padding: 8,
+                                    backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                    borderRadius: 6,
+                                  }}
+                                  activeOpacity={0.7}
+                                >
+                                  <Feather name="users" size={16} color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} />
                                 </TouchableOpacity>
                                 
                                 <TouchableOpacity
@@ -859,7 +913,9 @@ export function AddToPresetSheet({
     </Modal>
 
     {/* Collection Sharing Modal */}
-    {showSharingModal && (
+    {showSharingModal && (() => {
+      console.log('🎯 [AddToPresetSheet] Rendering Collection Sharing Modal');
+      return (
       <Modal
         visible={showSharingModal}
         transparent
@@ -1102,7 +1158,8 @@ export function AddToPresetSheet({
           </Pressable>
         </Animated.View>
       </Modal>
-    )}
+      );
+    })()}
     </>
   );
 }
