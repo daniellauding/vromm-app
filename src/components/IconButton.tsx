@@ -14,6 +14,7 @@ interface IconButtonProps {
   borderColor?: string;
   flex?: number;
   width?: string | number;
+  badge?: string;
 }
 
 export function IconButton({
@@ -27,6 +28,7 @@ export function IconButton({
   borderColor,
   flex,
   width,
+  badge,
 }: IconButtonProps) {
   const colorScheme = useColorScheme();
   const iconSize = size === 'sm' ? 20 : size === 'lg' ? 28 : 24;
@@ -49,7 +51,7 @@ export function IconButton({
       disabled={disabled}
       style={{
         flex: flex,
-        width: width,
+        width: typeof width === 'string' ? undefined : width,
         opacity: disabled ? 0.5 : 1,
       }}
       activeOpacity={0.7}
@@ -77,12 +79,39 @@ export function IconButton({
             justifyContent: 'center',
             borderColor: iconBorderColor,
             borderWidth: 1,
+            position: 'relative',
           }}
         >
           <Feather name={icon} size={iconSize} color={iconColor} />
+          {badge && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -6,
+                right: -6,
+                backgroundColor: '#00E6C3',
+                borderRadius: 10,
+                minWidth: 20,
+                height: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 2,
+                borderColor: colorScheme === 'dark' ? '#1C1C1C' : '#FFFFFF',
+              }}
+            >
+              <Text
+                fontSize={10}
+                fontWeight="bold"
+                color="#000000"
+                textAlign="center"
+              >
+                {badge}
+              </Text>
+            </View>
+          )}
         </View>
         <Text 
-          fontSize="$2.5" 
+          fontSize={12} 
           fontWeight="600" 
           color={textColor} 
           textAlign="center"

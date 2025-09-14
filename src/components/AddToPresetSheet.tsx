@@ -18,6 +18,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
+import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import { RadioButton } from './SelectButton';
 
@@ -60,6 +61,7 @@ export function AddToPresetSheet({
   const { t } = useTranslation();
   const { user } = useAuth();
   const { getEffectiveUserId } = useStudentSwitch();
+  const { showToast } = useToast();
   const colorScheme = useColorScheme();
 
   const [presets, setPresets] = useState<MapPreset[]>([]);
@@ -110,27 +112,17 @@ export function AddToPresetSheet({
         route_count: preset.route_count?.[0]?.count || 0,
       })) || [];
 
-      // Always include a default "All Routes" collection at the top
-      const defaultPreset: MapPreset = {
-        id: 'all-routes',
-        name: t('routeCollections.allRoutes') || 'All Routes',
-        description: t('routeCollections.allRoutesDescription') || 'View all available routes',
-        visibility: 'public',
-        creator_id: effectiveUserId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        route_count: 0,
-        is_default: true,
-      };
-
       const routePresetIds = routePresetsData?.map(item => item.preset_id) || [];
 
-      setPresets([defaultPreset, ...transformedPresets]);
-      // Set "all routes" as default selected (virtual preset)
-      setRoutePresets(['all-routes', ...routePresetIds]);
+      setPresets(transformedPresets);
+      setRoutePresets(routePresetIds);
     } catch (error) {
       console.error('Error loading presets:', error);
-      Alert.alert('Error', 'Failed to load map presets');
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeCollections.failedToLoad') || 'Failed to load collections',
+        type: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -156,15 +148,6 @@ export function AddToPresetSheet({
   // Handle adding/removing route from preset
   const handleTogglePreset = async (preset: MapPreset) => {
     if (!effectiveUserId) return;
-
-    // Don't allow database operations on virtual collections like "all-routes"
-    if (preset.id === 'all-routes') {
-      Alert.alert(
-        t('routeCollections.virtualCollection') || 'Virtual Collection',
-        t('routeCollections.virtualCollectionMessage') || 'This is a virtual collection that shows all routes. You cannot add or remove routes from it.'
-      );
-      return;
-    }
 
     const isInPreset = routePresets.includes(preset.id);
 
@@ -199,7 +182,11 @@ export function AddToPresetSheet({
       }
     } catch (error) {
       console.error('Error toggling preset:', error);
-      Alert.alert('Error', 'Failed to update preset');
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeCollections.failedToUpdate') || 'Failed to update collection',
+        type: 'error'
+      });
     }
   };
 
@@ -242,7 +229,11 @@ export function AddToPresetSheet({
       resetForm();
     } catch (error) {
       console.error('Error creating preset:', error);
-      Alert.alert('Error', 'Failed to create map preset');
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeCollections.failedToCreate') || 'Failed to create collection',
+        type: 'error'
+      });
     }
   };
 
@@ -392,20 +383,14 @@ export function AddToPresetSheet({
                     <YStack gap="$2">
                       {presets.map((preset) => {
                         const isInPreset = routePresets.includes(preset.id);
-                        const isVirtualPreset = preset.id === 'all-routes';
                         
                         return (
                           <RadioButton
                             key={preset.id}
                             onPress={() => handleTogglePreset(preset)}
                             title={preset.name}
-                            description={
-                              isVirtualPreset 
-                                ? t('routeCollections.allRoutesDescription') || 'View all available routes'
-                                : `${preset.description || ''} • ${preset.route_count || 0} ${t('routeCollections.routes') || 'routes'}`
-                            }
+                            description={`${preset.description || ''} • ${preset.route_count || 0} ${t('routeCollections.routes') || 'routes'}`}
                             isSelected={isInPreset}
-                            disabled={isVirtualPreset}
                             rightElement={
                               <XStack alignItems="center" gap="$2">
                                 {preset.is_default && (
@@ -436,8 +421,8 @@ export function AddToPresetSheet({
                         );
                       })}
                       
-                      {/* Show helpful message when only default preset exists */}
-                      {presets.length === 1 && (
+                      {/* Show helpful message when no custom collections exist */}
+                      {presets.length === 0 && (
                         <YStack gap="$2" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4" marginTop="$2">
                           <XStack alignItems="center" gap="$2">
                             <Feather name="info" size={16} color="#00E6C3" />

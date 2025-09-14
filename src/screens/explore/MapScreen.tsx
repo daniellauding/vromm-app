@@ -31,6 +31,7 @@ import { UserProfileSheet } from '../../components/UserProfileSheet';
 // import { useScreenTours } from '../../utils/screenTours';
 // import { useTour } from '../../contexts/TourContext';
 import { useAuth } from '../../context/AuthContext';
+import { useStudentSwitch } from '../../context/StudentSwitchContext';
 
 type SearchResult = {
   id: string;
@@ -58,6 +59,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const { fetchRoutes } = useRoutes();
   const { userLocation } = useLocation();
   const { profile } = useAuth();
+  const { getEffectiveUserId } = useStudentSwitch();
 
   const [isMapReady, setIsMapReady] = useState(false);
   const { showModal } = useModal();
@@ -685,6 +687,12 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       setFilters(filters);
       setAppliedFilters(filters); // Update appliedFilters to keep FilterSheet in sync
       
+      // Handle selectedPresetId from filters
+      if (filters.selectedPresetId !== undefined) {
+        setSelectedPresetId(filters.selectedPresetId);
+        console.log('🗺️ [MapScreen] Updated selectedPresetId from filters:', filters.selectedPresetId);
+      }
+      
       // Zoom to filtered results after filters are applied
       // Use setTimeout to ensure state updates have propagated
       setTimeout(() => {
@@ -839,8 +847,10 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         {/* Clear Filters Button */}
         {(filters && Object.keys(filters).some(key => {
           const value = filters[key as keyof FilterOptions];
+          // Don't show clear button for selectedPresetId alone - only when user changes it
+          if (key === 'selectedPresetId') return false;
           return Array.isArray(value) ? value.length > 0 : value;
-        })) || selectedPresetId && (
+        })) || (selectedPresetId && filters?.selectedPresetId !== selectedPresetId) && (
           <View style={{
             position: 'absolute',
             top: 160, // Position below header chips
@@ -893,7 +903,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
             >
               <Feather name="x" size={16} color="rgba(255, 255, 255, 0.9)" />
               <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: '600', marginLeft: 6, fontSize: 14 }}>
-                Clear {selectedPresetId ? 'preset & filters' : 'filters'}
+                Clear {selectedPresetId && filters?.selectedPresetId !== selectedPresetId ? 'preset & filters' : 'filters'}
               </Text>
             </TouchableOpacity>
           </View>

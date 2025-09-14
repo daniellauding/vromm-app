@@ -168,8 +168,8 @@ interface ToastItemProps {
 }
 
 function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
-  const translateY = new Animated.Value(-100);
-  const translateX = new Animated.Value(0);
+  const translateY = React.useRef(new Animated.Value(-100)).current;
+  const translateX = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     // Animate in
@@ -179,7 +179,7 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
       tension: 100,
       friction: 8,
     }).start();
-  }, []);
+  }, [translateY]);
 
   const handleDismiss = () => {
     // Animate out

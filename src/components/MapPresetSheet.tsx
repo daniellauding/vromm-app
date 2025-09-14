@@ -16,6 +16,7 @@ import { useModal } from '../contexts/ModalContext';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { supabase } from '../lib/supabase';
+import { CollectionSharingModal } from './CollectionSharingModal';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
@@ -155,6 +156,8 @@ export function MapPresetSheet({
   const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingPreset, setEditingPreset] = useState<MapPreset | null>(null);
+  const [showSharingModal, setShowSharingModal] = useState(false);
+  const [sharingPreset, setSharingPreset] = useState<MapPreset | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -169,14 +172,15 @@ export function MapPresetSheet({
 
     setLoading(true);
     try {
-      // Load user's own presets and public presets
+      // Load user's own presets, public presets, and shared presets
       const { data, error } = await supabase
         .from('map_presets')
         .select(`
           *,
-          route_count:map_preset_routes(count)
+          route_count:map_preset_routes(count),
+          shared_members:map_preset_members!inner(user_id)
         `)
-        .or(`creator_id.eq.${effectiveUserId},visibility.eq.public`)
+        .or(`creator_id.eq.${effectiveUserId},visibility.eq.public,shared_members.user_id.eq.${effectiveUserId}`)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: false });
 
@@ -332,6 +336,12 @@ export function MapPresetSheet({
       visibility: preset.visibility,
     });
     setShowCreateForm(true);
+  };
+
+  // Start sharing preset
+  const handleSharePreset = (preset: MapPreset) => {
+    setSharingPreset(preset);
+    setShowSharingModal(true);
   };
 
   // Animation values
@@ -556,6 +566,11 @@ export function MapPresetSheet({
                           <Feather name="edit-2" size={18} color={textColor} />
                         </TouchableOpacity>
                       )}
+                      {!preset.is_default && (
+                        <TouchableOpacity onPress={() => handleSharePreset(preset)}>
+                          <Feather name="share-2" size={18} color="#00E6C3" />
+                        </TouchableOpacity>
+                      )}
                       {showDeleteOption && !preset.is_default && (
                         <TouchableOpacity onPress={() => handleDeletePreset(preset)}>
                           <Feather name="trash-2" size={18} color="#ff4444" />
@@ -647,6 +662,22 @@ export function MapPresetSheet({
           )}
         </View>
       </Animated.View>
+      
+      {/* Collection Sharing Modal */}
+      {sharingPreset && (
+        <CollectionSharingModal
+          isVisible={showSharingModal}
+          onClose={() => {
+            setShowSharingModal(false);
+            setSharingPreset(null);
+          }}
+          collectionId={sharingPreset.id}
+          collectionName={sharingPreset.name}
+          onInvitationSent={() => {
+            // Optionally refresh the presets list or show success message
+          }}
+        />
+      )}
     </View>
   );
 }

@@ -28,6 +28,7 @@ import { RouteExerciseList } from './RouteExerciseList';
 import { AddToPresetSheetModal } from './AddToPresetSheet';
 import { useModal } from '../contexts/ModalContext';
 import { IconButton } from './IconButton';
+import { useToast } from '../contexts/ToastContext';
 
 const { height, width } = Dimensions.get('window');
 
@@ -149,6 +150,7 @@ export function RouteDetailSheet({
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const { showModal } = useModal();
+  const { showToast } = useToast();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
 
   // Theme colors - matching OnboardingInteractive exactly
@@ -274,6 +276,7 @@ export function RouteDetailSheet({
   const [isSaved, setIsSaved] = useState(false);
   const [isDriven, setIsDriven] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [routeCollections, setRouteCollections] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showAdminControls, setShowAdminControls] = useState(false);
   const [showMetadataDetails, setShowMetadataDetails] = useState(false);
@@ -454,27 +457,62 @@ export function RouteDetailSheet({
     }
   };
 
+  const checkRouteCollections = async () => {
+    if (!user || !routeId) return;
+    try {
+      const { data, error } = await supabase
+        .from('map_preset_routes')
+        .select('preset_id')
+        .eq('route_id', routeId);
+
+      if (error) throw error;
+
+      const collectionIds = data?.map(item => item.preset_id) || [];
+      setRouteCollections(collectionIds);
+    } catch (err) {
+      console.error('Error checking route collections:', err);
+    }
+  };
+
   // Handle functions (exact copy from RouteDetailScreen)
   const handleSaveRoute = async () => {
     if (!user) {
-      Alert.alert(t('routeDetail.signInRequired') || 'Sign in required', t('routeDetail.pleaseSignInToSave') || 'Please sign in to save routes');
+      showToast({
+        title: t('routeDetail.signInRequired') || 'Sign in required',
+        message: t('routeDetail.pleaseSignInToSave') || 'Please sign in to save routes',
+        type: 'error'
+      });
       return;
     }
 
     try {
       if (isSaved) {
         await supabase.from('saved_routes').delete().eq('route_id', routeId).eq('user_id', user.id);
+        showToast({
+          title: t('routeDetail.removedFromSaved') || 'Removed from Saved',
+          message: t('routeDetail.routeRemovedFromSaved') || 'Route has been removed from your saved routes',
+          type: 'info'
+        });
       } else {
         await supabase.from('saved_routes').insert({
           route_id: routeId,
           user_id: user.id,
           saved_at: new Date().toISOString(),
         });
+        showToast({
+          title: t('routeDetail.saved') || 'Saved',
+          message: t('routeDetail.routeSaved') || 'Route has been saved to your collection',
+          type: 'success'
+        });
       }
       setIsSaved(!isSaved);
     } catch (err) {
       console.error('Error toggling save status:', err);
-      Alert.alert(t('common.error') || 'Error', t('routeDetail.failedToUpdateSave') || 'Failed to update save status');
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.failedToUpdateSave') || 'Failed to update save status',
+        type: 'error'
+      });
     }
   };
 
@@ -499,25 +537,31 @@ export function RouteDetailSheet({
         <AddToPresetSheetModal
           routeId={currentRouteId}
           onRouteAdded={(presetId, presetName) => {
-            Alert.alert(
-              t('routeDetail.addedToCollection') || 'Added to Collection',
-              t('routeDetail.routeHasBeenAdded')?.replace('{collectionName}', presetName) || `Route has been added to "${presetName}"`,
-              [{ text: t('common.ok') || 'OK' }]
-            );
+            showToast({
+              title: t('routeDetail.addedToCollection') || 'Added to Collection',
+              message: t('routeDetail.routeHasBeenAdded')?.replace('{collectionName}', presetName) || `Route has been added to "${presetName}"`,
+              type: 'success'
+            });
+            // Refresh collection status
+            checkRouteCollections();
           }}
           onRouteRemoved={(presetId, presetName) => {
-            Alert.alert(
-              t('routeDetail.removedFromCollection') || 'Removed from Collection',
-              t('routeDetail.routeHasBeenRemoved')?.replace('{collectionName}', presetName) || `Route has been removed from "${presetName}"`,
-              [{ text: t('common.ok') || 'OK' }]
-            );
+            showToast({
+              title: t('routeDetail.removedFromCollection') || 'Removed from Collection',
+              message: t('routeDetail.routeHasBeenRemoved')?.replace('{collectionName}', presetName) || `Route has been removed from "${presetName}"`,
+              type: 'info'
+            });
+            // Refresh collection status
+            checkRouteCollections();
           }}
           onPresetCreated={(preset) => {
-            Alert.alert(
-              t('routeDetail.collectionCreated') || 'Collection Created',
-              t('routeDetail.newCollectionCreated')?.replace('{collectionName}', preset.name) || `New collection "${preset.name}" has been created and route added to it`,
-              [{ text: t('common.ok') || 'OK' }]
-            );
+            showToast({
+              title: t('routeDetail.collectionCreated') || 'Collection Created',
+              message: t('routeDetail.newCollectionCreated')?.replace('{collectionName}', preset.name) || `New collection "${preset.name}" has been created and route added to it`,
+              type: 'success'
+            });
+            // Refresh collection status
+            checkRouteCollections();
           }}
           onClose={() => {
             // When AddToPresetSheet closes, reopen the RouteDetailSheet
@@ -1001,7 +1045,7 @@ export function RouteDetailSheet({
         try {
           await Promise.all([loadRouteData(), loadReviews()]);
           if (user) {
-            await Promise.all([checkSavedStatus(), checkDrivenStatus()]);
+            await Promise.all([checkSavedStatus(), checkDrivenStatus(), checkRouteCollections()]);
           }
           // Track route view
           await AppAnalytics.trackRouteView(routeId);
@@ -1074,7 +1118,7 @@ export function RouteDetailSheet({
     try {
       await Promise.all([loadRouteData(), loadReviews()]);
       if (user) {
-        await Promise.all([checkSavedStatus(), checkDrivenStatus()]);
+        await Promise.all([checkSavedStatus(), checkDrivenStatus(), checkRouteCollections()]);
       }
     } catch (error) {
       console.error('Error refreshing route data:', error);
@@ -1139,37 +1183,6 @@ export function RouteDetailSheet({
                 <Text fontSize="$6" fontWeight="bold" color="$color" numberOfLines={1} flex={1}>
                   {routeData?.name || t('routeDetail.loading') || 'Loading...'}
                 </Text>
-                <XStack gap="$2">
-                  {showAdminControls && (
-                    <TouchableOpacity onPress={() => {
-                      AppAnalytics.trackButtonPress('admin_delete', 'RouteDetailSheet', {
-                        route_id: routeData?.id,
-                      }).catch(() => {});
-                      handleAdminDelete();
-                    }}>
-                      <Feather name="trash-2" size={20} color="red" />
-                    </TouchableOpacity>
-                  )}
-                  {user?.id === routeData?.creator_id && (
-                    <TouchableOpacity 
-                      onPress={() => {
-                        AppAnalytics.trackButtonPress('edit_route', 'RouteDetailSheet', {
-                          route_id: routeData?.id,
-                        }).catch(() => {});
-                        navigation.navigate('CreateRoute', { routeId: routeData?.id });
-                        onClose();
-                      }}
-                    >
-                      <Feather name="edit-2" size={20} color={iconColor} />
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity onPress={handleShowOptions}>
-                    <Feather name="more-vertical" size={20} color={iconColor} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={onClose}>
-                    <Feather name="x" size={24} color={iconColor} />
-                  </TouchableOpacity>
-                </XStack>
               </XStack>
 
               {/* Show content only if not in mini mode */}
@@ -1282,27 +1295,70 @@ export function RouteDetailSheet({
                           icon="map"
                           label={t('routeDetail.addToCollection') || 'Add to Collection'}
                           onPress={handleAddToPreset}
-                          backgroundColor={isSaved ? 'transparent' : 'transparent'}
-                          borderColor={isSaved ? 'transparent' : 'transparent'}                    
+                          selected={routeCollections.length > 0}
+                          backgroundColor={routeCollections.length > 0 ? 'transparent' : 'transparent'}
+                          borderColor={routeCollections.length > 0 ? 'transparent' : 'transparent'}
+                          badge={routeCollections.length > 0 ? routeCollections.length.toString() : undefined}
                           flex={1}
                         />
-                        <IconButton
-                          icon="play"
-                          label={allExercisesCompleted ? (t('routeDetail.reviewExercises') || 'Review') : (t('routeDetail.startExercises') || 'Start')}
-                          onPress={() => {
-                            if (routeData?.exercises) {
-                              navigation.navigate('RouteExercise', {
-                                routeId: routeId!,
-                                exercises: routeData.exercises,
-                                routeName: routeData.name,
-                                startIndex: 0,
-                              });
+                        {routeData?.exercises && Array.isArray(routeData.exercises) && routeData.exercises.length > 0 && (
+                          <IconButton
+                            icon="play"
+                            label={allExercisesCompleted ? (t('routeDetail.reviewExercises') || 'Review') : (t('routeDetail.startExercises') || 'Start')}
+                            onPress={() => {
+                              if (routeData?.exercises) {
+                                navigation.navigate('RouteExercise', {
+                                  routeId: routeId!,
+                                  exercises: routeData.exercises,
+                                  routeName: routeData.name,
+                                  startIndex: 0,
+                                });
+                                onClose();
+                              }
+                            }}
+                            backgroundColor={isSaved ? 'transparent' : 'transparent'}
+                            borderColor={isSaved ? 'transparent' : 'transparent'}                    
+                            flex={1}
+                          />
+                        )}
+                        {showAdminControls && (
+                          <IconButton
+                            icon="trash-2"
+                            label={t('routeDetail.adminDelete') || 'Delete'}
+                            onPress={() => {
+                              AppAnalytics.trackButtonPress('admin_delete', 'RouteDetailSheet', {
+                                route_id: routeData?.id,
+                              }).catch(() => {});
+                              handleAdminDelete();
+                            }}
+                            backgroundColor={isSaved ? 'transparent' : 'transparent'}
+                            borderColor={isSaved ? 'transparent' : 'transparent'}                    
+                            flex={1}
+                          />
+                        )}
+                        {user?.id === routeData?.creator_id && (
+                          <IconButton
+                            icon="edit-2"
+                            label={t('routeDetail.addEdit') || 'Edit'}
+                            onPress={() => {
+                              AppAnalytics.trackButtonPress('edit_route', 'RouteDetailSheet', {
+                                route_id: routeData?.id,
+                              }).catch(() => {});
+                              navigation.navigate('CreateRoute', { routeId: routeData?.id });
                               onClose();
-                            }
-                          }}
-                          backgroundColor={isSaved ? 'transparent' : 'transparent'}
-                          borderColor={isSaved ? 'transparent' : 'transparent'}                    
-                          flex={1}
+                            }}
+                            backgroundColor={isSaved ? 'transparent' : 'transparent'}
+                            borderColor={isSaved ? 'transparent' : 'transparent'}                    
+                            flex={1}
+                          />
+                        )}
+                        <IconButton
+                          icon="more-vertical"
+                          label={t('routeDetail.more') || 'Op'}
+                          onPress={handleShowOptions}
+                            backgroundColor={isSaved ? 'transparent' : 'transparent'}
+                            borderColor={isSaved ? 'transparent' : 'transparent'}                    
+                            flex={1}
                         />
                       </XStack>
                     </YStack>

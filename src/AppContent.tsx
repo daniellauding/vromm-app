@@ -106,6 +106,7 @@ import { StudentManagementScreen } from './screens/StudentManagementScreen';
 
 // Global Invitation Notification
 import { InvitationNotification } from './components/InvitationNotification';
+import { CollectionInvitationNotification } from './components/CollectionInvitationNotification';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -426,6 +427,9 @@ function AppContent() {
 
   // Global invitation notification state
   const [showGlobalInvitationNotification, setShowGlobalInvitationNotification] = useState(false);
+  
+  // Global collection invitation notification state
+  const [showGlobalCollectionInvitationNotification, setShowGlobalCollectionInvitationNotification] = useState(false);
 
   // Global promotional modal state
   const {
@@ -519,6 +523,35 @@ function AppContent() {
     }
   };
 
+  // Global collection invitation checking function
+  const checkForGlobalCollectionInvitations = async () => {
+    console.log('📁 [AppContent] checkForGlobalCollectionInvitations called for user:', user?.id);
+    if (!user?.id) {
+      console.log('📁 [AppContent] No user ID - skipping collection invitation check');
+      return;
+    }
+
+    try {
+      console.log('📁 Checking for global collection invitations for user:', user.id);
+      
+      // Import the collection sharing service
+      const { collectionSharingService } = await import('./services/collectionSharingService');
+      
+      const pendingInvitations = await collectionSharingService.getPendingInvitations(user.id);
+      
+      if (pendingInvitations.length > 0 && !showGlobalCollectionInvitationNotification) {
+        console.log('📁 Global collection invitation check: Found pending invitations, showing modal');
+        setShowGlobalCollectionInvitationNotification(true);
+      } else if (pendingInvitations.length === 0) {
+        console.log('📁 No pending collection invitations found');
+      } else {
+        console.log('📁 Collection invitation modal already showing, not triggering again');
+      }
+    } catch (error) {
+      console.error('📁 Global collection invitation check error:', error);
+    }
+  };
+
   // Register opener so other parts can open modal instantly without prop drilling
   useEffect(() => {
     registerInvitationModalOpener(() => setShowGlobalInvitationNotification(true));
@@ -530,6 +563,7 @@ function AppContent() {
 
     // Check immediately when user is available
     checkForGlobalInvitations();
+    checkForGlobalCollectionInvitations();
 
     // Set up real-time subscription to pending invitations
     const invitationSubscription = supabase
@@ -601,8 +635,36 @@ function AppContent() {
             if (row?.type === 'supervisor_invitation' || row?.type === 'student_invitation') {
               console.log('🌍 Fallback: Invitation notification inserted, opening modal');
               setShowGlobalInvitationNotification(true);
+            } else if (row?.type === 'collection_invitation') {
+              console.log('📁 Fallback: Collection invitation notification inserted, opening modal');
+              setShowGlobalCollectionInvitationNotification(true);
             }
           } catch {}
+        },
+      )
+      .subscribe();
+
+    // Collection invitation subscription
+    const collectionInvitationSubscription = supabase
+      .channel('global_collection_invitations')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'collection_invitations',
+          filter: `invited_user_id=eq.${user.id}`,
+        },
+        (payload: any) => {
+          try {
+            const row = payload?.new;
+            if (row?.status === 'pending') {
+              console.log('📁 Collection invitation INSERT matches current user → opening modal');
+              setTimeout(() => setShowGlobalCollectionInvitationNotification(true), 150);
+            }
+          } catch (e) {
+            console.log('📁 Collection invitation INSERT handler error', e);
+          }
         },
       )
       .subscribe();
@@ -610,6 +672,7 @@ function AppContent() {
     return () => {
       invitationSubscription.unsubscribe();
       notifSubscription.unsubscribe();
+      collectionInvitationSubscription.unsubscribe();
     };
   }, [user?.email, user?.id]);
 
@@ -941,6 +1004,24 @@ function AppContent() {
           // Check for more invitations after handling one
           setTimeout(() => {
             checkForGlobalInvitations();
+          }, 1000);
+        }}
+      />
+
+      {/* Global Collection Invitation Notification Modal */}
+      <CollectionInvitationNotification
+        visible={showGlobalCollectionInvitationNotification}
+        onClose={() => {
+          console.log('📁 Global collection invitation modal closed');
+          setShowGlobalCollectionInvitationNotification(false);
+        }}
+        onInvitationHandled={() => {
+          console.log('📁 Global collection invitation handled - checking for more');
+          // Close modal immediately; if more invites exist, we'll reopen
+          setShowGlobalCollectionInvitationNotification(false);
+          // Check for more collection invitations after handling one
+          setTimeout(() => {
+            checkForGlobalCollectionInvitations();
           }, 1000);
         }}
       />
