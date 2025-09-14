@@ -28,19 +28,19 @@ import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { CommunityFeedSheet } from '../../components/CommunityFeedSheet';
 import { MessagesSheet } from '../../components/MessagesSheet';
 import { NotificationsSheet } from '../../components/NotificationsSheet';
-import { EventsSheet } from '../../components/EventsSheet';
+// import { EventsSheet } from '../../components/EventsSheet';
 import { ProfileSheet } from '../../components/ProfileSheet';
 import { HomeHeader } from './Header';
 import { GettingStarted } from './GettingStarted';
 import { SavedRoutes } from './SavedRoutes';
-import { QuickFilters } from './QuickFilters';
+// import { QuickFilters } from './QuickFilters';
 import { CityRoutes } from './CityRoutes';
 import { CreatedRoutes } from './CreatedRoutes';
 import { NearByRoutes } from './NearByRoutes';
 import { DrivenRoutes } from './DrivenRoutes';
 import { DraftRoutes } from './DraftRoutes';
 import { CommunityFeed } from './CommunityFeed';
-import { UpcomingEvents } from './UpcomingEvents';
+// import { UpcomingEvents } from './UpcomingEvents';
 import { CommunicationTools } from './CommunicationTools';
 import { CustomMapPresets } from './CustomMapPresets';
 
@@ -441,12 +441,12 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
               onEventPress={() => setShowEventsSheet(true)}
             />
 
-            <UpcomingEvents 
+            {/* <UpcomingEvents 
               onEventPress={(eventId) => {
                 navigation.navigate('EventDetail', { eventId });
               }}
               onShowEventsSheet={() => setShowEventsSheet(true)}
-            />
+            /> */}
 
             <ProgressSection activeUserId={effectiveUserId} />
             <DraftRoutes onRoutePress={handleRoutePress} />
@@ -496,7 +496,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       <UserListSheet
         visible={showUserListSheet}
         onClose={() => setShowUserListSheet(false)}
-        title="All Users"
+        title={t('home.users.allUsers') || 'All Users'}
         onUserPress={(userId) => {
           setSelectedUserId(userId);
           setShowUserListSheet(false);
@@ -587,10 +587,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         onClose={() => setShowNotificationsSheet(false)}
       />
 
-      <EventsSheet
+      {/* <EventsSheet
         visible={showEventsSheet}
         onClose={() => setShowEventsSheet(false)}
-      />
+      /> */}
 
       <ProfileSheet
         visible={showProfileSheet}

@@ -156,42 +156,109 @@ export function RouteDetailSheet({
 
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(300)).current;
 
-  // Gesture handling for drag-to-dismiss
-  const translateY = useSharedValue(0);
+  // Gesture handling for drag-to-dismiss and snap points
+  const translateY = useSharedValue(height);
   const isDragging = useRef(false);
+  
+  // Snap points for resizing (top Y coordinates like RoutesDrawer)
+  const snapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)  
+      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85,   // Top at 85% of screen (show 15% - just title)
+      dismissed: height,     // Completely off-screen
+    };
+    return points;
+  }, [height]);
+  
+  const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
+  const currentState = useSharedValue(snapPoints.large);
 
   const dismissSheet = useCallback(() => {
-    onClose();
-  }, [onClose]);
+    translateY.value = withSpring(snapPoints.dismissed, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    setTimeout(() => onClose(), 200);
+  }, [onClose, snapPoints.dismissed]);
+
+  const snapTo = useCallback((point: number) => {
+    currentState.value = point;
+    setCurrentSnapPoint(point);
+  }, [currentState]);
 
   const panGesture = Gesture.Pan()
     .onBegin(() => {
       isDragging.current = true;
     })
     .onUpdate((event) => {
-      const { translationY } = event;
-      // Only allow downward dragging
-      if (translationY > 0) {
-        translateY.value = translationY;
+      try {
+        const { translationY } = event;
+        const newPosition = currentState.value + translationY;
+        
+        // Constrain to snap points range (large is smallest Y, mini is largest Y)
+        const minPosition = snapPoints.large; // Smallest Y (show most - like expanded)
+        const maxPosition = snapPoints.mini; // Largest Y (show least - just title)
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+        
+        // Set translateY directly like RoutesDrawer
+        translateY.value = boundedPosition;
+      } catch (error) {
+        console.log('panGesture error', error);
       }
     })
     .onEnd((event) => {
       const { translationY, velocityY } = event;
       isDragging.current = false;
       
-      // If dragged down more than 100px or with high velocity, dismiss
-      if (translationY > 100 || velocityY > 500) {
+      const currentPosition = currentState.value + translationY;
+      
+      // Only dismiss if dragged way down past the mini snap point with high velocity
+      if (currentPosition > snapPoints.mini + 100 && velocityY > 800) {
         runOnJS(dismissSheet)();
-      } else {
-        // Snap back to original position
-        translateY.value = withSpring(0, {
-          damping: 20,
-          mass: 1,
-          stiffness: 100,
-        });
+        return;
       }
+      
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        // Fast upward swipe - go to larger size (smaller Y)
+        targetSnapPoint = snapPoints.large;
+      } else if (velocityY > 500) {
+        // Fast downward swipe - go to smaller size (larger Y)
+        targetSnapPoint = snapPoints.mini;
+      } else {
+        // Find closest snap point
+        const positions = [snapPoints.large, snapPoints.medium, snapPoints.small, snapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+      
+      // Constrain target to valid range
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, snapPoints.large),
+        snapPoints.mini,
+      );
+      
+      // Animate to target position - set translateY directly like RoutesDrawer
+      translateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      
+      currentState.value = boundedTarget;
+      runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
   const animatedGestureStyle = useAnimatedStyle(() => ({
@@ -209,6 +276,9 @@ export function RouteDetailSheet({
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showAdminControls, setShowAdminControls] = useState(false);
+  const [showMetadataDetails, setShowMetadataDetails] = useState(false);
+  const [showReviewsDetails, setShowReviewsDetails] = useState(false);
+  const [showCommentsDetails, setShowCommentsDetails] = useState(false);
 
   // Exercise-related state
   const [exerciseStats, setExerciseStats] = useState<{
@@ -478,9 +548,9 @@ export function RouteDetailSheet({
           text: t('routeDetail.addNewReview') || 'Add New Review',
           onPress: () => {
             navigation.navigate('AddReview', { 
-              routeId: routeId,
+              routeId: routeId!,
               returnToRouteDetail: true 
-            });
+            } as any);
             onClose();
           },
         },
@@ -513,9 +583,9 @@ export function RouteDetailSheet({
     } else {
       // First time marking as driven
       navigation.navigate('AddReview', { 
-        routeId: routeId,
+        routeId: routeId!,
         returnToRouteDetail: true 
-      });
+      } as any);
       onClose();
     }
   };
@@ -524,13 +594,13 @@ export function RouteDetailSheet({
     if (!routeData) return;
 
     const baseUrl = 'https://routes.vromm.se';
-    const shareUrl = `${baseUrl}/?route=${routeData.id}`;
+    const shareUrl = `${baseUrl}/?route=${routeData.id || ''}`;
 
     try {
       await Share.share({
         message: routeData.description || `Check out this route: ${routeData.name}`,
         url: shareUrl,
-        title: routeData.name,
+        title: routeData.name || 'Route',
       });
     } catch (error) {
       console.error('Error sharing:', error);
@@ -547,8 +617,8 @@ export function RouteDetailSheet({
       // Default behavior - navigate to map
       navigation.navigate('MainTabs', {
         screen: 'MapTab',
-        params: { screen: 'MapScreen', params: { routeId } },
-      });
+        params: { screen: 'MapScreen', params: { routeId: routeId! } },
+      } as any);
     }
     onClose();
   };
@@ -645,7 +715,7 @@ export function RouteDetailSheet({
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await supabase.from('routes').delete().eq('id', routeData.id);
+              const { error } = await supabase.from('routes').delete().eq('id', routeData.id || '');
               if (error) throw error;
               onClose();
             } catch (err) {
@@ -671,7 +741,7 @@ export function RouteDetailSheet({
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await supabase.from('routes').delete().eq('id', routeData.id);
+              const { error } = await supabase.from('routes').delete().eq('id', routeData.id || '');
               if (error) throw error;
               onClose();
               Alert.alert(t('common.success') || 'Success', t('routeDetail.routeDeletedByAdmin') || 'Route deleted by admin');
@@ -712,6 +782,85 @@ export function RouteDetailSheet({
       longitudeDelta: lngDelta,
     };
   }, [routeData?.waypoint_details]);
+
+  // Get additional metadata that's not currently displayed
+  const getAdditionalMetadata = () => {
+    if (!routeData) return [];
+    
+    const metadata = [];
+    
+    // Route type and visibility
+    if (routeData.route_type) {
+      metadata.push({ label: 'Route Type', value: routeData.route_type, icon: 'map' });
+    }
+    if (routeData.visibility) {
+      metadata.push({ label: 'Visibility', value: routeData.visibility, icon: 'eye' });
+    }
+    
+    // Vehicle and transmission info
+    if (routeData.vehicle_types && Array.isArray(routeData.vehicle_types) && routeData.vehicle_types.length > 0) {
+      metadata.push({ label: 'Vehicle Types', value: routeData.vehicle_types.join(', '), icon: 'truck' });
+    }
+    if (routeData.transmission_type) {
+      metadata.push({ label: 'Transmission', value: routeData.transmission_type, icon: 'settings' });
+    }
+    
+    // Activity and timing info
+    if (routeData.activity_level) {
+      metadata.push({ label: 'Activity Level', value: routeData.activity_level, icon: 'activity' });
+    }
+    if (routeData.best_times) {
+      metadata.push({ label: 'Best Times', value: routeData.best_times, icon: 'clock' });
+    }
+    if (routeData.best_season) {
+      metadata.push({ label: 'Best Season', value: routeData.best_season, icon: 'sun' });
+    }
+    
+    // Location details
+    if (routeData.full_address) {
+      metadata.push({ label: 'Full Address', value: routeData.full_address, icon: 'map-pin' });
+    }
+    if (routeData.country) {
+      metadata.push({ label: 'Country', value: routeData.country, icon: 'globe' });
+    }
+    if (routeData.region) {
+      metadata.push({ label: 'Region', value: routeData.region, icon: 'map' });
+    }
+    
+    // Duration and status
+    if (routeData.estimated_duration_minutes) {
+      const hours = Math.floor(routeData.estimated_duration_minutes / 60);
+      const minutes = routeData.estimated_duration_minutes % 60;
+      const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+      metadata.push({ label: 'Estimated Duration', value: durationText, icon: 'clock' });
+    }
+    if (routeData.status) {
+      metadata.push({ label: 'Status', value: routeData.status, icon: 'check-circle' });
+    }
+    
+    // Creation and update info
+    if (routeData.created_at) {
+      const createdDate = new Date(routeData.created_at).toLocaleDateString();
+      metadata.push({ label: 'Created', value: createdDate, icon: 'calendar' });
+    }
+    if (routeData.updated_at && routeData.updated_at !== routeData.created_at) {
+      const updatedDate = new Date(routeData.updated_at).toLocaleDateString();
+      metadata.push({ label: 'Last Updated', value: updatedDate, icon: 'edit' });
+    }
+    
+    // Additional flags
+    if (routeData.is_public !== undefined) {
+      metadata.push({ label: 'Public Route', value: routeData.is_public ? 'Yes' : 'No', icon: routeData.is_public ? 'globe' : 'lock' });
+    }
+    if (routeData.is_verified !== undefined) {
+      metadata.push({ label: 'Verified', value: routeData.is_verified ? 'Yes' : 'No', icon: routeData.is_verified ? 'check-circle' : 'alert-circle' });
+    }
+    if ((routeData as any).is_draft !== undefined) {
+      metadata.push({ label: 'Draft', value: (routeData as any).is_draft ? 'Yes' : 'No', icon: (routeData as any).is_draft ? 'edit' : 'check' });
+    }
+    
+    return metadata;
+  };
 
   // Get carousel items
   const getCarouselItems = () => {
@@ -774,7 +923,7 @@ export function RouteDetailSheet({
   };
 
   // Render carousel item
-  const renderCarouselItem = ({ item }: { item: any }) => {
+  const renderCarouselItem = ({ item }: { item: any }): React.JSX.Element => {
     const HERO_HEIGHT = height * 0.3; // Smaller height for sheet
     
     if (item.type === 'map') {
@@ -840,7 +989,7 @@ export function RouteDetailSheet({
         />
       );
     }
-    return null;
+    return <View style={{ width: width - 32, height: HERO_HEIGHT }} />;
   };
 
   // Load data when modal opens
@@ -893,18 +1042,21 @@ export function RouteDetailSheet({
   // Animation effects
   useEffect(() => {
     if (visible) {
-      // Reset gesture translateY when opening
-      translateY.value = 0;
+      // Reset gesture translateY when opening and set to large snap point
+      translateY.value = withSpring(snapPoints.large, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      currentState.value = snapPoints.large;
+      setCurrentSnapPoint(snapPoints.large);
       
       Animated.timing(backdropOpacity, {
         toValue: 1,
         duration: 200,
-        useNativeDriver: true,
-      }).start();
-      Animated.timing(sheetTranslateY, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start();
     } else {
@@ -913,14 +1065,8 @@ export function RouteDetailSheet({
         duration: 200,
         useNativeDriver: true,
       }).start();
-      Animated.timing(sheetTranslateY, {
-        toValue: 300,
-        duration: 300,
-        easing: Easing.in(Easing.ease),
-        useNativeDriver: true,
-      }).start();
     }
-  }, [visible, backdropOpacity, sheetTranslateY, translateY]);
+  }, [visible, backdropOpacity, snapPoints.large, currentState]);
 
   // Refresh function
   const handleRefresh = async () => {
@@ -950,29 +1096,30 @@ export function RouteDetailSheet({
           opacity: backdropOpacity,
         }}
       >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1 }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <Animated.View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              transform: [{ translateY: sheetTranslateY }],
-            }}
-          >
-            <GestureDetector gesture={panGesture}>
-              <ReanimatedAnimated.View style={animatedGestureStyle}>
-                <YStack
-                  backgroundColor={backgroundColor}
-                  padding="$4"
-                  paddingBottom={insets.bottom || 20}
-                  borderTopLeftRadius="$4"
-                  borderTopRightRadius="$4"
-                  gap="$4"
-                  height={height * 0.9}
-                  maxHeight={height * 0.9}
-                >
+          <GestureDetector gesture={panGesture}>
+            <ReanimatedAnimated.View 
+              style={[
+                {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: height,
+                  backgroundColor: backgroundColor,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                },
+                animatedGestureStyle
+              ]}
+            >
+              <YStack
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                gap="$4"
+                flex={1}
+              >
                   {/* Drag Handle */}
                   <View style={{
                     alignItems: 'center',
@@ -1025,6 +1172,9 @@ export function RouteDetailSheet({
                 </XStack>
               </XStack>
 
+              {/* Show content only if not in mini mode */}
+              {currentSnapPoint !== snapPoints.mini && (
+                <>
               {loading ? (
                 <YStack f={1} jc="center" ai="center">
                   <Text>{t('routeDetail.loading') || 'Loading route data...'}</Text>
@@ -1036,7 +1186,6 @@ export function RouteDetailSheet({
                     onPress={onClose}
                     marginTop="$4"
                     icon={<Feather name="arrow-left" size={18} color="white" />}
-                    variant="primary"
                     size="$4"
                   >
                     {t('common.goBack') || 'Go Back'}
@@ -1114,16 +1263,17 @@ export function RouteDetailSheet({
                           label={isSaved ? (t('routeDetail.saved') || 'Saved') : (t('routeDetail.saveRoute') || 'Save')}
                           onPress={handleSaveRoute}
                           selected={isSaved}
-                          backgroundColor={isSaved ? 'transparent' : 'transparent'}
-                          borderColor={isSaved ? 'transparent' : 'transparent'}
+                          backgroundColor="transparent"
+                          borderColor="transparent"
                           flex={1}
                         />
                         <IconButton
                           icon="check-circle"
                           label={isDriven ? (t('routeDetail.markedAsDriven') || 'Marked as Driven') : (t('routeDetail.markAsDriven') || 'Mark as Driven')}
                           onPress={handleMarkDriven}
-                          backgroundColor={isSaved ? 'transparent' : 'transparent'}
-                          borderColor={isSaved ? 'transparent' : 'transparent'}
+                          selected={isDriven}
+                          backgroundColor="transparent"
+                          borderColor="transparent"
                           flex={1}
                         />
                         <IconButton
@@ -1203,6 +1353,48 @@ export function RouteDetailSheet({
                       </YStack>
                     </Card>
 
+                    {/* Additional Metadata Section */}
+                    {getAdditionalMetadata().length > 0 && (
+                      <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+                        <YStack gap="$3">
+                          <TouchableOpacity
+                            onPress={() => setShowMetadataDetails(!showMetadataDetails)}
+                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                          >
+                            <XStack alignItems="center" gap="$2">
+                              <Feather name="info" size={20} color={iconColor} />
+                              <Text fontSize="$5" fontWeight="600" color="$color">
+                                {t('routeDetail.additionalInfo') || 'Additional Information'}
+                              </Text>
+                            </XStack>
+                            <Feather 
+                              name={showMetadataDetails ? "chevron-up" : "chevron-down"} 
+                              size={20} 
+                              color={iconColor} 
+                            />
+                          </TouchableOpacity>
+
+                          {showMetadataDetails && (
+                            <YStack gap="$2">
+                              {getAdditionalMetadata().map((item, index) => (
+                                <XStack key={index} justifyContent="space-between" alignItems="center" paddingVertical="$1">
+                                  <XStack alignItems="center" gap="$2" flex={1}>
+                                    <Feather name={item.icon as any} size={16} color="$gray11" />
+                                    <Text fontSize="$4" color="$gray11" flex={1}>
+                                      {item.label}
+                                    </Text>
+                                  </XStack>
+                                  <Text fontSize="$4" fontWeight="600" color="$color" textAlign="right" flex={1}>
+                                    {item.value}
+                                  </Text>
+                                </XStack>
+                              ))}
+                            </YStack>
+                          )}
+                        </YStack>
+                      </Card>
+                    )}
+
                     {/* Recording Stats Card */}
                     {isRecordedRoute(routeData) &&
                       (() => {
@@ -1272,7 +1464,7 @@ export function RouteDetailSheet({
                                 size="sm"
                               >
                                 <Text color="white" fontSize="$3" fontWeight="600">
-                                  {allExercisesCompleted ? 'Review' : 'Start'}
+                                  {allExercisesCompleted ? (t('routeDetail.reviewExercises') || 'Review') : (t('routeDetail.startExercises') || 'Start')}
                                 </Text>
                               </Button>
                             </XStack>
@@ -1328,13 +1520,74 @@ export function RouteDetailSheet({
                       )}
 
                     {/* Reviews Section */}
-                    <ReviewSection routeId={routeId!} reviews={reviews} onReviewAdded={loadReviews} />
+                    <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+                      <YStack gap="$3">
+                        <TouchableOpacity
+                          onPress={() => setShowReviewsDetails(!showReviewsDetails)}
+                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                        >
+                          <XStack alignItems="center" gap="$2">
+                            <Feather name="star" size={20} color={iconColor} />
+                            <Text fontSize="$5" fontWeight="600" color="$color">
+                              {t('routeDetail.reviews') || 'Reviews'}
+                            </Text>
+                            {reviews.length > 0 && (
+                              <View style={{
+                                backgroundColor: '#00E6C3',
+                                borderRadius: 12,
+                                paddingHorizontal: 8,
+                                paddingVertical: 2,
+                                minWidth: 20,
+                                alignItems: 'center',
+                              }}>
+                                <Text fontSize={12} color="#000" fontWeight="bold">
+                                  {reviews.length}
+                                </Text>
+                              </View>
+                            )}
+                          </XStack>
+                          <Feather 
+                            name={showReviewsDetails ? "chevron-up" : "chevron-down"} 
+                            size={20} 
+                            color={iconColor} 
+                          />
+                        </TouchableOpacity>
+
+                        {showReviewsDetails && (
+                          <YStack>
+                            <ReviewSection routeId={routeId!} reviews={reviews} onReviewAdded={loadReviews} />
+                          </YStack>
+                        )}
+                      </YStack>
+                    </Card>
 
                     {/* Comments Section */}
-                    <YStack gap="$2">
-                      <Text fontSize="$5" fontWeight="600" color="$color">{t('routeDetail.comments') || 'Comments'}</Text>
-                      <CommentsSection targetType="route" targetId={routeId!} />
-                    </YStack>
+                    <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+                      <YStack gap="$3">
+                        <TouchableOpacity
+                          onPress={() => setShowCommentsDetails(!showCommentsDetails)}
+                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                        >
+                          <XStack alignItems="center" gap="$2">
+                            <Feather name="message-circle" size={20} color={iconColor} />
+                            <Text fontSize="$5" fontWeight="600" color="$color">
+                              {t('routeDetail.comments') || 'Comments'}
+                            </Text>
+                          </XStack>
+                          <Feather 
+                            name={showCommentsDetails ? "chevron-up" : "chevron-down"} 
+                            size={20} 
+                            color={iconColor} 
+                          />
+                        </TouchableOpacity>
+
+                        {showCommentsDetails && (
+                          <YStack>
+                            <CommentsSection targetType="route" targetId={routeId!} />
+                          </YStack>
+                        )}
+                      </YStack>
+                    </Card>
                   </YStack>
                 </ScrollView>
               )}
@@ -1347,10 +1600,12 @@ export function RouteDetailSheet({
                   onClose={() => setShowReportDialog(false)}
                 />
               )}
-                </YStack>
-              </ReanimatedAnimated.View>
-            </GestureDetector>
-          </Animated.View>
+                </>
+              )}
+
+              </YStack>
+            </ReanimatedAnimated.View>
+          </GestureDetector>
         </View>
       </Animated.View>
     </Modal>

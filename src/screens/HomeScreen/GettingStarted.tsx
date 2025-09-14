@@ -723,28 +723,28 @@ export const GettingStarted = () => {
     checkConnections();
   }, [user]);
 
-  // Check if user has created events
-  React.useEffect(() => {
-    const checkCreatedEvents = async () => {
-      if (!user) return;
-      try {
-        const { count, error } = await supabase
-          .from('events')
-          .select('id', { count: 'exact', head: true })
-          .eq('creator_id', user.id);
+  // Check if user has created events - DISABLED FOR BETA
+  // React.useEffect(() => {
+  //   const checkCreatedEvents = async () => {
+  //     if (!user) return;
+  //     try {
+  //       const { count, error } = await supabase
+  //         .from('events')
+  //         .select('id', { count: 'exact', head: true })
+  //         .eq('creator_id', user.id);
 
-        if (!error && typeof count === 'number') {
-          setHasCreatedEvent(count > 0);
-        } else {
-          setHasCreatedEvent(false);
-        }
-      } catch (err) {
-        setHasCreatedEvent(false);
-      }
-    };
+  //       if (!error && typeof count === 'number') {
+  //         setHasCreatedEvent(count > 0);
+  //       } else {
+  //         setHasCreatedEvent(false);
+  //       }
+  //     } catch (err) {
+  //       setHasCreatedEvent(false);
+  //     }
+  //   };
 
-    checkCreatedEvents();
-  }, [user]);
+  //   checkCreatedEvents();
+  // }, [user]);
 
   // Update license plan form data when profile changes (copied from ProfileScreen)
   React.useEffect(() => {
@@ -775,8 +775,8 @@ export const GettingStarted = () => {
     hasCompletedExercise &&
     hasSavedRoute &&
     hasRoleSelected &&
-    hasConnections &&
-    hasCreatedEvent;
+    hasConnections;
+    // hasCreatedEvent; // DISABLED FOR BETA
   if (isAllOnboardingCompleted) {
     return <></>;
   }
@@ -961,7 +961,7 @@ export const GettingStarted = () => {
             onPress={() => navigation.navigate('MainTabs', {
               screen: 'MapTab',
               params: { screen: 'MapScreen' }
-            })}
+            } as any)}
             activeOpacity={0.8}
             delayPressIn={50}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1112,8 +1112,8 @@ export const GettingStarted = () => {
             </TouchableOpacity>
           )}
 
-          {/* 7. Plan Your First Practice Event - moved to last */}
-          <TouchableOpacity
+          {/* 7. Plan Your First Practice Event - DISABLED FOR BETA */}
+          {/* <TouchableOpacity
             onPress={() => navigation.navigate('CreateEvent', {})}
             activeOpacity={0.8}
             delayPressIn={50}
@@ -1154,7 +1154,7 @@ export const GettingStarted = () => {
                 </Text>
               </YStack>
             </YStack>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </XStack>
       </ScrollView>
 
