@@ -184,6 +184,13 @@ export function CreateRouteSheet({
   // Current size state
   const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
 
+  // Wrap onClose with logging and force close
+  const handleClose = useCallback(() => {
+    console.log('🚪 [CreateRouteSheet] onClose called!', { visible, currentSnapPoint });
+    // Force the sheet to be invisible by calling onClose
+    onClose();
+  }, [onClose, visible, currentSnapPoint]);
+
   // Animation setup
   useEffect(() => {
     if (visible) {
@@ -217,6 +224,12 @@ export function CreateRouteSheet({
 
   // Snap to size
   const snapToSize = useCallback((size: 'large' | 'medium' | 'small' | 'mini' | 'dismissed') => {
+    console.log('📏 [CreateRouteSheet] Snapping to size:', size, {
+      targetPoint: snapPoints[size],
+      currentSnapPoint,
+      visible
+    });
+    
     const targetPoint = snapPoints[size];
     setCurrentSnapPoint(targetPoint);
     translateY.value = withSpring(targetPoint, {
@@ -229,9 +242,10 @@ export function CreateRouteSheet({
     });
     
     if (size === 'dismissed') {
-      runOnJS(onClose)();
+      console.log('📏 [CreateRouteSheet] Dismissing sheet - calling onClose');
+      runOnJS(handleClose)();
     }
-  }, [snapPoints, onClose]);
+  }, [snapPoints, handleClose, currentSnapPoint, visible]);
 
 
   // Pan gesture handler - matching RouteDetailSheet
@@ -514,16 +528,26 @@ export function CreateRouteSheet({
 
   // Handle backdrop press
   const handleBackdropPress = useCallback(() => {
+    console.log('🎯 [CreateRouteSheet] Backdrop pressed!', {
+      hasUnsavedChanges,
+      currentSnapPoint,
+      snapPoints,
+      visible
+    });
+    
     if (hasUnsavedChanges) {
       // Show confirmation dialog if there are unsaved changes
+      console.log('🎯 [CreateRouteSheet] Showing exit confirmation due to unsaved changes');
       setShowExitConfirmation(true);
     } else {
       // If no changes, check current size and handle accordingly
       if (currentSnapPoint === snapPoints.large) {
         // If at large size, minimize to mini first
+        console.log('🎯 [CreateRouteSheet] Large -> Mini');
         snapToSize('mini');
       } else if (currentSnapPoint === snapPoints.mini) {
         // If already at mini size, fade out backdrop and dismiss
+        console.log('🎯 [CreateRouteSheet] Mini -> Dismissed (fading backdrop)');
         backdropOpacity.value = withSpring(0, {
           damping: 20,
           mass: 1,
@@ -532,10 +556,11 @@ export function CreateRouteSheet({
         snapToSize('dismissed');
       } else {
         // For medium/small sizes, go to mini first
+        console.log('🎯 [CreateRouteSheet] Medium/Small -> Mini');
         snapToSize('mini');
       }
     }
-  }, [hasUnsavedChanges, currentSnapPoint, snapPoints, snapToSize, backdropOpacity]);
+  }, [hasUnsavedChanges, currentSnapPoint, snapPoints, snapToSize, backdropOpacity, visible]);
 
   // Create initial snapshot for comparison (after all state is initialized)
   useEffect(() => {
@@ -2202,30 +2227,32 @@ export function CreateRouteSheet({
       visible={visible}
       transparent
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
       statusBarTranslucent
     >
       <View style={{ flex: 1 }}>
-        {/* Backdrop */}
-        <ReanimatedAnimated.View
-          style={[
-            {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            },
-            animatedBackdropStyle,
-          ]}
-        >
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            activeOpacity={1}
-            onPress={handleBackdropPress}
-          />
-        </ReanimatedAnimated.View>
+        {/* Backdrop - only show when sheet is visible and not dismissed */}
+        {visible && currentSnapPoint !== snapPoints.dismissed && (
+          <ReanimatedAnimated.View
+            style={[
+              {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              },
+              animatedBackdropStyle,
+            ]}
+          >
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={1}
+              onPress={handleBackdropPress}
+            />
+          </ReanimatedAnimated.View>
+        )}
 
         {/* Sheet */}
         <GestureDetector gesture={panGesture}>

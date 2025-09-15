@@ -76,7 +76,7 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
   const textColor = colorScheme === 'dark' ? 'white' : 'black';
   const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
   const handleColor = colorScheme === 'dark' ? '#666' : '#CCC';
-  const { showModal } = useModal();
+  const { showModal, hideModal } = useModal();
 
   // Animation values
   const translateY = useRef(new Animated.Value(screenHeight)).current;
@@ -154,7 +154,8 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
       <CreateRouteSheet
         visible={true}
         onClose={() => {
-          // Modal will be closed by the modal context
+          console.log('🎭 [ActionSheet] CreateRouteSheet onClose called - closing modal');
+          hideModal();
         }}
         onRouteCreated={(routeId) => {
           console.log('🎭 ✅ Route created with ID:', routeId);

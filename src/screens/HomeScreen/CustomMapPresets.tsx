@@ -161,15 +161,18 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
 
   // Handle edit preset
   const handleEditPreset = useCallback((preset: MapPreset) => {
+    console.log('🔧 [CustomMapPresets] Edit preset clicked:', preset.id, preset.name);
     showModal(
       <AddToPresetSheet
         isVisible={true}
         onClose={() => {
+          console.log('🔧 [CustomMapPresets] Edit modal closed');
           // Modal will be closed by the modal context
         }}
         routeId="temp-route-id"
         selectedCollectionId={preset.id}
         onPresetCreated={(updatedPreset) => {
+          console.log('🔧 [CustomMapPresets] Preset updated:', updatedPreset);
           setPresets(prev => prev.map(p => p.id === updatedPreset.id ? updatedPreset : p));
           showToast({
             title: t('routeCollections.updated') || 'Collection Updated',
@@ -222,15 +225,18 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
 
   // Handle share preset
   const handleSharePreset = useCallback((preset: MapPreset) => {
+    console.log('🔗 [CustomMapPresets] Share preset clicked:', preset.id, preset.name);
     showModal(
       <AddToPresetSheet
         isVisible={true}
         onClose={() => {
+          console.log('🔗 [CustomMapPresets] Share modal closed');
           // Modal will be closed by the modal context
         }}
         routeId="temp-route-id"
         selectedCollectionId={preset.id}
         onPresetCreated={(updatedPreset) => {
+          console.log('🔗 [CustomMapPresets] Preset updated:', updatedPreset);
           setPresets(prev => prev.map(p => p.id === updatedPreset.id ? updatedPreset : p));
           showToast({
             title: t('routeCollections.updated') || 'Collection Updated',
@@ -265,14 +271,17 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
 
   // Handle manage presets
   const handleManagePresets = useCallback(() => {
+    console.log('⚙️ [CustomMapPresets] Manage presets clicked');
     showModal(
       <AddToPresetSheet
         isVisible={true}
         onClose={() => {
+          console.log('⚙️ [CustomMapPresets] Manage modal closed');
           // Modal will be closed by the modal context
         }}
         routeId="temp-route-id"
         onPresetCreated={(preset) => {
+          console.log('⚙️ [CustomMapPresets] New preset created:', preset);
           setPresets(prev => [preset, ...prev]);
           showToast({
             title: t('routeCollections.created') || 'Collection Created',
@@ -369,6 +378,14 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
             const isSelected = selectedPresetId === preset.id;
             const canEdit = preset.creator_id === effectiveUserId;
             
+            console.log('🔍 [CustomMapPresets] Rendering preset:', {
+              id: preset.id,
+              name: preset.name,
+              canEdit,
+              creator_id: preset.creator_id,
+              effectiveUserId
+            });
+            
             return (
               <XStack key={preset.id} alignItems="center" gap="$2">
                 <TouchableOpacity
@@ -443,7 +460,10 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
                 {canEdit && (
                   <XStack gap="$1">
                     <TouchableOpacity
-                      onPress={() => handleEditPreset(preset)}
+                      onPress={() => {
+                        console.log('🔧 [CustomMapPresets] Edit button pressed for preset:', preset.id);
+                        handleEditPreset(preset);
+                      }}
                       activeOpacity={0.7}
                     >
                       <Card
@@ -457,7 +477,10 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
                     </TouchableOpacity>
                     
                     <TouchableOpacity
-                      onPress={() => handleSharePreset(preset)}
+                      onPress={() => {
+                        console.log('🔗 [CustomMapPresets] Share button pressed for preset:', preset.id);
+                        handleSharePreset(preset);
+                      }}
                       activeOpacity={0.7}
                     >
                       <Card
