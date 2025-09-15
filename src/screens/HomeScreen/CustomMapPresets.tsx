@@ -231,8 +231,11 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
   // Handle create new preset
   const handleCreatePreset = useCallback(() => {
     showModal(
-      <MapPresetSheetModal
-        onCreatePreset={(preset) => {
+      <AddToPresetSheet
+        isVisible={true}
+        onClose={() => {}}
+        routeId="temp-route-id"
+        onPresetCreated={(preset) => {
           setPresets(prev => [preset, ...prev]);
           showToast({
             title: t('routeCollections.created') || 'Collection Created',
@@ -240,10 +243,6 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
             type: 'success'
           });
         }}
-        showCreateOption={true}
-        showEditOption={true}
-        showDeleteOption={true}
-        title={t('routeCollections.createNew') || 'Create New Collection'}
       />
     );
   }, [showModal, showToast, t]);
@@ -251,22 +250,18 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
   // Handle manage presets
   const handleManagePresets = useCallback(() => {
     showModal(
-      <MapPresetSheetModal
-        onEditPreset={(preset) => {
-          setPresets(prev => prev.map(p => p.id === preset.id ? preset : p));
+      <AddToPresetSheet
+        isVisible={true}
+        onClose={() => {}}
+        routeId="temp-route-id"
+        onPresetCreated={(preset) => {
+          setPresets(prev => [preset, ...prev]);
           showToast({
-            title: t('routeCollections.updated') || 'Collection Updated',
-            message: t('routeCollections.collectionUpdated')?.replace('{name}', preset.name) || `Collection "${preset.name}" has been updated`,
+            title: t('routeCollections.created') || 'Collection Created',
+            message: t('routeCollections.collectionCreated')?.replace('{name}', preset.name) || `Collection "${preset.name}" has been created`,
             type: 'success'
           });
         }}
-        onDeletePreset={(presetId) => {
-          setPresets(prev => prev.filter(p => p.id !== presetId));
-        }}
-        showCreateOption={true}
-        showEditOption={true}
-        showDeleteOption={true}
-        title={t('routeCollections.manage') || 'Manage Collections'}
       />
     );
   }, [showModal, showToast, t]);
@@ -365,19 +360,19 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
                 >
                   <Card
                     backgroundColor={isSelected ? "$backgroundHover" : "$background"}
-                    borderColor={isSelected ? "#00E6C3" : "$borderColor"}
+                    borderColor={isSelected ? (theme.success?.val || '#00E6C3') : "$borderColor"}
                     borderWidth={1}
                     padding="$3"
                     borderRadius="$3"
                     pressStyle={{
                       backgroundColor: "$backgroundHover",
-                      borderColor: "#00E6C3",
+                      borderColor: theme.success?.val || '#00E6C3',
                     }}
                   >
                     <XStack alignItems="center" justifyContent="space-between" flex={1}>
                       <XStack alignItems="center" gap="$3" flex={1}>
                         <Card
-                          backgroundColor={isSelected ? "rgba(0, 230, 195, 0.15)" : "rgba(0, 230, 195, 0.1)"}
+                          backgroundColor={isSelected ? `${theme.success?.val || '#00E6C3'}25` : `${theme.success?.val || '#00E6C3'}1A`}
                           width={32}
                           height={32}
                           borderRadius="$6"
@@ -462,10 +457,10 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
                       activeOpacity={0.7}
                     >
                       <Card
-                        backgroundColor="rgba(239, 68, 68, 0.1)"
+                        backgroundColor={`${theme.error?.val || '#EF4444'}1A`}
                         padding="$2"
                         borderRadius="$2"
-                        pressStyle={{ backgroundColor: "rgba(239, 68, 68, 0.2)" }}
+                        pressStyle={{ backgroundColor: `${theme.error?.val || '#EF4444'}33` }}
                       >
                         <Feather name="trash-2" size={16} color={theme.error?.val || '#EF4444'} />
                       </Card>

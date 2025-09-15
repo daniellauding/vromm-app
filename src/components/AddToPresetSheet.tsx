@@ -81,7 +81,7 @@ export function AddToPresetSheet({
   const [showSharingModal, setShowSharingModal] = useState(false);
   const [sharingSearchQuery, setSharingSearchQuery] = useState('');
   const [sharingSearchResults, setSharingSearchResults] = useState<any[]>([]);
-  const [selectedUsers, setSelectedUsers] = useState<Array<{ id: string; full_name: string; email: string; role?: string }>>([]);
+  const [selectedUsers, setSelectedUsers] = useState<Array<{ id: string; full_name: string; email: string; role?: string; sharingRole?: 'viewer' | 'editor' }>>([]);
   const [sharingCustomMessage, setSharingCustomMessage] = useState('');
   const [pendingCollectionInvitations, setPendingCollectionInvitations] = useState<any[]>([]);
 
@@ -364,17 +364,20 @@ export function AddToPresetSheet({
 
       if (createError) throw createError;
 
-      // Add route to the new preset
-      const { error: addError } = await supabase
-        .from('map_preset_routes')
-        .insert({
-          preset_id: newPreset.id,
-          route_id: routeId,
-          added_by: effectiveUserId,
-          added_at: new Date().toISOString(),
-        });
+      // Add route to the new preset (only if routeId is a valid UUID)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(routeId)) {
+        const { error: addError } = await supabase
+          .from('map_preset_routes')
+          .insert({
+            preset_id: newPreset.id,
+            route_id: routeId,
+            added_by: effectiveUserId,
+            added_at: new Date().toISOString(),
+          });
 
-      if (addError) throw addError;
+        if (addError) throw addError;
+      }
 
       setPresets(prev => [{ ...newPreset, route_count: 1 }, ...prev]);
       setRoutePresets(prev => [...prev, newPreset.id]);
@@ -487,7 +490,7 @@ export function AddToPresetSheet({
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, role')
-        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .or(`full_name.ilike.*${query}*,email.ilike.*${query}*`)
         .neq('id', effectiveUserId)
         .limit(10);
 
@@ -543,6 +546,7 @@ export function AddToPresetSheet({
                 targetUserId: targetUser.id,
                 targetUserName: targetUser.full_name,
                 invitationType: 'collection_sharing',
+                sharingRole: targetUser.sharingRole || 'viewer',
               },
               status: 'pending',
             });
@@ -574,6 +578,7 @@ export function AddToPresetSheet({
                 from_user_id: effectiveUserId,
                 from_user_name: user?.email,
                 customMessage: sharingCustomMessage.trim() || undefined,
+                sharingRole: targetUser.sharingRole || 'viewer',
               },
               action_url: 'vromm://notifications',
               priority: 'high',
@@ -756,10 +761,6 @@ export function AddToPresetSheet({
                             key={option.value}
                             onPress={() => {
                               setFormData(prev => ({ ...prev, visibility: option.value as any }));
-                              // If shared is selected, show the sharing modal
-                              if (option.value === 'shared') {
-                                showSharingSheet();
-                              }
                             }}
                             title={option.label}
                             description={option.value === 'shared' ? (t('routeCollections.sharedDescription') || 'Share with specific users') : ''}
@@ -774,6 +775,193 @@ export function AddToPresetSheet({
                           />
                         ))}
                       </YStack>
+                      
+                      {/* User Search Section - Show when "shared" is selected */}
+                      {formData.visibility === 'shared' && (
+                        <YStack gap="$3" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                          <Text weight="600" size="md" color="$color">
+                            {t('routeCollections.shareWithUsers') || 'Share with Users'}
+                          </Text>
+                          
+                          {/* Selected Users */}
+                          {selectedUsers.length > 0 && (
+                            <YStack gap="$2">
+                              <Text size="sm" color="$gray11">
+                                {t('routeCollections.selectedUsers') || 'Selected Users'} ({selectedUsers.length}):
+                              </Text>
+                              {selectedUsers.map((user) => (
+                                <YStack key={user.id} padding="$2" backgroundColor="$background" borderRadius="$2" gap="$2">
+                                  <XStack alignItems="center" justifyContent="space-between">
+                                    <YStack flex={1}>
+                                      <Text fontSize="$3" fontWeight="600" color="$color">
+                                        {user.full_name || 'Unknown User'}
+                                      </Text>
+                                      <Text fontSize="$2" color="$gray11">
+                                        {user.email} • {user.role}
+                                      </Text>
+                                    </YStack>
+                                    <TouchableOpacity
+                                      onPress={() => {
+                                        setSelectedUsers(prev => prev.filter(u => u.id !== user.id));
+                                      }}
+                                      style={{
+                                        padding: 8,
+                                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                        borderRadius: 6,
+                                      }}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Feather name="x" size={14} color="#EF4444" />
+                                    </TouchableOpacity>
+                                  </XStack>
+                                  
+                                  {/* Role Selection */}
+                                  <YStack gap="$2">
+                                    <Text fontSize="$2" color="$gray11">
+                                      {t('routeCollections.selectRole') || 'Select role:'}
+                                    </Text>
+                                    <XStack gap="$2">
+                                      <TouchableOpacity
+                                        onPress={() => {
+                                          setSelectedUsers(prev => prev.map(u => 
+                                            u.id === user.id ? { ...u, sharingRole: 'viewer' } : u
+                                          ));
+                                        }}
+                                        style={{
+                                          flex: 1,
+                                          padding: 8,
+                                          borderRadius: 6,
+                                          borderWidth: 1,
+                                          borderColor: user.sharingRole === 'viewer' ? '#00E6C3' : '#ccc',
+                                          backgroundColor: user.sharingRole === 'viewer' ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
+                                        }}
+                                        activeOpacity={0.7}
+                                      >
+                                        <Text fontSize="$2" color="$color" textAlign="center">
+                                          {t('routeCollections.roleViewer') || 'Viewer'}
+                                        </Text>
+                                      </TouchableOpacity>
+                                      <TouchableOpacity
+                                        onPress={() => {
+                                          setSelectedUsers(prev => prev.map(u => 
+                                            u.id === user.id ? { ...u, sharingRole: 'editor' } : u
+                                          ));
+                                        }}
+                                        style={{
+                                          flex: 1,
+                                          padding: 8,
+                                          borderRadius: 6,
+                                          borderWidth: 1,
+                                          borderColor: user.sharingRole === 'editor' ? '#00E6C3' : '#ccc',
+                                          backgroundColor: user.sharingRole === 'editor' ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
+                                        }}
+                                        activeOpacity={0.7}
+                                      >
+                                        <Text fontSize="$2" color="$color" textAlign="center">
+                                          {t('routeCollections.roleEditor') || 'Editor'}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    </XStack>
+                                  </YStack>
+                                </YStack>
+                              ))}
+                            </YStack>
+                          )}
+                          
+                          {/* User Search Input */}
+                          <YStack gap="$2">
+                            <Text size="sm" color="$gray11">
+                              {t('routeCollections.searchUsers') || 'Search for users to share with:'}
+                            </Text>
+                            <Input
+                              placeholder={t('routeCollections.searchUsersPlaceholder') || 'Search by name or email...'}
+                              value={sharingSearchQuery}
+                              onChangeText={handleSharingSearchUsers}
+                              backgroundColor="$background"
+                              borderColor="$borderColor"
+                              color="$color"
+                              placeholderTextColor="$gray10"
+                            />
+                          </YStack>
+                          
+                          {/* Search Results */}
+                          {sharingSearchQuery.length >= 2 && (
+                            <ScrollView style={{ maxHeight: 200 }}>
+                              <YStack gap="$2">
+                                {sharingSearchResults.length === 0 ? (
+                                  <Text fontSize="$3" color="$gray11" textAlign="center" paddingVertical="$2">
+                                    {t('routeCollections.noUsersFound') || 'No users found'}
+                                  </Text>
+                                ) : (
+                                  sharingSearchResults.map((user) => {
+                                    const isSelected = selectedUsers.some(u => u.id === user.id);
+                                    return (
+                                      <TouchableOpacity
+                                        key={user.id}
+                                        onPress={() => {
+                                          if (isSelected) {
+                                            setSelectedUsers(prev => prev.filter(u => u.id !== user.id));
+                                          } else {
+                                            setSelectedUsers(prev => [...prev, { ...user, sharingRole: 'viewer' }]);
+                                          }
+                                        }}
+                                        style={{
+                                          padding: 12,
+                                          borderRadius: 8,
+                                          borderWidth: isSelected ? 2 : 1,
+                                          borderColor: isSelected ? (colorScheme === 'dark' ? '#00E6C3' : '#00E6C3') : (colorScheme === 'dark' ? '#666' : '#ccc'),
+                                          backgroundColor: isSelected ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
+                                        }}
+                                        activeOpacity={0.7}
+                                      >
+                                        <XStack gap={8} alignItems="center">
+                                          <YStack flex={1}>
+                                            <Text color="$color" fontSize={14} fontWeight="600">
+                                              {user.full_name || 'Unknown User'}
+                                            </Text>
+                                            <Text fontSize={12} color="$gray11">
+                                              {user.email} • {user.role}
+                                            </Text>
+                                          </YStack>
+                                          {isSelected ? (
+                                            <Feather name="check" size={16} color="#00E6C3" />
+                                          ) : (
+                                            <Feather name="plus-circle" size={16} color={colorScheme === 'dark' ? '#666' : '#ccc'} />
+                                          )}
+                                        </XStack>
+                                      </TouchableOpacity>
+                                    );
+                                  })
+                                )}
+                              </YStack>
+                            </ScrollView>
+                          )}
+                          
+                          {/* Custom Message Input */}
+                          <YStack gap="$2">
+                            <Text size="sm" color="$gray11">
+                              {t('routeCollections.optionalMessage') || 'Optional message:'}
+                            </Text>
+                            <TextInput
+                              value={sharingCustomMessage}
+                              onChangeText={setSharingCustomMessage}
+                              placeholder={t('routeCollections.messagePlaceholder') || 'Add a personal message...'}
+                              multiline
+                              style={{
+                                backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#fff',
+                                color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
+                                borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                                borderWidth: 1,
+                                borderRadius: 8,
+                                padding: 12,
+                                minHeight: 60,
+                                textAlignVertical: 'top',
+                              }}
+                              placeholderTextColor={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
+                            />
+                          </YStack>
+                        </YStack>
+                      )}
                     </YStack>
                   </YStack>
                 </ScrollView>
@@ -810,7 +998,7 @@ export function AddToPresetSheet({
                                       borderRadius: 4,
                                     }}
                                   >
-                                    <Text fontSize="$1" fontWeight="600" color="#000000">
+                                    <Text fontSize="$1" fontWeight="600" color="white">
                                       {t('routeCollections.default') || 'Default'}
                                     </Text>
                                   </View>
