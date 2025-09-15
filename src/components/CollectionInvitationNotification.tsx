@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Text, XStack, YStack, Button } from 'tamagui';
+import { Alert } from 'react-native';
+import { Text, XStack, YStack, Button, ScrollView, Spinner, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
+import { useTheme } from '@tamagui/core';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useToast } from '../contexts/ToastContext';
 import { collectionSharingService, CollectionInvitation } from '../services/collectionSharingService';
@@ -21,6 +22,7 @@ export function CollectionInvitationNotification({
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { user } = useAuth();
+  const theme = useTheme();
   
   const [invitations, setInvitations] = useState<CollectionInvitation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,6 +40,7 @@ export function CollectionInvitationNotification({
     setLoading(true);
     try {
       const pendingInvitations = await collectionSharingService.getPendingInvitations(user.id);
+      console.log('🔍 [CollectionInvitationNotification] Loaded invitations:', pendingInvitations);
       setInvitations(pendingInvitations);
     } catch (error) {
       console.error('Error loading pending invitations:', error);
@@ -136,131 +139,225 @@ export function CollectionInvitationNotification({
     );
   };
 
-  if (!visible || invitations.length === 0) {
-    return null;
-  }
+  if (!visible) return null;
 
   return (
-    <View style={styles.overlay}>
-      <View style={styles.modal}>
-        <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-          <Text fontSize="$6" fontWeight="600" color="$color">
+    <YStack
+      position="absolute"
+      top={0}
+      left={0}
+      right={0}
+      bottom={0}
+      backgroundColor="rgba(0, 0, 0, 0.7)"
+      justifyContent="center"
+      alignItems="center"
+      zIndex={1000}
+    >
+      <YStack
+        backgroundColor={theme.background?.val || '$background'}
+        borderRadius="$4"
+        padding="$4"
+        margin="$4"
+        maxWidth={400}
+        width="100%"
+        borderWidth={1}
+        borderColor={theme.borderColor?.val || '$borderColor'}
+        shadowColor={theme.shadowColor?.val || '$shadowColor'}
+        shadowOffset={{ width: 0, height: 4 }}
+        shadowOpacity={0.3}
+        shadowRadius={8}
+        elevation={8}
+        maxHeight="80%"
+      >
+        {/* Header */}
+        <XStack
+          justifyContent="space-between"
+          alignItems="center"
+          marginBottom="$4"
+          paddingBottom="$3"
+          borderBottomWidth={1}
+          borderBottomColor={theme.borderColor?.val || '$borderColor'}
+        >
+          <Text
+            fontSize="$6"
+            fontWeight="600"
+            color={theme.color?.val || '$color'}
+          >
             {t('collectionSharing.collectionInvitations') || 'Collection Invitations'}
           </Text>
-          <TouchableOpacity onPress={onClose}>
-            <Feather name="x" size={24} color="#666" />
-          </TouchableOpacity>
+          <Button
+            variant="outlined"
+            size="$3"
+            onPress={onClose}
+            backgroundColor="transparent"
+            borderColor={theme.borderColor?.val || '$borderColor'}
+            color={theme.color?.val || '$color'}
+          >
+            <Feather name="x" size={20} color={theme.color?.val || '#666'} />
+          </Button>
         </XStack>
 
-        <YStack gap="$4" maxHeight={400}>
-          {loading ? (
-            <YStack alignItems="center" padding="$4">
-              <Text color="$gray10">{t('common.loading') || 'Loading...'}</Text>
-            </YStack>
-          ) : (
-            invitations.map((invitation) => (
-              <View key={invitation.id} style={styles.invitationCard}>
-                <YStack gap="$2">
-                  <XStack alignItems="center" gap="$2">
-                    <Feather name="users" size={16} color="#00E6C3" />
-                    <Text fontSize="$4" fontWeight="600" color="$color" flex={1}>
-                      {invitation.collection_name}
-                    </Text>
-                  </XStack>
-                  
-                  <Text fontSize="$3" color="$gray10">
-                    {t('collectionSharing.invitedBy')?.replace('{name}', invitation.invited_by_name) || 
-                     `Invited by ${invitation.invited_by_name}`}
-                  </Text>
-                  
-                  {invitation.message && (
-                    <Text fontSize="$3" color="$gray10" fontStyle="italic">
-                      "{invitation.message}"
-                    </Text>
-                  )}
-                  
-                  <XStack gap="$2" marginTop="$2">
-                    <Button
-                      flex={1}
-                      backgroundColor="#00E6C3"
-                      color="#000000"
-                      size="$3"
-                      onPress={() => handleAcceptInvitation(invitation.id)}
-                      disabled={processingInvitation === invitation.id}
-                    >
-                      <Text color="#000000" fontWeight="600" fontSize="$3">
-                        {processingInvitation === invitation.id 
-                          ? (t('common.processing') || 'Processing...')
-                          : (t('common.accept') || 'Accept')
-                        }
-                      </Text>
-                    </Button>
-                    
-                    <Button
-                      flex={1}
-                      backgroundColor="transparent"
-                      borderColor="$borderColor"
-                      borderWidth={1}
-                      color="$color"
-                      size="$3"
-                      onPress={() => handleRejectInvitation(invitation.id)}
-                      disabled={processingInvitation === invitation.id}
-                    >
-                      <Text color="$color" fontWeight="600" fontSize="$3">
-                        {t('common.reject') || 'Reject'}
-                      </Text>
-                    </Button>
-                  </XStack>
-                </YStack>
-              </View>
-            ))
-          )}
-        </YStack>
+        {/* Loading State */}
+        {loading && (
+          <YStack alignItems="center" justifyContent="center" flex={1}>
+            <Spinner size="large" color={theme.color?.val || '$color'} />
+            <Text
+              marginTop="$3"
+              color={theme.color?.val || '$color'}
+              opacity={0.7}
+            >
+              {t('common.loading') || 'Loading...'}
+            </Text>
+          </YStack>
+        )}
 
+        {/* Empty State */}
+        {!loading && invitations.length === 0 && (
+          <YStack alignItems="center" justifyContent="center" flex={1}>
+            <Text
+              fontSize="$5"
+              color={theme.color?.val || '$color'}
+              opacity={0.7}
+              textAlign="center"
+            >
+              {t('collectionSharing.noInvitations') || 'No pending invitations'}
+            </Text>
+          </YStack>
+        )}
+
+        {/* Invitations List */}
+        {!loading && invitations.length > 0 && (
+          <ScrollView flex={1} showsVerticalScrollIndicator={false}>
+            <YStack gap="$3">
+              {invitations.map((invitation) => (
+                <Card
+                  key={invitation.id}
+                  padding="$4"
+                  backgroundColor={theme.cardBackground?.val || '$cardBackground'}
+                  borderWidth={1}
+                  borderColor={theme.borderColor?.val || '$borderColor'}
+                  borderRadius="$4"
+                  shadowColor={theme.shadowColor?.val || '$shadowColor'}
+                  shadowOffset={{ width: 0, height: 2 }}
+                  shadowOpacity={0.1}
+                  shadowRadius={4}
+                  elevation={2}
+                >
+                  <YStack gap="$3">
+                    {/* Collection Name */}
+                    <XStack alignItems="center" gap="$2">
+                      <Feather name="users" size={16} color={theme.success?.val || '#00E6C3'} />
+                      <Text
+                        fontSize="$5"
+                        fontWeight="600"
+                        color={theme.color?.val || '$color'}
+                        flex={1}
+                      >
+                        {invitation.collection_name}
+                      </Text>
+                    </XStack>
+
+                    {/* Inviter Info */}
+                    <XStack alignItems="center" gap="$2">
+                      <Text
+                        fontSize="$3"
+                        color={theme.color?.val || '$color'}
+                        opacity={0.7}
+                      >
+                        {t('collectionSharing.invitedBy') || 'Invited by'}:
+                      </Text>
+                      <Text
+                        fontSize="$3"
+                        fontWeight="500"
+                        color={theme.color?.val || '$color'}
+                      >
+                        {invitation.invited_by_name}
+                      </Text>
+                    </XStack>
+
+                    {/* Custom Message */}
+                    {invitation.message && (
+                      <YStack>
+                        <Text
+                          fontSize="$3"
+                          color={theme.color?.val || '$color'}
+                          opacity={0.7}
+                          marginBottom="$2"
+                        >
+                          {t('collectionSharing.message') || 'Message'}:
+                        </Text>
+                        <Text
+                          fontSize="$3"
+                          color={theme.color?.val || '$color'}
+                          backgroundColor={theme.background?.val || '$background'}
+                          padding="$3"
+                          borderRadius="$3"
+                          borderWidth={1}
+                          borderColor={theme.borderColor?.val || '$borderColor'}
+                          fontStyle="italic"
+                        >
+                          "{invitation.message}"
+                        </Text>
+                      </YStack>
+                    )}
+
+                    {/* Action Buttons */}
+                    <XStack gap="$3" marginTop="$2">
+                      <Button
+                        flex={1}
+                        size="$3"
+                        onPress={() => handleAcceptInvitation(invitation.id)}
+                        disabled={processingInvitation === invitation.id}
+                        backgroundColor={theme.success?.val || '#00E6C3'}
+                        color="white"
+                        fontWeight="600"
+                      >
+                        {processingInvitation === invitation.id ? (
+                          <Spinner size="small" color="white" />
+                        ) : (
+                          t('common.accept') || 'Accept'
+                        )}
+                      </Button>
+                      <Button
+                        flex={1}
+                        variant="outlined"
+                        size="$3"
+                        onPress={() => handleRejectInvitation(invitation.id)}
+                        disabled={processingInvitation === invitation.id}
+                        backgroundColor="transparent"
+                        borderColor={theme.borderColor?.val || '$borderColor'}
+                        color={theme.color?.val || '$color'}
+                      >
+                        {processingInvitation === invitation.id ? (
+                          <Spinner size="small" color={theme.color?.val || '$color'} />
+                        ) : (
+                          t('common.reject') || 'Reject'
+                        )}
+                      </Button>
+                    </XStack>
+                  </YStack>
+                </Card>
+              ))}
+            </YStack>
+          </ScrollView>
+        )}
+
+        {/* Bulk Actions */}
         {invitations.length > 1 && (
           <Button
-            backgroundColor="transparent"
-            borderColor="$borderColor"
-            borderWidth={1}
-            color="$color"
+            variant="outlined"
+            size="$3"
             marginTop="$4"
             onPress={handleDismissAll}
+            backgroundColor="transparent"
+            borderColor={theme.borderColor?.val || '$borderColor'}
+            color={theme.color?.val || '$color'}
           >
-            <Text color="$color">{t('collectionSharing.dismissAll') || 'Dismiss All'}</Text>
+            {t('collectionSharing.dismissAll') || 'Dismiss All'}
           </Button>
         )}
-      </View>
-    </View>
+      </YStack>
+    </YStack>
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10000,
-  },
-  modal: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 16,
-    padding: 24,
-    margin: 20,
-    maxWidth: 400,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  invitationCard: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-});

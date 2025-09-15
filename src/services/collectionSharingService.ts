@@ -12,6 +12,7 @@ export interface CollectionInvitation {
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
   updated_at: string;
+  message?: string;
 }
 
 export interface CollectionShareRequest {

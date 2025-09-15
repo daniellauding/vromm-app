@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, TouchableOpacity, useColorScheme } from 'react-native';
 import { YStack, XStack, Text, Card, Button } from 'tamagui';
+import { useTheme } from '@tamagui/core';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useAuth } from '../../context/AuthContext';
@@ -39,6 +40,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
   const { showToast } = useToast();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
+  const theme = useTheme();
 
   const [presets, setPresets] = useState<MapPreset[]>([]);
   const [loading, setLoading] = useState(false);
@@ -297,7 +299,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
               {t('routeCollections.myCollections') || 'My Collections'}
             </Text>
             <TouchableOpacity onPress={handleCreatePreset}>
-              <Feather name="plus" size={20} color="#00E6C3" />
+              <Feather name="plus" size={20} color={theme.success?.val || '#00E6C3'} />
             </TouchableOpacity>
           </XStack>
           
@@ -310,12 +312,12 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
               {t('routeCollections.createFirst') || 'Create your first collection to organize routes'}
             </Text>
             <Button
-              backgroundColor="#00E6C3"
-              color="#000000"
+              backgroundColor={theme.success?.val || '#00E6C3'}
+              color="white"
               onPress={handleCreatePreset}
               size="$4"
             >
-              <Text color="#000000" fontWeight="600">
+              <Text color="white" fontWeight="600">
                 {t('routeCollections.createFirst') || 'Create First Collection'}
               </Text>
             </Button>
@@ -334,7 +336,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
           </Text>
           <XStack gap="$2">
             <TouchableOpacity onPress={handleCreatePreset}>
-              <Feather name="plus" size={20} color="#00E6C3" />
+              <Feather name="plus" size={20} color={theme.success?.val || '#00E6C3'} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleManagePresets}>
               <Feather name="settings" size={20} color="$gray10" />
@@ -381,7 +383,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
                               preset.visibility === 'shared' ? 'users' : 'lock'
                             }
                             size={16}
-                            color="#00E6C3"
+                            color={theme.success?.val || '#00E6C3'}
                           />
                         </Card>
                         <YStack flex={1}>
@@ -391,12 +393,12 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
                             </Text>
                             {preset.is_default && (
                               <Card
-                                backgroundColor="#00E6C3"
+                                backgroundColor={theme.success?.val || '#00E6C3'}
                                 paddingHorizontal="$2"
                                 paddingVertical="$1"
                                 borderRadius="$2"
                               >
-                                <Text fontSize="$1" fontWeight="600" color="#000000">
+                                <Text fontSize="$1" fontWeight="600" color="white">
                                   {t('routeCollections.default') || 'Default'}
                                 </Text>
                               </Card>
@@ -458,7 +460,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
                         borderRadius="$2"
                         pressStyle={{ backgroundColor: "rgba(239, 68, 68, 0.2)" }}
                       >
-                        <Feather name="trash-2" size={16} color="#EF4444" />
+                        <Feather name="trash-2" size={16} color={theme.error?.val || '#EF4444'} />
                       </Card>
                     </TouchableOpacity>
                   </XStack>
