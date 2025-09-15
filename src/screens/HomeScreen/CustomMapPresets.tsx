@@ -8,8 +8,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useModal } from '../../contexts/ModalContext';
 import { useToast } from '../../contexts/ToastContext';
-import { MapPresetSheetModal } from '../../components/MapPresetSheet';
-import { CollectionSharingModal } from '../../components/CollectionSharingModal';
 import { AddToPresetSheet } from '../../components/AddToPresetSheet';
 import { supabase } from '../../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
@@ -45,8 +43,6 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
   const [presets, setPresets] = useState<MapPreset[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
-  const [showSharingModal, setShowSharingModal] = useState(false);
-  const [sharingPreset, setSharingPreset] = useState<MapPreset | null>(null);
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
 
@@ -152,13 +148,13 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
     setSelectedPresetId(preset.id);
     (navigation as any).navigate('MainTabs', {
       screen: 'MapTab',
-      params: {
-        screen: 'MapScreen',
-        params: {
+      params: { 
+        screen: 'MapScreen', 
+        params: { 
           selectedPresetId: preset.id,
           presetName: preset.name,
           fromHomeScreen: true, // Flag to indicate this came from home screen
-        },
+        } 
       },
     });
   }, [navigation, effectiveUserId]);
@@ -166,8 +162,14 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
   // Handle edit preset
   const handleEditPreset = useCallback((preset: MapPreset) => {
     showModal(
-      <MapPresetSheetModal
-        onEditPreset={(updatedPreset) => {
+      <AddToPresetSheet
+        isVisible={true}
+        onClose={() => {
+          // Modal will be closed by the modal context
+        }}
+        routeId="temp-route-id"
+        selectedCollectionId={preset.id}
+        onPresetCreated={(updatedPreset) => {
           setPresets(prev => prev.map(p => p.id === updatedPreset.id ? updatedPreset : p));
           showToast({
             title: t('routeCollections.updated') || 'Collection Updated',
@@ -175,10 +177,6 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
             type: 'success'
           });
         }}
-        showCreateOption={false}
-        showEditOption={true}
-        showDeleteOption={false}
-        title={t('routeCollections.editCollection') || 'Edit Collection'}
       />
     );
   }, [showModal, showToast, t]);
@@ -224,16 +222,34 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
 
   // Handle share preset
   const handleSharePreset = useCallback((preset: MapPreset) => {
-    setSharingPreset(preset);
-    setShowSharingModal(true);
-  }, []);
+    showModal(
+      <AddToPresetSheet
+        isVisible={true}
+        onClose={() => {
+          // Modal will be closed by the modal context
+        }}
+        routeId="temp-route-id"
+        selectedCollectionId={preset.id}
+        onPresetCreated={(updatedPreset) => {
+          setPresets(prev => prev.map(p => p.id === updatedPreset.id ? updatedPreset : p));
+          showToast({
+            title: t('routeCollections.updated') || 'Collection Updated',
+            message: t('routeCollections.collectionUpdated')?.replace('{name}', updatedPreset.name) || `Collection "${updatedPreset.name}" has been updated`,
+            type: 'success'
+          });
+        }}
+      />
+    );
+  }, [showModal, showToast, t]);
 
   // Handle create new preset
   const handleCreatePreset = useCallback(() => {
     showModal(
       <AddToPresetSheet
         isVisible={true}
-        onClose={() => {}}
+        onClose={() => {
+          // Modal will be closed by the modal context
+        }}
         routeId="temp-route-id"
         onPresetCreated={(preset) => {
           setPresets(prev => [preset, ...prev]);
@@ -252,7 +268,9 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
     showModal(
       <AddToPresetSheet
         isVisible={true}
-        onClose={() => {}}
+        onClose={() => {
+          // Modal will be closed by the modal context
+        }}
         routeId="temp-route-id"
         onPresetCreated={(preset) => {
           setPresets(prev => [preset, ...prev]);
@@ -535,27 +553,6 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
         onClose={() => setShowCollectionSelector(false)}
       />
 
-      {/* Collection Sharing Modal */}
-      {sharingPreset && (
-        <CollectionSharingModal
-          isVisible={showSharingModal}
-          onClose={() => {
-            setShowSharingModal(false);
-            setSharingPreset(null);
-          }}
-          collectionId={sharingPreset.id}
-          collectionName={sharingPreset.name}
-          onInvitationSent={() => {
-            showToast({
-              title: t('routeCollections.invitationsSent') || 'Invitations Sent',
-              message: t('routeCollections.invitationsSentMessage')?.replace('{count}', '1') || 'Invitation sent successfully',
-              type: 'success'
-            });
-            setShowSharingModal(false);
-            setSharingPreset(null);
-          }}
-        />
-      )}
     </Card>
   );
 };

@@ -14,13 +14,15 @@ import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
 import { RecordDrivingModal, RecordedRouteData } from './RecordDrivingSheet';
+import { CreateRouteSheet } from './CreateRouteSheet';
 
 interface ActionSheetProps {
   isVisible: boolean;
   onClose: () => void;
   onCreateRoute: (routeData?: RecordedRouteData) => void;
   onMaximizeWizard?: (routeData: any) => void; // Callback for maximizing wizard
-  onCreateEvent?: () => void; // Callback for creating event
+  // onCreateEvent?: () => void; // Callback for creating event
+  onNavigateToMap?: (routeId: string) => void; // Callback for navigation
 }
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
@@ -67,7 +69,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizard, onCreateEvent }: ActionSheetProps) {
+export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizard, onCreateEvent, onNavigateToMap }: ActionSheetProps) {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
@@ -138,6 +140,34 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
     console.log('🎭 ActionSheet closed, calling onCreateRoute callback...');
     onCreateRoute();
     console.log('🎭 ✅ onCreateRoute callback completed');
+  };
+
+  // Handle "Create Route Sheet" option
+  const handleCreateRouteSheet = () => {
+    console.log('🎭 ==================== ACTION SHEET - CREATE ROUTE SHEET ====================');
+    console.log('🎭 ActionSheet Create Route Sheet pressed');
+    console.log('🎭 About to close ActionSheet and show CreateRouteSheet...');
+
+    onClose();
+    console.log('🎭 ActionSheet closed, showing CreateRouteSheet...');
+    showModal(
+      <CreateRouteSheet
+        visible={true}
+        onClose={() => {
+          // Modal will be closed by the modal context
+        }}
+        onRouteCreated={(routeId) => {
+          console.log('🎭 ✅ Route created with ID:', routeId);
+          // Optionally call onCreateRoute with the new route ID
+          onCreateRoute();
+        }}
+        onRouteUpdated={(routeId) => {
+          console.log('🎭 ✅ Route updated with ID:', routeId);
+        }}
+        onNavigateToMap={onNavigateToMap}
+      />
+    );
+    console.log('🎭 ✅ CreateRouteSheet shown');
   };
 
   // Handle "Share Route" option (new wizard)
@@ -215,14 +245,13 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
         ]}
       >
         <View style={styles.handleContainer}>
-          <View style={[styles.handle, { backgroundColor: handleColor }]} />
           <Text fontWeight="600" fontSize={24} color={textColor} pb="$2">
             {t('map.actions') || 'Actions'}
           </Text>
         </View>
 
         <YStack>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[styles.actionButton, { borderBottomColor: borderColor }]}
             onPress={handleShareRoute}
           >
@@ -246,9 +275,9 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
                 </Text>
               </View>
             </XStack>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[styles.actionButton, { borderBottomColor: borderColor }]}
             onPress={handleCreateEvent}
           >
@@ -258,7 +287,7 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
                 Create Event
               </Text>
             </XStack>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={[styles.actionButton, { borderBottomColor: borderColor }]}
@@ -273,16 +302,28 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionButton, { borderBottomColor: 'transparent' }]}
-            onPress={handleCreateRoute}
+            style={[styles.actionButton, { borderBottomColor: borderColor }]}
+            onPress={handleCreateRouteSheet}
           >
             <XStack alignItems="center" gap="$3">
               <Feather name="edit-3" size={24} color={textColor} />
               <Text fontWeight="500" fontSize={18} color={textColor}>
-                {t('createRoute.createTitle') || 'Advanced Create'}
+                {t('createRoute.createTitle') || 'Create Route'}
               </Text>
             </XStack>
           </TouchableOpacity>
+
+          {/* <TouchableOpacity
+            style={[styles.actionButton, { borderBottomColor: 'transparent' }]}
+            onPress={handleCreateRoute}
+          >
+            <XStack alignItems="center" gap="$3">
+              <Feather name="settings" size={24} color={textColor} />
+              <Text fontWeight="500" fontSize={18} color={textColor}>
+                {t('createRoute.advancedCreate') || 'Advanced Create'}
+              </Text>
+            </XStack>
+          </TouchableOpacity> */}
         </YStack>
       </Animated.View>
     </View>
@@ -293,12 +334,14 @@ export function ActionSheetModal({
   onCreateRoute,
   onMaximizeWizard,
   onCreateEvent,
+  onNavigateToMap,
 }: {
   onCreateRoute: (routeData?: RecordedRouteData) => void;
   onMaximizeWizard?: (routeData: any) => void;
   onCreateEvent?: () => void;
+  onNavigateToMap?: (routeId: string) => void;
 }) {
   const { hideModal } = useModal();
 
-  return <ActionSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} onMaximizeWizard={onMaximizeWizard} onCreateEvent={onCreateEvent} />;
+  return <ActionSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} onMaximizeWizard={onMaximizeWizard} onCreateEvent={onCreateEvent} onNavigateToMap={onNavigateToMap} />;
 }
