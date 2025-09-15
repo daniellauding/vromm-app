@@ -970,6 +970,18 @@ function AppContent() {
             checkForGlobalCollectionInvitations();
           }, 1000);
         }}
+        onCollectionPress={(collectionId, collectionName) => {
+          console.log('🗺️ [AppContent] Collection pressed, navigating to map:', { collectionId, collectionName });
+          // Close the modal first
+          setShowGlobalCollectionInvitationNotification(false);
+          // Navigate to map with collection filter
+          setTimeout(() => {
+            (navigationRef.current as any)?.navigate('Map', {
+              collectionId,
+              collectionName
+            });
+          }, 100);
+        }}
       />
 
       <NavigationContainer

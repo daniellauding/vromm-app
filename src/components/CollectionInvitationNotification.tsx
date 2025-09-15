@@ -3,7 +3,6 @@ import { Alert } from 'react-native';
 import { Text, XStack, YStack, Button, ScrollView, Spinner, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@tamagui/core';
-import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useToast } from '../contexts/ToastContext';
 import { collectionSharingService, CollectionInvitation } from '../services/collectionSharingService';
@@ -13,18 +12,19 @@ interface CollectionInvitationNotificationProps {
   visible: boolean;
   onClose: () => void;
   onInvitationHandled?: () => void;
+  onCollectionPress?: (collectionId: string, collectionName: string) => void;
 }
 
 export function CollectionInvitationNotification({ 
   visible, 
   onClose, 
-  onInvitationHandled 
+  onInvitationHandled,
+  onCollectionPress
 }: CollectionInvitationNotificationProps) {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { user } = useAuth();
   const theme = useTheme();
-  const navigation = useNavigation();
   
   const [invitations, setInvitations] = useState<CollectionInvitation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -264,15 +264,12 @@ export function CollectionInvitationNotification({
                       collectionName: invitation.collection_name
                     });
                     
-                    // Navigate to map with collection filter
-                    try {
-                      (navigation as any).navigate('Map', {
-                        collectionId: invitation.collection_id,
-                        collectionName: invitation.collection_name
-                      });
-                      console.log('🗺️ [CollectionInvitationNotification] Navigating to map with collection:', invitation.collection_id);
-                    } catch (error) {
-                      console.error('❌ [CollectionInvitationNotification] Navigation error:', error);
+                    // Call the onCollectionPress callback if provided
+                    if (onCollectionPress) {
+                      onCollectionPress(invitation.collection_id, invitation.collection_name);
+                      console.log('🗺️ [CollectionInvitationNotification] Calling onCollectionPress with:', invitation.collection_id);
+                    } else {
+                      console.log('⚠️ [CollectionInvitationNotification] No onCollectionPress callback provided');
                     }
                   }}
                   pressStyle={{ opacity: 0.7 }}

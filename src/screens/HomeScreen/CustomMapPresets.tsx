@@ -141,6 +141,13 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
 
   // Handle preset press - navigate to map with preset selected
   const handlePresetPress = useCallback((preset: MapPreset) => {
+    console.log('🗺️ [CustomMapPresets] Preset clicked:', {
+      id: preset.id,
+      name: preset.name,
+      visibility: preset.visibility,
+      creator_id: preset.creator_id,
+      effectiveUserId: effectiveUserId
+    });
     console.log('🗺️ [CustomMapPresets] Navigating to MapScreen with preset:', preset.id, preset.name);
     setSelectedPresetId(preset.id);
     (navigation as any).navigate('MainTabs', {
@@ -154,7 +161,7 @@ export const CustomMapPresets = ({ onRoutePress }: CustomMapPresetsProps = {}) =
         },
       },
     });
-  }, [navigation]);
+  }, [navigation, effectiveUserId]);
 
   // Handle edit preset
   const handleEditPreset = useCallback((preset: MapPreset) => {
