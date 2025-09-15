@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { Text, XStack, YStack, Button, ScrollView, Spinner, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@tamagui/core';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useToast } from '../contexts/ToastContext';
 import { collectionSharingService, CollectionInvitation } from '../services/collectionSharingService';
@@ -23,6 +24,7 @@ export function CollectionInvitationNotification({
   const { showToast } = useToast();
   const { user } = useAuth();
   const theme = useTheme();
+  const navigation = useNavigation();
   
   const [invitations, setInvitations] = useState<CollectionInvitation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,6 +43,7 @@ export function CollectionInvitationNotification({
     try {
       const pendingInvitations = await collectionSharingService.getPendingInvitations(user.id);
       console.log('🔍 [CollectionInvitationNotification] Loaded invitations:', pendingInvitations);
+      console.log('🔍 [CollectionInvitationNotification] Setting invitations state:', pendingInvitations.length);
       setInvitations(pendingInvitations);
     } catch (error) {
       console.error('Error loading pending invitations:', error);
@@ -141,6 +144,13 @@ export function CollectionInvitationNotification({
 
   if (!visible) return null;
 
+  console.log('🔍 [CollectionInvitationNotification] Rendering with:', {
+    visible,
+    loading,
+    invitationsCount: invitations.length,
+    invitations: invitations.map(inv => ({ id: inv.id, collection_name: inv.collection_name }))
+  });
+
   return (
     <YStack
       position="absolute"
@@ -152,6 +162,7 @@ export function CollectionInvitationNotification({
       justifyContent="center"
       alignItems="center"
       zIndex={1000}
+      onPress={onClose} // Click outside to close
     >
       <YStack
         backgroundColor={theme.background?.val || '$background'}
@@ -168,6 +179,7 @@ export function CollectionInvitationNotification({
         shadowRadius={8}
         elevation={8}
         maxHeight="80%"
+        onPress={(e) => e.stopPropagation()} // Prevent closing when clicking inside
       >
         {/* Header */}
         <XStack
@@ -197,36 +209,39 @@ export function CollectionInvitationNotification({
           </Button>
         </XStack>
 
-        {/* Loading State */}
-        {loading && (
-          <YStack alignItems="center" justifyContent="center" flex={1}>
-            <Spinner size="large" color={theme.color?.val || '$color'} />
-            <Text
-              marginTop="$3"
-              color={theme.color?.val || '$color'}
-              opacity={0.7}
-            >
-              {t('common.loading') || 'Loading...'}
-            </Text>
-          </YStack>
-        )}
+                {/* Loading State */}
+                {loading && (
+                  <YStack alignItems="center" justifyContent="center" flex={1}>
+                    <Spinner size="large" color={theme.color?.val || '$color'} />
+                    <Text
+                      marginTop="$3"
+                      color={theme.color?.val || '$color'}
+                      opacity={0.7}
+                    >
+                      {t('common.loading') || 'Loading...'}
+                    </Text>
+                  </YStack>
+                )}
 
-        {/* Empty State */}
-        {!loading && invitations.length === 0 && (
-          <YStack alignItems="center" justifyContent="center" flex={1}>
-            <Text
-              fontSize="$5"
-              color={theme.color?.val || '$color'}
-              opacity={0.7}
-              textAlign="center"
-            >
-              {t('collectionSharing.noInvitations') || 'No pending invitations'}
-            </Text>
-          </YStack>
-        )}
 
-        {/* Invitations List */}
-        {!loading && invitations.length > 0 && (
+                {/* Empty State */}
+                {!loading && invitations.length === 0 && (
+                  <YStack alignItems="center" justifyContent="center" flex={1}>
+                    <Text
+                      fontSize="$5"
+                      color={theme.color?.val || '$color'}
+                      opacity={0.7}
+                      textAlign="center"
+                    >
+                      {t('collectionSharing.noInvitations') || 'No pending invitations'}
+                    </Text>
+                  </YStack>
+                )}
+
+                {/* Invitations List */}
+                {!loading && invitations.length > 0 && (() => {
+                  console.log('🔍 [CollectionInvitationNotification] Rendering invitations list with', invitations.length, 'invitations');
+                  return (
           <ScrollView flex={1} showsVerticalScrollIndicator={false}>
             <YStack gap="$3">
               {invitations.map((invitation) => (
@@ -242,6 +257,25 @@ export function CollectionInvitationNotification({
                   shadowOpacity={0.1}
                   shadowRadius={4}
                   elevation={2}
+                  onPress={() => {
+                    console.log('🔍 [CollectionInvitationNotification] Collection clicked:', {
+                      invitationId: invitation.id,
+                      collectionId: invitation.collection_id,
+                      collectionName: invitation.collection_name
+                    });
+                    
+                    // Navigate to map with collection filter
+                    try {
+                      (navigation as any).navigate('Map', {
+                        collectionId: invitation.collection_id,
+                        collectionName: invitation.collection_name
+                      });
+                      console.log('🗺️ [CollectionInvitationNotification] Navigating to map with collection:', invitation.collection_id);
+                    } catch (error) {
+                      console.error('❌ [CollectionInvitationNotification] Navigation error:', error);
+                    }
+                  }}
+                  pressStyle={{ opacity: 0.7 }}
                 >
                   <YStack gap="$3">
                     {/* Collection Name */}
@@ -340,7 +374,8 @@ export function CollectionInvitationNotification({
               ))}
             </YStack>
           </ScrollView>
-        )}
+                  );
+                })()}
 
         {/* Bulk Actions */}
         {invitations.length > 1 && (
