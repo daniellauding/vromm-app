@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Alert, Modal, Pressable, Animated, useColorScheme } from 'react-native';
+import { Alert, Modal, Pressable, Animated, useColorScheme, View } from 'react-native';
 import { Text, XStack, YStack, Button, ScrollView, Spinner, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@tamagui/core';

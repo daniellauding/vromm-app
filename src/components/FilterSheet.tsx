@@ -7,6 +7,7 @@ import {
   ScrollView,
   Animated,
   Platform,
+  useColorScheme,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text, XStack, YStack, Slider, Button, SizableText, Input } from 'tamagui';
@@ -14,7 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
-import { MapPresetSheetModal } from './MapPresetSheet';
+import { AddToPresetSheetModal } from './AddToPresetSheet';
 
 // Route type definition
 type Route = {
@@ -195,12 +196,13 @@ export function FilterSheet({
   const { t } = useTranslation();
   const { showModal } = useModal();
   const { getEffectiveUserId } = useStudentSwitch();
+  const colorScheme = useColorScheme();
 
-  // Force dark theme
-  const backgroundColor = '#1A1A1A';
-  const textColor = 'white';
-  const borderColor = '#333';
-  const handleColor = '#666';
+  // Use proper theming instead of hardcoded dark theme
+  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
+  const textColor = colorScheme === 'dark' ? 'white' : '#11181C';
+  const borderColor = colorScheme === 'dark' ? '#333' : '#E5E5E5';
+  const handleColor = colorScheme === 'dark' ? '#666' : '#999';
 
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   
@@ -723,24 +725,27 @@ export function FilterSheet({
     });
     
     showModal(
-      <MapPresetSheetModal
-        onSelectPreset={(preset) => {
-          if (preset && preset.id) {
-            console.log('✅ [FilterSheet] Preset selected:', preset.id, preset.name);
-            handlePresetSelect(preset.id);
-          } else {
-            console.warn('⚠️ [FilterSheet] Invalid preset object:', preset);
-            handlePresetSelect(null);
-          }
+      <AddToPresetSheetModal
+        routeId="temp-filter-selection" // Use a temp ID since we're just selecting, not adding routes
+        selectedCollectionId={selectedPresetId || undefined}
+        onRouteAdded={(presetId, presetName) => {
+          console.log('✅ [FilterSheet] Preset selected:', presetId, presetName);
+          handlePresetSelect(presetId || null);
         }}
-        selectedPresetId={selectedPresetId}
-        showCreateOption={true}
-        showEditOption={true}
-        showDeleteOption={true}
-        title={t('routeCollections.selectCollection') || 'Select Collection'}
+        onRouteRemoved={(presetId, presetName) => {
+          console.log('✅ [FilterSheet] Preset deselected:', presetId, presetName);
+          handlePresetSelect(null);
+        }}
+        onPresetCreated={(preset) => {
+          console.log('✅ [FilterSheet] New preset created:', preset.id, preset.name);
+          handlePresetSelect(preset.id);
+        }}
+        onClose={() => {
+          console.log('🔍 [FilterSheet] Preset selection modal closed');
+        }}
       />
     );
-  }, [showModal, handlePresetSelect, selectedPresetId, t, effectiveUserId]);
+  }, [showModal, handlePresetSelect, selectedPresetId, effectiveUserId]);
 
   // Clean up search timeout
   useEffect(() => {
