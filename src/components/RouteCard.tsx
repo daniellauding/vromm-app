@@ -251,24 +251,20 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
             {carouselItems.length === 1 ? (
               <View style={{ flex: 1 }}>
                 {carouselItems[0].type === 'map' ? (
-                  (() => {
-                    return (
-                      <Map
-                        waypoints={carouselItems[0].data.waypoints}
-                        region={carouselItems[0].data.region}
-                        scrollEnabled={false}
-                        zoomEnabled={false}
-                        pitchEnabled={false}
-                        rotateEnabled={false}
-                        style={{ width: '100%', height: '100%' }}
-                        routePath={carouselItems[0].data.routePath}
-                        routePathColor={PIN_COLORS.ROUTE_PATH}
-                        showStartEndMarkers={carouselItems[0].data.showStartEndMarkers}
-                        drawingMode={carouselItems[0].data.drawingMode}
-                        penDrawingCoordinates={carouselItems[0].data.penDrawingCoordinates}
-                      />
-                    );
-                  })()
+                  <Map
+                    waypoints={carouselItems[0].data.waypoints}
+                    region={carouselItems[0].data.region}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                    pitchEnabled={false}
+                    rotateEnabled={false}
+                    style={{ width: '100%', height: '100%' }}
+                    routePath={carouselItems[0].data.routePath}
+                    routePathColor={PIN_COLORS.ROUTE_PATH}
+                    showStartEndMarkers={carouselItems[0].data.showStartEndMarkers}
+                    drawingMode={carouselItems[0].data.drawingMode}
+                    penDrawingCoordinates={carouselItems[0].data.penDrawingCoordinates}
+                  />
                                   ) : carouselItems[0].type === 'video' ? (
                     <TouchableOpacity 
                       style={{ width: '100%', height: '100%', position: 'relative' }}

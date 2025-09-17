@@ -681,19 +681,17 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       console.log('🔴 [MapScreen] Updated filters:', updatedFilters);
       setFilters(updatedFilters);
       
-      // Force pin re-render by triggering a slight map animation
-      setTimeout(() => {
-        if (mapRef.current) {
-          console.log('🗺️ [MapScreen] Forcing pin re-render after filter press');
-          const currentRegion = { ...region };
-          mapRef.current.animateToRegion(currentRegion, 100);
-        }
-      }, 50);
-      
       // Auto-zoom to filtered results after a short delay
       setTimeout(() => {
         if (Object.keys(updatedFilters).length > 0) {
           zoomToFilteredResults();
+        }
+        
+        // Force marker re-render after filter change
+        if (mapRef.current) {
+          console.log('🗺️ [MapScreen] Forcing marker re-render after filter change');
+          const currentRegion = { ...region };
+          mapRef.current.animateToRegion(currentRegion, 100);
         }
       }, 100);
     },

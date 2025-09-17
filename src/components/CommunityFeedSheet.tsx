@@ -16,7 +16,6 @@ import Carousel from 'react-native-reanimated-carousel';
 import { ImageWithFallback } from './ImageWithFallback';
 import { Map } from './Map';
 import { Chip } from './Chip';
-import { PIN_COLORS } from '../styles/mapStyles';
 
 const { height } = Dimensions.get('window');
 
@@ -549,7 +548,6 @@ export function CommunityFeedSheet({
                     rotateEnabled={false}
                     style={{ width: '100%', height: '100%' }}
                     routePath={mediaItems[0].data.routePath}
-                    routePathColor={PIN_COLORS.ROUTE_PATH}
                     showStartEndMarkers={mediaItems[0].data.showStartEndMarkers}
                     drawingMode={mediaItems[0].data.drawingMode}
                     penDrawingCoordinates={mediaItems[0].data.penDrawingCoordinates}
@@ -611,7 +609,6 @@ export function CommunityFeedSheet({
                         rotateEnabled={false}
                         style={{ width: '100%', height: '100%' }}
                         routePath={item.data.routePath}
-                        routePathColor={PIN_COLORS.ROUTE_PATH}
                         showStartEndMarkers={item.data.showStartEndMarkers}
                         drawingMode={item.data.drawingMode}
                         penDrawingCoordinates={item.data.penDrawingCoordinates}

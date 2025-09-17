@@ -11,34 +11,12 @@ import {
   useColorScheme,
 } from 'react-native';
 import { useTranslation } from '@/src/contexts/TranslationContext';
-import { useTheme } from '@/src/contexts/ThemeContext';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Text, XStack } from 'tamagui';
+import { Text, XStack, useTheme } from 'tamagui';
 import { EmptyFilterState } from '@/src/components/EmptyFilterState';
 
 const BOTTOM_NAV_HEIGHT = 80;
-const DARK_THEME = {
-  background: '#1A1A1A',
-  bottomSheet: '#1F1F1F',
-  text: 'white',
-  secondaryText: '#AAAAAA',
-  borderColor: '#333',
-  handleColor: '#666',
-  iconColor: 'white',
-  cardBackground: '#2D3130',
-};
-
-const LIGHT_THEME = {
-  background: '#FFFFFF',
-  bottomSheet: '#F8F9FA',
-  text: '#1A1A1A',
-  secondaryText: '#666666',
-  borderColor: '#E0E0E0',
-  handleColor: '#CCCCCC',
-  iconColor: '#1A1A1A',
-  cardBackground: '#FFFFFF',
-};
 
 const styles = StyleSheet.create({
   searchContainer: {
@@ -157,12 +135,10 @@ export const RoutesDrawer = React.forwardRef<View, {
   onRoutePress?: (routeId: string) => void;
 }>(({ selectedRoute, filteredRoutes, onClearFilters, hasActiveFilters = false, onExpandSearch, onRoutePress }, ref) => {
   const { t } = useTranslation();
-  const { actualTheme } = useTheme();
   const scrollOffset = useRef(0);
+  const colorScheme = useColorScheme();
+  const theme = useTheme();
   const { height: screenHeight } = Dimensions.get('window');
-  
-  // Get theme colors based on actual theme
-  const theme = actualTheme === 'dark' ? DARK_THEME : LIGHT_THEME;
   const snapPoints = useMemo(
     () => ({
       expanded: screenHeight * 0.2, // Fully expanded
@@ -266,16 +242,16 @@ export const RoutesDrawer = React.forwardRef<View, {
           styles.bottomSheet,
           {
             height: screenHeight,
-            backgroundColor: theme.bottomSheet,
+            backgroundColor: theme.background.val,
           },
           animatedStyle,
         ]}
       >
         <View style={styles.handleContainer}>
-          <View style={[styles.handle, { backgroundColor: theme.handleColor }]} />
+          <View style={[styles.handle, { backgroundColor: theme.gray8.val }]} />
           <XStack alignItems="center" gap="$2">
-            <Feather name="map" size={16} color={theme.iconColor} />
-            <Text fontSize="$4" fontWeight="600" color={theme.text}>
+            <Feather name="map" size={16} color={theme.color.val} />
+            <Text fontSize="$4" fontWeight="600" color={theme.color.val}>
               {filteredRoutes.length}{' '}
               {filteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
             </Text>
