@@ -798,18 +798,6 @@ export function TabNavigator() {
 
       const total = newMessages + newNotifications + newEvents;
       setTotalBadgeCount(total);
-
-      console.log('📊 Menu badge calculation:', {
-        newEvents,
-        newMessages,
-        newNotifications,
-        total,
-        seen: {
-          events: seenEventCountRef.current,
-          messages: seenMessageCountRef.current,
-          notifications: seenNotificationCountRef.current,
-        },
-      });
     } catch (error) {
       console.error('Error loading badge counts:', error);
     }
