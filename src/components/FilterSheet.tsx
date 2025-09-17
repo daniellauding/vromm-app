@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -430,6 +430,99 @@ export function FilterSheet({
     return filtered.length;
   }, [filters, routes, routeCount]);
 
+  // Helper function to count routes for a specific filter value
+  const getFilterCount = useCallback((filterType: keyof FilterOptions, value: string | number | boolean) => {
+    if (!routes || routes.length === 0) return 0;
+
+    let count = 0;
+    
+    switch (filterType) {
+      case 'difficulty':
+        count = routes.filter(route => route.difficulty === value).length;
+        break;
+      case 'spotType':
+        count = routes.filter(route => route.spot_type === value).length;
+        break;
+      case 'category':
+        count = routes.filter(route => route.category === value).length;
+        break;
+      case 'transmissionType':
+        count = routes.filter(route => route.transmission_type === value).length;
+        break;
+      case 'activityLevel':
+        count = routes.filter(route => route.activity_level === value).length;
+        break;
+      case 'bestSeason':
+        count = routes.filter(route => route.best_season === value).length;
+        break;
+      case 'vehicleTypes':
+        count = routes.filter(route => 
+          route.vehicle_types?.some((type: string) => type === value)
+        ).length;
+        break;
+      case 'hasExercises':
+        count = routes.filter(route => {
+          if (route.suggested_exercises) {
+            try {
+              const exercises = Array.isArray(route.suggested_exercises)
+                ? route.suggested_exercises
+                : JSON.parse(String(route.suggested_exercises));
+              return Array.isArray(exercises) && exercises.length > 0;
+            } catch {
+              return false;
+            }
+          }
+          return false;
+        }).length;
+        break;
+      case 'hasMedia':
+        count = routes.filter(route => {
+          if (route.media_attachments) {
+            try {
+              const media = Array.isArray(route.media_attachments)
+                ? route.media_attachments
+                : typeof route.media_attachments === 'string'
+                  ? JSON.parse(route.media_attachments)
+                  : [];
+              return Array.isArray(media) && media.length > 0;
+            } catch {
+              return false;
+            }
+          }
+          return false;
+        }).length;
+        break;
+      case 'isVerified':
+        count = routes.filter(route => route.is_verified === true).length;
+        break;
+      case 'minRating':
+        count = routes.filter(route => {
+          if (!route.average_rating) return false;
+          return route.average_rating >= (value as number);
+        }).length;
+        break;
+      case 'routeType':
+        count = routes.filter(route => {
+          if (value === 'recorded') {
+            return (
+              route.drawing_mode === 'record' ||
+              route.description?.includes('Recorded drive') ||
+              route.description?.includes('Distance:') ||
+              route.description?.includes('Duration:')
+            );
+          }
+          if (value === 'waypoint') return route.drawing_mode === 'waypoint';
+          if (value === 'pen') return route.drawing_mode === 'pen';
+          return false;
+        }).length;
+        break;
+      default:
+        count = 0;
+    }
+    
+    return count;
+  }, [routes]);
+
   // Animation values
   const translateY = useRef(new Animated.Value(screenHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -495,10 +588,19 @@ export function FilterSheet({
   }, [isVisible, translateY, backdropOpacity]);
 
   // Reset filters
-  const handleReset = React.useCallback(() => {
+  const handleReset = React.useCallback(async () => {
     console.log('🔄 [FilterSheet] Reset button pressed - clearing all filters');
     setFilters({});
-  }, []);
+    
+    // Also clear the selected preset/collection
+    if (onPresetSelect) {
+      onPresetSelect(null);
+    }
+    
+    // Clear saved filter preferences
+    await saveFilterPreferences({});
+    console.log('🔄 [FilterSheet] Cleared all filters and saved preferences');
+  }, [onPresetSelect, saveFilterPreferences]);
 
   // Apply filters and close sheet
   const handleApply = React.useCallback(async () => {
@@ -842,7 +944,7 @@ export function FilterSheet({
               {/* User Collections */}
               {userCollections.map((collection) => (
                 <TouchableOpacity
-                  key={collection.id}
+                  key={collection.id || `collection-${Math.random()}`}
                   style={[
                     styles.filterChip,
                     {
@@ -854,7 +956,7 @@ export function FilterSheet({
                 >
                   <XStack alignItems="center" gap="$1">
                     <Feather
-                      name={collection.is_default ? 'star' : 'folder'}
+                      name={collection.is_default === true ? 'star' : 'folder'}
                       size={14}
                       color={selectedPresetId === collection.id ? '#000000' : textColor}
                     />
@@ -868,9 +970,9 @@ export function FilterSheet({
                       ]}
                       numberOfLines={1}
                     >
-                      {collection.name}
+                      {collection.name || 'Unnamed Collection'}
                     </Text>
-                    {collection.route_count && collection.route_count > 0 && (
+                    {collection.route_count != null && collection.route_count > 0 && (
                       <Text
                         style={[
                           styles.chipText,
@@ -881,7 +983,7 @@ export function FilterSheet({
                           },
                         ]}
                       >
-                        ({collection.route_count})
+                        ({String(collection.route_count || 0)})
                       </Text>
                     )}
                   </XStack>
@@ -1093,33 +1195,50 @@ export function FilterSheet({
               {t('filters.difficulty')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['beginner', 'intermediate', 'advanced'].map((difficulty) => (
-                <TouchableOpacity
-                  key={difficulty}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor: isSelected('difficulty', difficulty)
-                        ? '#00E6C3'
-                        : 'transparent',
-                    },
-                  ]}
-                  onPress={() => toggleFilter('difficulty', difficulty)}
-                >
-                  <Text
+              {['beginner', 'intermediate', 'advanced'].map((difficulty) => {
+                const count = getFilterCount('difficulty', difficulty);
+                return (
+                  <TouchableOpacity
+                    key={difficulty}
                     style={[
-                      styles.chipText,
+                      styles.filterChip,
                       {
-                        color: isSelected('difficulty', difficulty) ? '#000000' : textColor,
-                        fontWeight: isSelected('difficulty', difficulty) ? '600' : '500',
+                        borderColor,
+                        backgroundColor: isSelected('difficulty', difficulty)
+                          ? '#00E6C3'
+                          : 'transparent',
                       },
                     ]}
+                    onPress={() => toggleFilter('difficulty', difficulty)}
                   >
-                    {t(`filters.difficulty.${difficulty}`)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <XStack alignItems="center" gap="$1">
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('difficulty', difficulty) ? '#000000' : textColor,
+                            fontWeight: isSelected('difficulty', difficulty) ? '600' : '500',
+                          },
+                        ]}
+                      >
+                        {t(`filters.difficulty.${difficulty}`)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('difficulty', difficulty) ? '#000000' : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({count})
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </YStack>
 
@@ -1129,31 +1248,48 @@ export function FilterSheet({
               {t('filters.spotType')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['urban', 'highway', 'rural', 'parking'].map((spotType) => (
-                <TouchableOpacity
-                  key={spotType}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor: isSelected('spotType', spotType) ? '#00E6C3' : 'transparent',
-                    },
-                  ]}
-                  onPress={() => toggleFilter('spotType', spotType)}
-                >
-                  <Text
+              {['urban', 'highway', 'rural', 'parking'].map((spotType) => {
+                const count = getFilterCount('spotType', spotType);
+                return (
+                  <TouchableOpacity
+                    key={spotType}
                     style={[
-                      styles.chipText,
+                      styles.filterChip,
                       {
-                        color: isSelected('spotType', spotType) ? '#000000' : textColor,
-                        fontWeight: isSelected('spotType', spotType) ? '600' : '500',
+                        borderColor,
+                        backgroundColor: isSelected('spotType', spotType) ? '#00E6C3' : 'transparent',
                       },
                     ]}
+                    onPress={() => toggleFilter('spotType', spotType)}
                   >
-                    {t(`filters.spotType.${spotType}`)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <XStack alignItems="center" gap="$1">
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('spotType', spotType) ? '#000000' : textColor,
+                            fontWeight: isSelected('spotType', spotType) ? '600' : '500',
+                          },
+                        ]}
+                      >
+                        {t(`filters.spotType.${spotType}`)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('spotType', spotType) ? '#000000' : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({count})
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </YStack>
 
@@ -1163,31 +1299,48 @@ export function FilterSheet({
               {t('filters.category')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['parking', 'incline_start'].map((category) => (
-                <TouchableOpacity
-                  key={category}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor: isSelected('category', category) ? '#00E6C3' : 'transparent',
-                    },
-                  ]}
-                  onPress={() => toggleFilter('category', category)}
-                >
-                  <Text
+              {['parking', 'incline_start'].map((category) => {
+                const count = getFilterCount('category', category);
+                return (
+                  <TouchableOpacity
+                    key={category}
                     style={[
-                      styles.chipText,
+                      styles.filterChip,
                       {
-                        color: isSelected('category', category) ? '#000000' : textColor,
-                        fontWeight: isSelected('category', category) ? '600' : '500',
+                        borderColor,
+                        backgroundColor: isSelected('category', category) ? '#00E6C3' : 'transparent',
                       },
                     ]}
+                    onPress={() => toggleFilter('category', category)}
                   >
-                    {t(`filters.category.${category}`)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <XStack alignItems="center" gap="$1">
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('category', category) ? '#000000' : textColor,
+                            fontWeight: isSelected('category', category) ? '600' : '500',
+                          },
+                        ]}
+                      >
+                        {t(`filters.category.${category}`)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('category', category) ? '#000000' : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({count})
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </YStack>
 
@@ -1197,37 +1350,56 @@ export function FilterSheet({
               {t('filters.transmissionType')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['automatic', 'manual', 'both'].map((transmissionType) => (
-                <TouchableOpacity
-                  key={transmissionType}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor: isSelected('transmissionType', transmissionType)
-                        ? '#00E6C3'
-                        : 'transparent',
-                    },
-                  ]}
-                  onPress={() => toggleFilter('transmissionType', transmissionType)}
-                >
-                  <Text
+              {['automatic', 'manual', 'both'].map((transmissionType) => {
+                const count = getFilterCount('transmissionType', transmissionType);
+                return (
+                  <TouchableOpacity
+                    key={transmissionType}
                     style={[
-                      styles.chipText,
+                      styles.filterChip,
                       {
-                        color: isSelected('transmissionType', transmissionType)
-                          ? '#000000'
-                          : textColor,
-                        fontWeight: isSelected('transmissionType', transmissionType)
-                          ? '600'
-                          : '500',
+                        borderColor,
+                        backgroundColor: isSelected('transmissionType', transmissionType)
+                          ? '#00E6C3'
+                          : 'transparent',
                       },
                     ]}
+                    onPress={() => toggleFilter('transmissionType', transmissionType)}
                   >
-                    {t(`filters.transmissionType.${transmissionType}`)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <XStack alignItems="center" gap="$1">
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('transmissionType', transmissionType)
+                              ? '#000000'
+                              : textColor,
+                            fontWeight: isSelected('transmissionType', transmissionType)
+                              ? '600'
+                              : '500',
+                          },
+                        ]}
+                      >
+                        {t(`filters.transmissionType.${transmissionType}`)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('transmissionType', transmissionType)
+                              ? '#000000'
+                              : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({count})
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </YStack>
 
@@ -1237,33 +1409,50 @@ export function FilterSheet({
               {t('filters.activityLevel')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['moderate', 'high'].map((activityLevel) => (
-                <TouchableOpacity
-                  key={activityLevel}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor: isSelected('activityLevel', activityLevel)
-                        ? '#00E6C3'
-                        : 'transparent',
-                    },
-                  ]}
-                  onPress={() => toggleFilter('activityLevel', activityLevel)}
-                >
-                  <Text
+              {['moderate', 'high'].map((activityLevel) => {
+                const count = getFilterCount('activityLevel', activityLevel);
+                return (
+                  <TouchableOpacity
+                    key={activityLevel}
                     style={[
-                      styles.chipText,
+                      styles.filterChip,
                       {
-                        color: isSelected('activityLevel', activityLevel) ? '#000000' : textColor,
-                        fontWeight: isSelected('activityLevel', activityLevel) ? '600' : '500',
+                        borderColor,
+                        backgroundColor: isSelected('activityLevel', activityLevel)
+                          ? '#00E6C3'
+                          : 'transparent',
                       },
                     ]}
+                    onPress={() => toggleFilter('activityLevel', activityLevel)}
                   >
-                    {t(`filters.activityLevel.${activityLevel}`)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <XStack alignItems="center" gap="$1">
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('activityLevel', activityLevel) ? '#000000' : textColor,
+                            fontWeight: isSelected('activityLevel', activityLevel) ? '600' : '500',
+                          },
+                        ]}
+                      >
+                        {t(`filters.activityLevel.${activityLevel}`)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('activityLevel', activityLevel) ? '#000000' : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({count})
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </YStack>
 
@@ -1273,33 +1462,50 @@ export function FilterSheet({
               {t('filters.bestSeason')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['all', 'year-round', 'avoid-winter'].map((bestSeason) => (
-                <TouchableOpacity
-                  key={bestSeason}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor: isSelected('bestSeason', bestSeason)
-                        ? '#00E6C3'
-                        : 'transparent',
-                    },
-                  ]}
-                  onPress={() => toggleFilter('bestSeason', bestSeason)}
-                >
-                  <Text
+              {['all', 'year-round', 'avoid-winter'].map((bestSeason) => {
+                const count = getFilterCount('bestSeason', bestSeason);
+                return (
+                  <TouchableOpacity
+                    key={bestSeason}
                     style={[
-                      styles.chipText,
+                      styles.filterChip,
                       {
-                        color: isSelected('bestSeason', bestSeason) ? '#000000' : textColor,
-                        fontWeight: isSelected('bestSeason', bestSeason) ? '600' : '500',
+                        borderColor,
+                        backgroundColor: isSelected('bestSeason', bestSeason)
+                          ? '#00E6C3'
+                          : 'transparent',
                       },
                     ]}
+                    onPress={() => toggleFilter('bestSeason', bestSeason)}
                   >
-                    {t(`filters.bestSeason.${bestSeason}`)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <XStack alignItems="center" gap="$1">
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('bestSeason', bestSeason) ? '#000000' : textColor,
+                            fontWeight: isSelected('bestSeason', bestSeason) ? '600' : '500',
+                          },
+                        ]}
+                      >
+                        {t(`filters.bestSeason.${bestSeason}`)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('bestSeason', bestSeason) ? '#000000' : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({count})
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </YStack>
 
@@ -1309,33 +1515,50 @@ export function FilterSheet({
               {t('filters.vehicleTypes')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['passenger_car', 'rv'].map((vehicleType) => (
-                <TouchableOpacity
-                  key={vehicleType}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor: isSelected('vehicleTypes', vehicleType)
-                        ? '#00E6C3'
-                        : 'transparent',
-                    },
-                  ]}
-                  onPress={() => toggleFilter('vehicleTypes', vehicleType)}
-                >
-                  <Text
+              {['passenger_car', 'rv'].map((vehicleType) => {
+                const count = getFilterCount('vehicleTypes', vehicleType);
+                return (
+                  <TouchableOpacity
+                    key={vehicleType}
                     style={[
-                      styles.chipText,
+                      styles.filterChip,
                       {
-                        color: isSelected('vehicleTypes', vehicleType) ? '#000000' : textColor,
-                        fontWeight: isSelected('vehicleTypes', vehicleType) ? '600' : '500',
+                        borderColor,
+                        backgroundColor: isSelected('vehicleTypes', vehicleType)
+                          ? '#00E6C3'
+                          : 'transparent',
                       },
                     ]}
+                    onPress={() => toggleFilter('vehicleTypes', vehicleType)}
                   >
-                    {t(`filters.vehicleTypes.${vehicleType}`)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <XStack alignItems="center" gap="$1">
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('vehicleTypes', vehicleType) ? '#000000' : textColor,
+                            fontWeight: isSelected('vehicleTypes', vehicleType) ? '600' : '500',
+                          },
+                        ]}
+                      >
+                        {t(`filters.vehicleTypes.${vehicleType}`)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isSelected('vehicleTypes', vehicleType) ? '#000000' : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({count})
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </YStack>
 
@@ -1345,37 +1568,54 @@ export function FilterSheet({
               {t('filters.experienceLevel')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['beginner', 'intermediate', 'advanced', 'expert'].map((level) => (
-                <TouchableOpacity
-                  key={level}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor:
-                        filters.experienceLevel === level ? '#00E6C3' : 'transparent',
-                    },
-                  ]}
-                  onPress={() =>
-                    setSingleFilter(
-                      'experienceLevel',
-                      filters.experienceLevel === level ? undefined : level,
-                    )
-                  }
-                >
-                  <Text
+              {['beginner', 'intermediate', 'advanced', 'expert'].map((level) => {
+                const count = getFilterCount('experienceLevel', level);
+                return (
+                  <TouchableOpacity
+                    key={level}
                     style={[
-                      styles.chipText,
+                      styles.filterChip,
                       {
-                        color: filters.experienceLevel === level ? '#000000' : textColor,
-                        fontWeight: filters.experienceLevel === level ? '600' : '500',
+                        borderColor,
+                        backgroundColor:
+                          filters.experienceLevel === level ? '#00E6C3' : 'transparent',
                       },
                     ]}
+                    onPress={() =>
+                      setSingleFilter(
+                        'experienceLevel',
+                        filters.experienceLevel === level ? undefined : level,
+                      )
+                    }
                   >
-                    {t(`filters.experienceLevel.${level}`)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <XStack alignItems="center" gap="$1">
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: filters.experienceLevel === level ? '#000000' : textColor,
+                            fontWeight: filters.experienceLevel === level ? '600' : '500',
+                          },
+                        ]}
+                      >
+                        {t(`filters.experienceLevel.${level}`)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: filters.experienceLevel === level ? '#000000' : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({count})
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </YStack>
 
@@ -1415,6 +1655,18 @@ export function FilterSheet({
                   >
                     {t('filters.hasExercises')}
                   </Text>
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color: filters.hasExercises ? '#000000' : textColor,
+                        fontSize: 12,
+                        opacity: 0.7,
+                      },
+                    ]}
+                  >
+                    ({getFilterCount('hasExercises', true)})
+                  </Text>
                 </XStack>
               </TouchableOpacity>
 
@@ -1445,6 +1697,18 @@ export function FilterSheet({
                     ]}
                   >
                     {t('filters.hasMedia')}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color: filters.hasMedia ? '#000000' : textColor,
+                        fontSize: 12,
+                        opacity: 0.7,
+                      },
+                    ]}
+                  >
+                    ({getFilterCount('hasMedia', true)})
                   </Text>
                 </XStack>
               </TouchableOpacity>
@@ -1477,6 +1741,18 @@ export function FilterSheet({
                   >
                     {t('filters.verified')}
                   </Text>
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color: filters.isVerified ? '#000000' : textColor,
+                        fontSize: 12,
+                        opacity: 0.7,
+                      },
+                    ]}
+                  >
+                    ({getFilterCount('isVerified', true)})
+                  </Text>
                 </XStack>
               </TouchableOpacity>
             </View>
@@ -1488,42 +1764,57 @@ export function FilterSheet({
               {t('filters.routeType')}
             </SizableText>
             <View style={styles.filterRow}>
-              {['recorded', 'waypoint', 'pen'].map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor: filters.routeType?.includes(type)
-                        ? '#00E6C3'
-                        : 'transparent',
-                    },
-                  ]}
-                  onPress={() => toggleFilter('routeType', type)}
-                >
-                  <XStack alignItems="center" gap="$1">
-                    <Feather
-                      name={
-                        type === 'recorded' ? 'navigation' : type === 'pen' ? 'edit-3' : 'map-pin'
-                      }
-                      size={14}
-                      color={filters.routeType?.includes(type) ? '#000000' : textColor}
-                    />
-                    <Text
-                      style={[
-                        styles.chipText,
-                        {
-                          color: filters.routeType?.includes(type) ? '#000000' : textColor,
-                          fontWeight: filters.routeType?.includes(type) ? '600' : '500',
-                        },
-                      ]}
-                    >
-                      {t(`filters.routeType.${type}`)}
-                    </Text>
-                  </XStack>
-                </TouchableOpacity>
-              ))}
+              {['recorded', 'waypoint', 'pen'].map((type) => {
+                const count = getFilterCount('routeType', type);
+                return (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor,
+                        backgroundColor: filters.routeType?.includes(type)
+                          ? '#00E6C3'
+                          : 'transparent',
+                      },
+                    ]}
+                    onPress={() => toggleFilter('routeType', type)}
+                  >
+                    <XStack alignItems="center" gap="$1">
+                      <Feather
+                        name={
+                          type === 'recorded' ? 'navigation' : type === 'pen' ? 'edit-3' : 'map-pin'
+                        }
+                        size={14}
+                        color={filters.routeType?.includes(type) ? '#000000' : textColor}
+                      />
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: filters.routeType?.includes(type) ? '#000000' : textColor,
+                            fontWeight: filters.routeType?.includes(type) ? '600' : '500',
+                          },
+                        ]}
+                      >
+                        {t(`filters.routeType.${type}`)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: filters.routeType?.includes(type) ? '#000000' : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({count})
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </YStack>
 
@@ -1533,40 +1824,55 @@ export function FilterSheet({
               {t('filters.minRating')}
             </SizableText>
             <View style={styles.filterRow}>
-              {[0, 3, 4, 5].map((rating) => (
-                <TouchableOpacity
-                  key={rating}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor: filters.minRating === rating ? '#00E6C3' : 'transparent',
-                    },
-                  ]}
-                  onPress={() =>
-                    setSingleFilter('minRating', filters.minRating === rating ? undefined : rating)
-                  }
-                >
-                  <XStack alignItems="center" gap="$1">
-                    <Feather
-                      name="star"
-                      size={14}
-                      color={filters.minRating === rating ? '#000000' : textColor}
-                    />
-                    <Text
-                      style={[
-                        styles.chipText,
-                        {
-                          color: filters.minRating === rating ? '#000000' : textColor,
-                          fontWeight: filters.minRating === rating ? '600' : '500',
-                        },
-                      ]}
-                    >
-                      {rating === 0 ? t('filters.allRatings') : `${rating}+`}
-                    </Text>
-                  </XStack>
-                </TouchableOpacity>
-              ))}
+              {[0, 3, 4, 5].map((rating) => {
+                const count = getFilterCount('minRating', rating);
+                return (
+                  <TouchableOpacity
+                    key={rating}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor,
+                        backgroundColor: filters.minRating === rating ? '#00E6C3' : 'transparent',
+                      },
+                    ]}
+                    onPress={() =>
+                      setSingleFilter('minRating', filters.minRating === rating ? undefined : rating)
+                    }
+                  >
+                    <XStack alignItems="center" gap="$1">
+                      <Feather
+                        name="star"
+                        size={14}
+                        color={filters.minRating === rating ? '#000000' : textColor}
+                      />
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: filters.minRating === rating ? '#000000' : textColor,
+                            fontWeight: filters.minRating === rating ? '600' : '500',
+                          },
+                        ]}
+                      >
+                        {rating === 0 ? t('filters.allRatings') : `${rating}+`}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: filters.minRating === rating ? '#000000' : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({count})
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </YStack>
 
@@ -1576,7 +1882,7 @@ export function FilterSheet({
               {t('filters.maxDistance')}
             </SizableText>
             <XStack alignItems="center" justifyContent="space-between">
-              <Text>{filters.maxDistance || 100} km</Text>
+              <Text>{String(filters.maxDistance || 100)} km</Text>
             </XStack>
             <Slider
               defaultValue={[filters.maxDistance || 100]}
