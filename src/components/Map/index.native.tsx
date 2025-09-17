@@ -137,34 +137,40 @@ const WaypointMarker = React.memo(
     };
 
     // Create circular marker like cluster (no triangle)
-    const createCircularMarker = () => (
-      <View style={{
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        {/* Circular marker like cluster */}
+    const createCircularMarker = () => {
+      const isSelected = selectedPin === cluster.properties.id;
+      
+      return (
         <View style={{
-          width: 32,
-          height: 32,
-          backgroundColor: getMarkerColor(),
-          borderRadius: 16,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4,
-          elevation: 5,
           alignItems: 'center',
           justifyContent: 'center',
         }}>
+          {/* Circular marker like cluster */}
           <View style={{
-            width: 8,
-            height: 8,
-            backgroundColor: '#333333', // Darker text color
-            borderRadius: 4,
-          }} />
+            width: 32,
+            height: 32,
+            backgroundColor: getMarkerColor(),
+            borderRadius: 16,
+            borderWidth: isSelected ? 5 : 0,
+            borderColor: isSelected ? PIN_COLORS.PRIMARY : 'transparent',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 4,
+            elevation: 5,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <View style={{
+              width: 8,
+              height: 8,
+              backgroundColor: '#333333', // Darker text color
+              borderRadius: 4,
+            }} />
+          </View>
         </View>
-      </View>
-    );
+      );
+    };
 
     // Option 2: Create custom pin-shaped marker
     const createCustomPin = () => (

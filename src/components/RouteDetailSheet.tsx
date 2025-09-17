@@ -168,6 +168,12 @@ export function RouteDetailSheet({
   const translateY = useSharedValue(height);
   const isDragging = useRef(false);
   
+  // Animation values for Tinder-like swipe
+  const swipeTranslateX = useSharedValue(0);
+  const swipeTranslateY = useSharedValue(0);
+  const swipeRotate = useSharedValue(0);
+  const swipeOpacity = useSharedValue(1);
+  
   // Snap points for resizing (top Y coordinates like RoutesDrawer)
   const snapPoints = useMemo(() => {
     const points = {
@@ -289,20 +295,101 @@ export function RouteDetailSheet({
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
-  // Horizontal swipe gesture for route navigation
+  // Horizontal swipe gesture for route navigation with Tinder-like animation
   const swipeGesture = Gesture.Pan()
+    .onStart(() => {
+      // Reset swipe animation values
+      swipeTranslateX.value = 0;
+      swipeTranslateY.value = 0;
+      swipeRotate.value = 0;
+      swipeOpacity.value = 1;
+    })
+    .onUpdate((event) => {
+      const { translationX, translationY } = event;
+      
+      // Only consider it a horizontal swipe if horizontal movement is significantly greater than vertical
+      if (Math.abs(translationX) > Math.abs(translationY) * 2) {
+        // Update swipe animation values
+        swipeTranslateX.value = translationX;
+        swipeTranslateY.value = translationY;
+        
+        // Calculate rotation based on horizontal movement (Tinder-like effect)
+        const rotation = translationX / width * 0.3; // Max rotation of ~17 degrees
+        swipeRotate.value = rotation;
+        
+        // Fade out slightly as it moves away from center
+        const opacityValue = 1 - Math.abs(translationX) / (width * 0.5);
+        swipeOpacity.value = Math.max(0.3, opacityValue);
+      }
+    })
     .onEnd((event) => {
-      const { translationX, velocityX } = event;
+      const { translationX, translationY, velocityX } = event;
       
       // Only handle horizontal swipes with sufficient movement/velocity
       if (Math.abs(translationX) > 50 || Math.abs(velocityX) > 500) {
-        if (translationX > 0 || velocityX > 0) {
-          // Swipe right - go to previous route
-          runOnJS(handleSwipeToPrevious)();
-        } else {
-          // Swipe left - go to next route
-          runOnJS(handleSwipeToNext)();
-        }
+        // Animate card off screen with Tinder-like effect
+        const exitDirection = translationX > 0 ? width : -width;
+        
+        swipeTranslateX.value = withSpring(exitDirection, {
+          damping: 15,
+          mass: 1,
+          stiffness: 200,
+        });
+        swipeTranslateY.value = withSpring(translationY * 2, {
+          damping: 15,
+          mass: 1,
+          stiffness: 200,
+        });
+        swipeRotate.value = withSpring(translationX > 0 ? 0.3 : -0.3, {
+          damping: 15,
+          mass: 1,
+          stiffness: 200,
+        });
+        swipeOpacity.value = withSpring(0, {
+          damping: 15,
+          mass: 1,
+          stiffness: 200,
+        });
+        
+        // After animation completes, trigger route change and reset
+        setTimeout(() => {
+          // Reset animation values
+          swipeTranslateX.value = 0;
+          swipeTranslateY.value = 0;
+          swipeRotate.value = 0;
+          swipeOpacity.value = 1;
+          
+          // Trigger route change
+          if (translationX > 0 || velocityX > 0) {
+            // Swipe right - go to previous route
+            runOnJS(handleSwipeToPrevious)();
+          } else {
+            // Swipe left - go to next route
+            runOnJS(handleSwipeToNext)();
+          }
+        }, 200);
+      } else {
+        // Snap back to center with spring animation
+        swipeTranslateX.value = withSpring(0, {
+          damping: 20,
+          mass: 1,
+          stiffness: 300,
+        });
+        swipeTranslateY.value = withSpring(0, {
+          damping: 20,
+          mass: 1,
+          stiffness: 300,
+        });
+        swipeRotate.value = withSpring(0, {
+          damping: 20,
+          mass: 1,
+          stiffness: 300,
+        });
+        swipeOpacity.value = withSpring(1, {
+          damping: 20,
+          mass: 1,
+          stiffness: 300,
+        });
       }
     });
 
@@ -310,7 +397,13 @@ export function RouteDetailSheet({
   const combinedGesture = Gesture.Simultaneous(panGesture, swipeGesture);
 
   const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [
+      { translateY: translateY.value },
+      { translateX: swipeTranslateX.value },
+      { translateY: swipeTranslateY.value },
+      { rotate: `${swipeRotate.value}rad` },
+    ],
+    opacity: swipeOpacity.value,
   }));
 
   // State (exact copy from RouteDetailScreen)

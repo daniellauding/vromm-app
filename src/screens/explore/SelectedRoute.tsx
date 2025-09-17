@@ -104,7 +104,7 @@ export function SelectedRoute({
         opacity.setValue(Math.max(0.3, opacityValue));
       },
       onPanResponderRelease: (evt, gestureState) => {
-        const { dx, vx } = gestureState;
+        const { dx, dy, vx } = gestureState;
         
         // Reset offsets
         translateX.flattenOffset();

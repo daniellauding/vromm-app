@@ -1,6 +1,6 @@
 import React from 'react';
-import { YStack, XStack } from 'tamagui';
-import { FlatList } from 'react-native';
+import { YStack, XStack, Text, Card } from 'tamagui';
+import { FlatList, Dimensions, TouchableOpacity, Image, useColorScheme, View } from 'react-native';
 
 import { HeroCarousel } from '../../components/HeroCarousel';
 import { NavigationProp } from '@/src/types/navigation';
@@ -169,13 +169,10 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
           actionLabel={t('common.seeAll')}
         />
         <XStack paddingHorizontal="$4">
-          <HeroCarousel
-            title={t('home.savedRoutes')}
-            items={savedRoutes}
+          <SavedRoutesGrid
+            routes={savedRoutes}
             getImageUrl={getRouteImage}
-            showTitle={false}
-            showMapPreview={true}
-            onItemPress={onRoutePress ? (route) => onRoutePress(route.id) : undefined}
+            onRoutePress={onRoutePress ? (route) => onRoutePress(route.id) : undefined}
           />
         </XStack>
       </YStack>
@@ -193,5 +190,109 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
         type="saved"
       />
     </>
+  );
+};
+
+// Grid component for saved routes
+interface SavedRoutesGridProps {
+  routes: SavedRoute[];
+  getImageUrl: (route: Route) => string | null;
+  onRoutePress?: (routeId: string) => void;
+}
+
+const SavedRoutesGrid = ({ routes, getImageUrl, onRoutePress }: SavedRoutesGridProps) => {
+  const colorScheme = useColorScheme();
+  const { width: screenWidth } = Dimensions.get('window');
+  
+  // Calculate item dimensions for 3x3 grid
+  const itemWidth = (screenWidth - 32 - 16) / 3; // 32 for padding, 16 for gaps
+  const itemHeight = itemWidth * 1.2; // Slightly taller for text
+  
+  const renderGridItem = ({ item }: { item: SavedRoute }) => {
+    const imageUrl = getImageUrl(item);
+    
+    return (
+      <TouchableOpacity
+        onPress={() => onRoutePress?.(item.id)}
+        style={{
+          width: itemWidth,
+          height: itemHeight,
+          marginRight: 8,
+          marginBottom: 8,
+        }}
+      >
+        <Card
+          backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF'}
+          bordered
+          padding="$2"
+          height="100%"
+          borderRadius="$3"
+        >
+          <YStack gap="$2" height="100%">
+            {/* Image */}
+            <View style={{ 
+              width: '100%', 
+              height: itemWidth * 0.6, 
+              borderRadius: 8,
+              overflow: 'hidden',
+              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5'
+            }}>
+              {imageUrl ? (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  justifyContent: 'center', 
+                  alignItems: 'center',
+                  backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5'
+                }}>
+                  <Text color="$gray10" fontSize="$2">No Image</Text>
+                </View>
+              )}
+            </View>
+            
+            {/* Route Info */}
+            <YStack gap="$1" flex={1}>
+              <Text 
+                fontSize="$3" 
+                fontWeight="600" 
+                color="$color" 
+                numberOfLines={2}
+                lineHeight={16}
+              >
+                {item.name}
+              </Text>
+              <Text 
+                fontSize="$2" 
+                color="$gray11" 
+                numberOfLines={1}
+              >
+                {item.difficulty || item.category || 'Route'}
+              </Text>
+            </YStack>
+          </YStack>
+        </Card>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <FlatList
+      data={routes}
+      renderItem={renderGridItem}
+      keyExtractor={(item) => item.id}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{
+        paddingRight: 16, // Extra padding to show partial item
+      }}
+      snapToInterval={itemWidth + 8} // Snap to each item
+      decelerationRate="fast"
+    />
   );
 };
