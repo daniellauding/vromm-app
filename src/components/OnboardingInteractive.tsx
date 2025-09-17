@@ -2258,15 +2258,9 @@ export function OnboardingInteractive({
       >
         <TouchableOpacity
           onPress={() => {
-            // Just close the modal, don't mark onboarding as completed
-            if (onCloseModal) {
-              onCloseModal();
-            } else if (onSkip) {
-              onSkip();
-            } else {
-              // Fallback: just call onDone to close the modal
-              onDone();
-            }
+            // Close button should complete onboarding permanently
+            // Users can still access features through GettingStarted.tsx
+            completeOnboarding();
           }}
           style={{
             padding: 12,
