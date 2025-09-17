@@ -1,210 +1,282 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Modal, Animated, Pressable, useColorScheme, ScrollView } from 'react-native';
-import { Text, XStack, YStack, Button, Input, TextArea } from 'tamagui';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  Pressable,
+  useColorScheme,
+  TextInput,
+  ScrollView,
+  Dimensions,
+} from 'react-native';
+import { Text, XStack, YStack, Input } from 'tamagui';
+import { Button } from './Button';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
-import { useToast } from '../contexts/ToastContext';
-import { collectionSharingService, CollectionShareRequest } from '../services/collectionSharingService';
 import { useAuth } from '../context/AuthContext';
+import { useStudentSwitch } from '../context/StudentSwitchContext';
+import { useToast } from '../contexts/ToastContext';
+import { useModal } from '../contexts/ModalContext';
 import { supabase } from '../lib/supabase';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+
+const { height } = Dimensions.get('window');
+
+interface MapPreset {
+  id: string;
+  name: string;
+  description?: string;
+  visibility: 'public' | 'private' | 'shared';
+  creator_id: string;
+  created_at: string;
+  updated_at: string;
+  route_count?: number;
+  is_default?: boolean;
+  shared_with?: string[];
+}
 
 interface CollectionSharingModalProps {
-  isVisible: boolean;
+  visible: boolean;
   onClose: () => void;
-  collectionId: string;
-  collectionName: string;
-  onInvitationSent?: () => void;
+  preset: MapPreset;
+  onInvitationsSent?: () => void;
 }
 
 export function CollectionSharingModal({
-  isVisible,
+  visible,
   onClose,
-  collectionId,
-  collectionName,
-  onInvitationSent,
+  preset,
+  onInvitationsSent,
 }: CollectionSharingModalProps) {
   const { t } = useTranslation();
-  const { showToast } = useToast();
   const { user } = useAuth();
+  const { getEffectiveUserId } = useStudentSwitch();
+  const { showToast } = useToast();
+  const { hideModal } = useModal();
   const colorScheme = useColorScheme();
+
+  const [sharingSearchQuery, setSharingSearchQuery] = useState('');
+  const [sharingSearchResults, setSharingSearchResults] = useState<any[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<Array<{ id: string; full_name: string; email: string; role?: string; sharingRole?: 'viewer' | 'editor' }>>([]);
+  const [sharingCustomMessage, setSharingCustomMessage] = useState('');
+  const [pendingCollectionInvitations, setPendingCollectionInvitations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Snap points for resizing (like RouteDetailSheet)
+  const snapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)  
+      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
+      tiny: height * 0.85,   // Top at 85% of screen (show 15% - just title)
+      dismissed: height,     // Completely off-screen
+    };
+    return points;
+  }, [height]);
   
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // User search and selection state (matching GettingStarted.tsx pattern)
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [selectedUsers, setSelectedUsers] = useState<Array<{ id: string; full_name: string; email: string; role?: string }>>([]);
+  const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
+  const currentState = useSharedValue(snapPoints.large);
+  const translateY = useSharedValue(snapPoints.large);
+  const isDragging = React.useRef(false);
 
-  // Animation refs (matching AddToPresetSheet.tsx pattern)
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(300)).current;
+  const effectiveUserId = getEffectiveUserId();
 
-  // Show/hide functions (matching AddToPresetSheet.tsx pattern)
-  const showSheet = () => {
-    Animated.timing(backdropOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(sheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
+  // Proper close function that handles both modal context and callback
+  const handleClose = useCallback(() => {
+    console.log('🎯 [CollectionSharingModal] handleClose called');
+    hideModal();
+    onClose();
+  }, [hideModal, onClose]);
 
-  const hideSheet = () => {
-    Animated.timing(backdropOpacity, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(sheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      // Add a small delay to ensure the animation is completely finished
-      setTimeout(() => {
-        onClose();
-      }, 50);
+  // Snap functions
+  const dismissSheet = useCallback(() => {
+    translateY.value = withSpring(snapPoints.dismissed, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
     });
-  };
+    setTimeout(() => handleClose(), 200);
+  }, [handleClose, snapPoints.dismissed]);
 
-  // Animate when visibility changes
-  useEffect(() => {
-    if (isVisible) {
-      showSheet();
-    } else {
-      hideSheet();
-    }
-  }, [isVisible]);
+  const snapTo = useCallback((point: number) => {
+    currentState.value = point;
+    setCurrentSnapPoint(point);
+  }, [currentState]);
 
-  const handleSendInvitation = async () => {
-    console.log('🎯 [CollectionSharingModal] handleSendInvitation called');
-    console.log('🎯 [CollectionSharingModal] selectedUsers:', selectedUsers.length);
-    console.log('🎯 [CollectionSharingModal] user:', user?.id);
-    console.log('🎯 [CollectionSharingModal] collectionId:', collectionId);
-    console.log('🎯 [CollectionSharingModal] message:', message);
-
-    if (selectedUsers.length === 0) {
-      console.log('❌ [CollectionSharingModal] No users selected');
-      showToast({
-        title: t('common.error') || 'Error',
-        message: t('collectionSharing.selectUsersRequired') || 'Please select at least one user',
-        type: 'error'
+  // Pan gesture for drag-to-dismiss and snap points
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      isDragging.current = true;
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentState.value + translationY;
+        
+        // Constrain to snap points range
+        const minPosition = snapPoints.large;
+        const maxPosition = snapPoints.tiny + 100;
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+        
+        translateY.value = boundedPosition;
+      } catch (error) {
+        console.log('panGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      isDragging.current = false;
+      
+      const currentPosition = currentState.value + translationY;
+      
+      // Dismiss if dragged down past the tiny snap point with reasonable velocity
+      if (currentPosition > snapPoints.tiny + 30 && velocityY > 200) {
+        runOnJS(dismissSheet)();
+        return;
+      }
+      
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        targetSnapPoint = snapPoints.large;
+      } else if (velocityY > 500) {
+        targetSnapPoint = snapPoints.tiny;
+      } else {
+        const positions = [snapPoints.large, snapPoints.medium, snapPoints.small, snapPoints.tiny];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+      
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, snapPoints.large),
+        snapPoints.tiny,
+      );
+      
+      translateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
       });
-      return;
-    }
+      
+      currentState.value = boundedTarget;
+      runOnJS(setCurrentSnapPoint)(boundedTarget);
+    });
 
-    if (!user?.id) {
-      console.log('❌ [CollectionSharingModal] User not authenticated');
-      showToast({
-        title: t('common.error') || 'Error',
-        message: t('common.notAuthenticated') || 'Not authenticated',
-        type: 'error'
-      });
-      return;
-    }
+  const animatedGestureStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
-    console.log('🚀 [CollectionSharingModal] Starting to send invitations...');
-    setIsLoading(true);
+  // Load pending collection invitations and current members
+  const loadPendingCollectionInvitations = useCallback(async () => {
+    if (!effectiveUserId || !preset?.id) return;
 
     try {
-      let successCount = 0;
-      let failCount = 0;
+      setLoading(true);
+      console.log('🔍 [CollectionSharingModal] Loading invitations for collection:', preset.id);
 
-      // Send invitations to each selected user
-      for (const targetUser of selectedUsers) {
-        console.log('📤 [CollectionSharingModal] Sending invitation to:', targetUser.email);
-        
-        if (!targetUser.email) {
-          console.log('❌ [CollectionSharingModal] No email for user:', targetUser);
-          failCount++;
-          continue;
-        }
-        
-        try {
-          const request: CollectionShareRequest = {
-            collectionId,
-            collectionName,
-            invitedUserEmail: targetUser.email,
-            message: message.trim() || undefined,
-          };
+      // Load pending invitations
+      const { data: pendingData, error: pendingError } = await supabase
+        .from('pending_invitations')
+        .select('*')
+        .eq('status', 'pending')
+        .eq('role', 'collection_sharing')
+        .or(`metadata->>collectionId.eq.${preset.id},metadata->>collectionId.eq."${preset.id}"`)
+        .order('created_at', { ascending: false });
 
-          console.log('📤 [CollectionSharingModal] Request:', request);
-          const result = await collectionSharingService.createCollectionInvitation(request, user.id);
-          console.log('📤 [CollectionSharingModal] Result:', result);
+      if (pendingError) {
+        console.error('Error loading pending collection invitations:', pendingError);
+        return;
+      }
 
-          if (result.success) {
-            console.log('✅ [CollectionSharingModal] Success for:', targetUser.email);
-            successCount++;
-          } else if (result.error?.includes('already has a pending invitation')) {
-            console.log('⚠️ [CollectionSharingModal] Already invited:', targetUser.email);
-            successCount++; // Treat as success since invitation already exists
-          } else {
-            console.log('❌ [CollectionSharingModal] Failed for:', targetUser.email, result.error);
-            failCount++;
-          }
-        } catch (error) {
-          console.error('❌ [CollectionSharingModal] Error sending invitation to:', targetUser.email, error);
-          failCount++;
+      // Load current members
+      const { data: membersData, error: membersError } = await supabase
+        .from('map_preset_members')
+        .select('*')
+        .eq('preset_id', preset.id)
+        .order('joined_at', { ascending: false });
+
+      // Get user details for each member
+      let membersWithUsers = [];
+      if (membersData && membersData.length > 0) {
+        const userIds = membersData.map(member => member.user_id);
+        const { data: usersData, error: usersError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', userIds);
+
+        if (!usersError && usersData) {
+          membersWithUsers = membersData.map(member => ({
+            ...member,
+            user: usersData.find(user => user.id === member.user_id)
+          }));
         }
       }
 
-      console.log('📊 [CollectionSharingModal] Final results - Success:', successCount, 'Failed:', failCount);
+      // Get creator information
+      const { data: creatorData, error: creatorError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('id', preset.creator_id)
+        .single();
 
-      if (successCount > 0) {
-        console.log('✅ [CollectionSharingModal] Showing success toast and closing modal');
-        const message = failCount > 0 
-          ? `${successCount} invitation(s) processed (some users were already invited)`
-          : t('collectionSharing.invitationsSentMessage')?.replace('{count}', successCount.toString()) || `${successCount} invitation(s) sent successfully`;
-        
-        showToast({
-          title: t('collectionSharing.invitationsSent') || 'Invitations Sent',
-          message: message,
-          type: 'success'
-        });
-        
-        setSelectedUsers([]);
-        setMessage('');
-        setSearchQuery('');
-        setSearchResults([]);
-        
-        console.log('🔄 [CollectionSharingModal] Calling onInvitationSent callback');
-        onInvitationSent?.();
-        
-        console.log('🚪 [CollectionSharingModal] Closing modal immediately - toast should be visible');
-        // Close modal immediately, toast should be visible above it
-        onClose();
-      } else {
-        console.log('❌ [CollectionSharingModal] All invitations failed, showing error toast');
-        showToast({
-          title: t('common.error') || 'Error',
-          message: t('collectionSharing.failedToSend') || 'Failed to send invitations',
-          type: 'error'
-        });
-      }
+      // Create creator entry
+      const creatorEntry = creatorData ? {
+        id: `creator-${preset.creator_id}`,
+        email: creatorData.email,
+        status: 'creator',
+        created_at: preset.created_at,
+        metadata: {
+          targetUserName: creatorData.full_name || 'Unknown User',
+          sharingRole: 'owner',
+          collectionId: preset.id,
+          targetUserId: preset.creator_id,
+        }
+      } : null;
+
+      // Transform members data to match invitation format
+      const acceptedInvitations = membersWithUsers?.map(member => ({
+        id: `member-${member.id}`,
+        email: member.user?.email || 'Unknown',
+        status: 'accepted',
+        created_at: member.joined_at,
+        metadata: {
+          targetUserName: member.user?.full_name || 'Unknown User',
+          sharingRole: member.role,
+          collectionId: preset.id,
+          targetUserId: member.user_id,
+        }
+      })) || [];
+
+      // Combine creator, pending, and accepted invitations
+      const allInvitations = [
+        ...(creatorEntry ? [creatorEntry] : []),
+        ...(pendingData || []),
+        ...acceptedInvitations
+      ];
+
+      setPendingCollectionInvitations(allInvitations);
+      console.log('✅ [CollectionSharingModal] Loaded invitations:', allInvitations.length);
     } catch (error) {
-      console.error('❌ [CollectionSharingModal] Unexpected error:', error);
-      showToast({
-        title: t('common.error') || 'Error',
-        message: t('collectionSharing.failedToSend') || 'Failed to send invitations',
-        type: 'error'
-      });
+      console.error('Error loading collection invitations:', error);
     } finally {
-      console.log('🏁 [CollectionSharingModal] Setting loading to false');
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
+  }, [effectiveUserId, preset?.id]);
 
-  // User search function (matching GettingStarted.tsx pattern)
-  const handleSearchUsers = async (query: string) => {
-    setSearchQuery(query);
+  // Search users for sharing
+  const handleSharingSearchUsers = async (query: string) => {
+    setSharingSearchQuery(query);
     if (query.length < 2) {
-      setSearchResults([]);
+      setSharingSearchResults([]);
       return;
     }
 
@@ -212,248 +284,658 @@ export function CollectionSharingModal({
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, role')
-        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
-        .neq('id', user?.id)
+        .or(`full_name.ilike.*${query}*,email.ilike.*${query}*`)
+        .neq('id', effectiveUserId)
         .limit(10);
 
       if (error) throw error;
-      setSearchResults(data || []);
+      setSharingSearchResults(data || []);
     } catch (error) {
-      console.error('Error searching users:', error);
+      console.error('Error searching users for sharing:', error);
     }
   };
 
-  const handleClose = () => {
-    setEmail('');
-    setMessage('');
-    setSearchQuery('');
-    setSearchResults([]);
-    setSelectedUsers([]);
-    hideSheet();
+  // Update user role in collection
+  const handleUpdateUserRole = async (userId: string, newRole: 'viewer' | 'editor') => {
+    if (!preset?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('map_preset_members')
+        .update({ role: newRole })
+        .eq('preset_id', preset.id)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      showToast({
+        title: t('routeCollections.roleUpdated') || 'Role Updated',
+        message: t('routeCollections.roleUpdatedMessage') || 'User role has been updated successfully',
+        type: 'success'
+      });
+
+      // Refresh the data
+      await loadPendingCollectionInvitations();
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeCollections.failedToUpdateRole') || 'Failed to update user role',
+        type: 'error'
+      });
+    }
   };
 
-  if (!isVisible) return null;
+  // Remove user from collection
+  const handleRemoveUser = async (userId: string, userName: string) => {
+    if (!preset?.id) return;
+
+    try {
+      // Remove from map_preset_members
+      const { error: memberError } = await supabase
+        .from('map_preset_members')
+        .delete()
+        .eq('preset_id', preset.id)
+        .eq('user_id', userId);
+
+      if (memberError) throw memberError;
+
+      // Also remove any pending invitations for this user
+      const { error: inviteError } = await supabase
+        .from('pending_invitations')
+        .delete()
+        .eq('metadata->>collectionId', preset.id)
+        .eq('metadata->>targetUserId', userId)
+        .eq('status', 'pending');
+
+      if (inviteError) {
+        console.warn('Error removing pending invitation:', inviteError);
+        // Don't throw here, as the main operation succeeded
+      }
+
+      showToast({
+        title: t('routeCollections.userRemoved') || 'User Removed',
+        message: t('routeCollections.userRemovedMessage')?.replace('{userName}', userName) || `${userName} has been removed from the collection`,
+        type: 'success'
+      });
+
+      // Refresh the data
+      await loadPendingCollectionInvitations();
+    } catch (error) {
+      console.error('Error removing user:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeCollections.failedToRemoveUser') || 'Failed to remove user from collection',
+        type: 'error'
+      });
+    }
+  };
+
+  // Create collection sharing invitations
+  const handleCreateCollectionSharing = async () => {
+    if (!effectiveUserId || selectedUsers.length === 0) return;
+
+    try {
+      let successCount = 0;
+      let failCount = 0;
+
+      // Create invitations for each selected user
+      for (const targetUser of selectedUsers) {
+        if (!targetUser.email) {
+          failCount++;
+          continue;
+        }
+        
+        try {
+          // Create pending invitation for collection sharing
+          const { data: invitationData, error: inviteError } = await supabase
+            .from('pending_invitations')
+            .insert({
+              email: targetUser.email.toLowerCase(),
+              role: 'collection_sharing',
+              invited_by: effectiveUserId,
+              metadata: {
+                collectionId: preset.id,
+                collectionName: preset.name,
+                inviterName: user?.email || 'Someone',
+                customMessage: sharingCustomMessage.trim() || undefined,
+                invitedAt: new Date().toISOString(),
+                targetUserId: targetUser.id,
+                targetUserName: targetUser.full_name,
+                invitationType: 'collection_sharing',
+                sharingRole: targetUser.sharingRole || 'viewer',
+              },
+              status: 'pending',
+            })
+            .select('id')
+            .single();
+
+          let invitationId = invitationData?.id;
+
+          // If there was a duplicate key error, try to find the existing invitation
+          if (inviteError && inviteError.code === '23505') {
+            const { data: existingInvitation, error: findError } = await supabase
+              .from('pending_invitations')
+              .select('id')
+              .eq('email', targetUser.email.toLowerCase())
+              .eq('invited_by', effectiveUserId)
+              .eq('role', 'collection_sharing')
+              .eq('metadata->>collectionId', preset.id)
+              .eq('status', 'pending')
+              .single();
+
+            if (!findError && existingInvitation) {
+              invitationId = existingInvitation.id;
+            }
+          } else if (inviteError) {
+            console.error('Error creating collection sharing invitation:', inviteError);
+            failCount++;
+            continue;
+          }
+
+          if (!invitationId) {
+            failCount++;
+            continue;
+          }
+
+          // Create notification for the target user
+          const baseMessage = `${user?.email || 'Someone'} wants to share the collection "${preset.name}" with you`;
+          const fullMessage = sharingCustomMessage.trim() 
+            ? `${baseMessage}\n\nPersonal message: "${sharingCustomMessage.trim()}"`
+            : baseMessage;
+          
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: targetUser.id,
+              actor_id: effectiveUserId,
+              type: 'collection_invitation' as any,
+              title: 'Collection Sharing Invitation',
+              message: fullMessage,
+              metadata: {
+                collection_name: preset.name,
+                collection_id: preset.id,
+                invitation_id: invitationId,
+                from_user_id: effectiveUserId,
+                from_user_name: user?.email,
+                customMessage: sharingCustomMessage.trim() || undefined,
+                sharingRole: targetUser.sharingRole || 'viewer',
+              },
+              action_url: 'vromm://notifications',
+              priority: 'high',
+              is_read: false,
+            });
+
+          successCount++;
+        } catch (error) {
+          console.error('Error processing collection sharing invitation for:', targetUser.email, error);
+          failCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        showToast({
+          title: t('routeCollections.invitationsSent') || 'Invitations Sent',
+          message: t('routeCollections.invitationsSentMessage')?.replace('{count}', successCount.toString()) || `${successCount} invitation(s) sent successfully`,
+          type: 'success'
+        });
+      }
+      
+      // Refresh pending invitations
+      await loadPendingCollectionInvitations();
+      
+      // Clear selections and close modal
+      setSelectedUsers([]);
+      setSharingCustomMessage('');
+      setSharingSearchQuery('');
+      setSharingSearchResults([]);
+      
+      onInvitationsSent?.();
+      handleClose();
+      
+    } catch (error) {
+      console.error('Error creating collection sharing invitations:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeCollections.failedToSendInvitations') || 'Failed to send invitations',
+        type: 'error'
+      });
+    }
+  };
+
+  // Load data when modal opens
+  useEffect(() => {
+    if (visible && preset?.id) {
+      loadPendingCollectionInvitations();
+    }
+  }, [visible, preset?.id, loadPendingCollectionInvitations]);
+
+  // Animation effects
+  useEffect(() => {
+    if (visible) {
+      // Reset gesture translateY when opening and set to large snap point
+      translateY.value = withSpring(snapPoints.large, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      currentState.value = snapPoints.large;
+      setCurrentSnapPoint(snapPoints.large);
+    }
+  }, [visible, snapPoints.large, currentState]);
+
+  if (!visible) {
+    console.log('🎯 [CollectionSharingModal] Not visible, returning null');
+    return null;
+  }
+
+  console.log('🎯 [CollectionSharingModal] RENDERING MODAL - visible is TRUE!');
+  console.log('🎯 [CollectionSharingModal] Preset:', preset?.name, 'ID:', preset?.id);
 
   return (
     <Modal
-      visible={isVisible}
+      visible={visible}
       transparent
       animationType="none"
-      onRequestClose={hideSheet}
+      onRequestClose={handleClose}
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
     >
-      <Animated.View
-        style={{
-          flex: 1,
-          backgroundColor: colorScheme === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)',
-          opacity: backdropOpacity,
-        }}
-      >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <Pressable style={{ flex: 1 }} onPress={hideSheet} />
-          <Animated.View
-            style={{
-              transform: [{ translateY: sheetTranslateY }],
-            }}
+      <View style={{ 
+        flex: 1, 
+        backgroundColor: 'rgba(0,0,0,0.5)', 
+        justifyContent: 'flex-end',
+        zIndex: 9999
+      }}>
+        <Pressable style={{ flex: 1 }} onPress={handleClose} />
+        <GestureDetector gesture={panGesture}>
+          <ReanimatedAnimated.View 
+            style={[
+              {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: height,
+                backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#fff',
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+              },
+              animatedGestureStyle
+            ]}
           >
             <YStack
-              backgroundColor={colorScheme === 'dark' ? '#1C1C1C' : '#FFFFFF'}
-              padding="$4"
+              padding="$3"
               paddingBottom={24}
-              borderTopLeftRadius="$4"
-              borderTopRightRadius="$4"
-              gap="$4"
-              minHeight="60%"
-              borderWidth={1}
-              borderColor={colorScheme === 'dark' ? '#333333' : '#E5E5E5'}
+              gap="$3"
+              flex={1}
             >
+              {/* Drag Handle */}
+              <View style={{
+                alignItems: 'center',
+                paddingVertical: 8,
+                paddingBottom: 16,
+              }}>
+                <View style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC',
+                }} />
+              </View>
+
               {/* Header */}
-              <XStack alignItems="center" justifyContent="space-between">
-                <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center" flex={1}>
-                  {t('collectionSharing.shareCollection') || 'Share Collection'}
-                </Text>
+              <XStack alignItems="center" justifyContent="space-between" paddingHorizontal="$2">
+                <Text fontSize="$6" fontWeight="bold" color="$color" flex={1} textAlign="center">
+                  Share Collection
+          </Text>
                 <TouchableOpacity
                   onPress={handleClose}
                   style={{
                     padding: 8,
                     backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
-                    borderRadius: 8,
+                    borderRadius: 6,
                   }}
                   activeOpacity={0.7}
                 >
                   <Feather name="x" size={20} color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} />
-                </TouchableOpacity>
+          </TouchableOpacity>
+        </XStack>
+
+              <Text fontSize="$3" color="$gray11" textAlign="center" paddingHorizontal="$2">
+                Search for users to share this collection with
+              </Text>
+
+              {/* Show content only if not in tiny mode */}
+              {currentSnapPoint !== snapPoints.tiny && (
+                <View style={{ flex: 1 }}>
+                  <ScrollView 
+                    style={{ flex: 1 }} 
+                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+                    showsVerticalScrollIndicator={false}
+                  >
+        <YStack gap="$4">
+          
+
+          {/* Show current user's role and collection info */}
+          {preset && (
+            <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+              <XStack alignItems="center" gap="$2">
+                <Feather 
+                  name={preset.creator_id === effectiveUserId ? "award" : "user"} 
+                  size={16} 
+                  color={preset.creator_id === effectiveUserId ? "#FFD700" : "#00E6C3"} 
+                />
+                <Text fontSize="$4" fontWeight="600" color="$color">
+                  {preset.creator_id === effectiveUserId 
+                    ? (t('routeCollections.youAreOwner') || 'You are the owner')
+                    : (t('routeCollections.youAreMember') || 'You are a member')
+                  }
+                </Text>
               </XStack>
+              <Text fontSize="$3" color="$gray11">
+                {t('routeCollections.collectionName') || 'Collection'}: {preset.name}
+              </Text>
+              <XStack gap="$4" alignItems="center">
+                <Text fontSize="$3" color="$gray11">
+                  {t('routeCollections.visibility') || 'Visibility'}: {preset.visibility}
+                </Text>
+                {preset.route_count !== undefined && (
+                  <Text fontSize="$3" color="$gray11">
+                    {t('routeCollections.routeCount') || 'Routes'}: {preset.route_count}
+                  </Text>
+                )}
+              </XStack>
+            </YStack>
+          )}
 
-                <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-                  <YStack gap="$4">
-                    <YStack>
-                      <Text fontSize="$4" fontWeight="500" color="$color" marginBottom="$2">
-                        {t('collectionSharing.collectionName') || 'Collection'}
-                      </Text>
-                      <Text fontSize="$3" color="$gray10" backgroundColor="$backgroundHover" padding="$3" borderRadius="$3">
-                        {collectionName}
-                      </Text>
-                    </YStack>
+          {/* Show collection invitations and members */}
+          {pendingCollectionInvitations.length > 0 && (
+            <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
+              <Text fontSize="$4" fontWeight="600" color="$color">
+                {t('routeCollections.collectionMembers') || 'Collection Members'} ({pendingCollectionInvitations.length}):
+              </Text>
+              {pendingCollectionInvitations.map((invitation) => {
+                const isPending = invitation.status === 'pending';
+                const isAccepted = invitation.status === 'accepted';
+                const isCreator = invitation.status === 'creator';
+                const currentRole = invitation.metadata?.sharingRole || 'viewer';
+                const isCurrentUser = invitation.metadata?.targetUserId === effectiveUserId;
+                const isOwner = preset?.creator_id === effectiveUserId;
+                const canManage = isOwner && !isCreator && !isCurrentUser;
+                
+                return (
+                  <YStack key={invitation.id} gap="$2" padding="$3" backgroundColor="$background" borderRadius="$3" borderWidth={1} borderColor="$borderColor">
+                    <XStack alignItems="center" justifyContent="space-between">
+                      <YStack flex={1}>
+                        <XStack alignItems="center" gap="$2">
+                          <Feather 
+                            name={isCreator ? "award" : isPending ? "clock" : "user-check"} 
+                            size={16} 
+                            color={isCreator ? "#FFD700" : isPending ? "#FFA500" : "#00E6C3"} 
+                          />
+                          <Text fontSize="$4" fontWeight="600" color="$color">
+                            {invitation.metadata?.targetUserName || invitation.email}
+                          </Text>
+                          {isCurrentUser && (
+                            <Text fontSize="$2" color="#00E6C3" fontWeight="600">
+                              ({t('routeCollections.you') || 'You'})
+                            </Text>
+                          )}
+                        </XStack>
+                        <Text fontSize="$3" color="$gray11" marginTop="$1">
+                          {invitation.email}
+            </Text>
+                        <Text fontSize="$2" color="$gray10" marginTop="$1">
+                          {new Date(invitation.created_at).toLocaleDateString()} • {currentRole}
+            </Text>
+          </YStack>
 
-                    {/* Show selected users */}
-                    {selectedUsers.length > 0 && (
-                      <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
-                        <Text fontSize="$4" fontWeight="600" color="$color">
-                          {t('collectionSharing.selectedUsers') || 'Selected Users'} ({selectedUsers.length}):
+                      <YStack alignItems="center" gap="$1">
+                        <Text fontSize="$2" color={
+                          isCreator ? "#FFD700" : 
+                          isPending ? "#FFA500" : 
+                          "#00E6C3"
+                        } fontWeight="600">
+                          {isCreator ? 'OWNER' : isPending ? 'PENDING' : 'MEMBER'}
                         </Text>
-                        {selectedUsers.map((user) => (
-                          <XStack key={user.id} gap="$2" alignItems="center">
-                            <YStack flex={1}>
-                              <Text fontSize="$4" fontWeight="600" color="$color">
-                                {user.full_name || user.email}
-                              </Text>
-                              <Text fontSize="$3" color="$gray11">
-                                {user.email} • {user.role || 'user'}
-                              </Text>
-                            </YStack>
-                            <TouchableOpacity
-                              onPress={() => {
-                                setSelectedUsers(prev => 
-                                  prev.filter(u => u.id !== user.id)
-                                );
-                              }}
-                              style={{ 
-                                padding: 8,
-                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                borderRadius: 6,
-                              }}
-                              activeOpacity={0.6}
-                            >
-                              <Feather name="x" size={16} color="#EF4444" />
-                            </TouchableOpacity>
-                          </XStack>
-                        ))}
+                      </YStack>
+                    </XStack>
+
+                    {/* Role management for accepted members (not creator, not current user) */}
+                    {isAccepted && canManage && (
+                      <YStack gap="$2" marginTop="$2">
+                        <Text fontSize="$3" color="$gray11" fontWeight="500">
+                          {t('roleManagement.title') || 'Change Role'}:
+                        </Text>
+                        <XStack gap="$2" flexWrap="wrap">
+                          <Button
+                            variant={currentRole === 'viewer' ? 'primary' : 'secondary'}
+                            size="sm"
+                            onPress={() => handleUpdateUserRole(invitation.metadata?.targetUserId, 'viewer')}
+                          >
+                            {t('roleManagement.viewer') || 'Viewer'}
+                          </Button>
+                          
+                          <Button
+                            variant={currentRole === 'editor' ? 'primary' : 'secondary'}
+                            size="sm"
+                            onPress={() => handleUpdateUserRole(invitation.metadata?.targetUserId, 'editor')}
+                          >
+                            {t('roleManagement.editor') || 'Editor'}
+                          </Button>
+                          
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onPress={() => handleRemoveUser(invitation.metadata?.targetUserId, invitation.metadata?.targetUserName || invitation.email)}
+                            style={{ borderColor: '#EF4444' }}
+                          >
+                            <Text color="#EF4444">
+                              {t('collectionMembers.removeUser') || 'Remove'}
+                            </Text>
+                          </Button>
+                        </XStack>
                       </YStack>
                     )}
 
-                    <YStack>
-                      <Text fontSize="$4" fontWeight="500" color="$color" marginBottom="$2">
-                        {t('collectionSharing.searchUsers') || 'Search Users'}
-                      </Text>
-                      <Input
-                        placeholder={t('collectionSharing.searchPlaceholder') || 'Search by name or email...'}
-                        value={searchQuery}
-                        onChangeText={handleSearchUsers}
-                        backgroundColor="$background"
-                        borderColor="$borderColor"
-                        color="$color"
-                        placeholderTextColor="$gray10"
-                      />
-                    </YStack>
-
-                    {/* Search Results */}
-                    {searchQuery.length >= 2 && (
-                      <ScrollView style={{ maxHeight: 200 }}>
-                        <YStack gap="$2">
-                          {searchResults.length === 0 && (
-                            <Text fontSize="$3" color="$gray11" textAlign="center" paddingVertical="$4">
-                              {t('collectionSharing.noUsersFound') || 'No users found'}
-                            </Text>
-                          )}
+                    {/* Pending invitation management */}
+                    {isPending && canManage && (
+                      <YStack gap="$2" marginTop="$2">
+                        <Text fontSize="$3" color="$gray11" fontWeight="500">
+                          {t('collectionMembers.pendingInvitation') || 'Pending Invitation'}:
+                        </Text>
+                        <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                          <Text fontSize="$3" color="$gray11">
+                            {t('roleManagement.title') || 'Change Role'}:
+                          </Text>
+                          <Button
+                            variant={currentRole === 'viewer' ? 'primary' : 'secondary'}
+                            size="sm"
+                            onPress={() => handleUpdateUserRole(invitation.metadata?.targetUserId, 'viewer')}
+                          >
+                            {t('roleManagement.viewer') || 'Viewer'}
+                          </Button>
                           
-                          {searchResults.map((user) => {
-                            const isSelected = selectedUsers.some(u => u.id === user.id);
-                            return (
-                              <TouchableOpacity
-                                key={user.id}
-                                onPress={() => {
-                                  if (isSelected) {
-                                    setSelectedUsers(prev => prev.filter(u => u.id !== user.id));
-                                  } else {
-                                    setSelectedUsers(prev => [...prev, user]);
-                                  }
-                                }}
-                                style={{
-                                  padding: 12,
-                                  borderRadius: 8,
-                                  borderWidth: isSelected ? 2 : 1,
-                                  borderColor: isSelected ? '#00E6C3' : '#ccc',
-                                  backgroundColor: isSelected ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
-                                  marginVertical: 4,
-                                }}
-                              >
-                                <XStack gap={8} alignItems="center">
-                                  <YStack flex={1}>
-                                    <Text color="$color" fontSize={14} fontWeight="600">
-                                      {user.full_name || 'Unknown User'}
-                                    </Text>
-                                    <Text fontSize={12} color="$gray11">
-                                      {user.email} • {user.role}
-                                    </Text>
-                                  </YStack>
-                                  {isSelected ? (
-                                    <Feather name="check" size={16} color="#00E6C3" />
-                                  ) : (
-                                    <Feather name="plus-circle" size={16} color="#ccc" />
-                                  )}
-                                </XStack>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </YStack>
-                      </ScrollView>
+                          <Button
+                            variant={currentRole === 'editor' ? 'primary' : 'secondary'}
+                            size="sm"
+                            onPress={() => handleUpdateUserRole(invitation.metadata?.targetUserId, 'editor')}
+                          >
+                            {t('roleManagement.editor') || 'Editor'}
+                          </Button>
+                          
+                          <TouchableOpacity
+                            onPress={() => handleRemoveUser(invitation.metadata?.targetUserId, invitation.metadata?.targetUserName || invitation.email)}
+                            style={{
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text fontSize="$3" color="#EF4444" fontWeight="500">
+                              {t('collectionMembers.cancelInvitation') || 'Cancel'}
+                            </Text>
+                          </TouchableOpacity>
+                        </XStack>
+                      </YStack>
                     )}
-
-                    <YStack>
-                      <Text fontSize="$4" fontWeight="500" color="$color" marginBottom="$2">
-                        {t('collectionSharing.message') || 'Message (Optional)'}
-                      </Text>
-                      <TextArea
-                        placeholder={t('collectionSharing.messagePlaceholder') || 'Add a personal message...'}
-                        value={message}
-                        onChangeText={setMessage}
-                        minHeight={80}
-                        maxLength={500}
-                        backgroundColor="$background"
-                        borderColor="$borderColor"
-                        color="$color"
-                        placeholderTextColor="$gray10"
-                      />
-                      <Text fontSize="$2" color="$gray10" textAlign="right">
-                        {message.length}/500
-                      </Text>
-                    </YStack>
                   </YStack>
-                </ScrollView>
+                );
+              })}
+            </YStack>
+          )}
+          
+          {/* User Search Section */}
+          <YStack gap="$2">
+            <Text fontSize="$3" color="$gray11">{t('routeCollections.searchUsers') || 'Search for users:'}</Text>
+            <Input
+              placeholder={t('routeCollections.searchUsersPlaceholder') || 'Search by name or email...'}
+              value={sharingSearchQuery}
+              onChangeText={handleSharingSearchUsers}
+              backgroundColor="$background"
+              borderColor="$borderColor"
+              color="$color"
+              placeholderTextColor="$gray10"
+            />
+          </YStack>
 
-                <YStack gap="$2" marginTop="$4">
-                  <Button
-                    backgroundColor="#00E6C3"
-                    color="#000000"
-                    size="lg"
-                    onPress={() => {
-                      console.log('🔘 [CollectionSharingModal] Send button pressed');
-                      handleSendInvitation();
-                    }}
-                    disabled={isLoading || selectedUsers.length === 0}
-                  >
-                    <Text color="#000000" fontWeight="700">
-                      {isLoading 
-                        ? (t('collectionSharing.sending') || 'Sending...') 
-                        : (t('collectionSharing.sendInvitations') || 'Send Invitations')
-                      }
-                    </Text>
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="lg"
-                    onPress={handleClose}
-                    disabled={isLoading}
-                  >
-                    {t('common.cancel')}
-                  </Button>
-                </YStack>
+          {/* Search Results */}
+          {sharingSearchQuery.length >= 2 && (
+            <ScrollView style={{ maxHeight: 200 }}>
+              <YStack gap="$2">
+                {sharingSearchResults.length === 0 ? (
+                  <Text fontSize="$3" color="$gray11" textAlign="center" paddingVertical="$2">
+                    {t('routeCollections.noUsersFound') || 'No users found'}
+                  </Text>
+                ) : (
+                  sharingSearchResults.map((user) => {
+                    const isSelected = selectedUsers.some(u => u.id === user.id);
+                    return (
+                      <TouchableOpacity
+                        key={user.id}
+                        onPress={() => {
+                          if (isSelected) {
+                            setSelectedUsers(prev => prev.filter(u => u.id !== user.id));
+                          } else {
+                            setSelectedUsers(prev => [...prev, { ...user, sharingRole: 'viewer' }]);
+                          }
+                        }}
+                        style={{
+                          padding: 12,
+                          borderRadius: 8,
+                          borderWidth: isSelected ? 2 : 1,
+                          borderColor: isSelected ? '#00E6C3' : '#ccc',
+                          backgroundColor: isSelected ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
+                        }}
+                      >
+                        <XStack gap={8} alignItems="center">
+                          <YStack flex={1}>
+                            <Text color="$color" fontSize={14} fontWeight="600">
+                              {user.full_name || 'Unknown User'}
+                            </Text>
+                            <Text fontSize={12} color="$gray11">
+                              {user.email} • {user.role}
+                            </Text>
+                          </YStack>
+                          {isSelected ? (
+                            <Feather name="check" size={16} color="#00E6C3" />
+                          ) : (
+                            <Feather name="plus-circle" size={16} color="#ccc" />
+                          )}
+                        </XStack>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
               </YStack>
-            </Animated.View>
-          </View>
-        </Animated.View>
-      </Modal>
-    );
-  }
+            </ScrollView>
+          )}
+          
+          {/* Selected Users */}
+          {selectedUsers.length > 0 && (
+            <YStack gap="$2">
+              <Text fontSize="$3" color="$gray11">
+                {t('routeCollections.selectedUsers') || 'Selected Users'} ({selectedUsers.length}):
+              </Text>
+              {selectedUsers.map((user) => (
+                <XStack key={user.id} alignItems="center" justifyContent="space-between" padding="$2" backgroundColor="$backgroundHover" borderRadius="$2">
+                  <YStack flex={1}>
+                    <Text fontSize="$3" fontWeight="600" color="$color">
+                      {user.full_name || 'Unknown User'}
+                    </Text>
+                    <Text fontSize="$2" color="$gray11">
+                      {user.email} • {user.role}
+            </Text>
+                  </YStack>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedUsers(prev => prev.filter(u => u.id !== user.id));
+                    }}
+                    style={{
+                      padding: 8,
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      borderRadius: 6,
+                    }}
+                  >
+                    <Feather name="x" size={14} color="#EF4444" />
+                  </TouchableOpacity>
+                </XStack>
+              ))}
+            </YStack>
+          )}
+          
+          {/* Custom Message */}
+          <YStack gap="$2">
+            <Text fontSize="$3" color="$gray11">{t('routeCollections.optionalMessage') || 'Optional message:'}</Text>
+            <TextInput
+              value={sharingCustomMessage}
+              onChangeText={setSharingCustomMessage}
+              placeholder={t('routeCollections.messagePlaceholder') || 'Add a personal message...'}
+              multiline
+              style={{
+                backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#fff',
+                color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
+                borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 12,
+                minHeight: 60,
+                textAlignVertical: 'top',
+              }}
+              placeholderTextColor={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
+            />
+          </YStack>
 
-// Styles removed - now using Tamagui components and AddToPresetSheet.tsx pattern
+                      {/* Action Buttons */}
+                               <YStack gap="$2">
+                                 <Button
+                                   variant="primary"
+                                   size="lg"
+                                   onPress={handleCreateCollectionSharing}
+                                   disabled={selectedUsers.length === 0}
+                                 >
+                                   Send Invitations
+                                 </Button>
+                                 <Button
+                                   variant="secondary"
+                                   size="lg"
+                                   onPress={handleClose}
+                                 >
+                                   Cancel
+                                 </Button>
+                               </YStack>
+                    </YStack>
+                  </ScrollView>
+                </View>
+              )}
+        </YStack>
+          </ReanimatedAnimated.View>
+        </GestureDetector>
+      </View>
+    </Modal>
+  );
+}

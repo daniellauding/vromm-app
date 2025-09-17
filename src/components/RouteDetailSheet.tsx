@@ -580,7 +580,16 @@ export function RouteDetailSheet({
               } else {
                 console.warn('🎯 onReopen callback not provided to RouteDetailSheet');
               }
-            }, 200); // Increased delay to ensure proper timing
+            }, 1000); // Increased delay to allow sharing modal to appear
+          }}
+          onReopen={() => {
+            // When AddToPresetSheet needs to reopen after sharing modal closes
+            setTimeout(() => {
+              console.log('🎯 AddToPresetSheet reopening after sharing modal closed');
+              if (onReopen) {
+                onReopen();
+              }
+            }, 200);
           }}
         />
       );
@@ -607,6 +616,42 @@ export function RouteDetailSheet({
         returnToRouteDetail: true 
       } as any);
       onClose();
+    }
+  };
+
+  const handleUnmarkDriven = async () => {
+    if (!user?.id || !routeId) {
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.pleaseSignInToUnmark') || 'Please sign in to unmark this route',
+        type: 'error'
+      });
+      return;
+    }
+
+    try {
+      // Remove from driven routes
+      const { error } = await supabase
+        .from('driven_routes')
+        .delete()
+        .eq('route_id', routeId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setIsDriven(false);
+      showToast({
+        title: t('routeDetail.unmarkedAsDriven') || 'Unmarked as Driven',
+        message: t('routeDetail.routeUnmarkedAsDriven') || 'Route has been unmarked as driven',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error unmarking route as driven:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.failedToUnmark') || 'Failed to unmark route as driven',
+        type: 'error'
+      });
     }
   };
 
@@ -1801,6 +1846,97 @@ export function RouteDetailSheet({
                             variant="outlined"
                             size="lg"
                             onPress={() => setShowOptionsSheet(false)}
+                          >
+                            {t('common.cancel') || 'Cancel'}
+                          </Button>
+                        </YStack>
+                      </Animated.View>
+                    </View>
+                  </Animated.View>
+                </Modal>
+              )}
+
+              {/* Driven Options Sheet */}
+              {showDrivenOptionsSheet && (
+                <Modal
+                  visible={showDrivenOptionsSheet}
+                  transparent
+                  animationType="none"
+                  onRequestClose={() => setShowDrivenOptionsSheet(false)}
+                >
+                  <Animated.View
+                    style={{
+                      flex: 1,
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      opacity: backdropOpacity,
+                    }}
+                  >
+                    <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+                      <Pressable style={{ flex: 1 }} onPress={() => setShowDrivenOptionsSheet(false)} />
+                      <Animated.View
+                        style={{
+                          backgroundColor: backgroundColor,
+                          borderTopLeftRadius: 20,
+                          borderTopRightRadius: 20,
+                          padding: 20,
+                          paddingBottom: 40,
+                        }}
+                      >
+                        <YStack gap="$4">
+                          <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                            {t('routeDetail.drivenOptions') || 'Driven Options'}
+                          </Text>
+
+                          <YStack gap="$2">
+                            <TouchableOpacity
+                              onPress={() => {
+                                setShowDrivenOptionsSheet(false);
+                                navigation.navigate('AddReview', { 
+                                  routeId: routeId!,
+                                  returnToRouteDetail: true 
+                                } as any);
+                                onClose();
+                              }}
+                              style={{
+                                padding: 16,
+                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                borderRadius: 12,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 12,
+                              }}
+                            >
+                              <Feather name="edit" size={20} color={iconColor} />
+                              <Text fontSize="$4" color="$color">
+                                {t('routeDetail.editReview') || 'Edit Review'}
+                              </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              onPress={() => {
+                                setShowDrivenOptionsSheet(false);
+                                handleUnmarkDriven();
+                              }}
+                              style={{
+                                padding: 16,
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                borderRadius: 12,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 12,
+                              }}
+                            >
+                              <Feather name="x-circle" size={20} color="#EF4444" />
+                              <Text fontSize="$4" color="#EF4444">
+                                {t('routeDetail.unmarkAsDriven') || 'Unmark as Driven'}
+                              </Text>
+                            </TouchableOpacity>
+                          </YStack>
+
+                          <Button
+                            variant="outlined"
+                            size="lg"
+                            onPress={() => setShowDrivenOptionsSheet(false)}
                           >
                             {t('common.cancel') || 'Cancel'}
                           </Button>
