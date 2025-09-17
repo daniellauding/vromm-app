@@ -15,8 +15,8 @@ import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
-import { AddToPresetSheetModal } from './AddToPresetSheet';
 import { useSmartFilters } from '../hooks/useSmartFilters';
+import { useUserCollections } from '../hooks/useUserCollections';
 
 // Route type definition
 type Route = {
@@ -198,6 +198,7 @@ export function FilterSheet({
   const { showModal } = useModal();
   const { getEffectiveUserId } = useStudentSwitch();
   const { trackFilterUsage } = useSmartFilters();
+  const { collections: userCollections } = useUserCollections();
   const colorScheme = useColorScheme();
 
   // Use proper theming instead of hardcoded dark theme
@@ -739,7 +740,7 @@ export function FilterSheet({
 
   // Handle preset selection
   const handlePresetSelect = React.useCallback(async (presetId: string | null) => {
-    console.log('✅ [FilterSheet] Preset selected:', presetId);
+    console.log('✅ [FilterSheet] Collection selected:', presetId);
     onPresetSelect?.(presetId);
     
     // Save the preset selection immediately as part of filters
@@ -750,39 +751,8 @@ export function FilterSheet({
     
     // Save to storage immediately
     await saveFilterPreferences(updatedFilters);
-    console.log('💾 [FilterSheet] Saved preset selection immediately:', presetId);
+    console.log('💾 [FilterSheet] Saved collection selection immediately:', presetId);
   }, [onPresetSelect, filters, saveFilterPreferences]);
-
-  // Show preset selection modal
-  const handleShowPresets = React.useCallback(() => {
-    console.log('🔍 [FilterSheet] Opening preset selection modal for user:', effectiveUserId);
-    console.log('🔍 [FilterSheet] User context:', { 
-      effectiveUserId,
-      selectedPresetId 
-    });
-    
-    showModal(
-      <AddToPresetSheetModal
-        routeId="temp-filter-selection" // Use a temp ID since we're just selecting, not adding routes
-        selectedCollectionId={selectedPresetId || undefined}
-        onRouteAdded={(presetId, presetName) => {
-          console.log('✅ [FilterSheet] Preset selected:', presetId, presetName);
-          handlePresetSelect(presetId || null);
-        }}
-        onRouteRemoved={(presetId, presetName) => {
-          console.log('✅ [FilterSheet] Preset deselected:', presetId, presetName);
-          handlePresetSelect(null);
-        }}
-        onPresetCreated={(preset) => {
-          console.log('✅ [FilterSheet] New preset created:', preset.id, preset.name);
-          handlePresetSelect(preset.id);
-        }}
-        onClose={() => {
-          console.log('🔍 [FilterSheet] Preset selection modal closed');
-        }}
-      />
-    );
-  }, [showModal, handlePresetSelect, selectedPresetId, effectiveUserId]);
 
   // Clean up search timeout
   useEffect(() => {
@@ -830,54 +800,94 @@ export function FilterSheet({
         </View>
 
         <ScrollView style={{ flex: 1 }}>
-          {/* Map Presets Section */}
+          {/* Collections Section */}
           <YStack style={styles.filterSection}>
             <SizableText fontWeight="600" style={styles.sectionTitle}>
               {t('routeCollections.title') || 'Collections'}
             </SizableText>
             
-            <TouchableOpacity
-              onPress={handleShowPresets}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-                borderWidth: 1,
-                borderColor: borderColor,
-                borderRadius: 8,
-                backgroundColor: selectedPresetId ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
-                marginBottom: 16,
-              }}
-            >
-              <Feather
-                name="map"
-                size={20}
-                color={selectedPresetId ? '#00E6C3' : textColor}
-                style={{ marginRight: 12 }}
-              />
-              <YStack flex={1}>
-                <Text 
-                  color={selectedPresetId ? '#00E6C3' : textColor} 
-                  fontWeight={selectedPresetId ? '600' : '500'}
-                >
-                  {selectedPresetId 
-                    ? t('routeCollections.selectedCollection') || 'Selected Collection'
-                    : t('routeCollections.selectCollection') || 'Select Collection'
-                  }
-                </Text>
-                {selectedPresetId && (
-                  <Text fontSize="$2" color="$gray10">
-                    {t('routeCollections.tapToChange') || 'Tap to change'}
+            {/* Collection Chips */}
+            <View style={styles.filterRow}>
+              {/* "All Routes" option */}
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  {
+                    borderColor,
+                    backgroundColor: !selectedPresetId ? '#00E6C3' : 'transparent',
+                  },
+                ]}
+                onPress={() => handlePresetSelect(null)}
+              >
+                <XStack alignItems="center" gap="$1">
+                  <Feather
+                    name="globe"
+                    size={14}
+                    color={!selectedPresetId ? '#000000' : textColor}
+                  />
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color: !selectedPresetId ? '#000000' : textColor,
+                        fontWeight: !selectedPresetId ? '600' : '500',
+                      },
+                    ]}
+                  >
+                    {t('routeCollections.allRoutes') || 'All Routes'}
                   </Text>
-                )}
-              </YStack>
-              <Feather
-                name="chevron-right"
-                size={16}
-                color={selectedPresetId ? '#00E6C3' : textColor}
-              />
-            </TouchableOpacity>
+                </XStack>
+              </TouchableOpacity>
+
+              {/* User Collections */}
+              {userCollections.map((collection) => (
+                <TouchableOpacity
+                  key={collection.id}
+                  style={[
+                    styles.filterChip,
+                    {
+                      borderColor,
+                      backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
+                    },
+                  ]}
+                  onPress={() => handlePresetSelect(collection.id)}
+                >
+                  <XStack alignItems="center" gap="$1">
+                    <Feather
+                      name={collection.is_default ? 'star' : 'folder'}
+                      size={14}
+                      color={selectedPresetId === collection.id ? '#000000' : textColor}
+                    />
+                    <Text
+                      style={[
+                        styles.chipText,
+                        {
+                          color: selectedPresetId === collection.id ? '#000000' : textColor,
+                          fontWeight: selectedPresetId === collection.id ? '600' : '500',
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {collection.name}
+                    </Text>
+                    {collection.route_count && collection.route_count > 0 && (
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: selectedPresetId === collection.id ? '#000000' : textColor,
+                            fontSize: 12,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        ({collection.route_count})
+                      </Text>
+                    )}
+                  </XStack>
+                </TouchableOpacity>
+              ))}
+            </View>
           </YStack>
 
           {/* Search Section */}

@@ -207,6 +207,20 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           longitudeDelta: 0.05,
         }));
         setIsMapReady(true);
+        
+        // Force marker re-render after initial load
+        setTimeout(() => {
+          if (mapRef.current) {
+            console.log('🗺️ [MapScreen] Forcing initial marker re-render');
+            const currentRegion = {
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            };
+            mapRef.current.animateToRegion(currentRegion, 100);
+          }
+        }, 500);
         return;
       }
 
@@ -224,6 +238,15 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         }
       }
       setIsMapReady(true);
+      
+      // Force marker re-render after initial load (GPS fallback)
+      setTimeout(() => {
+        if (mapRef.current) {
+          console.log('🗺️ [MapScreen] Forcing initial marker re-render (GPS fallback)');
+          const currentRegion = { ...region };
+          mapRef.current.animateToRegion(currentRegion, 100);
+        }
+      }, 500);
     })();
   }, [userLocation]);
 
@@ -292,6 +315,16 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         if (mapRef.current) {
           console.log('🗺️ [MapScreen] Animating map to region');
           mapRef.current.animateToRegion(newRegion, 1000);
+          
+          // Force marker re-render after animation completes
+          setTimeout(() => {
+            if (mapRef.current) {
+              console.log('🗺️ [MapScreen] Forcing marker re-render after region change');
+              // Trigger a slight region change to force marker re-render
+              const currentRegion = { ...newRegion };
+              mapRef.current.animateToRegion(currentRegion, 100);
+            }
+          }, 1200); // Wait for animation to complete + small buffer
         } else {
           console.log('🗺️ [MapScreen] MapRef not available for animation');
         }
@@ -512,6 +545,15 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       console.log('🔴 [MapScreen] Zooming to single result:', newRegion);
       setRegion(newRegion);
       mapRef.current.animateToRegion(newRegion, 1000);
+      
+      // Force marker re-render after animation completes
+      setTimeout(() => {
+        if (mapRef.current) {
+          console.log('🗺️ [MapScreen] Forcing marker re-render after single result zoom');
+          const currentRegion = { ...newRegion };
+          mapRef.current.animateToRegion(currentRegion, 100);
+        }
+      }, 1200);
     } else {
       // Multiple results - fit all
       const lats = filteredCoordinates.map(c => c.latitude);
@@ -535,6 +577,15 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       });
       setRegion(newRegion);
       mapRef.current.animateToRegion(newRegion, 1500);
+      
+      // Force marker re-render after animation completes
+      setTimeout(() => {
+        if (mapRef.current) {
+          console.log('🗺️ [MapScreen] Forcing marker re-render after multiple results zoom');
+          const currentRegion = { ...newRegion };
+          mapRef.current.animateToRegion(currentRegion, 100);
+        }
+      }, 1600); // Wait for longer animation to complete
     }
   }, [activeRoutes, mapRef]);
 
@@ -642,6 +693,15 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
             setRegion(newRegion);
             setOriginalRegion(newRegion); // Save as original location
             mapRef.current.animateToRegion(newRegion, 1000);
+            
+            // Force marker re-render after location change
+            setTimeout(() => {
+              if (mapRef.current) {
+                console.log('🗺️ [MapScreen] Forcing marker re-render after locate me');
+                const currentRegion = { ...newRegion };
+                mapRef.current.animateToRegion(currentRegion, 100);
+              }
+            }, 1200);
             return;
           }
         } catch (locationError) {
@@ -678,6 +738,15 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
             setRegion(newRegion);
             setOriginalRegion(newRegion);
             mapRef.current.animateToRegion(newRegion, 1000);
+            
+            // Force marker re-render after location change
+            setTimeout(() => {
+              if (mapRef.current) {
+                console.log('🗺️ [MapScreen] Forcing marker re-render after locate me (permission granted)');
+                const currentRegion = { ...newRegion };
+                mapRef.current.animateToRegion(currentRegion, 100);
+              }
+            }, 1200);
           }
         } catch (locationError) {
           console.log('📍 [MapScreen] Location failed after permission granted, using Lund fallback');
