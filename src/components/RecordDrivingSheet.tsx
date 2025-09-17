@@ -338,24 +338,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     }
   }, [waypoints]);
 
-  // Add these missing functions back as empty placeholders
-  const startBackgroundLocationTask = async () => {
-    // Empty implementation to prevent crashes
-    console.log('Background location tracking not available in this version');
-    return false;
-  };
-
-  const stopBackgroundLocationTask = async () => {
-    // Empty implementation to prevent crashes
-    console.log('Stop background tracking not available in this version');
-    return false;
-  };
-
-  const cleanupMotionSensors = () => {
-    // Empty implementation to prevent crashes
-    console.log('Motion sensor cleanup not available in this version');
-  };
-
   // Format time display with HH:MM:SS format - memoized
   const formatTime = useCallback(
     (seconds: number): string => {
@@ -847,6 +829,13 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       lastPauseTimeRef.current = null;
       pausedTimeRef.current = 0;
 
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+
+      // Reset refs for clean start
+      startTimeRef.current = startTime.getTime();
+
       console.log('🎬 State Reset Complete:', {
         recordingStartTime: startTime.toISOString(),
         timestamp: Date.now(),
@@ -857,6 +846,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
+
         if (location) {
           // Show map and center on user location
           setShowMap(true);
@@ -865,72 +855,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         console.warn('Could not get current location for centering:', error);
       }
 
-      // Start timer with refs to avoid closure issues
-      try {
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-        }
-
-        // Reset refs for clean start
-        startTimeRef.current = startTime.getTime();
-        pausedTimeRef.current = 0;
-        isPausedRef.current = false;
-        lastPauseTimeRef.current = null;
-
-        console.log('🎬 Starting fixed timer with refs...');
-        timerRef.current = setInterval(() => {
-          try {
-            const now = Date.now();
-            const startTimeMs = startTimeRef.current!;
-            const currentPausedTime = pausedTimeRef.current;
-            const isCurrentlyPaused = isPausedRef.current;
-
-            // Always update total elapsed time (includes pauses)
-            const totalElapsed = Math.floor((now - startTimeMs) / 1000);
-            setTotalElapsedTime(totalElapsed);
-
-            // Update driving time (excludes pauses)
-            const activeDriving = Math.floor((now - startTimeMs - currentPausedTime) / 1000);
-            setDrivingTime(Math.max(0, activeDriving)); // Ensure non-negative
-
-            // Only recalculate average speed when actually driving
-            if (!isCurrentlyPaused && activeDriving > 0 && distance > 0) {
-              const timeHours = activeDriving / 3600;
-              setAverageSpeed(distance / timeHours);
-            }
-
-            // Debug log every 5 seconds to verify timer is working
-            if (totalElapsed % 5 === 0 && totalElapsed > 0) {
-              console.log('⏱️ TIMER TICK (FIXED):', {
-                totalElapsed,
-                totalFormatted: formatTime(totalElapsed),
-                activeDriving,
-                drivingFormatted: formatTime(activeDriving),
-                isCurrentlyPaused,
-                currentPausedTime,
-                distance: distance.toFixed(2),
-                startTime: new Date(startTimeMs).toISOString(),
-              });
-            }
-          } catch (error) {
-            console.error('❌ Timer error:', error);
-          }
-        }, 1000) as unknown as NodeJS.Timeout;
-
-        console.log('🎬 Fixed timer started - using refs to avoid closure issues');
-      } catch (err) {
-        console.error('Error setting up timer:', err);
-      }
-
-      // Set recording state (refs already set above)
       setIsRecording(true);
       setIsPaused(false);
-
-      console.log('🎬 Final ref state check:', {
-        isPausedRef: isPausedRef.current,
-        pausedTimeRef: pausedTimeRef.current,
-        startTimeRef: startTimeRef.current,
-      });
 
       // Start location tracking
       await startLocationTracking();
@@ -938,7 +864,62 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       console.error('Error starting recording:', error);
       setDebugMessage('Failed to start recording');
     }
-  }, [isPaused, distance, startLocationTracking]);
+  }, [startLocationTracking]);
+
+  React.useEffect(() => {
+    if (!isRecording) {
+      return;
+    }
+
+    console.log('Updating');
+    try {
+      const now = Date.now();
+      const startTimeMs = startTimeRef.current!;
+      const currentPausedTime = pausedTimeRef.current;
+      const isCurrentlyPaused = isPausedRef.current;
+
+      // Always update total elapsed time (includes pauses)
+      const totalElapsed = Math.floor((now - startTimeMs) / 1000);
+      setTotalElapsedTime(totalElapsed);
+
+      // Update driving time (excludes pauses)
+      const activeDriving = Math.floor((now - startTimeMs - currentPausedTime) / 1000);
+      setDrivingTime(Math.max(0, activeDriving)); // Ensure non-negative
+
+      // Only recalculate average speed when actually driving
+      if (!isCurrentlyPaused && activeDriving > 0 && distance > 0) {
+        const timeHours = activeDriving / 3600;
+        setAverageSpeed(distance / timeHours);
+      }
+
+      // Debug log every 5 seconds to verify timer is working
+      if (totalElapsed % 5 === 0 && totalElapsed > 0) {
+        console.log('⏱️ TIMER TICK (FIXED):', {
+          totalElapsed,
+          totalFormatted: formatTime(totalElapsed),
+          activeDriving,
+          drivingFormatted: formatTime(activeDriving),
+          isCurrentlyPaused,
+          currentPausedTime,
+          distance: distance.toFixed(2),
+          startTime: new Date(startTimeMs).toISOString(),
+        });
+      }
+    } catch (error) {
+      console.error('❌ Timer error:', error);
+    }
+  }, [
+    isRecording,
+    isPaused,
+    totalElapsedTime,
+    drivingTime,
+    distance,
+    averageSpeed,
+    maxSpeed,
+    recordingStartTime,
+    pausedTime,
+    formatTime,
+  ]);
 
   // Pause recording - fixed with refs
   const pauseRecording = useCallback(() => {
@@ -999,9 +980,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   // Stop recording with better cleanup
   const stopRecording = useCallback(() => {
     try {
-      console.log('🛑 STOP RECORDING CALLED');
-
       // Track recording end in Firebase Analytics
+      hideRecordingBanner();
       AppAnalytics.trackRouteRecordingEnd(
         'temp_route_' + Date.now(), // Temporary ID since route isn't created yet
         drivingTime, // Duration in seconds
@@ -1026,13 +1006,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       isPausedRef.current = false;
       lastPauseTimeRef.current = null;
 
-      // Stop background location tracking
-      try {
-        stopBackgroundLocationTask();
-      } catch (err) {
-        console.warn('Error stopping background task:', err);
-      }
-
       // Update state and sync final waypoints
       setIsRecording(false);
       setIsPaused(false);
@@ -1041,13 +1014,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       // Ensure final waypoint state is synchronized
       if (wayPointsRef.current.length > 0) {
         setWaypoints([...wayPointsRef.current]);
-      }
-
-      // Clean up motion sensors
-      try {
-        cleanupMotionSensors();
-      } catch (err) {
-        console.warn('Error cleaning up sensors:', err);
       }
 
       // Clear auto-save timer
@@ -1073,11 +1039,11 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     }
   }, [
     locationSubscription,
-    stopBackgroundLocationTask,
-    cleanupMotionSensors,
     totalElapsedTime,
     drivingTime,
     distance,
+    clearRecoveryData,
+    formatTime,
   ]);
 
   // Navigate to route creation with recorded data - memoized
@@ -1291,13 +1257,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           timerRef.current = null;
         }
 
-        // Stop background location tracking
-        try {
-          stopBackgroundLocationTask();
-        } catch (err) {
-          console.warn('Error stopping background task:', err);
-        }
-
         // Reset state
         setIsRecording(false);
         setIsPaused(false);
@@ -1423,6 +1382,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   }, [isRecording, isPaused, autoSaveSession]);
 
   // Handle app state changes for emergency saves
+  /*
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       console.log('📱 App state changed:', appState.current, '->', nextAppState);
@@ -1442,8 +1402,10 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       subscription?.remove();
     };
   }, [saveAsDraftEmergency]);
+  */
 
   // Clean up on unmount
+  /*
   useEffect(() => {
     return () => {
       // Clear timers
@@ -1461,6 +1423,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       }
     };
   }, [isRecording, saveAsDraftEmergency]);
+  */
 
   useEffect(() => {
     if (!isRecording) return;
@@ -1496,6 +1459,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => {
+      console.log('🚨 RecordDrivingSheet unmounted');
       subscription?.remove();
       subscriptionStopRecording?.remove();
     };
