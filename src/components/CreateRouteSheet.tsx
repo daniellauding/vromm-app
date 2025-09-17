@@ -42,6 +42,7 @@ import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector'
 import { AdvancedExerciseCreator } from '../components/AdvancedExerciseCreator';
 import * as mediaUtils from '../utils/mediaUtils';
 import { AddToPresetSheet } from '../components/AddToPresetSheet';
+import { RouteDetailSheet } from '../components/RouteDetailSheet';
 
 // Helper function to extract YouTube video ID
 const extractYoutubeVideoId = (url: string): string | null => {
@@ -358,6 +359,9 @@ export function CreateRouteSheet({
   const [youtubeLink, setYoutubeLink] = useState('');
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
+  const [showRouteDetailSheet, setShowRouteDetailSheet] = useState(false);
+  const [createdRouteId, setCreatedRouteId] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Drawing modes system - set to 'record' if coming from recorded route
   const [drawingMode, setDrawingMode] = useState<'pin' | 'waypoint' | 'pen' | 'record'>(
@@ -1556,38 +1560,59 @@ export function CreateRouteSheet({
     );
   };
 
+  // Helper function to show validation error with toast and scroll to section
+  const showValidationError = (message: string, section: string = 'basic') => {
+    showToast({
+      title: 'Validation Error',
+      message: message,
+      type: 'error'
+    });
+    
+    // Switch to the appropriate section
+    setActiveSection(section);
+    
+    // Scroll to top of the content after a short delay to allow section switch
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
+  };
+
   const handleCreate = async () => {
     if (!user?.id) {
-      Alert.alert('Error', 'Please sign in to create a route');
+      showValidationError('Please sign in to create a route');
       return;
     }
     if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter a route name');
+      showValidationError('Please enter a route name', 'basic');
       return;
     }
 
     // Validate waypoints based on drawing mode
     if (drawingMode === 'pin' && waypoints.length === 0) {
-      Alert.alert('Error', 'Please drop a pin on the map');
+      showValidationError('Please drop a pin on the map', 'basic');
       return;
     }
 
     if (drawingMode === 'waypoint' && waypoints.length < 2) {
-      Alert.alert('Error', 'Waypoint mode requires at least 2 waypoints');
+      showValidationError('Waypoint mode requires at least 2 waypoints', 'basic');
       return;
     }
 
     if (drawingMode === 'pen') {
       if (penPath.length === 0 && waypoints.length === 0) {
-        Alert.alert('Error', 'Please draw a route on the map');
+        showValidationError('Please draw a route on the map', 'basic');
         return;
       } else if (penPath.length > 0 && waypoints.length === 0) {
         // User drew something but didn't finish - show helpful message
-        Alert.alert(
-          'Finish Your Drawing',
-          'Please tap the "Finish" button to complete your pen drawing before saving.',
-          [{ text: 'OK' }],
-        );
+        showToast({
+          title: 'Finish Your Drawing',
+          message: 'Please tap the "Finish" button to complete your pen drawing before saving.',
+          type: 'info'
+        });
+        setActiveSection('basic');
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+        }, 100);
         return;
       } else if (penPath.length > 0 && waypoints.length > 0) {
         // Valid: User has drawn and finished - both pen coordinates and waypoints exist
@@ -1599,7 +1624,7 @@ export function CreateRouteSheet({
 
     // For record mode, we should have waypoints from recording
     if (drawingMode === 'record' && waypoints.length === 0) {
-      Alert.alert('Error', 'No recorded waypoints found. Please record a route first.');
+      showValidationError('No recorded waypoints found. Please record a route first.', 'basic');
       return;
     }
 
@@ -1860,15 +1885,21 @@ export function CreateRouteSheet({
       // Set loading to false before navigation
       setLoading(false);
 
-      // Show toast notification and navigate to home
+      // Show toast notification
       if (route?.id && route?.name) {
         showRouteCreatedToast(route.id, route.name, isEditing);
       }
 
-      // Close sheet and call callbacks
+      // Set the created route ID and show RouteDetailSheet
+      if (route?.id) {
+        setCreatedRouteId(route.id);
+        setShowRouteDetailSheet(true);
+      }
+
+      // Close the create sheet
       onClose();
 
-      // Call onRouteCreated callback if provided
+      // Call onRouteCreated callback if provided (for backward compatibility)
       if (onRouteCreated && route?.id) {
         onRouteCreated(route.id);
       }
@@ -2365,6 +2396,7 @@ export function CreateRouteSheet({
           {/* Section Content */}
           <YStack f={1} backgroundColor="$background">
             <ScrollView
+              ref={scrollViewRef}
               style={{ flex: 1 }}
               contentContainerStyle={{ paddingBottom: 100 }}
               scrollEnabled={drawingMode !== 'pen'}
@@ -3775,6 +3807,28 @@ export function CreateRouteSheet({
           });
         }}
         onClose={() => setShowCollectionSelector(false)}
+      />
+
+      {/* Route Detail Sheet - shown after successful route creation */}
+      <RouteDetailSheet
+        visible={showRouteDetailSheet}
+        onClose={() => {
+          setShowRouteDetailSheet(false);
+          setCreatedRouteId(null);
+        }}
+        routeId={createdRouteId || undefined}
+        onStartRoute={(routeId) => {
+          // Handle route start if needed
+          console.log('Route started:', routeId);
+        }}
+        onNavigateToProfile={(userId) => {
+          // Handle profile navigation if needed
+          console.log('Navigate to profile:', userId);
+        }}
+        onReopen={() => {
+          // Handle reopen if needed
+          console.log('Route detail sheet reopened');
+        }}
       />
             </Screen>
           </ReanimatedAnimated.View>

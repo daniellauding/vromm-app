@@ -26,6 +26,7 @@ import { calculateDistance, getDistanceFromLatLonInKm } from './utils';
 import { useLocation } from '../../context/LocationContext';
 import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
+import { useUserCollections } from '../../hooks/useUserCollections';
 // Tour imports disabled to prevent performance issues
 // import { useTourTarget } from '../../components/TourOverlay';
 // import { useScreenTours } from '../../utils/screenTours';
@@ -60,6 +61,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   const { userLocation } = useLocation();
   const { profile } = useAuth();
   const { getEffectiveUserId } = useStudentSwitch();
+  const { collections: userCollections } = useUserCollections();
 
   const [isMapReady, setIsMapReady] = useState(false);
   const { showModal } = useModal();
@@ -963,7 +965,9 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         }}>
           <TouchableOpacity
             style={{
-              backgroundColor: locationLoading ? 'rgba(26, 26, 26, 0.9)' : 'rgba(26, 26, 26, 0.85)',
+              backgroundColor: locationLoading 
+                ? (colorScheme === 'dark' ? 'rgba(42, 42, 42, 0.9)' : 'rgba(245, 245, 245, 0.9)')
+                : (colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'),
               borderRadius: 25,
               width: 50,
               height: 50,
@@ -975,7 +979,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
               shadowRadius: 4,
               elevation: 5,
               borderWidth: 1,
-              borderColor: 'rgba(255, 255, 255, 0.15)',
+              borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
             }}
             onPress={handleLocateMe}
             disabled={locationLoading}
@@ -991,10 +995,18 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                   }]
                 }}
               >
-                <Feather name="loader" size={20} color="white" />
+                <Feather 
+                  name="loader" 
+                  size={20} 
+                  color={colorScheme === 'dark' ? '#E0E0E0' : '#666666'} 
+                />
               </Animated.View>
             ) : (
-              <Feather name="navigation" size={20} color="white" />
+              <Feather 
+                name="navigation" 
+                size={20} 
+                color={colorScheme === 'dark' ? '#E0E0E0' : '#666666'} 
+              />
             )}
           </TouchableOpacity>
         </View>

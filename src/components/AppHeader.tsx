@@ -4,27 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { XStack, Text } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+// import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { useSmartFilters, FilterCategory } from '../hooks/useSmartFilters';
 
 const THEME = {
   brandPrimary: '#00E6C3',
   borderColor: '#333',
 };
 
-interface FilterCategory {
-  id: string;
-  label: string;
-  value: string;
-  type:
-    | 'difficulty'
-    | 'spot_type'
-    | 'category'
-    | 'transmission_type'
-    | 'activity_level'
-    | 'best_season'
-    | 'vehicle_types';
-}
+// FilterCategory is now imported from useSmartFilters hook
 
 interface AppHeaderProps {
   onSearchFilterPress: () => void; // Combined search + filter button
@@ -33,6 +22,7 @@ interface AppHeaderProps {
   activeFilters?: string[]; // IDs of currently active filters
   filterCounts?: Record<string, number>; // Route count for each filter
   hasActiveFilters?: boolean; // Whether filters are currently applied
+  userCollections?: Array<{ id: string; name: string }>; // User's collections for filter chips
 }
 
 const styles = StyleSheet.create({
@@ -56,9 +46,11 @@ export function AppHeader({
   activeFilters = [],
   filterCounts = {},
   hasActiveFilters = false,
+  userCollections = [],
 }: AppHeaderProps) {
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const { getSmartFilters, trackFilterUsage, addUserCollections, getAllFilters } = useSmartFilters();
 
   // Semi-transparent backgrounds for overlay effect
   const buttonBackgroundColor =
@@ -66,17 +58,33 @@ export function AppHeader({
   const borderColor =
     colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)';
 
-  // Chip colors - subtle and elegant
+  // Add user collections to smart filters
+  React.useEffect(() => {
+    if (userCollections.length > 0) {
+      addUserCollections(userCollections);
+    }
+  }, [userCollections, addUserCollections]);
+
+  // Get smart filter list (most relevant filters first)
+  const allFilters = getAllFilters(filters);
+  const smartFilters = getSmartFilters(allFilters, activeFilters);
+
+  // Chip colors - improved styling with solid backgrounds
   const chipColors = {
     inactive: {
-      background: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
-      border: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-      text: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+      background: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+      border: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+      text: colorScheme === 'dark' ? '#E0E0E0' : '#666666',
     },
     active: {
-      background: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-      border: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.12)',
-      text: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)',
+      background: THEME.brandPrimary,
+      border: THEME.brandPrimary,
+      text: '#000000',
+    },
+    collection: {
+      background: colorScheme === 'dark' ? '#1A3A5C' : '#E3F2FD',
+      border: colorScheme === 'dark' ? '#2E5A8A' : '#BBDEFB',
+      text: colorScheme === 'dark' ? '#90CAF9' : '#1976D2',
     },
   };
 
@@ -120,8 +128,8 @@ export function AppHeader({
               )}
             </View>
 
-            {/* Horizontal Filter Chips - Extend to edge with gradients */}
-            {filters.length > 0 && (
+            {/* Smart Filter Chips - Show most relevant filters */}
+            {smartFilters.length > 0 && (
               <View style={{ flex: 1, position: 'relative' }}>
                 <ScrollView
                   horizontal
@@ -131,20 +139,20 @@ export function AppHeader({
                   keyboardShouldPersistTaps="handled"
                   scrollEnabled={true}
                 >
-                  {filters.map((filter, index) => {
+                  {smartFilters.map((filter, index) => {
                     const isActive = activeFilters.includes(filter.id);
                     const count = filterCounts[filter.id];
+                    const isCollection = filter.type === 'collection';
 
-                    console.log(
-                      `🔴 Rendering chip ${index}:`,
-                      filter.label,
-                      'ID:',
-                      filter.id,
-                      'Active:',
-                      isActive,
-                    );
-
-                    const colors = isActive ? chipColors.active : chipColors.inactive;
+                    // Choose colors based on filter type and state
+                    let colors;
+                    if (isActive) {
+                      colors = chipColors.active;
+                    } else if (isCollection) {
+                      colors = chipColors.collection;
+                    } else {
+                      colors = chipColors.inactive;
+                    }
 
                     return (
                       <TouchableOpacity
@@ -161,26 +169,44 @@ export function AppHeader({
                           minWidth: 60,
                           justifyContent: 'center',
                           alignItems: 'center',
+                          flexDirection: 'row',
                         }}
                         onPress={() => {
                           console.log(
-                            `🔴 Filter chip ${index} pressed:`,
+                            `🧠 Smart filter chip pressed:`,
                             filter.label,
                             'ID:',
                             filter.id,
                             'Type:',
                             filter.type,
+                            'Active:',
+                            isActive,
                           );
+                          
+                          // Track filter usage for smart recommendations
+                          trackFilterUsage(filter.id, filter.type);
+                          
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           onFilterPress?.(filter);
                         }}
                       >
+                        {/* Collection icon for collection filters */}
+                        {isCollection && (
+                          <Feather 
+                            name="folder" 
+                            size={12} 
+                            color={colors.text} 
+                            style={{ marginRight: 4 }} 
+                          />
+                        )}
+                        
                         <Text
                           style={{
                             color: colors.text,
                             fontWeight: isActive ? '600' : '500',
                             fontSize: 14,
                           }}
+                          numberOfLines={1}
                         >
                           {count !== undefined && count > 0
                             ? `${filter.label} (${count})`
@@ -192,7 +218,7 @@ export function AppHeader({
                 </ScrollView>
 
                 {/* Left gradient overlay */}
-                <LinearGradient
+                {/* <LinearGradient
                   colors={[
                     colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.3)' : 'rgba(255, 255, 255, 0.3)',
                     'transparent',
@@ -207,10 +233,10 @@ export function AppHeader({
                     width: 12,
                     pointerEvents: 'none',
                   }}
-                />
+                /> */}
 
                 {/* Right gradient overlay */}
-                <LinearGradient
+                {/* <LinearGradient
                   colors={[
                     'transparent',
                     colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.3)' : 'rgba(255, 255, 255, 0.3)',
@@ -225,7 +251,7 @@ export function AppHeader({
                     width: 12,
                     pointerEvents: 'none',
                   }}
-                />
+                /> */}
               </View>
             )}
           </XStack>

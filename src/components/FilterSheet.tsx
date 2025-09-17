@@ -16,6 +16,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { AddToPresetSheetModal } from './AddToPresetSheet';
+import { useSmartFilters } from '../hooks/useSmartFilters';
 
 // Route type definition
 type Route = {
@@ -196,6 +197,7 @@ export function FilterSheet({
   const { t } = useTranslation();
   const { showModal } = useModal();
   const { getEffectiveUserId } = useStudentSwitch();
+  const { trackFilterUsage } = useSmartFilters();
   const colorScheme = useColorScheme();
 
   // Use proper theming instead of hardcoded dark theme
@@ -507,12 +509,47 @@ export function FilterSheet({
       selectedPresetId: selectedPresetId,
     };
 
+    // Track filter usage for smart recommendations
+    if (filters.difficulty?.length) {
+      filters.difficulty.forEach(diff => trackFilterUsage(`difficulty_${diff}`, 'difficulty'));
+    }
+    if (filters.spotType?.length) {
+      filters.spotType.forEach(spot => trackFilterUsage(`spot_type_${spot}`, 'spot_type'));
+    }
+    if (filters.category?.length) {
+      filters.category.forEach(cat => trackFilterUsage(`category_${cat}`, 'category'));
+    }
+    if (filters.transmissionType?.length) {
+      filters.transmissionType.forEach(trans => trackFilterUsage(`transmission_type_${trans}`, 'transmission_type'));
+    }
+    if (filters.activityLevel?.length) {
+      filters.activityLevel.forEach(level => trackFilterUsage(`activity_level_${level}`, 'activity_level'));
+    }
+    if (filters.bestSeason?.length) {
+      filters.bestSeason.forEach(season => trackFilterUsage(`best_season_${season}`, 'best_season'));
+    }
+    if (filters.vehicleTypes?.length) {
+      filters.vehicleTypes.forEach(vehicle => trackFilterUsage(`vehicle_types_${vehicle}`, 'vehicle_types'));
+    }
+    if (filters.hasExercises) {
+      trackFilterUsage('has_exercises', 'content');
+    }
+    if (filters.hasMedia) {
+      trackFilterUsage('has_media', 'content');
+    }
+    if (filters.isVerified) {
+      trackFilterUsage('is_verified', 'content');
+    }
+    if (selectedPresetId) {
+      trackFilterUsage(`collection_${selectedPresetId}`, 'collection');
+    }
+
     // Save filters to AsyncStorage for persistence (user-specific)
     await saveFilterPreferences(filtersWithPreset);
 
     onApplyFilters(filtersWithPreset);
     onClose();
-  }, [onApplyFilters, filters, selectedPresetId, onClose, saveFilterPreferences]);
+  }, [onApplyFilters, filters, selectedPresetId, onClose, saveFilterPreferences, trackFilterUsage]);
 
   // Toggle array-based filter selection
   const toggleFilter = (type: keyof FilterOptions, value: string) => {
