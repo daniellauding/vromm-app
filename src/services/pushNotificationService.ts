@@ -630,7 +630,7 @@ class PushNotificationService {
   ) {
     await this.sendEnhancedNotification({
       targetUserId: routeCreatorId,
-      type: 'route_completed',
+      type: 'route_driven',
       title: 'Route Completed! ✅',
       message: `${completedByName} completed your route: ${routeTitle}`,
       data: {

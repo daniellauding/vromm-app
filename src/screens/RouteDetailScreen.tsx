@@ -42,6 +42,8 @@ import {
   formatRecordingStatsDisplay,
 } from '../utils/routeUtils';
 import { RouteExerciseList, ExerciseDetailModal } from '../components';
+import { AddToPresetSheetModal } from '../components/AddToPresetSheet';
+import { useModal } from '../contexts/ModalContext';
 // Tour imports disabled to prevent performance issues
 // import { useTourTarget } from '../components/TourOverlay';
 // import { useScreenTours } from '../utils/screenTours';
@@ -161,6 +163,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
+  const { showModal } = useModal();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -561,6 +564,41 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       console.error('Error toggling save status:', err);
       Alert.alert('Error', 'Failed to update save status');
     }
+  };
+
+  // Handle adding route to preset
+  const handleAddToPreset = () => {
+    if (!user) {
+      Alert.alert('Sign in required', 'Please sign in to add routes to presets');
+      return;
+    }
+
+    showModal(
+      <AddToPresetSheetModal
+        routeId={routeId}
+        onRouteAdded={(presetId, presetName) => {
+          Alert.alert(
+            'Added to Preset',
+            `Route has been added to "${presetName}"`,
+            [{ text: 'OK' }]
+          );
+        }}
+        onRouteRemoved={(presetId, presetName) => {
+          Alert.alert(
+            'Removed from Preset',
+            `Route has been removed from "${presetName}"`,
+            [{ text: 'OK' }]
+          );
+        }}
+        onPresetCreated={(preset) => {
+          Alert.alert(
+            'Preset Created',
+            `New preset "${preset.name}" has been created and route added to it`,
+            [{ text: 'OK' }]
+          );
+        }}
+      />
+    );
   };
 
   const handleMarkDriven = async () => {
@@ -1365,6 +1403,17 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                     {isSaved
                       ? getTranslation(t, 'routeDetail.saved', 'Saved')
                       : getTranslation(t, 'routeDetail.saveRoute', 'Save route')}
+                  </Text>
+                </Button>
+
+                <Button
+                  onPress={handleAddToPreset}
+                  backgroundColor="$green10"
+                  icon={<Feather name="map" size={20} color="white" />}
+                  size="$5"
+                >
+                  <Text color="white" fontSize="$3">
+                    {getTranslation(t, 'routeDetail.addToPreset', 'Add to Preset')}
                   </Text>
                 </Button>
               </XStack>

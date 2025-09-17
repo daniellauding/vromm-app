@@ -17,16 +17,25 @@ export function useProfile() {
     const loadProfile = async () => {
       try {
         const data = await db.profiles.get(user.id);
-        setProfile(data);
+        // Ensure email is populated from user if missing in profile
+        if (data && !data.email && user.email) {
+          const updatedProfile = { ...data, email: user.email };
+          setProfile(updatedProfile);
+        } else {
+          setProfile(data);
+        }
+        setError(null); // Clear any previous errors
       } catch (err) {
+        console.error('Error fetching user profile:', err);
         setError(err instanceof Error ? err.message : 'Failed to load profile');
+        // Don't set profile to null on error, keep existing profile if any
       } finally {
         setLoading(false);
       }
     };
 
     loadProfile();
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user?.id) return;

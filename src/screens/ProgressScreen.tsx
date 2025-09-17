@@ -4272,13 +4272,13 @@ export function ProgressScreen() {
                                   {(() => {
                                     const a = lastAuditByExercise[main.id] as any;
                                     let verb = a.action;
-                                    if (verb === 'completed') verb = 'Marked complete';
-                                    if (verb === 'uncompleted') verb = 'Marked incomplete';
+                                    if (verb === 'completed') verb = t('progressSection.markedComplete') || 'Marked complete';
+                                    if (verb === 'uncompleted') verb = t('progressSection.markedIncomplete') || 'Marked incomplete';
                                     if (verb.includes('virtual')) {
-                                      const rep = a.repeat_number ? `Repetition ${a.repeat_number}` : 'Repetition';
-                                      verb = `${rep} completed`;
+                                      const rep = a.repeat_number ? `${t('progressSection.repetition') || 'Repetition'} ${a.repeat_number}` : (t('progressSection.repetition') || 'Repetition');
+                                      verb = `${rep} ${t('progressSection.completed') || 'completed'}`;
                                     }
-                                    return `Last: ${verb} by ${a.actor_name || 'Unknown'} at ${new Date(a.created_at).toLocaleString()}`;
+                                    return `${t('progressSection.lastAction') || 'Last'}: ${verb} ${t('progressSection.by') || 'by'} ${a.actor_name || (t('progressSection.unknown') || 'Unknown')} ${t('progressSection.at') || 'at'} ${new Date(a.created_at).toLocaleString()}`;
                                   })()}
                                 </Text>
                               )}

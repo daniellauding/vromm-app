@@ -281,6 +281,87 @@ export const NotificationsScreen: React.FC = () => {
           break;
         }
 
+        case 'collection_invitation': {
+          console.log('📍 Collection invitation notification pressed:', notification);
+          // For collection invitations, we need to find the invitation ID from metadata
+          const notificationData = getNotificationData(notification);
+          const invitationId = notificationData.invitation_id || notificationData.collection_invitation_id;
+          const currentUserId = (await supabase.auth.getUser()).data.user?.id;
+          
+          console.log('🔍 [NotificationsScreen] Collection invitation debug:', {
+            notificationId: notification.id,
+            metadata: notification.metadata,
+            notificationData,
+            invitationId,
+            currentUserId,
+            hasInvitationId: !!invitationId
+          });
+          
+          if (invitationId && currentUserId) {
+            console.log('📍 Found invitation ID:', invitationId, 'for user:', currentUserId);
+            
+            try {
+              // Use the collection sharing service to accept the invitation
+              const { collectionSharingService } = await import('../services/collectionSharingService');
+              const result = await collectionSharingService.acceptCollectionInvitation(invitationId, currentUserId);
+              
+              if (result.success) {
+                console.log('✅ Collection invitation accepted successfully');
+                
+                // Mark notification as read and remove from list
+                await notificationService.markAsRead(notification.id);
+                
+                // Also delete the notification to prevent it from reappearing
+                try {
+                  await supabase
+                    .from('notifications')
+                    .delete()
+                    .eq('id', notification.id);
+                } catch (deleteError) {
+                  console.warn('Could not delete notification:', deleteError);
+                }
+                
+                setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+                
+                showToast({
+                  title: 'Collection Invitation Accepted',
+                  message: 'You can now access this collection',
+                  type: 'success'
+                });
+              } else {
+                console.error('❌ Failed to accept collection invitation:', result.error);
+                showToast({
+                  title: 'Error',
+                  message: result.error || 'Failed to accept invitation',
+                  type: 'error'
+                });
+              }
+            } catch (error) {
+              console.error('❌ Error accepting collection invitation:', error);
+              showToast({
+                title: 'Error',
+                message: 'Failed to accept invitation',
+                type: 'error'
+              });
+            }
+          } else {
+            console.error('❌ Missing invitation ID or user ID in collection invitation notification:', {
+              notificationId: notification.id,
+              metadata: notification.metadata,
+              notificationData,
+              invitationId,
+              currentUserId,
+              rawNotification: notification
+            });
+            showToast({
+              title: 'Error',
+              message: 'Invalid invitation notification',
+              type: 'error'
+            });
+          }
+          break;
+        }
+
         case 'new_message': {
           // Check if this is actually a relationship review notification
           const notificationData = getNotificationData(notification);
@@ -340,9 +421,51 @@ export const NotificationsScreen: React.FC = () => {
       
       console.log('🎯 Invitation ID:', invitationId);
       console.log('🎯 Current User ID:', currentUserId);
+      console.log('🎯 Notification type:', notification.type);
       
       if (invitationId && currentUserId) {
-        console.log('🎯 Calling acceptInvitationById...');
+        // Handle collection invitations differently
+        if (notification.type === 'collection_invitation') {
+          console.log('🎯 Handling collection invitation...');
+          const { collectionSharingService } = await import('../services/collectionSharingService');
+          const result = await collectionSharingService.acceptCollectionInvitation(invitationId, currentUserId);
+          
+          if (result.success) {
+            console.log('✅ Collection invitation accepted');
+            
+            // Mark notification as read and remove from list
+            await notificationService.markAsRead(notification.id);
+            
+            // Also delete the notification to prevent it from reappearing
+            try {
+              await supabase
+                .from('notifications')
+                .delete()
+                .eq('id', notification.id);
+            } catch (deleteError) {
+              console.warn('Could not delete notification:', deleteError);
+            }
+            
+            setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+            
+            showToast({
+              title: 'Collection Invitation Accepted',
+              message: 'You can now access this collection',
+              type: 'success'
+            });
+          } else {
+            console.error('❌ Failed to accept collection invitation:', result.error);
+            showToast({
+              title: 'Error',
+              message: result.error || 'Failed to accept invitation',
+              type: 'error'
+            });
+          }
+          return;
+        }
+        
+        // Handle relationship invitations
+        console.log('🎯 Calling acceptInvitationById for relationship invitation...');
         const ok = await acceptInvitationById(invitationId, currentUserId);
         console.log('🎯 Accept result:', ok);
         
@@ -457,6 +580,48 @@ export const NotificationsScreen: React.FC = () => {
       
       if (invitationId) {
         console.log('🚫 Found invitation ID:', invitationId, 'rejecting...');
+        
+        // Handle collection invitations differently
+        if (notification.type === 'collection_invitation') {
+          console.log('🚫 Handling collection invitation rejection...');
+          const { collectionSharingService } = await import('../services/collectionSharingService');
+          const result = await collectionSharingService.rejectCollectionInvitation(invitationId);
+          
+          if (result.success) {
+            console.log('✅ Collection invitation rejected');
+            
+            // Mark notification as read and remove from list
+            await notificationService.markAsRead(notification.id);
+            
+            // Also delete the notification to prevent it from reappearing
+            try {
+              await supabase
+                .from('notifications')
+                .delete()
+                .eq('id', notification.id);
+            } catch (deleteError) {
+              console.warn('Could not delete notification:', deleteError);
+            }
+            
+            setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+            
+            showToast({
+              title: 'Collection Invitation Rejected',
+              message: 'The invitation has been declined',
+              type: 'info'
+            });
+          } else {
+            console.error('❌ Failed to reject collection invitation:', result.error);
+            showToast({
+              title: 'Error',
+              message: result.error || 'Failed to reject invitation',
+              type: 'error'
+            });
+          }
+          return;
+        }
+        
+        // Handle relationship invitations
         let ok = await rejectInvitation(invitationId);
         
         // Fallback: if updating to rejected failed (RLS), try hard-delete the invite
@@ -652,11 +817,12 @@ export const NotificationsScreen: React.FC = () => {
               {item.created_at ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true }) : 'Unknown time'}
             </Text>
 
-            {/* Relationship or Event Invitation Action Buttons */}
+            {/* Relationship, Event, or Collection Invitation Action Buttons */}
             {(item.type === 'event_invitation' ||
               item.type === 'event_invite' ||
               item.type === 'supervisor_invitation' ||
-              item.type === 'student_invitation') && (
+              item.type === 'student_invitation' ||
+              item.type === 'collection_invitation') && (
               <XStack gap={8} marginTop={8}>
                 <TouchableOpacity
                   onPress={(e) => {

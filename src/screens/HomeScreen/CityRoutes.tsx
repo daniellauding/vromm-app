@@ -8,6 +8,7 @@ import { NavigationProp } from '../../types/navigation';
 import { Route } from '@/src/types/route';
 import { useRoutes } from '@/src/hooks/useRoutes';
 import { EmptyState } from './EmptyState';
+import { useTranslation } from '@/src/contexts/TranslationContext';
 import {
   Animated,
   Image,
@@ -82,6 +83,7 @@ interface CityRoutesProps {
 }
 
 export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
+  const { t } = useTranslation();
   const [selectedCity, setSelectedCity] = React.useState<string | null>(null);
   const [cityRoutes, setCityRoutes] = React.useState<{ [key: string]: Route[] }>({});
   const [routes, setRoutes] = React.useState<Route[]>([]);
@@ -195,7 +197,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
   return (
     <YStack gap="$4">
       <SectionHeader
-        title={selectedCity || 'Select a city'}
+        title={selectedCity || (t('home.cityRoutes.selectCity') || 'Select a city')}
         variant="dropdown"
         onAction={showCityModal}
         actionLabel={selectedCity || 'Select'}
@@ -279,7 +281,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                           route.waypoint_details[0].lat,
                           route.waypoint_details[0].lng,
                         ).toFixed(1)}{' '}
-                        km away
+                        {t('common.kmAway') || 'km away'}
                       </Text>
                     )}
                   </XStack>
@@ -294,14 +296,14 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
           ))
         ) : (
           <EmptyState 
-            title="No Routes in This City" 
-            message={`No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`}
+            title={t('home.cityRoutes.noRoutesInCity') || 'No Routes in This City'} 
+            message={t('home.cityRoutes.noRoutesMessage')?.replace('{city}', selectedCity || '') || `No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`}
             icon="map-pin"
             variant="warning"
-            actionLabel="Create Route Here"
+            actionLabel={t('home.cityRoutes.createRouteHere') || 'Create Route Here'}
             actionIcon="plus"
             onAction={() => navigation.navigate('CreateRoute')}
-            secondaryLabel="Change City"
+            secondaryLabel={t('home.cityRoutes.changeCity') || 'Change City'}
             secondaryIcon="map"
             onSecondaryAction={() => setIsModalVisible(true)}
           />
@@ -365,7 +367,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
               />
 
               <Text size="xl" weight="bold" color="white" textAlign="center">
-                Select City
+                {t('home.cityRoutes.selectCity') || 'Select City'}
               </Text>
 
               <ScrollView style={{ maxHeight: '70%' }}>

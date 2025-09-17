@@ -1005,6 +1005,21 @@ export function TabNavigator() {
     });
   }, [navigation]);
 
+  const handleNavigateToMap = useCallback((routeId: string) => {
+    console.log('🗺️ TabNavigator handling navigate to map with route:', routeId);
+    
+    // Navigate to MapTab with the route ID
+    (navigation as any).navigate('MainTabs', {
+      screen: 'MapTab',
+      params: {
+        screen: 'MapScreen',
+        params: {
+          selectedRouteId: routeId,
+        },
+      },
+    });
+  }, [navigation]);
+
   // Log tab navigator mount and set up global navigation handler
   const handleCreateRoute = (routeData?: any) => {
     console.log('🎯 ==================== TAB NAVIGATOR - CREATE ROUTE ====================');
@@ -1344,6 +1359,7 @@ export function TabNavigator() {
                           onCreateRoute={handleCreateRoute}
                           onMaximizeWizard={handleMaximizeWizard}
                           onCreateEvent={handleCreateEvent}
+                          onNavigateToMap={handleNavigateToMap}
                         />,
                       );
                     }}

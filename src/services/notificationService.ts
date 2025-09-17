@@ -254,7 +254,8 @@ class NotificationService {
       | 'admin_invitation'
       | 'event_invitation'
       | 'event_updated'
-      | 'event_invite',
+      | 'event_invite'
+      | 'collection_invitation',
     message: string,
     targetId?: string,
     metadata?: Record<string, unknown>,
@@ -295,6 +296,23 @@ class NotificationService {
       `You've been invited to "${eventTitle}"`,
       undefined,
       { event_id: eventId, event_title: eventTitle, inviter_id: inviterUserId },
+    );
+  }
+
+  // Convenience helper for collection invitations
+  async createCollectionInvitationNotification(
+    invitedUserId: string,
+    collectionId: string,
+    collectionName: string,
+    inviterUserId?: string,
+  ): Promise<void> {
+    await this.createNotification(
+      invitedUserId,
+      'collection_invitation',
+      `You've been invited to join the collection "${collectionName}"`,
+      collectionId,
+      { collection_id: collectionId, collection_name: collectionName, inviter_id: inviterUserId },
+      inviterUserId,
     );
   }
 

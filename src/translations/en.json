@@ -24,7 +24,10 @@
     "reviewExercises": "Review Exercises",
     "yourProgress": "Your Progress",
     "completed": "Completed",
-    "lastSession": "Last session"
+    "lastSession": "Last session",
+    "additionalInfo": "Additional Information",
+    "reviews": "Reviews",
+    "comments": "Comments"
   },
   "routeExercise": {
     "completeExercise": "Complete Exercise",

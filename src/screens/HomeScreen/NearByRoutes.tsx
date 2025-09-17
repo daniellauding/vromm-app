@@ -73,14 +73,14 @@ export const NearByRoutes = ({ onRoutePress }: NearByRoutesProps = {}) => {
       {nearbyRoutes.length === 0 ? (
         <YStack px="$4">
           <EmptyState
-            title="No Nearby Routes"
-            message={`No practice routes found within 100km of your location. Create the first route in your area or explore the map!`}
+            title={t('home.nearbyRoutes.noRoutes') || 'No Nearby Routes'}
+            message={t('home.nearbyRoutes.noRoutesMessage') || 'No practice routes found within 100km of your location. Create the first route in your area or explore the map!'}
             icon="map-pin"
             variant="warning"
-            actionLabel="Create Route Here"
+            actionLabel={t('home.nearbyRoutes.createRouteHere') || 'Create Route Here'}
             actionIcon="plus"
             onAction={() => navigation.navigate('CreateRoute')}
-            secondaryLabel="Explore Map"
+            secondaryLabel={t('home.nearbyRoutes.exploreMap') || 'Explore Map'}
             secondaryIcon="map"
             onSecondaryAction={() => navigation.navigate('MapTab')}
           />
