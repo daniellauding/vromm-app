@@ -2247,6 +2247,36 @@ export function OnboardingInteractive({
       </View>
       )}
 
+      {/* Close Button - Header Style */}
+      <View
+        style={{
+          position: 'absolute',
+          top: insets.top || 40,
+          right: 16,
+          zIndex: 1000,
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => {
+            // Just close the modal, don't mark onboarding as completed
+            if (onCloseModal) {
+              onCloseModal();
+            } else if (onSkip) {
+              onSkip();
+            } else {
+              // Fallback: just call onDone to close the modal
+              onDone();
+            }
+          }}
+          style={{
+            padding: 12,
+            marginRight: -8,
+          }}
+        >
+          <Feather name="x" size={24} color={iconColor} />
+        </TouchableOpacity>
+      </View>
+
       {/* Main Content */}
       <FlatList
         data={steps}

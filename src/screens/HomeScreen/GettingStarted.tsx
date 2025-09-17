@@ -777,9 +777,11 @@ export const GettingStarted = () => {
     hasRoleSelected &&
     hasConnections;
     // hasCreatedEvent; // DISABLED FOR BETA
-  if (isAllOnboardingCompleted) {
-    return <></>;
-  }
+  
+  // Always show GettingStarted section for all users
+  // if (isAllOnboardingCompleted) {
+  //   return <></>;
+  // }
   return (
     <YStack space="$4" marginBottom="$6">
       <SectionHeader title={t('home.gettingStarted.title') || 'Getting Started'} variant="chevron" onAction={() => {}} actionLabel="" />

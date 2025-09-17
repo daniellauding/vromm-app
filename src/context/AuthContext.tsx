@@ -62,10 +62,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (user?.id) {
       db.profiles
         .get(user.id)
-        .then((data) => setProfile(data))
-        .catch(console.error);
+        .then((data) => {
+          // Ensure email is populated from user if missing in profile
+          if (data && !data.email && user.email) {
+            const updatedProfile = { ...data, email: user.email };
+            setProfile(updatedProfile);
+            
+            // Update the profile in database to fix the missing email
+            supabase
+              .from('profiles')
+              .update({ email: user.email })
+              .eq('id', user.id)
+              .then(() => {
+                console.log('✅ Profile email updated from user.email');
+              })
+              .catch((err) => {
+                console.warn('Failed to update profile email:', err);
+              });
+          } else {
+            setProfile(data);
+          }
+        })
+        .catch((err) => {
+          console.error('Error fetching user profile:', err);
+          // Don't set profile to null on error, keep existing profile if any
+        });
     }
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   useEffect(() => {
     console.log('AuthProvider mounted');
@@ -202,7 +225,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (authError) throw authError;
         if (!authData.user?.id) throw new Error('User creation failed');
 
-        // Remove profile creation from here since it will be handled on first sign in
+        // Create user profile using our simple function
+        try {
+          const { data: profileResult, error: profileError } = await supabase.rpc('ensure_profile_exists');
+          
+          if (profileError) {
+            console.warn('Profile creation failed:', profileError);
+            // Don't throw here - user is created, profile can be created later
+          } else {
+            console.log('Profile creation result:', profileResult);
+          }
+        } catch (profileError) {
+          console.warn('Profile creation failed:', profileError);
+          // Don't throw here - user is created, profile can be created later
+        }
 
         // Track signup event in the background
         try {

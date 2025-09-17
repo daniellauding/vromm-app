@@ -97,6 +97,7 @@ interface CreateRouteSheetProps {
     latitude: number;
     longitude: number;
   };
+  isModal?: boolean;
 }
 
 function getTranslation(t: (key: string) => string, key: string, fallback: string): string {
@@ -119,6 +120,7 @@ export function CreateRouteSheet({
   initialRoutePath,
   initialStartPoint,
   initialEndPoint,
+  isModal = false,
 }: CreateRouteSheetProps) {
   console.log('🏗️ ==================== CREATE ROUTE SHEET INIT ====================');
   console.log('🏗️ CreateRouteSheet initialized with props:', {

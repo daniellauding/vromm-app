@@ -778,7 +778,7 @@ export function CollectionSharingModal({
                           >
                             <Text fontSize="$3" color="#EF4444" fontWeight="500">
                               {t('collectionMembers.cancelInvitation') || 'Cancel'}
-                            </Text>
+            </Text>
                           </TouchableOpacity>
                         </XStack>
                       </YStack>
@@ -912,21 +912,21 @@ export function CollectionSharingModal({
 
                       {/* Action Buttons */}
                                <YStack gap="$2">
-                                 <Button
+            <Button
                                    variant="primary"
                                    size="lg"
                                    onPress={handleCreateCollectionSharing}
                                    disabled={selectedUsers.length === 0}
                                  >
                                    Send Invitations
-                                 </Button>
-                                 <Button
+            </Button>
+            <Button
                                    variant="secondary"
                                    size="lg"
                                    onPress={handleClose}
                                  >
                                    Cancel
-                                 </Button>
+            </Button>
                                </YStack>
                     </YStack>
                   </ScrollView>
