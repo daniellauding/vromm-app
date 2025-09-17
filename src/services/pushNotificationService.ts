@@ -1,10 +1,11 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { Platform } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import Constants from 'expo-constants';
+import { setupRecordingNotifications } from '../utils/notifications';
 
 function hasNotificationsNativeModule(): boolean {
   try {
@@ -12,15 +13,13 @@ function hasNotificationsNativeModule(): boolean {
     if (Platform.OS === 'web') {
       return false;
     }
-    
+
     // Check for ExpoPushTokenManager native module specifically
-    const { NativeModules } = require('react-native');
     if (!NativeModules?.ExpoPushTokenManager) {
       console.log('📱 Push notifications disabled (no ExpoPushTokenManager native module)');
       return false;
     }
-    
-    // @ts-ignore internal check
+
     return !!(Notifications as any)?._setInitialNotification;
   } catch (error) {
     console.log('📱 Push notifications disabled due to error:', error);
@@ -41,6 +40,8 @@ if (hasNotificationsNativeModule()) {
     },
   });
 }
+
+setupRecordingNotifications();
 
 class PushNotificationService {
   private expoPushToken: string | null = null;
