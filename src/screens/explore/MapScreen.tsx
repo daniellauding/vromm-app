@@ -52,7 +52,7 @@ const DARK_THEME = {
   cardBackground: '#2D3130',
 };
 
-export function MapScreen({ route }: { route: { params?: { selectedLocation?: any; fromSearch?: boolean; ts?: number } } }) {
+export function MapScreen({ route }: { route: { params?: { selectedLocation?: any; fromSearch?: boolean; ts?: number; selectedPresetId?: string; presetName?: string; fromHomeScreen?: boolean } } }) {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const [routes, setRoutes] = useState<RouteType[]>([]);
@@ -189,10 +189,41 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     setRoutes(data);
   }, [fetchRoutes]);
 
-  // Only run effect once on mount
+  // Load saved collection selection and routes on mount
   useEffect(() => {
-    loadRoutes();
-  }, [loadRoutes]);
+    const loadInitialData = async () => {
+      // Load routes first
+      await loadRoutes();
+      
+      // Load saved collection selection
+      try {
+        const effectiveUserId = getEffectiveUserId();
+        const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
+        const savedFilters = await AsyncStorage.getItem(filterKey);
+        
+        if (savedFilters) {
+          const parsedFilters = JSON.parse(savedFilters);
+          console.log('🗺️ [MapScreen] Loaded saved filters on startup:', parsedFilters);
+          
+          // Restore collection selection if it exists
+          if (parsedFilters.selectedPresetId) {
+            console.log('🗺️ [MapScreen] Restoring saved collection selection:', parsedFilters.selectedPresetId);
+            setSelectedPresetId(parsedFilters.selectedPresetId);
+            setAppliedFilters(parsedFilters);
+            
+            // Apply the saved filters after a short delay to ensure routes are loaded
+            setTimeout(() => {
+              setFilters(parsedFilters);
+            }, 100);
+          }
+        }
+      } catch (error) {
+        console.error('❌ [MapScreen] Error loading saved collection selection:', error);
+      }
+    };
+    
+    loadInitialData();
+  }, [loadRoutes, getEffectiveUserId]);
 
   useEffect(() => {
     (async () => {
@@ -249,224 +280,6 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       }, 500);
     })();
   }, [userLocation]);
-
-  // Update focus effect to reset both route and pin selection
-  useFocusEffect(
-    React.useCallback(() => {
-      setSelectedRoute(null);
-      setSelectedPin(null);
-      
-      // MapScreen tours disabled due to performance issues
-      // TODO: Re-enable after fixing RoutesDrawer ref registration
-    }, []), // No dependencies to prevent re-triggers
-  );
-
-  const handleLocationSelect = useCallback(
-    async (result: SearchResult) => {
-      console.log('🗺️ [MapScreen] handleLocationSelect called with:', {
-        result,
-        center: result?.center,
-        place_type: result?.place_type?.[0],
-      });
-
-      try {
-        if (!result?.center || result.center.length !== 2) {
-          console.error('🗺️ [MapScreen] Invalid location data:', result);
-          return;
-        }
-
-        const [longitude, latitude] = result.center;
-        console.log('🗺️ [MapScreen] Parsed coordinates:', { latitude, longitude });
-
-        // Validate coordinates
-        if (
-          typeof latitude !== 'number' ||
-          typeof longitude !== 'number' ||
-          isNaN(latitude) ||
-          isNaN(longitude)
-        ) {
-          console.error('🗺️ [MapScreen] Invalid coordinates:', { latitude, longitude });
-          return;
-        }
-
-        // Different zoom levels based on place type
-        let zoomLevel = 0.02; // default zoom (city level)
-        if (result.place_type[0] === 'country') {
-          zoomLevel = 8; // wide zoom for countries
-        } else if (result.place_type[0] === 'region') {
-          zoomLevel = 4; // medium zoom for regions
-        } else if (result.place_type[0] === 'address') {
-          zoomLevel = 0.005; // close zoom for addresses
-        }
-
-        const newRegion = {
-          latitude,
-          longitude,
-          latitudeDelta: zoomLevel,
-          longitudeDelta: zoomLevel,
-        };
-
-        console.log('🗺️ [MapScreen] Setting new region:', newRegion);
-        
-        // Update map region
-        setRegion(newRegion);
-        
-        // Also animate map if ref is available
-        if (mapRef.current) {
-          console.log('🗺️ [MapScreen] Animating map to region');
-          mapRef.current.animateToRegion(newRegion, 1000);
-          
-          // Force marker re-render after animation completes
-          setTimeout(() => {
-            if (mapRef.current) {
-              console.log('🗺️ [MapScreen] Forcing marker re-render after region change');
-              // Trigger a slight region change to force marker re-render
-              const currentRegion = { ...newRegion };
-              mapRef.current.animateToRegion(currentRegion, 100);
-            }
-          }, 1200); // Wait for animation to complete + small buffer
-        } else {
-          console.log('🗺️ [MapScreen] MapRef not available for animation');
-        }
-
-        // Filter routes based on proximity to selected location
-        const MAX_DISTANCE_KM = 50; // Maximum distance to show routes
-        const filteredByLocation = routes.filter((route) => {
-          const firstWaypoint = route.waypoint_details?.[0] || route.metadata?.waypoints?.[0];
-          if (!firstWaypoint) return false;
-
-          const routeLat = Number(firstWaypoint.lat);
-          const routeLng = Number(firstWaypoint.lng);
-
-          // Calculate distance between selected location and route
-          const distance = calculateDistance(latitude, longitude, routeLat, routeLng);
-          const distanceNum = parseFloat(distance.replace(/[^0-9.]/g, ''));
-          const isKm = distance.includes('km');
-
-          // Include routes within MAX_DISTANCE_KM kilometers
-          return isKm ? distanceNum <= MAX_DISTANCE_KM : true;
-        });
-
-        console.log('🗺️ [MapScreen] Filtered routes by location:', filteredByLocation.length, 'out of', routes.length);
-        setFilteredRoutes(filteredByLocation);
-
-        // Clear filters when using search results to show all routes in the area
-        console.log('🗺️ [MapScreen] Clearing filters due to location selection');
-        setFilters({});
-        setAppliedFilters({});
-        
-        // Clear saved filters from AsyncStorage
-        try {
-          await AsyncStorage.removeItem('saved_filters');
-          console.log('🗑️ [MapScreen] Cleared saved filters from storage due to location selection');
-        } catch (error) {
-          console.error('❌ [MapScreen] Failed to clear saved filters due to location selection:', error);
-        }
-        
-        // Collapse bottom sheet to show more of the map
-        // snapTo(snapPoints.collapsed);
-      } catch (error: unknown) {
-        console.error('🗺️ [MapScreen] Error in handleLocationSelect:', error);
-        console.error('🗺️ [MapScreen] Error details:', {
-          error_message: error instanceof Error ? error.message : 'Unknown error',
-          error_stack: error instanceof Error ? error.stack : 'No stack available',
-          result_data: result,
-        });
-      }
-    },
-    [routes, setRegion],
-  );
-
-  // React to navigation from SearchScreen or HomeScreen: center map on selectedLocation or apply preset
-  useEffect(() => {
-    const handleRouteParams = async () => {
-      console.log('🗺️ [MapScreen] Route params changed:', {
-        hasParams: !!route?.params,
-        selectedLocation: route?.params?.selectedLocation,
-        selectedPresetId: route?.params?.selectedPresetId,
-        presetName: route?.params?.presetName,
-        fromSearch: route?.params?.fromSearch,
-        fromHomeScreen: route?.params?.fromHomeScreen,
-        ts: route?.params?.ts,
-        fullParams: route?.params
-      });
-      
-      const selected = route?.params?.selectedLocation as SearchResult | undefined;
-      const selectedPresetId = (route?.params as any)?.selectedPresetId;
-      const presetName = (route?.params as any)?.presetName;
-      const fromSearch = (route?.params as any)?.fromSearch;
-      const fromHomeScreen = (route?.params as any)?.fromHomeScreen;
-      const ts = (route?.params as any)?.ts;
-      
-      // Handle preset selection from HomeScreen
-      if (selectedPresetId && fromHomeScreen) {
-        console.log('🗺️ [MapScreen] Processing preset selection from HomeScreen:', {
-          presetId: selectedPresetId,
-          presetName: presetName,
-        });
-        
-        // Set the selected preset
-        setSelectedPresetId(selectedPresetId);
-        
-        // Clear other filters when selecting a preset
-        console.log('🗺️ [MapScreen] Clearing filters due to preset selection');
-        setFilters({});
-        setAppliedFilters({});
-        
-        // Clear saved filters from AsyncStorage
-        try {
-          await AsyncStorage.removeItem('saved_filters');
-          console.log('🗑️ [MapScreen] Cleared saved filters from storage due to preset selection');
-        } catch (error) {
-          console.error('❌ [MapScreen] Failed to clear saved filters due to preset selection:', error);
-        }
-        
-        // Apply the preset filter
-        const presetFilters = {
-          selectedPresetId: selectedPresetId,
-        };
-        setFilters(presetFilters);
-        setAppliedFilters(presetFilters);
-        
-        // Zoom to filtered results after a short delay
-        setTimeout(() => {
-          zoomToFilteredResults();
-        }, 100);
-        
-        return;
-      }
-      
-      // Handle location selection from SearchScreen
-      if (selected && selected.center?.length === 2) {
-        console.log('🗺️ [MapScreen] Processing selectedLocation from Search:', {
-          id: selected.id,
-          place: selected.place_name,
-          center: selected.center,
-          fromSearch,
-          ts,
-        });
-        
-        // Clear any existing filters when navigating from search
-        console.log('🗺️ [MapScreen] Clearing filters due to search navigation');
-        setFilters({});
-        setAppliedFilters({});
-        
-        // Clear saved filters from AsyncStorage
-        try {
-          await AsyncStorage.removeItem('saved_filters');
-          console.log('🗑️ [MapScreen] Cleared saved filters from storage due to search');
-        } catch (error) {
-          console.error('❌ [MapScreen] Failed to clear saved filters due to search:', error);
-        }
-        
-        handleLocationSelect(selected);
-      } else if (selected) {
-        console.log('🗺️ [MapScreen] Invalid selectedLocation data:', selected);
-      }
-    };
-    
-    handleRouteParams();
-  }, [route?.params?.selectedLocation, route?.params?.selectedPresetId, route?.params?.presetName, route?.params?.fromSearch, route?.params?.fromHomeScreen, route?.params?.ts, handleLocationSelect, setFilters, zoomToFilteredResults]);
 
   // Function to zoom to show filtered results
   const zoomToFilteredResults = useCallback(() => {
@@ -589,6 +402,230 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     }
   }, [activeRoutes, mapRef]);
 
+  // Update focus effect to reset both route and pin selection
+  useFocusEffect(
+    React.useCallback(() => {
+      setSelectedRoute(null);
+      setSelectedPin(null);
+      
+      // MapScreen tours disabled due to performance issues
+      // TODO: Re-enable after fixing RoutesDrawer ref registration
+    }, []), // No dependencies to prevent re-triggers
+  );
+
+  const handleLocationSelect = useCallback(
+    async (result: SearchResult) => {
+      console.log('🗺️ [MapScreen] handleLocationSelect called with:', {
+        result,
+        center: result?.center,
+        place_type: result?.place_type?.[0],
+      });
+
+      try {
+        if (!result?.center || result.center.length !== 2) {
+          console.error('🗺️ [MapScreen] Invalid location data:', result);
+          return;
+        }
+
+        const [longitude, latitude] = result.center;
+        console.log('🗺️ [MapScreen] Parsed coordinates:', { latitude, longitude });
+
+        // Validate coordinates
+        if (
+          typeof latitude !== 'number' ||
+          typeof longitude !== 'number' ||
+          isNaN(latitude) ||
+          isNaN(longitude)
+        ) {
+          console.error('🗺️ [MapScreen] Invalid coordinates:', { latitude, longitude });
+          return;
+        }
+
+        // Different zoom levels based on place type
+        let zoomLevel = 0.02; // default zoom (city level)
+        if (result.place_type[0] === 'country') {
+          zoomLevel = 8; // wide zoom for countries
+        } else if (result.place_type[0] === 'region') {
+          zoomLevel = 4; // medium zoom for regions
+        } else if (result.place_type[0] === 'address') {
+          zoomLevel = 0.005; // close zoom for addresses
+        }
+
+        const newRegion = {
+          latitude,
+          longitude,
+          latitudeDelta: zoomLevel,
+          longitudeDelta: zoomLevel,
+        };
+
+        console.log('🗺️ [MapScreen] Setting new region:', newRegion);
+        
+        // Update map region
+        setRegion(newRegion);
+        
+        // Also animate map if ref is available
+        if (mapRef.current) {
+          console.log('🗺️ [MapScreen] Animating map to region');
+          mapRef.current.animateToRegion(newRegion, 1000);
+          
+          // Force marker re-render after animation completes
+          setTimeout(() => {
+            if (mapRef.current) {
+              console.log('🗺️ [MapScreen] Forcing marker re-render after region change');
+              // Trigger a slight region change to force marker re-render
+              const currentRegion = { ...newRegion };
+              mapRef.current.animateToRegion(currentRegion, 100);
+            }
+          }, 1200); // Wait for animation to complete + small buffer
+        } else {
+          console.log('🗺️ [MapScreen] MapRef not available for animation');
+        }
+
+        // Filter routes based on proximity to selected location
+        const MAX_DISTANCE_KM = 50; // Maximum distance to show routes
+        const filteredByLocation = routes.filter((route) => {
+          const firstWaypoint = route.waypoint_details?.[0] || route.metadata?.waypoints?.[0];
+          if (!firstWaypoint) return false;
+
+          const routeLat = Number(firstWaypoint.lat);
+          const routeLng = Number(firstWaypoint.lng);
+
+          // Calculate distance between selected location and route
+          const distance = calculateDistance(latitude, longitude, routeLat, routeLng);
+          const distanceNum = parseFloat(distance.replace(/[^0-9.]/g, ''));
+          const isKm = distance.includes('km');
+
+          // Include routes within MAX_DISTANCE_KM kilometers
+          return isKm ? distanceNum <= MAX_DISTANCE_KM : true;
+        });
+
+        console.log('🗺️ [MapScreen] Filtered routes by location:', filteredByLocation.length, 'out of', routes.length);
+        setFilteredRoutes(filteredByLocation);
+
+        // Clear filters when using search results to show all routes in the area
+        console.log('🗺️ [MapScreen] Clearing filters due to location selection');
+        setFilters({});
+        setAppliedFilters({});
+        
+        // Clear saved filters from AsyncStorage
+        try {
+          const effectiveUserId = getEffectiveUserId();
+          const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
+          await AsyncStorage.removeItem(filterKey);
+          console.log('🗑️ [MapScreen] Cleared saved filters from storage due to location selection');
+        } catch (error) {
+          console.error('❌ [MapScreen] Failed to clear saved filters due to location selection:', error);
+        }
+        
+        // Collapse bottom sheet to show more of the map
+        // snapTo(snapPoints.collapsed);
+      } catch (error: unknown) {
+        console.error('🗺️ [MapScreen] Error in handleLocationSelect:', error);
+        console.error('🗺️ [MapScreen] Error details:', {
+          error_message: error instanceof Error ? error.message : 'Unknown error',
+          error_stack: error instanceof Error ? error.stack : 'No stack available',
+          result_data: result,
+        });
+      }
+    },
+    [routes, setRegion],
+  );
+
+  // React to navigation from SearchScreen or HomeScreen: center map on selectedLocation or apply preset
+  useEffect(() => {
+    const handleRouteParams = async () => {
+      console.log('🗺️ [MapScreen] Route params changed:', {
+        hasParams: !!route?.params,
+        selectedLocation: route?.params?.selectedLocation,
+        selectedPresetId: route?.params?.selectedPresetId,
+        presetName: route?.params?.presetName,
+        fromSearch: route?.params?.fromSearch,
+        fromHomeScreen: route?.params?.fromHomeScreen,
+        ts: route?.params?.ts,
+        fullParams: route?.params
+      });
+      
+      const selected = route?.params?.selectedLocation as SearchResult | undefined;
+      const selectedPresetId = (route?.params as any)?.selectedPresetId;
+      const presetName = (route?.params as any)?.presetName;
+      const fromSearch = (route?.params as any)?.fromSearch;
+      const fromHomeScreen = (route?.params as any)?.fromHomeScreen;
+      const ts = (route?.params as any)?.ts;
+      
+      // Handle preset selection from HomeScreen
+      if (selectedPresetId && fromHomeScreen) {
+        console.log('🗺️ [MapScreen] Processing preset selection from HomeScreen:', {
+          presetId: selectedPresetId,
+          presetName: presetName,
+        });
+        
+        // Set the selected preset
+        setSelectedPresetId(selectedPresetId);
+        
+        // Clear other filters when selecting a preset
+        console.log('🗺️ [MapScreen] Clearing filters due to preset selection');
+        setFilters({});
+        setAppliedFilters({});
+        
+        // Clear saved filters from AsyncStorage
+        try {
+          const effectiveUserId = getEffectiveUserId();
+          const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
+          await AsyncStorage.removeItem(filterKey);
+          console.log('🗑️ [MapScreen] Cleared saved filters from storage due to preset selection');
+        } catch (error) {
+          console.error('❌ [MapScreen] Failed to clear saved filters due to preset selection:', error);
+        }
+        
+        // Apply the preset filter
+        const presetFilters = {
+          selectedPresetId: selectedPresetId,
+        };
+        setFilters(presetFilters);
+        setAppliedFilters(presetFilters);
+        
+        // Zoom to filtered results after a short delay
+        setTimeout(() => {
+          zoomToFilteredResults();
+        }, 100);
+        
+        return;
+      }
+      
+      // Handle location selection from SearchScreen
+      if (selected && selected.center?.length === 2) {
+        console.log('🗺️ [MapScreen] Processing selectedLocation from Search:', {
+          id: selected.id,
+          place: selected.place_name,
+          center: selected.center,
+          fromSearch,
+          ts,
+        });
+        
+        // Clear any existing filters when navigating from search
+        console.log('🗺️ [MapScreen] Clearing filters due to search navigation');
+        setFilters({});
+        setAppliedFilters({});
+        
+        // Clear saved filters from AsyncStorage
+        try {
+          const effectiveUserId = getEffectiveUserId();
+          const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
+          await AsyncStorage.removeItem(filterKey);
+          console.log('🗑️ [MapScreen] Cleared saved filters from storage due to search');
+        } catch (error) {
+          console.error('❌ [MapScreen] Failed to clear saved filters due to search:', error);
+        }
+        
+        handleLocationSelect(selected);
+      } else if (selected) {
+        console.log('🗺️ [MapScreen] Invalid selectedLocation data:', selected);
+      }
+    };
+    
+    handleRouteParams();
+  }, [route?.params?.selectedLocation, route?.params?.selectedPresetId, route?.params?.presetName, route?.params?.fromSearch, route?.params?.fromHomeScreen, route?.params?.ts, handleLocationSelect, setFilters, zoomToFilteredResults]);
+
   // Handle filter selection
   const handleFilterPress = useCallback(
     (filter: FilterCategory) => {
@@ -666,7 +703,9 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       
       // Clear saved filters from AsyncStorage
       try {
-        await AsyncStorage.removeItem('saved_filters');
+        const effectiveUserId = getEffectiveUserId();
+        const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
+        await AsyncStorage.removeItem(filterKey);
         console.log('🗑️ [MapScreen] Cleared saved filters from storage on locate me');
       } catch (error) {
         console.error('❌ [MapScreen] Failed to clear saved filters on locate me:', error);
@@ -825,10 +864,10 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     
     try {
       // Try to center on user's current location if available
-      if (userLocation?.coords) {
+      if (userLocation?.latitude && userLocation?.longitude) {
         setRegion({
-          latitude: userLocation.coords.latitude,
-          longitude: userLocation.coords.longitude,
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
           latitudeDelta: Math.min(region.latitudeDelta * 2, 1.0), // Double the search radius
           longitudeDelta: Math.min(region.longitudeDelta * 2, 1.0),
         });
@@ -855,23 +894,36 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
   }, [setFilters, userLocation, region]);
 
   // Handle preset selection
-  const handlePresetSelect = useCallback((presetId: string | null) => {
+  const handlePresetSelect = useCallback(async (presetId: string | null) => {
     console.log('🗺️ [MapScreen] Preset selected:', presetId);
     setSelectedPresetId(presetId);
     
+    // Create filters with the selected preset
+    const presetFilters = {
+      selectedPresetId: presetId,
+    };
+    
     // Clear other filters when selecting a preset
-    if (presetId) {
-      setFilters({});
-      setAppliedFilters({});
+    setFilters(presetFilters);
+    setAppliedFilters(presetFilters);
+    
+    // Save the collection selection to AsyncStorage for persistence
+    try {
+      const effectiveUserId = getEffectiveUserId();
+      const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
+      await AsyncStorage.setItem(filterKey, JSON.stringify(presetFilters));
+      console.log('💾 [MapScreen] Saved collection selection to storage:', presetId);
+    } catch (error) {
+      console.error('❌ [MapScreen] Error saving collection selection:', error);
     }
-  }, [setFilters]);
+  }, [setFilters, getEffectiveUserId]);
 
   // Handle filter button press
   const handleFilterButtonPress = useCallback(() => {
     showModal(
       <FilterSheetModal
         onApplyFilters={handleApplyFilters}
-        routeCount={activeRoutes.length}
+        routeCount={selectedPresetId ? activeRoutes.length : routes.length}
         routes={routes}
         initialFilters={appliedFilters}
         onSearchResultSelect={handleLocationSelect}
@@ -1004,7 +1056,9 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                 
                 // Clear saved filters from AsyncStorage
                 try {
-                  await AsyncStorage.removeItem('saved_filters');
+                  const effectiveUserId = getEffectiveUserId();
+                  const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
+                  await AsyncStorage.removeItem(filterKey);
                   console.log('🗑️ [MapScreen] Cleared saved filters from storage');
                 } catch (error) {
                   console.error('❌ [MapScreen] Failed to clear saved filters:', error);

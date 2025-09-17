@@ -133,13 +133,13 @@ export function CommunicationTools({
 
   return (
     <YStack paddingHorizontal="$4" marginBottom="$4">
-      <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+      <Card backgroundColor="$backgroundStrong">
         <YStack gap="$3">
-          <Text fontSize="$5" fontWeight="600" color="$color">
+          {/* <Text fontSize="$5" fontWeight="600" color="$color">
             {t('home.communication') || 'Communication'}
-          </Text>
+          </Text> */}
           
-          <XStack gap="$3" justifyContent="space-between">
+          <XStack gap="$3" justifyContent="space-between" alignItems="stretch">
             {/* Messages */}
             <TouchableOpacity
               onPress={handleMessagePress}
@@ -150,8 +150,16 @@ export function CommunicationTools({
                 padding="$3" 
                 alignItems="center"
                 position="relative"
+                flex={1}
+                height="100%"
+                minHeight={100}
+                justifyContent="center"
               >
-                <YStack alignItems="center" gap="$2">
+                {/* Badge in top right corner */}
+                <YStack position="absolute" top={-10} right={-10} zIndex={2}>
+                  {renderBadge(messageBadge)}
+                </YStack>
+                <YStack alignItems="center" gap="$2" flex={1} justifyContent="center">
                   <MessageCircle size={24} color="$color" />
                   <Text fontSize="$3" fontWeight="600" color="$color" textAlign="center">
                     {t('communication.messages') || 'Messages'}
@@ -162,7 +170,6 @@ export function CommunicationTools({
                     </Text>
                   )}
                 </YStack>
-                {renderBadge(messageBadge)}
               </Card>
             </TouchableOpacity>
 
@@ -176,8 +183,15 @@ export function CommunicationTools({
                 padding="$3" 
                 alignItems="center"
                 position="relative"
+                flex={1}
+                height="100%"
+                justifyContent="center"
               >
-                <YStack alignItems="center" gap="$2">
+                {/* Badge in top right corner */}
+                <YStack position="absolute" top={-10} right={-10} zIndex={2}>
+                  {renderBadge(eventBadge)}
+                </YStack>
+                <YStack alignItems="center" gap="$2" flex={1} justifyContent="center">
                   <Calendar size={24} color="$color" />
                   <Text fontSize="$3" fontWeight="600" color="$color" textAlign="center">
                     {t('communication.events') || 'Events'}
@@ -188,7 +202,6 @@ export function CommunicationTools({
                     </Text>
                   )}
                 </YStack>
-                {renderBadge(eventBadge)}
               </Card>
             </TouchableOpacity>
 
@@ -202,8 +215,15 @@ export function CommunicationTools({
                 padding="$3" 
                 alignItems="center"
                 position="relative"
+                flex={1}
+                height="100%"
+                justifyContent="center"
               >
-                <YStack alignItems="center" gap="$2">
+                {/* Badge in top right corner */}
+                <YStack position="absolute" top={-10} right={-10} zIndex={2}>
+                  {renderBadge(notificationBadge)}
+                </YStack>
+                <YStack alignItems="center" gap="$2" flex={1} justifyContent="center">
                   <Bell size={24} color="$color" />
                   <Text fontSize="$3" fontWeight="600" color="$color" textAlign="center">
                     {t('communication.notifications') || 'Notifications'}
@@ -214,7 +234,6 @@ export function CommunicationTools({
                     </Text>
                   )}
                 </YStack>
-                {renderBadge(notificationBadge)}
               </Card>
             </TouchableOpacity>
           </XStack>

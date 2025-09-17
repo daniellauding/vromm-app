@@ -61,11 +61,11 @@ import { useAuth } from '../context/AuthContext';
 // Tour imports partially re-enabled for HomeScreen tours only
 import { useTour } from '../contexts/TourContext';
 import { useTourTarget } from './TourOverlay';
-import { UsersScreen } from '../screens/UsersScreen';
+// import { UsersScreen } from '../screens/UsersScreen';
 import { RouteDetailScreen } from '../screens/RouteDetailScreen';
-import { MessagesScreen } from '../screens/MessagesScreen';
-import { EventsScreen } from '../screens/EventsScreen';
-import { NotificationsScreen } from '../screens/NotificationsScreen';
+// import { MessagesScreen } from '../screens/MessagesScreen';
+// import { EventsScreen } from '../screens/EventsScreen';
+// import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { CreateEventScreen } from '../screens/CreateEventScreen';
 import { CreateRouteScreen } from '../screens/CreateRouteScreen';
 import { ConversationScreen } from '../screens/ConversationScreen';
@@ -95,11 +95,11 @@ const HomeStackNavigator = () => (
     <HomeStack.Screen name="HomeScreen" component={HomeScreen} />
     <HomeStack.Screen name="PublicProfile" component={PublicProfileScreen} />
     <HomeStack.Screen name="ProfileScreen" component={ProfileScreen} />
-    <HomeStack.Screen name="UsersScreen" component={UsersScreen} />
+    {/* <HomeStack.Screen name="UsersScreen" component={UsersScreen} /> */}
     <HomeStack.Screen name="RouteDetail" component={RouteDetailScreen as any} />
-    <HomeStack.Screen name="Messages" component={MessagesScreen} />
+    {/* <HomeStack.Screen name="Messages" component={MessagesScreen} />
     <HomeStack.Screen name="Events" component={EventsScreen} />
-    <HomeStack.Screen name="Notifications" component={NotificationsScreen} />
+    <HomeStack.Screen name="Notifications" component={NotificationsScreen} /> */}
     <HomeStack.Screen name="CreateEvent" component={CreateEventScreen} />
     <HomeStack.Screen name="CreateRoute" component={CreateRouteScreen} />
     <HomeStack.Screen name="Conversation" component={ConversationScreen} />
@@ -127,10 +127,10 @@ const MenuStackNavigator = () => (
     <MenuStack.Screen name="MenuRoot" component={NoopScreen} />
     <MenuStack.Screen name="PublicProfile" component={PublicProfileScreen} />
     <MenuStack.Screen name="ProfileScreen" component={ProfileScreen} />
-    <MenuStack.Screen name="UsersScreen" component={UsersScreen} />
-    <MenuStack.Screen name="Messages" component={MessagesScreen} />
+    {/* <MenuStack.Screen name="UsersScreen" component={UsersScreen} /> */}
+    {/* <MenuStack.Screen name="Messages" component={MessagesScreen} />
     <MenuStack.Screen name="Events" component={EventsScreen} />
-    <MenuStack.Screen name="Notifications" component={NotificationsScreen} />
+    <MenuStack.Screen name="Notifications" component={NotificationsScreen} /> */}
     <MenuStack.Screen name="Conversation" component={ConversationScreen} />
     <MenuStack.Screen name="EventDetail" component={EventDetailScreen} />
     <MenuStack.Screen name="CreateEvent" component={CreateEventScreen} />
@@ -278,7 +278,7 @@ const HamburgerDrawer = ({
 
   const menuItems = [
     {
-      icon: 'user',
+      // icon: 'user',
       target: 'PublicProfile',
       label: t('drawer.myProfile') || 'My Profile',
       action: () => {
@@ -290,7 +290,7 @@ const HamburgerDrawer = ({
       },
     },
     {
-      icon: 'settings',
+      // icon: 'settings',
       target: 'ProfileScreen',
       label: t('drawer.settings') || 'Settings',
       action: () => {
@@ -301,64 +301,64 @@ const HamburgerDrawer = ({
       badge: pendingInvitationsCount,
       badgeColor: '#FF4444',
     },
+    // {
+    //   icon: 'users',
+    //   target: 'UsersScreen',
+    //   label: t('drawer.users') || 'Users',
+    //   action: () => {
+    //     onBeginNavigate();
+    //     onNavigateHome('UsersScreen');
+    //     onClose();
+    //   },
+    // },
+    // {
+    //   icon: 'message-circle',
+    //   target: 'Messages',
+    //   label: t('drawer.messages') || 'Messages',
+    //   action: () => {
+    //     onBeginNavigate();
+    //     onNavigateHome('Messages');
+    //     onClose();
+    //   },
+    //   badge: unreadMessageCount,
+    //   badgeColor: '#EF4444',
+    // },
+    // {
+    //   icon: 'calendar',
+    //   target: 'Events',
+    //   label: t('drawer.events') || 'Events',
+    //   action: () => {
+    //     onBeginNavigate();
+    //     onNavigateHome('Events');
+    //     onClose();
+    //   },
+    //   badge: unreadEventCount,
+    //   badgeColor: '#EF4444',
+    // },
+    // {
+    //   icon: 'bell',
+    //   target: 'Notifications',
+    //   label: t('drawer.notifications') || 'Notifications',
+    //   action: () => {
+    //     onBeginNavigate();
+    //     onNavigateHome('Notifications');
+    //     onClose();
+    //   },
+    //   badge: unreadNotificationCount,
+    //   badgeColor: '#EF4444',
+    // },
     {
-      icon: 'users',
-      target: 'UsersScreen',
-      label: t('drawer.users') || 'Users',
-      action: () => {
-        onBeginNavigate();
-        onNavigateHome('UsersScreen');
-        onClose();
-      },
-    },
-    {
-      icon: 'message-circle',
-      target: 'Messages',
-      label: t('drawer.messages') || 'Messages',
-      action: () => {
-        onBeginNavigate();
-        onNavigateHome('Messages');
-        onClose();
-      },
-      badge: unreadMessageCount,
-      badgeColor: '#EF4444',
-    },
-    {
-      icon: 'calendar',
-      target: 'Events',
-      label: t('drawer.events') || 'Events',
-      action: () => {
-        onBeginNavigate();
-        onNavigateHome('Events');
-        onClose();
-      },
-      badge: unreadEventCount,
-      badgeColor: '#EF4444',
-    },
-    {
-      icon: 'bell',
-      target: 'Notifications',
-      label: t('drawer.notifications') || 'Notifications',
-      action: () => {
-        onBeginNavigate();
-        onNavigateHome('Notifications');
-        onClose();
-      },
-      badge: unreadNotificationCount,
-      badgeColor: '#EF4444',
-    },
-    {
-      icon: 'globe',
+      // icon: 'globe',
       label: t('drawer.betaWebsite') || 'Beta Website',
       action: () => onOpenBetaWebViewLocal(),
     },
     {
-      icon: 'globe',
+      // icon: 'globe',
       label: t('settings.language.title') || 'Language',
       action: () => onOpenLanguageLocal(),
     },
     {
-      icon: 'coffee',
+      // icon: 'coffee',
       label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee',
       action: () => onOpenBuyCoffeeLocal(),
     },
@@ -374,13 +374,21 @@ const HamburgerDrawer = ({
     //     }, 300);
     //   }
     // }, // DISABLED: Tours causing performance issues
-    { icon: 'share', label: t('drawer.shareApp') || 'Share App', action: () => onShareApp() },
-    { icon: 'info', label: t('drawer.about') || 'About', action: () => onOpenAboutLocal() },
     {
-      icon: 'log-out',
+      // icon: 'share',
+      label: t('drawer.shareApp') || 'Share App',
+      action: () => onShareApp()
+    },
+    { 
+      // icon: 'info',
+      label: t('drawer.about') || 'About',
+      action: () => onOpenAboutLocal()
+    },
+    {
+      // icon: 'log-out',
       label: t('drawer.logout') || 'Logout',
       action: () => handleSignOut(),
-      danger: true,
+      // danger: true,
     },
   ];
 
@@ -1189,7 +1197,7 @@ export function TabNavigator() {
         const menuScreens = new Set([
           'PublicProfile',
           'ProfileScreen',
-          'UsersScreen',
+          // 'UsersScreen',
           'Messages',
           'Events',
           'Notifications',
