@@ -352,11 +352,11 @@ const HamburgerDrawer = ({
       label: t('drawer.betaWebsite') || 'Beta Website',
       action: () => onOpenBetaWebViewLocal(),
     },
-    {
-      // icon: 'globe',
-      label: t('settings.language.title') || 'Language',
-      action: () => onOpenLanguageLocal(),
-    },
+    // {
+    //   icon: 'globe',
+    //   label: t('settings.language.title') || 'Language',
+    //   action: () => onOpenLanguageLocal(),
+    // },
     {
       // icon: 'coffee',
       label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee',
@@ -658,7 +658,7 @@ export function TabNavigator() {
   const [showBuyCoffee, setShowBuyCoffee] = useState(false);
   const [showBetaWebView, setShowBetaWebView] = useState(false);
   const [showAboutWebView, setShowAboutWebView] = useState(false);
-  const [showLanguageSheet, setShowLanguageSheet] = useState(false);
+  // const [showLanguageSheet, setShowLanguageSheet] = useState(false);
   const [isNavigatingFromDrawer, setIsNavigatingFromDrawer] = useState(false);
   const [isTabResetting, setIsTabResetting] = useState(false);
   const [activeMenuScreen, setActiveMenuScreen] = useState<string | null>(null);
@@ -1549,7 +1549,7 @@ export function TabNavigator() {
         onOpenBetaWebView={() => setShowBetaWebView(true)}
         onOpenBuyCoffee={() => setShowBuyCoffee(true)}
         onOpenAbout={() => setShowAboutWebView(true)}
-        onOpenLanguage={() => setShowLanguageSheet(true)}
+        // onOpenLanguage={() => setShowLanguageSheet(true)}
         onStartTour={handleStartTourForCurrentScreen}
         unreadMessageCount={unreadMessageCount}
         unreadNotificationCount={unreadNotificationCount}
@@ -1579,7 +1579,7 @@ export function TabNavigator() {
       />
 
       {/* Language bottom sheet matching Profile screen style */}
-      <Modal
+      {/* <Modal
         visible={showLanguageSheet}
         transparent
         animationType="slide"
@@ -1643,7 +1643,7 @@ export function TabNavigator() {
             </TouchableOpacity>
           </YStack>
         </Pressable>
-      </Modal>
+      </Modal> */}
 
       {/* Lightweight navigation spinner overlay when launching drawer destinations or tab resets */}
       {(isNavigatingFromDrawer || isTabResetting) && (

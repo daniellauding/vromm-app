@@ -239,7 +239,7 @@ export function FilterSheet({
 
   // Collection display state
   const [showAllCollections, setShowAllCollections] = useState(false);
-  const MAX_VISIBLE_COLLECTIONS = 3; // Changed to 3 for testing
+  const MAX_VISIBLE_COLLECTIONS = 5; // Changed to 5 for better UX
 
   // Snap points for resizing (like RouteDetailSheet)
   const snapPoints = useMemo(() => {
@@ -257,6 +257,7 @@ export function FilterSheet({
   const currentState = useSharedValue(snapPoints.large);
   const translateY = useSharedValue(snapPoints.large);
   const isDragging = useRef(false);
+  const backdropOpacityShared = useSharedValue(0.7); // Make backdrop more transparent by default
 
   // Use the routeCount prop directly from MapScreen (which is already filtered by activeRoutes.length)
   const filteredCount = useMemo(() => {
@@ -357,6 +358,11 @@ export function FilterSheet({
         break;
       case 'experienceLevel': // Added for experience level
         count = routes.filter(route => route.experience_level === value).length;
+        break;
+      case 'maxDistance': // Added for distance filtering
+        // For distance, we need to calculate based on current user location or route center
+        // For now, return total routes since distance calculation requires location data
+        count = routes.length;
         break;
       default:
         count = 0;
@@ -498,8 +504,11 @@ export function FilterSheet({
       currentState.value = snapPoints.large;
       setCurrentSnapPoint(snapPoints.large);
       
+      // Set backdrop opacity to be more transparent for better map interaction
+      backdropOpacityShared.value = 0.3;
+      
       Animated.timing(backdropOpacity, {
-        toValue: 1,
+        toValue: 0.3, // More transparent for map interaction
         duration: 200,
         useNativeDriver: true,
       }).start();
@@ -1153,8 +1162,8 @@ export function FilterSheet({
                             ]}
                           >
                             {showAllCollections 
-                              ? `Show Less (${MAX_VISIBLE_COLLECTIONS})` 
-                              : `View More (${filteredCollections.length - MAX_VISIBLE_COLLECTIONS} more)`
+                              ? `${t('filters.showLess') || 'Show Less'} (${MAX_VISIBLE_COLLECTIONS})` 
+                              : `${t('filters.viewMore') || 'View More'} (${filteredCollections.length - MAX_VISIBLE_COLLECTIONS} ${t('filters.more') || 'more'})`
                             }
                           </Text>
                         </XStack>
@@ -1894,6 +1903,9 @@ export function FilterSheet({
             <XStack alignItems="center" justifyContent="space-between" marginBottom="$3">
               <Text color={textColor} fontWeight="600" fontSize="$4">
                 {String(filters.maxDistance || 100)} km
+              </Text>
+              <Text color="$gray10" fontSize="$3">
+                ({getFilterCount('maxDistance', filters.maxDistance || 100)} routes)
               </Text>
             </XStack>
             <Slider
