@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { YStack, XStack, Switch, useTheme, Card, Input, TextArea } from 'tamagui';
+import { YStack, XStack, Switch, useTheme as useTamaguiTheme, Card, Input, TextArea } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { Database } from '../lib/database.types';
@@ -38,6 +38,7 @@ import { useLocation } from '../context/LocationContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePromotionalModal } from '../components/PromotionalModal';
 import { LockModal, useLockModal } from '../components/LockModal';
+import { useTheme } from '../contexts/ThemeContext';
 import { Language } from '../contexts/TranslationContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Popover from 'react-native-popover-view';
@@ -397,6 +398,9 @@ export function ProfileScreen() {
 
   // Sound settings
   const [soundEnabled, setSoundEnabled] = useState(true);
+  
+  // Theme settings - use ThemeContext instead of local state
+  const { actualTheme, themeMode, setThemeMode } = useTheme();
 
   // Add driving stats state
   const [drivingStats, setDrivingStats] = useState<DrivingStats | null>(null);
@@ -2647,6 +2651,8 @@ export function ProfileScreen() {
     loadSoundSettings();
   }, []);
 
+  // Theme is now managed by ThemeContext - no local state needed
+
   // Refresh stats when active student changes (for supervisors)
   useEffect(() => {
     if (profile?.id) {
@@ -3053,41 +3059,119 @@ export function ProfileScreen() {
               isActive={showLanguageModal}
             />
 
+            {/* Theme Setting */}
+            <XStack
+              justifyContent="space-between"
+              alignItems="center"
+              backgroundColor="$backgroundHover"
+              padding="$4"
+              borderRadius="$4"
+              marginVertical="$2"
+            >
+              <YStack flex={1}>
+                <Text color="$color" fontWeight="500" fontSize="$4">
+                  Theme
+                </Text>
+                <Text color="$gray11" fontSize="$3">
+                  {themeMode === 'system' 
+                    ? `System (${actualTheme})` 
+                    : themeMode === 'light' 
+                      ? 'Light mode' 
+                      : 'Dark mode'}
+                </Text>
+              </YStack>
+              <XStack gap="$2">
+                <TouchableOpacity
+                  onPress={() => setThemeMode('system')}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 6,
+                    backgroundColor: themeMode === 'system' ? '#00FFBC' : 'transparent',
+                    borderWidth: 1,
+                    borderColor: themeMode === 'system' ? '#00FFBC' : '#666',
+                  }}
+                >
+                  <Text 
+                    fontSize="$3" 
+                    color={themeMode === 'system' ? '#000' : '$gray11'}
+                    fontWeight={themeMode === 'system' ? '600' : '400'}
+                  >
+                    System
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setThemeMode('light')}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 6,
+                    backgroundColor: themeMode === 'light' ? '#00FFBC' : 'transparent',
+                    borderWidth: 1,
+                    borderColor: themeMode === 'light' ? '#00FFBC' : '#666',
+                  }}
+                >
+                  <Text 
+                    fontSize="$3" 
+                    color={themeMode === 'light' ? '#000' : '$gray11'}
+                    fontWeight={themeMode === 'light' ? '600' : '400'}
+                  >
+                    Light
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setThemeMode('dark')}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 6,
+                    backgroundColor: themeMode === 'dark' ? '#00FFBC' : 'transparent',
+                    borderWidth: 1,
+                    borderColor: themeMode === 'dark' ? '#00FFBC' : '#666',
+                  }}
+                >
+                  <Text 
+                    fontSize="$3" 
+                    color={themeMode === 'dark' ? '#000' : '$gray11'}
+                    fontWeight={themeMode === 'dark' ? '600' : '400'}
+                  >
+                    Dark
+                  </Text>
+                </TouchableOpacity>
+              </XStack>
+            </XStack>
+
             {/* Private Profile Setting */}
             <XStack
               justifyContent="space-between"
               alignItems="center"
-              backgroundColor={formData.private_profile ? '$blue4' : undefined}
+              backgroundColor="$backgroundHover"
               padding="$4"
               borderRadius="$4"
-              pressStyle={{
-                scale: 0.98,
-              }}
-              onPress={() =>
-                setFormData((prev) => ({ ...prev, private_profile: !prev.private_profile }))
-              }
+              marginVertical="$2"
             >
-              <Text size="lg" color="$color">
-                {t('profile.privateProfile')}
-              </Text>
+              <YStack flex={1}>
+                <Text color="$color" fontWeight="500" fontSize="$4">
+                  {t('profile.privateProfile') || 'Private Profile'}
+                </Text>
+                <Text color="$gray11" fontSize="$3">
+                  {formData.private_profile
+                    ? t('profile.privateProfileDescription') || 'Only you can see your profile'
+                    : t('profile.publicProfileDescription') || 'Everyone can see your profile'}
+                </Text>
+              </YStack>
               <Switch
-                size="$6"
                 checked={formData.private_profile}
                 onCheckedChange={(checked) =>
                   setFormData((prev) => ({ ...prev, private_profile: checked }))
                 }
-                backgroundColor={formData.private_profile ? '$blue8' : '$gray6'}
-                scale={1.2}
-                margin="$2"
-                pressStyle={{
-                  scale: 0.95,
-                }}
+                size="$4"
+                backgroundColor={formData.private_profile ? '#00FFBC' : '$gray8'}
+                borderColor={formData.private_profile ? '#00FFBC' : '$gray8'}
               >
                 <Switch.Thumb
-                  scale={1.2}
-                  pressStyle={{
-                    scale: 0.95,
-                  }}
+                  backgroundColor={formData.private_profile ? '#000' : '#fff'}
+                  borderColor={formData.private_profile ? '#000' : '$gray8'}
                 />
               </Switch>
             </XStack>

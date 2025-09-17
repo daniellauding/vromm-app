@@ -1,10 +1,12 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { View, TouchableOpacity, StyleProp, ViewStyle, Text as RNText } from 'react-native';
+import { View, TouchableOpacity, StyleProp, ViewStyle, Text as RNText, useColorScheme } from 'react-native';
 import MapView, { Marker, Region } from '../MapView';
 import { StyleSheet } from 'react-native';
 import { Text, Circle } from 'tamagui';
 import Supercluster from 'supercluster';
 import RouterDrawing from './RouterDrawing.native';
+import { lightMapStyle, darkMapStyle, PIN_COLORS } from '../../styles/mapStyles';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export type Waypoint = {
   latitude: number;
@@ -31,12 +33,17 @@ function ClusterMarker({ count, onPress }: ClusterMarkerProps) {
     <TouchableOpacity onPress={onPress}>
       <Circle
         size={40}
-        backgroundColor="$blue10"
+        backgroundColor={PIN_COLORS.PRIMARY}
         pressStyle={{ scale: 0.97 }}
         alignItems="center"
         justifyContent="center"
+        shadowColor="#000"
+        shadowOffset={{ width: 0, height: 3 }}
+        shadowOpacity={0.3}
+        shadowRadius={4}
+        elevation={6}
       >
-        <Text color="white" fontWeight="bold">
+        <Text color="#000000" fontWeight="bold">
           {count}
         </Text>
       </Circle>
@@ -105,21 +112,21 @@ const WaypointMarker = React.memo(
 
     // Custom marker for different drawing modes
     const getMarkerColor = () => {
-      if (drawingMode === 'pin') return '#3B82F6'; // Blue for pins
+      if (drawingMode === 'pin') return PIN_COLORS.PRIMARY; // Brand color for pins
       if (drawingMode === 'waypoint') {
         if (waypointIndex === 0) return '#22C55E'; // Green for start
         if (waypointIndex === (totalWaypoints || 1) - 1 && (totalWaypoints || 0) > 1)
           return '#EF4444'; // Red for end
-        return '#3B82F6'; // Blue for middle waypoints
+        return PIN_COLORS.PRIMARY; // Brand color for middle waypoints
       }
       if (drawingMode === 'pen') return '#FF6B35'; // Orange for pen points
       
       // Check if this waypoint is in filtered results
       if (cluster.properties.isFiltered !== undefined) {
-        return cluster.properties.isFiltered ? '#00E6C3' : '#666'; // Brand color for filtered, gray for unfiltered
+        return cluster.properties.isFiltered ? PIN_COLORS.PRIMARY : PIN_COLORS.SECONDARY; // Brand color for filtered, secondary for unfiltered
       }
       
-      return selectedPin === cluster.properties.id ? 'red' : 'coral';
+      return selectedPin === cluster.properties.id ? PIN_COLORS.PRIMARY : PIN_COLORS.SECONDARY;
     };
 
     const getMarkerSize = () => {
@@ -131,7 +138,7 @@ const WaypointMarker = React.memo(
 
     // Option 1: Use react-native-maps built-in pin colors (most map-like)
     const getBuiltInPinColor = () => {
-      if (drawingMode === 'pin') return 'blue';
+      if (drawingMode === 'pin') return 'blue'; // Keep blue for drawing mode pins
       if (drawingMode === 'waypoint') {
         if (waypointIndex === 0) return 'green';
         if (waypointIndex === (totalWaypoints || 1) - 1 && (totalWaypoints || 0) > 1)
@@ -148,13 +155,13 @@ const WaypointMarker = React.memo(
       return selectedPin === cluster.properties.id ? 'red' : 'orange';
     };
 
-    // Option 2: Create custom pin-shaped marker
+    // Option 2: Create custom pin-shaped marker with proper white border
     const createCustomPin = () => (
       <View style={{
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-        {/* Pin shape */}
+        {/* Pin shape with white border */}
         <View style={{
           width: 32,
           height: 32,
@@ -181,7 +188,21 @@ const WaypointMarker = React.memo(
             </RNText>
           )}
         </View>
-        {/* Pin bottom point */}
+        {/* Pin bottom point with white border */}
+        <View style={{
+          width: 0,
+          height: 0,
+          borderLeftWidth: 11, // Increased to include white border
+          borderRightWidth: 11, // Increased to include white border
+          borderTopWidth: 15, // Increased to include white border
+          borderStyle: 'solid',
+          backgroundColor: 'transparent',
+          borderLeftColor: 'transparent',
+          borderRightColor: 'transparent',
+          borderTopColor: 'white', // White border first
+          marginTop: -3,
+        }} />
+        {/* Inner colored triangle */}
         <View style={{
           width: 0,
           height: 0,
@@ -192,8 +213,9 @@ const WaypointMarker = React.memo(
           backgroundColor: 'transparent',
           borderLeftColor: 'transparent',
           borderRightColor: 'transparent',
-          borderTopColor: getMarkerColor(),
-          marginTop: -3,
+          borderTopColor: getMarkerColor(), // Brand color
+          position: 'absolute',
+          top: 26, // Position over the white triangle
         }} />
       </View>
     );
@@ -206,10 +228,9 @@ const WaypointMarker = React.memo(
           e.stopPropagation();
           onMarkerPress?.(cluster.properties.id);
         }}
-        pinColor={getBuiltInPinColor()} // Use built-in pin style
       >
-        {/* Uncomment below to use custom pin shape instead of built-in pin */}
-        {/* {customMarker || createCustomPin()} */}
+        {/* Use custom pin shape with brand colors */}
+        {createCustomPin()}
       </Marker>
     );
   },
@@ -264,7 +285,7 @@ export function Map({
   customMarker,
   ref,
   routePath,
-  routePathColor = '#1A73E8',
+  routePathColor = PIN_COLORS.ROUTE_PATH,
   routePathWidth = 3,
   showStartEndMarkers = false,
   drawingMode,
@@ -291,6 +312,8 @@ export function Map({
 }) {
   const mapRef = React.useRef<MapView>(null);
   const currentRegion = React.useRef<Region | null>(null);
+  const { actualTheme, themeMode } = useTheme();
+  const systemColorScheme = useColorScheme();
   const [clusters, setClusters] = useState<
     (
       | Supercluster.PointFeature<Supercluster.AnyProps>
@@ -419,7 +442,8 @@ export function Map({
         showsUserLocation={true}
         onPress={onPress}
         onRegionChangeComplete={handleRegionChange}
-        userInterfaceStyle="dark"
+        customMapStyle={actualTheme === 'dark' ? darkMapStyle : lightMapStyle}
+        userInterfaceStyle={actualTheme}
       >
         <RouterDrawing
           routePath={routePath}
@@ -437,7 +461,6 @@ export function Map({
               `waypoint-${waypoints.indexOf(wp)}` === cluster.properties.id,
           );
 
-          // Cluster marker pressed
 
           return (
             <WaypointMarker

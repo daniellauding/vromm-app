@@ -24,6 +24,7 @@ import { NavigationProp } from '../types/navigation';
 import { db, supabase } from '../lib/supabase';
 import { RouteCard } from '../components/RouteCard';
 import { Map as MapComponent } from '../components/Map';
+import { PIN_COLORS } from '../styles/mapStyles';
 import { CalendarService } from '../services/calendarService';
 import { CommentsSection } from '../components/CommentsSection';
 import { ReportDialog } from '../components/report/ReportDialog';
@@ -534,6 +535,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                             waypoints={waypoints}
                             region={region}
                             style={{ flex: 1 }}
+                            routePathColor={PIN_COLORS.ROUTE_PATH}
                             drawingMode={locationData.drawingMode || 'pin'}
                           />
                         </View>
@@ -560,6 +562,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                             waypoints={waypoints}
                             region={region}
                             style={{ flex: 1 }}
+                            routePathColor={PIN_COLORS.ROUTE_PATH}
                             drawingMode="pin"
                           />
                         </View>

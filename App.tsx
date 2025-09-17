@@ -5,6 +5,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { LocationProvider } from './src/context/LocationContext';
 import { StudentSwitchProvider } from './src/context/StudentSwitchContext';
 import { TranslationProvider } from './src/contexts/TranslationContext';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme, Platform, NativeModules } from 'react-native';
@@ -27,6 +28,40 @@ import { StripeProvider } from '@stripe/stripe-react-native';
 
 // Ensure AuthSession can complete pending sessions on app launch
 WebBrowser.maybeCompleteAuthSession();
+
+// Wrapper component that uses our custom theme
+function AppWithTheme() {
+  const { actualTheme } = useTheme();
+  
+  return (
+    <TamaguiProvider
+      config={config}
+      defaultTheme={actualTheme}
+    >
+      <Theme>
+        <TranslationProvider>
+          <AuthProvider>
+            <StudentSwitchProvider>
+              <LocationProvider>
+                <CreateRouteProvider>
+                  <ModalProvider>
+                    <MessagingProvider>
+                      <UnlockProvider>
+                        <TourProvider>
+                          <AppContent />
+                        </TourProvider>
+                      </UnlockProvider>
+                    </MessagingProvider>
+                  </ModalProvider>
+                </CreateRouteProvider>
+              </LocationProvider>
+            </StudentSwitchProvider>
+          </AuthProvider>
+        </TranslationProvider>
+      </Theme>
+    </TamaguiProvider>
+  );
+}
 
 // Use lazy import to prevent NativeEventEmitter errors
 export default function App() {
@@ -113,32 +148,9 @@ export default function App() {
             merchantIdentifier="merchant.se.vromm.app"
             urlScheme="vromm"
           >
-            <TamaguiProvider
-              config={config}
-              defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}
-            >
-              <Theme>
-                <TranslationProvider>
-                  <AuthProvider>
-                    <StudentSwitchProvider>
-                      <LocationProvider>
-                        <CreateRouteProvider>
-                          <ModalProvider>
-                            <MessagingProvider>
-                              <UnlockProvider>
-                                <TourProvider>
-                                  <AppContent />
-                                </TourProvider>
-                              </UnlockProvider>
-                            </MessagingProvider>
-                          </ModalProvider>
-                        </CreateRouteProvider>
-                      </LocationProvider>
-                    </StudentSwitchProvider>
-                  </AuthProvider>
-                </TranslationProvider>
-              </Theme>
-            </TamaguiProvider>
+            <ThemeProvider>
+              <AppWithTheme />
+            </ThemeProvider>
           </StripeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>

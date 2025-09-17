@@ -29,6 +29,7 @@ import { AddToPresetSheetModal } from './AddToPresetSheet';
 import { useModal } from '../contexts/ModalContext';
 import { IconButton } from './IconButton';
 import { useToast } from '../contexts/ToastContext';
+import { PIN_COLORS } from '../styles/mapStyles';
 
 const { height, width } = Dimensions.get('window');
 
@@ -998,6 +999,7 @@ export function RouteDetailSheet({
           zoomEnabled={true}
           scrollEnabled={false}
           routePath={item.routePath}
+          routePathColor={PIN_COLORS.ROUTE_PATH}
           showStartEndMarkers={item.showStartEndMarkers}
         />
       );

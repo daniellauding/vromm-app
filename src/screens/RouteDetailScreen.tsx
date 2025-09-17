@@ -20,6 +20,7 @@ import { NavigationProp } from '../types/navigation';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Map } from '../components/Map';
+import { PIN_COLORS } from '../styles/mapStyles';
 import { Feather } from '@expo/vector-icons';
 import { Play } from '@tamagui/lucide-icons';
 import Carousel from 'react-native-reanimated-carousel';
@@ -949,6 +950,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           zoomEnabled={true}
           scrollEnabled={false}
           routePath={item.routePath}
+          routePathColor={PIN_COLORS.ROUTE_PATH}
           showStartEndMarkers={item.showStartEndMarkers}
           drawingMode={item.drawingMode}
           penDrawingCoordinates={item.penDrawingCoordinates}
@@ -1643,6 +1645,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                                 }))
                               : undefined
                           }
+                          routePathColor={PIN_COLORS.ROUTE_PATH}
                           showStartEndMarkers={
                             validWaypoints.length > 2 &&
                             (actualDrawingMode === 'waypoint' || actualDrawingMode === 'record')

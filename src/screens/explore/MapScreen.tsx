@@ -27,6 +27,7 @@ import { useLocation } from '../../context/LocationContext';
 import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
 import { useUserCollections } from '../../hooks/useUserCollections';
+import { PIN_COLORS } from '../../styles/mapStyles';
 // Tour imports disabled to prevent performance issues
 // import { useTourTarget } from '../../components/TourOverlay';
 // import { useScreenTours } from '../../utils/screenTours';
@@ -680,6 +681,15 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
       console.log('🔴 [MapScreen] Updated filters:', updatedFilters);
       setFilters(updatedFilters);
       
+      // Force pin re-render by triggering a slight map animation
+      setTimeout(() => {
+        if (mapRef.current) {
+          console.log('🗺️ [MapScreen] Forcing pin re-render after filter press');
+          const currentRegion = { ...region };
+          mapRef.current.animateToRegion(currentRegion, 100);
+        }
+      }, 50);
+      
       // Auto-zoom to filtered results after a short delay
       setTimeout(() => {
         if (Object.keys(updatedFilters).length > 0) {
@@ -1011,6 +1021,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           selectedPin={selectedPin}
           onMarkerPress={handleMarkerPress}
           ref={mapRef}
+          routePathColor={PIN_COLORS.ROUTE_PATH}
         />
         
         {/* Clear Filters Button */}

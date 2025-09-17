@@ -49,9 +49,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const navigation = useNavigation<NavigationProp>();
 
-  React.useEffect(() => {
-    console.log('Created ToastProvider');
-  }, []);
+  // Removed debug useEffect that could cause insertion effect conflicts
 
   const hideToast = React.useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
@@ -67,7 +65,10 @@ export function ToastProvider({ children }: ToastProviderProps) {
         duration: toastData.duration || 4000,
       };
 
-      setToasts((prev) => [...prev, newToast]);
+      // Add a small delay to prevent insertion effect conflicts
+      setTimeout(() => {
+        setToasts((prev) => [...prev, newToast]);
+      }, 0);
 
       // Auto-dismiss after duration
       if (newToast.duration > 0) {
@@ -199,14 +200,18 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
   const translateY = React.useRef(new Animated.Value(-100)).current;
   const translateX = React.useRef(new Animated.Value(0)).current;
 
-  React.useEffect(() => {
-    // Animate in
-    Animated.spring(translateY, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 8,
-    }).start();
+  React.useLayoutEffect(() => {
+    // Animate in with a small delay to avoid insertion effect conflicts
+    const timer = setTimeout(() => {
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }).start();
+    }, 10);
+
+    return () => clearTimeout(timer);
   }, [translateY]);
 
   const handleDismiss = () => {

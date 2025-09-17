@@ -18,6 +18,7 @@ import { ImageWithFallback } from './ImageWithFallback';
 import { Database } from '../lib/database.types';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 import { AppAnalytics } from '../utils/analytics';
+import { PIN_COLORS } from '../styles/mapStyles';
 
 type WaypointData = {
   lat: number;
@@ -250,19 +251,24 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
             {carouselItems.length === 1 ? (
               <View style={{ flex: 1 }}>
                 {carouselItems[0].type === 'map' ? (
-                  <Map
-                    waypoints={carouselItems[0].data.waypoints}
-                    region={carouselItems[0].data.region}
-                    scrollEnabled={false}
-                    zoomEnabled={false}
-                    pitchEnabled={false}
-                    rotateEnabled={false}
-                    style={{ width: '100%', height: '100%' }}
-                    routePath={carouselItems[0].data.routePath}
-                    showStartEndMarkers={carouselItems[0].data.showStartEndMarkers}
-                    drawingMode={carouselItems[0].data.drawingMode}
-                    penDrawingCoordinates={carouselItems[0].data.penDrawingCoordinates}
-                  />
+                  (() => {
+                    return (
+                      <Map
+                        waypoints={carouselItems[0].data.waypoints}
+                        region={carouselItems[0].data.region}
+                        scrollEnabled={false}
+                        zoomEnabled={false}
+                        pitchEnabled={false}
+                        rotateEnabled={false}
+                        style={{ width: '100%', height: '100%' }}
+                        routePath={carouselItems[0].data.routePath}
+                        routePathColor={PIN_COLORS.ROUTE_PATH}
+                        showStartEndMarkers={carouselItems[0].data.showStartEndMarkers}
+                        drawingMode={carouselItems[0].data.drawingMode}
+                        penDrawingCoordinates={carouselItems[0].data.penDrawingCoordinates}
+                      />
+                    );
+                  })()
                                   ) : carouselItems[0].type === 'video' ? (
                     <TouchableOpacity 
                       style={{ width: '100%', height: '100%', position: 'relative' }}
@@ -320,6 +326,7 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
                         rotateEnabled={false}
                         style={{ width: '100%', height: '100%' }}
                         routePath={item.data.routePath}
+                        routePathColor={PIN_COLORS.ROUTE_PATH}
                         showStartEndMarkers={item.data.showStartEndMarkers}
                         drawingMode={item.data.drawingMode}
                         penDrawingCoordinates={item.data.penDrawingCoordinates}
