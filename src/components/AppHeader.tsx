@@ -72,8 +72,8 @@ export function AppHeader({
   // Chip colors - improved styling with solid backgrounds
   const chipColors = {
     inactive: {
-      background: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
-      border: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+      background: colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : '#F5F5F5',
+      border: colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : '#E0E0E0',
       text: colorScheme === 'dark' ? '#E0E0E0' : '#666666',
     },
     active: {
