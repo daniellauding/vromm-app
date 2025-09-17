@@ -17,6 +17,8 @@ import { useModal } from '../contexts/ModalContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useSmartFilters } from '../hooks/useSmartFilters';
 import { useUserCollections } from '../hooks/useUserCollections';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 
 // Route type definition
 type Route = {
@@ -98,13 +100,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     zIndex: 1500, // Higher than TabNavigator's 100
   },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    height: screenHeight * 0.9,
-    paddingBottom: 20 + BOTTOM_INSET, // Add extra padding to account for bottom inset
-    paddingHorizontal: 16, // Add horizontal padding to the sheet
-  },
+  // Removed old sheet styles - now using gesture system
   header: {
     borderBottomWidth: 1,
     paddingVertical: 16,
@@ -147,16 +143,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingBottom: 16 + BOTTOM_INSET, // Extra padding to ensure button is above home indicator
   },
-  handleContainer: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    marginBottom: 8,
-  },
+  // Removed old handle styles - now using gesture system
   backdrop: {
     position: 'absolute',
     top: 0,
@@ -249,6 +236,27 @@ export function FilterSheet({
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Collection display state
+  const [showAllCollections, setShowAllCollections] = useState(false);
+  const MAX_VISIBLE_COLLECTIONS = 3; // Changed to 3 for testing
+
+  // Snap points for resizing (like RouteDetailSheet)
+  const snapPoints = useMemo(() => {
+    const points = {
+      large: screenHeight * 0.1,   // Top at 10% of screen (show 90% - largest)
+      medium: screenHeight * 0.4,  // Top at 40% of screen (show 60% - medium)  
+      small: screenHeight * 0.7,   // Top at 70% of screen (show 30% - small)
+      mini: screenHeight * 0.85,   // Top at 85% of screen (show 15% - just title)
+      dismissed: screenHeight,     // Completely off-screen
+    };
+    return points;
+  }, [screenHeight]);
+  
+  const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
+  const currentState = useSharedValue(snapPoints.large);
+  const translateY = useSharedValue(snapPoints.large);
+  const isDragging = useRef(false);
 
   // Use the routeCount prop directly from MapScreen (which is already filtered by activeRoutes.length)
   const filteredCount = useMemo(() => {
@@ -370,9 +378,93 @@ export function FilterSheet({
     return routes?.length || 0;
   }, [routes]);
 
-  // Animation values
-  const translateY = useRef(new Animated.Value(screenHeight)).current;
+  // Animation values (keeping original for backdrop)
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  // Snap functions
+  const dismissSheet = useCallback(() => {
+    translateY.value = withSpring(snapPoints.dismissed, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    setTimeout(() => onClose(), 200);
+  }, [onClose, snapPoints.dismissed]);
+
+  const snapTo = useCallback((point: number) => {
+    currentState.value = point;
+    setCurrentSnapPoint(point);
+  }, [currentState]);
+
+  // Pan gesture for drag-to-dismiss and snap points
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      isDragging.current = true;
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentState.value + translationY;
+        
+        // Constrain to snap points range
+        const minPosition = snapPoints.large;
+        const maxPosition = snapPoints.mini + 100;
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+        
+        translateY.value = boundedPosition;
+      } catch (error) {
+        console.log('panGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      isDragging.current = false;
+      
+      const currentPosition = currentState.value + translationY;
+      
+      // Dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
+        runOnJS(dismissSheet)();
+        return;
+      }
+      
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        targetSnapPoint = snapPoints.large;
+      } else if (velocityY > 500) {
+        targetSnapPoint = snapPoints.mini;
+      } else {
+        const positions = [snapPoints.large, snapPoints.medium, snapPoints.small, snapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+      
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, snapPoints.large),
+        snapPoints.mini,
+      );
+      
+      translateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      
+      currentState.value = boundedTarget;
+      runOnJS(setCurrentSnapPoint)(boundedTarget);
+    });
+
+  const animatedGestureStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   // Load saved filters when component mounts or effectiveUserId changes
   useEffect(() => {
@@ -391,48 +483,34 @@ export function FilterSheet({
     loadSavedFilters();
   }, [isVisible, effectiveUserId, initialFilters]);
 
-  // Animate when visibility changes
+  // Animation effects
   useEffect(() => {
     if (isVisible) {
-      // Animate in
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0,
-          damping: 20,
-          mass: 1,
-          stiffness: 100,
-          overshootClamping: true,
-          restDisplacementThreshold: 0.01,
-          restSpeedThreshold: 0.01,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Reset gesture translateY when opening and set to large snap point
+      translateY.value = withSpring(snapPoints.large, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      currentState.value = snapPoints.large;
+      setCurrentSnapPoint(snapPoints.large);
+      
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
     } else {
-      // Animate out
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: screenHeight,
-          damping: 20,
-          mass: 1,
-          stiffness: 100,
-          overshootClamping: true,
-          restDisplacementThreshold: 0.01,
-          restSpeedThreshold: 0.01,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
     }
-  }, [isVisible, translateY, backdropOpacity]);
+  }, [isVisible, snapPoints.large, currentState]);
 
   // Reset filters
   const handleReset = React.useCallback(async () => {
@@ -724,34 +802,61 @@ export function FilterSheet({
         pointerEvents={isVisible ? 'auto' : 'none'}
         onTouchEnd={handleBackdropPress}
       />
-      <Animated.View
-        style={[
-          styles.sheet,
-          {
-            backgroundColor,
-            borderColor,
-            transform: [{ translateY }],
-            zIndex: 1501, // Above backdrop
-            width: screenWidth,
-          },
-        ]}
-      >
-        <View style={styles.handleContainer}>
-          <View style={[styles.handle, { backgroundColor: handleColor }]} />
-          <XStack width="100%" paddingHorizontal="$4" justifyContent="space-between">
-            <TouchableOpacity onPress={handleReset}>
-              <Text color="$blue10">{t('common.reset')}</Text>
-            </TouchableOpacity>
-            <Text fontWeight="600" fontSize="$5" color={textColor}>
-              {t('map.filters')}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={24} color={textColor} />
-            </TouchableOpacity>
-          </XStack>
-        </View>
+      <GestureDetector gesture={panGesture}>
+        <ReanimatedAnimated.View 
+          style={[
+            {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: screenHeight,
+              backgroundColor,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              zIndex: 1501, // Above backdrop
+              width: screenWidth,
+            },
+            animatedGestureStyle
+          ]}
+        >
+          <YStack
+            padding="$3"
+            paddingBottom={20 + BOTTOM_INSET}
+            gap="$3"
+            flex={1}
+          >
+            {/* Drag Handle */}
+            <View style={{
+              alignItems: 'center',
+              paddingVertical: 8,
+              paddingBottom: 16,
+            }}>
+              <View style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: handleColor,
+              }} />
+            </View>
 
-        <ScrollView style={{ flex: 1 }}>
+            {/* Header */}
+            <XStack width="100%" paddingHorizontal="$2" justifyContent="center" alignItems="center">
+              <Text fontWeight="600" fontSize="$5" color={textColor}>
+                {t('map.filters')}
+              </Text>
+              <TouchableOpacity 
+                onPress={onClose}
+                style={{ position: 'absolute', right: 0 }}
+              >
+                <Feather name="x" size={24} color={textColor} />
+              </TouchableOpacity>
+            </XStack>
+
+            {/* Show content only if not in mini mode */}
+            {currentSnapPoint !== snapPoints.mini && (
+              <View style={{ flex: 1 }}>
+                <ScrollView style={{ flex: 1 }}>
           {/* Search Section - MOVED TO TOP */}
           <YStack style={styles.filterSection}>
             <SizableText fontWeight="600" style={styles.sectionTitle}>
@@ -956,18 +1061,26 @@ export function FilterSheet({
               </TouchableOpacity>
 
               {/* User Collections - Filter out VROMM collections and show only relevant ones */}
-              {userCollections
-                .filter(collection => {
-                  // Filter out VROMM collections (legacy global collection)
-                  const name = collection.name?.toLowerCase() || '';
-                  return !name.includes('vromm');
-                })
-                .filter(collection => {
-                  // Only show collections that have routes or are user's own collections
-                  return (collection.route_count && collection.route_count > 0) || 
-                         collection.creator_id === getEffectiveUserId();
-                })
-                .map((collection) => (
+              {(() => {
+                const filteredCollections = userCollections
+                  .filter(collection => {
+                    // Filter out VROMM collections (legacy global collection)
+                    const name = collection.name?.toLowerCase() || '';
+                    return !name.includes('vromm');
+                  })
+                  .filter(collection => {
+                    // Only show collections that have routes or are user's own collections
+                    return (collection.route_count && collection.route_count > 0) || 
+                           collection.creator_id === getEffectiveUserId();
+                  });
+
+                const visibleCollections = showAllCollections 
+                  ? filteredCollections 
+                  : filteredCollections.slice(0, MAX_VISIBLE_COLLECTIONS);
+
+                return (
+                  <>
+                    {visibleCollections.map((collection) => (
                 <TouchableOpacity
                   key={collection.id || `collection-${Math.random()}`}
                   style={[
@@ -1008,7 +1121,48 @@ export function FilterSheet({
                     )}
                   </XStack>
                 </TouchableOpacity>
-              ))}
+                    ))}
+
+                    {/* View More/Less Toggle */}
+                    {filteredCollections.length > MAX_VISIBLE_COLLECTIONS && (
+                      <TouchableOpacity
+                        onPress={() => setShowAllCollections(!showAllCollections)}
+                        style={[
+                          styles.filterChip,
+                          {
+                            borderColor,
+                            backgroundColor: 'transparent',
+                            borderStyle: 'dashed',
+                          },
+                        ]}
+                      >
+                        <XStack alignItems="center" gap="$1">
+                          <Feather 
+                            name={showAllCollections ? "chevron-up" : "chevron-down"} 
+                            size={14} 
+                            color={textColor} 
+                          />
+                          <Text
+                            style={[
+                              styles.chipText,
+                              {
+                                color: textColor,
+                                fontWeight: '500',
+                                fontStyle: 'italic',
+                              },
+                            ]}
+                          >
+                            {showAllCollections 
+                              ? `Show Less (${MAX_VISIBLE_COLLECTIONS})` 
+                              : `View More (${filteredCollections.length - MAX_VISIBLE_COLLECTIONS} more)`
+                            }
+                          </Text>
+                        </XStack>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                );
+              })()}
             </View>
           </YStack>
 
@@ -1783,24 +1937,41 @@ export function FilterSheet({
               </Text>
             </XStack>
           </YStack>
-        </ScrollView>
+                </ScrollView>
 
-        <View
-          style={[
-            styles.footer,
-            {
-              borderColor,
-              backgroundColor,
-            },
-          ]}
-        >
-          <Button backgroundColor="#00E6C3" color="#000000" size="$5" onPress={handleApply}>
-            <Text color="#000000" fontWeight="700">
-              {t('filters.seeRoutes')} ({filteredCount})
-            </Text>
-          </Button>
-        </View>
-      </Animated.View>
+                {/* Footer Buttons */}
+                <View
+                  style={[
+                    styles.footer,
+                    {
+                      borderColor,
+                      backgroundColor,
+                    },
+                  ]}
+                >
+                  <YStack gap="$2">
+                    <Button backgroundColor="#00E6C3" color="#000000" size="$5" onPress={handleApply}>
+                      <Text color="#000000" fontWeight="700">
+                        {t('filters.seeRoutes')} ({filteredCount})
+                      </Text>
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      size="$4" 
+                      onPress={handleReset}
+                      borderColor={borderColor}
+                    >
+                      <Text color={textColor} fontWeight="500">
+                        {t('common.reset')}
+                      </Text>
+                    </Button>
+                  </YStack>
+                </View>
+              </View>
+            )}
+          </YStack>
+        </ReanimatedAnimated.View>
+      </GestureDetector>
     </View>
   );
 }
