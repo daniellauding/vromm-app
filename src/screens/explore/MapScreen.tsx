@@ -1165,6 +1165,33 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           setSelectedRoute={setSelectedRoute}
           setSelectedPin={setSelectedPin}
           onRoutePress={handleRoutePress}
+          nearbyRoutes={activeRoutes}
+          allRoutes={routes} // Pass all routes for linear looping
+          onRouteChange={(newRouteId) => {
+            console.log('🎯 MapScreen: SelectedRoute changed via swipe to:', newRouteId);
+            const newRoute = routes.find(route => route.id === newRouteId);
+            if (newRoute) {
+              setSelectedRoute(newRoute);
+              setSelectedPin(newRoute.id);
+              
+              // Animate map to the new route
+              if (newRoute.waypoint_details && newRoute.waypoint_details.length > 0) {
+                const firstWaypoint = newRoute.waypoint_details[0];
+                if (firstWaypoint && firstWaypoint.lat && firstWaypoint.lng) {
+                  const newRegion = {
+                    latitude: firstWaypoint.lat,
+                    longitude: firstWaypoint.lng,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  };
+                  
+                  if (mapRef.current) {
+                    mapRef.current.animateToRegion(newRegion, 1000);
+                  }
+                }
+              }
+            }
+          }}
         />
       )}
 
@@ -1190,6 +1217,29 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
             setShowRouteDetailSheet(true);
           } else {
             console.warn('🎯 MapScreen: No selectedRouteId, cannot reopen RouteDetailSheet');
+          }
+        }}
+        nearbyRoutes={activeRoutes}
+        onRouteChange={(newRouteId) => {
+          console.log('🎯 MapScreen: Route changed via swipe to:', newRouteId);
+          setSelectedRouteId(newRouteId);
+          
+          // Find the route and animate map to it
+          const newRoute = activeRoutes.find(route => route.id === newRouteId);
+          if (newRoute && newRoute.waypoint_details && newRoute.waypoint_details.length > 0) {
+            const firstWaypoint = newRoute.waypoint_details[0];
+            if (firstWaypoint && firstWaypoint.lat && firstWaypoint.lng) {
+              const newRegion = {
+                latitude: firstWaypoint.lat,
+                longitude: firstWaypoint.lng,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              };
+              
+              if (mapRef.current) {
+                mapRef.current.animateToRegion(newRegion, 1000);
+              }
+            }
           }
         }}
       />

@@ -135,6 +135,8 @@ interface RouteDetailSheetProps {
   onStartRoute?: (routeId: string) => void;
   onNavigateToProfile?: (userId: string) => void;
   onReopen?: () => void;
+  nearbyRoutes?: Array<{ id: string; name: string; waypoint_details?: any[] }>;
+  onRouteChange?: (routeId: string) => void;
 }
 
 export function RouteDetailSheet({
@@ -144,6 +146,8 @@ export function RouteDetailSheet({
   onStartRoute,
   onNavigateToProfile,
   onReopen,
+  nearbyRoutes = [],
+  onRouteChange,
 }: RouteDetailSheetProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -195,6 +199,27 @@ export function RouteDetailSheet({
     currentState.value = point;
     setCurrentSnapPoint(point);
   }, [currentState]);
+
+  // Swipe navigation handlers
+  const handleSwipeToNext = useCallback(() => {
+    if (!routeId || !nearbyRoutes.length || !onRouteChange) return;
+    
+    const currentIndex = nearbyRoutes.findIndex(route => route.id === routeId);
+    if (currentIndex < nearbyRoutes.length - 1) {
+      const nextRoute = nearbyRoutes[currentIndex + 1];
+      onRouteChange(nextRoute.id);
+    }
+  }, [routeId, nearbyRoutes, onRouteChange]);
+
+  const handleSwipeToPrevious = useCallback(() => {
+    if (!routeId || !nearbyRoutes.length || !onRouteChange) return;
+    
+    const currentIndex = nearbyRoutes.findIndex(route => route.id === routeId);
+    if (currentIndex > 0) {
+      const previousRoute = nearbyRoutes[currentIndex - 1];
+      onRouteChange(previousRoute.id);
+    }
+  }, [routeId, nearbyRoutes, onRouteChange]);
 
   const panGesture = Gesture.Pan()
     .onBegin(() => {
@@ -263,6 +288,26 @@ export function RouteDetailSheet({
       currentState.value = boundedTarget;
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
+
+  // Horizontal swipe gesture for route navigation
+  const swipeGesture = Gesture.Pan()
+    .onEnd((event) => {
+      const { translationX, velocityX } = event;
+      
+      // Only handle horizontal swipes with sufficient movement/velocity
+      if (Math.abs(translationX) > 50 || Math.abs(velocityX) > 500) {
+        if (translationX > 0 || velocityX > 0) {
+          // Swipe right - go to previous route
+          runOnJS(handleSwipeToPrevious)();
+        } else {
+          // Swipe left - go to next route
+          runOnJS(handleSwipeToNext)();
+        }
+      }
+    });
+
+  // Combine gestures - vertical pan for drag-to-dismiss, horizontal pan for route navigation
+  const combinedGesture = Gesture.Simultaneous(panGesture, swipeGesture);
 
   const animatedGestureStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -1157,13 +1202,12 @@ export function RouteDetailSheet({
       <Animated.View
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          opacity: backdropOpacity,
+          backgroundColor: 'transparent',
         }}
       >
         <View style={{ flex: 1 }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <GestureDetector gesture={panGesture}>
+          <GestureDetector gesture={combinedGesture}>
             <ReanimatedAnimated.View 
               style={[
                 {
@@ -1220,7 +1264,7 @@ export function RouteDetailSheet({
                       alignSelf="center"
                       gap="$2"
                       padding="$2"
-                      backgroundColor="rgba(0,0,0,0.5)"
+                      backgroundColor="transparent"
                       borderRadius="$4"
                     >
                       {getCarouselItems().map((_, index) => (
@@ -1294,7 +1338,7 @@ export function RouteDetailSheet({
                             alignSelf="center"
                             gap="$2"
                             padding="$2"
-                            backgroundColor="rgba(0,0,0,0.5)"
+                            backgroundColor="transparent"
                             borderRadius="$4"
                           >
                             {getCarouselItems().map((_, index) => (
@@ -1738,8 +1782,7 @@ export function RouteDetailSheet({
                   <Animated.View
                     style={{
                       flex: 1,
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      opacity: backdropOpacity,
+                      backgroundColor: 'transparent',
                     }}
                   >
                     <View style={{ flex: 1, justifyContent: 'flex-end' }}>
@@ -1869,8 +1912,7 @@ export function RouteDetailSheet({
                   <Animated.View
                     style={{
                       flex: 1,
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      opacity: backdropOpacity,
+                      backgroundColor: 'transparent',
                     }}
                   >
                     <View style={{ flex: 1, justifyContent: 'flex-end' }}>
