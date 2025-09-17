@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Animated, Easing, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map } from '../../components/Map';
@@ -54,6 +54,7 @@ const DARK_THEME = {
 
 export function MapScreen({ route }: { route: { params?: { selectedLocation?: any; fromSearch?: boolean; ts?: number } } }) {
   const { t } = useTranslation();
+  const colorScheme = useColorScheme();
   const [routes, setRoutes] = useState<RouteType[]>([]);
   const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
@@ -959,7 +960,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
         {/* Locate Me Button - Bottom Right */}
         <View style={{
           position: 'absolute',
-          bottom: 160, // Position above routes drawer
+          bottom: 180, // Position above routes drawer
           right: 16,
           zIndex: 1000,
         }}>
@@ -967,7 +968,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
             style={{
               backgroundColor: locationLoading 
                 ? (colorScheme === 'dark' ? 'rgba(42, 42, 42, 0.9)' : 'rgba(245, 245, 245, 0.9)')
-                : (colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'),
+                : (colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : '#F5F5F5'),
               borderRadius: 25,
               width: 50,
               height: 50,
@@ -979,7 +980,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
               shadowRadius: 4,
               elevation: 5,
               borderWidth: 1,
-              borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+              borderColor: colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : '#E0E0E0',
             }}
             onPress={handleLocateMe}
             disabled={locationLoading}
