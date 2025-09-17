@@ -39,8 +39,12 @@ async function postRecordingBanner(categoryIdentifier: string, body: string) {
     },
     trigger:
       Platform.OS === 'android'
-        ? { channelId: ANDROID_CHANNEL } // immediate, channel-aware trigger
-        : null, // immediate on iOS
+        ? {
+            channelId: ANDROID_CHANNEL,
+            seconds: 1,
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          } // immediate, channel-aware trigger
+        : { seconds: 1, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL }, // immediate on iOS
   });
 }
 

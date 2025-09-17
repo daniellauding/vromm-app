@@ -10,6 +10,7 @@ import {
   AppStateStatus,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { Text, YStack, Button, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useModal } from '../contexts/ModalContext';
@@ -19,6 +20,7 @@ import * as TaskManager from 'expo-task-manager';
 import { CreateRouteModal } from './CreateRouteModal';
 import MapView, { Polyline, Marker } from './MapView';
 import { AppAnalytics } from '../utils/analytics';
+import { hideRecordingBanner, showActiveBanner, showPausedBanner } from '../utils/notifications';
 
 // Enhanced Haversine formula for accurate distance calculation
 const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -619,6 +621,18 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       }
 
       // Verify permission is granted
+      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync().catch(
+        () => ({
+          status: 'error',
+        }),
+      );
+
+      if (foregroundStatus !== 'granted') {
+        setDebugMessage('Location permission denied');
+        return;
+      }
+
+      // Verify permission is granted
       const { status } = await Location.requestBackgroundPermissionsAsync().catch(() => ({
         status: 'error',
       }));
@@ -806,16 +820,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   // Start recording - optimized with user location centering
   const startRecording = useCallback(async () => {
     try {
-      console.log('🎬 STARTING RECORDING - Full Debug');
-      console.log('🎬 Initial State:', {
-        isRecording,
-        isPaused,
-        waypoints: waypoints.length,
-        totalElapsedTime,
-        drivingTime,
-        distance,
-      });
-
       // Track recording start in Firebase Analytics
       await AppAnalytics.trackRouteRecordingStart().catch(() => {
         // Silently fail analytics
@@ -919,7 +923,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       }
 
       // Set recording state (refs already set above)
-      console.log('🎬 Setting recording state: isRecording=true, isPaused=false');
       setIsRecording(true);
       setIsPaused(false);
 
@@ -929,10 +932,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         startTimeRef: startTimeRef.current,
       });
 
-      console.log('🎬 Starting location tracking...');
       // Start location tracking
       await startLocationTracking();
-      console.log('🎬 ✅ Recording fully started');
     } catch (error) {
       console.error('Error starting recording:', error);
       setDebugMessage('Failed to start recording');
@@ -1461,6 +1462,45 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     };
   }, [isRecording, saveAsDraftEmergency]);
 
+  useEffect(() => {
+    if (!isRecording) return;
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'background') {
+        showActiveBanner();
+      } else {
+        console.log('App became active');
+      }
+    };
+
+    const subscriptionStopRecording = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        console.log('Notification response received:', response);
+        if (response.actionIdentifier === 'vromm_stop') {
+          // 🚀 stop your recording logic here
+          console.log('Stop recording triggered!');
+          hideRecordingBanner();
+          stopRecording();
+        } else if (response.actionIdentifier === 'vromm_resume') {
+          // 🚀 resume your recording logic here
+          console.log('Resume recording triggered!');
+          showActiveBanner();
+          resumeRecording();
+        } else if (response.actionIdentifier === 'vromm_pause') {
+          // 🚀 pause your recording logic here
+          console.log('Pause recording triggered!');
+          showPausedBanner();
+          pauseRecording();
+        }
+      },
+    );
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription?.remove();
+      subscriptionStopRecording?.remove();
+    };
+  }, [isRecording, stopRecording, pauseRecording, resumeRecording]);
+
   // Optimize render to be more performant
   return (
     <>
@@ -1478,6 +1518,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
               <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
                 {t('map.recordDriving') || 'Record Route'}
               </Text>
+              <Text>RecordDrivingSheet</Text>
               <XStack gap={8} alignItems="center">
                 {/* Always show minimize button when recording - Debug added */}
                 {isRecording && (
