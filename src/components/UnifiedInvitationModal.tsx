@@ -75,10 +75,39 @@ export function UnifiedInvitationModal({
         `)
         .eq('user_id', user.id)
         .in('type', ['supervisor_invitation', 'student_invitation'])
-        .eq('is_read', false);
+        .eq('is_read', false)
+        .order('created_at', { ascending: false });
 
       console.log('🔍 [UnifiedInvitationModal] Relationship invitations:', relationshipInvitations);
       if (relError) throw relError;
+
+      // Filter out invitations where relationships already exist
+      const filteredRelationshipInvitations = [];
+      if (relationshipInvitations) {
+        for (const notif of relationshipInvitations) {
+          const metadata = notif.metadata || {};
+          const targetUserId = metadata.targetUserId || notif.actor_id;
+          
+          // Check if relationship already exists
+          const { data: existingRel } = await supabase
+            .from('student_supervisor_relationships')
+            .select('id')
+            .or(`and(student_id.eq.${user.id},supervisor_id.eq.${targetUserId}),and(student_id.eq.${targetUserId},supervisor_id.eq.${user.id})`)
+            .eq('status', 'active')
+            .single();
+
+          if (!existingRel) {
+            filteredRelationshipInvitations.push(notif);
+          } else {
+            console.log('🔍 [UnifiedInvitationModal] Filtering out processed relationship invitation:', notif.id);
+            // Mark notification as read since relationship already exists
+            await supabase
+              .from('notifications')
+              .update({ is_read: true, read_at: new Date().toISOString() })
+              .eq('id', notif.id);
+          }
+        }
+      }
 
       // Fetch collection invitations from collection_invitations table
       const { data: collectionInvitations, error: colError } = await supabase
@@ -123,12 +152,13 @@ export function UnifiedInvitationModal({
       
       console.log('🔍 [UnifiedInvitationModal] Total invitations found:', {
         relationship: relationshipInvitations?.length || 0,
+        filteredRelationship: filteredRelationshipInvitations?.length || 0,
         collection: collectionInvitations?.length || 0,
         notifications: notificationInvitations?.length || 0
       });
 
       // Add relationship invitations from notifications
-      relationshipInvitations?.forEach(notif => {
+      filteredRelationshipInvitations?.forEach(notif => {
         const metadata = notif.metadata || {};
         const isSupervisorInvitation = notif.message?.includes('supervisor') || notif.message?.includes('supervise');
         
@@ -227,23 +257,45 @@ export function UnifiedInvitationModal({
           if (notifError) throw notifError;
         }
 
-        // Create relationship - we need to get the actor_id from the notification
-        const { data: notificationData } = await supabase
-          .from('notifications')
-          .select('actor_id, metadata')
-          .eq('id', invitation.id)
-          .single();
+            // Create relationship - we need to get the actor_id from the notification
+            const { data: notificationData } = await supabase
+              .from('notifications')
+              .select('actor_id, metadata')
+              .eq('id', invitation.id)
+              .single();
 
-        if (notificationData) {
-          const { error: relError } = await supabase
-            .from('student_supervisor_relationships')
-            .insert({
-              student_id: invitation.role === 'student' ? user?.id : notificationData.actor_id,
-              supervisor_id: invitation.role === 'supervisor' ? user?.id : notificationData.actor_id,
-              status: 'active'
-            });
+            if (notificationData) {
+              // Check if relationship already exists before creating
+              const studentId = invitation.role === 'student' ? user?.id : notificationData.actor_id;
+              const supervisorId = invitation.role === 'supervisor' ? user?.id : notificationData.actor_id;
+              
+              const { data: existingRel } = await supabase
+                .from('student_supervisor_relationships')
+                .select('id')
+                .eq('student_id', studentId)
+                .eq('supervisor_id', supervisorId)
+                .single();
 
-          if (relError) throw relError;
+              if (existingRel) {
+                console.log('🔍 [UnifiedInvitationModal] Relationship already exists, skipping creation');
+              } else {
+                const { error: relError } = await supabase
+                  .from('student_supervisor_relationships')
+                  .insert({
+                    student_id: studentId,
+                    supervisor_id: supervisorId,
+                    status: 'active'
+                  });
+
+                if (relError) {
+                  // If it's a duplicate key error, that's okay - relationship already exists
+                  if (relError.code === '23505') {
+                    console.log('🔍 [UnifiedInvitationModal] Relationship already exists (duplicate key), continuing...');
+                  } else {
+                    throw relError;
+                  }
+                }
+              }
 
           // Send notification to the inviter that their invitation was accepted
           const inviterId = notificationData.actor_id;

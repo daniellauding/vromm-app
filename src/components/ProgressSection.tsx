@@ -361,6 +361,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     return null;
   };
 
+
   // Load filters and learning paths
   useEffect(() => {
     console.log('ProgressSection: Fetching learning paths and filters');
@@ -408,7 +409,19 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
               .filter(item => item.category === 'type' && item.is_default)
               .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
 
-            const defaultFilters: Record<CategoryType, string> = {
+            // For instructors, use 'all' filters to show everything
+            const isInstructor = profile?.role === 'instructor' || profile?.role === 'school';
+            
+            const defaultFilters: Record<CategoryType, string> = isInstructor ? {
+              vehicle_type: 'all',
+              transmission_type: 'all',
+              license_type: 'all',
+              experience_level: 'all',
+              purpose: 'all',
+              user_profile: 'all',
+              platform: 'all',
+              type: 'all',
+            } : {
               vehicle_type: getProfilePreference('vehicle_type', defaultVehicle?.value || 'all'),
               transmission_type: getProfilePreference('transmission_type', defaultTransmission?.value || 'all'),
               license_type: getProfilePreference('license_type', defaultLicense?.value || 'all'),
@@ -641,7 +654,22 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     return completed / ids.length;
   };
 
-  if (loading || filteredPaths.length === 0) {
+  // Debug logging for ProgressSection visibility
+  console.log('🔍 [ProgressSection] Render check:', {
+    loading,
+    pathsCount: paths.length,
+    filteredPathsCount: filteredPaths.length,
+    effectiveUserId,
+    profileRole: profile?.role
+  });
+
+  if (loading) {
+    console.log('🔍 [ProgressSection] Still loading, not rendering');
+    return null;
+  }
+
+  if (filteredPaths.length === 0) {
+    console.log('🔍 [ProgressSection] No filtered paths found, not rendering');
     return null;
   }
 

@@ -1654,52 +1654,129 @@ export const GettingStarted = () => {
                             }
                             
                             try {
-                              console.log('🗑️ [GettingStarted] Starting deletion process...');
+                              console.log('🗑️ [GettingStarted] FORCE DELETING invitation with ID:', invitation.id);
+                              console.log('🗑️ [GettingStarted] Full invitation object:', JSON.stringify(invitation, null, 2));
                               
-                              // Cancel the pending invitation (update status instead of delete)
-                              console.log('🗑️ [GettingStarted] Attempting to cancel invitation with ID:', invitation.id);
+                              // First, let's check if the invitation actually exists
+                              const { data: checkData, error: checkError } = await supabase
+                                .from('pending_invitations')
+                                .select('*')
+                                .eq('id', invitation.id);
+
+                              console.log('🗑️ [GettingStarted] Check if invitation exists:', { data: checkData, error: checkError });
                               
-                              // First try to update pending_invitations table
+                              // Try multiple deletion approaches
+                              let deletionSuccess = false;
+                              
+                              // Method 1: Direct DELETE with RLS
+                              console.log('🗑️ [GettingStarted] Method 1: Direct DELETE with RLS');
                               const { data: pendingData, error: pendingError } = await supabase
                                 .from('pending_invitations')
-                                .update({ 
-                                  status: 'cancelled',
-                                  updated_at: new Date().toISOString()
-                                })
+                                .delete()
                                 .eq('id', invitation.id)
                                 .select();
 
-                              console.log('🗑️ [GettingStarted] Pending invitations result:', { data: pendingData, error: pendingError });
+                              console.log('🗑️ [GettingStarted] Method 1 result:', { data: pendingData, error: pendingError });
+                              
+                              if (pendingData && pendingData.length > 0) {
+                                deletionSuccess = true;
+                                console.log('✅ [GettingStarted] Method 1 successful - deleted', pendingData.length, 'rows');
+                              } else if (pendingError) {
+                                console.log('❌ [GettingStarted] Method 1 failed with error:', pendingError);
+                              }
 
-                              // If that fails, try to mark notification as read (for notification-based invitations)
-                              if (pendingError || !pendingData || pendingData.length === 0) {
-                                console.log('🗑️ [GettingStarted] Not found in pending_invitations, trying notifications table...');
+                              // Method 2: Try UPDATE to 'cancelled' status first, then DELETE
+                              if (!deletionSuccess) {
+                                console.log('🗑️ [GettingStarted] Method 2: UPDATE to cancelled, then DELETE');
                                 
-                                const { data: notifData, error: notifError } = await supabase
-                                  .from('notifications')
-                                  .update({ 
-                                    is_read: true,
-                                    read_at: new Date().toISOString()
-                                  })
+                                // First update to cancelled
+                                const { data: updateData, error: updateError } = await supabase
+                                  .from('pending_invitations')
+                                  .update({ status: 'cancelled' })
                                   .eq('id', invitation.id)
                                   .select();
 
-                                console.log('🗑️ [GettingStarted] Notifications result:', { data: notifData, error: notifError });
+                                console.log('🗑️ [GettingStarted] Method 2 UPDATE result:', { data: updateData, error: updateError });
+                                
+                                if (updateData && updateData.length > 0) {
+                                  // Now try to delete
+                                  const { data: deleteData, error: deleteError } = await supabase
+                                    .from('pending_invitations')
+                                    .delete()
+                                    .eq('id', invitation.id)
+                                    .select();
 
-                                if (notifError) {
-                                  console.error('❌ [GettingStarted] Error cancelling notification:', notifError);
-                                  return;
+                                  console.log('🗑️ [GettingStarted] Method 2 DELETE result:', { data: deleteData, error: deleteError });
+                                  
+                                  if (deleteData && deleteData.length > 0) {
+                                    deletionSuccess = true;
+                                    console.log('✅ [GettingStarted] Method 2 successful - deleted', deleteData.length, 'rows');
+                                  }
                                 }
-
-                                if (!notifData || notifData.length === 0) {
-                                  console.warn('⚠️ [GettingStarted] No rows were updated in notifications either - invitation might not exist');
-                                  return;
-                                }
-
-                                console.log('✅ [GettingStarted] Notification marked as read successfully:', notifData);
-                              } else {
-                                console.log('✅ [GettingStarted] Pending invitation cancelled successfully:', pendingData);
                               }
+
+                              // Method 3: Try using RPC function if available
+                              if (!deletionSuccess) {
+                                console.log('🗑️ [GettingStarted] Method 3: Try RPC function');
+                                try {
+                                  const { data: rpcData, error: rpcError } = await supabase
+                                    .rpc('delete_pending_invitation', { invitation_id: invitation.id });
+                                  
+                                  console.log('🗑️ [GettingStarted] Method 3 RPC result:', { data: rpcData, error: rpcError });
+                                  
+                                  if (!rpcError && rpcData?.success) {
+                                    deletionSuccess = true;
+                                    console.log('✅ [GettingStarted] Method 3 successful');
+                                  }
+                                } catch (rpcErr) {
+                                  console.log('❌ [GettingStarted] Method 3 RPC not available:', rpcErr);
+                                }
+                              }
+
+                              // Method 4: Try alternative RPC function (UPDATE then DELETE)
+                              if (!deletionSuccess) {
+                                console.log('🗑️ [GettingStarted] Method 4: Try alternative RPC function');
+                                try {
+                                  const { data: altRpcData, error: altRpcError } = await supabase
+                                    .rpc('cancel_and_delete_invitation', { invitation_id: invitation.id });
+                                  
+                                  console.log('🗑️ [GettingStarted] Method 4 RPC result:', { data: altRpcData, error: altRpcError });
+                                  
+                                  if (!altRpcError && altRpcData?.success) {
+                                    deletionSuccess = true;
+                                    console.log('✅ [GettingStarted] Method 4 successful');
+                                  }
+                                } catch (altRpcErr) {
+                                  console.log('❌ [GettingStarted] Method 4 RPC not available:', altRpcErr);
+                                }
+                              }
+
+                              // Also try to delete from notifications table
+                              const { data: notifData, error: notifError } = await supabase
+                                .from('notifications')
+                                .delete()
+                                .eq('id', invitation.id)
+                                .select();
+
+                              console.log('🗑️ [GettingStarted] Notifications DELETE result:', { data: notifData, error: notifError });
+
+                              // Also try to delete by invitation_id in metadata
+                              const { data: metadataData, error: metadataError } = await supabase
+                                .from('notifications')
+                                .delete()
+                                .eq('metadata->>invitation_id', invitation.id)
+                                .select();
+
+                              console.log('🗑️ [GettingStarted] Metadata DELETE result:', { data: metadataData, error: metadataError });
+
+                              if (!deletionSuccess) {
+                                console.log('❌ [GettingStarted] All deletion methods failed - this might be an RLS policy issue');
+                                console.log('❌ [GettingStarted] Please run the SQL scripts to fix RLS policies');
+                              }
+
+                              // FORCE REMOVE from local state immediately
+                              setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
+                              console.log('🗑️ [GettingStarted] Removed from local state immediately');
                               
                               // Refresh the pending invitations list
                               console.log('🔄 [GettingStarted] Refreshing pending invitations list...');
@@ -1707,6 +1784,8 @@ export const GettingStarted = () => {
                               console.log('🔄 [GettingStarted] Pending invitations refreshed');
                             } catch (error) {
                               console.error('❌ [GettingStarted] Caught error removing invitation:', error);
+                              // Even if there's an error, remove from local state
+                              setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
                             }
                           }}
                           style={{ 
