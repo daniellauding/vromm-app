@@ -92,13 +92,15 @@ export const HomeHeader = () => {
       if (profile?.id) (navigation as any).navigate('PublicProfile', { userId: profile.id });
       return;
     }
-    // For instructors/admin/school: load students, if fewer than 2, go to own public profile; else open modal
+    // For instructors/admin/school: always show student picker if they have students
     try {
       const list = (await loadSupervisedStudents()) || [];
-      if ((list?.length || 0) < 2) {
-        if (profile?.id) (navigation as any).navigate('PublicProfile', { userId: profile.id });
-      } else {
+      if ((list?.length || 0) > 0) {
+        // Show student picker if they have any students
         setShowStudentPicker(true);
+      } else {
+        // No students yet, go to own profile
+        if (profile?.id) (navigation as any).navigate('PublicProfile', { userId: profile.id });
       }
     } catch {
       // Fallback: open the picker as before

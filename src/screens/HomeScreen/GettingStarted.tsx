@@ -264,11 +264,14 @@ export const GettingStarted = () => {
       const filteredInvitations = [];
       if (data) {
         for (const invitation of data) {
+          // Get the target user ID from the invitation
+          const targetUserId = invitation.targetUserId || invitation.invited_by;
+          
           // Check if relationship already exists
           const { data: existingRelationship } = await supabase
             .from('student_supervisor_relationships')
             .select('id')
-            .or(`and(student_id.eq.${invitation.targetUserId || invitation.invited_by},supervisor_id.eq.${user.id}),and(student_id.eq.${user.id},supervisor_id.eq.${invitation.targetUserId || invitation.invited_by})`)
+            .or(`and(student_id.eq.${targetUserId},supervisor_id.eq.${user.id}),and(student_id.eq.${user.id},supervisor_id.eq.${targetUserId})`)
             .eq('status', 'active')
             .single();
 
@@ -1656,7 +1659,8 @@ export const GettingStarted = () => {
                               // Cancel the pending invitation (update status instead of delete)
                               console.log('🗑️ [GettingStarted] Attempting to cancel invitation with ID:', invitation.id);
                               
-                              const { data, error } = await supabase
+                              // First try to update pending_invitations table
+                              const { data: pendingData, error: pendingError } = await supabase
                                 .from('pending_invitations')
                                 .update({ 
                                   status: 'cancelled',
@@ -1665,19 +1669,37 @@ export const GettingStarted = () => {
                                 .eq('id', invitation.id)
                                 .select();
 
-                              console.log('🗑️ [GettingStarted] Cancel result:', { data, error });
+                              console.log('🗑️ [GettingStarted] Pending invitations result:', { data: pendingData, error: pendingError });
 
-                              if (error) {
-                                console.error('❌ [GettingStarted] Error cancelling invitation:', error);
-                                return;
+                              // If that fails, try to mark notification as read (for notification-based invitations)
+                              if (pendingError || !pendingData || pendingData.length === 0) {
+                                console.log('🗑️ [GettingStarted] Not found in pending_invitations, trying notifications table...');
+                                
+                                const { data: notifData, error: notifError } = await supabase
+                                  .from('notifications')
+                                  .update({ 
+                                    is_read: true,
+                                    read_at: new Date().toISOString()
+                                  })
+                                  .eq('id', invitation.id)
+                                  .select();
+
+                                console.log('🗑️ [GettingStarted] Notifications result:', { data: notifData, error: notifError });
+
+                                if (notifError) {
+                                  console.error('❌ [GettingStarted] Error cancelling notification:', notifError);
+                                  return;
+                                }
+
+                                if (!notifData || notifData.length === 0) {
+                                  console.warn('⚠️ [GettingStarted] No rows were updated in notifications either - invitation might not exist');
+                                  return;
+                                }
+
+                                console.log('✅ [GettingStarted] Notification marked as read successfully:', notifData);
+                              } else {
+                                console.log('✅ [GettingStarted] Pending invitation cancelled successfully:', pendingData);
                               }
-
-                              if (!data || data.length === 0) {
-                                console.warn('⚠️ [GettingStarted] No rows were updated - invitation might not exist');
-                                return;
-                              }
-
-                              console.log('✅ [GettingStarted] Invitation cancelled successfully:', data);
                               
                               // Refresh the pending invitations list
                               console.log('🔄 [GettingStarted] Refreshing pending invitations list...');

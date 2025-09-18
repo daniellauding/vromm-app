@@ -244,6 +244,31 @@ export function UnifiedInvitationModal({
             });
 
           if (relError) throw relError;
+
+          // Send notification to the inviter that their invitation was accepted
+          const inviterId = notificationData.actor_id;
+          const inviterName = invitation.from_user_name || 'Someone';
+          const accepterName = user?.email || 'Someone';
+          
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: inviterId,
+              actor_id: user?.id,
+              type: 'relationship_accepted',
+              title: 'Invitation Accepted',
+              message: `${accepterName} accepted your ${invitation.role} invitation`,
+              metadata: {
+                relationship_type: invitation.role === 'student' ? 'supervisor_invites_student' : 'student_invites_supervisor',
+                accepted_by: user?.id,
+                accepted_by_name: accepterName,
+              },
+              action_url: 'vromm://notifications',
+              priority: 'normal',
+              is_read: false,
+            });
+
+          console.log('✅ [UnifiedInvitationModal] Notification sent to inviter:', inviterId);
         }
       } else {
         // Accept collection invitation
@@ -309,6 +334,36 @@ export function UnifiedInvitationModal({
             } else {
               throw memberError;
             }
+          }
+
+          // Send notification to collection owner that invitation was accepted
+          const { data: collectionData } = await supabase
+            .from('map_presets')
+            .select('creator_id, name')
+            .eq('id', invitation.collection_id || invitation.preset_id)
+            .single();
+
+          if (collectionData && collectionData.creator_id !== user?.id) {
+            await supabase
+              .from('notifications')
+              .insert({
+                user_id: collectionData.creator_id,
+                actor_id: user?.id,
+                type: 'collection_invitation_accepted',
+                title: 'Collection Invitation Accepted',
+                message: `${user?.email || 'Someone'} accepted your invitation to join "${collectionData.name}"`,
+                metadata: {
+                  collection_id: invitation.collection_id || invitation.preset_id,
+                  collection_name: collectionData.name,
+                  accepted_by: user?.id,
+                  accepted_by_name: user?.email,
+                },
+                action_url: 'vromm://notifications',
+                priority: 'normal',
+                is_read: false,
+              });
+
+            console.log('✅ [UnifiedInvitationModal] Collection acceptance notification sent to owner:', collectionData.creator_id);
           }
         }
       }
