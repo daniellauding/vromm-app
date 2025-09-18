@@ -135,6 +135,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 14,
     fontWeight: '500',
+    color: '#FFFFFF', // Default color to ensure text is visible
   },
   selectedChipText: {
     color: '#000000',
@@ -1158,7 +1159,7 @@ export function FilterSheet({
             </SizableText>
             
             {/* Collection Chips - REMOVED ICONS */}
-            <View style={styles.filterRow}>
+            <View style={[styles.filterRow, { flexWrap: 'nowrap' }]}>
               {/* "All Routes" option */}
               <TouchableOpacity
                 style={[
@@ -1187,6 +1188,20 @@ export function FilterSheet({
               {(() => {
                 console.log('🔍 [FilterSheet] All userCollections:', userCollections);
                 console.log('🔍 [FilterSheet] Current user ID:', getEffectiveUserId());
+                
+                // Debug each collection individually
+                userCollections.forEach((collection, index) => {
+                  console.log(`🔍 [FilterSheet] Collection ${index}:`, {
+                    id: collection.id,
+                    name: collection.name,
+                    nameType: typeof collection.name,
+                    nameLength: collection.name?.length,
+                    nameValue: JSON.stringify(collection.name),
+                    visibility: collection.visibility,
+                    creator_id: collection.creator_id,
+                    route_count: collection.route_count
+                  });
+                });
                 
                 const filteredCollections = userCollections
                   .filter(collection => {
@@ -1282,6 +1297,19 @@ export function FilterSheet({
                         backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent'
                       });
                       
+                      // Debug the actual text content
+                      const rawText = collection.name || collection.id || 'Unnamed Collection';
+                      const displayText = rawText.replace(/[\r\n]/g, '').trim(); // Remove line breaks and trim
+                      console.log('🔍 [FilterSheet] Text to display:', {
+                        rawText,
+                        displayText,
+                        textLength: displayText.length,
+                        textType: typeof displayText,
+                        textColor: selectedPresetId === collection.id ? '#000000' : '#FFFFFF',
+                        backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
+                        hasLineBreaks: rawText !== displayText
+                      });
+                      
                       return (
                         <XStack key={collection.id || `collection-${Math.random()}`} alignItems="center" gap="$1">
                           <TouchableOpacity
@@ -1290,47 +1318,23 @@ export function FilterSheet({
                               {
                                 borderColor,
                                 backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
-                                flex: 1,
                               },
                             ]}
                             onPress={() => handlePresetSelect(collection.id)}
                           >
                             <XStack alignItems="center" gap="$1">
                               <Text
-                                style={[
-                                  styles.chipText,
-                                  {
-                                    color: selectedPresetId === collection.id ? '#000000' : textColor,
-                                    fontWeight: selectedPresetId === collection.id ? '600' : '500',
-                                    fontSize: 14, // Explicit font size
-                                    opacity: 1, // Explicit opacity
-                                  },
-                                ]}
-                                numberOfLines={1}
+                                color={selectedPresetId === collection.id ? '#000000' : '#FFFFFF'}
+                                fontWeight={selectedPresetId === collection.id ? '600' : '500'}
+                                fontSize={14}
                               >
-                                {(() => {
-                                  const displayName = collection.name || collection.id || 'Unnamed Collection';
-                                  console.log('🔍 [FilterSheet] Text component rendering:', {
-                                    collectionId: collection.id,
-                                    collectionName: collection.name,
-                                    displayName: displayName,
-                                    textColor: selectedPresetId === collection.id ? '#000000' : textColor,
-                                    backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent'
-                                  });
-                                  // Add a visual indicator to make sure text is rendering
-                                  return `[${displayName}]`;
-                                })()}
+                                {displayText}
                               </Text>
                               {collection.route_count != null && collection.route_count > 0 && (
                                 <Text
-                                  style={[
-                                    styles.chipText,
-                                    {
-                                      color: selectedPresetId === collection.id ? '#000000' : textColor,
-                                      fontSize: 12,
-                                      opacity: 0.7,
-                                    },
-                                  ]}
+                                  color={selectedPresetId === collection.id ? '#000000' : textColor}
+                                  fontSize={12}
+                                  opacity={0.7}
                                 >
                                   ({String(collection.route_count || 0)})
                                 </Text>
@@ -1402,6 +1406,7 @@ export function FilterSheet({
               })()}
             </View>
           </YStack>
+
 
           {/* Sort Options - WITH ROUTE COUNTS */}
           <YStack style={styles.filterSection}>
