@@ -19,6 +19,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as Linking from 'expo-linking';
 import { googleSignInService } from '../services/googleSignInService';
+import { FacebookWarningModal } from '../components/FacebookWarningModal';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -30,6 +31,7 @@ export function LoginScreen() {
   const [passwordError, setPasswordError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [showFacebookWarning, setShowFacebookWarning] = useState(false);
   const { signIn, user } = useAuth();
   const { t, clearCache } = useTranslation();
   const { showToast } = useToast();
@@ -192,7 +194,12 @@ export function LoginScreen() {
     }
   };
 
-  const handleFacebookLogin = async () => {
+  const handleFacebookLogin = () => {
+    setShowFacebookWarning(true);
+  };
+
+  const handleFacebookLoginContinue = async () => {
+    setShowFacebookWarning(false);
     if (oauthLoading) return;
 
     try {
@@ -392,6 +399,13 @@ export function LoginScreen() {
           </Button>
         </XStack>
       </YStack>
+
+      {/* Facebook Warning Modal */}
+      <FacebookWarningModal
+        visible={showFacebookWarning}
+        onContinue={handleFacebookLoginContinue}
+        onCancel={() => setShowFacebookWarning(false)}
+      />
     </Screen>
   );
 }

@@ -16,6 +16,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as Linking from 'expo-linking';
 import { useToast } from '../contexts/ToastContext';
+import { FacebookWarningModal } from '../components/FacebookWarningModal';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -30,6 +31,7 @@ export function SignupScreen() {
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [showFacebookWarning, setShowFacebookWarning] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -54,7 +56,12 @@ export function SignupScreen() {
     }
   };
 
-  const handleFacebookSignup = async () => {
+  const handleFacebookSignup = () => {
+    setShowFacebookWarning(true);
+  };
+
+  const handleFacebookSignupContinue = async () => {
+    setShowFacebookWarning(false);
     if (oauthLoading) return;
 
     try {
@@ -277,6 +284,13 @@ export function SignupScreen() {
           </Button>
         </XStack>
       </YStack>
+
+      {/* Facebook Warning Modal */}
+      <FacebookWarningModal
+        visible={showFacebookWarning}
+        onContinue={handleFacebookSignupContinue}
+        onCancel={() => setShowFacebookWarning(false)}
+      />
     </Screen>
   );
 }
