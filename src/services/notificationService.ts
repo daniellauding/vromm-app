@@ -355,6 +355,31 @@ class NotificationService {
       )
       .subscribe();
   }
+
+  // Archive all notifications for current user
+  async archiveAllNotifications(): Promise<void> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    console.log('📁 Archiving all notifications for user:', user.id);
+    
+    const { error } = await supabase
+      .from('notifications')
+      .update({ archived: true })
+      .eq('user_id', user.id)
+      .eq('archived', false);
+
+    if (error) {
+      console.error('❌ Error archiving all notifications:', error);
+      throw error;
+    }
+
+    console.log('✅ All notifications archived successfully');
+  }
 }
 
 export const notificationService = new NotificationService();

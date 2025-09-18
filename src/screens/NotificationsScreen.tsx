@@ -24,11 +24,19 @@ import { formatDistanceToNow } from 'date-fns';
 import { getTabContentPadding } from '../utils/layout';
 import { useToast } from '../contexts/ToastContext';
 
-export const NotificationsScreen: React.FC = () => {
+interface NotificationsScreenProps {
+  showArchived?: boolean;
+  isModal?: boolean;
+}
+
+export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ 
+  showArchived: propShowArchived,
+  isModal = false
+}) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  const [showArchived, setShowArchived] = useState(propShowArchived || false);
   const navigation = useNavigation();
   const { showToast } = useToast();
 
@@ -66,6 +74,13 @@ export const NotificationsScreen: React.FC = () => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Sync prop with internal state
+  useEffect(() => {
+    if (propShowArchived !== undefined) {
+      setShowArchived(propShowArchived);
+    }
+  }, [propShowArchived]);
 
   // Reload notifications when showArchived changes
   useEffect(() => {
@@ -409,7 +424,9 @@ export const NotificationsScreen: React.FC = () => {
   };
 
   const handleBack = () => {
-    navigation.goBack();
+    if (!isModal && navigation) {
+      navigation.goBack();
+    }
   };
 
   const handleAcceptInvitation = async (notification: Notification) => {
@@ -897,9 +914,11 @@ export const NotificationsScreen: React.FC = () => {
         alignItems="center"
       >
         <XStack alignItems="center" gap={12} flex={1}>
-          <TouchableOpacity onPress={handleBack}>
-            <ArrowLeft size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+          {!isModal && (
+            <TouchableOpacity onPress={handleBack}>
+              <ArrowLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
 
           <Text fontSize={24} fontWeight="bold" color="$color">
             Notifications
