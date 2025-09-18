@@ -115,7 +115,7 @@ const formatSpeed = (speed: number): string => {
 
 // Performance-optimized component
 export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) => {
-  const { onClose, onCreateRoute } = props;
+  const { isVisible, onClose, onCreateRoute } = props;
   const { t } = useTranslation();
   const { hideModal, setModalPointerEvents } = useModal();
   const { 
@@ -151,18 +151,21 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   // Pan gesture for drag-to-minimize (when recording) or drag-to-close (when not recording)
   const panGesture = Gesture.Pan()
     .onBegin(() => {
+      console.log('🎯 RecordDrivingSheet: Pan gesture began');
       isDragging.current = true;
     })
     .onUpdate((event) => {
       const { translationY } = event;
       const newPosition = Math.max(0, translationY);
       translateY.value = newPosition;
+      console.log('🎯 RecordDrivingSheet: Pan gesture update', { translationY, newPosition });
     })
     .onEnd((event) => {
       isDragging.current = false;
       const { translationY, velocityY } = event;
+      console.log('🎯 RecordDrivingSheet: Pan gesture ended', { translationY, velocityY, isRecording: recordingState?.isRecording });
       
-      if (recordingState.isRecording) {
+      if (recordingState?.isRecording) {
         // When recording: drag down to minimize
         if (translationY > screenHeight * 0.3 || velocityY > 500) {
           // Drag down to minimize
@@ -178,14 +181,19 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
         // When not recording: drag down to close
         if (translationY > screenHeight * 0.2 || velocityY > 300) {
           // Drag down to close
+          console.log('🎯 RecordDrivingSheet: Dragging to close');
           translateY.value = withSpring(snapPoints.dismissed, { damping: 15, stiffness: 150 });
           runOnJS(onClose)();
         } else {
           // Snap back to expanded
+          console.log('🎯 RecordDrivingSheet: Snapping back to expanded');
           translateY.value = withSpring(snapPoints.expanded, { damping: 15, stiffness: 150 });
         }
       }
-    });
+    })
+    .shouldCancelWhenOutside(false);
+
+  // Backdrop tap is now handled by TouchableOpacity for better reliability
 
   // Animated style for the sheet
   const animatedSheetStyle = useAnimatedStyle(() => {
@@ -197,8 +205,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   // Format waypoints for map display with safety checks - memoized for performance
   const getRoutePath = useCallback(() => {
     try {
-      // Safety check for empty waypoints
-      if (!recordingState.waypoints || recordingState.waypoints.length === 0) {
+      // Safety check for recordingState and waypoints
+      if (!recordingState || !recordingState.waypoints || recordingState.waypoints.length === 0) {
         return [];
       }
 
@@ -221,7 +229,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       console.error('Error formatting route path:', error);
       return [];
     }
-  }, [recordingState.waypoints]);
+  }, [recordingState?.waypoints]);
 
   // Format time display with HH:MM:SS format - memoized
   const formatTime = useCallback((seconds: number): string => {
@@ -298,7 +306,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const handleSaveRecording = useCallback(() => {
     try {
       // Skip if no waypoints
-      if (recordingState.waypoints.length === 0) {
+      if (!recordingState?.waypoints || recordingState.waypoints.length === 0) {
         Alert.alert('No data', 'No movement was recorded. Please try again.');
         return;
       }
@@ -349,37 +357,67 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
 
   // Floating widget is now handled by GlobalRecordingWidget component
 
+  // Handle modal pointer events when minimized/maximized state changes
+  useEffect(() => {
+    if (recordingState?.isMinimized) {
+      // Allow touches to pass through when minimized
+      setModalPointerEvents('box-none');
+    } else {
+      // Block touches when maximized (normal modal behavior)
+      setModalPointerEvents('auto');
+    }
+  }, [recordingState?.isMinimized, setModalPointerEvents]);
+
   // Auto-save and app state handling is now done by the global recording context
+
+  // Safety check - don't render if not visible
+  if (!isVisible) {
+    return null;
+  }
+
+  // Safety check - don't render if recordingState is not available
+  if (!recordingState) {
+    return null;
+  }
+
+  // When minimized, the sheet should still render but the widget will be shown instead
+  // The widget visibility is handled by GlobalRecordingWidget component
 
   // Optimize render to be more performant
   return (
     <>
-      {/* Main sheet - show when not minimized OR when there's recording data to show */}
-      {(!recordingState.isMinimized || recordingState.waypoints.length > 0 || recordingState.showSummary) && (
-        <View style={[styles.container, recordingState.isMinimized && styles.minimizedContainer]}>
-          {/* Only show backdrop when not minimized */}
-          {!recordingState.isMinimized && (
-            <TouchableOpacity
-              style={styles.backdrop}
-              activeOpacity={1}
-              onPress={recordingState.isRecording ? handleMinimize : onClose}
-            />
-          )}
-          <GestureDetector gesture={panGesture}>
-            <ReanimatedAnimated.View 
-              style={[
-                styles.sheet, 
-                { backgroundColor: DARK_THEME.background }, 
-                animatedSheetStyle,
-                recordingState.isMinimized && styles.minimizedSheet
-              ]}
-            >
+      {/* Main sheet - hide when minimized, show widget instead */}
+      {!recordingState.isMinimized && (
+        <View style={styles.container}>
+        {/* Backdrop - always show when sheet is visible */}
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={() => {
+            console.log('🎯 RecordDrivingSheet: Backdrop pressed');
+            if (recordingState?.isRecording) {
+              console.log('🎯 RecordDrivingSheet: Calling handleMinimize from backdrop press');
+              handleMinimize();
+            } else {
+              console.log('🎯 RecordDrivingSheet: Calling onClose from backdrop press');
+              onClose();
+            }
+          }}
+        />
+        <GestureDetector gesture={panGesture}>
+          <ReanimatedAnimated.View 
+            style={[
+              styles.sheet, 
+              { backgroundColor: DARK_THEME.background }, 
+              animatedSheetStyle,
+              recordingState.isMinimized && styles.minimizedSheet
+            ]}
+          >
             <View style={styles.handleContainer}>
               <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
               <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
                 {t('map.recordDriving') || 'Record Route'}
               </Text>
-              <Text>RecordDrivingSheet</Text>
               <XStack gap={8} alignItems="center">
                 {/* Always show minimize button when recording - Debug added */}
                 {recordingState.isRecording && (
@@ -403,7 +441,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             </View>
 
             {/* Map Toggle Button - Show during recording or if we have waypoints to preview */}
-            {(recordingState.isRecording || recordingState.waypoints.length > 0) && (
+            {((recordingState?.isRecording) || (recordingState?.waypoints && recordingState.waypoints.length > 0)) && (
               <XStack justifyContent="center" marginBottom={8}>
                 <TouchableOpacity
                   style={{
@@ -699,9 +737,9 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                 </YStack>
               )}
             </YStack>
-            </ReanimatedAnimated.View>
-          </GestureDetector>
-        </View>
+          </ReanimatedAnimated.View>
+        </GestureDetector>
+      </View>
       )}
 
       {/* Floating widget is now handled by GlobalRecordingWidget component */}
@@ -773,12 +811,22 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.7)',
+    zIndex: 1, // Ensure backdrop is above other elements
+  },
+  backdropTouchArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent', // Transparent but touchable
   },
   sheet: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 16,
     maxHeight: '90%',
+    zIndex: 2, // Ensure sheet is above backdrop
   },
   handleContainer: {
     flexDirection: 'row',

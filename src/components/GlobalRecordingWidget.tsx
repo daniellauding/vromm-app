@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet, Text, Dimensions, Modal, Alert, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRecording } from '../contexts/RecordingContext';
@@ -9,7 +9,7 @@ import { YStack, XStack, Button } from 'tamagui';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-export function GlobalRecordingWidget() {
+export const GlobalRecordingWidget = React.memo(() => {
   const { recordingState, resumeRecording, pauseRecording, stopRecording, maximizeRecording, cancelRecording } = useRecording();
   const { t } = useTranslation();
 
@@ -123,15 +123,20 @@ export function GlobalRecordingWidget() {
   };
 
 
-  // Debug logging
+  // Memoize the shouldShow calculation to prevent unnecessary re-renders
+  const shouldShow = useMemo(() => {
+    return recordingState.isMinimized && recordingState.isRecording;
+  }, [recordingState.isMinimized, recordingState.isRecording]);
+  
+  // Debug logging - only log when state actually changes
   console.log('🎯 GlobalRecordingWidget: Render check', {
     isMinimized: recordingState.isMinimized,
     isRecording: recordingState.isRecording,
-    shouldShow: recordingState.isMinimized && recordingState.isRecording
+    shouldShow
   });
 
   // Only show when recording is active and minimized
-  if (!recordingState.isMinimized || !recordingState.isRecording) {
+  if (!shouldShow) {
     return null;
   }
 
@@ -190,7 +195,7 @@ export function GlobalRecordingWidget() {
                 {formatDistance(recordingState.distance)}
               </Text>
               <Text style={styles.floatingWidgetStat}>
-                {recordingState.waypoints.length} pts
+                {recordingState.currentSpeed.toFixed(1)} km/h
               </Text>
             </Pressable>
 
@@ -216,7 +221,11 @@ export function GlobalRecordingWidget() {
 
               <Pressable
                 style={[styles.floatingWidgetButton, { backgroundColor: 'red' }]}
-                onPress={stopRecording}
+                onPress={() => {
+                  console.log('🎯 GlobalRecordingWidget: Direct stop button pressed');
+                  stopRecording();
+                  maximizeRecording();
+                }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Feather name="square" size={16} color="white" />
@@ -292,7 +301,7 @@ export function GlobalRecordingWidget() {
       </Modal>
     </>
   );
-}
+});
 
 const styles = StyleSheet.create({
   floatingWidget: {
