@@ -7,6 +7,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useToast } from '../contexts/ToastContext';
 import { collectionSharingService, CollectionInvitation } from '../services/collectionSharingService';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface CollectionInvitationNotificationProps {
   visible: boolean;
@@ -87,10 +88,50 @@ export function CollectionInvitationNotification({
     
     setLoading(true);
     try {
-      const pendingInvitations = await collectionSharingService.getPendingInvitations(user.id);
-      console.log('🔍 [CollectionInvitationNotification] Loaded invitations:', pendingInvitations);
-      console.log('🔍 [CollectionInvitationNotification] Setting invitations state:', pendingInvitations.length);
-      setInvitations(pendingInvitations);
+      // Fetch collection invitations from notifications table
+      const { data: notificationInvitations, error: notifError } = await supabase
+        .from('notifications')
+        .select(`
+          id,
+          message,
+          metadata,
+          created_at,
+          actor_id,
+          profiles!notifications_actor_id_fkey(full_name, email)
+        `)
+        .eq('user_id', user.id)
+        .eq('type', 'collection_invitation')
+        .eq('is_read', false);
+
+      if (notifError) {
+        console.error('Error fetching notification invitations:', notifError);
+        // Fallback to old method
+        const pendingInvitations = await collectionSharingService.getPendingInvitations(user.id);
+        setInvitations(pendingInvitations);
+        return;
+      }
+
+      // Transform notification data to CollectionInvitation format
+      const formattedInvitations: CollectionInvitation[] = notificationInvitations?.map(notif => {
+        const metadata = notif.metadata || {};
+        return {
+          id: notif.id,
+          collection_id: metadata.collection_id || '',
+          collection_name: metadata.collection_name || 'Unknown Collection',
+          invited_user_id: user.id,
+          invited_user_email: user.email || '',
+          invited_by: notif.actor_id,
+          invited_by_name: (notif.profiles as any)?.full_name || metadata.from_user_name || 'Unknown',
+          status: 'pending',
+          created_at: notif.created_at,
+          updated_at: notif.created_at,
+          message: metadata.customMessage || '',
+          role: metadata.sharingRole || 'viewer'
+        };
+      }) || [];
+
+      console.log('🔍 [CollectionInvitationNotification] Loaded notification invitations:', formattedInvitations);
+      setInvitations(formattedInvitations);
     } catch (error) {
       console.error('Error loading pending invitations:', error);
     } finally {
@@ -103,7 +144,44 @@ export function CollectionInvitationNotification({
 
     setProcessingInvitation(invitationId);
     try {
-      await collectionSharingService.acceptCollectionInvitation(invitationId, user.id);
+      // Find the invitation to get the collection_id
+      const invitation = invitations.find(inv => inv.id === invitationId);
+      if (!invitation) {
+        throw new Error('Invitation not found');
+      }
+
+      // For notification-based invitations, we need to handle them differently
+      if (invitation.collection_id) {
+        // Add user to collection using the collection_id
+        const { error: memberError } = await supabase
+          .from('map_preset_members')
+          .insert({
+            preset_id: invitation.collection_id,
+            user_id: user.id,
+            role: invitation.role || 'viewer'
+          });
+
+        if (memberError) {
+          console.error('Error adding to collection:', memberError);
+          throw memberError;
+        }
+
+        // Mark notification as read
+        const { error: notifError } = await supabase
+          .from('notifications')
+          .update({ 
+            is_read: true,
+            read_at: new Date().toISOString()
+          })
+          .eq('id', invitationId);
+
+        if (notifError) {
+          console.warn('Could not mark notification as read:', notifError);
+        }
+      } else {
+        // Fallback to old method for non-notification invitations
+        await collectionSharingService.acceptCollectionInvitation(invitationId, user.id);
+      }
       
       showToast({
         title: t('collectionSharing.invitationAccepted') || 'Invitation Accepted',
@@ -133,7 +211,27 @@ export function CollectionInvitationNotification({
 
     setProcessingInvitation(invitationId);
     try {
-      await collectionSharingService.rejectCollectionInvitation(invitationId, user.id);
+      // Find the invitation to check if it's notification-based
+      const invitation = invitations.find(inv => inv.id === invitationId);
+      
+      if (invitation?.collection_id) {
+        // For notification-based invitations, just mark as read
+        const { error: notifError } = await supabase
+          .from('notifications')
+          .update({ 
+            is_read: true,
+            read_at: new Date().toISOString()
+          })
+          .eq('id', invitationId);
+
+        if (notifError) {
+          console.error('Error marking notification as read:', notifError);
+          throw notifError;
+        }
+      } else {
+        // Fallback to old method for non-notification invitations
+        await collectionSharingService.rejectCollectionInvitation(invitationId, user.id);
+      }
       
       showToast({
         title: t('collectionSharing.invitationRejected') || 'Invitation Rejected',

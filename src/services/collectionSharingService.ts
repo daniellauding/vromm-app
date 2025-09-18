@@ -13,6 +13,7 @@ export interface CollectionInvitation {
   created_at: string;
   updated_at: string;
   message?: string;
+  role?: string; // Add role for notification-based invitations
 }
 
 export interface CollectionShareRequest {

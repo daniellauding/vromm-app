@@ -204,6 +204,8 @@ export function CollectionSharingModal({
         .eq('preset_id', preset.id)
         .order('joined_at', { ascending: false });
 
+      console.log('🔍 [CollectionSharingModal] Fresh members data:', membersData);
+
       // Get user details for each member
       let membersWithUsers = [];
       if (membersData && membersData.length > 0) {
@@ -300,13 +302,20 @@ export function CollectionSharingModal({
     if (!preset?.id) return;
 
     try {
+      console.log('🔄 [CollectionSharingModal] Updating role for user:', userId, 'to:', newRole);
+      
       const { error } = await supabase
         .from('map_preset_members')
         .update({ role: newRole })
         .eq('preset_id', preset.id)
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [CollectionSharingModal] Error updating role:', error);
+        throw error;
+      }
+
+      console.log('✅ [CollectionSharingModal] Role updated successfully');
 
       showToast({
         title: t('routeCollections.roleUpdated') || 'Role Updated',
@@ -314,13 +323,55 @@ export function CollectionSharingModal({
         type: 'success'
       });
 
-      // Refresh the data
-      await loadPendingCollectionInvitations();
+      // Force refresh the data with a small delay to ensure database consistency
+      setTimeout(async () => {
+        await loadPendingCollectionInvitations();
+      }, 100);
     } catch (error) {
-      console.error('Error updating user role:', error);
+      console.error('❌ [CollectionSharingModal] Error updating user role:', error);
       showToast({
         title: t('common.error') || 'Error',
         message: t('routeCollections.failedToUpdateRole') || 'Failed to update user role',
+        type: 'error'
+      });
+    }
+  };
+
+  // Cancel pending invitation
+  const handleCancelInvitation = async (userId: string, userName: string) => {
+    if (!preset?.id) return;
+
+    try {
+      console.log('🚫 [CollectionSharingModal] Canceling invitation for user:', userId);
+      
+      // Remove pending invitation
+      const { error: inviteError } = await supabase
+        .from('pending_invitations')
+        .delete()
+        .eq('metadata->>collectionId', preset.id)
+        .eq('metadata->>targetUserId', userId)
+        .eq('status', 'pending');
+
+      if (inviteError) {
+        console.error('❌ [CollectionSharingModal] Error canceling invitation:', inviteError);
+        throw inviteError;
+      }
+
+      console.log('✅ [CollectionSharingModal] Invitation canceled successfully');
+
+      showToast({
+        title: t('collectionMembers.invitationCanceled') || 'Invitation Canceled',
+        message: t('collectionMembers.invitationCanceledMessage')?.replace('{userName}', userName) || `Invitation for ${userName} has been canceled`,
+        type: 'success'
+      });
+
+      // Refresh the data
+      await loadPendingCollectionInvitations();
+    } catch (error) {
+      console.error('❌ [CollectionSharingModal] Error canceling invitation:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('collectionMembers.failedToCancelInvitation') || 'Failed to cancel invitation',
         type: 'error'
       });
     }
@@ -331,6 +382,8 @@ export function CollectionSharingModal({
     if (!preset?.id) return;
 
     try {
+      console.log('🗑️ [CollectionSharingModal] Removing user from collection:', userId);
+      
       // Remove from map_preset_members
       const { error: memberError } = await supabase
         .from('map_preset_members')
@@ -338,7 +391,10 @@ export function CollectionSharingModal({
         .eq('preset_id', preset.id)
         .eq('user_id', userId);
 
-      if (memberError) throw memberError;
+      if (memberError) {
+        console.error('❌ [CollectionSharingModal] Error removing member:', memberError);
+        throw memberError;
+      }
 
       // Also remove any pending invitations for this user
       const { error: inviteError } = await supabase
@@ -349,9 +405,11 @@ export function CollectionSharingModal({
         .eq('status', 'pending');
 
       if (inviteError) {
-        console.warn('Error removing pending invitation:', inviteError);
+        console.warn('⚠️ [CollectionSharingModal] Error removing pending invitation:', inviteError);
         // Don't throw here, as the main operation succeeded
       }
+
+      console.log('✅ [CollectionSharingModal] User removed successfully');
 
       showToast({
         title: t('routeCollections.userRemoved') || 'User Removed',
@@ -362,7 +420,7 @@ export function CollectionSharingModal({
       // Refresh the data
       await loadPendingCollectionInvitations();
     } catch (error) {
-      console.error('Error removing user:', error);
+      console.error('❌ [CollectionSharingModal] Error removing user:', error);
       showToast({
         title: t('common.error') || 'Error',
         message: t('routeCollections.failedToRemoveUser') || 'Failed to remove user from collection',
@@ -445,6 +503,7 @@ export function CollectionSharingModal({
     try {
       let successCount = 0;
       let failCount = 0;
+      let duplicateCount = 0;
 
       // Create invitations for each selected user
       for (const targetUser of selectedUsers) {
@@ -454,6 +513,37 @@ export function CollectionSharingModal({
         }
         
         try {
+          // Check if user is already a member or has pending invitation
+          const { data: existingMember } = await supabase
+            .from('map_preset_members')
+            .select('id')
+            .eq('preset_id', preset.id)
+            .eq('user_id', targetUser.id)
+            .single();
+
+          if (existingMember) {
+            console.log('⚠️ [CollectionSharingModal] User is already a member:', targetUser.email);
+            duplicateCount++;
+            continue;
+          }
+
+          // Check for existing pending invitation
+          const { data: existingInvitation } = await supabase
+            .from('pending_invitations')
+            .select('id')
+            .eq('email', targetUser.email.toLowerCase())
+            .eq('invited_by', effectiveUserId)
+            .eq('role', 'collection_sharing')
+            .eq('metadata->>collectionId', preset.id)
+            .eq('status', 'pending')
+            .single();
+
+          if (existingInvitation) {
+            console.log('⚠️ [CollectionSharingModal] Pending invitation already exists:', targetUser.email);
+            duplicateCount++;
+            continue;
+          }
+
           // Create pending invitation for collection sharing
           const { data: invitationData, error: inviteError } = await supabase
             .from('pending_invitations')
@@ -477,29 +567,13 @@ export function CollectionSharingModal({
             .select('id')
             .single();
 
-          let invitationId = invitationData?.id;
-
-          // If there was a duplicate key error, try to find the existing invitation
-          if (inviteError && inviteError.code === '23505') {
-            const { data: existingInvitation, error: findError } = await supabase
-              .from('pending_invitations')
-              .select('id')
-              .eq('email', targetUser.email.toLowerCase())
-              .eq('invited_by', effectiveUserId)
-              .eq('role', 'collection_sharing')
-              .eq('metadata->>collectionId', preset.id)
-              .eq('status', 'pending')
-              .single();
-
-            if (!findError && existingInvitation) {
-              invitationId = existingInvitation.id;
-            }
-          } else if (inviteError) {
+          if (inviteError) {
             console.error('Error creating collection sharing invitation:', inviteError);
             failCount++;
             continue;
           }
 
+          const invitationId = invitationData?.id;
           if (!invitationId) {
             failCount++;
             continue;
@@ -541,10 +615,24 @@ export function CollectionSharingModal({
       }
       
       if (successCount > 0) {
+        let message = `${successCount} invitation(s) sent successfully`;
+        if (duplicateCount > 0) {
+          message += ` (${duplicateCount} already invited or member)`;
+        }
+        if (failCount > 0) {
+          message += ` (${failCount} failed)`;
+        }
+        
         showToast({
           title: t('routeCollections.invitationsSent') || 'Invitations Sent',
-          message: t('routeCollections.invitationsSentMessage')?.replace('{count}', successCount.toString()) || `${successCount} invitation(s) sent successfully`,
+          message: message,
           type: 'success'
+        });
+      } else if (duplicateCount > 0) {
+        showToast({
+          title: t('routeCollections.noNewInvitations') || 'No New Invitations',
+          message: `${duplicateCount} user(s) already invited or member`,
+          type: 'info'
         });
       }
       
@@ -733,6 +821,15 @@ export function CollectionSharingModal({
                 const isCurrentUser = invitation.metadata?.targetUserId === effectiveUserId;
                 const isOwner = preset?.creator_id === effectiveUserId;
                 const canManage = isOwner && !isCreator && !isCurrentUser;
+
+                console.log('🔍 [CollectionSharingModal] User role debug:', {
+                  userId: invitation.metadata?.targetUserId,
+                  currentRole,
+                  isCurrentUser,
+                  isOwner,
+                  canManage,
+                  invitationStatus: invitation.status
+                });
                 
                 return (
                   <YStack key={invitation.id} gap="$2" padding="$3" backgroundColor="$background" borderRadius="$3" borderWidth={1} borderColor="$borderColor">
@@ -778,33 +875,70 @@ export function CollectionSharingModal({
                         <Text fontSize="$3" color="$gray11" fontWeight="500">
                           {t('roleManagement.title') || 'Change Role'}:
                         </Text>
-                        <XStack gap="$2" flexWrap="wrap">
-                          <Button
-                            variant={currentRole === 'viewer' ? 'primary' : 'secondary'}
-                            size="sm"
+                        <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                          <TouchableOpacity
                             onPress={() => handleUpdateUserRole(invitation.metadata?.targetUserId, 'viewer')}
+                            style={{
+                              paddingHorizontal: 16,
+                              paddingVertical: 8,
+                              borderRadius: 20,
+                              backgroundColor: currentRole === 'viewer' ? '#00E6C3' : 'transparent',
+                              borderWidth: 2,
+                              borderColor: currentRole === 'viewer' ? '#00E6C3' : '#666',
+                              minWidth: 80,
+                              alignItems: 'center',
+                            }}
+                            activeOpacity={0.7}
                           >
-                            {t('roleManagement.viewer') || 'Viewer'}
-                          </Button>
+                            <Text 
+                              color={currentRole === 'viewer' ? '#000000' : '#ECEDEE'} 
+                              fontWeight={currentRole === 'viewer' ? '600' : '500'}
+                              fontSize={14}
+                            >
+                              {t('roleManagement.viewer') || 'Viewer'}
+                            </Text>
+                          </TouchableOpacity>
                           
-                          <Button
-                            variant={currentRole === 'editor' ? 'primary' : 'secondary'}
-                            size="sm"
+                          <TouchableOpacity
                             onPress={() => handleUpdateUserRole(invitation.metadata?.targetUserId, 'editor')}
+                            style={{
+                              paddingHorizontal: 16,
+                              paddingVertical: 8,
+                              borderRadius: 20,
+                              backgroundColor: currentRole === 'editor' ? '#00E6C3' : 'transparent',
+                              borderWidth: 2,
+                              borderColor: currentRole === 'editor' ? '#00E6C3' : '#666',
+                              minWidth: 80,
+                              alignItems: 'center',
+                            }}
+                            activeOpacity={0.7}
                           >
-                            {t('roleManagement.editor') || 'Editor'}
-                          </Button>
+                            <Text 
+                              color={currentRole === 'editor' ? '#000000' : '#ECEDEE'} 
+                              fontWeight={currentRole === 'editor' ? '600' : '500'}
+                              fontSize={14}
+                            >
+                              {t('roleManagement.editor') || 'Editor'}
+                            </Text>
+                          </TouchableOpacity>
                           
-                          <Button
-                            variant="secondary"
-                            size="sm"
+                          <TouchableOpacity
                             onPress={() => handleRemoveUser(invitation.metadata?.targetUserId, invitation.metadata?.targetUserName || invitation.email)}
-                            style={{ borderColor: '#EF4444' }}
+                            style={{
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              borderRadius: 20,
+                              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                              borderWidth: 1,
+                              borderColor: '#EF4444',
+                              alignItems: 'center',
+                            }}
+                            activeOpacity={0.7}
                           >
-                            <Text color="#EF4444">
+                            <Text color="#EF4444" fontWeight="500" fontSize={14}>
                               {t('collectionMembers.removeUser') || 'Remove'}
                             </Text>
-                          </Button>
+                          </TouchableOpacity>
                         </XStack>
                       </YStack>
                     )}
@@ -837,37 +971,78 @@ export function CollectionSharingModal({
                         <Text fontSize="$3" color="$gray11" fontWeight="500">
                           {t('collectionMembers.pendingInvitation') || 'Pending Invitation'}:
                         </Text>
-                        <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                        <XStack gap="$3" flexWrap="wrap" alignItems="center">
                           <Text fontSize="$3" color="$gray11">
                             {t('roleManagement.title') || 'Change Role'}:
                           </Text>
-                          <Button
-                            variant={currentRole === 'viewer' ? 'primary' : 'secondary'}
-                            size="sm"
-                            onPress={() => handleUpdateUserRole(invitation.metadata?.targetUserId, 'viewer')}
-                          >
-                            {t('roleManagement.viewer') || 'Viewer'}
-                          </Button>
                           
-                          <Button
-                            variant={currentRole === 'editor' ? 'primary' : 'secondary'}
-                            size="sm"
-                            onPress={() => handleUpdateUserRole(invitation.metadata?.targetUserId, 'editor')}
+                          {/* Role Toggle - Single toggle between Viewer/Editor */}
+                          <XStack 
+                            backgroundColor="$gray4" 
+                            borderRadius={20} 
+                            padding={2}
+                            gap={0}
                           >
-                            {t('roleManagement.editor') || 'Editor'}
-                          </Button>
+                            <TouchableOpacity
+                              onPress={() => handleUpdateUserRole(invitation.metadata?.targetUserId, 'viewer')}
+                              style={{
+                                paddingHorizontal: 16,
+                                paddingVertical: 8,
+                                borderRadius: 18,
+                                backgroundColor: currentRole === 'viewer' ? (colorScheme === 'dark' ? '#00E6C3' : '#00D4AA') : 'transparent',
+                                minWidth: 80,
+                                alignItems: 'center',
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Text 
+                                color={currentRole === 'viewer' ? (colorScheme === 'dark' ? '#000000' : '#FFFFFF') : (colorScheme === 'dark' ? '#ECEDEE' : '#666666')} 
+                                fontWeight={currentRole === 'viewer' ? '600' : '500'}
+                                fontSize={14}
+                              >
+                                {t('roleManagement.viewer') || 'Viewer'}
+                              </Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity
+                              onPress={() => handleUpdateUserRole(invitation.metadata?.targetUserId, 'editor')}
+                              style={{
+                                paddingHorizontal: 16,
+                                paddingVertical: 8,
+                                borderRadius: 18,
+                                backgroundColor: currentRole === 'editor' ? (colorScheme === 'dark' ? '#00E6C3' : '#00D4AA') : 'transparent',
+                                minWidth: 80,
+                                alignItems: 'center',
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Text 
+                                color={currentRole === 'editor' ? (colorScheme === 'dark' ? '#000000' : '#FFFFFF') : (colorScheme === 'dark' ? '#ECEDEE' : '#666666')} 
+                                fontWeight={currentRole === 'editor' ? '600' : '500'}
+                                fontSize={14}
+                              >
+                                {t('roleManagement.editor') || 'Editor'}
+                              </Text>
+                            </TouchableOpacity>
+                          </XStack>
                           
+                          {/* Cancel Button */}
                           <TouchableOpacity
-                            onPress={() => handleRemoveUser(invitation.metadata?.targetUserId, invitation.metadata?.targetUserName || invitation.email)}
+                            onPress={() => handleCancelInvitation(invitation.metadata?.targetUserId, invitation.metadata?.targetUserName || invitation.email)}
                             style={{
-                              paddingHorizontal: 8,
-                              paddingVertical: 4,
+                              paddingHorizontal: 16,
+                              paddingVertical: 8,
+                              borderRadius: 20,
+                              backgroundColor: colorScheme === 'dark' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+                              borderWidth: 1,
+                              borderColor: '#EF4444',
+                              alignItems: 'center',
                             }}
                             activeOpacity={0.7}
                           >
-                            <Text fontSize="$3" color="#EF4444" fontWeight="500">
+                            <Text color="#EF4444" fontWeight="500" fontSize={14}>
                               {t('collectionMembers.cancelInvitation') || 'Cancel'}
-            </Text>
+                            </Text>
                           </TouchableOpacity>
                         </XStack>
                       </YStack>

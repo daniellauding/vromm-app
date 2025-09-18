@@ -22,6 +22,7 @@ import { supabase } from '../lib/supabase';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { LeaveCollectionModal } from './LeaveCollectionModal';
+import { CollectionSharingModal } from './CollectionSharingModal';
 
 // Route type definition
 type Route = {
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#FFFFFF', // Default color to ensure text is visible
+    // Color will be set dynamically based on theme
   },
   selectedChipText: {
     color: '#000000',
@@ -252,6 +253,10 @@ export function FilterSheet({
   // Leave collection modal state
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
   const [selectedCollectionForLeave, setSelectedCollectionForLeave] = useState<any>(null);
+
+  // Collection settings modal state
+  const [collectionSettingsVisible, setCollectionSettingsVisible] = useState(false);
+  const [selectedCollectionForSettings, setSelectedCollectionForSettings] = useState<any>(null);
 
   // Snap points for resizing (like RouteDetailSheet)
   const snapPoints = useMemo(() => {
@@ -825,6 +830,13 @@ export function FilterSheet({
     onClose();
   }, [onPresetSelect, filters, saveFilterPreferences, onClose]);
 
+  // Handle collection settings
+  const handleCollectionSettings = React.useCallback((collection: any) => {
+    console.log('⚙️ [FilterSheet] User wants to view collection settings:', collection.name);
+    setSelectedCollectionForSettings(collection);
+    setCollectionSettingsVisible(true);
+  }, []);
+
   // Handle leaving a collection
   const handleLeaveCollection = React.useCallback((collection: any) => {
     console.log('🚪 [FilterSheet] User wants to leave collection:', collection.name);
@@ -1159,7 +1171,7 @@ export function FilterSheet({
             </SizableText>
             
             {/* Collection Chips - REMOVED ICONS */}
-            <View style={[styles.filterRow, { flexWrap: 'nowrap' }]}>
+            <View style={[styles.filterRow, { flexWrap: 'wrap' }]}>
               {/* "All Routes" option */}
               <TouchableOpacity
                 style={[
@@ -1324,7 +1336,7 @@ export function FilterSheet({
                           >
                             <XStack alignItems="center" gap="$1">
                               <Text
-                                color={selectedPresetId === collection.id ? '#000000' : '#FFFFFF'}
+                                color={selectedPresetId === collection.id ? '#000000' : textColor}
                                 fontWeight={selectedPresetId === collection.id ? '600' : '500'}
                                 fontSize={14}
                               >
@@ -1340,6 +1352,23 @@ export function FilterSheet({
                                 </Text>
                               )}
                             </XStack>
+                          </TouchableOpacity>
+                          
+                          {/* Settings cog for collection info */}
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleCollectionSettings(collection);
+                            }}
+                            style={{
+                              padding: 4,
+                              backgroundColor: 'rgba(0, 230, 195, 0.1)',
+                              borderRadius: 4,
+                              marginLeft: 4,
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Feather name="settings" size={14} color="#00E6C3" />
                           </TouchableOpacity>
                           
                           {/* X button for leaving collection */}
@@ -2226,6 +2255,17 @@ export function FilterSheet({
         memberRole={(selectedCollectionForLeave as any)?.member_role || 'member'}
         onConfirm={handleLeaveCollectionConfirm}
         onCancel={handleLeaveCollectionCancel}
+      />
+
+      {/* Collection Settings Modal */}
+      <CollectionSharingModal
+        visible={collectionSettingsVisible}
+        onClose={() => setCollectionSettingsVisible(false)}
+        preset={selectedCollectionForSettings}
+        onInvitationsSent={() => {
+          // Refresh collections when invitations are sent
+          console.log('🔄 [FilterSheet] Invitations sent, refreshing collections');
+        }}
       />
     </View>
   );

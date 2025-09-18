@@ -105,8 +105,7 @@ import { RouteExerciseScreen } from './screens/RouteExerciseScreen';
 import { StudentManagementScreen } from './screens/StudentManagementScreen';
 
 // Global Invitation Notification
-import { InvitationNotification } from './components/InvitationNotification';
-import { CollectionInvitationNotification } from './components/CollectionInvitationNotification';
+import { UnifiedInvitationModal } from './components/UnifiedInvitationModal';
 import { GlobalRecordingWidget } from './components/GlobalRecordingWidget';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -423,11 +422,8 @@ function AppContent() {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
   const [authKey, setAuthKey] = useState(0);
 
-  // Global invitation notification state
+  // Global unified invitation notification state
   const [showGlobalInvitationNotification, setShowGlobalInvitationNotification] = useState(false);
-  
-  // Global collection invitation notification state
-  const [showGlobalCollectionInvitationNotification, setShowGlobalCollectionInvitationNotification] = useState(false);
 
   // Global promotional modal state
   const {
@@ -437,98 +433,98 @@ function AppContent() {
     checkForPromotionalContent,
   } = usePromotionalModal();
 
-  // Global invitation checking function
+  // Global unified invitation checking function
   const checkForGlobalInvitations = async () => {
-    if (!user?.email) {
+    console.log('🌍 [AppContent] checkForGlobalInvitations called');
+    console.log('🌍 [AppContent] User object:', { email: user?.email, id: user?.id });
+    
+    if (!user?.email || !user?.id) {
+      console.log('🌍 [AppContent] No user email or ID, skipping invitation check');
       return;
     }
 
+    console.log('🌍 [AppContent] Checking for global invitations for user:', user.email, user.id);
     try {
-      const { data: invitations, error } = await supabase
+      // Check for relationship invitations from pending_invitations table
+      const { data: relationshipInvitations, error: relError } = await supabase
         .from('pending_invitations')
         .select('id, invited_by, created_at')
         .eq('email', user.email.toLowerCase())
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('🌍 Global invitation check error:', error);
+      if (relError) {
+        console.error('🌍 Relationship invitation check error:', relError);
         return;
       }
 
-      if (invitations && invitations.length > 0) {
-        // Check if any of these invitations don't already have relationships
-        let hasValidInvitation = false;
-        const toCleanup: string[] = [];
+      // Check for relationship invitations from notifications table
+      const { data: notificationRelationshipInvitations, error: notifRelError } = await supabase
+        .from('notifications')
+        .select('id, created_at')
+        .eq('user_id', user.id)
+        .in('type', ['supervisor_invitation', 'student_invitation'])
+        .eq('is_read', false)
+        .order('created_at', { ascending: false });
 
-        for (const inv of invitations) {
-          const { data: existingRelationship } = await supabase
-            .from('student_supervisor_relationships')
-            .select('id')
-            .or(
-              `and(student_id.eq.${user.id},supervisor_id.eq.${inv.invited_by}),and(student_id.eq.${inv.invited_by},supervisor_id.eq.${user.id})`,
-            )
-            .limit(1);
+      if (notifRelError) {
+        console.error('🌍 Notification relationship invitation check error:', notifRelError);
+        return;
+      }
 
-          if (!existingRelationship || existingRelationship.length === 0) {
-            hasValidInvitation = true;
-          } else {
-            toCleanup.push(inv.id);
-          }
-        }
+      // Check for collection invitations
+      const { data: collectionInvitations, error: colError } = await supabase
+        .from('collection_invitations')
+        .select('id, created_at')
+        .eq('invited_user_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
 
-        // Cleanup any pending invites that already have relationships
-        if (toCleanup.length > 0) {
-          try {
-            await supabase.from('pending_invitations').delete().in('id', toCleanup);
-            await supabase.from('notifications').delete().in('metadata->>invitation_id', toCleanup);
-          } catch (cleanupErr) {
-            console.warn('⚠️ Cleanup of stale invitations failed:', cleanupErr);
-          }
-        }
+      if (colError) {
+        console.error('🌍 Collection invitation check error:', colError);
+        return;
+      }
 
-        if (hasValidInvitation && !showGlobalInvitationNotification) {
-          setShowGlobalInvitationNotification(true);
-        } else if (!hasValidInvitation) {
-          // If no invitations, check for promotional content
-          setTimeout(async () => {
-            const result = await checkForPromotionalContent('modal');
-          }, 1000);
-        }
+      // Check for notification-based collection invitations
+      const { data: notificationInvitations, error: notifError } = await supabase
+        .from('notifications')
+        .select('id, created_at')
+        .eq('user_id', user.id)
+        .eq('type', 'collection_invitation')
+        .eq('is_read', false)
+        .order('created_at', { ascending: false });
+
+      if (notifError) {
+        console.error('🌍 Notification invitation check error:', notifError);
+        return;
+      }
+
+      const totalInvitations = (relationshipInvitations?.length || 0) + (notificationRelationshipInvitations?.length || 0) + (collectionInvitations?.length || 0) + (notificationInvitations?.length || 0);
+      
+      console.log('🌍 [AppContent] Found invitations:', {
+        relationship: relationshipInvitations?.length || 0,
+        relationshipNotifications: notificationRelationshipInvitations?.length || 0,
+        collection: collectionInvitations?.length || 0,
+        notifications: notificationInvitations?.length || 0,
+        total: totalInvitations,
+        alreadyShowing: showGlobalInvitationNotification
+      });
+
+      if (totalInvitations > 0 && !showGlobalInvitationNotification) {
+        console.log('🌍 Global invitation check: Found pending invitations, showing unified modal');
+        setShowGlobalInvitationNotification(true);
+      } else if (totalInvitations === 0) {
+        console.log('🌍 [AppContent] No invitations found, checking for promotional content');
+        // If no invitations, check for promotional content
+        setTimeout(async () => {
+          const result = await checkForPromotionalContent('modal');
+        }, 1000);
       }
     } catch (error) {
       console.error('🌍 Global invitation check error:', error);
     }
   };
 
-  // Global collection invitation checking function
-  const checkForGlobalCollectionInvitations = async () => {
-    console.log('📁 [AppContent] checkForGlobalCollectionInvitations called for user:', user?.id);
-    if (!user?.id) {
-      console.log('📁 [AppContent] No user ID - skipping collection invitation check');
-      return;
-    }
-
-    try {
-      console.log('📁 Checking for global collection invitations for user:', user.id);
-      
-      // Import the collection sharing service
-      const { collectionSharingService } = await import('./services/collectionSharingService');
-      
-      const pendingInvitations = await collectionSharingService.getPendingInvitations(user.id);
-      
-      if (pendingInvitations.length > 0 && !showGlobalCollectionInvitationNotification) {
-        console.log('📁 Global collection invitation check: Found pending invitations, showing modal');
-        setShowGlobalCollectionInvitationNotification(true);
-      } else if (pendingInvitations.length === 0) {
-        console.log('📁 No pending collection invitations found');
-      } else {
-        console.log('📁 Collection invitation modal already showing, not triggering again');
-      }
-    } catch (error) {
-      console.error('📁 Global collection invitation check error:', error);
-    }
-  };
 
   // Register opener so other parts can open modal instantly without prop drilling
   useEffect(() => {
@@ -537,11 +533,15 @@ function AppContent() {
 
   // Set up global invitation subscription
   useEffect(() => {
-    if (!user?.email) return;
+    console.log('🌍 [AppContent] useEffect triggered for invitations, user:', user?.email);
+    if (!user?.email) {
+      console.log('🌍 [AppContent] No user email, skipping invitation setup');
+      return;
+    }
 
+    console.log('🌍 [AppContent] Setting up invitation check for user:', user.email);
     // Check immediately when user is available
     checkForGlobalInvitations();
-    checkForGlobalCollectionInvitations();
 
     // Set up real-time subscription to pending invitations
     const invitationSubscription = supabase
@@ -603,8 +603,8 @@ function AppContent() {
             if (row?.type === 'supervisor_invitation' || row?.type === 'student_invitation') {
               setShowGlobalInvitationNotification(true);
             } else if (row?.type === 'collection_invitation') {
-              console.log('📁 Fallback: Collection invitation notification inserted, opening modal');
-              setShowGlobalCollectionInvitationNotification(true);
+              console.log('📁 Fallback: Collection invitation notification inserted, opening unified modal');
+              setShowGlobalInvitationNotification(true);
             }
           } catch {}
         },
@@ -626,8 +626,8 @@ function AppContent() {
           try {
             const row = payload?.new;
             if (row?.status === 'pending') {
-              console.log('📁 Collection invitation INSERT matches current user → opening modal');
-              setTimeout(() => setShowGlobalCollectionInvitationNotification(true), 150);
+              console.log('📁 Collection invitation INSERT matches current user → opening unified modal');
+              setTimeout(() => setShowGlobalInvitationNotification(true), 150);
             }
           } catch (e) {
             console.log('📁 Collection invitation INSERT handler error', e);
@@ -939,8 +939,8 @@ function AppContent() {
     <>
       <NetworkAlert />
 
-      {/* Global Invitation Notification Modal (outside navigator for top-most priority) */}
-      <InvitationNotification
+      {/* Global Unified Invitation Modal (outside navigator for top-most priority) */}
+      <UnifiedInvitationModal
         visible={showGlobalInvitationNotification}
         onClose={() => {
           setShowGlobalInvitationNotification(false);
@@ -952,36 +952,6 @@ function AppContent() {
           setTimeout(() => {
             checkForGlobalInvitations();
           }, 1000);
-        }}
-      />
-
-      {/* Global Collection Invitation Notification Modal */}
-      <CollectionInvitationNotification
-        visible={showGlobalCollectionInvitationNotification}
-        onClose={() => {
-          console.log('📁 Global collection invitation modal closed');
-          setShowGlobalCollectionInvitationNotification(false);
-        }}
-        onInvitationHandled={() => {
-          console.log('📁 Global collection invitation handled - checking for more');
-          // Close modal immediately; if more invites exist, we'll reopen
-          setShowGlobalCollectionInvitationNotification(false);
-          // Check for more collection invitations after handling one
-          setTimeout(() => {
-            checkForGlobalCollectionInvitations();
-          }, 1000);
-        }}
-        onCollectionPress={(collectionId, collectionName) => {
-          console.log('🗺️ [AppContent] Collection pressed, navigating to map:', { collectionId, collectionName });
-          // Close the modal first
-          setShowGlobalCollectionInvitationNotification(false);
-          // Navigate to map with collection filter
-          setTimeout(() => {
-            (navigationRef.current as any)?.navigate('Map', {
-              collectionId,
-              collectionName
-            });
-          }, 100);
         }}
       />
 
@@ -1028,15 +998,6 @@ function AppContent() {
           {/* Global Recording Widget - rendered at app level */}
           <GlobalRecordingWidget />
 
-          {/* Global Collection Invitation Notification - rendered at app level */}
-          <CollectionInvitationNotification
-            visible={showGlobalCollectionInvitationNotification}
-            onClose={() => setShowGlobalCollectionInvitationNotification(false)}
-            onInvitationHandled={() => {
-              setShowGlobalCollectionInvitationNotification(false);
-              // Refresh any relevant data
-            }}
-          />
         </ToastProvider>
       </NavigationContainer>
     </>

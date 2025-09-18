@@ -260,11 +260,40 @@ export const GettingStarted = () => {
         return;
       }
 
-      console.log('📤 [GettingStarted] Loaded pending invitations:', data?.length || 0);
-      console.log('📤 [GettingStarted] Invitation IDs:', data?.map(inv => inv.id) || []);
-      console.log('📤 [GettingStarted] Full invitation data:', data);
+      // Filter out invitations where the relationship already exists
+      const filteredInvitations = [];
+      if (data) {
+        for (const invitation of data) {
+          // Check if relationship already exists
+          const { data: existingRelationship } = await supabase
+            .from('student_supervisor_relationships')
+            .select('id')
+            .or(`and(student_id.eq.${invitation.targetUserId || invitation.invited_by},supervisor_id.eq.${user.id}),and(student_id.eq.${user.id},supervisor_id.eq.${invitation.targetUserId || invitation.invited_by})`)
+            .eq('status', 'active')
+            .single();
+
+          if (!existingRelationship) {
+            filteredInvitations.push(invitation);
+          } else {
+            console.log('📤 [GettingStarted] Filtering out processed invitation:', invitation.id, 'relationship already exists');
+            // Mark the invitation as processed
+            await supabase
+              .from('pending_invitations')
+              .update({ status: 'accepted' })
+              .eq('id', invitation.id);
+          }
+        }
+      }
+
+      console.log('📤 [GettingStarted] Loaded pending invitations:', {
+        total: data?.length || 0,
+        filtered: filteredInvitations.length,
+        removed: (data?.length || 0) - filteredInvitations.length
+      });
+      console.log('📤 [GettingStarted] Invitation IDs:', filteredInvitations.map(inv => inv.id));
+      console.log('📤 [GettingStarted] Full invitation data:', filteredInvitations);
       
-      setPendingInvitations(data || []);
+      setPendingInvitations(filteredInvitations);
     } catch (error) {
       console.error('Error loading pending invitations:', error);
     }
@@ -414,6 +443,7 @@ export const GettingStarted = () => {
       
       let successCount = 0;
       let failCount = 0;
+      let duplicateCount = 0;
 
       // Create invitations for each selected connection
       for (const targetUser of selectedConnections) {
@@ -424,6 +454,36 @@ export const GettingStarted = () => {
         }
         
         try {
+          // Check if relationship already exists
+          const { data: existingRelationship } = await supabase
+            .from('student_supervisor_relationships')
+            .select('id')
+            .or(
+              `and(student_id.eq.${user.id},supervisor_id.eq.${targetUser.id}),and(student_id.eq.${targetUser.id},supervisor_id.eq.${user.id})`
+            )
+            .single();
+
+          if (existingRelationship) {
+            console.log('⚠️ [GettingStarted] Relationship already exists with:', targetUser.email);
+            duplicateCount++;
+            continue;
+          }
+
+          // Check if pending invitation already exists
+          const { data: existingInvitation } = await supabase
+            .from('pending_invitations')
+            .select('id')
+            .eq('invited_by', user.id)
+            .eq('email', targetUser.email.toLowerCase())
+            .eq('status', 'pending')
+            .single();
+
+          if (existingInvitation) {
+            console.log('⚠️ [GettingStarted] Pending invitation already exists for:', targetUser.email);
+            duplicateCount++;
+            continue;
+          }
+
           // Determine relationship type and target role
           const relationshipType = selectedRole === 'student' 
             ? 'student_invites_supervisor' 
@@ -500,7 +560,7 @@ export const GettingStarted = () => {
         }
       }
       
-      console.log('🔗 [GettingStarted] Invitations complete. Success:', successCount, 'Failed:', failCount);
+      console.log('🔗 [GettingStarted] Invitations complete. Success:', successCount, 'Duplicates:', duplicateCount, 'Failed:', failCount);
       
       // Show success message
       if (successCount > 0) {
@@ -516,8 +576,8 @@ export const GettingStarted = () => {
       setConnectionSearchQuery('');
       setSearchResults([]);
       
-      // Don't close modal - keep it open to show the sent invitations
-      // hideConnectionsSheet();
+      // Close the modal after sending invitations
+      hideConnectionsSheet();
       
     } catch (error) {
       console.error('🔗 [GettingStarted] Error creating connections:', error);
@@ -1482,7 +1542,8 @@ export const GettingStarted = () => {
             opacity: connectionsBackdropOpacity,
           }}
         >
-          <Pressable style={{ flex: 1 }} onPress={hideConnectionsSheet}>
+          <View style={{ flex: 1 }}>
+            <Pressable style={{ flex: 1 }} onPress={hideConnectionsSheet} />
             <Animated.View
               style={{
                 position: 'absolute',
@@ -1499,7 +1560,7 @@ export const GettingStarted = () => {
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
                 gap="$4"
-                minHeight="70%"
+                maxHeight="90%"
               >
                 <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
                   {selectedRole === 'student' 
@@ -1703,7 +1764,7 @@ export const GettingStarted = () => {
                   onChangeText={handleSearchUsers}
                 />
                 
-                <ScrollView style={{ flex: 1, maxHeight: 200 }}>
+                <ScrollView style={{ flex: 1, maxHeight: 300 }} showsVerticalScrollIndicator={true}>
                   <YStack gap="$2">
                     {searchResults.length === 0 && connectionSearchQuery.length >= 2 && (
                       <Text fontSize="$3" color="$gray11" textAlign="center" paddingVertical="$4">
@@ -1727,13 +1788,8 @@ export const GettingStarted = () => {
                               // Remove from selection
                               setSelectedConnections(prev => prev.filter(conn => conn.id !== user.id));
                             } else {
-                              // Add to selection and auto-send invitation
+                              // Add to selection
                               setSelectedConnections(prev => [...prev, user]);
-                              
-                              // Auto-send invitation immediately
-                              setTimeout(async () => {
-                                await handleCreateConnections();
-                              }, 100);
                             }
                           }}
                           style={{
@@ -1766,10 +1822,33 @@ export const GettingStarted = () => {
                   </YStack>
                 </ScrollView>
                 
-                {/* Auto-send invitations when connections are selected - no button needed */}
+                {/* Action Buttons */}
+                <YStack gap="$2" marginTop="$4">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onPress={handleCreateConnections}
+                    disabled={selectedConnections.length === 0}
+                  >
+                    <Text color="white" fontWeight="600">
+                      {selectedConnections.length > 0 
+                        ? `Send ${selectedConnections.length} Invitation${selectedConnections.length > 1 ? 's' : ''}`
+                        : 'Select Users to Invite'
+                      }
+                    </Text>
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onPress={hideConnectionsSheet}
+                  >
+                    <Text color="$color">Cancel</Text>
+                  </Button>
+                </YStack>
               </YStack>
             </Animated.View>
-          </Pressable>
+          </View>
         </Animated.View>
       </Modal>
 

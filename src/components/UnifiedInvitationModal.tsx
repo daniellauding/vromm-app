@@ -1,0 +1,559 @@
+import React, { useState, useEffect } from 'react';
+import { Modal, Pressable, useColorScheme } from 'react-native';
+import { YStack, XStack, Heading, Paragraph } from 'tamagui';
+import { Button } from './Button';
+import { Text } from './Text';
+import { useTranslation } from '../contexts/TranslationContext';
+import { X, User, Users, Check, X as XIcon } from '@tamagui/lucide-icons';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+
+interface UnifiedInvitationModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onInvitationHandled: () => void;
+}
+
+interface PendingInvitation {
+  id: string;
+  type: 'relationship' | 'collection';
+  title: string;
+  message: string;
+  from_user_name: string;
+  from_user_email: string;
+  custom_message?: string;
+  role?: string;
+  collection_name?: string;
+  collection_id?: string; // Add collection_id for database operations
+  invitation_id: string;
+  created_at: string;
+}
+
+export function UnifiedInvitationModal({ 
+  visible, 
+  onClose, 
+  onInvitationHandled 
+}: UnifiedInvitationModalProps) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const colorScheme = useColorScheme();
+  
+  const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
+  const textColor = colorScheme === 'dark' ? 'white' : 'black';
+  const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
+
+  // Fetch pending invitations
+  useEffect(() => {
+    if (visible && user) {
+      fetchPendingInvitations();
+    }
+  }, [visible, user]);
+
+  const fetchPendingInvitations = async () => {
+    if (!user) return;
+    
+    console.log('🔍 [UnifiedInvitationModal] Fetching invitations for user:', user.email);
+    setIsLoading(true);
+    try {
+      // Fetch relationship invitations from notifications table
+      const { data: relationshipInvitations, error: relError } = await supabase
+        .from('notifications')
+        .select(`
+          id,
+          message,
+          metadata,
+          created_at,
+          actor_id,
+          profiles!notifications_actor_id_fkey(full_name, email)
+        `)
+        .eq('user_id', user.id)
+        .in('type', ['supervisor_invitation', 'student_invitation'])
+        .eq('is_read', false);
+
+      console.log('🔍 [UnifiedInvitationModal] Relationship invitations:', relationshipInvitations);
+      if (relError) throw relError;
+
+      // Fetch collection invitations from collection_invitations table
+      const { data: collectionInvitations, error: colError } = await supabase
+        .from('collection_invitations')
+        .select(`
+          id,
+          preset_id,
+          invited_user_id,
+          invited_by_user_id,
+          role,
+          status,
+          message,
+          created_at,
+          map_presets(name)
+        `)
+        .eq('invited_user_id', user.id)
+        .eq('status', 'pending');
+
+      console.log('🔍 [UnifiedInvitationModal] Collection invitations:', collectionInvitations);
+      if (colError) throw colError;
+
+      // Fetch collection invitations from notifications table
+      const { data: notificationInvitations, error: notifError } = await supabase
+        .from('notifications')
+        .select(`
+          id,
+          message,
+          metadata,
+          created_at,
+          actor_id,
+          profiles!notifications_actor_id_fkey(full_name, email)
+        `)
+        .eq('user_id', user.id)
+        .eq('type', 'collection_invitation')
+        .eq('is_read', false);
+
+      console.log('🔍 [UnifiedInvitationModal] Notification invitations:', notificationInvitations);
+      if (notifError) throw notifError;
+
+      // Combine and format invitations
+      const formattedInvitations: PendingInvitation[] = [];
+      
+      console.log('🔍 [UnifiedInvitationModal] Total invitations found:', {
+        relationship: relationshipInvitations?.length || 0,
+        collection: collectionInvitations?.length || 0,
+        notifications: notificationInvitations?.length || 0
+      });
+
+      // Add relationship invitations from notifications
+      relationshipInvitations?.forEach(notif => {
+        const metadata = notif.metadata || {};
+        const isSupervisorInvitation = notif.message?.includes('supervisor') || notif.message?.includes('supervise');
+        
+        formattedInvitations.push({
+          id: notif.id,
+          type: 'relationship',
+          title: isSupervisorInvitation ? t('invitations.supervisorInvitation') : t('invitations.studentInvitation'),
+          message: notif.message,
+          from_user_name: notif.profiles?.full_name || metadata.from_user_name || 'Unknown',
+          from_user_email: notif.profiles?.email || metadata.from_user_name || '',
+          custom_message: metadata.customMessage || '',
+          role: isSupervisorInvitation ? 'supervisor' : 'student',
+          invitation_id: metadata.invitation_id || notif.id,
+          created_at: notif.created_at
+        });
+      });
+
+      // Add collection invitations from collection_invitations table
+      collectionInvitations?.forEach(inv => {
+        formattedInvitations.push({
+          id: inv.id,
+          type: 'collection',
+          title: t('invitations.collectionInvitation'),
+          message: t('invitations.collectionMessage'),
+          from_user_name: 'Unknown', // We'll get this from notifications instead
+          from_user_email: '',
+          custom_message: inv.message,
+          role: inv.role,
+          collection_name: inv.map_presets?.name,
+          invitation_id: inv.id,
+          created_at: inv.created_at
+        });
+      });
+
+      // Add collection invitations from notifications table
+      notificationInvitations?.forEach(notif => {
+        const metadata = notif.metadata || {};
+        formattedInvitations.push({
+          id: notif.id,
+          type: 'collection',
+          title: t('invitations.collectionInvitation'),
+          message: notif.message,
+          from_user_name: notif.profiles?.full_name || metadata.from_user_name || 'Unknown',
+          from_user_email: notif.profiles?.email || metadata.from_user_name || '',
+          custom_message: metadata.customMessage || '',
+          role: metadata.sharingRole || 'viewer',
+          collection_name: metadata.collection_name,
+          collection_id: metadata.collection_id, // Add collection_id for database operations
+          invitation_id: metadata.invitation_id || notif.id,
+          created_at: notif.created_at
+        });
+      });
+
+      setInvitations(formattedInvitations);
+      setCurrentIndex(0);
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to load invitations',
+        type: 'error',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAccept = async () => {
+    if (!invitations[currentIndex]) return;
+    
+    setIsProcessing(true);
+    try {
+      const invitation = invitations[currentIndex];
+      
+      if (invitation.type === 'relationship') {
+        // Accept relationship invitation
+        // First try to update pending_invitations table
+        const { error: pendingError } = await supabase
+          .from('pending_invitations')
+          .update({ status: 'accepted' })
+          .eq('id', invitation.invitation_id);
+
+        // If that fails, handle notification-based invitation
+        if (pendingError) {
+          console.log('🔍 [UnifiedInvitationModal] Relationship invitation not found in pending_invitations, trying notification-based handling');
+          
+          // Mark notification as read
+          const { error: notifError } = await supabase
+            .from('notifications')
+            .update({ 
+              is_read: true,
+              read_at: new Date().toISOString()
+            })
+            .eq('id', invitation.id);
+
+          if (notifError) throw notifError;
+        }
+
+        // Create relationship - we need to get the actor_id from the notification
+        const { data: notificationData } = await supabase
+          .from('notifications')
+          .select('actor_id, metadata')
+          .eq('id', invitation.id)
+          .single();
+
+        if (notificationData) {
+          const { error: relError } = await supabase
+            .from('student_supervisor_relationships')
+            .insert({
+              student_id: invitation.role === 'student' ? user?.id : notificationData.actor_id,
+              supervisor_id: invitation.role === 'supervisor' ? user?.id : notificationData.actor_id,
+              status: 'active'
+            });
+
+          if (relError) throw relError;
+        }
+      } else {
+        // Accept collection invitation
+        // First try to update collection_invitations table
+        const { error: colError } = await supabase
+          .from('collection_invitations')
+          .update({ 
+            status: 'accepted',
+            responded_at: new Date().toISOString()
+          })
+          .eq('id', invitation.invitation_id);
+
+        // If that fails, try to handle notification-based invitation
+        if (colError) {
+          console.log('🔍 [UnifiedInvitationModal] Collection invitation not found in collection_invitations, trying notification-based handling');
+          
+          // Mark notification as read
+          const { error: notifError } = await supabase
+            .from('notifications')
+            .update({ 
+              is_read: true,
+              read_at: new Date().toISOString()
+            })
+            .eq('id', invitation.id);
+
+          if (notifError) throw notifError;
+
+          // Add user to collection using collection_id from invitation
+          if (invitation.collection_id) {
+            const { error: memberError } = await supabase
+              .from('map_preset_members')
+              .insert({
+                preset_id: invitation.collection_id, // Use collection_id from invitation
+                user_id: user?.id,
+                role: invitation.role || 'viewer'
+              });
+
+            if (memberError) {
+              // If user is already a member (duplicate key), that's okay
+              if (memberError.code === '23505') {
+                console.log('🔍 [UnifiedInvitationModal] User already a member of collection, continuing...');
+              } else {
+                console.log('🔍 [UnifiedInvitationModal] Error adding to collection:', memberError);
+                // Don't throw here, as the notification is already marked as read
+              }
+            }
+          }
+        } else {
+          // Standard collection invitation handling
+          // Add user to collection
+          const { error: memberError } = await supabase
+            .from('map_preset_members')
+            .insert({
+              preset_id: invitation.collection_id || invitation.preset_id, // Use collection_id or preset_id
+              user_id: user?.id,
+              role: invitation.role || 'read'
+            });
+
+          if (memberError) {
+            // If user is already a member (duplicate key), that's okay
+            if (memberError.code === '23505') {
+              console.log('🔍 [UnifiedInvitationModal] User already a member of collection, continuing...');
+            } else {
+              throw memberError;
+            }
+          }
+        }
+      }
+
+      showToast({
+        title: 'Success',
+        message: 'Invitation accepted',
+        type: 'success',
+      });
+
+      // Move to next invitation or close
+      if (currentIndex < invitations.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+      } else {
+        onInvitationHandled();
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to accept invitation',
+        type: 'error',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDecline = async () => {
+    if (!invitations[currentIndex]) return;
+    
+    setIsProcessing(true);
+    try {
+      const invitation = invitations[currentIndex];
+      
+      if (invitation.type === 'relationship') {
+        // Decline relationship invitation
+        // First try to update pending_invitations table
+        const { error: pendingError } = await supabase
+          .from('pending_invitations')
+          .update({ status: 'declined' })
+          .eq('id', invitation.invitation_id);
+
+        // If that fails, handle notification-based invitation
+        if (pendingError) {
+          console.log('🔍 [UnifiedInvitationModal] Relationship invitation not found in pending_invitations, trying notification-based handling');
+          
+          // Mark notification as read
+          const { error: notifError } = await supabase
+            .from('notifications')
+            .update({ 
+              is_read: true,
+              read_at: new Date().toISOString()
+            })
+            .eq('id', invitation.id);
+
+          if (notifError) throw notifError;
+        }
+      } else {
+        // Decline collection invitation
+        // First try to update collection_invitations table
+        const { error: colError } = await supabase
+          .from('collection_invitations')
+          .update({ 
+            status: 'declined',
+            responded_at: new Date().toISOString()
+          })
+          .eq('id', invitation.invitation_id);
+
+        // If that fails, try to handle notification-based invitation
+        if (colError) {
+          console.log('🔍 [UnifiedInvitationModal] Collection invitation not found in collection_invitations, trying notification-based handling');
+          
+          // Mark notification as read
+          const { error: notifError } = await supabase
+            .from('notifications')
+            .update({ 
+              is_read: true,
+              read_at: new Date().toISOString()
+            })
+            .eq('id', invitation.id);
+
+          if (notifError) throw notifError;
+        }
+      }
+
+      showToast({
+        title: 'Success',
+        message: 'Invitation declined',
+        type: 'success',
+      });
+
+      // Move to next invitation or close
+      if (currentIndex < invitations.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+      } else {
+        onInvitationHandled();
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error declining invitation:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to decline invitation',
+        type: 'error',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDismiss = () => {
+    // Move to next invitation or close
+    if (currentIndex < invitations.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    } else {
+      onInvitationHandled();
+      onClose();
+    }
+  };
+
+  if (!visible || invitations.length === 0) {
+    return null;
+  }
+
+  const currentInvitation = invitations[currentIndex];
+  const isLastInvitation = currentIndex === invitations.length - 1;
+
+  return (
+    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
+      <Pressable 
+        style={{ 
+          flex: 1, 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          backgroundColor: 'rgba(0,0,0,0.5)' 
+        }} 
+        onPress={onClose}
+      >
+        <Pressable>
+          <YStack
+            backgroundColor={backgroundColor}
+            padding="$4"
+            borderRadius="$4"
+            width="90%"
+            maxWidth={400}
+            gap="$3"
+            borderColor={borderColor}
+            borderWidth={1}
+          >
+            {/* Header */}
+            <XStack justifyContent="space-between" alignItems="center" marginBottom="$2">
+              <Heading size="$5" color={textColor} flex={1} textAlign="center">
+                {t('invitations.newInvitations')}
+              </Heading>
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={onClose}
+                padding="$2"
+                accessibilityLabel="Close"
+              >
+                <X size={20} color={textColor} />
+              </Button>
+            </XStack>
+
+            {/* Invitation Content */}
+            <YStack gap="$3">
+              <XStack alignItems="center" gap="$2">
+                {currentInvitation.type === 'relationship' ? (
+                  <User size={24} color={textColor} />
+                ) : (
+                  <Users size={24} color={textColor} />
+                )}
+                <Text color={textColor} fontWeight="bold" fontSize="$4">
+                  {currentInvitation.title}
+                </Text>
+              </XStack>
+
+              <Paragraph color={textColor} textAlign="center" lineHeight="$4">
+                {currentInvitation.message}
+              </Paragraph>
+
+              {currentInvitation.custom_message && (
+                <YStack backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'} padding="$3" borderRadius="$2">
+                  <Text color={textColor} fontWeight="bold" fontSize="$3" marginBottom="$2">
+                    {t('invitations.customMessage')}
+                  </Text>
+                  <Text color={textColor} fontSize="$3">
+                    {currentInvitation.custom_message}
+                  </Text>
+                </YStack>
+              )}
+
+              {currentInvitation.collection_name && (
+                <Text color={textColor} fontSize="$3" textAlign="center">
+                  {t('invitations.collectionName')}: {currentInvitation.collection_name}
+                </Text>
+              )}
+
+              <Text color={textColor} fontSize="$2" textAlign="center" opacity={0.7}>
+                {currentIndex + 1} of {invitations.length}
+              </Text>
+            </YStack>
+
+            {/* Action Buttons */}
+            <XStack justifyContent="space-around" marginTop="$4" gap="$2">
+              <Button 
+                flex={1} 
+                variant="outline" 
+                onPress={handleDismiss}
+                disabled={isProcessing}
+              >
+                {t('invitations.dismiss')}
+              </Button>
+              <Button 
+                flex={1} 
+                variant="outline" 
+                onPress={handleDecline}
+                disabled={isProcessing}
+                borderColor="$red10"
+              >
+                <Text color="$red10">{t('invitations.decline')}</Text>
+              </Button>
+              <Button 
+                flex={1} 
+                variant="primary" 
+                onPress={handleAccept}
+                disabled={isProcessing}
+                backgroundColor="$green10"
+                borderColor="$green10"
+              >
+                <Text color="white" fontWeight="600">{t('invitations.accept')}</Text>
+              </Button>
+            </XStack>
+
+            {isProcessing && (
+              <XStack alignItems="center" justifyContent="center" gap="$2" marginTop="$2">
+                <Text color={textColor} fontSize="$2">Processing...</Text>
+              </XStack>
+            )}
+          </YStack>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
