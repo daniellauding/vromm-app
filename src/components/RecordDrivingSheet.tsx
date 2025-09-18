@@ -356,14 +356,24 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     <>
       {/* Main sheet - show when not minimized OR when there's recording data to show */}
       {(!recordingState.isMinimized || recordingState.waypoints.length > 0 || recordingState.showSummary) && (
-        <View style={styles.container}>
-          <TouchableOpacity
-            style={styles.backdrop}
-            activeOpacity={1}
-            onPress={recordingState.isRecording ? handleMinimize : onClose}
-          />
+        <View style={[styles.container, recordingState.isMinimized && styles.minimizedContainer]}>
+          {/* Only show backdrop when not minimized */}
+          {!recordingState.isMinimized && (
+            <TouchableOpacity
+              style={styles.backdrop}
+              activeOpacity={1}
+              onPress={recordingState.isRecording ? handleMinimize : onClose}
+            />
+          )}
           <GestureDetector gesture={panGesture}>
-            <ReanimatedAnimated.View style={[styles.sheet, { backgroundColor: DARK_THEME.background }, animatedSheetStyle]}>
+            <ReanimatedAnimated.View 
+              style={[
+                styles.sheet, 
+                { backgroundColor: DARK_THEME.background }, 
+                animatedSheetStyle,
+                recordingState.isMinimized && styles.minimizedSheet
+              ]}
+            >
             <View style={styles.handleContainer}>
               <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
               <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
@@ -749,6 +759,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'flex-end',
     backgroundColor: 'transparent',
+  },
+  minimizedContainer: {
+    pointerEvents: 'box-none', // Allow touches to pass through when minimized
+  },
+  minimizedSheet: {
+    pointerEvents: 'auto', // Keep sheet interactive when minimized
   },
   backdrop: {
     position: 'absolute',
