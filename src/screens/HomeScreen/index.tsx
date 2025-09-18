@@ -32,6 +32,7 @@ import { NotificationsSheet } from '../../components/NotificationsSheet';
 import { ProfileSheet } from '../../components/ProfileSheet';
 import { HomeHeader } from './Header';
 import { GettingStarted } from './GettingStarted';
+import { FeaturedContent } from './FeaturedContent';
 import { SavedRoutes } from './SavedRoutes';
 // import { QuickFilters } from './QuickFilters';
 import { CityRoutes } from './CityRoutes';
@@ -439,6 +440,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
               onNotificationPress={() => setShowNotificationsSheet(true)}
               onEventPress={() => setShowEventsSheet(true)}
             />
+
+        {/* Featured Content */}
+        {console.log('🎯 [HomeScreen] Rendering FeaturedContent component')}
+        <FeaturedContent />
 
             {/* <UpcomingEvents 
               onEventPress={(eventId) => {

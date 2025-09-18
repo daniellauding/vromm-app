@@ -1070,6 +1070,29 @@ export function ExerciseListSheet({
                 {title}
               </Text>
 
+              {/* Featured Exercises Quick Access */}
+              <Button
+                variant="outline"
+                size="md"
+                onPress={() => {
+                  console.log('🎯 [ExerciseListSheet] Featured exercises pressed, navigating to ProgressScreen');
+                  onClose();
+                  navigation.navigate('ProgressTab', {
+                    showFeatured: true,
+                    activeUserId: effectiveUserId || undefined,
+                  });
+                }}
+                marginBottom="$2"
+              >
+                <XStack alignItems="center" gap="$2">
+                  <Feather name="star" size={16} color="#00FFBC" />
+                  <Text color="$color" fontWeight="600">
+                    {t('exercises.featuredExercises') || 'Featured Exercises'}
+                  </Text>
+                  <Feather name="external-link" size={14} color="$color" />
+                </XStack>
+              </Button>
+
               {/* Exercise List */}
               <YStack flex={1}>
                 {loading ? (
@@ -1272,11 +1295,11 @@ export function ExerciseListSheet({
                   variant="secondary"
                   size="lg"
                   onPress={() => {
-                    console.log('🎯 [ExerciseListSheet] See more pressed, navigating to ProgressScreen');
+                    console.log('🎯 [ExerciseListSheet] See more pressed, opening new ExerciseListSheet');
                     onClose();
+                    // Open a new ExerciseListSheet with showAllPaths=true
                     navigation.navigate('ProgressTab', {
-                      selectedPathId: learningPathId,
-                      showDetail: true,
+                      showFeatured: true,
                       activeUserId: effectiveUserId || undefined,
                     });
                   }}

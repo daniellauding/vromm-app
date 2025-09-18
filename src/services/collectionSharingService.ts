@@ -324,6 +324,31 @@ class CollectionSharingService {
 
       if (userError || !userData?.email) {
         console.error('Error fetching user email:', userError);
+        console.log('🔧 [CollectionSharingService] User data:', userData);
+        console.log('🔧 [CollectionSharingService] User error:', userError);
+        
+        // Try to get email from auth user as fallback
+        const { data: authUser } = await supabase.auth.getUser();
+        if (authUser?.user?.email) {
+          console.log('🔧 [CollectionSharingService] Using auth user email as fallback:', authUser.user.email);
+          // Continue with auth user email
+          const userEmail = authUser.user.email;
+          
+          // Get pending invitations sent to this user's email
+          const { data: invitations, error: invitationsError } = await supabase
+            .from('collection_invitations')
+            .select('*')
+            .eq('invited_user_email', userEmail)
+            .eq('status', 'pending');
+
+          if (invitationsError) {
+            console.error('Error fetching invitations:', invitationsError);
+            return [];
+          }
+
+          return invitations || [];
+        }
+        
         return [];
       }
 

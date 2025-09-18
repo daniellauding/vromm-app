@@ -200,7 +200,7 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
   const translateY = React.useRef(new Animated.Value(-100)).current;
   const translateX = React.useRef(new Animated.Value(0)).current;
 
-  React.useLayoutEffect(() => {
+  React.useEffect(() => {
     // Animate in with a small delay to avoid insertion effect conflicts
     const timer = setTimeout(() => {
       Animated.spring(translateY, {
@@ -209,7 +209,7 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
         tension: 100,
         friction: 8,
       }).start();
-    }, 10);
+    }, 50);
 
     return () => clearTimeout(timer);
   }, [translateY]);

@@ -47,15 +47,18 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
 
+      // Try last known position first (faster, less battery)
       const lastKnown = await Location.getLastKnownPositionAsync();
       if (lastKnown) return lastKnown;
 
       return await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
     } catch (e) {
+      // Suppress common simulator location errors
       if (__DEV__) {
-        // Reduce noise in production builds
-        // eslint-disable-next-line no-console
-        console.warn('Location: fallback failed, proceeding without location');
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        if (!errorMessage.includes('kCLErrorDomain error 0') && !errorMessage.includes('Cannot obtain current location')) {
+          console.warn('Location: fallback failed, proceeding without location');
+        }
       }
       return null;
     }
@@ -114,9 +117,13 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       }
       return location;
     } catch (err) {
+      // Suppress location errors in development/simulator
       if (__DEV__) {
-        // eslint-disable-next-line no-console
-        console.warn('Error getting current location');
+        // Only log if it's not a common simulator issue
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        if (!errorMessage.includes('kCLErrorDomain error 0') && !errorMessage.includes('Cannot obtain current location')) {
+          console.warn('Error getting current location:', errorMessage);
+        }
       }
       setError('Unable to get current location');
       return null;

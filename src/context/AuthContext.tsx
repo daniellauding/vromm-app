@@ -60,11 +60,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Load profile data
   useEffect(() => {
     if (user?.id) {
+      console.log('🔧 [AuthContext] Loading profile for user:', user.id, 'email:', user.email);
       db.profiles
         .get(user.id)
         .then((data) => {
+          console.log('🔧 [AuthContext] Profile data received:', { 
+            hasData: !!data, 
+            hasEmail: !!data?.email, 
+            userEmail: user.email 
+          });
+          
           // Ensure email is populated from user if missing in profile
           if (data && !data.email && user.email) {
+            console.log('🔧 [AuthContext] Profile missing email, updating from user.email');
             const updatedProfile = { ...data, email: user.email };
             setProfile(updatedProfile);
             
@@ -74,17 +82,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               .update({ email: user.email })
               .eq('id', user.id)
               .then(() => {
-                console.log('✅ Profile email updated from user.email');
+                console.log('✅ [AuthContext] Profile email updated from user.email');
               })
               .catch((err) => {
                 console.warn('Failed to update profile email:', err);
               });
+          } else if (data && data.email) {
+            console.log('✅ [AuthContext] Profile has email:', data.email);
+            setProfile(data);
           } else {
+            console.log('⚠️ [AuthContext] No profile data or email found');
             setProfile(data);
           }
         })
         .catch((err) => {
-          console.error('Error fetching user profile:', err);
+          console.error('❌ [AuthContext] Error fetching user profile:', err);
           // Don't set profile to null on error, keep existing profile if any
         });
     }
@@ -238,6 +250,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch (profileError) {
           console.warn('Profile creation failed:', profileError);
           // Don't throw here - user is created, profile can be created later
+        }
+
+        // CRITICAL: Ensure email is set in profile immediately after signup
+        try {
+          console.log('🔧 [AuthContext] Ensuring email is set in profile for user:', authData.user.id);
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ email: email })
+            .eq('id', authData.user.id);
+          
+          if (updateError) {
+            console.warn('Failed to update profile email:', updateError);
+          } else {
+            console.log('✅ [AuthContext] Profile email updated successfully');
+          }
+        } catch (emailUpdateError) {
+          console.warn('Failed to ensure email in profile:', emailUpdateError);
         }
 
         // Track signup event in the background
