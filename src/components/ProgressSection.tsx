@@ -1361,7 +1361,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                         
                         if (pathPasswordInput === passwordPath.lock_password) {
                           // Use shared context to unlock
-                          addUnlockedPath(passwordPath.id);
+                          await addUnlockedPath(passwordPath.id);
                           setPathPasswordInput('');
                           setShowPasswordModal(false);
                           
@@ -1371,12 +1371,10 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                             type: 'success'
                           });
                           
-                          // Now navigate to the unlocked path
-                          navigation.navigate('ProgressTab', {
-                            selectedPathId: passwordPath.id,
-                            showDetail: true,
-                            activeUserId: effectiveUserId || undefined,
-                          });
+                          // Open the exercise sheet for the unlocked content
+                          setSelectedPathId(passwordPath.id);
+                          setSelectedPathTitle(passwordPath.title[lang] || passwordPath.title.en);
+                          setShowExerciseSheet(true);
                         } else {
                           Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
                         }

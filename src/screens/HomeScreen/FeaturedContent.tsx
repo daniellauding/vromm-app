@@ -86,8 +86,18 @@ export function FeaturedContent() {
   const cardBackgroundColor = colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA';
 
   useEffect(() => {
+    console.log('🎯 [FeaturedContent] Component mounted, loading data for user:', authUser?.id);
     fetchFeaturedContent();
-  }, []);
+    
+    // Load user payment data on mount to ensure we have latest payment status
+    if (authUser?.id) {
+      console.log('🎯 [FeaturedContent] Loading user data...');
+      loadUserPayments(authUser.id);
+      loadUnlockedContent(authUser.id);
+    } else {
+      console.log('🎯 [FeaturedContent] No user ID, skipping data load');
+    }
+  }, [authUser?.id]);
 
   const fetchFeaturedContent = async () => {
     try {
@@ -151,15 +161,37 @@ export function FeaturedContent() {
 
   const checkPathPaywall = async (path: FeaturedLearningPath): Promise<boolean> => {
     if (!path.paywall_enabled) return true;
-    if (hasPathPayment(path.id)) return true;
+    
+    // Double-check payment status before showing paywall
+    if (authUser?.id) {
+      await loadUserPayments(authUser.id);
+    }
+    
+    if (hasPathPayment(path.id)) {
+      console.log('✅ [FeaturedContent] User has already paid for this content:', path.id);
+      return true;
+    }
+    
+    console.log('🔒 [FeaturedContent] User needs to pay for content:', path.id);
     setPaywallPath(path);
     setShowPaywallModal(true);
     return false;
   };
 
   const checkPathPassword = async (path: FeaturedLearningPath): Promise<boolean> => {
+    console.log('🔓 [FeaturedContent] Checking password lock for path:', path.id, {
+      isLocked: path.is_locked,
+      isUnlocked: isPathUnlocked(path.id),
+      unlockedPaths
+    });
+    
     if (!path.is_locked) return true;
-    if (isPathUnlocked(path.id)) return true;
+    if (isPathUnlocked(path.id)) {
+      console.log('✅ [FeaturedContent] Path is already unlocked via password');
+      return true;
+    }
+    
+    console.log('🔒 [FeaturedContent] Path is locked, showing password modal');
     setPasswordPath(path);
     setShowPasswordModal(true);
     return false;
@@ -851,6 +883,7 @@ export function FeaturedContent() {
                               // Refresh the screen to show unlocked content
                               if (authUser?.id) {
                                 await loadUserPayments(authUser.id);
+                                await loadUnlockedContent(authUser.id);
                               }
                               
                               // Open the exercise sheet for the unlocked content
@@ -1002,7 +1035,7 @@ export function FeaturedContent() {
                         
                         if (pathPasswordInput === passwordPath.lock_password) {
                           // Use shared context to unlock
-                          addUnlockedPath(passwordPath.id);
+                          await addUnlockedPath(passwordPath.id);
                           setPathPasswordInput('');
                           setShowPasswordModal(false);
                           

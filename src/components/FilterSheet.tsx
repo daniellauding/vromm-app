@@ -244,6 +244,9 @@ export function FilterSheet({
   // Collection display state
   const [showAllCollections, setShowAllCollections] = useState(false);
   const MAX_VISIBLE_COLLECTIONS = 5; // Changed to 5 for better UX
+  
+  // Loading state for collections
+  const [collectionsLoading, setCollectionsLoading] = useState(true);
 
   // Leave collection modal state
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
@@ -496,6 +499,26 @@ export function FilterSheet({
     
     loadSavedFilters();
   }, [isVisible, effectiveUserId, initialFilters]);
+
+  // Track collections loading state
+  useEffect(() => {
+    if (userCollections.length > 0) {
+      setCollectionsLoading(false);
+      console.log('✅ [FilterSheet] Collections loaded, setting loading to false');
+    } else if (isVisible) {
+      // Reset loading state when sheet becomes visible
+      setCollectionsLoading(true);
+      console.log('🔄 [FilterSheet] Sheet visible, setting loading to true');
+      
+      // Set a timeout to stop loading state after 3 seconds
+      const timeout = setTimeout(() => {
+        setCollectionsLoading(false);
+        console.log('⏰ [FilterSheet] Loading timeout reached, setting loading to false');
+      }, 3000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [userCollections, isVisible]);
 
   // Animation effects
   useEffect(() => {
@@ -1162,24 +1185,82 @@ export function FilterSheet({
 
               {/* User Collections - Filter out VROMM collections and show only relevant ones */}
               {(() => {
+                console.log('🔍 [FilterSheet] All userCollections:', userCollections);
+                console.log('🔍 [FilterSheet] Current user ID:', getEffectiveUserId());
+                
                 const filteredCollections = userCollections
                   .filter(collection => {
+                    console.log(`🔍 [FilterSheet] Processing collection:`, {
+                      id: collection.id,
+                      name: collection.name,
+                      visibility: collection.visibility,
+                      creator_id: collection.creator_id,
+                      current_user_id: getEffectiveUserId(),
+                      route_count: collection.route_count,
+                      member_role: collection.member_role
+                    });
+                    
                     // Filter out VROMM collections (legacy global collection)
                     const name = collection.name?.toLowerCase() || '';
-                    return !name.includes('vromm');
-                  })
-                  .filter(collection => {
+                    if (name.includes('vromm')) {
+                      console.log(`🔍 [FilterSheet] Filtering out VROMM collection: "${collection.name}"`);
+                      return false;
+                    }
+                    
                     // Show collections where user is a member, has routes, or is the creator
                     const isCreator = collection.creator_id === getEffectiveUserId();
                     const hasRoutes = collection.route_count && collection.route_count > 0;
-                    const isMember = (collection as any).member_role; // If user is a member, they should see it
+                    const isMember = collection.member_role; // If user is a member, they should see it
+                    const isPublic = collection.visibility === 'public';
+                    const isShared = collection.visibility === 'shared';
                     
-                    return isCreator || hasRoutes || isMember;
+                    console.log(`🔍 [FilterSheet] Collection "${collection.name}" filtering logic:`, {
+                      isCreator,
+                      hasRoutes,
+                      isMember,
+                      isPublic,
+                      isShared,
+                      member_role: collection.member_role,
+                      visibility: collection.visibility,
+                      route_count: collection.route_count,
+                      willShow: isCreator || isMember || isPublic || isShared
+                    });
+                    
+                    // Show if user is creator, member, or if it's a public/shared collection
+                    // Don't require routes for user's own collections or collections they're members of
+                    return isCreator || isMember || isPublic || isShared;
                   });
+                
+                console.log('🔍 [FilterSheet] Filtered collections:', filteredCollections);
 
                 const visibleCollections = showAllCollections 
                   ? filteredCollections 
                   : filteredCollections.slice(0, MAX_VISIBLE_COLLECTIONS);
+
+                console.log('🔍 [FilterSheet] Visible collections to render:', visibleCollections);
+
+                // Show loading state while collections are being loaded
+                if (collectionsLoading) {
+                  console.log('🔄 [FilterSheet] Collections still loading...');
+                  return (
+                    <XStack alignItems="center" gap="$2" padding="$2">
+                      <Feather name="loader" size={16} color={textColor} />
+                      <Text color="$gray10" fontSize="$2" fontStyle="italic">
+                        {t('common.loading') || 'Loading collections...'}
+                      </Text>
+                    </XStack>
+                  );
+                }
+
+                // If no collections to show after loading, return empty
+                if (visibleCollections.length === 0) {
+                  console.log('🔍 [FilterSheet] No collections to show');
+                  return (
+                    <Text color="$gray10" fontSize="$2" fontStyle="italic">
+                      {t('routeCollections.noCollections') || 'No collections available'}
+                    </Text>
+                  );
+                }
 
                 return (
                   <>
@@ -1187,6 +1268,19 @@ export function FilterSheet({
                       const isMember = (collection as any).member_role;
                       const isCreator = collection.creator_id === getEffectiveUserId();
                       const canLeave = isMember && !isCreator; // Can leave if member but not creator
+                      
+                      console.log('🔍 [FilterSheet] Rendering collection:', {
+                        id: collection.id,
+                        name: collection.name,
+                        nameType: typeof collection.name,
+                        nameLength: collection.name?.length,
+                        route_count: collection.route_count,
+                        visibility: collection.visibility,
+                        selectedPresetId: selectedPresetId,
+                        isSelected: selectedPresetId === collection.id,
+                        textColor: selectedPresetId === collection.id ? '#000000' : textColor,
+                        backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent'
+                      });
                       
                       return (
                         <XStack key={collection.id || `collection-${Math.random()}`} alignItems="center" gap="$1">
@@ -1208,11 +1302,24 @@ export function FilterSheet({
                                   {
                                     color: selectedPresetId === collection.id ? '#000000' : textColor,
                                     fontWeight: selectedPresetId === collection.id ? '600' : '500',
+                                    fontSize: 14, // Explicit font size
+                                    opacity: 1, // Explicit opacity
                                   },
                                 ]}
                                 numberOfLines={1}
                               >
-                                {collection.name || 'Unnamed Collection'}
+                                {(() => {
+                                  const displayName = collection.name || collection.id || 'Unnamed Collection';
+                                  console.log('🔍 [FilterSheet] Text component rendering:', {
+                                    collectionId: collection.id,
+                                    collectionName: collection.name,
+                                    displayName: displayName,
+                                    textColor: selectedPresetId === collection.id ? '#000000' : textColor,
+                                    backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent'
+                                  });
+                                  // Add a visual indicator to make sure text is rendering
+                                  return `[${displayName}]`;
+                                })()}
                               </Text>
                               {collection.route_count != null && collection.route_count > 0 && (
                                 <Text

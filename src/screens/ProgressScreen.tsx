@@ -5344,7 +5344,7 @@ export function ProgressScreen() {
                         
                         if (pathPasswordInput === passwordPath.lock_password) {
                           // Use shared context to unlock
-                          addUnlockedPath(passwordPath.id);
+                          await addUnlockedPath(passwordPath.id);
                           setPathPasswordInput('');
                           setShowPasswordModal(false);
                           
