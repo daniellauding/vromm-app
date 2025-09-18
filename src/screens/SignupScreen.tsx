@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
+import * as Linking from 'expo-linking';
 import { useToast } from '../contexts/ToastContext';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -55,6 +56,7 @@ export function SignupScreen() {
 
   const handleFacebookSignup = async () => {
     if (oauthLoading) return;
+
     try {
       setOauthLoading(true);
       const redirectTo = makeRedirectUri({ scheme: 'myapp', path: 'redirect' });
@@ -68,20 +70,57 @@ export function SignupScreen() {
       });
       if (error) throw error;
       const authUrl = data?.url;
-      if (!authUrl) throw new Error('No auth URL from Supabase');
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
-      if (result.type !== 'success') return; // silent cancel
 
-      // Inform user about the known issue requiring app restart
-      const title = t('auth.facebookLoginKnownIssueTitle') || 'Login Notice';
-      const message =
-        t('auth.facebookLoginKnownIssueMessage') ||
-        'Facebook login succeeded. Due to a temporary issue, please restart the app to complete the login.';
-      showToast({ title, message, type: 'info', duration: 6000 });
-    } catch (e) {
-      const msg = (e as Error)?.message?.toLowerCase?.() || '';
-      if (msg.includes('cancel')) return;
-      Alert.alert('Error', 'Facebook login failed. Please try again.');
+      if (!authUrl) throw new Error('No auth URL from Supabase');
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
+
+      if (result.type !== 'success') return; // silent cancel
+      if (result.url) {
+        const parsed = Linking.parse(result.url);
+        const code = (parsed.queryParams?.code as string) || '';
+        let didSetSession = false;
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          // Ensure session object is available before navigating
+          await supabase.auth.getSession();
+          didSetSession = true;
+        } else {
+          const hashIndex = result.url.indexOf('#');
+          if (hashIndex >= 0) {
+            const fragment = result.url.substring(hashIndex + 1);
+            const sp = new URLSearchParams(fragment);
+            const access_token = sp.get('access_token') || '';
+            const refresh_token = sp.get('refresh_token') || '';
+            if (access_token) {
+              const { error } = await supabase.auth.setSession({
+                access_token,
+                refresh_token: refresh_token || '',
+              });
+              if (error) throw error;
+              // Ensure session object is available before navigating
+              await supabase.auth.getSession();
+              didSetSession = true;
+            }
+          }
+        }
+        try {
+          if (typeof WebBrowser.dismissAuthSession === 'function') {
+            await WebBrowser.dismissAuthSession();
+          } else if (typeof WebBrowser.dismissBrowser === 'function') {
+            await WebBrowser.dismissBrowser();
+          }
+        } catch (e) {
+          // ignore
+        }
+        // Navigation is centralized in App.tsx
+      }
+    } catch (error) {
+      console.error('Facebook signup error:', error);
+      const msg = (error as Error)?.message?.toLowerCase?.() || '';
+      if (msg.includes('cancel')) return; // Silent cancel
+      Alert.alert('Error', 'Facebook signup failed. Please try again.');
     } finally {
       setOauthLoading(false);
     }
