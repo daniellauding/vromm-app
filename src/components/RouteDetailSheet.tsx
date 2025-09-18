@@ -152,7 +152,16 @@ export function RouteDetailSheet({
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const navigation = useNavigation<NavigationProp>();
+  
+  // Make navigation optional to handle modal context
+  let navigation: any = null;
+  try {
+    navigation = useNavigation<NavigationProp>();
+  } catch (error) {
+    console.warn('Navigation not available in modal context:', error);
+    navigation = null;
+  }
+  
   const colorScheme = useColorScheme();
   const { showModal } = useModal();
   const { showToast } = useToast();
@@ -750,11 +759,29 @@ export function RouteDetailSheet({
       setShowDrivenOptionsSheet(true);
     } else {
       // First time marking as driven
-      navigation.navigate('AddReview', { 
-        routeId: routeId!,
-        returnToRouteDetail: true 
-      } as any);
-      onClose();
+      if (navigation) {
+        try {
+          navigation.navigate('AddReview', { 
+            routeId: routeId!,
+            returnToRouteDetail: true 
+          } as any);
+          onClose();
+        } catch (error) {
+          console.warn('Navigation not available in modal context:', error);
+          showToast({
+            title: t('common.error') || 'Error',
+            message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+            type: 'error'
+          });
+        }
+      } else {
+        console.warn('Navigation not available in modal context');
+        showToast({
+          title: t('common.error') || 'Error',
+          message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+          type: 'error'
+        });
+      }
     }
   };
 
@@ -827,11 +854,21 @@ export function RouteDetailSheet({
     if (onStartRoute) {
       onStartRoute(routeId);
     } else {
-      // Default behavior - navigate to map
-      navigation.navigate('MainTabs', {
-        screen: 'MapTab',
-        params: { screen: 'MapScreen', params: { routeId: routeId! } },
-      } as any);
+      // Only try to navigate if we have navigation context
+      if (navigation) {
+        try {
+          navigation.navigate('MainTabs', {
+            screen: 'MapTab',
+            params: { screen: 'MapScreen', params: { routeId: routeId! } },
+          } as any);
+        } catch (error) {
+          console.warn('Navigation not available in modal context:', error);
+          // Fallback: just close the sheet
+        }
+      } else {
+        console.warn('Navigation not available in modal context');
+        // Fallback: just close the sheet
+      }
     }
     onClose();
   };
@@ -840,8 +877,26 @@ export function RouteDetailSheet({
     if (onNavigateToProfile) {
       onNavigateToProfile(userId);
     } else {
-      navigation.navigate('PublicProfile', { userId });
-      onClose();
+      if (navigation) {
+        try {
+          navigation.navigate('PublicProfile', { userId });
+          onClose();
+        } catch (error) {
+          console.warn('Navigation not available in modal context:', error);
+          showToast({
+            title: t('common.error') || 'Error',
+            message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+            type: 'error'
+          });
+        }
+      } else {
+        console.warn('Navigation not available in modal context');
+        showToast({
+          title: t('common.error') || 'Error',
+          message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+          type: 'error'
+        });
+      }
     }
   };
 
@@ -1504,13 +1559,31 @@ export function RouteDetailSheet({
                             label={allExercisesCompleted ? (t('routeDetail.reviewExercises') || 'Review') : (t('routeDetail.startExercises') || 'Start')}
                             onPress={() => {
                               if (routeData?.exercises) {
-                                navigation.navigate('RouteExercise', {
-                                  routeId: routeId!,
-                                  exercises: routeData.exercises,
-                                  routeName: routeData.name,
-                                  startIndex: 0,
-                                });
-                                onClose();
+                                if (navigation) {
+                                  try {
+                                    navigation.navigate('RouteExercise', {
+                                      routeId: routeId!,
+                                      exercises: routeData.exercises,
+                                      routeName: routeData.name,
+                                      startIndex: 0,
+                                    });
+                                    onClose();
+                                  } catch (error) {
+                                    console.warn('Navigation not available in modal context:', error);
+                                    showToast({
+                                      title: t('common.error') || 'Error',
+                                      message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+                                      type: 'error'
+                                    });
+                                  }
+                                } else {
+                                  console.warn('Navigation not available in modal context');
+                                  showToast({
+                                    title: t('common.error') || 'Error',
+                                    message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+                                    type: 'error'
+                                  });
+                                }
                               }
                             }}
                             backgroundColor={isSaved ? 'transparent' : 'transparent'}
@@ -1541,16 +1614,34 @@ export function RouteDetailSheet({
                               AppAnalytics.trackButtonPress('edit_route', 'RouteDetailSheet', {
                                 route_id: routeData?.id,
                               }).catch(() => {});
-                              navigation.navigate('CreateRoute', { 
-                                routeId: routeData?.id,
-                                onClose: () => {
-                                  // When user presses back from CreateRoute, reopen the RouteDetailSheet
-                                  if (onReopen) {
-                                    onReopen();
-                                  }
+                              if (navigation) {
+                                try {
+                                  navigation.navigate('CreateRoute', { 
+                                    routeId: routeData?.id,
+                                    onClose: () => {
+                                      // When user presses back from CreateRoute, reopen the RouteDetailSheet
+                                      if (onReopen) {
+                                        onReopen();
+                                      }
+                                    }
+                                  });
+                                  onClose();
+                                } catch (error) {
+                                  console.warn('Navigation not available in modal context:', error);
+                                  showToast({
+                                    title: t('common.error') || 'Error',
+                                    message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+                                    type: 'error'
+                                  });
                                 }
-                              });
-                              onClose();
+                              } else {
+                                console.warn('Navigation not available in modal context');
+                                showToast({
+                                  title: t('common.error') || 'Error',
+                                  message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+                                  type: 'error'
+                                });
+                              }
                             }}
                             backgroundColor={isSaved ? 'transparent' : 'transparent'}
                             borderColor={isSaved ? 'transparent' : 'transparent'}                    
@@ -1713,13 +1804,31 @@ export function RouteDetailSheet({
                               <Button
                                 onPress={() => {
                                   if (routeData?.exercises) {
-                                    navigation.navigate('RouteExercise', {
-                                      routeId: routeId!,
-                                      exercises: routeData.exercises,
-                                      routeName: routeData.name,
-                                      startIndex: 0,
-                                    });
-                                    onClose();
+                                    if (navigation) {
+                                      try {
+                                        navigation.navigate('RouteExercise', {
+                                          routeId: routeId!,
+                                          exercises: routeData.exercises,
+                                          routeName: routeData.name,
+                                          startIndex: 0,
+                                        });
+                                        onClose();
+                                      } catch (error) {
+                                        console.warn('Navigation not available in modal context:', error);
+                                        showToast({
+                                          title: t('common.error') || 'Error',
+                                          message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+                                          type: 'error'
+                                        });
+                                      }
+                                    } else {
+                                      console.warn('Navigation not available in modal context');
+                                      showToast({
+                                        title: t('common.error') || 'Error',
+                                        message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+                                        type: 'error'
+                                      });
+                                    }
                                   }
                                 }}
                                 backgroundColor="$blue10"
@@ -1739,13 +1848,31 @@ export function RouteDetailSheet({
                               maxPreview={3}
                               onExercisePress={(exercise, index) => {
                                 if (routeData?.exercises) {
-                                  navigation.navigate('RouteExercise', {
-                                    routeId: routeId!,
-                                    exercises: routeData.exercises,
-                                    routeName: routeData.name || 'Route',
-                                    startIndex: index,
-                                  });
-                                  onClose();
+                                  if (navigation) {
+                                    try {
+                                      navigation.navigate('RouteExercise', {
+                                        routeId: routeId!,
+                                        exercises: routeData.exercises,
+                                        routeName: routeData.name || 'Route',
+                                        startIndex: index,
+                                      });
+                                      onClose();
+                                    } catch (error) {
+                                      console.warn('Navigation not available in modal context:', error);
+                                      showToast({
+                                        title: t('common.error') || 'Error',
+                                        message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+                                        type: 'error'
+                                      });
+                                    }
+                                  } else {
+                                    console.warn('Navigation not available in modal context');
+                                    showToast({
+                                      title: t('common.error') || 'Error',
+                                      message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+                                      type: 'error'
+                                    });
+                                  }
                                 }
                               }}
                             />
@@ -2028,11 +2155,29 @@ export function RouteDetailSheet({
                             <TouchableOpacity
                               onPress={() => {
                                 setShowDrivenOptionsSheet(false);
-                                navigation.navigate('AddReview', { 
-                                  routeId: routeId!,
-                                  returnToRouteDetail: true 
-                                } as any);
-                                onClose();
+                                if (navigation) {
+                                  try {
+                                    navigation.navigate('AddReview', { 
+                                      routeId: routeId!,
+                                      returnToRouteDetail: true 
+                                    } as any);
+                                    onClose();
+                                  } catch (error) {
+                                    console.warn('Navigation not available in modal context:', error);
+                                    showToast({
+                                      title: t('common.error') || 'Error',
+                                      message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+                                      type: 'error'
+                                    });
+                                  }
+                                } else {
+                                  console.warn('Navigation not available in modal context');
+                                  showToast({
+                                    title: t('common.error') || 'Error',
+                                    message: t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
+                                    type: 'error'
+                                  });
+                                }
                               }}
                               style={{
                                 padding: 16,

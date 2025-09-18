@@ -17,8 +17,11 @@ import { useModal } from '../contexts/ModalContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useSmartFilters } from '../hooks/useSmartFilters';
 import { useUserCollections } from '../hooks/useUserCollections';
+import { useToast } from '../contexts/ToastContext';
+import { supabase } from '../lib/supabase';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import { LeaveCollectionModal } from './LeaveCollectionModal';
 
 // Route type definition
 type Route = {
@@ -188,6 +191,7 @@ export function FilterSheet({
   const { getEffectiveUserId } = useStudentSwitch();
   const { trackFilterUsage } = useSmartFilters();
   const { collections: userCollections } = useUserCollections();
+  const { showToast } = useToast();
   const colorScheme = useColorScheme();
 
   // Use proper theming instead of hardcoded dark theme
@@ -240,6 +244,10 @@ export function FilterSheet({
   // Collection display state
   const [showAllCollections, setShowAllCollections] = useState(false);
   const MAX_VISIBLE_COLLECTIONS = 5; // Changed to 5 for better UX
+
+  // Leave collection modal state
+  const [leaveModalVisible, setLeaveModalVisible] = useState(false);
+  const [selectedCollectionForLeave, setSelectedCollectionForLeave] = useState<any>(null);
 
   // Snap points for resizing (like RouteDetailSheet)
   const snapPoints = useMemo(() => {
@@ -793,6 +801,89 @@ export function FilterSheet({
     onClose();
   }, [onPresetSelect, filters, saveFilterPreferences, onClose]);
 
+  // Handle leaving a collection
+  const handleLeaveCollection = React.useCallback((collection: any) => {
+    console.log('🚪 [FilterSheet] User wants to leave collection:', collection.name);
+    setSelectedCollectionForLeave(collection);
+    setLeaveModalVisible(true);
+  }, []);
+
+  // Handle leave collection confirmation
+  const handleLeaveCollectionConfirm = React.useCallback(async (customMessage?: string) => {
+    if (!selectedCollectionForLeave) return;
+
+    try {
+      // Remove user from collection
+      const { error } = await supabase
+        .from('map_preset_members')
+        .delete()
+        .eq('preset_id', selectedCollectionForLeave.id)
+        .eq('user_id', getEffectiveUserId());
+
+      if (error) throw error;
+
+      // Create notification for collection owner with custom message
+      const baseMessage = `A member has left your collection "${selectedCollectionForLeave.name}".`;
+      const fullMessage = customMessage?.trim() 
+        ? `${baseMessage}\n\nPersonal message: "${customMessage.trim()}"`
+        : baseMessage;
+
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: selectedCollectionForLeave.creator_id,
+          actor_id: getEffectiveUserId(),
+          type: 'collection_member_left',
+          title: 'Member Left Collection',
+          message: fullMessage,
+          metadata: {
+            collection_id: selectedCollectionForLeave.id,
+            collection_name: selectedCollectionForLeave.name,
+            member_id: getEffectiveUserId(),
+            member_role: (selectedCollectionForLeave as any).member_role || 'member',
+            custom_message: customMessage?.trim() || null,
+          },
+          action_url: 'vromm://collections',
+          priority: 'normal',
+          is_read: false,
+        });
+
+      if (notificationError) {
+        console.warn('Failed to create leave notification:', notificationError);
+      }
+
+      showToast({
+        title: t('routeCollections.leftCollection') || 'Left Collection',
+        message: t('routeCollections.leftCollectionSuccess') || `You have left "${selectedCollectionForLeave.name}".`,
+        type: 'success',
+      });
+
+      // Refresh collections
+      if (onPresetSelect) {
+        onPresetSelect(null); // Clear selection
+      }
+      
+      // Close filter sheet
+      onClose();
+    } catch (error) {
+      console.error('Error leaving collection:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeCollections.failedToLeaveCollection') || 'Failed to leave collection',
+        type: 'error',
+      });
+    } finally {
+      setLeaveModalVisible(false);
+      setSelectedCollectionForLeave(null);
+    }
+  }, [selectedCollectionForLeave, getEffectiveUserId, showToast, t, onPresetSelect, onClose]);
+
+  // Handle leave collection cancellation
+  const handleLeaveCollectionCancel = React.useCallback(() => {
+    setLeaveModalVisible(false);
+    setSelectedCollectionForLeave(null);
+  }, []);
+
   // Clean up search timeout
   useEffect(() => {
     return () => {
@@ -1078,9 +1169,12 @@ export function FilterSheet({
                     return !name.includes('vromm');
                   })
                   .filter(collection => {
-                    // Only show collections that have routes or are user's own collections
-                    return (collection.route_count && collection.route_count > 0) || 
-                           collection.creator_id === getEffectiveUserId();
+                    // Show collections where user is a member, has routes, or is the creator
+                    const isCreator = collection.creator_id === getEffectiveUserId();
+                    const hasRoutes = collection.route_count && collection.route_count > 0;
+                    const isMember = (collection as any).member_role; // If user is a member, they should see it
+                    
+                    return isCreator || hasRoutes || isMember;
                   });
 
                 const visibleCollections = showAllCollections 
@@ -1089,48 +1183,75 @@ export function FilterSheet({
 
                 return (
                   <>
-                    {visibleCollections.map((collection) => (
-                <TouchableOpacity
-                  key={collection.id || `collection-${Math.random()}`}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor,
-                      backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
-                    },
-                  ]}
-                  onPress={() => handlePresetSelect(collection.id)}
-                >
-                  <XStack alignItems="center" gap="$1">
-                    <Text
-                      style={[
-                        styles.chipText,
-                        {
-                          color: selectedPresetId === collection.id ? '#000000' : textColor,
-                          fontWeight: selectedPresetId === collection.id ? '600' : '500',
-                        },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {collection.name || 'Unnamed Collection'}
-                    </Text>
-                    {collection.route_count != null && collection.route_count > 0 && (
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: selectedPresetId === collection.id ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({String(collection.route_count || 0)})
-                      </Text>
-                    )}
-                  </XStack>
-                </TouchableOpacity>
-                    ))}
+                    {visibleCollections.map((collection) => {
+                      const isMember = (collection as any).member_role;
+                      const isCreator = collection.creator_id === getEffectiveUserId();
+                      const canLeave = isMember && !isCreator; // Can leave if member but not creator
+                      
+                      return (
+                        <XStack key={collection.id || `collection-${Math.random()}`} alignItems="center" gap="$1">
+                          <TouchableOpacity
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
+                                flex: 1,
+                              },
+                            ]}
+                            onPress={() => handlePresetSelect(collection.id)}
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: selectedPresetId === collection.id ? '#000000' : textColor,
+                                    fontWeight: selectedPresetId === collection.id ? '600' : '500',
+                                  },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {collection.name || 'Unnamed Collection'}
+                              </Text>
+                              {collection.route_count != null && collection.route_count > 0 && (
+                                <Text
+                                  style={[
+                                    styles.chipText,
+                                    {
+                                      color: selectedPresetId === collection.id ? '#000000' : textColor,
+                                      fontSize: 12,
+                                      opacity: 0.7,
+                                    },
+                                  ]}
+                                >
+                                  ({String(collection.route_count || 0)})
+                                </Text>
+                              )}
+                            </XStack>
+                          </TouchableOpacity>
+                          
+                          {/* X button for leaving collection */}
+                          {canLeave && (
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleLeaveCollection(collection);
+                              }}
+                              style={{
+                                padding: 4,
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                borderRadius: 4,
+                                marginLeft: 4,
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Feather name="x" size={14} color="#EF4444" />
+                            </TouchableOpacity>
+                          )}
+                        </XStack>
+                      );
+                    })}
 
                     {/* View More/Less Toggle */}
                     {filteredCollections.length > MAX_VISIBLE_COLLECTIONS && (
@@ -1984,6 +2105,16 @@ export function FilterSheet({
           </YStack>
         </ReanimatedAnimated.View>
       </GestureDetector>
+
+      {/* Leave Collection Modal */}
+      <LeaveCollectionModal
+        visible={leaveModalVisible}
+        collectionName={selectedCollectionForLeave?.name || ''}
+        routeCount={selectedCollectionForLeave?.route_count || 0}
+        memberRole={(selectedCollectionForLeave as any)?.member_role || 'member'}
+        onConfirm={handleLeaveCollectionConfirm}
+        onCancel={handleLeaveCollectionCancel}
+      />
     </View>
   );
 }

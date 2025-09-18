@@ -107,6 +107,7 @@ import { StudentManagementScreen } from './screens/StudentManagementScreen';
 // Global Invitation Notification
 import { InvitationNotification } from './components/InvitationNotification';
 import { CollectionInvitationNotification } from './components/CollectionInvitationNotification';
+import { GlobalRecordingWidget } from './components/GlobalRecordingWidget';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -1022,6 +1023,19 @@ function AppContent() {
             visible={showPromotionalModal}
             onClose={() => setShowPromotionalModal(false)}
             contentType={modalContentType}
+          />
+
+          {/* Global Recording Widget - rendered at app level */}
+          <GlobalRecordingWidget />
+
+          {/* Global Collection Invitation Notification - rendered at app level */}
+          <CollectionInvitationNotification
+            visible={showGlobalCollectionInvitationNotification}
+            onClose={() => setShowGlobalCollectionInvitationNotification(false)}
+            onInvitationHandled={() => {
+              setShowGlobalCollectionInvitationNotification(false);
+              // Refresh any relevant data
+            }}
           />
         </ToastProvider>
       </NavigationContainer>

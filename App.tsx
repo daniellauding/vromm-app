@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 
 import { ModalProvider } from './src/contexts/ModalContext';
 import { CreateRouteProvider } from './src/contexts/CreateRouteContext';
+import { RecordingProvider } from './src/contexts/RecordingContext';
 import { MessagingProvider } from './src/contexts/MessagingContext';
 import { TourProvider } from './src/contexts/TourContext';
 import { UnlockProvider } from './src/contexts/UnlockContext';
@@ -123,15 +124,17 @@ export default function App() {
                     <StudentSwitchProvider>
                       <LocationProvider>
                         <CreateRouteProvider>
-                          <ModalProvider>
-                            <MessagingProvider>
-                              <UnlockProvider>
-                                <TourProvider>
-                                  <AppContent />
-                                </TourProvider>
-                              </UnlockProvider>
-                            </MessagingProvider>
-                          </ModalProvider>
+                          <RecordingProvider>
+                            <ModalProvider>
+                              <MessagingProvider>
+                                <UnlockProvider>
+                                  <TourProvider>
+                                    <AppContent />
+                                  </TourProvider>
+                                </UnlockProvider>
+                              </MessagingProvider>
+                            </ModalProvider>
+                          </RecordingProvider>
                         </CreateRouteProvider>
                       </LocationProvider>
                     </StudentSwitchProvider>

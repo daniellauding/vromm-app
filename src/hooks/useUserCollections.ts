@@ -12,6 +12,7 @@ export interface UserCollection {
   updated_at: string;
   route_count?: number;
   is_default?: boolean;
+  member_role?: string; // Role if user is a member (not creator)
 }
 
 export function useUserCollections() {
@@ -69,6 +70,7 @@ export function useUserCollections() {
         .from('map_preset_members')
         .select(`
           preset_id,
+          role,
           map_presets!inner(
             *,
             route_count:map_preset_routes(count)
@@ -85,7 +87,10 @@ export function useUserCollections() {
       // Combine the results
       const ownedCollections = ownedData || [];
       const publicCollections = publicData || [];
-      const memberCollections = memberData?.map(item => item.map_presets).filter(Boolean) || [];
+      const memberCollections = memberData?.map(item => ({
+        ...item.map_presets,
+        member_role: item.role // Include the member role
+      })).filter(Boolean) || [];
       
       const allCollections = [...ownedCollections, ...publicCollections, ...memberCollections];
       

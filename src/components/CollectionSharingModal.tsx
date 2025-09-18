@@ -371,6 +371,73 @@ export function CollectionSharingModal({
     }
   };
 
+  // Handle user leaving collection (for non-creators)
+  const handleUserLeaveCollection = async (userId: string, userName: string, customMessage?: string) => {
+    if (!preset?.id) return;
+
+    try {
+      // Remove from map_preset_members
+      const { error: memberError } = await supabase
+        .from('map_preset_members')
+        .delete()
+        .eq('preset_id', preset.id)
+        .eq('user_id', userId);
+
+      if (memberError) throw memberError;
+
+      // Create notification for collection owner
+      const baseMessage = `A member has left your collection "${preset.name}".`;
+      const fullMessage = customMessage?.trim() 
+        ? `${baseMessage}\n\nPersonal message: "${customMessage.trim()}"`
+        : baseMessage;
+
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: preset.creator_id,
+          actor_id: userId,
+          type: 'collection_member_left',
+          title: 'Member Left Collection',
+          message: fullMessage,
+          metadata: {
+            collection_id: preset.id,
+            collection_name: preset.name,
+            member_id: userId,
+            member_name: userName,
+            custom_message: customMessage?.trim() || null,
+          },
+          action_url: 'vromm://collections',
+          priority: 'normal',
+          is_read: false,
+        });
+
+      if (notificationError) {
+        console.warn('Failed to create leave notification:', notificationError);
+      }
+
+      showToast({
+        title: t('routeCollections.leftCollection') || 'Left Collection',
+        message: t('routeCollections.leftCollectionSuccess') || `You have left "${preset.name}".`,
+        type: 'success'
+      });
+
+      // Refresh the data
+      await loadPendingCollectionInvitations();
+      
+      // Close the modal if current user left
+      if (userId === effectiveUserId) {
+        handleClose();
+      }
+    } catch (error) {
+      console.error('Error leaving collection:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeCollections.failedToLeaveCollection') || 'Failed to leave collection',
+        type: 'error'
+      });
+    }
+  };
+
   // Create collection sharing invitations
   const handleCreateCollectionSharing = async () => {
     if (!effectiveUserId || selectedUsers.length === 0) return;
@@ -739,6 +806,28 @@ export function CollectionSharingModal({
                             </Text>
                           </Button>
                         </XStack>
+                      </YStack>
+                    )}
+
+                    {/* Leave Collection button for current user (if not creator) */}
+                    {isAccepted && isCurrentUser && !isCreator && (
+                      <YStack gap="$2" marginTop="$2">
+                        <Text fontSize="$3" color="$gray11" fontWeight="500">
+                          {t('routeCollections.yourMembership') || 'Your Membership'}:
+                        </Text>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onPress={() => handleUserLeaveCollection(invitation.metadata?.targetUserId, invitation.metadata?.targetUserName || invitation.email)}
+                          style={{ borderColor: '#EF4444' }}
+                        >
+                          <XStack gap="$2" alignItems="center">
+                            <Feather name="log-out" size={14} color="#EF4444" />
+                            <Text color="#EF4444">
+                              {t('routeCollections.leaveCollection') || 'Leave Collection'}
+                            </Text>
+                          </XStack>
+                        </Button>
                       </YStack>
                     )}
 

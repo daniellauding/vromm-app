@@ -22,6 +22,7 @@ import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
 import { getTabContentPadding } from '../utils/layout';
+import { useToast } from '../contexts/ToastContext';
 
 export const NotificationsScreen: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -29,6 +30,7 @@ export const NotificationsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const navigation = useNavigation();
+  const { showToast } = useToast();
 
   // Helper function to safely get data from notification
   const getNotificationData = (notification: Notification): Record<string, unknown> => {
