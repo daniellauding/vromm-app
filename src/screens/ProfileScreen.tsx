@@ -5894,20 +5894,26 @@ export function ProfileScreen() {
                 
                 <ScrollView style={{ flex: 1 }}>
                   <YStack gap="$4">
+                    {/* System Default - First and Default Option */}
                     <XStack justifyContent="space-between" alignItems="center">
                       <YStack flex={1}>
                         <Text color="$color" fontWeight="500">
-                          Light Mode
+                          {t('profile.theme.system') || 'System Default'}
                         </Text>
                         <Text color="$gray11" fontSize="$3">
-                          Clean, bright interface for daytime use
+                          {t('profile.theme.systemDescription') || 'Follow your device\'s theme setting'}
                         </Text>
                       </YStack>
                       <RadioButton
-                        selected={colorScheme === 'light'}
-                        onPress={() => {
-                          // TODO: Implement theme switching
-                          Alert.alert('Coming Soon', 'Theme switching will be available in a future update.');
+                        selected={!profile?.theme_preference || profile?.theme_preference === 'system'}
+                        onPress={async () => {
+                          try {
+                            await updateProfile({ theme_preference: 'system' });
+                            showToast('Theme updated to system default', 'success');
+                            hideThemeSheet();
+                          } catch (error) {
+                            showToast('Failed to update theme', 'error');
+                          }
                         }}
                       />
                     </XStack>
@@ -5915,17 +5921,22 @@ export function ProfileScreen() {
                     <XStack justifyContent="space-between" alignItems="center">
                       <YStack flex={1}>
                         <Text color="$color" fontWeight="500">
-                          Dark Mode
+                          {t('profile.theme.light') || 'Light Mode'}
                         </Text>
                         <Text color="$gray11" fontSize="$3">
-                          Easy on the eyes for low-light environments
+                          {t('profile.theme.lightDescription') || 'Clean, bright interface for daytime use'}
                         </Text>
                       </YStack>
                       <RadioButton
-                        selected={colorScheme === 'dark'}
-                        onPress={() => {
-                          // TODO: Implement theme switching
-                          Alert.alert('Coming Soon', 'Theme switching will be available in a future update.');
+                        selected={profile?.theme_preference === 'light'}
+                        onPress={async () => {
+                          try {
+                            await updateProfile({ theme_preference: 'light' });
+                            showToast('Theme updated to light mode', 'success');
+                            hideThemeSheet();
+                          } catch (error) {
+                            showToast('Failed to update theme', 'error');
+                          }
                         }}
                       />
                     </XStack>
@@ -5933,17 +5944,22 @@ export function ProfileScreen() {
                     <XStack justifyContent="space-between" alignItems="center">
                       <YStack flex={1}>
                         <Text color="$color" fontWeight="500">
-                          System Default
+                          {t('profile.theme.dark') || 'Dark Mode'}
                         </Text>
                         <Text color="$gray11" fontSize="$3">
-                          Follow your device's theme setting
+                          {t('profile.theme.darkDescription') || 'Easy on the eyes for low-light environments'}
                         </Text>
                       </YStack>
                       <RadioButton
-                        selected={colorScheme === null}
-                        onPress={() => {
-                          // TODO: Implement theme switching
-                          Alert.alert('Coming Soon', 'Theme switching will be available in a future update.');
+                        selected={profile?.theme_preference === 'dark'}
+                        onPress={async () => {
+                          try {
+                            await updateProfile({ theme_preference: 'dark' });
+                            showToast('Theme updated to dark mode', 'success');
+                            hideThemeSheet();
+                          } catch (error) {
+                            showToast('Failed to update theme', 'error');
+                          }
                         }}
                       />
                     </XStack>
