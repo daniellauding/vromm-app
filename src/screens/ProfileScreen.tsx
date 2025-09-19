@@ -3109,9 +3109,19 @@ export function ProfileScreen() {
               pressStyle={{
                 scale: 0.98,
               }}
-              onPress={() =>
-                setFormData((prev) => ({ ...prev, private_profile: !prev.private_profile }))
-              }
+              onPress={async () => {
+                const newValue = !formData.private_profile;
+                setFormData((prev) => ({ ...prev, private_profile: newValue }));
+                // Auto-save private profile setting
+                if (user) {
+                  try {
+                    await updateProfile({ private_profile: newValue });
+                    console.log('✅ Private profile setting updated:', newValue);
+                  } catch (error) {
+                    console.error('Error saving private profile setting:', error);
+                  }
+                }
+              }}
             >
               <Text size="lg" color="$color">
                 {t('profile.privateProfile')}
@@ -3119,9 +3129,18 @@ export function ProfileScreen() {
               <Switch
                 size="$6"
                 checked={formData.private_profile}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev, private_profile: checked }))
-                }
+                onCheckedChange={async (checked) => {
+                  setFormData((prev) => ({ ...prev, private_profile: checked }));
+                  // Auto-save private profile setting
+                  if (user) {
+                    try {
+                      await updateProfile({ private_profile: checked });
+                      console.log('✅ Private profile setting updated:', checked);
+                    } catch (error) {
+                      console.error('Error saving private profile setting:', error);
+                    }
+                  }
+                }}
                 backgroundColor={formData.private_profile ? '$blue8' : '$gray6'}
                 scale={1.2}
                 margin="$2"
@@ -3181,6 +3200,37 @@ export function ProfileScreen() {
                 placeholder="Körkortsplan"
               />
             </YStack>
+
+            {/* Save Button */}
+            <Button
+              onPress={async () => {
+                try {
+                  setLoading(true);
+                  await updateProfile(formData);
+                  console.log('✅ Profile saved successfully');
+                  showToast({
+                    title: t('profile.saved') || 'Saved',
+                    message: t('profile.profileUpdated') || 'Profile updated successfully',
+                    type: 'success'
+                  });
+                } catch (error) {
+                  console.error('Error saving profile:', error);
+                  showToast({
+                    title: t('common.error') || 'Error',
+                    message: t('profile.failedToSave') || 'Failed to save profile',
+                    type: 'error'
+                  });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              variant="primary"
+              size="lg"
+              marginTop="$4"
+            >
+              {loading ? (t('common.saving') || 'Saving...') : (t('profile.save') || 'Save Profile')}
+            </Button>
               </YStack>
             )}
 

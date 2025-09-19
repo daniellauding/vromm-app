@@ -3,6 +3,7 @@
     "seeAll": "See All",
     "cancel": "Cancel",
     "save": "Save",
+    "saving": "Saving...",
     "error": "Error",
     "goBack": "Go Back"
   },
@@ -99,6 +100,10 @@
     "refreshTranslations": "Refresh Translations",
     "refreshConfirm": "Are you sure you want to refresh all translations?",
     "refreshSuccess": "Translations refreshed successfully",
+    "save": "Save Profile",
+    "saved": "Saved",
+    "profileUpdated": "Profile updated successfully",
+    "failedToSave": "Failed to save profile",
     "roles": {
       "title": "Select Role",
   },

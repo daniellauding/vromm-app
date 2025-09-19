@@ -24,6 +24,7 @@ import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { supabase } from '../../lib/supabase';
 import { useTourTarget } from '../../components/TourOverlay';
 import { ProfileSheet } from '../../components/ProfileSheet';
+import { UserProfileSheet } from '../../components/UserProfileSheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { useThemeColor } from '../../hooks/useThemeColor';
 
@@ -48,6 +49,7 @@ export const HomeHeader = () => {
   const [showEventsSheet, setShowEventsSheet] = React.useState(false);
   const [showAvatarModal, setShowAvatarModal] = React.useState(false);
   const [showProfileSheet, setShowProfileSheet] = React.useState(false);
+  const [showUserProfileSheet, setShowUserProfileSheet] = React.useState(false);
 
   // Animation refs for avatar modal
   const avatarBackdropOpacity = useRef(new Animated.Value(0)).current;
@@ -133,8 +135,9 @@ export const HomeHeader = () => {
   };
 
   const handleViewProfile = () => {
+    console.log('🔍 [Header] View Profile clicked - closing avatar modal and opening UserProfileSheet');
     setShowAvatarModal(false);
-    setShowProfileSheet(true);
+    setShowUserProfileSheet(true);
   };
 
   const handleSelectStudent = async () => {
@@ -406,6 +409,26 @@ export const HomeHeader = () => {
       <ProfileSheet
         visible={showProfileSheet}
         onClose={() => setShowProfileSheet(false)}
+      />
+
+      {/* User Profile Sheet */}
+      {console.log('🔍 [Header] Rendering UserProfileSheet with visible:', showUserProfileSheet, 'userId:', profile?.id)}
+      <UserProfileSheet
+        visible={showUserProfileSheet}
+        onClose={() => {
+          console.log('🔍 [Header] UserProfileSheet onClose called');
+          setShowUserProfileSheet(false);
+        }}
+        userId={profile?.id || null}
+        onViewAllRoutes={(userId) => {
+          // Handle view all routes navigation
+          console.log('View all routes for user:', userId);
+        }}
+        onEditProfile={() => {
+          console.log('🔍 [Header] Edit Profile clicked - closing UserProfileSheet and opening ProfileSheet');
+          setShowUserProfileSheet(false);
+          setShowProfileSheet(true);
+        }}
       />
 
       {/* Messages Sheet */}
