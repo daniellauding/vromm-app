@@ -149,7 +149,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
       // Group completions by date
       const completionsByDate: Record<string, number> = {};
       completions?.forEach(completion => {
-        const date = new Date(completion.created_at).toDateString();
+        const date = new Date(completion.completed_at).toDateString();
         completionsByDate[date] = (completionsByDate[date] || 0) + 1;
       });
       
