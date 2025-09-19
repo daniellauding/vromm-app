@@ -21,7 +21,7 @@ interface ActionSheetProps {
   onClose: () => void;
   onCreateRoute: (routeData?: RecordedRouteData) => void;
   onMaximizeWizard?: (routeData: any) => void; // Callback for maximizing wizard
-  // onCreateEvent?: () => void; // Callback for creating event
+  onCreateEvent?: () => void; // Callback for creating event
   onNavigateToMap?: (routeId: string) => void; // Callback for navigation
 }
 
@@ -294,23 +294,33 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
             style={[styles.actionButton, { borderBottomColor: borderColor }]}
             onPress={handleRecordDriving}
           >
-            <XStack alignItems="center" gap="$3">
+            <XStack alignItems="center" gap="$3" width="100%">
               <Feather name="video" size={24} color={textColor} />
-              <Text fontWeight="500" fontSize={18} color={textColor}>
-                {t('map.recordDriving') || 'Record Driving'}
-              </Text>
+              <YStack flex={1}>
+                <Text fontWeight="600" fontSize={18} color={textColor}>
+                  {t('map.recordDriving') || 'Record Driving'}
+                </Text>
+                <Text fontSize={14} color={colorScheme === 'dark' ? '#999' : '#666'}>
+                  {t('map.recordDrivingDescription') || 'Record your driving session with GPS tracking'}
+                </Text>
+              </YStack>
             </XStack>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionButton, { borderBottomColor: borderColor }]}
+            style={[styles.actionButton, { borderBottomColor: 'transparent' }]}
             onPress={handleCreateRouteSheet}
           >
-            <XStack alignItems="center" gap="$3">
+            <XStack alignItems="center" gap="$3" width="100%">
               <Feather name="edit-3" size={24} color={textColor} />
-              <Text fontWeight="500" fontSize={18} color={textColor}>
-                {t('createRoute.createTitle') || 'Create Route'}
-              </Text>
+              <YStack flex={1}>
+                <Text fontWeight="600" fontSize={18} color={textColor}>
+                  {t('createRoute.createTitle') || 'Create Route'}
+                </Text>
+                <Text fontSize={14} color={colorScheme === 'dark' ? '#999' : '#666'}>
+                  {t('createRoute.createDescription') || 'Plan and create a new driving route'}
+                </Text>
+              </YStack>
             </XStack>
           </TouchableOpacity>
 
