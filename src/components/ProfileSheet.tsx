@@ -6,7 +6,7 @@ import { YStack, XStack, Text } from 'tamagui';
 import { TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useThemeColor } from '../../hooks/useThemeColor';
+import { useTheme } from 'tamagui';
 import { ProfileScreen } from '../screens/ProfileScreen';
 
 const { height } = Dimensions.get('window');
@@ -18,10 +18,11 @@ interface ProfileSheetProps {
 
 export function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const insets = useSafeAreaInsets();
-  const iconColor = '$color';
+  const theme = useTheme();
+  const iconColor = theme.color?.val || '#000000';
 
   // Theme colors - using theme tokens
-  const backgroundColor = '$background';
+  const backgroundColor = theme.background?.val || '#FFFFFF';
 
   // Animation refs - keeping original for backdrop
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -209,7 +210,7 @@ export function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
                     width: 40,
                     height: 4,
                     borderRadius: 2,
-                    backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC',
+                    backgroundColor: theme.gray8?.val || '#CCC',
                   }} />
                 </View>
 
