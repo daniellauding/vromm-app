@@ -135,10 +135,10 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
       
       const { data: completions, error } = await supabase
         .from('learning_path_exercise_completions')
-        .select('exercise_id, created_at')
+        .select('exercise_id, completed_at')
         .eq('user_id', effectiveUserId)
-        .gte('created_at', startOfWeek.toISOString())
-        .lte('created_at', endOfWeek.toISOString());
+        .gte('completed_at', startOfWeek.toISOString())
+        .lte('completed_at', endOfWeek.toISOString());
       
       if (error) {
         console.error('Error loading weekly progress:', error);
