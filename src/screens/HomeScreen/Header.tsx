@@ -1,6 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { YStack, XStack } from 'tamagui';
 import { Modal, ScrollView, TouchableOpacity, View, Alert, Image, Animated, Pressable } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 
 import { Button } from '../../components/Button';
 import { Text } from '../../components/Text';
@@ -51,6 +52,9 @@ export const HomeHeader = () => {
   const [showProfileSheet, setShowProfileSheet] = React.useState(false);
   const [showUserProfileSheet, setShowUserProfileSheet] = React.useState(false);
 
+  // Progress state for avatar circle
+  const [userProgress, setUserProgress] = useState(0);
+
   // Animation refs for avatar modal
   const avatarBackdropOpacity = useRef(new Animated.Value(0)).current;
   const avatarSheetTranslateY = useRef(new Animated.Value(300)).current;
@@ -59,6 +63,99 @@ export const HomeHeader = () => {
   const backgroundColor = colorScheme === 'dark' ? '#1C1C1C' : '#fff';
   const textColor = colorScheme === 'dark' ? '#ECEDEE' : '#11181C';
   const borderColor = colorScheme === 'dark' ? '#333' : '#E0E0E0';
+
+  // ProgressCircle component for avatar
+  const ProgressCircle = ({ percent, size = 44, color = '#00E6C3', bg = '#333' }) => {
+    const strokeWidth = 3;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const progress = Math.max(0, Math.min(percent, 1));
+    return (
+      <Svg width={size} height={size} style={{ position: 'absolute' }}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={bg}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={`${circumference},${circumference}`}
+          strokeDashoffset={circumference * (1 - progress)}
+          strokeLinecap="round"
+          rotation="-90"
+          origin={`${size / 2},${size / 2}`}
+        />
+      </Svg>
+    );
+  };
+
+  // Load user progress (works for both regular users and instructors simulating students)
+  const loadUserProgress = React.useCallback(async () => {
+    const effectiveUserId = activeStudentId || profile?.id;
+    if (!effectiveUserId) {
+      setUserProgress(0);
+      return;
+    }
+
+    try {
+      // Get all learning paths
+      const { data: paths, error: pathsError } = await supabase
+        .from('learning_paths')
+        .select('id, learning_path_exercises(id)')
+        .eq('active', true);
+
+      if (pathsError || !paths) {
+        console.log('🔍 [Header] Error loading paths:', pathsError);
+        setUserProgress(0);
+        return;
+      }
+
+      // Get user's completed exercises
+      const { data: completions, error: completionsError } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('exercise_id')
+        .eq('user_id', effectiveUserId);
+
+      if (completionsError) {
+        console.log('🔍 [Header] Error loading completions:', completionsError);
+        setUserProgress(0);
+        return;
+      }
+
+      // Calculate overall progress
+      const completedIds = completions?.map(c => c.exercise_id) || [];
+      const totalExercises = paths.reduce((total, path) => total + path.learning_path_exercises.length, 0);
+      const completedExercises = paths.reduce((total, path) => {
+        return total + path.learning_path_exercises.filter(ex => completedIds.includes(ex.id)).length;
+      }, 0);
+
+      const progress = totalExercises > 0 ? completedExercises / totalExercises : 0;
+      setUserProgress(progress);
+      
+      console.log('🔍 [Header] Progress calculated:', {
+        effectiveUserId,
+        totalExercises,
+        completedExercises,
+        progress: Math.round(progress * 100) + '%'
+      });
+    } catch (error) {
+      console.error('🔍 [Header] Error calculating progress:', error);
+      setUserProgress(0);
+    }
+  }, [activeStudentId, profile?.id]);
+
+  // Load progress when user changes
+  useEffect(() => {
+    loadUserProgress();
+  }, [loadUserProgress]);
 
   // Animation effects for avatar modal
   useEffect(() => {
@@ -180,31 +277,44 @@ export const HomeHeader = () => {
     >
       <XStack alignItems="center" gap={12} width="100%" justifyContent="space-between">
         <YStack gap={8} flexShrink={1} alignItems="flex-start" width="100%">
-          <TouchableOpacity
-            ref={profileAvatarRef}
-            onPress={onPressAvatar}
-            activeOpacity={0.7}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: '#333',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: activeStudentId ? 2 : 0,
-              borderColor: activeStudentId ? '#00E6C3' : 'transparent',
-            }}
-          >
-            {/* Show avatar image if present */}
-            {profile?.avatar_url ? (
-              <Image
-                source={{ uri: profile.avatar_url }}
-                style={{ width: 40, height: 40, borderRadius: 20 }}
+          <View style={{ position: 'relative' }}>
+            {/* Progress Circle */}
+            {userProgress > 0 && (
+              <ProgressCircle 
+                percent={userProgress} 
+                size={44} 
+                color="#00E6C3" 
+                bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'} 
               />
-            ) : (
-              <Feather name="user" size={20} color="#fff" />
             )}
-          </TouchableOpacity>
+            
+            <TouchableOpacity
+              ref={profileAvatarRef}
+              onPress={onPressAvatar}
+              activeOpacity={0.7}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#333',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: activeStudentId ? 2 : 0,
+                borderColor: activeStudentId ? '#00E6C3' : 'transparent',
+                margin: 2, // Small margin to show progress circle
+              }}
+            >
+              {/* Show avatar image if present */}
+              {profile?.avatar_url ? (
+                <Image
+                  source={{ uri: profile.avatar_url }}
+                  style={{ width: 40, height: 40, borderRadius: 20 }}
+                />
+              ) : (
+                <Feather name="user" size={20} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
           <Text fontSize="$6" fontWeight="800" fontStyle="italic" color="$color" numberOfLines={5}>
             {profile?.full_name &&
             !profile.full_name.includes('@') &&

@@ -31,6 +31,7 @@ import { NotificationsSheet } from '../../components/NotificationsSheet';
 // import { EventsSheet } from '../../components/EventsSheet';
 import { ProfileSheet } from '../../components/ProfileSheet';
 import { HomeHeader } from './Header';
+import { WeeklyGoal } from './WeeklyGoal';
 import { GettingStarted } from './GettingStarted';
 import { FeaturedContent } from './FeaturedContent';
 import { SavedRoutes } from './SavedRoutes';
@@ -433,6 +434,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                 </Text>
               </YStack>
             )}
+            
+            {/* Weekly Goal Section */}
+            <WeeklyGoal activeUserId={effectiveUserId} />
+            
             <GettingStarted />
 
             <CommunicationTools 
