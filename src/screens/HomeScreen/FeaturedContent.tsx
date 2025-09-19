@@ -82,8 +82,9 @@ export function FeaturedContent() {
   const [passwordPath, setPasswordPath] = useState<FeaturedLearningPath | null>(null);
   const [pathPasswordInput, setPathPasswordInput] = useState('');
 
-  const backgroundColor = colorScheme === 'dark' ? '#1C1C1C' : '#fff';
-  const cardBackgroundColor = colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA';
+  // Use theme tokens instead of hardcoded colors
+  const backgroundColor = '$background';
+  const cardBackgroundColor = '$backgroundHover';
 
   useEffect(() => {
     console.log('🎯 [FeaturedContent] Component mounted, loading data for user:', authUser?.id);
@@ -325,10 +326,10 @@ export function FeaturedContent() {
             <Card
               width={cardWidth}
               padding="$4"
-              backgroundColor={cardBackgroundColor}
+              backgroundColor="$backgroundHover"
               borderRadius="$4"
               borderWidth={1}
-              borderColor={isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : (colorScheme === 'dark' ? '#333' : '#E5E5E5')}
+              borderColor={isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : '$borderColor'}
               style={{
                 shadowColor: isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : 'transparent',
                 shadowOpacity: (isPasswordLocked || isPaywallLocked) ? 0.3 : 0,
@@ -428,10 +429,10 @@ export function FeaturedContent() {
             <Card
               width={cardWidth}
               padding="$4"
-              backgroundColor={cardBackgroundColor}
+              backgroundColor="$backgroundHover"
               borderRadius="$4"
               borderWidth={1}
-              borderColor={isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : (colorScheme === 'dark' ? '#333' : '#E5E5E5')}
+              borderColor={isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : '$borderColor'}
               style={{
                 shadowColor: isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : 'transparent',
                 shadowOpacity: (isPasswordLocked || isPaywallLocked) ? 0.3 : 0,
@@ -559,12 +560,12 @@ export function FeaturedContent() {
               showsVerticalScrollIndicator={false}
             >
               <YStack
-                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
+                backgroundColor="$background"
                 borderRadius={24}
                 padding={20}
                 gap={16}
                 borderWidth={1}
-                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                borderColor="$borderColor"
                 shadowColor="#000"
                 shadowOffset={{ width: 0, height: 8 }}
                 shadowOpacity={0.3}
@@ -574,12 +575,12 @@ export function FeaturedContent() {
                 <XStack justifyContent="space-between" alignItems="center">
                   <XStack alignItems="center" gap={8} flex={1}>
                     <Feather name="lock" size={24} color="#FF9500" />
-                    <Text fontSize={20} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'} flex={1}>
+                    <Text fontSize={20} fontWeight="bold" color="$color" flex={1}>
                       {t('progressScreen.paywall.title') || 'Premium Learning Path'}
                     </Text>
                   </XStack>
                   <TouchableOpacity onPress={() => setShowPaywallModal(false)}>
-                    <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#666'} />
+                    <Feather name="x" size={24} color="$color" />
                   </TouchableOpacity>
                 </XStack>
 
@@ -587,10 +588,10 @@ export function FeaturedContent() {
                   <>
                     {/* Path Info */}
                     <YStack gap={12}>
-                      <Text fontSize={24} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                      <Text fontSize={24} fontWeight="bold" color="$color">
                         {paywallPath.title[lang] || paywallPath.title.en}
                       </Text>
-                      <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                      <Text fontSize={16} color="$gray11">
                         {paywallPath.description[lang] || paywallPath.description.en}
                       </Text>
                     </YStack>
@@ -607,14 +608,14 @@ export function FeaturedContent() {
                       }}
                     >
                       <Feather name="book-open" size={64} color="#00E6C3" />
-                      <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'} marginTop={8}>
+                      <Text fontSize={16} color="$gray11" marginTop={8}>
                         {t('progressScreen.paywall.preview') || 'Premium Learning Content'}
                       </Text>
                     </View>
 
                     {/* Features */}
-                    <YStack gap={8} padding={16} backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F8F8'} borderRadius={12}>
-                      <Text fontSize={16} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                    <YStack gap={8} padding={16} backgroundColor="$backgroundHover" borderRadius={12}>
+                      <Text fontSize={16} fontWeight="bold" color="$color">
                         {t('progressScreen.paywall.includes') || 'This Premium Path Includes:'}
                       </Text>
                       {[
@@ -623,7 +624,7 @@ export function FeaturedContent() {
                         t('progressScreen.paywall.feature3') || '🎬 Exclusive video tutorials',
                         t('progressScreen.paywall.feature4') || '✅ Progress tracking',
                       ].map((feature, index) => (
-                        <Text key={index} fontSize={14} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                        <Text key={index} fontSize={14} color="$gray11">
                           {feature}
                         </Text>
                       ))}
@@ -635,11 +636,11 @@ export function FeaturedContent() {
                         <Text fontSize={28} fontWeight="bold" color="#00E6C3">
                           ${Math.max(paywallPath.price_usd || 1.00, 1.00)}
                         </Text>
-                        <Text fontSize={14} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                        <Text fontSize={14} color="$gray11">
                           {t('progressScreen.paywall.oneTime') || 'one-time unlock'}
                         </Text>
                       </XStack>
-                      <Text fontSize={12} color={colorScheme === 'dark' ? '#CCC' : '#666'} textAlign="center">
+                      <Text fontSize={12} color="$gray11" textAlign="center">
                         {t('progressScreen.paywall.lifetime') || 'Lifetime access to this learning path'}
                       </Text>
                     </YStack>
@@ -649,14 +650,14 @@ export function FeaturedContent() {
                       <TouchableOpacity
                         onPress={() => setShowPaywallModal(false)}
                         style={{
-                          backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                          backgroundColor: '$backgroundHover',
                           padding: 16,
                           borderRadius: 12,
                           flex: 1,
                           alignItems: 'center',
                         }}
                       >
-                        <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                        <Text color="$color">
                           {t('common.cancel') || 'Maybe Later'}
                         </Text>
                       </TouchableOpacity>
@@ -961,7 +962,7 @@ export function FeaturedContent() {
               <XStack justifyContent="space-between" alignItems="center">
                 <XStack alignItems="center" gap={8} flex={1}>
                   <MaterialIcons name="lock" size={24} color="#FF9500" />
-                  <Text fontSize={20} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'} flex={1}>
+                  <Text fontSize={20} fontWeight="bold" color="$color" flex={1}>
                     Locked Learning Path
                   </Text>
                 </XStack>
@@ -973,17 +974,17 @@ export function FeaturedContent() {
               {passwordPath && (
                 <>
                   <YStack gap={12}>
-                    <Text fontSize={24} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                    <Text fontSize={24} fontWeight="bold" color="$color">
                       {passwordPath.title[lang] || passwordPath.title.en}
                     </Text>
-                    <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                    <Text fontSize={16} color="$gray11">
                       This learning path is locked and requires a password to access.
                     </Text>
                   </YStack>
 
                   {passwordPath.lock_password && (
                     <YStack gap={12}>
-                      <Text color={colorScheme === 'dark' ? '#CCC' : '#666'} fontSize={16}>
+                      <Text color="$gray11" fontSize={16}>
                         Enter password to unlock:
                       </Text>
                       <View
@@ -1000,8 +1001,8 @@ export function FeaturedContent() {
                           onChangeText={setPathPasswordInput}
                           secureTextEntry
                           style={{
-                            backgroundColor: colorScheme === 'dark' ? '#222' : '#F5F5F5',
-                            color: colorScheme === 'dark' ? '#fff' : '#000',
+                            backgroundColor: '$backgroundHover',
+                            color: '$color',
                             padding: 16,
                             borderRadius: 8,
                             fontSize: 18,
@@ -1025,7 +1026,7 @@ export function FeaturedContent() {
                         alignItems: 'center',
                       }}
                     >
-                      <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                      <Text color="$color">
                         Cancel
                       </Text>
                     </TouchableOpacity>

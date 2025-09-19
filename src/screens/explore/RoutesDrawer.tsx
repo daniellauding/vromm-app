@@ -242,16 +242,16 @@ export const RoutesDrawer = React.forwardRef<View, {
           styles.bottomSheet,
           {
             height: screenHeight,
-            backgroundColor: theme.background.val,
+            backgroundColor: theme.background?.val || '#FFFFFF',
           },
           animatedStyle,
         ]}
       >
         <View style={styles.handleContainer}>
-          <View style={[styles.handle, { backgroundColor: theme.gray8.val }]} />
+          <View style={[styles.handle, { backgroundColor: theme.gray8?.val || '#E5E5E5' }]} />
           <XStack alignItems="center" gap="$2">
-            <Feather name="map" size={16} color={theme.color.val} />
-            <Text fontSize="$4" fontWeight="600" color={theme.color.val}>
+            <Feather name="map" size={16} color={theme.color?.val || '#000000'} />
+            <Text fontSize="$4" fontWeight="600" color={theme.color?.val || '#000000'}>
               {filteredRoutes.length}{' '}
               {filteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
             </Text>

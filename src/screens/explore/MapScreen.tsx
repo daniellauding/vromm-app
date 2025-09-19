@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Animated, Easing, useColorScheme } from 'react-native';
+import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Animated, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map } from '../../components/Map';
@@ -17,7 +17,7 @@ import { AppHeader } from '../../components/AppHeader';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
 import { useModal } from '../../contexts/ModalContext';
-import { Text } from 'tamagui';
+import { Text, useTheme } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { MapPresetSheetModal } from '../../components/MapPresetSheet';
 import { SelectedRoute } from './SelectedRoute';
@@ -43,19 +43,19 @@ type SearchResult = {
 };
 
 const DARK_THEME = {
-  background: '#1A1A1A',
-  bottomSheet: '#1F1F1F',
-  text: 'white',
-  secondaryText: '#AAAAAA',
-  borderColor: '#333',
-  handleColor: '#666',
-  iconColor: 'white',
-  cardBackground: '#2D3130',
+  background: '$background',
+  bottomSheet: '$backgroundHover',
+  text: '$color',
+  secondaryText: '$gray11',
+  borderColor: '$borderColor',
+  handleColor: '$gray8',
+  iconColor: '$color',
+  cardBackground: '$backgroundHover',
 };
 
 export function MapScreen({ route }: { route: { params?: { selectedLocation?: any; fromSearch?: boolean; ts?: number; selectedPresetId?: string; presetName?: string; fromHomeScreen?: boolean } } }) {
   const { t } = useTranslation();
-  const colorScheme = useColorScheme();
+  const theme = useTheme();
   const [routes, setRoutes] = useState<RouteType[]>([]);
   const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
@@ -946,7 +946,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
     return (
       <Screen edges={[]} padding={false} hideStatusBar>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#0000ff" />
+          <ActivityIndicator size="large" color="$primary" />
         </View>
       </Screen>
     );
@@ -1099,8 +1099,8 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           <TouchableOpacity
             style={{
               backgroundColor: locationLoading 
-                ? (colorScheme === 'dark' ? 'rgba(42, 42, 42, 0.9)' : 'rgba(245, 245, 245, 0.9)')
-                : (colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : '#F5F5F5'),
+                ? 'rgba(245, 245, 245, 0.9)'
+                : theme.background?.val || '#FFFFFF',
               borderRadius: 25,
               width: 50,
               height: 50,
@@ -1112,7 +1112,7 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
               shadowRadius: 4,
               elevation: 5,
               borderWidth: 1,
-              borderColor: colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : '#E0E0E0',
+              borderColor: theme.borderColor?.val || '#E5E5E5',
             }}
             onPress={handleLocateMe}
             disabled={locationLoading}
@@ -1131,14 +1131,14 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
                 <Feather 
                   name="loader" 
                   size={20} 
-                  color={colorScheme === 'dark' ? '#E0E0E0' : '#666666'} 
+                  color={theme.color?.val || '#000000'} 
                 />
               </Animated.View>
             ) : (
               <Feather 
                 name="navigation" 
                 size={20} 
-                color={colorScheme === 'dark' ? '#E0E0E0' : '#666666'} 
+                color={theme.color?.val || '#000000'} 
               />
             )}
           </TouchableOpacity>

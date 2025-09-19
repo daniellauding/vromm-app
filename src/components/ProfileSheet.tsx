@@ -5,7 +5,6 @@ import { TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
-import { useColorScheme } from 'react-native';
 import { ProfileScreen } from '../screens/ProfileScreen';
 
 const { height } = Dimensions.get('window');
@@ -17,11 +16,10 @@ interface ProfileSheetProps {
 
 export function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const iconColor = '$color';
 
-  // Theme colors - matching other sheets
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
+  // Theme colors - using theme tokens
+  const backgroundColor = '$background';
 
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;

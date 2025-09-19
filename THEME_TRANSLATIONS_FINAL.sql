@@ -50,7 +50,7 @@ INSERT INTO translations (id, key, language, value, platform, created_at, update
   gen_random_uuid(),
   'profile.theme.systemDescription',
   'en',
-  'Follow your device\'s theme setting',
+  'Follow your device''s theme setting',
   'mobile',
   NOW(),
   NOW()

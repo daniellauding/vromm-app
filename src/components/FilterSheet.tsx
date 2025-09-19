@@ -7,10 +7,9 @@ import {
   ScrollView,
   Animated,
   Platform,
-  useColorScheme,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Text, XStack, YStack, Slider, Button, SizableText, Input } from 'tamagui';
+import { Text, XStack, YStack, Slider, Button, SizableText, Input, useTheme } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
@@ -194,13 +193,13 @@ export function FilterSheet({
   const { trackFilterUsage } = useSmartFilters();
   const { collections: userCollections } = useUserCollections();
   const { showToast } = useToast();
-  const colorScheme = useColorScheme();
 
-  // Use proper theming instead of hardcoded dark theme
-  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
-  const textColor = colorScheme === 'dark' ? 'white' : '#11181C';
-  const borderColor = colorScheme === 'dark' ? '#333' : '#E5E5E5';
-  const handleColor = colorScheme === 'dark' ? '#666' : '#999';
+  // Use proper theming instead of hardcoded colors
+  const theme = useTheme();
+  const backgroundColor = theme.background?.val || '#FFFFFF';
+  const textColor = theme.color?.val || '#11181C';
+  const borderColor = theme.borderColor?.val || '#E5E5E5';
+  const handleColor = theme.gray8?.val || '#999';
 
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   

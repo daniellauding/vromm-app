@@ -2,14 +2,13 @@ import React, { useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
-  useColorScheme,
   TouchableOpacity,
   Dimensions,
   Animated,
   Platform,
   Alert,
 } from 'react-native';
-import { Text, XStack, YStack } from 'tamagui';
+import { Text, XStack, YStack, useTheme } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
@@ -71,11 +70,11 @@ const styles = StyleSheet.create({
 
 export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizard, onCreateEvent, onNavigateToMap }: ActionSheetProps) {
   const { t } = useTranslation();
-  const colorScheme = useColorScheme();
-  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
-  const textColor = colorScheme === 'dark' ? 'white' : 'black';
-  const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
-  const handleColor = colorScheme === 'dark' ? '#666' : '#CCC';
+  const theme = useTheme();
+  const backgroundColor = theme.background?.val || '#FFFFFF';
+  const textColor = theme.color?.val || '#000000';
+  const borderColor = theme.borderColor?.val || '#DDD';
+  const handleColor = theme.gray8?.val || '#CCC';
   const { showModal, hideModal } = useModal();
 
   // Animation values

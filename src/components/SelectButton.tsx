@@ -4,7 +4,7 @@ import { XStack, YStack } from 'tamagui';
 import { Text } from './Text';
 import { Feather } from '@expo/vector-icons';
 import { Check } from '@tamagui/lucide-icons';
-import { useThemeColor } from '../../hooks/useThemeColor';
+import { useTheme } from 'tamagui';
 
 const styles = StyleSheet.create({
   selectButton: {
@@ -33,15 +33,10 @@ export function SelectButton({
   variant = 'select',
   style,
 }: SelectButtonProps) {
-  const borderColor = useThemeColor(
-    { light: 'rgba(0, 0, 0, 0.1)', dark: 'rgba(255, 255, 255, 0.1)' },
-    'background',
-  );
+  const theme = useTheme();
+  const borderColor = theme.borderColor?.val || 'rgba(0, 0, 0, 0.1)';
   const focusBorderColor = '#34D399'; // tokens.color.emerald400 (exact FormField focus color)
-  const focusBackgroundColor = useThemeColor(
-    { light: '#EBEBEB', dark: '#282828' }, 
-    'background'
-  ); // FormField focus background (grayish color)
+  const focusBackgroundColor = theme.backgroundHover?.val || '#EBEBEB';
 
   const shouldShowFocus = variant === 'radio' ? isSelected : isActive;
 
@@ -71,7 +66,8 @@ interface RadioButtonProps {
 }
 
 export function RadioButton({ onPress, title, description, isSelected }: RadioButtonProps) {
-  const textColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
+  const theme = useTheme();
+  const textColor = theme.color?.val || '#11181C';
   const focusBorderColor = '#34D399'; // Same as border color
 
   return (
@@ -103,7 +99,8 @@ interface DropdownButtonProps {
 }
 
 export function DropdownButton({ onPress, value, placeholder, isActive = false }: DropdownButtonProps) {
-  const textColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
+  const theme = useTheme();
+  const textColor = theme.color?.val || '#11181C';
   const focusBorderColor = '#34D399'; // Same as border color
 
   return (

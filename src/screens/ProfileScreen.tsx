@@ -281,7 +281,6 @@ export function ProfileScreen() {
   const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'relationships' | 'billing'>('overview');
   
   const theme = useTheme();
-  const colorScheme = useColorScheme();
   const navigation = useNavigation<RootStackNavigationProp>();
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [supervisors, setSupervisors] = useState<
@@ -1214,8 +1213,19 @@ export function ProfileScreen() {
     });
   };
 
+  // Get system color scheme at component level (for theme settings display)
+  const systemColorScheme = useColorScheme();
+
   // Theme modal show/hide functions
   const showThemeSheet = () => {
+    console.log('🎨 Opening theme settings modal');
+    console.log('🎨 Current theme preference:', profile?.theme_preference || 'system');
+    console.log('🎨 Profile data:', { 
+      theme_preference: profile?.theme_preference,
+      hasProfile: !!profile 
+    });
+    console.log('🎨 System color scheme:', systemColorScheme);
+    console.log('🎨 Current effective theme:', profile?.theme_preference === 'system' ? systemColorScheme : profile?.theme_preference);
     setShowThemeModal(true);
     Animated.timing(themeBackdropOpacity, {
       toValue: 1,
@@ -2763,7 +2773,7 @@ export function ProfileScreen() {
                   size="sm"
                 >
                   <XStack alignItems="center" gap="$2">
-                    <Feather name="user" size={16} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                    <Feather name="user" size={16} color="$color" />
                     <Text>{t('profile.viewStudent') || 'View Student'}</Text>
                   </XStack>
                 </Button>
@@ -2778,7 +2788,7 @@ export function ProfileScreen() {
                 size="sm"
               >
                 <XStack alignItems="center" gap="$2">
-                  <Feather name="eye" size={16} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                  <Feather name="eye" size={16} color="$color" />
                   <Text>{t('profile.viewProfile') || 'View Profile'}</Text>
                 </XStack>
               </Button>
@@ -3928,7 +3938,7 @@ export function ProfileScreen() {
             <Pressable style={{ flex: 1, width: '100%' }} onPress={hideDeleteSheet} />
             <Animated.View
               style={{
-                backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : 'white',
+                backgroundColor: '$background',
                 borderRadius: 20,
                 padding: 20,
                 width: '90%',
@@ -4949,7 +4959,7 @@ export function ProfileScreen() {
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
-                      backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                      backgroundColor: '$backgroundHover',
                       borderRadius: 20,
                       paddingHorizontal: 12,
                       paddingVertical: 6,
@@ -4957,7 +4967,7 @@ export function ProfileScreen() {
                       marginBottom: 12,
                     }}
                   >
-                    <Text color={colorScheme === 'dark' ? '#CCCCCC' : '#666666'} size="sm">
+                    <Text color="$gray11" size="sm">
                       {t('profile.location.clearLocation') || 'Clear Location'}
                     </Text>
                   </TouchableOpacity>
@@ -5872,18 +5882,27 @@ export function ProfileScreen() {
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
                 gap="$3"
-                minHeight="30%"
+                minHeight="70%"
+                maxHeight="90%"
               >
                 <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
                   Theme Settings
                 </Text>
                 
-                <ScrollView style={{ flex: 1 }}>
-                  <YStack gap="$4">
+                <YStack gap="$4" flex={1}>
                     {/* System Default - First and Default Option */}
-                    <XStack justifyContent="space-between" alignItems="center">
+                    <XStack 
+                      justifyContent="space-between" 
+                      alignItems="center"
+                      backgroundColor={(!profile?.theme_preference || profile?.theme_preference === 'system') ? '$blue4' : undefined}
+                      padding="$3"
+                      borderRadius="$3"
+                    >
                       <YStack flex={1}>
-                        <Text color="$color" fontWeight="500">
+                        <Text 
+                          color="$color" 
+                          fontWeight={(!profile?.theme_preference || profile?.theme_preference === 'system') ? '700' : '500'}
+                        >
                           {t('profile.theme.system') || 'System Default'}
                         </Text>
                         <Text color="$gray11" fontSize="$3">
@@ -5894,19 +5913,39 @@ export function ProfileScreen() {
                         selected={!profile?.theme_preference || profile?.theme_preference === 'system'}
                         onPress={async () => {
                           try {
+                            console.log('🎨 Theme switching to: system');
                             await updateProfile({ theme_preference: 'system' });
-                            showToast('Theme updated to system default', 'success');
+                            console.log('🎨 Theme updated successfully to system');
+                            showToast({
+                              title: 'Theme Updated',
+                              message: 'Theme updated to system default',
+                              type: 'success'
+                            });
                             hideThemeSheet();
                           } catch (error) {
-                            showToast('Failed to update theme', 'error');
+                            console.error('🎨 Theme update failed:', error);
+                            showToast({
+  title: 'Error',
+  message: 'Failed to update theme',
+  type: 'error'
+});
                           }
                         }}
                       />
                     </XStack>
 
-                    <XStack justifyContent="space-between" alignItems="center">
+                    <XStack 
+                      justifyContent="space-between" 
+                      alignItems="center"
+                      backgroundColor={profile?.theme_preference === 'light' ? '$blue4' : undefined}
+                      padding="$3"
+                      borderRadius="$3"
+                    >
                       <YStack flex={1}>
-                        <Text color="$color" fontWeight="500">
+                        <Text 
+                          color="$color" 
+                          fontWeight={profile?.theme_preference === 'light' ? '700' : '500'}
+                        >
                           {t('profile.theme.light') || 'Light Mode'}
                         </Text>
                         <Text color="$gray11" fontSize="$3">
@@ -5917,19 +5956,42 @@ export function ProfileScreen() {
                         selected={profile?.theme_preference === 'light'}
                         onPress={async () => {
                           try {
+                            console.log('🎨 Theme switching to: light');
+                            console.log('🎨 Before update - profile theme:', profile?.theme_preference);
                             await updateProfile({ theme_preference: 'light' });
-                            showToast('Theme updated to light mode', 'success');
+                            console.log('🎨 After update - profile theme:', profile?.theme_preference);
+                            console.log('🎨 Theme updated successfully to light');
+                            console.log('🎨 Current color scheme:', systemColorScheme);
+                            showToast({
+  title: 'Theme Updated',
+  message: 'Theme updated to light mode',
+  type: 'success'
+});
                             hideThemeSheet();
                           } catch (error) {
-                            showToast('Failed to update theme', 'error');
+                            console.error('🎨 Theme update failed:', error);
+                            showToast({
+  title: 'Error',
+  message: 'Failed to update theme',
+  type: 'error'
+});
                           }
                         }}
                       />
                     </XStack>
 
-                    <XStack justifyContent="space-between" alignItems="center">
+                    <XStack 
+                      justifyContent="space-between" 
+                      alignItems="center"
+                      backgroundColor={profile?.theme_preference === 'dark' ? '$blue4' : undefined}
+                      padding="$3"
+                      borderRadius="$3"
+                    >
                       <YStack flex={1}>
-                        <Text color="$color" fontWeight="500">
+                        <Text 
+                          color="$color" 
+                          fontWeight={profile?.theme_preference === 'dark' ? '700' : '500'}
+                        >
                           {t('profile.theme.dark') || 'Dark Mode'}
                         </Text>
                         <Text color="$gray11" fontSize="$3">
@@ -5940,25 +6002,28 @@ export function ProfileScreen() {
                         selected={profile?.theme_preference === 'dark'}
                         onPress={async () => {
                           try {
+                            console.log('🎨 Theme switching to: dark');
                             await updateProfile({ theme_preference: 'dark' });
-                            showToast('Theme updated to dark mode', 'success');
+                            console.log('🎨 Theme updated successfully to dark');
+                            showToast({
+  title: 'Theme Updated',
+  message: 'Theme updated to dark mode',
+  type: 'success'
+});
                             hideThemeSheet();
                           } catch (error) {
-                            showToast('Failed to update theme', 'error');
+                            console.error('🎨 Theme update failed:', error);
+                            showToast({
+  title: 'Error',
+  message: 'Failed to update theme',
+  type: 'error'
+});
                           }
                         }}
                       />
                     </XStack>
 
-                    <Button
-                      variant="outlined"
-                      size="lg"
-                      onPress={hideThemeSheet}
-                    >
-                      Close
-                    </Button>
                   </YStack>
-                </ScrollView>
               </YStack>
             </Animated.View>
           </View>
@@ -5983,7 +6048,7 @@ export function ProfileScreen() {
             <Pressable style={{ flex: 1 }} onPress={hideKorkortsplanSheet} />
             <Animated.View
               style={{
-                backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : 'white',
+                backgroundColor: '$background',
                 borderTopLeftRadius: 20,
                 borderTopRightRadius: 20,
                 padding: 20,
@@ -6061,7 +6126,7 @@ export function ProfileScreen() {
                         placement={'top' as any}
                         backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
                         popoverStyle={{
-                          backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                          backgroundColor: '$background',
                           borderRadius: 12,
                           padding: 16,
                           shadowColor: '#000',
@@ -6071,12 +6136,12 @@ export function ProfileScreen() {
                           elevation: 12,
                           width: 380,
                           height: 480,
-                          borderWidth: colorScheme === 'dark' ? 1 : 0,
-                          borderColor: colorScheme === 'dark' ? '#333' : 'transparent',
+                          borderWidth: 1,
+                          borderColor: '$borderColor',
                         }}
                       >
                         <YStack alignItems="center" gap="$2" width="100%">
-                          <Text color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} size="lg" weight="semibold" textAlign="center">
+                          <Text color="$color" size="lg" weight="semibold" textAlign="center">
                             {t('onboarding.date.selectTarget') || 'Select Target Date'}
                           </Text>
                           
@@ -6084,7 +6149,7 @@ export function ProfileScreen() {
                           <View style={{
                             width: 350,
                             height: 380,
-                            backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                            backgroundColor: '$background',
                             borderRadius: 8,
                             overflow: 'visible',
                           }}>
@@ -6111,9 +6176,9 @@ export function ProfileScreen() {
                               style={{ 
                                 width: 350, 
                                 height: 380,
-                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                                backgroundColor: '$background',
                               }}
-                              themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
+                              themeVariant="dark"
                               accentColor="#00E6C3"
                               locale={language === 'sv' ? 'sv-SE' : 'en-US'}
                             />

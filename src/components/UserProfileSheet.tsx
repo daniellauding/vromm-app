@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Modal, Animated, Pressable, Easing, View, Dimensions, ScrollView, TouchableOpacity, RefreshControl, Alert, Image, Share } from 'react-native';
-import { YStack, XStack, Text, Card, Separator } from 'tamagui';
+import { YStack, XStack, Text, Card, Separator, useTheme } from 'tamagui';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
@@ -61,7 +61,8 @@ export function UserProfileSheet({
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
-  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const theme = useTheme();
+  const iconColor = theme.color?.val || '#000000';
 
   // Theme colors - matching OnboardingInteractive exactly
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');

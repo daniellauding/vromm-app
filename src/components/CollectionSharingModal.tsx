@@ -10,7 +10,7 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { Text, XStack, YStack, Input } from 'tamagui';
+import { Text, XStack, YStack, Input, useTheme } from 'tamagui';
 import { Button } from './Button';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -55,7 +55,7 @@ export function CollectionSharingModal({
   const { getEffectiveUserId } = useStudentSwitch();
   const { showToast } = useToast();
   const { hideModal } = useModal();
-  const colorScheme = useColorScheme();
+  const theme = useTheme();
 
   const [sharingSearchQuery, setSharingSearchQuery] = useState('');
   const [sharingSearchResults, setSharingSearchResults] = useState<any[]>([]);
@@ -715,7 +715,7 @@ export function CollectionSharingModal({
                 left: 0,
                 right: 0,
                 height: height,
-                backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#fff',
+                backgroundColor: theme.background?.val || '#fff',
                 borderTopLeftRadius: 16,
                 borderTopRightRadius: 16,
               },
@@ -738,7 +738,7 @@ export function CollectionSharingModal({
                   width: 40,
                   height: 4,
                   borderRadius: 2,
-                  backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC',
+                  backgroundColor: theme.gray8?.val || '#CCC',
                 }} />
               </View>
 
@@ -751,12 +751,12 @@ export function CollectionSharingModal({
                   onPress={handleClose}
                   style={{
                     padding: 8,
-                    backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                    backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
                     borderRadius: 6,
                   }}
                   activeOpacity={0.7}
                 >
-                  <Feather name="x" size={20} color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} />
+                  <Feather name="x" size={20} color={theme.color?.val || '#11181C'} />
           </TouchableOpacity>
         </XStack>
 
@@ -989,14 +989,14 @@ export function CollectionSharingModal({
                                 paddingHorizontal: 16,
                                 paddingVertical: 8,
                                 borderRadius: 18,
-                                backgroundColor: currentRole === 'viewer' ? (colorScheme === 'dark' ? '#00E6C3' : '#00D4AA') : 'transparent',
+                                backgroundColor: currentRole === 'viewer' ? (theme.primary?.val || '#00E6C3') : 'transparent',
                                 minWidth: 80,
                                 alignItems: 'center',
                               }}
                               activeOpacity={0.7}
                             >
                               <Text 
-                                color={currentRole === 'viewer' ? (colorScheme === 'dark' ? '#000000' : '#FFFFFF') : (colorScheme === 'dark' ? '#ECEDEE' : '#666666')} 
+                                color={currentRole === 'viewer' ? '#000000' : (theme.color?.val || '#666666')} 
                                 fontWeight={currentRole === 'viewer' ? '600' : '500'}
                                 fontSize={14}
                               >
@@ -1010,14 +1010,14 @@ export function CollectionSharingModal({
                                 paddingHorizontal: 16,
                                 paddingVertical: 8,
                                 borderRadius: 18,
-                                backgroundColor: currentRole === 'editor' ? (colorScheme === 'dark' ? '#00E6C3' : '#00D4AA') : 'transparent',
+                                backgroundColor: currentRole === 'editor' ? (theme.primary?.val || '#00E6C3') : 'transparent',
                                 minWidth: 80,
                                 alignItems: 'center',
                               }}
                               activeOpacity={0.7}
                             >
                               <Text 
-                                color={currentRole === 'editor' ? (colorScheme === 'dark' ? '#000000' : '#FFFFFF') : (colorScheme === 'dark' ? '#ECEDEE' : '#666666')} 
+                                color={currentRole === 'editor' ? '#000000' : (theme.color?.val || '#666666')} 
                                 fontWeight={currentRole === 'editor' ? '600' : '500'}
                                 fontSize={14}
                               >
@@ -1033,7 +1033,7 @@ export function CollectionSharingModal({
                               paddingHorizontal: 16,
                               paddingVertical: 8,
                               borderRadius: 20,
-                              backgroundColor: colorScheme === 'dark' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+                              backgroundColor: 'rgba(239, 68, 68, 0.1)',
                               borderWidth: 1,
                               borderColor: '#EF4444',
                               alignItems: 'center',
@@ -1161,16 +1161,16 @@ export function CollectionSharingModal({
               placeholder={t('routeCollections.messagePlaceholder') || 'Add a personal message...'}
               multiline
               style={{
-                backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#fff',
-                color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
-                borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                backgroundColor: theme.background?.val || '#fff',
+                color: theme.color?.val || '#11181C',
+                borderColor: theme.borderColor?.val || 'rgba(0, 0, 0, 0.1)',
                 borderWidth: 1,
                 borderRadius: 8,
                 padding: 12,
                 minHeight: 60,
                 textAlignVertical: 'top',
               }}
-              placeholderTextColor={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
+              placeholderTextColor={theme.gray10?.val || 'rgba(0, 0, 0, 0.3)'}
             />
           </YStack>
 

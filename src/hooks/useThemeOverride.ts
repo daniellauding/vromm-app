@@ -23,6 +23,7 @@ export function useThemePreference() {
   const userPreference = (profile?.theme_preference as ThemePreference) || 'system';
   
   // Determine the effective theme that should be applied
+  // For manual preferences, always use the user's choice regardless of system changes
   const effectiveTheme = userPreference === 'system' ? systemColorScheme : userPreference;
   
   // Function to update user's theme preference

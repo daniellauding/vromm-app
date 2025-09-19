@@ -44,9 +44,9 @@ const colors = {
 
   // Primary colors
   indigo400: '#818CF8',
-  indigo500: '#6366F1',
-  indigo600: '#4F46E5',
-  indigo700: '#4338CA',
+  indigo500: '#21e5c3',
+  indigo600: '#1BC4A8',
+  indigo700: '#16A085',
 
   // Secondary colors
   emerald400: '#34D399',
@@ -156,15 +156,41 @@ export const tokens = createTokens({
   },
 });
 
-// Export theme colors for dark mode
-export const darkColors = {
-  primary: colors.indigo500,
-  primaryHover: colors.indigo400,
-  primaryPress: colors.indigo600,
+// Export theme colors for light mode
+export const lightColors = {
+  primary: '#21e5c3',
+  primaryHover: '#1BC4A8',
+  primaryPress: '#16A085',
   secondary: colors.emerald400,
   secondaryHover: colors.emerald500,
   secondaryPress: colors.emerald600,
-  background: '#1C1C1C',
+  background: colors.white,
+  backgroundHover: colors.gray100,
+  backgroundPress: colors.gray200,
+  backgroundFocus: colors.gray100,
+  text: colors.gray900,
+  textMuted: colors.gray600,
+  textSecondary: colors.gray700,
+  inputBackground: colors.white,
+  inputBorder: colors.gray300,
+  inputText: colors.gray900,
+  border: colors.gray300,
+  borderHover: colors.gray400,
+  error: colors.red500,
+  success: colors.emerald500,
+  warning: colors.amber500,
+  shadowColor: colors.gray300,
+};
+
+// Export theme colors for dark mode
+export const darkColors = {
+  primary: '#21e5c3',
+  primaryHover: '#1BC4A8',
+  primaryPress: '#16A085',
+  secondary: colors.emerald400,
+  secondaryHover: colors.emerald500,
+  secondaryPress: colors.emerald600,
+  background: '#151515',
   backgroundHover: '#242424',
   backgroundPress: '#2A2A2A',
   backgroundFocus: '#242424',

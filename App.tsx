@@ -1,7 +1,8 @@
 import { TamaguiProvider, Theme } from 'tamagui';
 
-import config from './tamagui.config';
+import { config } from './src/theme/components';
 import { AuthProvider } from './src/context/AuthContext';
+import { ThemeProvider } from './src/components/ThemeProvider';
 import { LocationProvider } from './src/context/LocationContext';
 import { StudentSwitchProvider } from './src/context/StudentSwitchContext';
 import { TranslationProvider } from './src/contexts/TranslationContext';
@@ -118,9 +119,9 @@ export default function App() {
               config={config}
               defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}
             >
-              <Theme>
-                <TranslationProvider>
-                  <AuthProvider>
+              <TranslationProvider>
+                <AuthProvider>
+                  <ThemeProvider>
                     <StudentSwitchProvider>
                       <LocationProvider>
                         <CreateRouteProvider>
@@ -138,9 +139,9 @@ export default function App() {
                         </CreateRouteProvider>
                       </LocationProvider>
                     </StudentSwitchProvider>
-                  </AuthProvider>
-                </TranslationProvider>
-              </Theme>
+                  </ThemeProvider>
+                </AuthProvider>
+              </TranslationProvider>
             </TamaguiProvider>
           </StripeProvider>
         </SafeAreaProvider>

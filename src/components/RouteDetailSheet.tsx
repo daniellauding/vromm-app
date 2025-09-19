@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { Modal, Animated, Pressable, Easing, View, Dimensions, ScrollView, TouchableOpacity, RefreshControl, Alert, Image, Share, Linking, Platform } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
-import { YStack, XStack, Text, Card, Button, Progress } from 'tamagui';
+import { YStack, XStack, Text, Card, Button, Progress, useTheme } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
 import { useAuth } from '../context/AuthContext';
@@ -165,7 +165,8 @@ export function RouteDetailSheet({
   const colorScheme = useColorScheme();
   const { showModal } = useModal();
   const { showToast } = useToast();
-  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const theme = useTheme();
+  const iconColor = theme.color?.val || '#000000';
 
   // Theme colors - matching OnboardingInteractive exactly
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
@@ -1387,7 +1388,7 @@ export function RouteDetailSheet({
                       width: 40,
                       height: 4,
                       borderRadius: 2,
-                      backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC',
+                      backgroundColor: theme.gray8?.val || '#CCC',
                     }} />
                   </View>
 
@@ -1685,7 +1686,7 @@ export function RouteDetailSheet({
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 gap: 8,
-                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
                                 paddingHorizontal: 12,
                                 paddingVertical: 8,
                                 borderRadius: 8,
@@ -2029,7 +2030,7 @@ export function RouteDetailSheet({
                               }}
                               style={{
                                 padding: 16,
-                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
                                 borderRadius: 12,
                                 flexDirection: 'row',
                                 alignItems: 'center',
@@ -2049,7 +2050,7 @@ export function RouteDetailSheet({
                               }}
                               style={{
                                 padding: 16,
-                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
                                 borderRadius: 12,
                                 flexDirection: 'row',
                                 alignItems: 'center',
@@ -2181,7 +2182,7 @@ export function RouteDetailSheet({
                               }}
                               style={{
                                 padding: 16,
-                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
                                 borderRadius: 12,
                                 flexDirection: 'row',
                                 alignItems: 'center',

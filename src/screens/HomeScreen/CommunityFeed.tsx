@@ -138,25 +138,25 @@ const ActivityRouteCreated = ({
   return (
     <TouchableOpacity onPress={navigateToRouteDetail}>
       <YStack gap={4}>
-        <Text fontSize={13} fontWeight="500" color="#FFFFFF">
+        <Text fontSize={13} fontWeight="500" color="$color">
           {activity.data.name}
         </Text>
         <XStack gap={12}>
           <XStack alignItems="center" gap={4}>
-            <Feather name="bar-chart" size={12} color="#9CA3AF" />
-            <Text fontSize={11} color="#9CA3AF">
+            <Feather name="bar-chart" size={12} color="$gray11" />
+            <Text fontSize={11} color="$gray11">
               {activity.data.difficulty}
             </Text>
           </XStack>
           <XStack alignItems="center" gap={4}>
-            <Feather name="map-pin" size={12} color="#9CA3AF" />
-            <Text fontSize={11} color="#9CA3AF">
+            <Feather name="map-pin" size={12} color="$gray11" />
+            <Text fontSize={11} color="$gray11">
               {activity.data.spot_type}
             </Text>
           </XStack>
         </XStack>
         {activity.data.description && (
-          <Text fontSize={11} color="#CCCCCC" numberOfLines={2}>
+          <Text fontSize={11} color="$gray10" numberOfLines={2}>
             {activity.data.description}
           </Text>
         )}
@@ -175,19 +175,19 @@ const ActivityEventCreated = ({ activity }: { activity: ActivityItem }) => {
   return (
     <TouchableOpacity onPress={navigateToEventDetail}>
       <YStack gap={4}>
-        <Text fontSize={13} fontWeight="500" color="#FFFFFF">
+        <Text fontSize={13} fontWeight="500" color="$color">
           {activity.data.title}
         </Text>
         <XStack alignItems="center" gap={4}>
-          <Feather name="calendar" size={12} color="#9CA3AF" />
-          <Text fontSize={11} color="#9CA3AF">
+          <Feather name="calendar" size={12} color="$gray11" />
+          <Text fontSize={11} color="$gray11">
             {activity.data.event_date
               ? new Date(activity.data.event_date).toLocaleDateString()
               : 'No date set'}
           </Text>
         </XStack>
         {activity.data.description && (
-          <Text fontSize={11} color="#CCCCCC" numberOfLines={2}>
+          <Text fontSize={11} color="$gray10" numberOfLines={2}>
             {activity.data.description}
           </Text>
         )}
@@ -211,17 +211,17 @@ const ActivityExerciseCompleted = ({ activity }: { activity: ActivityItem }) => 
   return (
     <TouchableOpacity onPress={navigateToRouteExercise}>
       <YStack gap={4}>
-        <Text fontSize={13} fontWeight="500" color="#FFFFFF">
+        <Text fontSize={13} fontWeight="500" color="$color">
           {activity.data.exercise.title?.en || activity.data.exercise.title?.sv || 'Exercise'}
         </Text>
         <XStack alignItems="center" gap={4}>
-          <Feather name="check-circle" size={12} color="#10B981" />
-          <Text fontSize={11} color="#10B981">
+          <Feather name="check-circle" size={12} color="$green9" />
+          <Text fontSize={11} color="$green9">
             Completed
           </Text>
         </XStack>
         {activity.data.exercise.description && (
-          <Text fontSize={11} color="#CCCCCC" numberOfLines={2}>
+          <Text fontSize={11} color="$gray10" numberOfLines={2}>
             {activity.data.exercise.description?.en || activity.data.exercise.description?.sv}
           </Text>
         )}
@@ -317,18 +317,18 @@ const ActivityUserInfo = ({
         )}
 
         <YStack flex={1}>
-          <Text fontSize={14} fontWeight="600" color="#FFFFFF">
+          <Text fontSize={14} fontWeight="600" color="$color">
             {activity.user.full_name}
           </Text>
           <XStack alignItems="center" gap={4}>
-            <Feather name={activityIcon} size={12} color="#00FFBC" />
-            <Text fontSize={12} color="#9CA3AF">
+            <Feather name={activityIcon} size={12} color="$primary" />
+            <Text fontSize={12} color="$gray11">
               {activitText}
             </Text>
           </XStack>
         </YStack>
 
-        <Text fontSize={10} color="#6B7280">
+        <Text fontSize={10} color="$gray10">
           {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
         </Text>
       </XStack>
@@ -725,7 +725,7 @@ export const CommunityFeed = ({ onOpenFeedSheet, onUserPress, onRoutePress }: Co
             borderColor="rgba(0, 230, 195, 0.3)"
           >
             <YStack alignItems="center" gap="$3">
-              <Feather name="activity" size={32} color="#00E6C3" />
+              <Feather name="activity" size={32} color="$primary" />
               <Text size="xl" weight="bold" textAlign="center">
                 Welcome to the Community!
               </Text>

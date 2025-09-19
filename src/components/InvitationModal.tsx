@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Pressable, useColorScheme } from 'react-native';
-import { YStack, XStack, Heading } from 'tamagui';
+import { Modal, Pressable } from 'react-native';
+import { YStack, XStack, Heading, useTheme } from 'tamagui';
 import { Button } from './Button';
 import { Text } from './Text';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -33,11 +33,11 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
   const { t } = useTranslation();
   const { user } = useAuth();
   const { showToast } = useToast();
-  const colorScheme = useColorScheme();
+  const theme = useTheme();
   
-  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
-  const textColor = colorScheme === 'dark' ? 'white' : 'black';
-  const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
+  const backgroundColor = theme.background?.val || '#FFFFFF';
+  const textColor = theme.color?.val || '#000000';
+  const borderColor = theme.borderColor?.val || '#DDD';
   
   const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(false);

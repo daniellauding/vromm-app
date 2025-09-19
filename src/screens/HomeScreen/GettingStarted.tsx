@@ -1241,7 +1241,7 @@ export const GettingStarted = () => {
             <Pressable style={{ flex: 1 }} onPress={hideKorkortsplanSheet} />
             <Animated.View
               style={{
-                backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : 'white',
+                backgroundColor: '$background',
                 borderTopLeftRadius: 20,
                 borderTopRightRadius: 20,
                 padding: 20,
@@ -1319,7 +1319,7 @@ export const GettingStarted = () => {
                         placement={'top' as any}
                         backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
                         popoverStyle={{
-                          backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                          backgroundColor: '$background',
                           borderRadius: 12,
                           padding: 16,
                           shadowColor: '#000',
@@ -1342,7 +1342,7 @@ export const GettingStarted = () => {
                           <View style={{
                             width: 350,
                             height: 380,
-                            backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                            backgroundColor: '$background',
                             borderRadius: 8,
                             overflow: 'visible',
                           }}>
@@ -1369,7 +1369,7 @@ export const GettingStarted = () => {
                               style={{ 
                                 width: 350, 
                                 height: 380,
-                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                                backgroundColor: '$background',
                               }}
                               themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
                               accentColor="#00E6C3"
@@ -1846,7 +1846,7 @@ export const GettingStarted = () => {
                     placeholder="Add a personal message..."
                     multiline
                     style={{
-                      backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#fff',
+                      backgroundColor: '$background',
                       color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
                       borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                       borderWidth: 1,
@@ -2008,7 +2008,7 @@ export const GettingStarted = () => {
                     placeholder={t('onboarding.relationships.messagePlaceholder') || 'Add a message explaining why (optional)...'}
                     multiline
                     style={{
-                      backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#fff',
+                      backgroundColor: '$background',
                       color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
                       borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                       borderWidth: 1,

@@ -141,7 +141,7 @@ const MenuStackNavigator = () => (
 const HamburgerDrawer = ({
   isOpen,
   onClose,
-  colorScheme,
+  theme,
   navigation,
   onNavigateHome,
   onBeginNavigate,
@@ -159,7 +159,7 @@ const HamburgerDrawer = ({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  colorScheme: ColorSchemeName;
+  theme: any;
   navigation: any;
   onNavigateHome: (screen: string, params?: any) => void;
   onBeginNavigate: () => void;
@@ -417,7 +417,7 @@ const HamburgerDrawer = ({
           left: slideAnim,
           bottom: 0,
           width: DRAWER_WIDTH,
-          backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+          backgroundColor: theme.background?.val || '#FFFFFF',
           shadowColor: '#000',
           shadowOffset: { width: -2, height: 0 },
           shadowOpacity: 0.3,
@@ -450,7 +450,7 @@ const HamburgerDrawer = ({
                         width: 48,
                         height: 48,
                         borderRadius: 24,
-                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#EEEEEE',
+                        backgroundColor: theme.backgroundHover?.val || '#EEEEEE',
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
@@ -458,7 +458,7 @@ const HamburgerDrawer = ({
                       <Feather
                         name="user"
                         size={22}
-                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                        color={theme.color?.val || '#000000'}
                       />
                     </View>
                   )}
@@ -485,9 +485,7 @@ const HamburgerDrawer = ({
                   activeMenuScreen &&
                   (item as any).target &&
                   activeMenuScreen === (item as any).target
-                    ? colorScheme === 'dark'
-                      ? 'rgba(255,255,255,0.08)'
-                      : 'rgba(105,227,196,0.12)'
+                    ? 'rgba(105,227,196,0.12)'
                     : undefined
                 }
               >
@@ -504,7 +502,7 @@ const HamburgerDrawer = ({
                   <XStack alignItems="center" gap="$3" justifyContent="space-between">
                     <XStack alignItems="center" gap="$3">
                       <Feather
-                        name={item.icon as any}
+                        name={(item as any).icon as any}
                         size={20}
                         color={
                           (item as any).danger
@@ -513,9 +511,7 @@ const HamburgerDrawer = ({
                                 (item as any).target &&
                                 activeMenuScreen === (item as any).target
                               ? '#69e3c4'
-                              : colorScheme === 'dark'
-                                ? '#FFFFFF'
-                                : '#000000'
+                              : theme.color?.val || '#000000'
                         }
                       />
                       <Text
@@ -575,7 +571,6 @@ const HamburgerDrawer = ({
 const CustomTabBarButton = (props: BottomTabBarButtonProps & { isHighlighted?: boolean; tourTargetId?: string }) => {
   const { accessibilityState, children, onPress, style, isHighlighted, tourTargetId } = props;
   const isSelected = accessibilityState?.selected;
-  const colorScheme = useColorScheme();
   
   // Register this button for tour targeting (HomeScreen tours only)  
   const tourRef = tourTargetId ? useTourTarget(tourTargetId) : null;
@@ -603,8 +598,7 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps & { isHighlighted?: b
             borderRadius: 12,
           },
           isSelected && {
-            backgroundColor:
-              colorScheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(105,227,196,0.15)',
+            backgroundColor: 'rgba(105,227,196,0.15)',
           },
           // ✅ Simplified tour highlighting - let TourOverlay handle main highlight
           isHighlighted && {
@@ -629,7 +623,6 @@ const NoopScreen = () => null;
 
 export function TabNavigator() {
   const { t } = useTranslation();
-  const colorScheme = useColorScheme();
   const theme = useTheme();
   const { showModal } = useModal();
   const { language, setLanguage } = useAppTranslation();
@@ -658,7 +651,7 @@ export function TabNavigator() {
   const [showBuyCoffee, setShowBuyCoffee] = useState(false);
   const [showBetaWebView, setShowBetaWebView] = useState(false);
   const [showAboutWebView, setShowAboutWebView] = useState(false);
-  // const [showLanguageSheet, setShowLanguageSheet] = useState(false);
+  const [showLanguageSheet, setShowLanguageSheet] = useState(false);
   const [isNavigatingFromDrawer, setIsNavigatingFromDrawer] = useState(false);
   const [isTabResetting, setIsTabResetting] = useState(false);
   const [activeMenuScreen, setActiveMenuScreen] = useState<string | null>(null);
@@ -1123,7 +1116,7 @@ export function TabNavigator() {
       // Clean up global handler
       delete (global as any).navigateToCreateRoute;
     };
-  }, [colorScheme]); // Removed handleCreateRoute dependency to prevent recreating
+  }, []); // Removed handleCreateRoute dependency to prevent recreating
 
   // Navigation listener to hide tab bar on specific screens and track navigation
   useEffect(() => {
@@ -1221,9 +1214,9 @@ export function TabNavigator() {
     paddingBottom: BOTTOM_INSET,
     paddingLeft: 20,
     paddingRight: 20,
-    backgroundColor: colorScheme === 'dark' ? theme.background?.val || '#1A1A1A' : '#FFFFFF',
+    backgroundColor: theme.background?.val || '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: colorScheme === 'dark' ? theme.borderColor?.val || '#333333' : '#E5E5E5',
+    borderTopColor: theme.borderColor?.val || '#E5E5E5',
     borderTopRightRadius: 16,
     borderTopLeftRadius: 16,
     elevation: 8,
@@ -1247,8 +1240,8 @@ export function TabNavigator() {
       alignSelf: 'center',
       width: '100%',
     },
-    tabBarActiveTintColor: '#69e3c4',
-    tabBarInactiveTintColor: colorScheme === 'dark' ? '#8E8E93' : '#6B7280', // Better contrast for light mode
+    tabBarActiveTintColor: theme.primary?.val || '#69e3c4',
+    tabBarInactiveTintColor: theme.colorHover?.val || '#6B7280',
     tabBarButton: (props: BottomTabBarButtonProps) => <CustomTabBarButton {...props} isHighlighted={false} tourTargetId="MenuTab" />,
   };
 
@@ -1364,28 +1357,28 @@ export function TabNavigator() {
                         width: 56,
                         height: 56,
                         borderRadius: 28,
-                        backgroundColor: colorScheme === 'dark' ? '#1A3D3D' : '#69e3c4',
+                        backgroundColor: theme.primary?.val || '#69e3c4',
                         justifyContent: 'center',
                         alignItems: 'center',
                         elevation: 8,
-                        shadowColor: colorScheme === 'dark' ? '#000' : '#333',
+                        shadowColor: '#333',
                         shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.2,
+                        shadowOpacity: 0.2,
                         shadowRadius: 6,
                         marginTop: -12, // raise slightly to feel floating
-                        borderWidth: colorScheme === 'light' ? 2 : 0,
-                        borderColor: colorScheme === 'light' ? '#FFFFFF' : 'transparent',
+                        borderWidth: 2,
+                        borderColor: theme.background?.val || '#FFFFFF',
                       },
                       // ✅ Simplified tour highlighting - let TourOverlay handle main highlight
                       isHighlighted && {
-                        backgroundColor: '#00E6C3',
+                        backgroundColor: theme.primaryHover?.val || '#00E6C3',
                       },
                     ]}
                   >
                     <Feather
                       name="plus"
                       size={24}
-                      color={isHighlighted ? '#000' : (colorScheme === 'dark' ? 'white' : '#1A3D3D')}
+                      color={isHighlighted ? '#000' : '#1A3D3D'}
                     />
                   </TouchableOpacity>
                 </View>
@@ -1479,15 +1472,13 @@ export function TabNavigator() {
                     <Feather
                       name="menu"
                       size={22}
-                      color={
+                        color={
                         isHighlighted 
-                          ? '#00E6C3'
+                          ? (theme.primaryHover?.val || '#00E6C3')
                           : // Consider the menu tab active when drawer is open or a menu screen is active
                           isDrawerOpen || !!activeMenuScreen
-                            ? '#69e3c4'
-                            : colorScheme === 'dark'
-                              ? '#FFFFFF'
-                              : '#000000'
+                            ? (theme.primary?.val || '#69e3c4')
+                            : theme.color?.val || '#000000'
                       }
                     />
 
@@ -1505,7 +1496,7 @@ export function TabNavigator() {
                           justifyContent: 'center',
                           alignItems: 'center',
                           borderWidth: 2,
-                          borderColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                          borderColor: theme.background?.val || '#FFFFFF',
                         }}
                       >
                         <Text fontSize={10} fontWeight="bold" color="#FFFFFF" textAlign="center">
@@ -1540,7 +1531,7 @@ export function TabNavigator() {
           setTotalBadgeCount(0);
           setIsDrawerOpen(false);
         }}
-        colorScheme={colorScheme}
+        theme={theme}
         navigation={navigation}
         onNavigateHome={navigateHomeStack}
         onBeginNavigate={() => setIsNavigatingFromDrawer(true)}
@@ -1549,7 +1540,7 @@ export function TabNavigator() {
         onOpenBetaWebView={() => setShowBetaWebView(true)}
         onOpenBuyCoffee={() => setShowBuyCoffee(true)}
         onOpenAbout={() => setShowAboutWebView(true)}
-        // onOpenLanguage={() => setShowLanguageSheet(true)}
+        onOpenLanguage={() => setShowLanguageSheet(true)}
         onStartTour={handleStartTourForCurrentScreen}
         unreadMessageCount={unreadMessageCount}
         unreadNotificationCount={unreadNotificationCount}
@@ -1579,7 +1570,7 @@ export function TabNavigator() {
       />
 
       {/* Language bottom sheet matching Profile screen style */}
-      {/* <Modal
+      <Modal
         visible={showLanguageSheet}
         transparent
         animationType="slide"
@@ -1594,7 +1585,7 @@ export function TabNavigator() {
             bottom={0}
             left={0}
             right={0}
-            backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
+            backgroundColor={theme.background?.val || '#FFFFFF'}
             padding="$4"
             borderTopLeftRadius="$4"
             borderTopRightRadius="$4"
@@ -1630,7 +1621,7 @@ export function TabNavigator() {
             >
               <View
                 style={{
-                  backgroundColor: colorScheme === 'dark' ? '#0a3d3d' : '#0C5F5F',
+                  backgroundColor: theme.primary?.val || '#0C5F5F',
                   borderRadius: 12,
                   paddingVertical: 16,
                   alignItems: 'center',
@@ -1643,7 +1634,7 @@ export function TabNavigator() {
             </TouchableOpacity>
           </YStack>
         </Pressable>
-      </Modal> */}
+      </Modal>
 
       {/* Lightweight navigation spinner overlay when launching drawer destinations or tab resets */}
       {(isNavigatingFromDrawer || isTabResetting) && (
@@ -1660,7 +1651,7 @@ export function TabNavigator() {
           }}
           pointerEvents="none"
         >
-          <ActivityIndicator size="small" color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+          <ActivityIndicator size="small" color={theme.color?.val || '#000000'} />
         </View>
       )}
 
