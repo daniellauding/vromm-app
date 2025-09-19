@@ -188,6 +188,11 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     hasPathPayment,
   } = useUnlock();
   const colorScheme = useColorScheme();
+  
+  // Use activeUserId from navigation if provided, otherwise check StudentSwitchContext, then fall back to authUser
+  // This matches the exact logic from ProgressScreen.tsx for instructor support
+  const effectiveUserId: string | null = activeUserId || activeStudentId || authUser?.id || null;
+  
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [activePath, setActivePath] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -271,10 +276,6 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     type: 'all',
   });
 
-  // Use activeUserId from navigation if provided, otherwise check StudentSwitchContext, then fall back to authUser
-  // This matches the exact logic from ProgressScreen.tsx for instructor support
-  const effectiveUserId: string | null = activeUserId || activeStudentId || authUser?.id || null;
-  
   // Load shared unlock data when user changes
   useEffect(() => {
     if (effectiveUserId) {
@@ -593,45 +594,45 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       const matchesVehicleType =
         categoryFilters.vehicle_type === 'all' ||
         !path.vehicle_type ||
-        path.vehicle_type === categoryFilters.vehicle_type;
+        path.vehicle_type?.toLowerCase() === categoryFilters.vehicle_type?.toLowerCase();
         
       const matchesTransmission =
         categoryFilters.transmission_type === 'all' ||
         !path.transmission_type ||
-        path.transmission_type === categoryFilters.transmission_type;
+        path.transmission_type?.toLowerCase() === categoryFilters.transmission_type?.toLowerCase();
         
       const matchesLicense =
         categoryFilters.license_type === 'all' ||
         !path.license_type ||
-        path.license_type === categoryFilters.license_type;
+        path.license_type?.toLowerCase() === categoryFilters.license_type?.toLowerCase();
         
       const matchesExperience =
         categoryFilters.experience_level === 'all' ||
         !path.experience_level ||
-        path.experience_level === categoryFilters.experience_level;
+        path.experience_level?.toLowerCase() === categoryFilters.experience_level?.toLowerCase();
         
       const matchesPurpose =
         categoryFilters.purpose === 'all' ||
         !path.purpose ||
-        path.purpose === categoryFilters.purpose;
+        path.purpose?.toLowerCase() === categoryFilters.purpose?.toLowerCase();
         
       const matchesUserProfile =
         categoryFilters.user_profile === 'all' ||
         !path.user_profile ||
-        path.user_profile === categoryFilters.user_profile ||
+        path.user_profile?.toLowerCase() === categoryFilters.user_profile?.toLowerCase() ||
         path.user_profile === 'All'; // "All" user profile matches any filter
         
       const matchesPlatform =
         categoryFilters.platform === 'all' ||
         !path.platform ||
         path.platform === 'both' || // "both" platform matches any filter
-        path.platform === categoryFilters.platform ||
+        path.platform?.toLowerCase() === categoryFilters.platform?.toLowerCase() ||
         path.platform === 'mobile'; // Always show mobile content
         
       const matchesType =
         categoryFilters.type === 'all' || 
         !path.type || 
-        path.type === categoryFilters.type;
+        path.type?.toLowerCase() === categoryFilters.type?.toLowerCase();
 
       return (
         matchesVehicleType &&
@@ -1243,7 +1244,9 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                               });
                               
                               // Refresh the screen to show unlocked content
-                              await loadUserPayments();
+                              if (effectiveUserId) {
+                                await loadUserPayments(effectiveUserId);
+                              }
                             } else {
                               console.error('❌ [ProgressSection] Error saving payment record:', error);
                             }

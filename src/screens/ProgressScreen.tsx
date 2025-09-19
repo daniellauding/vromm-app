@@ -2022,44 +2022,32 @@ export function ProgressScreen() {
       const matchesVehicleType =
         categoryFilters.vehicle_type === 'all' ||
         !path.vehicle_type ||
-        path.vehicle_type === categoryFilters.vehicle_type ||
-        // Handle data variations
-        (categoryFilters.vehicle_type === 'passenger_car' && path.vehicle_type === 'Car') ||
-        (categoryFilters.vehicle_type === 'Car' && path.vehicle_type === 'passenger_car');
+        path.vehicle_type?.toLowerCase() === categoryFilters.vehicle_type?.toLowerCase();
         
       const matchesTransmission =
         categoryFilters.transmission_type === 'all' ||
         !path.transmission_type ||
-        path.transmission_type === categoryFilters.transmission_type ||
-        // Handle data variations
-        (categoryFilters.transmission_type === 'manual' && path.transmission_type === 'Manual') ||
-        (categoryFilters.transmission_type === 'Manual' && path.transmission_type === 'manual');
+        path.transmission_type?.toLowerCase() === categoryFilters.transmission_type?.toLowerCase();
         
       const matchesLicense =
         categoryFilters.license_type === 'all' ||
         !path.license_type ||
-        path.license_type === categoryFilters.license_type ||
-        // Handle data variations
-        (categoryFilters.license_type === 'b' && path.license_type === 'Standard Driving License') ||
-        (categoryFilters.license_type === 'Standard Driving License' && path.license_type === 'b');
+        path.license_type?.toLowerCase() === categoryFilters.license_type?.toLowerCase();
         
       const matchesExperience =
         categoryFilters.experience_level === 'all' ||
         !path.experience_level ||
-        path.experience_level === categoryFilters.experience_level ||
-        // Handle data variations
-        (categoryFilters.experience_level === 'beginner' && path.experience_level === 'Beginner') ||
-        (categoryFilters.experience_level === 'Beginner' && path.experience_level === 'beginner');
+        path.experience_level?.toLowerCase() === categoryFilters.experience_level?.toLowerCase();
         
       const matchesPurpose =
         categoryFilters.purpose === 'all' ||
         !path.purpose ||
-        path.purpose === categoryFilters.purpose;
+        path.purpose?.toLowerCase() === categoryFilters.purpose?.toLowerCase();
         
       const matchesUserProfile =
         categoryFilters.user_profile === 'all' ||
         !path.user_profile ||
-        path.user_profile === categoryFilters.user_profile ||
+        path.user_profile?.toLowerCase() === categoryFilters.user_profile?.toLowerCase() ||
         // "All" user profile matches any filter
         path.user_profile === 'All';
         
@@ -2067,12 +2055,12 @@ export function ProgressScreen() {
         categoryFilters.platform === 'all' ||
         !path.platform ||
         path.platform === 'both' || // "both" platform matches any filter
-        path.platform === categoryFilters.platform;
+        path.platform?.toLowerCase() === categoryFilters.platform?.toLowerCase();
         
       const matchesType =
         categoryFilters.type === 'all' || 
         !path.type || 
-        path.type === categoryFilters.type;
+        path.type?.toLowerCase() === categoryFilters.type?.toLowerCase();
 
       const matches = (
         matchesVehicleType &&
