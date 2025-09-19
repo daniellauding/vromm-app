@@ -99,6 +99,10 @@
     "refreshTranslations": "Uppdatera översättningar",
     "refreshConfirm": "Är du säker på att du vill uppdatera alla översättningar?",
     "refreshSuccess": "Översättningar uppdaterade framgångsrikt",
+    "save": "Spara profil",
+    "saved": "Sparad",
+    "profileUpdated": "Profil uppdaterad framgångsrikt",
+    "failedToSave": "Misslyckades att spara profil",
     "roles": {
       "title": "Välj roll",
   },

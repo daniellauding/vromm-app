@@ -48,6 +48,7 @@ interface UserProfileSheetProps {
   onClose: () => void;
   userId: string | null;
   onViewAllRoutes?: (userId: string) => void;
+  onEditProfile?: () => void;
 }
 
 export function UserProfileSheet({
@@ -55,7 +56,9 @@ export function UserProfileSheet({
   onClose,
   userId,
   onViewAllRoutes,
+  onEditProfile,
 }: UserProfileSheetProps) {
+  console.log('🔍 [UserProfileSheet] Component rendered with visible:', visible, 'userId:', userId);
   const insets = useSafeAreaInsets();
   const { user, profile: currentUserProfile } = useAuth();
   const { t } = useTranslation();
@@ -869,6 +872,37 @@ export function UserProfileSheet({
                           <Button
                             onPress={() => setShowReportDialog(true)}
                             icon={<Feather name="flag" size={14} color={iconColor} />}
+                            variant="secondary"
+                            size="sm"
+                          />
+                        </XStack>
+                      )}
+
+                      {/* Action buttons for current user */}
+                      {isCurrentUser && (
+                        <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
+                          {/* Edit Profile Button */}
+                          <Button
+                            onPress={() => {
+                              onClose();
+                              if (onEditProfile) {
+                                onEditProfile();
+                              }
+                            }}
+                            icon={<Feather name="edit" size={14} color="white" />}
+                            variant="primary"
+                            backgroundColor="$blue10"
+                            size="sm"
+                          >
+                            <Text color="white" fontSize="$2" fontWeight="500">
+                              {t('profile.edit') || 'Edit Profile'}
+                            </Text>
+                          </Button>
+
+                          {/* Share Button */}
+                          <Button
+                            onPress={handleShare}
+                            icon={<Feather name="share" size={14} color={iconColor} />}
                             variant="secondary"
                             size="sm"
                           />
