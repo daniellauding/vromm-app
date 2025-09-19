@@ -134,6 +134,7 @@ export type TabParamList = {
     fromOnboarding?: boolean;
     onboardingStep?: string;
   };
+  BetaTestingTab: undefined;
   ProfileTab: undefined;
   MenuTab: undefined;
   ProfileScreen: undefined;

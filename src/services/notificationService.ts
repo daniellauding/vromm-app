@@ -319,8 +319,12 @@ class NotificationService {
   // Subscribe to notification updates
   subscribeToNotifications(callback: (notification: Notification) => void) {
     console.log('🔔 Setting up notification subscription channel...');
+    
+    // Create unique channel name to avoid conflicts
+    const channelName = `notifications_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     return supabase
-      .channel('notifications')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -335,6 +339,9 @@ class NotificationService {
       )
       .subscribe((status) => {
         console.log('📡 Notification subscription status:', status);
+        if (status === 'CHANNEL_ERROR') {
+          console.error('📡 Notification subscription channel error:', status);
+        }
       });
   }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, ScrollView, Alert, TextInput } from 'react-native';
+import { Modal, ScrollView, Alert, TextInput, View } from 'react-native';
 import { YStack, XStack } from 'tamagui';
 import { Text } from '../components/Text';
 import { Button } from './Button';
@@ -89,6 +89,9 @@ export function RelationshipManagementModal({
     selectedSupervisorIds,
   );
   
+  // Beta testing progress for students
+  const [studentProgress, setStudentProgress] = useState<Record<string, { completed: number; total: number; percentage: number }>>({});
+  
   // Removal review modal state
   const [showRemovalReviewModal, setShowRemovalReviewModal] = useState(false);
   const [removalTarget, setRemovalTarget] = useState<{
@@ -123,6 +126,12 @@ export function RelationshipManagementModal({
       // Always load incoming invitations (received by user) for all roles
       console.log('📥 Loading incoming invitations (received by user)...');
       loadIncomingInvitations();
+      
+      // Load student progress for instructors/supervisors
+      if (supervisedStudents.length > 0) {
+        console.log('📊 Loading student progress...');
+        loadStudentProgress();
+      }
       
       // Load role-specific data
       if (activeTab === 'manage' && userRole === 'student' && profile?.id) {
@@ -841,6 +850,50 @@ export function RelationshipManagementModal({
     );
   };
 
+  // Load beta testing progress for students
+  const loadStudentProgress = async () => {
+    if (supervisedStudents.length === 0) {
+      console.log('🔍 [RelationshipManagementModal] No supervised students, skipping progress load');
+      return;
+    }
+    
+    try {
+      const studentIds = supervisedStudents.map(s => s.id);
+      console.log('🔍 [RelationshipManagementModal] Loading progress for students:', studentIds);
+      
+      const { data: assignments, error } = await supabase
+        .from('beta_test_assignments')
+        .select('browser_id, is_completed, assignment_id, title')
+        .in('browser_id', studentIds);
+      
+      console.log('🔍 [RelationshipManagementModal] Assignments data:', assignments);
+      console.log('🔍 [RelationshipManagementModal] Assignments error:', error);
+      
+      if (error) {
+        console.error('Error loading student progress:', error);
+        return;
+      }
+      
+      // Calculate progress for each student
+      const progress: Record<string, { completed: number; total: number; percentage: number }> = {};
+      
+      studentIds.forEach(studentId => {
+        const studentAssignments = assignments?.filter(a => a.browser_id === studentId) || [];
+        const completed = studentAssignments.filter(a => a.is_completed).length;
+        const total = studentAssignments.length;
+        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+        
+        progress[studentId] = { completed, total, percentage };
+        console.log(`🔍 [RelationshipManagementModal] Student ${studentId} progress:`, { completed, total, percentage });
+      });
+      
+      console.log('🔍 [RelationshipManagementModal] Final progress object:', progress);
+      setStudentProgress(progress);
+    } catch (error) {
+      console.error('Error loading student progress:', error);
+    }
+  };
+
   const renderManageTab = () => {
     if (userRole === 'student') {
       // Show current supervisors for students
@@ -930,7 +983,38 @@ export function RelationshipManagementModal({
                     borderColor="$gray6"
                   >
                     <YStack flex={1}>
-                      <Text weight="semibold" size="sm" color="$color">{student.full_name}</Text>
+                      <XStack alignItems="center" gap="$2">
+                        <Text weight="semibold" size="sm" color="$color">{student.full_name}</Text>
+                        {studentProgress[student.id] && (
+                          <XStack alignItems="center" gap="$1" backgroundColor="$blue3" paddingHorizontal="$2" paddingVertical="$1" borderRadius="$2">
+                            <View style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: 6,
+                              backgroundColor: studentProgress[student.id].percentage === 100 ? '#10B981' : '#3B82F6',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}>
+                              <Text color="white" fontSize={8} fontWeight="bold">
+                                {studentProgress[student.id].percentage}%
+                              </Text>
+                            </View>
+                            <Text color="$blue11" size="xs" fontWeight="600">
+                              {studentProgress[student.id].completed}/{studentProgress[student.id].total}
+                            </Text>
+                          </XStack>
+                        )}
+                        {!studentProgress[student.id] && (
+                          <Text color="$gray11" size="xs">
+                            No progress data
+                          </Text>
+                        )}
+                        {__DEV__ && (
+                          <Text color="$gray11" size="xs">
+                            Debug: {JSON.stringify(studentProgress[student.id] || 'null')}
+                          </Text>
+                        )}
+                      </XStack>
                       <Text color="$gray11" size="xs">{student.email}</Text>
                       {student.relationship_created && (
                         <Text color="$gray11" size="xs">
@@ -1149,9 +1233,35 @@ export function RelationshipManagementModal({
                       <XStack alignItems="center" gap="$3" flex={1}>
                         <Feather name="user" size={16} color={isActive ? 'white' : '$gray11'} />
                         <YStack flex={1} alignItems="flex-start">
-                          <Text weight="semibold" size="sm" color={isActive ? 'white' : '$color'}>
-                            {student.full_name}
-                          </Text>
+                          <XStack alignItems="center" gap="$2">
+                            <Text weight="semibold" size="sm" color={isActive ? 'white' : '$color'}>
+                              {student.full_name}
+                            </Text>
+                            {studentProgress[student.id] && (
+                              <XStack alignItems="center" gap="$1" backgroundColor={isActive ? 'rgba(255,255,255,0.2)' : '$blue3'} paddingHorizontal="$2" paddingVertical="$1" borderRadius="$2">
+                                <View style={{
+                                  width: 10,
+                                  height: 10,
+                                  borderRadius: 5,
+                                  backgroundColor: studentProgress[student.id].percentage === 100 ? '#10B981' : '#3B82F6',
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                }}>
+                                  <Text color="white" fontSize={6} fontWeight="bold">
+                                    {studentProgress[student.id].percentage}%
+                                  </Text>
+                                </View>
+                                <Text color={isActive ? 'white' : '$blue11'} size="xs" fontWeight="600">
+                                  {studentProgress[student.id].completed}/{studentProgress[student.id].total}
+                                </Text>
+                              </XStack>
+                            )}
+                            {!studentProgress[student.id] && (
+                              <Text color={isActive ? 'white' : '$gray11'} size="xs">
+                                No progress
+                              </Text>
+                            )}
+                          </XStack>
                           <Text color={isActive ? '$gray3' : '$gray11'} size="xs">
                             {student.email}
                           </Text>

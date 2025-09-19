@@ -34,6 +34,7 @@ import { useModal } from '../contexts/ModalContext';
 import { useCreateRoute } from '../contexts/CreateRouteContext';
 import { ActionSheetModal } from './ActionSheet';
 import { BetaInfoModal } from './BetaInfoModal';
+import { BetaTestingSheetModal } from './BetaTestingSheet';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import CustomWebView from './CustomWebView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1413,6 +1414,76 @@ export function TabNavigator() {
         >
           {() => <MapStackNavigator key={`map-${mapTabKey}`} />}
         </Tab.Screen>
+        {/* Beta Testing tab */}
+        <Tab.Screen
+          name="BetaTestingTab"
+          component={NoopScreen}
+          options={{
+            title: '',
+            tabBarLabel: '',
+            tabBarButton: (props: BottomTabBarButtonProps) => {
+              const isHighlighted = isTabHighlighted('BetaTestingTab');
+              const betaRef = useTourTarget('BetaTestingTab');
+              return (
+                <View style={[
+                  props.style as ViewStyle,
+                  { alignItems: 'center', justifyContent: 'center', flex: 1 }
+                ]}>
+                  <TouchableOpacity
+                    ref={betaRef}
+                    accessibilityLabel="Open beta testing"
+                    onPress={() => {
+                      logInfo('Beta testing tab pressed');
+                      showModal(
+                        <BetaTestingSheetModal
+                          onOpenBuyCoffee={() => setShowBuyCoffee(true)}
+                          onOpenBetaWebView={() => setShowBetaWebView(true)}
+                          onShareApp={async () => {
+                            try {
+                              await Share.share({
+                                message: 'Check out Vromm – smarter driving practice: https://www.vromm.se',
+                                url: 'https://www.vromm.se',
+                                title: 'Vromm',
+                              });
+                            } catch (e) {
+                              console.error('Failed to share app', e);
+                            }
+                          }}
+                          onOpenAbout={() => setShowAboutWebView(true)}
+                        />
+                      );
+                    }}
+                    style={[
+                      {
+                        display: 'flex',
+                        width: '100%',
+                        height: 56,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'transparent',
+                        borderRadius: 12,
+                        position: 'relative',
+                      },
+                      isHighlighted && {
+                        backgroundColor: 'rgba(0, 230, 195, 0.15)',
+                      },
+                    ]}
+                  >
+                    <Feather
+                      name="activity"
+                      size={22}
+                      color={
+                        isHighlighted 
+                          ? (theme.primaryHover?.val || '#00E6C3')
+                          : theme.color?.val || '#000000'
+                      }
+                    />
+                  </TouchableOpacity>
+                </View>
+              );
+            },
+          }}
+        />
         {/* Profile removed from tabs; accessible via drawer */}
         {/* Rightmost tab: opens the hamburger drawer */}
         <Tab.Screen
