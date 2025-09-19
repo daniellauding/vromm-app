@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { YStack, XStack } from 'tamagui';
-import { Modal, ScrollView, TouchableOpacity, View, Alert, Image } from 'react-native';
+import { Modal, ScrollView, TouchableOpacity, View, Alert, Image, Animated, Pressable } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Text } from '../../components/Text';
@@ -23,13 +23,17 @@ import { useTranslation } from '@/src/contexts/TranslationContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { supabase } from '../../lib/supabase';
 import { useTourTarget } from '../../components/TourOverlay';
+import { ProfileSheet } from '../../components/ProfileSheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// import { useThemeColor } from '../../hooks/useThemeColor';
 
 export const HomeHeader = () => {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
-  const { profile } = useAuth();
+  const { profile, signOut } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const { setActiveStudent, activeStudentId } = useStudentSwitch();
+  const insets = useSafeAreaInsets();
 
   // Register profile avatar for instructor tour targeting
   const profileAvatarRef = useTourTarget('Header.ProfileAvatar');
@@ -42,6 +46,44 @@ export const HomeHeader = () => {
   const [showMessagesSheet, setShowMessagesSheet] = React.useState(false);
   const [showNotificationsSheet, setShowNotificationsSheet] = React.useState(false);
   const [showEventsSheet, setShowEventsSheet] = React.useState(false);
+  const [showAvatarModal, setShowAvatarModal] = React.useState(false);
+  const [showProfileSheet, setShowProfileSheet] = React.useState(false);
+
+  // Animation refs for avatar modal
+  const avatarBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const avatarSheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Theme colors
+  const backgroundColor = colorScheme === 'dark' ? '#1C1C1C' : '#fff';
+  const textColor = colorScheme === 'dark' ? '#ECEDEE' : '#11181C';
+  const borderColor = colorScheme === 'dark' ? '#333' : '#E0E0E0';
+
+  // Animation effects for avatar modal
+  useEffect(() => {
+    if (showAvatarModal) {
+      Animated.timing(avatarBackdropOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      Animated.timing(avatarSheetTranslateY, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(avatarBackdropOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      Animated.timing(avatarSheetTranslateY, {
+        toValue: 300,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showAvatarModal, avatarBackdropOpacity, avatarSheetTranslateY]);
 
   const loadSupervisedStudents = React.useCallback(async (): Promise<Array<{ id: string; full_name: string; email: string; created_at?: string }>> => {
     if (!profile?.id) {
@@ -86,26 +128,45 @@ export const HomeHeader = () => {
     }
   }, [profile?.id]);
 
-  const onPressAvatar = async () => {
-    // If user is not a supervisor (i.e., student), go to their public profile
-    if (!isSupervisorRole) {
-      if (profile?.id) (navigation as any).navigate('PublicProfile', { userId: profile.id });
-      return;
-    }
-    // For instructors/admin/school: always show student picker if they have students
+  const onPressAvatar = () => {
+    setShowAvatarModal(true);
+  };
+
+  const handleViewProfile = () => {
+    setShowAvatarModal(false);
+    setShowProfileSheet(true);
+  };
+
+  const handleSelectStudent = async () => {
+    setShowAvatarModal(false);
     try {
       const list = (await loadSupervisedStudents()) || [];
       if ((list?.length || 0) > 0) {
-        // Show student picker if they have any students
         setShowStudentPicker(true);
       } else {
-        // No students yet, go to own profile
-        if (profile?.id) (navigation as any).navigate('PublicProfile', { userId: profile.id });
+        Alert.alert('No Students', 'You don\'t have any students yet.');
       }
     } catch {
-      // Fallback: open the picker as before
-      setShowStudentPicker(true);
+      Alert.alert('Error', 'Failed to load students.');
     }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: () => {
+            setShowAvatarModal(false);
+            signOut();
+          }
+        }
+      ]
+    );
   };
   return (
     <YStack
@@ -119,7 +180,7 @@ export const HomeHeader = () => {
           <TouchableOpacity
             ref={profileAvatarRef}
             onPress={onPressAvatar}
-            activeOpacity={isSupervisorRole ? 0.7 : 1}
+            activeOpacity={0.7}
             style={{
               width: 40,
               height: 40,
@@ -224,6 +285,128 @@ export const HomeHeader = () => {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Avatar Modal */}
+      <Modal
+        visible={showAvatarModal}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowAvatarModal(false)}
+      >
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: avatarBackdropOpacity,
+          }}
+        >
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <Pressable style={{ flex: 1 }} onPress={() => setShowAvatarModal(false)} />
+            <Animated.View
+              style={{
+                transform: [{ translateY: avatarSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 24}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+                {/* Header */}
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="$6" fontWeight="bold" color={textColor}>
+                    {t('profile.menu') || 'Profile Menu'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowAvatarModal(false)}>
+                    <Feather name="x" size={24} color={textColor} />
+                  </TouchableOpacity>
+                </XStack>
+
+                {/* Menu Options */}
+                <YStack gap="$2">
+                  {/* View Profile */}
+                  <TouchableOpacity
+                    onPress={handleViewProfile}
+                    style={{
+                      paddingVertical: 16,
+                      paddingHorizontal: 20,
+                      borderBottomWidth: 1,
+                      borderBottomColor: borderColor,
+                    }}
+                  >
+                    <XStack alignItems="center" gap="$3">
+                      <Feather name="user" size={24} color={textColor} />
+                      <YStack flex={1}>
+                        <Text fontWeight="600" fontSize={18} color={textColor}>
+                          {t('profile.viewProfile') || 'View Profile'}
+                        </Text>
+                        <Text fontSize={14} color={colorScheme === 'dark' ? '#999' : '#666'}>
+                          {t('profile.viewProfileDescription') || 'View and edit your profile'}
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  </TouchableOpacity>
+
+                  {/* Select Student (only for instructors) */}
+                  {isSupervisorRole && (
+                    <TouchableOpacity
+                      onPress={handleSelectStudent}
+                      style={{
+                        paddingVertical: 16,
+                        paddingHorizontal: 20,
+                        borderBottomWidth: 1,
+                        borderBottomColor: borderColor,
+                      }}
+                    >
+                      <XStack alignItems="center" gap="$3">
+                        <Feather name="users" size={24} color={textColor} />
+                        <YStack flex={1}>
+                          <Text fontWeight="600" fontSize={18} color={textColor}>
+                            {t('profile.switchStudent') || 'Switch Student View'}
+                          </Text>
+                          <Text fontSize={14} color={colorScheme === 'dark' ? '#999' : '#666'}>
+                            {t('profile.switchStudentDescription') || 'View progress as a student'}
+                          </Text>
+                        </YStack>
+                      </XStack>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Logout */}
+                  <TouchableOpacity
+                    onPress={handleLogout}
+                    style={{
+                      paddingVertical: 16,
+                      paddingHorizontal: 20,
+                    }}
+                  >
+                    <XStack alignItems="center" gap="$3">
+                      <Feather name="log-out" size={24} color="#FF6B6B" />
+                      <YStack flex={1}>
+                        <Text fontWeight="600" fontSize={18} color="#FF6B6B">
+                          {t('auth.logout') || 'Logout'}
+                        </Text>
+                        <Text fontSize={14} color={colorScheme === 'dark' ? '#999' : '#666'}>
+                          {t('auth.logoutDescription') || 'Sign out of your account'}
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  </TouchableOpacity>
+                </YStack>
+              </YStack>
+            </Animated.View>
+          </View>
+        </Animated.View>
+      </Modal>
+
+      {/* Profile Sheet */}
+      <ProfileSheet
+        visible={showProfileSheet}
+        onClose={() => setShowProfileSheet(false)}
+      />
 
       {/* Messages Sheet */}
       <MessagesSheet
