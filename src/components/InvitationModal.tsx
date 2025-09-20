@@ -152,17 +152,14 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
     setProcessing(invitation.id);
     try {
       if (invitation.type === 'relationship') {
-        // Accept relationship invitation
-        const { error } = await supabase
-          .from('pending_invitations')
-          .update({ 
-            status: 'accepted',
-            accepted_at: new Date().toISOString(),
-            accepted_by: user?.id
-          })
-          .eq('id', invitation.invitation_id);
+        // Use universal function for relationship invitations
+        const { data, error } = await supabase.rpc('accept_any_invitation', {
+          p_invitation_id: invitation.invitation_id,
+          p_accepted_by: user?.id
+        });
 
         if (error) throw error;
+        if (!data.success) throw new Error(data.error);
 
         showToast({
           title: t('invitations.accepted') || 'Invitation Accepted',

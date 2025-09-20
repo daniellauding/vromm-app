@@ -550,6 +550,51 @@ export function ExerciseListSheet({
     checkAccess();
   }, [detailPath, visible]);
 
+  // Real-time subscription for progress updates
+  useEffect(() => {
+    if (!effectiveUserId || !visible) return;
+
+    console.log('📚 [ExerciseListSheet] Setting up real-time subscription for user:', effectiveUserId);
+    
+    const channelName = `exercise-list-progress-${Date.now()}`;
+    const subscription = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'learning_path_exercise_completions',
+          filter: `user_id=eq.${effectiveUserId}`,
+        },
+        (payload) => {
+          console.log('📚 [ExerciseListSheet] Real-time update received:', payload.eventType);
+          fetchCompletions();
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'virtual_repeat_completions',
+          filter: `user_id=eq.${effectiveUserId}`,
+        },
+        (payload) => {
+          console.log('📚 [ExerciseListSheet] Real-time update received (virtual repeats):', payload.eventType);
+          fetchCompletions();
+        },
+      )
+      .subscribe((status) => {
+        console.log(`📚 [ExerciseListSheet] Subscription status: ${status}`);
+      });
+
+    return () => {
+      console.log('📚 [ExerciseListSheet] Cleaning up real-time subscription');
+      supabase.removeChannel(subscription);
+    };
+  }, [effectiveUserId, visible]);
+
   // Animation effects
   useEffect(() => {
     if (visible) {

@@ -1419,8 +1419,8 @@ export function TabNavigator() {
           name="BetaTestingTab"
           component={NoopScreen}
           options={{
-            title: '',
-            tabBarLabel: '',
+            title: t('navigation.betaTesting'),
+            tabBarLabel: t('navigation.betaTesting'),
             tabBarButton: (props: BottomTabBarButtonProps) => {
               const isHighlighted = isTabHighlighted('BetaTestingTab');
               const betaRef = useTourTarget('BetaTestingTab');
@@ -1469,15 +1469,29 @@ export function TabNavigator() {
                       },
                     ]}
                   >
-                    <Feather
-                      name="activity"
-                      size={22}
-                      color={
-                        isHighlighted 
-                          ? (theme.primaryHover?.val || '#00E6C3')
-                          : theme.color?.val || '#000000'
-                      }
-                    />
+                    <YStack alignItems="center" space="$1">
+                      <Feather
+                        name="check-square"
+                        size={22}
+                        color={
+                          isHighlighted 
+                            ? (theme.primaryHover?.val || '#00E6C3')
+                            : theme.color?.val || '#000000'
+                        }
+                      />
+                      <Text 
+                        fontSize={10} 
+                        fontWeight="500"
+                        color={
+                          isHighlighted 
+                            ? (theme.primaryHover?.val || '#00E6C3')
+                            : theme.color?.val || '#000000'
+                        }
+                        textAlign="center"
+                      >
+                        {t('navigation.betaTesting')}
+                      </Text>
+                    </YStack>
                   </TouchableOpacity>
                 </View>
               );
@@ -1485,102 +1499,7 @@ export function TabNavigator() {
           }}
         />
         {/* Profile removed from tabs; accessible via drawer */}
-        {/* Rightmost tab: opens the hamburger drawer */}
-        <Tab.Screen
-          name="MenuTab"
-          component={MenuStackNavigator}
-          options={{
-            title: '',
-            tabBarLabel: '',
-            tabBarButton: (props: BottomTabBarButtonProps) => {
-              const isHighlighted = isTabHighlighted('MenuTab'); // Tour highlighting enabled for HomeScreen tours
-              const menuRef = useTourTarget('MenuTab');
-              return (
-                <View style={[
-                  props.style as ViewStyle,
-                  { alignItems: 'center', justifyContent: 'center', flex: 1 }
-                ]}>
-                  <TouchableOpacity
-                    ref={menuRef}
-                    accessibilityLabel="Open menu"
-                    onPress={() => {
-                      logInfo('Hamburger menu tab pressed');
-                      // Update seen counts when opening drawer (for menu badge tracking)
-                      setSeenMessageCount(unreadMessageCount);
-                      setSeenNotificationCount(unreadNotificationCount);
-                      setSeenEventCount(unreadEventCount);
-                      seenMessageCountRef.current = unreadMessageCount;
-                      seenNotificationCountRef.current = unreadNotificationCount;
-                      seenEventCountRef.current = unreadEventCount;
-                      // Immediately hide combined badge on open and persist seen
-                      AsyncStorage.multiSet([
-                        [STORAGE_KEYS.messages, String(unreadMessageCount)],
-                        [STORAGE_KEYS.notifications, String(unreadNotificationCount)],
-                        [STORAGE_KEYS.events, String(unreadEventCount)],
-                      ]).catch(() => {});
-                      // Immediately hide combined badge on open
-                      setTotalBadgeCount(0);
-                      console.log('[NAV][Drawer] open');
-                      setIsDrawerOpen(true);
-                    }}
-                    style={[
-                      {
-                        display: 'flex',
-                        width: '100%',
-                        height: 56,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'transparent',
-                        borderRadius: 12,
-                        position: 'relative',
-                      },
-                      // ✅ Simplified tour highlighting - let TourOverlay handle main highlight
-                      isHighlighted && {
-                        backgroundColor: 'rgba(0, 230, 195, 0.15)',
-                      },
-                    ]}
-                  >
-                    <Feather
-                      name="menu"
-                      size={22}
-                        color={
-                        isHighlighted 
-                          ? (theme.primaryHover?.val || '#00E6C3')
-                          : // Consider the menu tab active when drawer is open or a menu screen is active
-                          isDrawerOpen || !!activeMenuScreen
-                            ? (theme.primary?.val || '#69e3c4')
-                            : theme.color?.val || '#000000'
-                      }
-                    />
-
-                    {/* Combined badge for menu icon */}
-                    {totalBadgeCount > 0 && (
-                      <View
-                        style={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          backgroundColor: '#EF4444',
-                          borderRadius: 10,
-                          minWidth: 20,
-                          height: 20,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          borderWidth: 2,
-                          borderColor: theme.background?.val || '#FFFFFF',
-                        }}
-                      >
-                        <Text fontSize={10} fontWeight="bold" color="#FFFFFF" textAlign="center">
-                          {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
-                        </Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              );
-            },
-          }}
-        />
+        {/* MenuTab disabled for now - can be re-enabled later if needed */}
       </Tab.Navigator>
 
       {/* Hamburger Drawer */}

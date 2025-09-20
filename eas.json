@@ -29,6 +29,7 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "autoIncrement": true,
       "env": {
         "USE_HERMES": "0",
         "RCT_NEW_ARCH_ENABLED": "0",
@@ -41,7 +42,7 @@
         "buildConfiguration": "Release"
       },
       "android": {
-        "buildType": "apk",
+        "buildType": "app-bundle",
         "image": "latest"
       }
     },

@@ -234,94 +234,14 @@ export function UnifiedInvitationModal({
       const invitation = invitations[currentIndex];
       
       if (invitation.type === 'relationship') {
-        // Accept relationship invitation
-        // First try to update pending_invitations table
-        const { error: pendingError } = await supabase
-          .from('pending_invitations')
-          .update({ status: 'accepted' })
-          .eq('id', invitation.invitation_id);
+        // Use universal function for relationship invitations
+        const { data, error } = await supabase.rpc('accept_any_invitation', {
+          p_invitation_id: invitation.invitation_id,
+          p_accepted_by: user?.id
+        });
 
-        // If that fails, handle notification-based invitation
-        if (pendingError) {
-          console.log('🔍 [UnifiedInvitationModal] Relationship invitation not found in pending_invitations, trying notification-based handling');
-          
-          // Mark notification as read
-          const { error: notifError } = await supabase
-            .from('notifications')
-            .update({ 
-              is_read: true,
-              read_at: new Date().toISOString()
-            })
-            .eq('id', invitation.id);
-
-          if (notifError) throw notifError;
-        }
-
-            // Create relationship - we need to get the actor_id from the notification
-            const { data: notificationData } = await supabase
-              .from('notifications')
-              .select('actor_id, metadata')
-              .eq('id', invitation.id)
-              .single();
-
-            if (notificationData) {
-              // Check if relationship already exists before creating
-              const studentId = invitation.role === 'student' ? user?.id : notificationData.actor_id;
-              const supervisorId = invitation.role === 'supervisor' ? user?.id : notificationData.actor_id;
-              
-              const { data: existingRel } = await supabase
-                .from('student_supervisor_relationships')
-                .select('id')
-                .eq('student_id', studentId)
-                .eq('supervisor_id', supervisorId)
-                .single();
-
-              if (existingRel) {
-                console.log('🔍 [UnifiedInvitationModal] Relationship already exists, skipping creation');
-              } else {
-                const { error: relError } = await supabase
-                  .from('student_supervisor_relationships')
-                  .insert({
-                    student_id: studentId,
-                    supervisor_id: supervisorId,
-                    status: 'active'
-                  });
-
-                if (relError) {
-                  // If it's a duplicate key error, that's okay - relationship already exists
-                  if (relError.code === '23505') {
-                    console.log('🔍 [UnifiedInvitationModal] Relationship already exists (duplicate key), continuing...');
-                  } else {
-                    throw relError;
-                  }
-                }
-              }
-
-          // Send notification to the inviter that their invitation was accepted
-          const inviterId = notificationData.actor_id;
-          const inviterName = invitation.from_user_name || 'Someone';
-          const accepterName = user?.email || 'Someone';
-          
-          await supabase
-            .from('notifications')
-            .insert({
-              user_id: inviterId,
-              actor_id: user?.id,
-              type: 'relationship_accepted',
-              title: 'Invitation Accepted',
-              message: `${accepterName} accepted your ${invitation.role} invitation`,
-              metadata: {
-                relationship_type: invitation.role === 'student' ? 'supervisor_invites_student' : 'student_invites_supervisor',
-                accepted_by: user?.id,
-                accepted_by_name: accepterName,
-              },
-              action_url: 'vromm://notifications',
-              priority: 'normal',
-              is_read: false,
-            });
-
-          console.log('✅ [UnifiedInvitationModal] Notification sent to inviter:', inviterId);
-        }
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error);
       } else {
         // Accept collection invitation
         // First try to update collection_invitations table

@@ -8,11 +8,10 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../../types/navigation';
 import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
-// import { OnboardingModal } from '../../components/OnboardingModal';
-import { OnboardingModalInteractive } from '../../components/OnboardingModalInteractive';
+// Onboarding imports removed as requested
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
-import { shouldShowInteractiveOnboarding } from '../../components/OnboardingInteractive';
+// shouldShowInteractiveOnboarding import removed
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useTour } from '../../contexts/TourContext';
 import { ProgressSection } from '../../components/ProgressSection';
@@ -32,6 +31,7 @@ import { NotificationsSheet } from '../../components/NotificationsSheet';
 import { ProfileSheet } from '../../components/ProfileSheet';
 import { HomeHeader } from './Header';
 import { WeeklyGoal } from './WeeklyGoal';
+import { DailyStatus } from './DailyStatus';
 import { GettingStarted } from './GettingStarted';
 import { FeaturedContent } from './FeaturedContent';
 import { SavedRoutes } from './SavedRoutes';
@@ -98,64 +98,26 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   // Reduced logging to prevent console flooding
 
   // State declarations
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [isFirstLogin, setIsFirstLogin] = useState(false);
+  // Onboarding state removed as requested
   
   // State tracking without excessive logging
 
-  // Check if this is the first login and should show onboarding
-  useEffect(() => {
-    const checkFirstLogin = async () => {
-      try {
-        const key = 'vromm_first_login';
-        const firstLoginValue = await AsyncStorage.getItem(key);
-        
-        // Debug: Log the actual value
-        console.log('🎯 [HomeScreen] vromm_first_login value:', firstLoginValue);
-
-        if (firstLoginValue === null) {
-          // First time login detected
-          console.log('🎯 [HomeScreen] FIRST LOGIN DETECTED - showing onboarding');
-          setIsFirstLogin(true);
-          setShowOnboarding(true);
-          await AsyncStorage.setItem(key, 'false');
-        } else {
-          // Check if interactive onboarding should be shown (USER-BASED)
-          const shouldShow = await shouldShowInteractiveOnboarding('interactive_onboarding', user?.id);
-          console.log('🎯 [HomeScreen] Should show interactive onboarding:', shouldShow);
-          
-          setShowOnboarding(shouldShow);
-        }
-      } catch (error) {
-        console.error('🎯 [HomeScreen] Error checking first login status:', error);
-        // Force show onboarding on error for debugging
-        console.log('🎯 [HomeScreen] FORCING onboarding due to error');
-        setShowOnboarding(true);
-      }
-    };
-
-    if (user) {
-      console.log('🎯 [HomeScreen] User detected, checking first login:', user.id);
-      checkFirstLogin();
-    } else {
-      console.log('🎯 [HomeScreen] No user detected yet');
-    }
-  }, [user]);
+  // Onboarding logic removed as requested
 
   // Check if tour should be shown after onboarding is complete (RE-ENABLED for HomeScreen)
   useEffect(() => {
     let isMounted = true;
     
     const checkTour = async () => {
-      // Only show tour if user exists, onboarding is NOT showing, and no promotional modal
-      if (user && !showOnboarding && !showModal && isMounted) {
+      // Only show tour if user exists and no promotional modal
+      if (user && !showModal && isMounted) {
         const shouldShow = await shouldShowTour();
         
         if (shouldShow && isMounted) {
           // Start database tour after a delay to ensure UI is fully ready
           setTimeout(() => {
             // Double-check that no onboarding or promotional modal is showing and component is still mounted
-            if (!showModal && !showOnboarding && isMounted) {
+            if (!showModal && isMounted) {
               startDatabaseTour('HomeScreen', profile?.role);
             }
           }, 2000);
@@ -174,7 +136,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [user?.id, showOnboarding, showModal, shouldShowTour, startDatabaseTour]); // Re-enabled dependencies
+  }, [user?.id, showModal, shouldShowTour, startDatabaseTour]); // Re-enabled dependencies
 
   // Retry tour when modal closes - consolidated with above effect to prevent conflicts
 
@@ -207,53 +169,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   //   };
   // }, [user?.id, showOnboarding, showModal]);
 
-  // Debug functions for testing onboarding
-  const handleResetAllOnboarding = async () => {
-    try {
-      // Reset AsyncStorage flags
-      await AsyncStorage.multiRemove([
-        'interactive_onboarding',
-        'vromm_first_login',
-        'vromm_onboarding',
-        'vromm_app_tour_completed',
-        'promotional_modal_seen'
-      ]);
-      
-      // Reset user's profile flags (USER-BASED)
-      if (user?.id) {
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            interactive_onboarding_completed: false,
-            interactive_onboarding_version: null,
-            tour_completed: false,
-            tour_content_hash: null,
-          })
-          .eq('id', user.id);
-          
-        if (error) {
-          console.error('Error resetting user profile flags:', error);
-        } else {
-          console.log('🎯 [HomeScreen] Reset user profile onboarding + tour flags for:', user.id);
-        }
-      }
-      
-      alert('All onboarding flags (device + user + promotional) reset. Refresh the screen to see onboarding.');
-      // Force refresh the onboarding check
-      if (user) {
-        setIsFirstLogin(true);
-        setShowOnboarding(true);
-      }
-    } catch (error) {
-      console.error('Error resetting onboarding:', error);
-      alert('Failed to reset onboarding');
-    }
-  };
-
-  const handleForceShowOnboarding = () => {
-    setIsFirstLogin(true);
-    setShowOnboarding(true);
-  };
+  // Debug functions removed as onboarding was removed
 
   const handleCheckAsyncStorage = async () => {
     try {
@@ -321,17 +237,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
-      {/* Interactive Onboarding Modal */}
-      {/* Onboarding modal without debug logging */}
-      
-      <OnboardingModalInteractive
-        visible={showOnboarding}
-        onClose={() => {
-          console.log('🎯 [HomeScreen] Onboarding modal closed');
-          setShowOnboarding(false);
-        }}
-        forceShow={isFirstLogin}
-      />
+      {/* Onboarding modal removed as requested */}
       
       {/* Debug options DISABLED to prevent console flooding */}
       {false && __DEV__ && (
@@ -373,18 +279,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
               >
                 <Text style={{ color: 'white', fontSize: 12 }}>Check AsyncStorage</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={{ backgroundColor: '#34C759', padding: 8, borderRadius: 4, marginBottom: 4 }}
-                onPress={handleForceShowOnboarding}
-              >
-                <Text style={{ color: 'white', fontSize: 12 }}>Force Show Onboarding</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ backgroundColor: '#FF3B30', padding: 8, borderRadius: 4, marginBottom: 4 }}
-                onPress={handleResetAllOnboarding}
-              >
-                <Text style={{ color: 'white', fontSize: 12 }}>Reset All Onboarding</Text>
-              </TouchableOpacity>
+              {/* Onboarding debug buttons removed */}
               <TouchableOpacity
                 style={{ backgroundColor: '#FF9500', padding: 8, borderRadius: 4, marginBottom: 4 }}
                 onPress={async () => {
@@ -436,7 +331,8 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             )}
             
             {/* Weekly Goal Section */}
-            <WeeklyGoal activeUserId={effectiveUserId} />
+            <WeeklyGoal activeUserId={effectiveUserId || undefined} />
+        <DailyStatus activeUserId={effectiveUserId || undefined} />
             
             <GettingStarted />
 
@@ -491,8 +387,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
               />
               <UsersList 
                 onUserPress={(userId: string) => {
-                  setSelectedUserId(userId);
-                  setShowUserProfileSheet(true);
+                  if (userId) {
+                    setSelectedUserId(userId);
+                    setShowUserProfileSheet(true);
+                  }
                 }} 
               />
             </YStack>

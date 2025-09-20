@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Text, XStack, YStack, useTheme } from 'tamagui';
+import { useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
@@ -71,6 +72,7 @@ const styles = StyleSheet.create({
 export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizard, onCreateEvent, onNavigateToMap }: ActionSheetProps) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const colorScheme = useColorScheme();
   const backgroundColor = theme.background?.val || '#FFFFFF';
   const textColor = theme.color?.val || '#000000';
   const borderColor = theme.borderColor?.val || '#DDD';

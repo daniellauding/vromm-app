@@ -399,162 +399,32 @@ export async function acceptInvitation(email: string, userId: string): Promise<b
 }
 
 /**
- * Accept a specific invitation by ID (preferred when you already listed invites)
+ * Accept a specific invitation by ID using the universal function
  */
 export async function acceptInvitationById(invitationId: string, userId: string): Promise<boolean> {
   try {
-    console.log('🎯 acceptInvitationById: Looking for invitation:', { invitationId, userId });
+    console.log('🎯 acceptInvitationById: Using universal function for invitation:', { invitationId, userId });
     
-    const { data: invitation, error: findError } = await supabase
-      .from('pending_invitations')
-      .select('*')
-      .eq('id', invitationId)
-      .single();
+    // Use the universal RPC function that handles both types
+    const { data, error } = await supabase.rpc('accept_any_invitation', {
+      p_invitation_id: invitationId,
+      p_accepted_by: userId
+    });
 
-    console.log('🎯 acceptInvitationById: Query result:', { invitation, findError });
-
-    if (findError || !invitation) {
-      console.log('🎯 acceptInvitationById: No invitation found or error:', findError);
+    if (error) {
+      console.error('🎯 acceptInvitationById: RPC error:', error);
       return false;
     }
 
-    const { error: updateError } = await supabase
-      .from('pending_invitations')
-      .update({ status: 'accepted', accepted_at: new Date().toISOString(), accepted_by: userId })
-      .eq('id', invitationId);
-
-    console.log('🎯 acceptInvitationById: Update result:', { updateError });
-
-    if (updateError) {
-      console.log('🎯 acceptInvitationById: Failed to update invitation:', updateError);
+    if (!data.success) {
+      console.error('🎯 acceptInvitationById: Function returned error:', data.error);
       return false;
     }
 
-    if (invitation.invited_by) {
-      // Determine the correct relationship direction based on invitation metadata
-      const relationshipType = invitation.metadata?.relationshipType;
-      let studentId, supervisorId;
-      
-      if (relationshipType === 'student_invites_supervisor') {
-        // Student invited supervisor, so student is the inviter and supervisor is accepting
-        studentId = invitation.invited_by;  // The inviter (student)
-        supervisorId = userId;              // The accepter (supervisor)
-      } else if (relationshipType === 'supervisor_invites_student') {
-        // Supervisor invited student, so supervisor is the inviter and student is accepting
-        studentId = userId;                 // The accepter (student)
-        supervisorId = invitation.invited_by; // The inviter (supervisor)
-      } else {
-        // Fallback to old logic for backward compatibility
-        studentId = userId;
-        supervisorId = invitation.invited_by;
-      }
-      
-      console.log('Creating relationship with correct direction:', {
-        relationshipType,
-        studentId,
-        supervisorId,
-        invitedBy: invitation.invited_by,
-        acceptingUserId: userId
-      });
-      
-      const { error: relError } = await supabase
-        .from('student_supervisor_relationships')
-        .insert({ 
-          student_id: studentId, 
-          supervisor_id: supervisorId,
-          status: 'active'
-        });
-      
-      console.log('🎯 acceptInvitationById: Relationship creation result:', { relError });
-      
-      // Handle duplicate key error gracefully (relationship already exists)
-      if (relError && relError.code === '23505') {
-        console.log('🎯 acceptInvitationById: Relationship already exists - this is OK');
-      } else if (relError) {
-        console.error('Error creating supervisor relationship:', relError);
-        // Don't fail the entire operation for relationship creation errors
-        // The invitation acceptance is still valid
-      }
-    }
-
-    if (invitation.role) {
-      const { error: roleError } = await supabase
-        .from('profiles')
-        .update({ role: invitation.role })
-        .eq('id', userId);
-      console.log('🎯 acceptInvitationById: Role update result:', { roleError });
-      if (roleError) console.error('Error updating user role:', roleError);
-    }
-
-    // Send notification to the sender that their invitation was accepted
-    try {
-      const relationshipType = invitation.metadata?.relationshipType;
-      const senderName = invitation.metadata?.supervisorName || 'Someone';
-      const accepterName = invitation.metadata?.targetUserName || 'User';
-      
-      let notificationMessage;
-      if (relationshipType === 'student_invites_supervisor') {
-        notificationMessage = `${accepterName} accepted your request to be your supervisor`;
-      } else {
-        notificationMessage = `${accepterName} accepted your invitation to be supervised`;
-      }
-      
-      await supabase.from('notifications').insert({
-        user_id: invitation.invited_by,
-        actor_id: userId,
-        type: 'new_message', // Using existing enum value for acceptance notifications
-        title: 'Invitation Accepted! 🎉',
-        message: notificationMessage,
-        metadata: {
-          invitation_id: invitationId,
-          relationship_type: relationshipType,
-          accepted_by_id: userId,
-          accepted_by_name: accepterName,
-          notification_subtype: 'invitation_accepted', // Store the actual type in metadata
-        },
-        action_url: 'vromm://profile',
-        priority: 'high',
-        is_read: false,
-      });
-      
-      console.log('✅ Acceptance notification sent to sender');
-
-      // Also notify the accepter for confirmation
-      let confirmationMessage: string;
-      if (relationshipType === 'student_invites_supervisor') {
-        // Supervisor accepted student's request → confirmation to supervisor (accepter)
-        confirmationMessage = `You are now supervising ${senderName}.`;
-      } else {
-        // Student accepted supervisor's invite → confirmation to student (accepter)
-        confirmationMessage = `You are now being supervised by ${senderName}.`;
-      }
-
-      await supabase.from('notifications').insert({
-        user_id: userId,
-        actor_id: invitation.invited_by,
-        type: 'new_message',
-        title: 'Relationship Confirmed ✅',
-        message: confirmationMessage,
-        metadata: {
-          invitation_id: invitationId,
-          relationship_type: relationshipType,
-          inviter_id: invitation.invited_by,
-          inviter_name: senderName,
-          notification_subtype: 'invitation_accepted',
-        },
-        action_url: 'vromm://profile',
-        priority: 'normal',
-        is_read: false,
-      });
-      console.log('✅ Acceptance confirmation sent to accepter');
-    } catch (notifError) {
-      console.warn('Failed to send acceptance notification:', notifError);
-    }
-
-    console.log('🎯 acceptInvitationById: SUCCESS - returning true');
+    console.log('🎯 acceptInvitationById: Invitation accepted successfully via universal function');
     return true;
   } catch (error) {
-    console.error('Error accepting invitation by id:', error);
+    console.error('🎯 acceptInvitationById: Error accepting invitation:', error);
     return false;
   }
 }
