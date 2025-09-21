@@ -34,6 +34,7 @@ import { PIN_COLORS } from '../../styles/mapStyles';
 // import { useTour } from '../../contexts/TourContext';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
+import { RouteCreationBanner } from '../../components/RouteCreationBanner';
 
 type SearchResult = {
   id: string;
@@ -56,6 +57,7 @@ const DARK_THEME = {
 export function MapScreen({ route }: { route: { params?: { selectedLocation?: any; fromSearch?: boolean; ts?: number; selectedPresetId?: string; presetName?: string; fromHomeScreen?: boolean } } }) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const navigation = useNavigation<NavigationProp>();
   const [routes, setRoutes] = useState<RouteType[]>([]);
   const [filteredRoutes, setFilteredRoutes] = useState<RouteType[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
@@ -1020,6 +1022,16 @@ export function MapScreen({ route }: { route: { params?: { selectedLocation?: an
           onMarkerPress={handleMarkerPress}
           ref={mapRef}
           routePathColor={PIN_COLORS.ROUTE_PATH}
+        />
+        
+        {/* Route Creation Banner */}
+        <RouteCreationBanner
+          onPress={() => {
+            navigation.navigate('CreateRoute', {});
+          }}
+          onDismiss={() => {
+            // Banner will handle its own dismissal state
+          }}
         />
         
         {/* Clear Filters Button */}

@@ -824,22 +824,11 @@ export function ProgressScreen() {
     console.log('✅ [ProgressScreen] Filters saved:', categoryFilters);
   };
 
-  // NEW: Load user payments and access control
+  // Load accessible paths and exercises using helper functions
   const loadUserAccess = async () => {
     if (!effectiveUserId) return;
 
     try {
-      // Load user payments
-      const { data: payments, error: paymentsError } = await supabase
-        .from('user_payments')
-        .select('*')
-        .eq('user_id', effectiveUserId)
-        .eq('status', 'completed');
-
-      if (!paymentsError && payments) {
-        setUserPayments(payments);
-      }
-
       // Load accessible paths using helper function
       const { data: pathsData, error: pathsError } = await supabase.rpc(
         'user_can_access_paths_bulk',
