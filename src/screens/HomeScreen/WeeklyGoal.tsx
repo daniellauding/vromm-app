@@ -227,37 +227,8 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
     loadGoalSettings();
   }, [effectiveUserId]);
 
-  // Real-time subscription for progress updates
-  useEffect(() => {
-    if (!effectiveUserId) return;
-
-    console.log('📊 [WeeklyGoal] Setting up real-time subscription for user:', effectiveUserId);
-    
-    const channelName = `weekly-goal-progress-${Date.now()}`;
-    const subscription = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'learning_path_exercise_completions',
-          filter: `user_id=eq.${effectiveUserId}`,
-        },
-        (payload) => {
-          console.log('📊 [WeeklyGoal] Real-time update received:', payload.eventType);
-          loadWeeklyProgress();
-        },
-      )
-      .subscribe((status) => {
-        console.log(`📊 [WeeklyGoal] Subscription status: ${status}`);
-      });
-
-    return () => {
-      console.log('📊 [WeeklyGoal] Cleaning up real-time subscription');
-      supabase.removeChannel(subscription);
-    };
-  }, [effectiveUserId]);
+  // Note: WeeklyGoal doesn't need real-time subscriptions
+  // It's a personal progress tracking component that only needs to refresh when user interacts with it
   
   // Handle goal settings modal
   const openGoalModal = () => {

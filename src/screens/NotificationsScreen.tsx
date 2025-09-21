@@ -48,30 +48,11 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   useEffect(() => {
     loadNotifications();
 
-    // Subscribe to real-time updates with sound
-    console.log('🔔 Setting up notification subscription...');
-    const subscription = notificationService.subscribeToNotifications(async (notification) => {
-      console.log('📨 New notification received:', {
-        id: notification.id,
-        type: notification.type,
-        message: notification.message,
-        actor_id: notification.actor_id,
-        data: notification.data || notification.metadata
-      });
-      
-      setNotifications((prev) => [notification, ...prev]);
-
-      // Play sound for new notifications
-      try {
-        const { pushNotificationService } = await import('../services/pushNotificationService');
-        await pushNotificationService.playNotificationSound('notification');
-      } catch (error) {
-        console.log('Could not play notification sound:', error);
-      }
-    });
+    // Note: Notification subscription is handled by MessagingContext
+    // NotificationsScreen should use MessagingContext instead of creating its own subscription
 
     return () => {
-      subscription.unsubscribe();
+      // Note: Notification subscription is handled by MessagingContext
     };
   }, []);
 
