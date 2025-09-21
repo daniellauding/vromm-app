@@ -9,6 +9,7 @@ import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useToast } from '../contexts/ToastContext';
 import { useUnlock } from '../contexts/UnlockContext';
+import { CelebrationModal } from './CelebrationModal';
 import { useStripe } from '@stripe/stripe-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
@@ -77,6 +78,7 @@ interface ExerciseListSheetProps {
   title: string;
   learningPathId?: string;
   showAllPaths?: boolean;
+  initialExerciseId?: string; // New prop to open a specific exercise
 }
 
 // Progress Circle component (exact copy from ProgressScreen)
@@ -129,6 +131,7 @@ export function ExerciseListSheet({
   title,
   learningPathId,
   showAllPaths = false,
+  initialExerciseId,
 }: ExerciseListSheetProps) {
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
@@ -181,6 +184,16 @@ export function ExerciseListSheet({
 
   // Get effective user ID (student switch support)
   const effectiveUserId = activeStudentId || user?.id;
+
+  // Celebration modal state
+  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{
+    learningPathTitle: { en: string; sv: string };
+    completedExercises: number;
+    totalExercises: number;
+    timeSpent?: number;
+    streakDays?: number;
+  } | null>(null);
   
   // Load shared unlock data when user changes
   useEffect(() => {
@@ -343,9 +356,94 @@ export function ExerciseListSheet({
         await supabase
           .from('learning_path_exercise_completions')
           .insert([{ user_id: effectiveUserId, exercise_id: exerciseId }]);
+        
+        // Check for celebration triggers (include the current exercise in the count)
+        if (detailPath) {
+          const updatedCompletedIds = [...completedIds, exerciseId];
+          checkForCelebration(detailPath, updatedCompletedIds);
+        }
       } catch (error) {
         console.error('Error adding completion:', error);
       }
+    }
+  };
+
+  // Celebration detection function
+  const checkForCelebration = async (learningPath: LearningPath, currentCompletedIds?: string[]) => {
+    if (!effectiveUserId) return;
+
+    try {
+      // Get all exercises for this learning path
+      const pathExercises = exercises.filter(ex => ex.learning_path_id === learningPath.id);
+      const totalExercises = pathExercises.length;
+      
+      if (totalExercises === 0) return;
+
+      // Count completed exercises for this path (use provided IDs or current state)
+      const idsToCheck = currentCompletedIds || completedIds;
+      const completedExercises = pathExercises.filter(ex => idsToCheck.includes(ex.id)).length;
+      const completionPercentage = Math.round((completedExercises / totalExercises) * 100);
+
+      // Trigger celebration for significant milestones
+      const shouldCelebrate = 
+        completionPercentage === 100 || // Path completed
+        completionPercentage === 75 || // 75% milestone
+        completionPercentage === 50 || // 50% milestone
+        completionPercentage === 25;   // 25% milestone
+
+      if (shouldCelebrate) {
+        console.log('🎉 [ExerciseListSheet] Triggering celebration:', {
+          pathId: learningPath.id,
+          pathTitle: learningPath.title,
+          completedExercises,
+          totalExercises,
+          completionPercentage,
+        });
+
+        // Get additional stats for celebration
+        let timeSpent: number | undefined;
+        let streakDays: number | undefined;
+
+        try {
+          // Calculate time spent (simplified - could be enhanced with actual time tracking)
+          const { data: timeData } = await supabase
+            .from('learning_path_exercise_completions')
+            .select('completed_at')
+            .eq('user_id', effectiveUserId)
+            .eq('learning_path_id', learningPath.id)
+            .order('completed_at', { ascending: true });
+
+          if (timeData && timeData.length > 1) {
+            const startTime = new Date(timeData[0].completed_at).getTime();
+            const endTime = new Date(timeData[timeData.length - 1].completed_at).getTime();
+            timeSpent = Math.round((endTime - startTime) / (1000 * 60)); // minutes
+          }
+
+          // Calculate streak (simplified - could be enhanced with actual streak tracking)
+          const { data: streakData } = await supabase
+            .from('learning_path_exercise_completions')
+            .select('completed_at')
+            .eq('user_id', effectiveUserId)
+            .gte('completed_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Last 7 days
+            .order('completed_at', { ascending: false });
+
+          streakDays = streakData ? Math.min(streakData.length, 7) : 0;
+        } catch (error) {
+          console.log('📊 [ExerciseListSheet] Could not fetch celebration stats:', error);
+        }
+
+        // Set celebration data and show modal
+        setCelebrationData({
+          learningPathTitle: learningPath.title,
+          completedExercises,
+          totalExercises,
+          timeSpent,
+          streakDays,
+        });
+        setShowCelebrationModal(true);
+      }
+    } catch (error) {
+      console.error('🎉 [ExerciseListSheet] Error checking for celebration:', error);
     }
   };
 
@@ -528,6 +626,17 @@ export function ExerciseListSheet({
       fetchCompletions();
     }
   }, [visible, loadLearningPathData, fetchCompletions]);
+
+  // Auto-open specific exercise if initialExerciseId is provided
+  useEffect(() => {
+    if (visible && initialExerciseId && exercises.length > 0) {
+      const exercise = exercises.find(ex => ex.id === initialExerciseId);
+      if (exercise) {
+        console.log('📚 [ExerciseListSheet] Auto-opening exercise:', exercise.title[lang] || exercise.title.en);
+        setSelectedExercise(exercise);
+      }
+    }
+  }, [visible, initialExerciseId, exercises, lang]);
 
   // Check access when detailPath loads
   useEffect(() => {
@@ -1081,7 +1190,21 @@ export function ExerciseListSheet({
 
   // Exercise list view (reusing ProgressScreen's exercise list design)
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <>
+      {/* Celebration Modal */}
+      {showCelebrationModal && celebrationData && (
+        <CelebrationModal
+          visible={showCelebrationModal}
+          onClose={() => setShowCelebrationModal(false)}
+          learningPathTitle={celebrationData.learningPathTitle}
+          completedExercises={celebrationData.completedExercises}
+          totalExercises={celebrationData.totalExercises}
+          timeSpent={celebrationData.timeSpent}
+          streakDays={celebrationData.streakDays}
+        />
+      )}
+      
+      <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <Animated.View
         style={{
           flex: 1,
@@ -1899,5 +2022,6 @@ export function ExerciseListSheet({
         </TouchableOpacity>
       </Modal>
     </Modal>
+    </>
   );
 }

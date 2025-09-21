@@ -21,7 +21,7 @@ const { height } = Dimensions.get('window');
 
 interface ActivityItem {
   id: string;
-  type: 'route_created' | 'event_created' | 'event_attending' | 'exercise_completed' | 'learning_path_step';
+  type: 'route_created' | 'event_created' | 'event_attending' | 'exercise_completed' | 'learning_path_step' | 'learning_path_completed';
   user: {
     id: string;
     full_name: string;
@@ -226,6 +226,84 @@ export function CommunityFeedSheet({
         });
       }
 
+      // Load learning path completions (celebration activities)
+      let pathCompletionsQuery = supabase
+        .from('learning_path_exercise_completions')
+        .select(`
+          *,
+          user:profiles!learning_path_exercise_completions_user_id_fkey(
+            id,
+            full_name,
+            avatar_url
+          ),
+          learning_path_exercises!inner(
+            id,
+            title,
+            description,
+            icon,
+            learning_path_id,
+            learning_paths!inner(
+              id,
+              title,
+              description,
+              icon
+            )
+          )
+        `)
+        .order('completed_at', { ascending: false })
+        .limit(100);
+
+      if (shouldFilterByFollowing) {
+        pathCompletionsQuery = pathCompletionsQuery.in('user_id', followingUserIds);
+      }
+
+      const { data: pathCompletions, error: pathCompletionsError } = await pathCompletionsQuery;
+
+      if (!pathCompletionsError && pathCompletions) {
+        // Group completions by learning path to detect path completions
+        const pathCompletionMap = new Map<string, any[]>();
+        
+        pathCompletions.forEach(completion => {
+          if (completion.user && completion.learning_path_exercises?.learning_paths) {
+            const pathId = completion.learning_path_exercises.learning_path_id;
+            if (!pathCompletionMap.has(pathId)) {
+              pathCompletionMap.set(pathId, []);
+            }
+            pathCompletionMap.get(pathId)!.push(completion);
+          }
+        });
+
+        // Check for completed learning paths
+        for (const [pathId, completions] of pathCompletionMap) {
+          if (completions.length > 0) {
+            const learningPath = completions[0].learning_path_exercises.learning_paths;
+            const user = completions[0].user;
+            
+            // Get total exercises in this learning path
+            const { data: totalExercises } = await supabase
+              .from('learning_path_exercises')
+              .select('id')
+              .eq('learning_path_id', pathId);
+
+            // If user completed all exercises, add celebration activity
+            if (totalExercises && completions.length >= totalExercises.length) {
+              feedItems.push({
+                id: `path_completion_${pathId}_${user.id}`,
+                type: 'learning_path_completed',
+                user: user,
+                created_at: completions[completions.length - 1].completed_at, // Use latest completion time
+                data: {
+                  learningPath: learningPath,
+                  completedExercises: completions.length,
+                  totalExercises: totalExercises.length,
+                  completion: completions[completions.length - 1]
+                }
+              });
+            }
+          }
+        }
+      }
+
       // Sort all activities by date
       feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -281,6 +359,8 @@ export function CommunityFeedSheet({
         return 'check-circle';
       case 'learning_path_step':
         return 'book-open';
+      case 'learning_path_completed':
+        return 'trophy';
       default:
         return 'activity';
     }
@@ -298,6 +378,8 @@ export function CommunityFeedSheet({
         return 'completed exercise';
       case 'learning_path_step':
         return 'finished learning step';
+      case 'learning_path_completed':
+        return 'completed learning path';
       default:
         return 'had activity';
     }
@@ -726,6 +808,55 @@ export function CommunityFeedSheet({
               {activity.data.exercise.description && (
                 <Text fontSize={13} color="$gray9" numberOfLines={3}>
                   {activity.data.exercise.description?.en || activity.data.exercise.description?.sv}
+                </Text>
+              )}
+            </YStack>
+          </TouchableOpacity>
+        )}
+
+        {activity.type === 'learning_path_completed' && (
+          <TouchableOpacity onPress={() => {
+            navigation.navigate('ProgressTab', { 
+              selectedPathId: activity.data.learningPath.id
+            });
+            onClose();
+          }}>
+            <YStack gap={8} backgroundColor="$backgroundStrong" borderRadius={8} padding={12}>
+              <XStack alignItems="center" gap={8}>
+                <View style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: '#FFD700',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Feather name="trophy" size={16} color="#000" />
+                </View>
+                <YStack flex={1}>
+                  <Text fontSize={16} fontWeight="600" color="$color">
+                    {activity.data.learningPath.title?.en || activity.data.learningPath.title?.sv || 'Learning Path'}
+                  </Text>
+                  <XStack alignItems="center" gap={6}>
+                    <Feather name="trophy" size={14} color="#FFD700" />
+                    <Text fontSize={13} color="#FFD700">Path Completed!</Text>
+                  </XStack>
+                </YStack>
+              </XStack>
+              <XStack alignItems="center" gap={12}>
+                <XStack alignItems="center" gap={4}>
+                  <Feather name="check-circle" size={12} color="#10B981" />
+                  <Text fontSize={12} color="#10B981">
+                    {activity.data.completedExercises}/{activity.data.totalExercises} exercises
+                  </Text>
+                </XStack>
+                <Text fontSize={12} color="$gray9">
+                  {Math.round((activity.data.completedExercises / activity.data.totalExercises) * 100)}% complete
+                </Text>
+              </XStack>
+              {activity.data.learningPath.description && (
+                <Text fontSize={13} color="$gray9" numberOfLines={2}>
+                  {activity.data.learningPath.description?.en || activity.data.learningPath.description?.sv}
                 </Text>
               )}
             </YStack>

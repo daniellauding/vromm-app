@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Button, Input } from 'tamagui';
-import { TouchableOpacity, View, Modal, Alert, Dimensions } from 'react-native';
+import { TouchableOpacity, View, Modal, Alert, Dimensions, Animated, Easing } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useTranslation } from '../../contexts/TranslationContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CelebrationModal } from '../../components/CelebrationModal';
 
 interface DayProgress {
   day: string;
@@ -99,6 +100,17 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   });
   const [tempGoalSettings, setTempGoalSettings] = useState<GoalSettings>(goalSettings);
   
+  // Celebration modal state
+  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{
+    learningPathTitle: { en: string; sv: string };
+    completedExercises: number;
+    totalExercises: number;
+    timeSpent?: number;
+    streakDays?: number;
+  } | null>(null);
+  
+  
   // Use effective user ID (activeUserId prop, activeStudentId from context, or current user)
   const effectiveUserId = activeUserId || activeStudentId || user?.id || null;
   
@@ -176,6 +188,9 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
       
       setWeeklyProgress(progressData);
       console.log('🔍 [WeeklyGoal] Loaded weekly progress:', progressData);
+      
+      // Check for celebration triggers
+      checkForCelebration(progressData);
     } catch (error) {
       console.error('Error loading weekly progress:', error);
     } finally {
@@ -187,6 +202,51 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   useEffect(() => {
     loadWeeklyProgress();
   }, [effectiveUserId, weeklyGoal, currentWeekOffset]);
+  
+  // Celebration detection function
+  const checkForCelebration = (progressData: DayProgress[]) => {
+    if (!effectiveUserId) return;
+    
+    const completedDays = progressData.filter(day => day.completed).length;
+    const totalExercises = progressData.reduce((sum, day) => sum + day.exercises, 0);
+    const weeklyProgressPercent = (completedDays / 7) * 100;
+    
+    // Check for different celebration triggers
+    let shouldCelebrate = false;
+    let celebrationTitle = '';
+    
+    if (completedDays === 7) {
+      // Perfect week - all 7 days completed
+      shouldCelebrate = true;
+      celebrationTitle = t('celebration.perfectWeek.title') || 'Perfect Week! 🏆';
+    } else if (completedDays >= 5 && weeklyProgressPercent >= 70) {
+      // Weekly goal achieved (5+ days or 70%+ completion)
+      shouldCelebrate = true;
+      celebrationTitle = t('celebration.weeklyGoal.title') || 'Weekly Goal Achieved! 🎯';
+    } else if (totalExercises >= weeklyGoal * 5) {
+      // High exercise count milestone
+      shouldCelebrate = true;
+      celebrationTitle = t('celebration.exerciseMilestone.title') || 'Exercise Milestone! 💪';
+    }
+    
+    if (shouldCelebrate) {
+      console.log('🎉 [WeeklyGoal] Triggering celebration:', {
+        completedDays,
+        totalExercises,
+        weeklyProgressPercent,
+      });
+      
+      // Set celebration data and show modal
+      setCelebrationData({
+        learningPathTitle: { en: celebrationTitle, sv: celebrationTitle },
+        completedExercises: completedDays,
+        totalExercises: 7,
+        timeSpent: totalExercises * 5, // Estimate 5 minutes per exercise
+        streakDays: completedDays,
+      });
+      setShowCelebrationModal(true);
+    }
+  };
   
   // Load goal settings from AsyncStorage
   const loadGoalSettings = async () => {
@@ -226,6 +286,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   useEffect(() => {
     loadGoalSettings();
   }, [effectiveUserId]);
+  
 
   // Note: WeeklyGoal doesn't need real-time subscriptions
   // It's a personal progress tracking component that only needs to refresh when user interacts with it
@@ -741,6 +802,19 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+      
+      {/* Celebration Modal */}
+      {showCelebrationModal && celebrationData && (
+        <CelebrationModal
+          visible={showCelebrationModal}
+          onClose={() => setShowCelebrationModal(false)}
+          learningPathTitle={celebrationData.learningPathTitle}
+          completedExercises={celebrationData.completedExercises}
+          totalExercises={celebrationData.totalExercises}
+          timeSpent={celebrationData.timeSpent}
+          streakDays={celebrationData.streakDays}
+        />
+      )}
     </YStack>
   );
 }

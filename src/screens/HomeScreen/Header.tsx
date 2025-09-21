@@ -51,9 +51,11 @@ export const HomeHeader = () => {
   const [showAvatarModal, setShowAvatarModal] = React.useState(false);
   const [showProfileSheet, setShowProfileSheet] = React.useState(false);
   const [showUserProfileSheet, setShowUserProfileSheet] = React.useState(false);
+  const [showProgressionModal, setShowProgressionModal] = React.useState(false);
 
   // Progress state for avatar circle
   const [userProgress, setUserProgress] = useState(0);
+  const [studentProgress, setStudentProgress] = useState<{[key: string]: number}>({});
 
   // Animation refs for avatar modal
   const avatarBackdropOpacity = useRef(new Animated.Value(0)).current;
@@ -152,6 +154,55 @@ export const HomeHeader = () => {
     }
   }, [activeStudentId, profile?.id]);
 
+  // Load progress for all students
+  const loadStudentProgress = React.useCallback(async (studentIds: string[]) => {
+    if (studentIds.length === 0) return;
+
+    try {
+      // Get all learning paths
+      const { data: paths, error: pathsError } = await supabase
+        .from('learning_paths')
+        .select('id, learning_path_exercises(id)')
+        .eq('active', true);
+
+      if (pathsError || !paths) {
+        console.log('🔍 [Header] Error loading paths for students:', pathsError);
+        return;
+      }
+
+      // Get all students' completed exercises
+      const { data: completions, error: completionsError } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('user_id, exercise_id')
+        .in('user_id', studentIds);
+
+      if (completionsError) {
+        console.log('🔍 [Header] Error loading student completions:', completionsError);
+        return;
+      }
+
+      // Calculate progress for each student
+      const totalExercises = paths.reduce((total, path) => total + path.learning_path_exercises.length, 0);
+      const progressMap: {[key: string]: number} = {};
+
+      studentIds.forEach(studentId => {
+        const studentCompletions = completions?.filter(c => c.user_id === studentId) || [];
+        const completedIds = studentCompletions.map(c => c.exercise_id);
+        const completedExercises = paths.reduce((total, path) => {
+          return total + path.learning_path_exercises.filter(ex => completedIds.includes(ex.id)).length;
+        }, 0);
+
+        const progress = totalExercises > 0 ? completedExercises / totalExercises : 0;
+        progressMap[studentId] = progress;
+      });
+
+      setStudentProgress(progressMap);
+      console.log('🔍 [Header] Student progress calculated:', progressMap);
+    } catch (error) {
+      console.error('🔍 [Header] Error calculating student progress:', error);
+    }
+  }, []);
+
   // Load progress when user changes
   useEffect(() => {
     loadUserProgress();
@@ -212,13 +263,19 @@ export const HomeHeader = () => {
       if (profErr) throw profErr;
 
       const createdAtById = Object.fromEntries((rels || []).map((r: any) => [r.student_id, r.created_at]));
-      const list: Array<{ id: string; full_name: string; email: string; created_at?: string }> = (profs || []).map((p: any) => ({
+      const list: Array<{ id: string; full_name: string; email: string; avatar_url?: string; created_at?: string }> = (profs || []).map((p: any) => ({
         id: p.id,
         full_name: p.full_name || 'Unknown',
         email: p.email || '',
+        avatar_url: p.avatar_url,
         created_at: createdAtById[p.id],
       }));
       setStudents(list);
+      
+      // Load progress for all students
+      const studentIdList = list.map(s => s.id);
+      loadStudentProgress(studentIdList);
+      
       return list;
     } catch (e) {
       console.warn('Failed to load supervised students', e);
@@ -249,6 +306,11 @@ export const HomeHeader = () => {
     } catch {
       Alert.alert('Error', 'Failed to load students.');
     }
+  };
+
+  const handleMyProgression = () => {
+    setShowAvatarModal(false);
+    setShowProgressionModal(true);
   };
 
   const handleLogout = () => {
@@ -369,30 +431,58 @@ export const HomeHeader = () => {
                   {isSupervisorRole ? 'No students yet' : 'Not available for your role'}
                 </Text>
               ) : (
-                students.map((s) => (
-                  <TouchableOpacity
-                    key={s.id}
-                    onPress={() => {
-                      setActiveStudent(s.id, s.full_name || null);
-                      setShowStudentPicker(false);
-                    }}
-                    style={{ paddingVertical: 10 }}
-                  >
-                    <XStack alignItems="center" gap={8}>
-                      <View style={{
-                        width: 28, height: 28, borderRadius: 14, backgroundColor: '#333',
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: activeStudentId === s.id ? 2 : 0, borderColor: '#00E6C3'
-                      }}>
-                        <Feather name="user" size={14} color="#fff" />
-                      </View>
-                      <YStack>
-                        <Text color="#fff" weight="semibold" size="sm">{s.full_name || 'Unknown'}</Text>
-                        <Text color="#ccc" size="xs">{s.email}</Text>
-                      </YStack>
-                    </XStack>
-                  </TouchableOpacity>
-                ))
+                students.map((s) => {
+                  const studentProgressValue = studentProgress[s.id] || 0;
+                  return (
+                    <TouchableOpacity
+                      key={s.id}
+                      onPress={() => {
+                        setActiveStudent(s.id, s.full_name || null);
+                        setShowStudentPicker(false);
+                      }}
+                      style={{ paddingVertical: 10 }}
+                    >
+                      <XStack alignItems="center" gap={8}>
+                        <View style={{ position: 'relative' }}>
+                          {/* Progress Circle */}
+                          {studentProgressValue > 0 && (
+                            <ProgressCircle 
+                              percent={studentProgressValue} 
+                              size={32} 
+                              color="#00E6C3" 
+                              bg="#333" 
+                            />
+                          )}
+                          
+                          <View style={{
+                            width: 28, height: 28, borderRadius: 14, backgroundColor: '#333',
+                            alignItems: 'center', justifyContent: 'center',
+                            borderWidth: activeStudentId === s.id ? 2 : 0, borderColor: '#00E6C3',
+                            margin: 2, // Small margin to show progress circle
+                          }}>
+                            {s.avatar_url ? (
+                              <Image
+                                source={{ uri: s.avatar_url }}
+                                style={{ width: 28, height: 28, borderRadius: 14 }}
+                              />
+                            ) : (
+                              <Feather name="user" size={14} color="#fff" />
+                            )}
+                          </View>
+                        </View>
+                        <YStack flex={1}>
+                          <Text color="#fff" weight="semibold" size="sm">{s.full_name || 'Unknown'}</Text>
+                          <Text color="#ccc" size="xs">{s.email}</Text>
+                          {studentProgressValue > 0 && (
+                            <Text color="#00E6C3" size="xs">
+                              {Math.round(studentProgressValue * 100)}% complete
+                            </Text>
+                          )}
+                        </YStack>
+                      </XStack>
+                    </TouchableOpacity>
+                  );
+                })
               )}
             </ScrollView>
           </TouchableOpacity>
@@ -440,6 +530,29 @@ export const HomeHeader = () => {
 
                 {/* Menu Options */}
                 <YStack gap="$2">
+                  {/* My Progression */}
+                  <TouchableOpacity
+                    onPress={handleMyProgression}
+                    style={{
+                      paddingVertical: 16,
+                      paddingHorizontal: 20,
+                      borderBottomWidth: 1,
+                      borderBottomColor: borderColor,
+                    }}
+                  >
+                    <XStack alignItems="center" gap="$3">
+                      <Feather name="trending-up" size={24} color={textColor} />
+                      <YStack flex={1}>
+                        <Text fontWeight="600" fontSize={18} color={textColor}>
+                          {t('profile.myProgression') || 'My Progression'}
+                        </Text>
+                        <Text fontSize={14} color={colorScheme === 'dark' ? '#999' : '#666'}>
+                          {t('profile.myProgressionDescription') || 'View your learning progress and achievements'}
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  </TouchableOpacity>
+
                   {/* View Profile */}
                   <TouchableOpacity
                     onPress={handleViewProfile}
@@ -558,6 +671,130 @@ export const HomeHeader = () => {
         visible={showEventsSheet}
         onClose={() => setShowEventsSheet(false)}
       />
+
+      {/* Progression Modal */}
+      <Modal
+        visible={showProgressionModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowProgressionModal(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setShowProgressionModal(false)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={{ 
+              backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#fff', 
+              borderRadius: 16, 
+              maxHeight: '80%', 
+              padding: 24,
+              borderWidth: 1,
+              borderColor: colorScheme === 'dark' ? '#333' : '#E0E0E0',
+            }}
+          >
+            {/* Header */}
+            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
+              <Text fontSize="$6" fontWeight="bold" color={textColor}>
+                {t('profile.myProgression') || 'My Progression'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowProgressionModal(false)}>
+                <Feather name="x" size={24} color={textColor} />
+              </TouchableOpacity>
+            </XStack>
+
+            {/* Progress Overview */}
+            <YStack gap="$4" marginBottom="$4">
+              <XStack alignItems="center" gap="$3">
+                <View style={{ position: 'relative' }}>
+                  <ProgressCircle 
+                    percent={userProgress} 
+                    size={60} 
+                    color="#00E6C3" 
+                    bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'} 
+                  />
+                  <Text 
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: 60,
+                      height: 60,
+                      textAlign: 'center',
+                      textAlignVertical: 'center',
+                      lineHeight: 60,
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      color: textColor
+                    }}
+                  >
+                    {Math.round(userProgress * 100)}%
+                  </Text>
+                </View>
+                <YStack flex={1}>
+                  <Text fontSize="$5" fontWeight="bold" color={textColor}>
+                    {activeStudentId ? 'Student Progress' : 'Your Progress'}
+                  </Text>
+                  <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                    {Math.round(userProgress * 100)}% of all exercises completed
+                  </Text>
+                </YStack>
+              </XStack>
+            </YStack>
+
+            {/* How Progression Works */}
+            <YStack gap="$3" marginBottom="$4">
+              <Text fontSize="$4" fontWeight="600" color={textColor}>
+                📊 How Progression Works
+              </Text>
+              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                • Complete exercises to increase your progress percentage
+              </Text>
+              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                • Each exercise contributes to your overall learning progress
+              </Text>
+              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                • Progress is tracked across all learning paths
+              </Text>
+              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                • The circle shows your completion percentage
+              </Text>
+              
+              {activeStudentId && (
+                <>
+                  <Text fontSize="$4" fontWeight="600" color={textColor} marginTop="$2">
+                    👨‍🏫 Instructor View
+                  </Text>
+                  <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                    • You're currently viewing a student's progress
+                  </Text>
+                  <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                    • Switch between students to see their individual progress
+                  </Text>
+                </>
+              )}
+            </YStack>
+
+            {/* Close Button */}
+            <TouchableOpacity
+              onPress={() => setShowProgressionModal(false)}
+              style={{
+                backgroundColor: '#00E6C3',
+                padding: 16,
+                borderRadius: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text color="#000" fontWeight="bold" fontSize="$4">
+                {t('common.gotIt') || 'Got it!'}
+              </Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </YStack>
   );
 };

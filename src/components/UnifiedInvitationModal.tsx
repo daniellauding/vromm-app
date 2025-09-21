@@ -234,8 +234,8 @@ export function UnifiedInvitationModal({
       const invitation = invitations[currentIndex];
       
       if (invitation.type === 'relationship') {
-        // Use universal function for relationship invitations
-        const { data, error } = await supabase.rpc('accept_any_invitation', {
+        // Use fixed universal function for relationship invitations
+        const { data, error } = await supabase.rpc('accept_any_invitation_universal', {
           p_invitation_id: invitation.invitation_id,
           p_accepted_by: user?.id
         });

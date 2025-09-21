@@ -32,6 +32,7 @@ import { ProfileSheet } from '../../components/ProfileSheet';
 import { HomeHeader } from './Header';
 import { WeeklyGoal } from './WeeklyGoal';
 import { DailyStatus } from './DailyStatus';
+import { JumpBackInSection } from '../../components/JumpBackInSection';
 import { GettingStarted } from './GettingStarted';
 import { FeaturedContent } from './FeaturedContent';
 import { SavedRoutes } from './SavedRoutes';
@@ -332,7 +333,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             
             {/* Weekly Goal Section */}
             <WeeklyGoal activeUserId={effectiveUserId || undefined} />
-        <DailyStatus activeUserId={effectiveUserId || undefined} />
+            <DailyStatus activeUserId={effectiveUserId || undefined} />
+            
+            {/* Jump Back In Section */}
+            <JumpBackInSection activeUserId={effectiveUserId || undefined} />
             
             <GettingStarted />
 
