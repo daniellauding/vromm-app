@@ -237,74 +237,6 @@ export function RouteDetailSheet({
     }
   }, [routeId, nearbyRoutes, onRouteChange]);
 
-  const panGesture = Gesture.Pan()
-    .onBegin(() => {
-      isDragging.current = true;
-    })
-    .onUpdate((event) => {
-      try {
-        const { translationY } = event;
-        const newPosition = currentState.value + translationY;
-        
-        // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
-        const minPosition = snapPoints.large; // Smallest Y (show most - like expanded)
-        const maxPosition = snapPoints.mini + 100; // Allow dragging past mini for dismissal
-        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
-        
-        // Set translateY directly like RoutesDrawer
-        translateY.value = boundedPosition;
-      } catch (error) {
-        console.log('panGesture error', error);
-      }
-    })
-    .onEnd((event) => {
-      const { translationY, velocityY } = event;
-      isDragging.current = false;
-      
-      const currentPosition = currentState.value + translationY;
-      
-      // Only dismiss if dragged down past the mini snap point with reasonable velocity
-      if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
-        runOnJS(dismissSheet)();
-        return;
-      }
-      
-      // Determine target snap point based on position and velocity
-      let targetSnapPoint;
-      if (velocityY < -500) {
-        // Fast upward swipe - go to larger size (smaller Y)
-        targetSnapPoint = snapPoints.large;
-      } else if (velocityY > 500) {
-        // Fast downward swipe - go to smaller size (larger Y)
-        targetSnapPoint = snapPoints.mini;
-      } else {
-        // Find closest snap point
-        const positions = [snapPoints.large, snapPoints.medium, snapPoints.small, snapPoints.mini];
-        targetSnapPoint = positions.reduce((prev, curr) =>
-          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
-        );
-      }
-      
-      // Constrain target to valid range
-      const boundedTarget = Math.min(
-        Math.max(targetSnapPoint, snapPoints.large),
-        snapPoints.mini,
-      );
-      
-      // Animate to target position - set translateY directly like RoutesDrawer
-      translateY.value = withSpring(boundedTarget, {
-        damping: 20,
-        mass: 1,
-        stiffness: 100,
-        overshootClamping: true,
-        restDisplacementThreshold: 0.01,
-        restSpeedThreshold: 0.01,
-      });
-      
-      currentState.value = boundedTarget;
-      runOnJS(setCurrentSnapPoint)(boundedTarget);
-    });
-
   // Horizontal swipe gesture for route navigation with Tinder-like animation
   const swipeGesture = Gesture.Pan()
     .onStart(() => {
@@ -402,6 +334,75 @@ export function RouteDetailSheet({
         });
       }
     });
+
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      isDragging.current = true;
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentState.value + translationY;
+        
+        // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
+        const minPosition = snapPoints.large; // Smallest Y (show most - like expanded)
+        const maxPosition = snapPoints.mini + 100; // Allow dragging past mini for dismissal
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+        
+        // Set translateY directly like RoutesDrawer
+        translateY.value = boundedPosition;
+      } catch (error) {
+        console.log('panGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      isDragging.current = false;
+      
+      const currentPosition = currentState.value + translationY;
+      
+      // Only dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
+        runOnJS(dismissSheet)();
+        return;
+      }
+      
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        // Fast upward swipe - go to larger size (smaller Y)
+        targetSnapPoint = snapPoints.large;
+      } else if (velocityY > 500) {
+        // Fast downward swipe - go to smaller size (larger Y)
+        targetSnapPoint = snapPoints.mini;
+      } else {
+        // Find closest snap point
+        const positions = [snapPoints.large, snapPoints.medium, snapPoints.small, snapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+      
+      // Constrain target to valid range
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, snapPoints.large),
+        snapPoints.mini,
+      );
+      
+      // Animate to target position - set translateY directly like RoutesDrawer
+      translateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      
+      currentState.value = boundedTarget;
+      runOnJS(setCurrentSnapPoint)(boundedTarget);
+    })
+    .simultaneousWithExternalGesture(swipeGesture);
 
   // Combine gestures - vertical pan for drag-to-dismiss, horizontal pan for route navigation
   const combinedGesture = Gesture.Simultaneous(panGesture, swipeGesture);

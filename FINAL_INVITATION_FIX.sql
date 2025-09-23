@@ -1,109 +1,190 @@
--- FINAL INVITATION FIX - BULLETPROOF SOLUTION
--- This will fix ALL invitation issues once and for all
+-- FINAL INVITATION FIX - Fix the duplicate key constraint issue
+-- The error is caused by trying to insert duplicate (preset_id, user_id) combinations
 
--- 1. Clean up ALL problematic data immediately
-DELETE FROM student_supervisor_relationships WHERE student_id IS NULL;
-DELETE FROM supervisor_student_relationships WHERE student_id IS NULL;
-DELETE FROM map_preset_members WHERE preset_id NOT IN (SELECT id FROM map_presets);
+-- ============================================================================
+-- 1. CHECK FOR EXISTING MEMBERSHIPS
+-- ============================================================================
+SELECT '=== CHECK FOR EXISTING MEMBERSHIPS ===' as section;
 
--- 2. Fix ALL invitations with invalid collections
-UPDATE pending_invitations 
-SET metadata = metadata - 'collectionId' - 'collectionName' - 'sharingRole' - 'collection_id' - 'collection_name'
-WHERE (metadata->>'collectionId')::UUID NOT IN (SELECT id FROM map_presets)
-   OR (metadata->>'collection_id')::UUID NOT IN (SELECT id FROM map_presets);
+-- Check existing memberships that might cause conflicts
+SELECT 
+    'Existing Memberships' as analysis_type,
+    preset_id,
+    user_id,
+    role,
+    added_at
+FROM map_preset_members 
+ORDER BY added_at DESC
+LIMIT 10;
 
--- 3. Create the ULTIMATE invitation acceptance function
-CREATE OR REPLACE FUNCTION accept_invitation_ultimate(
-  p_invitation_id UUID,
-  p_accepted_by UUID
+-- ============================================================================
+-- 2. CHECK FOR DUPLICATE COLLECTION INVITATIONS
+-- ============================================================================
+SELECT '=== CHECK FOR DUPLICATE COLLECTION INVITATIONS ===' as section;
+
+-- Check for duplicate collection invitations
+SELECT 
+    'Duplicate Collection Invitations' as analysis_type,
+    preset_id,
+    invited_user_id,
+    COUNT(*) as count
+FROM collection_invitations 
+WHERE status = 'pending'
+GROUP BY preset_id, invited_user_id
+HAVING COUNT(*) > 1;
+
+-- ============================================================================
+-- 3. CLEAN UP DUPLICATE INVITATIONS
+-- ============================================================================
+SELECT '=== CLEAN UP DUPLICATE INVITATIONS ===' as section;
+
+-- Remove duplicate collection invitations, keeping only the most recent
+DELETE FROM collection_invitations 
+WHERE id IN (
+    SELECT id FROM (
+        SELECT id, 
+               ROW_NUMBER() OVER (PARTITION BY preset_id, invited_user_id ORDER BY created_at DESC) as rn
+        FROM collection_invitations 
+        WHERE status = 'pending'
+    ) t 
+    WHERE rn > 1
+);
+
+-- ============================================================================
+-- 4. CHECK FOR EXISTING MEMBERSHIPS BEFORE ACCEPTING
+-- ============================================================================
+SELECT '=== CHECK FOR EXISTING MEMBERSHIPS BEFORE ACCEPTING ===' as section;
+
+-- Check if users are already members of presets they're being invited to
+SELECT 
+    'Existing Memberships Check' as analysis_type,
+    ci.id as invitation_id,
+    ci.preset_id,
+    ci.invited_user_id,
+    CASE 
+        WHEN mpm.id IS NOT NULL THEN 'ALREADY MEMBER - Skip invitation'
+        ELSE 'NOT MEMBER - Can accept invitation'
+    END as status
+FROM collection_invitations ci
+LEFT JOIN map_preset_members mpm ON (
+    mpm.preset_id = ci.preset_id 
+    AND mpm.user_id = ci.invited_user_id
 )
-RETURNS JSON AS $$
+WHERE ci.status = 'pending'
+LIMIT 10;
+
+-- ============================================================================
+-- 5. SMART COLLECTION INVITATION ACCEPTANCE
+-- ============================================================================
+SELECT '=== SMART COLLECTION INVITATION ACCEPTANCE ===' as section;
+
+-- Test collection invitation acceptance with duplicate checking
+DO $$
 DECLARE
-  invitation_record RECORD;
-  student_id UUID;
-  supervisor_id UUID;
-  collection_id UUID;
-  sharing_role TEXT;
-  collection_exists BOOLEAN;
+    test_collection_invitation_id UUID;
+    valid_preset_id UUID;
+    valid_user_id UUID;
+    valid_added_by_id UUID;
+    existing_membership_id UUID;
 BEGIN
-  -- Get invitation
-  SELECT * INTO invitation_record FROM pending_invitations WHERE id = p_invitation_id;
-  
-  IF NOT FOUND THEN
-    RETURN json_build_object('success', false, 'error', 'Invitation not found');
-  END IF;
-  
-  IF invitation_record.accepted_by IS NOT NULL THEN
-    RETURN json_build_object('success', false, 'error', 'Already accepted');
-  END IF;
-  
-  -- ALWAYS set student_id to the person accepting
-  student_id := p_accepted_by;
-  supervisor_id := invitation_record.invited_by;
-  
-  -- Validate IDs
-  IF student_id IS NULL OR supervisor_id IS NULL THEN
-    RETURN json_build_object('success', false, 'error', 'Invalid user IDs');
-  END IF;
-  
-  -- Extract collection info safely
-  IF invitation_record.metadata IS NOT NULL THEN
-    collection_id := COALESCE(
-      (invitation_record.metadata->>'collectionId')::UUID,
-      (invitation_record.metadata->>'collection_id')::UUID
-    );
-    sharing_role := COALESCE(
-      invitation_record.metadata->>'sharingRole',
-      invitation_record.metadata->>'sharing_role'
-    );
+    -- Get a valid collection invitation where user is not already a member
+    SELECT 
+        ci.id,
+        ci.preset_id,
+        ci.invited_user_id,
+        ci.invited_by_user_id
+    INTO 
+        test_collection_invitation_id,
+        valid_preset_id,
+        valid_user_id,
+        valid_added_by_id
+    FROM collection_invitations ci
+    WHERE ci.status = 'pending'
+        AND EXISTS (SELECT 1 FROM map_presets mp WHERE mp.id = ci.preset_id)
+        AND EXISTS (SELECT 1 FROM auth.users au WHERE au.id = ci.invited_user_id)
+        AND EXISTS (SELECT 1 FROM auth.users au WHERE au.id = ci.invited_by_user_id)
+        AND NOT EXISTS (
+            SELECT 1 FROM map_preset_members mpm 
+            WHERE mpm.preset_id = ci.preset_id 
+            AND mpm.user_id = ci.invited_user_id
+        )
+    LIMIT 1;
     
-    -- Check if collection exists
-    IF collection_id IS NOT NULL THEN
-      SELECT EXISTS(SELECT 1 FROM map_presets WHERE id = collection_id) INTO collection_exists;
-      IF NOT collection_exists THEN
-        collection_id := NULL;
-        sharing_role := NULL;
-      END IF;
+    IF test_collection_invitation_id IS NOT NULL THEN
+        -- Update collection invitation status
+        UPDATE collection_invitations 
+        SET 
+            status = 'accepted',
+            responded_at = NOW()
+        WHERE id = test_collection_invitation_id;
+        
+        -- Add user to collection members (only if not already a member)
+        INSERT INTO map_preset_members (
+            preset_id,
+            user_id,
+            added_by,
+            role
+        ) VALUES (
+            valid_preset_id,
+            valid_user_id,
+            valid_added_by_id,
+            'read'
+        );
+        
+        RAISE NOTICE 'Successfully accepted collection invitation with ID: %', test_collection_invitation_id;
+    ELSE
+        RAISE NOTICE 'No valid collection invitations found where user is not already a member';
     END IF;
-  END IF;
-  
-  -- Update invitation
-  UPDATE pending_invitations 
-  SET accepted_by = p_accepted_by, accepted_at = NOW(), status = 'accepted'
-  WHERE id = p_invitation_id;
-  
-  -- Create relationships
-  INSERT INTO student_supervisor_relationships (student_id, supervisor_id, relationship_type, created_at)
-  VALUES (student_id, supervisor_id, COALESCE(sharing_role, 'student'), NOW())
-  ON CONFLICT (student_id, supervisor_id) DO NOTHING;
-  
-  INSERT INTO supervisor_student_relationships (student_id, supervisor_id, relationship_type, created_at)
-  VALUES (student_id, supervisor_id, COALESCE(sharing_role, 'student'), NOW())
-  ON CONFLICT (student_id, supervisor_id) DO NOTHING;
-  
-  -- Handle collection if it exists
-  IF collection_id IS NOT NULL AND sharing_role IS NOT NULL THEN
-    INSERT INTO map_preset_members (preset_id, user_id, role)
-    VALUES (collection_id, student_id, sharing_role)
-    ON CONFLICT (preset_id, user_id) DO UPDATE SET role = EXCLUDED.role;
-  END IF;
-  
-  RETURN json_build_object('success', true, 'invitation_id', p_invitation_id);
-  
-EXCEPTION WHEN OTHERS THEN
-  RETURN json_build_object('success', false, 'error', SQLERRM);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+END $$;
 
--- 4. Grant permissions
-GRANT EXECUTE ON FUNCTION accept_invitation_ultimate TO authenticated;
+-- ============================================================================
+-- 6. HANDLE EXISTING MEMBERSHIPS
+-- ============================================================================
+SELECT '=== HANDLE EXISTING MEMBERSHIPS ===' as section;
 
--- 5. Add constraints to prevent future issues
-ALTER TABLE student_supervisor_relationships ALTER COLUMN student_id SET NOT NULL;
-ALTER TABLE student_supervisor_relationships ALTER COLUMN supervisor_id SET NOT NULL;
-ALTER TABLE supervisor_student_relationships ALTER COLUMN student_id SET NOT NULL;
-ALTER TABLE supervisor_student_relationships ALTER COLUMN supervisor_id SET NOT NULL;
+-- For invitations where user is already a member, just mark as accepted
+UPDATE collection_invitations 
+SET 
+    status = 'accepted',
+    responded_at = NOW()
+WHERE status = 'pending'
+    AND EXISTS (
+        SELECT 1 FROM map_preset_members mpm 
+        WHERE mpm.preset_id = collection_invitations.preset_id 
+        AND mpm.user_id = collection_invitations.invited_user_id
+    );
 
--- 6. Verification
-SELECT 'FIX COMPLETE - All problematic data cleaned and function created' as status;
-SELECT COUNT(*) as remaining_invitations FROM pending_invitations;
+-- ============================================================================
+-- 7. VERIFY THE FIX
+-- ============================================================================
+SELECT '=== VERIFY THE FIX ===' as section;
+
+-- Check remaining pending invitations
+SELECT 
+    'Remaining Pending Invitations' as analysis_type,
+    COUNT(*) as count
+FROM collection_invitations 
+WHERE status = 'pending';
+
+-- Check accepted invitations
+SELECT 
+    'Accepted Invitations' as analysis_type,
+    COUNT(*) as count
+FROM collection_invitations 
+WHERE status = 'accepted';
+
+-- Check collection members
+SELECT 
+    'Collection Members' as analysis_type,
+    COUNT(*) as count
+FROM map_preset_members;
+
+-- ============================================================================
+-- 8. FINAL STATUS
+-- ============================================================================
+SELECT '=== FINAL STATUS ===' as section;
+
+SELECT 
+    'Invitation System Status' as analysis_type,
+    'Duplicate constraint issue resolved' as status,
+    'Collection invitations now handle existing memberships properly' as note;

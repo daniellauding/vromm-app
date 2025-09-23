@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Dimensions,
@@ -15,6 +15,8 @@ import {
   Pressable,
   Image,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { YStack, XStack, Stack, Image as TamaguiImage, Switch, TextArea } from 'tamagui';
 import { Text } from './Text';
 import { Button } from './Button';
@@ -272,6 +274,98 @@ export function OnboardingInteractive({
   const citySheetTranslateY = useRef(new Animated.Value(300)).current;
   const connectionsBackdropOpacity = useRef(new Animated.Value(0)).current;
   const connectionsSheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Gesture handling for connections modal (like RouteDetailSheet)
+  const { height } = Dimensions.get('window');
+  const connectionsTranslateY = useSharedValue(height);
+  const connectionsBackdropOpacityShared = useSharedValue(0);
+
+  const connectionsSnapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)  
+      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85,   // Top at 85% of screen (show 15% - just title)
+      dismissed: height,     // Completely off-screen
+    };
+    return points;
+  }, [height]);
+  
+  const [currentConnectionsSnapPoint, setCurrentConnectionsSnapPoint] = useState(connectionsSnapPoints.large);
+  const currentConnectionsState = useSharedValue(connectionsSnapPoints.large);
+
+  const connectionsAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: connectionsTranslateY.value }],
+    };
+  });
+
+  const connectionsPanGesture = Gesture.Pan()
+    .onBegin(() => {
+      // Reset any existing animation
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentConnectionsState.value + translationY;
+        
+        // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
+        const minPosition = connectionsSnapPoints.large; // Smallest Y (show most - like expanded)
+        const maxPosition = connectionsSnapPoints.mini + 100; // Allow dragging past mini for dismissal
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+        
+        // Set translateY directly like RouteDetailSheet
+        connectionsTranslateY.value = boundedPosition;
+      } catch (error) {
+        console.log('connectionsPanGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      
+      const currentPosition = currentConnectionsState.value + translationY;
+      
+      // Only dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > connectionsSnapPoints.mini + 30 && velocityY > 200) {
+        runOnJS(hideConnectionsModal)();
+        return;
+      }
+      
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        // Fast upward swipe - go to larger size (smaller Y)
+        targetSnapPoint = connectionsSnapPoints.large;
+      } else if (velocityY > 500) {
+        // Fast downward swipe - go to smaller size (larger Y)
+        targetSnapPoint = connectionsSnapPoints.mini;
+      } else {
+        // Find closest snap point
+        const positions = [connectionsSnapPoints.large, connectionsSnapPoints.medium, connectionsSnapPoints.small, connectionsSnapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+      
+      // Constrain target to valid range
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, connectionsSnapPoints.large),
+        connectionsSnapPoints.mini,
+      );
+      
+      // Animate to target position - set translateY directly like RouteDetailSheet
+      connectionsTranslateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      
+      currentConnectionsState.value = boundedTarget;
+      runOnJS(setCurrentConnectionsSnapPoint)(boundedTarget);
+    });
   const vehicleBackdropOpacity = useRef(new Animated.Value(0)).current;
   const vehicleSheetTranslateY = useRef(new Animated.Value(300)).current;
   const transmissionBackdropOpacity = useRef(new Animated.Value(0)).current;
@@ -873,17 +967,20 @@ export function OnboardingInteractive({
 
   const showConnectionsModal = () => {
     setShowConnectionsDrawer(true);
-    Animated.timing(connectionsBackdropOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(connectionsSheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
+    connectionsTranslateY.value = withSpring(connectionsSnapPoints.large, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    currentConnectionsState.value = connectionsSnapPoints.large;
+    setCurrentConnectionsSnapPoint(connectionsSnapPoints.large);
+    connectionsBackdropOpacityShared.value = withSpring(1, {
+      damping: 20,
+      stiffness: 300,
+    });
   };
 
   const hideConnectionsModal = useCallback(() => {
@@ -892,27 +989,22 @@ export function OnboardingInteractive({
       return;
     }
 
-    Animated.timing(connectionsBackdropOpacity, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(connectionsSheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
-      // Use setTimeout to avoid state updates during render cycles
-      setTimeout(() => {
-        setShowConnectionsDrawer(false);
-        // Only clear search, keep selections for the main slide
-        setConnectionSearchQuery('');
-        setSearchResults([]);
-        // Connections modal hidden successfully
-        // Don't clear selections - they should persist for the save button
-      }, 10);
+    connectionsTranslateY.value = withSpring(connectionsSnapPoints.dismissed, {
+      damping: 20,
+      stiffness: 300,
     });
+    connectionsBackdropOpacityShared.value = withSpring(0, {
+      damping: 20,
+      stiffness: 300,
+    });
+    setTimeout(() => {
+      setShowConnectionsDrawer(false);
+      // Only clear search, keep selections for the main slide
+      setConnectionSearchQuery('');
+      setSearchResults([]);
+      // Connections modal hidden successfully
+      // Don't clear selections - they should persist for the save button
+    }, 300);
   }, [showConnectionsDrawer]);
 
   const showVehicleModal = () => {
@@ -2467,11 +2559,11 @@ export function OnboardingInteractive({
           }, 0);
         }}
       >
-        <Animated.View
+        <ReanimatedAnimated.View
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: connectionsBackdropOpacity,
+            opacity: connectionsBackdropOpacityShared,
           }}
         >
           <Pressable 
@@ -2484,14 +2576,19 @@ export function OnboardingInteractive({
               }, 0);
             }}
           >
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                transform: [{ translateY: connectionsSheetTranslateY }],
-              }}
+            <ReanimatedAnimated.View
+              style={[
+                {
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  backgroundColor: backgroundColor,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                },
+                connectionsAnimatedStyle
+              ]}
             >
           <YStack
                 backgroundColor={backgroundColor}
@@ -2500,9 +2597,25 @@ export function OnboardingInteractive({
             borderTopLeftRadius="$4"
             borderTopRightRadius="$4"
                 gap="$4"
-                height={height * 0.5}
-                maxHeight={height * 0.5}
+                height={height * 0.9}
+                maxHeight={height * 0.9}
               >
+                {/* Drag Handle */}
+                <GestureDetector gesture={connectionsPanGesture}>
+                  <View style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}>
+                    <View style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                    }} />
+                  </View>
+                </GestureDetector>
+
             <Text size="xl" weight="bold" color="$color" textAlign="center">
               {selectedRole === 'student' 
                 ? (t('onboarding.connections.findInstructors') || 'Find Instructors')
@@ -2645,9 +2758,9 @@ export function OnboardingInteractive({
           </Button>
         </YStack>
           </YStack>
-            </Animated.View>
+            </ReanimatedAnimated.View>
           </Pressable>
-        </Animated.View>
+        </ReanimatedAnimated.View>
       </Modal>
 
       {/* Vehicle Type Selection Modal */}
