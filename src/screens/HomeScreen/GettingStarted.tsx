@@ -126,11 +126,12 @@ export const GettingStarted = () => {
 
   const connectionsPanGesture = Gesture.Pan()
     .onBegin(() => {
-      // Reset any existing animation
+      console.log('🎯 [GettingStarted] DRAG HANDLE GESTURE STARTED');
     })
     .onUpdate((event) => {
       try {
         const { translationY } = event;
+        console.log('🎯 [GettingStarted] DRAG HANDLE GESTURE UPDATE - translationY:', translationY);
         const newPosition = currentConnectionsState.value + translationY;
         
         // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
@@ -146,11 +147,13 @@ export const GettingStarted = () => {
     })
     .onEnd((event) => {
       const { translationY, velocityY } = event;
+      console.log('🎯 [GettingStarted] DRAG HANDLE GESTURE END - translationY:', translationY, 'velocityY:', velocityY);
       
       const currentPosition = currentConnectionsState.value + translationY;
       
       // Only dismiss if dragged down past the mini snap point with reasonable velocity
       if (currentPosition > connectionsSnapPoints.mini + 30 && velocityY > 200) {
+        console.log('🎯 [GettingStarted] DRAG HANDLE - DISMISSING MODAL');
         runOnJS(hideConnectionsSheet)();
         return;
       }
@@ -160,15 +163,18 @@ export const GettingStarted = () => {
       if (velocityY < -500) {
         // Fast upward swipe - go to larger size (smaller Y)
         targetSnapPoint = connectionsSnapPoints.large;
+        console.log('🎯 [GettingStarted] DRAG HANDLE - FAST UPWARD SWIPE - going to LARGE');
       } else if (velocityY > 500) {
         // Fast downward swipe - go to smaller size (larger Y)
         targetSnapPoint = connectionsSnapPoints.mini;
+        console.log('🎯 [GettingStarted] DRAG HANDLE - FAST DOWNWARD SWIPE - going to MINI');
       } else {
         // Find closest snap point
         const positions = [connectionsSnapPoints.large, connectionsSnapPoints.medium, connectionsSnapPoints.small, connectionsSnapPoints.mini];
         targetSnapPoint = positions.reduce((prev, curr) =>
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
+        console.log('🎯 [GettingStarted] DRAG HANDLE - SNAP TO CLOSEST - targetSnapPoint:', targetSnapPoint);
       }
       
       // Constrain target to valid range
@@ -176,6 +182,8 @@ export const GettingStarted = () => {
         Math.max(targetSnapPoint, connectionsSnapPoints.large),
         connectionsSnapPoints.mini,
       );
+      
+      console.log('🎯 [GettingStarted] DRAG HANDLE - ANIMATING TO:', boundedTarget);
       
       // Animate to target position - set translateY directly like RouteDetailSheet
       connectionsTranslateY.value = withSpring(boundedTarget, {

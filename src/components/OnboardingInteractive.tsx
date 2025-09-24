@@ -302,11 +302,12 @@ export function OnboardingInteractive({
 
   const connectionsPanGesture = Gesture.Pan()
     .onBegin(() => {
-      // Reset any existing animation
+      console.log('🎯 [OnboardingInteractive] DRAG HANDLE GESTURE STARTED');
     })
     .onUpdate((event) => {
       try {
         const { translationY } = event;
+        console.log('🎯 [OnboardingInteractive] DRAG HANDLE GESTURE UPDATE - translationY:', translationY);
         const newPosition = currentConnectionsState.value + translationY;
         
         // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
@@ -322,11 +323,13 @@ export function OnboardingInteractive({
     })
     .onEnd((event) => {
       const { translationY, velocityY } = event;
+      console.log('🎯 [OnboardingInteractive] DRAG HANDLE GESTURE END - translationY:', translationY, 'velocityY:', velocityY);
       
       const currentPosition = currentConnectionsState.value + translationY;
       
       // Only dismiss if dragged down past the mini snap point with reasonable velocity
       if (currentPosition > connectionsSnapPoints.mini + 30 && velocityY > 200) {
+        console.log('🎯 [OnboardingInteractive] DRAG HANDLE - DISMISSING MODAL');
         runOnJS(hideConnectionsModal)();
         return;
       }
@@ -336,15 +339,18 @@ export function OnboardingInteractive({
       if (velocityY < -500) {
         // Fast upward swipe - go to larger size (smaller Y)
         targetSnapPoint = connectionsSnapPoints.large;
+        console.log('🎯 [OnboardingInteractive] DRAG HANDLE - FAST UPWARD SWIPE - going to LARGE');
       } else if (velocityY > 500) {
         // Fast downward swipe - go to smaller size (larger Y)
         targetSnapPoint = connectionsSnapPoints.mini;
+        console.log('🎯 [OnboardingInteractive] DRAG HANDLE - FAST DOWNWARD SWIPE - going to MINI');
       } else {
         // Find closest snap point
         const positions = [connectionsSnapPoints.large, connectionsSnapPoints.medium, connectionsSnapPoints.small, connectionsSnapPoints.mini];
         targetSnapPoint = positions.reduce((prev, curr) =>
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
+        console.log('🎯 [OnboardingInteractive] DRAG HANDLE - SNAP TO CLOSEST - targetSnapPoint:', targetSnapPoint);
       }
       
       // Constrain target to valid range
@@ -352,6 +358,8 @@ export function OnboardingInteractive({
         Math.max(targetSnapPoint, connectionsSnapPoints.large),
         connectionsSnapPoints.mini,
       );
+      
+      console.log('🎯 [OnboardingInteractive] DRAG HANDLE - ANIMATING TO:', boundedTarget);
       
       // Animate to target position - set translateY directly like RouteDetailSheet
       connectionsTranslateY.value = withSpring(boundedTarget, {
