@@ -389,7 +389,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
         <YStack flex={1}>
           <XStack alignItems="center" gap="$2" marginBottom="$1">
             <Text fontSize="$5" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-              Weekly Goal
+              {t('weeklyGoals.title') || 'Weekly Goal'}
             </Text>
             <TouchableOpacity
               onPress={openGoalModal}
@@ -552,7 +552,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
           color={colorScheme === 'dark' ? '#CCC' : '#666'}
           marginLeft="$2"
         >
-          Goal: {weeklyGoal} exercises per day
+          {t('weeklyGoals.goalPerDayText') || `Goal: ${weeklyGoal} exercises per day`}
         </Text>
       </XStack>
       
@@ -590,7 +590,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
             {/* Modal Header */}
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
               <Text fontSize="$6" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                Goal Settings
+                {t('weeklyGoals.goalSettings') || 'Goal Settings'}
               </Text>
               <TouchableOpacity onPress={closeGoalModal}>
                 <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#666'} />
@@ -600,7 +600,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
             {/* Daily Goal Input */}
             <YStack gap="$3" marginBottom="$4">
               <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                Daily Exercise Goal
+                {t('weeklyGoals.dailyGoal') || 'Daily Exercise Goal'}
               </Text>
               <Input
                 value={tempGoalSettings.dailyGoal.toString()}
@@ -614,7 +614,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                   }));
                 }}
                 keyboardType="numeric"
-                placeholder="Enter daily goal"
+                placeholder={t('weeklyGoals.enterDailyGoal') || 'Enter daily goal'}
                 backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
                 borderColor={colorScheme === 'dark' ? '#444' : '#E5E5E5'}
                 color={colorScheme === 'dark' ? '#FFF' : '#000'}
@@ -622,14 +622,14 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                 padding="$3"
               />
               <Text fontSize="$2" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                Target: {tempGoalSettings.dailyGoal * 7} exercises per week, {tempGoalSettings.dailyGoal * 30} per month
+                {t('weeklyGoals.target') || 'Target'}: {tempGoalSettings.dailyGoal * 7} {t('weeklyGoals.exercisesPerWeek') || 'exercises per week'}, {tempGoalSettings.dailyGoal * 30} {t('weeklyGoals.exercisesPerMonth') || 'per month'}
               </Text>
             </YStack>
             
             {/* Goal Type Selection */}
             <YStack gap="$3" marginBottom="$4">
               <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                Goal Type
+                {t('weeklyGoals.goalType') || 'Goal Type'}
               </Text>
               <XStack gap="$2">
                 <TouchableOpacity
@@ -648,7 +648,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                     color={tempGoalSettings.goalType === 'weekly' ? '#000' : (colorScheme === 'dark' ? '#FFF' : '#000')}
                     fontWeight={tempGoalSettings.goalType === 'weekly' ? 'bold' : 'normal'}
                   >
-                    Weekly
+                    {t('weeklyGoals.weekly') || 'Weekly'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -667,7 +667,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                     color={tempGoalSettings.goalType === 'monthly' ? '#000' : (colorScheme === 'dark' ? '#FFF' : '#000')}
                     fontWeight={tempGoalSettings.goalType === 'monthly' ? 'bold' : 'normal'}
                   >
-                    Monthly
+                    {t('weeklyGoals.monthly') || 'Monthly'}
                   </Text>
                 </TouchableOpacity>
               </XStack>
@@ -686,7 +686,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                 }}
               >
                 <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                  Cancel
+                  {t('weeklyGoals.cancel') || 'Cancel'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -700,7 +700,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                 }}
               >
                 <Text color="#000" fontWeight="bold">
-                  Save Goals
+                  {t('weeklyGoals.saveGoals') || 'Save Goals'}
                 </Text>
               </TouchableOpacity>
             </XStack>
@@ -742,7 +742,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
             {/* Modal Header */}
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
               <Text fontSize="$6" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                How Weekly Goals Work
+                {t('weeklyGoals.howItWorksTitle') || 'How Weekly Goals Work'}
               </Text>
               <TouchableOpacity onPress={() => setShowInfoModal(false)}>
                 <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#666'} />

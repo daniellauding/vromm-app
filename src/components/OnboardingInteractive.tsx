@@ -175,6 +175,19 @@ export function OnboardingInteractive({
     created_at: string;
   }>>([]);
   
+  // Pending invitations state
+  const [pendingInvitations, setPendingInvitations] = useState<Array<{
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    created_at: string;
+    metadata: any;
+  }>>([]);
+  
+  // Tab state for relationships
+  const [activeRelationshipsTab, setActiveRelationshipsTab] = useState<'pending' | 'existing'>('pending');
+  
   // Relationship removal modal state
   const [showRelationshipRemovalModal, setShowRelationshipRemovalModal] = useState(false);
   const [relationshipRemovalTarget, setRelationshipRemovalTarget] = useState<{
@@ -708,10 +721,11 @@ export function OnboardingInteractive({
     };
   }, [citySearchTimeout]);
 
-  // Load existing relationships when relationships step is active
+  // Load existing relationships and pending invitations when relationships step is active
   useEffect(() => {
     if (currentIndex === steps.findIndex(s => s.id === 'relationships')) {
       loadExistingRelationships();
+      loadPendingInvitations();
     }
   }, [currentIndex, user?.id]);
 
@@ -1563,6 +1577,32 @@ export function OnboardingInteractive({
     }
   };
 
+  // Load pending invitations for the user
+  const loadPendingInvitations = async () => {
+    if (!user?.id) return;
+
+    try {
+      console.log('📤 Loading pending invitations for user:', user.id);
+      
+      const { data: invitations, error } = await supabase
+        .from('pending_invitations')
+        .select('*')
+        .eq('invited_by', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading pending invitations:', error);
+        return;
+      }
+
+      console.log('📤 Loaded pending invitations:', invitations);
+      setPendingInvitations(invitations || []);
+    } catch (error) {
+      console.error('Error loading pending invitations:', error);
+    }
+  };
+
   // Handle creating connections for selected users
   const handleCreateSelectedConnections = async () => {
     if (!user?.id || selectedConnections.length === 0) return;
@@ -2155,38 +2195,131 @@ export function OnboardingInteractive({
               <YStack gap="$4" marginTop="$6" width="100%">
                 {item.id === 'relationships' ? (
                   <YStack gap="$3" width="100%">
-                    {/* Show existing relationships */}
-                    {existingRelationships.length > 0 && (
-                      <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
-                        <Text size="md" fontWeight="600" color="$color">
-                          {t('onboarding.relationships.existingTitle') || 'Your Existing Relationships'} ({existingRelationships.length}):
-                        </Text>
-                        {existingRelationships.map((relationship) => (
-                          <XStack key={relationship.id} gap="$2" alignItems="center">
-                            <YStack flex={1}>
-                              <RadioButton
-                                onPress={() => {}} // No action on tap for existing relationships
-                                title={relationship.name}
-                                description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? (t('onboarding.relationships.yourSupervisor') || 'Your supervisor') : (t('onboarding.relationships.studentYouSupervise') || 'Student you supervise')} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
-                                isSelected={false} // Don't show as selected
-                              />
-                            </YStack>
-                            <TouchableOpacity
-                              onPress={() => {
-                                setRelationshipRemovalTarget({
-                                  id: relationship.id,
-                                  name: relationship.name,
-                                  email: relationship.email,
-                                  role: relationship.role,
-                                  relationship_type: relationship.relationship_type,
-                                });
-                                openRelationshipRemovalModal();
-                              }}
+                    {/* Tabbed interface for relationships */}
+                    {(existingRelationships.length > 0 || pendingInvitations.length > 0) && (
+                      <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4" maxHeight="300">
+                        {/* Tab headers */}
+                        <XStack gap="$2" marginBottom="$2">
+                          <TouchableOpacity
+                            onPress={() => setActiveRelationshipsTab('pending')}
+                            style={{
+                              paddingHorizontal: 16,
+                              paddingVertical: 8,
+                              borderRadius: 8,
+                              backgroundColor: activeRelationshipsTab === 'pending' ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : 'transparent',
+                            }}
+                          >
+                            <Text 
+                              size="sm" 
+                              fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'} 
+                              color={activeRelationshipsTab === 'pending' ? textColor : handleColor}
                             >
-                              <Feather name="trash-2" size={16} color="#EF4444" />
-                            </TouchableOpacity>
-                          </XStack>
-                        ))}
+                              {t('onboarding.relationships.pendingTitle') || 'Pending'} ({pendingInvitations.length})
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => setActiveRelationshipsTab('existing')}
+                            style={{
+                              paddingHorizontal: 16,
+                              paddingVertical: 8,
+                              borderRadius: 8,
+                              backgroundColor: activeRelationshipsTab === 'existing' ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : 'transparent',
+                            }}
+                          >
+                            <Text 
+                              size="sm" 
+                              fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'} 
+                              color={activeRelationshipsTab === 'existing' ? textColor : handleColor}
+                            >
+                              {t('onboarding.relationships.existingTitle') || 'Existing'} ({existingRelationships.length})
+                            </Text>
+                          </TouchableOpacity>
+                        </XStack>
+
+                        {/* Tab content */}
+                        <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={true}>
+                          <YStack gap="$3">
+                            {activeRelationshipsTab === 'pending' ? (
+                              // Pending invitations
+                              pendingInvitations.length > 0 ? (
+                                pendingInvitations.map((invitation) => (
+                                  <XStack key={invitation.id} gap="$2" alignItems="center">
+                                    <YStack flex={1}>
+                                      <Text size="md" fontWeight="600" color="$color">
+                                        {invitation.metadata?.targetUserName || invitation.email}
+                                      </Text>
+                                      <Text size="sm" color="$gray11">
+                                        {invitation.email} • {invitation.role} • {t('onboarding.relationships.pending') || 'Pending'}
+                                      </Text>
+                                      {invitation.metadata?.customMessage && (
+                                        <Text size="sm" color="$gray11" fontStyle="italic">
+                                          "{invitation.metadata.customMessage}"
+                                        </Text>
+                                      )}
+                                    </YStack>
+                                    <TouchableOpacity
+                                      onPress={async () => {
+                                        // Delete pending invitation
+                                        try {
+                                          const { error } = await supabase
+                                            .from('pending_invitations')
+                                            .delete()
+                                            .eq('id', invitation.id);
+                                          
+                                          if (!error) {
+                                            loadPendingInvitations(); // Refresh list
+                                          }
+                                        } catch (error) {
+                                          console.error('Error deleting invitation:', error);
+                                        }
+                                      }}
+                                    >
+                                      <Feather name="trash-2" size={16} color="#EF4444" />
+                                    </TouchableOpacity>
+                                  </XStack>
+                                ))
+                              ) : (
+                                <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                                  {t('onboarding.relationships.noPending') || 'No pending invitations'}
+                                </Text>
+                              )
+                            ) : (
+                              // Existing relationships
+                              existingRelationships.length > 0 ? (
+                                existingRelationships.map((relationship) => (
+                                  <XStack key={relationship.id} gap="$2" alignItems="center">
+                                    <YStack flex={1}>
+                                      <RadioButton
+                                        onPress={() => {}} // No action on tap for existing relationships
+                                        title={relationship.name}
+                                        description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? (t('onboarding.relationships.yourSupervisor') || 'Your supervisor') : (t('onboarding.relationships.studentYouSupervise') || 'Student you supervise')} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
+                                        isSelected={false} // Don't show as selected
+                                      />
+                                    </YStack>
+                                    <TouchableOpacity
+                                      onPress={() => {
+                                        setRelationshipRemovalTarget({
+                                          id: relationship.id,
+                                          name: relationship.name,
+                                          email: relationship.email,
+                                          role: relationship.role,
+                                          relationship_type: relationship.relationship_type,
+                                        });
+                                        openRelationshipRemovalModal();
+                                      }}
+                                    >
+                                      <Feather name="trash-2" size={16} color="#EF4444" />
+                                    </TouchableOpacity>
+                                  </XStack>
+                                ))
+                              ) : (
+                                <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                                  {t('onboarding.relationships.noExisting') || 'No existing relationships'}
+                                </Text>
+                              )
+                            )}
+                          </YStack>
+                        </ScrollView>
                       </YStack>
                     )}
                     

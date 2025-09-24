@@ -105,7 +105,7 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
               (inv.role === 'instructor' 
                 ? t('invitations.supervisorMessage') || 'wants you to be their supervisor'
                 : t('invitations.studentMessage') || 'wants you to be their student'),
-            from_user_name: inviter?.full_name || 'Unknown User',
+            from_user_name: inviter?.full_name || t('invitations.unknownUser') || 'Unknown User',
             from_user_email: inviter?.email || '',
             custom_message: inv.metadata?.customMessage,
             role: inv.role,
@@ -129,11 +129,11 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
             type: 'collection' as const,
             title: t('invitations.collectionInvitation') || 'Collection Invitation',
             message: t('invitations.collectionMessage') || 'wants to share a collection with you',
-            from_user_name: inviter?.full_name || 'Unknown User',
+            from_user_name: inviter?.full_name || t('invitations.unknownUser') || 'Unknown User',
             from_user_email: inviter?.email || '',
             custom_message: inv.custom_message,
             role: inv.role,
-            collection_name: (inv as any).map_presets?.name || 'Unknown Collection',
+            collection_name: (inv as any).map_presets?.name || t('invitations.unknownCollection') || 'Unknown Collection',
             invitation_id: inv.id,
             created_at: inv.created_at,
           };
@@ -142,7 +142,7 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
 
       setInvitations([...relationshipInvitationsWithDetails, ...collectionInvitationsWithDetails]);
     } catch (error) {
-      console.error('Error loading pending invitations:', error);
+      console.error(t('invitations.loadingError') || 'Error loading pending invitations:', error);
     } finally {
       setLoading(false);
     }
@@ -163,7 +163,7 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
 
         showToast({
           title: t('invitations.accepted') || 'Invitation Accepted',
-          message: t('invitations.relationshipAccepted') || 'You are now connected!',
+          message: t('invitations.youAreNowConnected') || 'You are now connected!',
           type: 'success'
         });
       } else if (invitation.type === 'collection') {
@@ -180,7 +180,7 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
 
         showToast({
           title: t('invitations.accepted') || 'Invitation Accepted',
-          message: t('invitations.collectionAccepted') || 'You now have access to this collection!',
+          message: t('invitations.youNowHaveAccess') || 'You now have access to this collection!',
           type: 'success'
         });
       }
@@ -192,7 +192,7 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
       console.error('Error accepting invitation:', error);
       showToast({
         title: t('common.error') || 'Error',
-        message: t('invitations.acceptError') || 'Failed to accept invitation',
+        message: t('invitations.failedToAccept') || 'Failed to accept invitation',
         type: 'error'
       });
     } finally {
@@ -235,7 +235,7 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
       console.error('Error declining invitation:', error);
       showToast({
         title: t('common.error') || 'Error',
-        message: t('invitations.declineError') || 'Failed to decline invitation',
+        message: t('invitations.failedToDecline') || 'Failed to decline invitation',
         type: 'error'
       });
     } finally {
