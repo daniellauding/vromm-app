@@ -35,7 +35,7 @@ interface JumpBackInSectionProps {
 export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
   const { user } = useAuth();
   const { activeStudentId } = useStudentSwitch();
-  const { language: lang, t } = useTranslation();
+  const { language: lang, t, refreshTranslations } = useTranslation();
   const colorScheme = useColorScheme();
   
   const [recentExercises, setRecentExercises] = useState<RecentExercise[]>([]);
@@ -45,6 +45,13 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   
   const effectiveUserId = activeUserId || activeStudentId || user?.id;
+  
+  // Refresh translations on mount to ensure latest translations are loaded
+  useEffect(() => {
+    refreshTranslations().catch(() => {
+      // Silent fail on translation refresh
+    });
+  }, []);
   
   // Load recent exercises with progress
   const loadRecentExercises = useCallback(async () => {
@@ -193,7 +200,10 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
     <>
       <YStack marginBottom="$4">
         <Text fontSize="$5" fontWeight="bold" color="$color" marginBottom="$3" marginHorizontal="$4">
-          {t('home.jumpBackIn') || 'Jump back in'}
+          {(() => {
+            const translated = t('home.jumpBackIn');
+            return translated === 'home.jumpBackIn' ? 'Jump back in' : translated;
+          })()}
         </Text>
         
         <ScrollView
