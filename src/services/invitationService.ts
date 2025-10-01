@@ -399,14 +399,14 @@ export async function acceptInvitation(email: string, userId: string): Promise<b
 }
 
 /**
- * Accept a specific invitation by ID using the universal function
+ * Accept a specific invitation by ID using the fixed universal function
  */
 export async function acceptInvitationById(invitationId: string, userId: string): Promise<boolean> {
   try {
-    console.log('🎯 acceptInvitationById: Using universal function for invitation:', { invitationId, userId });
+    console.log('🎯 acceptInvitationById: Using fixed universal function for invitation:', { invitationId, userId });
     
-    // Use the universal RPC function that handles both types
-    const { data, error } = await supabase.rpc('accept_any_invitation', {
+    // Use the fixed universal RPC function that handles both types
+    const { data, error } = await supabase.rpc('accept_any_invitation_universal', {
       p_invitation_id: invitationId,
       p_accepted_by: userId
     });
@@ -421,7 +421,7 @@ export async function acceptInvitationById(invitationId: string, userId: string)
       return false;
     }
 
-    console.log('🎯 acceptInvitationById: Invitation accepted successfully via universal function');
+    console.log('🎯 acceptInvitationById: Invitation accepted successfully via fixed universal function');
     return true;
   } catch (error) {
     console.error('🎯 acceptInvitationById: Error accepting invitation:', error);

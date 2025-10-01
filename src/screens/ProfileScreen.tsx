@@ -27,6 +27,7 @@ import { getTabContentPadding } from '../utils/layout';
 import { useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { OnboardingModal } from '../components/OnboardingModal';
+import { OnboardingModalInteractive } from '../components/OnboardingModalInteractive';
 import { resetOnboarding } from '../components/Onboarding';
 import { resetOnboardingForCurrentUser } from '../services/onboardingService';
 import { useNavigation } from '@react-navigation/native';
@@ -252,6 +253,7 @@ export function ProfileScreen() {
   } = useLockModal();
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   
   // Animated dots for "Detecting Location..."
   const [dotsCount, setDotsCount] = useState(0);
@@ -5250,9 +5252,12 @@ export function ProfileScreen() {
                               
                               showToast({
                                 title: '✅ Reset Complete',
-                                message: 'All onboarding and tour flags have been reset. Restart the app to see them again.',
+                                message: 'All onboarding and tour flags have been reset. Showing onboarding now.',
                                 type: 'success'
                               });
+                              
+                              // Show the onboarding modal
+                              setShowOnboardingModal(true);
                             } catch (error) {
                               console.error('Error resetting flags:', error);
                               showToast({
@@ -6330,6 +6335,16 @@ export function ProfileScreen() {
         contentType={modalContentType}
         featureName={featureName}
       />
+      
+      {/* Onboarding Modal */}
+      {showOnboardingModal && (
+        <OnboardingModalInteractive
+          visible={showOnboardingModal}
+          onClose={() => {
+            setShowOnboardingModal(false);
+          }}
+        />
+      )}
     </Screen>
   );
 }

@@ -49,6 +49,7 @@ import { messageService } from '../services/messageService';
 import { notificationService } from '../services/notificationService';
 import { getPendingInvitations } from '../services/invitationService_v2';
 import { supabase } from '../lib/supabase';
+import { useMessaging } from '../contexts/MessagingContext';
 // Screen tours import DISABLED
 // import { useScreenTours } from '../utils/screenTours';
 
@@ -629,6 +630,7 @@ export function TabNavigator() {
   const { language, setLanguage } = useAppTranslation();
   const { user } = useAuth();
   const createRouteContext = useCreateRoute();
+  const { unreadMessageCount: messagingUnreadMessageCount, unreadNotificationCount: messagingUnreadNotificationCount, refreshCounts } = useMessaging();
   // Tour context RE-ENABLED for HomeScreen tours only
   const { isActive: tourActive, currentStep, steps, nextStep, prevStep, endTour, startDatabaseTour, resetTour, startCustomTour } = useTour();
   // Screen tours still DISABLED
@@ -739,15 +741,15 @@ export function TabNavigator() {
   const [unreadEventCount, setUnreadEventCount] = useState(0);
   const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0);
 
-  // Load and update badge counts
+  // Load and update badge counts using MessagingContext
   const loadBadgeCounts = async () => {
     try {
-      // Load message count
-      const messageCount = await messageService.getUnreadCount();
+      // Use MessagingContext values instead of creating new subscriptions
+      const messageCount = messagingUnreadMessageCount;
       setUnreadMessageCount(messageCount);
 
-      // Load notification count
-      const notificationCount = await notificationService.getUnreadCount();
+      // Use MessagingContext values instead of creating new subscriptions
+      const notificationCount = messagingUnreadNotificationCount;
       setUnreadNotificationCount(notificationCount);
 
       // Load event invitation count
@@ -836,15 +838,11 @@ export function TabNavigator() {
 
     loadBadgeCounts();
 
-    // Subscribe to message updates
-    const messageSubscription = messageService.subscribeToConversations(() => {
-      loadBadgeCounts();
-    });
+    // Note: Message subscription is handled by MessagingContext
+    // TabNavigator should use MessagingContext instead of creating its own subscription
 
-    // Subscribe to notification updates
-    const notificationSubscription = notificationService.subscribeToNotifications(() => {
-      loadBadgeCounts();
-    });
+    // Note: Notification subscription is handled by MessagingContext
+    // TabNavigator should use MessagingContext instead of creating its own subscription
 
     // Subscribe to event invitation updates
     const eventSubscription = supabase
@@ -886,12 +884,7 @@ export function TabNavigator() {
     }, 15000);
 
     return () => {
-      if (messageSubscription?.unsubscribe) {
-        messageSubscription.unsubscribe();
-      }
-      if (notificationSubscription?.unsubscribe) {
-        notificationSubscription.unsubscribe();
-      }
+      // Note: Message and notification subscriptions are handled by MessagingContext
       supabase.removeChannel(eventSubscription);
       supabase.removeChannel(invitationSubscription);
       clearInterval(refreshInterval);

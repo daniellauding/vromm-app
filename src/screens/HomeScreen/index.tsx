@@ -8,7 +8,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../../types/navigation';
 import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
-// Onboarding imports removed as requested
+import { OnboardingModalInteractive } from '../../components/OnboardingModalInteractive';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 // shouldShowInteractiveOnboarding import removed
@@ -32,6 +32,7 @@ import { ProfileSheet } from '../../components/ProfileSheet';
 import { HomeHeader } from './Header';
 import { WeeklyGoal } from './WeeklyGoal';
 import { DailyStatus } from './DailyStatus';
+import { JumpBackInSection } from '../../components/JumpBackInSection';
 import { GettingStarted } from './GettingStarted';
 import { FeaturedContent } from './FeaturedContent';
 import { SavedRoutes } from './SavedRoutes';
@@ -73,7 +74,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   const { startDatabaseTour, shouldShowTour } = tourContext;
   // Conditional tours still DISABLED
   // const { triggerConditionalTour } = useConditionalTours();
-  const { showModal, modalContentType, setShowModal, checkForPromotionalContent } = usePromotionalModal();
+  const { showModal, checkForPromotionalContent } = usePromotionalModal();
   
   // Debug state for development
   const [showDebugOptions, setShowDebugOptions] = useState(false);
@@ -89,7 +90,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   // Communication sheet states
   const [showMessagesSheet, setShowMessagesSheet] = useState(false);
   const [showNotificationsSheet, setShowNotificationsSheet] = useState(false);
-  const [showEventsSheet, setShowEventsSheet] = useState(false);
+  // const [showEventsSheet, setShowEventsSheet] = useState(false);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
 
   // Use the effective user ID (either activeUserId prop, activeStudentId from context, or current user id)
@@ -98,11 +99,25 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   // Reduced logging to prevent console flooding
 
   // State declarations
-  // Onboarding state removed as requested
-  
-  // State tracking without excessive logging
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
 
-  // Onboarding logic removed as requested
+  // Onboarding logic
+  useEffect(() => {
+    const checkFirstLogin = async () => {
+      try {
+        const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+        if (!hasSeenOnboarding) {
+          setIsFirstLogin(true);
+          setShowOnboarding(true);
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+      }
+    };
+    
+    checkFirstLogin();
+  }, []);
 
   // Check if tour should be shown after onboarding is complete (RE-ENABLED for HomeScreen)
   useEffect(() => {
@@ -169,7 +184,17 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   //   };
   // }, [user?.id, showOnboarding, showModal]);
 
-  // Debug functions removed as onboarding was removed
+  // Debug functions for onboarding
+  const resetOnboarding = async () => {
+    await AsyncStorage.removeItem('hasSeenOnboarding');
+    setShowOnboarding(true);
+    setIsFirstLogin(true);
+  };
+
+  const showOnboardingDebug = () => {
+    setShowOnboarding(true);
+    setIsFirstLogin(true);
+  };
 
   const handleCheckAsyncStorage = async () => {
     try {
@@ -237,7 +262,17 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
-      {/* Onboarding modal removed as requested */}
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <OnboardingModalInteractive
+          visible={showOnboarding}
+          onClose={() => {
+            setShowOnboarding(false);
+            setIsFirstLogin(false);
+            AsyncStorage.setItem('hasSeenOnboarding', 'true');
+          }}
+        />
+      )}
       
       {/* Debug options DISABLED to prevent console flooding */}
       {false && __DEV__ && (
@@ -279,7 +314,18 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
               >
                 <Text style={{ color: 'white', fontSize: 12 }}>Check AsyncStorage</Text>
               </TouchableOpacity>
-              {/* Onboarding debug buttons removed */}
+              <TouchableOpacity
+                style={{ backgroundColor: '#34C759', padding: 8, borderRadius: 4, marginBottom: 4 }}
+                onPress={showOnboardingDebug}
+              >
+                <Text style={{ color: 'white', fontSize: 12 }}>Show Onboarding</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ backgroundColor: '#FF9500', padding: 8, borderRadius: 4, marginBottom: 4 }}
+                onPress={resetOnboarding}
+              >
+                <Text style={{ color: 'white', fontSize: 12 }}>Reset Onboarding</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={{ backgroundColor: '#FF9500', padding: 8, borderRadius: 4, marginBottom: 4 }}
                 onPress={async () => {
@@ -332,7 +378,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             
             {/* Weekly Goal Section */}
             <WeeklyGoal activeUserId={effectiveUserId || undefined} />
-        <DailyStatus activeUserId={effectiveUserId || undefined} />
+            <DailyStatus activeUserId={effectiveUserId || undefined} />
+            
+            {/* Jump Back In Section */}
+            <JumpBackInSection activeUserId={effectiveUserId || undefined} />
             
             <GettingStarted />
 

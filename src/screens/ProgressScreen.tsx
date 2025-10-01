@@ -32,6 +32,7 @@ import { getTabContentPadding } from '../utils/layout';
 import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
 import { CommentsSection } from '../components/CommentsSection';
 import { ReportDialog } from '../components/report/ReportDialog';
+import { CelebrationModal } from '../components/CelebrationModal';
 
 // Define LearningPath type based on the learning_paths table with all fields
 interface LearningPath {
@@ -449,6 +450,16 @@ export function ProgressScreen() {
   // Student profile state for when viewing as student
   const [studentProfile, setStudentProfile] = useState<any>(null);
 
+  // Celebration modal state
+  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{
+    learningPathTitle: { en: string; sv: string };
+    completedExercises: number;
+    totalExercises: number;
+    timeSpent?: number;
+    streakDays?: number;
+  } | null>(null);
+
     // Load categories from Supabase - RESTORED with proper error handling
   useEffect(() => {
     const fetchCategories = async () => {
@@ -813,22 +824,11 @@ export function ProgressScreen() {
     console.log('✅ [ProgressScreen] Filters saved:', categoryFilters);
   };
 
-  // NEW: Load user payments and access control
+  // Load accessible paths and exercises using helper functions
   const loadUserAccess = async () => {
     if (!effectiveUserId) return;
 
     try {
-      // Load user payments
-      const { data: payments, error: paymentsError } = await supabase
-        .from('user_payments')
-        .select('*')
-        .eq('user_id', effectiveUserId)
-        .eq('status', 'completed');
-
-      if (!paymentsError && payments) {
-        setUserPayments(payments);
-      }
-
       // Load accessible paths using helper function
       const { data: pathsData, error: pathsError } = await supabase.rpc(
         'user_can_access_paths_bulk',
@@ -1367,11 +1367,94 @@ export function ProgressScreen() {
               progressPercent: pathProgress,
               totalCompletions: completedIds.length + 1,
             });
+
+            // Check for celebration triggers (include the current exercise in the count)
+            const updatedCompletedIds = [...completedIds, exerciseId];
+            checkForCelebration(exercise.learning_path_id, learningPath, updatedCompletedIds);
           }
         }
       } catch (err) {
         console.error('ProgressScreen: Exception in toggleCompletion (add)', err);
       }
+    }
+  };
+
+  // Celebration detection function
+  const checkForCelebration = async (pathId: string, learningPath: LearningPath | undefined, currentCompletedIds?: string[]) => {
+    if (!learningPath || !effectiveUserId) return;
+
+    try {
+      // Get all exercises for this learning path
+      const pathExercises = exercises.filter(ex => ex.learning_path_id === pathId);
+      const totalExercises = pathExercises.length;
+      
+      if (totalExercises === 0) return;
+
+      // Count completed exercises for this path (use provided IDs or current state)
+      const idsToCheck = currentCompletedIds || completedIds;
+      const completedExercises = pathExercises.filter(ex => idsToCheck.includes(ex.id)).length;
+      const completionPercentage = Math.round((completedExercises / totalExercises) * 100);
+
+      // Trigger celebration for significant milestones
+      const shouldCelebrate = 
+        completionPercentage === 100 || // Path completed
+        completionPercentage === 75 || // 75% milestone
+        completionPercentage === 50 || // 50% milestone
+        completionPercentage === 25;   // 25% milestone
+
+      if (shouldCelebrate) {
+        console.log('🎉 [ProgressScreen] Triggering celebration:', {
+          pathId,
+          pathTitle: learningPath.title,
+          completedExercises,
+          totalExercises,
+          completionPercentage,
+        });
+
+        // Get additional stats for celebration
+        let timeSpent: number | undefined;
+        let streakDays: number | undefined;
+
+        try {
+          // Calculate time spent (simplified - could be enhanced with actual time tracking)
+          const { data: timeData } = await supabase
+            .from('learning_path_exercise_completions')
+            .select('completed_at')
+            .eq('user_id', effectiveUserId)
+            .eq('learning_path_id', pathId)
+            .order('completed_at', { ascending: true });
+
+          if (timeData && timeData.length > 1) {
+            const startTime = new Date(timeData[0].completed_at).getTime();
+            const endTime = new Date(timeData[timeData.length - 1].completed_at).getTime();
+            timeSpent = Math.round((endTime - startTime) / (1000 * 60)); // minutes
+          }
+
+          // Calculate streak (simplified - could be enhanced with actual streak tracking)
+          const { data: streakData } = await supabase
+            .from('learning_path_exercise_completions')
+            .select('completed_at')
+            .eq('user_id', effectiveUserId)
+            .gte('completed_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Last 7 days
+            .order('completed_at', { ascending: false });
+
+          streakDays = streakData ? Math.min(streakData.length, 7) : 0;
+        } catch (error) {
+          console.log('📊 [ProgressScreen] Could not fetch celebration stats:', error);
+        }
+
+        // Set celebration data and show modal
+        setCelebrationData({
+          learningPathTitle: learningPath.title,
+          completedExercises,
+          totalExercises,
+          timeSpent,
+          streakDays,
+        });
+        setShowCelebrationModal(true);
+      }
+    } catch (error) {
+      console.error('🎉 [ProgressScreen] Error checking for celebration:', error);
     }
   };
 
@@ -4399,6 +4482,19 @@ export function ProgressScreen() {
 
   return (
     <YStack flex={1} backgroundColor="$background" padding={0}>
+      {/* Celebration Modal */}
+      {showCelebrationModal && celebrationData && (
+        <CelebrationModal
+          visible={showCelebrationModal}
+          onClose={() => setShowCelebrationModal(false)}
+          learningPathTitle={celebrationData.learningPathTitle}
+          completedExercises={celebrationData.completedExercises}
+          totalExercises={celebrationData.totalExercises}
+          timeSpent={celebrationData.timeSpent}
+          streakDays={celebrationData.streakDays}
+        />
+      )}
+      
       <ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
         refreshControl={

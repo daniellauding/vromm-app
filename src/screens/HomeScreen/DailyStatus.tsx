@@ -189,42 +189,8 @@ export function DailyStatus({ activeUserId }: DailyStatusProps) {
     loadStatusForDate(selectedDate);
   }, [selectedDate, effectiveUserId]);
 
-  // Real-time subscription for daily status updates
-  useEffect(() => {
-    if (!effectiveUserId) return;
-
-    console.log('📅 [DailyStatus] Setting up real-time subscription for user:', effectiveUserId);
-    
-    const channelName = `daily-status-${Date.now()}`;
-    const subscription = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'daily_status',
-          filter: `user_id=eq.${effectiveUserId}`,
-        },
-        (payload) => {
-          console.log('📅 [DailyStatus] Real-time update received:', payload.eventType);
-          // Reload status for current selected date
-          loadStatusForDate(selectedDate);
-          // Also reload today's status if it's different
-          if (selectedDate.toDateString() !== today.toDateString()) {
-            loadTodayStatus();
-          }
-        },
-      )
-      .subscribe((status) => {
-        console.log(`📅 [DailyStatus] Subscription status: ${status}`);
-      });
-
-    return () => {
-      console.log('📅 [DailyStatus] Cleaning up real-time subscription');
-      supabase.removeChannel(subscription);
-    };
-  }, [effectiveUserId, selectedDate]);
+  // Note: DailyStatus doesn't need real-time subscriptions
+  // It's a personal tracking component that only needs to refresh when user interacts with it
 
   // Animation effects
   useEffect(() => {

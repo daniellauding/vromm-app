@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Button, Input } from 'tamagui';
-import { TouchableOpacity, View, Modal, Alert, Dimensions } from 'react-native';
+import { TouchableOpacity, View, Modal, Alert, Dimensions, Animated, Easing } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useTranslation } from '../../contexts/TranslationContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CelebrationModal } from '../../components/CelebrationModal';
 
 interface DayProgress {
   day: string;
@@ -99,6 +100,17 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   });
   const [tempGoalSettings, setTempGoalSettings] = useState<GoalSettings>(goalSettings);
   
+  // Celebration modal state
+  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{
+    learningPathTitle: { en: string; sv: string };
+    completedExercises: number;
+    totalExercises: number;
+    timeSpent?: number;
+    streakDays?: number;
+  } | null>(null);
+  
+  
   // Use effective user ID (activeUserId prop, activeStudentId from context, or current user)
   const effectiveUserId = activeUserId || activeStudentId || user?.id || null;
   
@@ -176,6 +188,9 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
       
       setWeeklyProgress(progressData);
       console.log('🔍 [WeeklyGoal] Loaded weekly progress:', progressData);
+      
+      // Check for celebration triggers
+      checkForCelebration(progressData);
     } catch (error) {
       console.error('Error loading weekly progress:', error);
     } finally {
@@ -187,6 +202,51 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   useEffect(() => {
     loadWeeklyProgress();
   }, [effectiveUserId, weeklyGoal, currentWeekOffset]);
+  
+  // Celebration detection function
+  const checkForCelebration = (progressData: DayProgress[]) => {
+    if (!effectiveUserId) return;
+    
+    const completedDays = progressData.filter(day => day.completed).length;
+    const totalExercises = progressData.reduce((sum, day) => sum + day.exercises, 0);
+    const weeklyProgressPercent = (completedDays / 7) * 100;
+    
+    // Check for different celebration triggers
+    let shouldCelebrate = false;
+    let celebrationTitle = '';
+    
+    if (completedDays === 7) {
+      // Perfect week - all 7 days completed
+      shouldCelebrate = true;
+      celebrationTitle = t('celebration.perfectWeek.title') || 'Perfect Week! 🏆';
+    } else if (completedDays >= 5 && weeklyProgressPercent >= 70) {
+      // Weekly goal achieved (5+ days or 70%+ completion)
+      shouldCelebrate = true;
+      celebrationTitle = t('celebration.weeklyGoal.title') || 'Weekly Goal Achieved! 🎯';
+    } else if (totalExercises >= weeklyGoal * 5) {
+      // High exercise count milestone
+      shouldCelebrate = true;
+      celebrationTitle = t('celebration.exerciseMilestone.title') || 'Exercise Milestone! 💪';
+    }
+    
+    if (shouldCelebrate) {
+      console.log('🎉 [WeeklyGoal] Triggering celebration:', {
+        completedDays,
+        totalExercises,
+        weeklyProgressPercent,
+      });
+      
+      // Set celebration data and show modal
+      setCelebrationData({
+        learningPathTitle: { en: celebrationTitle, sv: celebrationTitle },
+        completedExercises: completedDays,
+        totalExercises: 7,
+        timeSpent: totalExercises * 5, // Estimate 5 minutes per exercise
+        streakDays: completedDays,
+      });
+      setShowCelebrationModal(true);
+    }
+  };
   
   // Load goal settings from AsyncStorage
   const loadGoalSettings = async () => {
@@ -226,38 +286,10 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   useEffect(() => {
     loadGoalSettings();
   }, [effectiveUserId]);
+  
 
-  // Real-time subscription for progress updates
-  useEffect(() => {
-    if (!effectiveUserId) return;
-
-    console.log('📊 [WeeklyGoal] Setting up real-time subscription for user:', effectiveUserId);
-    
-    const channelName = `weekly-goal-progress-${Date.now()}`;
-    const subscription = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'learning_path_exercise_completions',
-          filter: `user_id=eq.${effectiveUserId}`,
-        },
-        (payload) => {
-          console.log('📊 [WeeklyGoal] Real-time update received:', payload.eventType);
-          loadWeeklyProgress();
-        },
-      )
-      .subscribe((status) => {
-        console.log(`📊 [WeeklyGoal] Subscription status: ${status}`);
-      });
-
-    return () => {
-      console.log('📊 [WeeklyGoal] Cleaning up real-time subscription');
-      supabase.removeChannel(subscription);
-    };
-  }, [effectiveUserId]);
+  // Note: WeeklyGoal doesn't need real-time subscriptions
+  // It's a personal progress tracking component that only needs to refresh when user interacts with it
   
   // Handle goal settings modal
   const openGoalModal = () => {
@@ -357,7 +389,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
         <YStack flex={1}>
           <XStack alignItems="center" gap="$2" marginBottom="$1">
             <Text fontSize="$5" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-              Weekly Goal
+              {t('weeklyGoals.title') || 'Weekly Goal'}
             </Text>
             <TouchableOpacity
               onPress={openGoalModal}
@@ -520,7 +552,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
           color={colorScheme === 'dark' ? '#CCC' : '#666'}
           marginLeft="$2"
         >
-          Goal: {weeklyGoal} exercises per day
+          {t('weeklyGoals.goalPerDayText') || `Goal: ${weeklyGoal} exercises per day`}
         </Text>
       </XStack>
       
@@ -558,7 +590,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
             {/* Modal Header */}
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
               <Text fontSize="$6" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                Goal Settings
+                {t('weeklyGoals.goalSettings') || 'Goal Settings'}
               </Text>
               <TouchableOpacity onPress={closeGoalModal}>
                 <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#666'} />
@@ -568,7 +600,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
             {/* Daily Goal Input */}
             <YStack gap="$3" marginBottom="$4">
               <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                Daily Exercise Goal
+                {t('weeklyGoals.dailyGoal') || 'Daily Exercise Goal'}
               </Text>
               <Input
                 value={tempGoalSettings.dailyGoal.toString()}
@@ -582,7 +614,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                   }));
                 }}
                 keyboardType="numeric"
-                placeholder="Enter daily goal"
+                placeholder={t('weeklyGoals.enterDailyGoal') || 'Enter daily goal'}
                 backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
                 borderColor={colorScheme === 'dark' ? '#444' : '#E5E5E5'}
                 color={colorScheme === 'dark' ? '#FFF' : '#000'}
@@ -590,14 +622,14 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                 padding="$3"
               />
               <Text fontSize="$2" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                Target: {tempGoalSettings.dailyGoal * 7} exercises per week, {tempGoalSettings.dailyGoal * 30} per month
+                {t('weeklyGoals.target') || 'Target'}: {tempGoalSettings.dailyGoal * 7} {t('weeklyGoals.exercisesPerWeek') || 'exercises per week'}, {tempGoalSettings.dailyGoal * 30} {t('weeklyGoals.exercisesPerMonth') || 'per month'}
               </Text>
             </YStack>
             
             {/* Goal Type Selection */}
             <YStack gap="$3" marginBottom="$4">
               <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                Goal Type
+                {t('weeklyGoals.goalType') || 'Goal Type'}
               </Text>
               <XStack gap="$2">
                 <TouchableOpacity
@@ -616,7 +648,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                     color={tempGoalSettings.goalType === 'weekly' ? '#000' : (colorScheme === 'dark' ? '#FFF' : '#000')}
                     fontWeight={tempGoalSettings.goalType === 'weekly' ? 'bold' : 'normal'}
                   >
-                    Weekly
+                    {t('weeklyGoals.weekly') || 'Weekly'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -635,7 +667,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                     color={tempGoalSettings.goalType === 'monthly' ? '#000' : (colorScheme === 'dark' ? '#FFF' : '#000')}
                     fontWeight={tempGoalSettings.goalType === 'monthly' ? 'bold' : 'normal'}
                   >
-                    Monthly
+                    {t('weeklyGoals.monthly') || 'Monthly'}
                   </Text>
                 </TouchableOpacity>
               </XStack>
@@ -654,7 +686,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                 }}
               >
                 <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                  Cancel
+                  {t('weeklyGoals.cancel') || 'Cancel'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -668,7 +700,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                 }}
               >
                 <Text color="#000" fontWeight="bold">
-                  Save Goals
+                  {t('weeklyGoals.saveGoals') || 'Save Goals'}
                 </Text>
               </TouchableOpacity>
             </XStack>
@@ -710,7 +742,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
             {/* Modal Header */}
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
               <Text fontSize="$6" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                How Weekly Goals Work
+                {t('weeklyGoals.howItWorksTitle') || 'How Weekly Goals Work'}
               </Text>
               <TouchableOpacity onPress={() => setShowInfoModal(false)}>
                 <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#666'} />
@@ -770,6 +802,19 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+      
+      {/* Celebration Modal */}
+      {showCelebrationModal && celebrationData && (
+        <CelebrationModal
+          visible={showCelebrationModal}
+          onClose={() => setShowCelebrationModal(false)}
+          learningPathTitle={celebrationData.learningPathTitle}
+          completedExercises={celebrationData.completedExercises}
+          totalExercises={celebrationData.totalExercises}
+          timeSpent={celebrationData.timeSpent}
+          streakDays={celebrationData.streakDays}
+        />
+      )}
     </YStack>
   );
 }

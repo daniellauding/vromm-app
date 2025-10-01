@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Dimensions,
@@ -15,6 +15,8 @@ import {
   Pressable,
   Image,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { YStack, XStack, Stack, Image as TamaguiImage, Switch, TextArea } from 'tamagui';
 import { Text } from './Text';
 import { Button } from './Button';
@@ -173,6 +175,19 @@ export function OnboardingInteractive({
     created_at: string;
   }>>([]);
   
+  // Pending invitations state
+  const [pendingInvitations, setPendingInvitations] = useState<Array<{
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    created_at: string;
+    metadata: any;
+  }>>([]);
+  
+  // Tab state for relationships
+  const [activeRelationshipsTab, setActiveRelationshipsTab] = useState<'pending' | 'existing'>('pending');
+  
   // Relationship removal modal state
   const [showRelationshipRemovalModal, setShowRelationshipRemovalModal] = useState(false);
   const [relationshipRemovalTarget, setRelationshipRemovalTarget] = useState<{
@@ -272,6 +287,106 @@ export function OnboardingInteractive({
   const citySheetTranslateY = useRef(new Animated.Value(300)).current;
   const connectionsBackdropOpacity = useRef(new Animated.Value(0)).current;
   const connectionsSheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Gesture handling for connections modal (like RouteDetailSheet)
+  const { height } = Dimensions.get('window');
+  const connectionsTranslateY = useSharedValue(height);
+  const connectionsBackdropOpacityShared = useSharedValue(0);
+
+  const connectionsSnapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)  
+      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85,   // Top at 85% of screen (show 15% - just title)
+      dismissed: height,     // Completely off-screen
+    };
+    return points;
+  }, [height]);
+  
+  const [currentConnectionsSnapPoint, setCurrentConnectionsSnapPoint] = useState(connectionsSnapPoints.large);
+  const currentConnectionsState = useSharedValue(connectionsSnapPoints.large);
+
+  const connectionsAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: connectionsTranslateY.value }],
+    };
+  });
+
+  const connectionsPanGesture = Gesture.Pan()
+    .onBegin(() => {
+      console.log('🎯 [OnboardingInteractive] DRAG HANDLE GESTURE STARTED');
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        console.log('🎯 [OnboardingInteractive] DRAG HANDLE GESTURE UPDATE - translationY:', translationY);
+        const newPosition = currentConnectionsState.value + translationY;
+        
+        // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
+        const minPosition = connectionsSnapPoints.large; // Smallest Y (show most - like expanded)
+        const maxPosition = connectionsSnapPoints.mini + 100; // Allow dragging past mini for dismissal
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+        
+        // Set translateY directly like RouteDetailSheet
+        connectionsTranslateY.value = boundedPosition;
+      } catch (error) {
+        console.log('connectionsPanGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      console.log('🎯 [OnboardingInteractive] DRAG HANDLE GESTURE END - translationY:', translationY, 'velocityY:', velocityY);
+      
+      const currentPosition = currentConnectionsState.value + translationY;
+      
+      // Only dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > connectionsSnapPoints.mini + 30 && velocityY > 200) {
+        console.log('🎯 [OnboardingInteractive] DRAG HANDLE - DISMISSING MODAL');
+        runOnJS(hideConnectionsModal)();
+        return;
+      }
+      
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        // Fast upward swipe - go to larger size (smaller Y)
+        targetSnapPoint = connectionsSnapPoints.large;
+        console.log('🎯 [OnboardingInteractive] DRAG HANDLE - FAST UPWARD SWIPE - going to LARGE');
+      } else if (velocityY > 500) {
+        // Fast downward swipe - go to smaller size (larger Y)
+        targetSnapPoint = connectionsSnapPoints.mini;
+        console.log('🎯 [OnboardingInteractive] DRAG HANDLE - FAST DOWNWARD SWIPE - going to MINI');
+      } else {
+        // Find closest snap point
+        const positions = [connectionsSnapPoints.large, connectionsSnapPoints.medium, connectionsSnapPoints.small, connectionsSnapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+        console.log('🎯 [OnboardingInteractive] DRAG HANDLE - SNAP TO CLOSEST - targetSnapPoint:', targetSnapPoint);
+      }
+      
+      // Constrain target to valid range
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, connectionsSnapPoints.large),
+        connectionsSnapPoints.mini,
+      );
+      
+      console.log('🎯 [OnboardingInteractive] DRAG HANDLE - ANIMATING TO:', boundedTarget);
+      
+      // Animate to target position - set translateY directly like RouteDetailSheet
+      connectionsTranslateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      
+      currentConnectionsState.value = boundedTarget;
+      runOnJS(setCurrentConnectionsSnapPoint)(boundedTarget);
+    });
   const vehicleBackdropOpacity = useRef(new Animated.Value(0)).current;
   const vehicleSheetTranslateY = useRef(new Animated.Value(300)).current;
   const transmissionBackdropOpacity = useRef(new Animated.Value(0)).current;
@@ -606,10 +721,11 @@ export function OnboardingInteractive({
     };
   }, [citySearchTimeout]);
 
-  // Load existing relationships when relationships step is active
+  // Load existing relationships and pending invitations when relationships step is active
   useEffect(() => {
     if (currentIndex === steps.findIndex(s => s.id === 'relationships')) {
       loadExistingRelationships();
+      loadPendingInvitations();
     }
   }, [currentIndex, user?.id]);
 
@@ -873,17 +989,20 @@ export function OnboardingInteractive({
 
   const showConnectionsModal = () => {
     setShowConnectionsDrawer(true);
-    Animated.timing(connectionsBackdropOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(connectionsSheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
+    connectionsTranslateY.value = withSpring(connectionsSnapPoints.large, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    currentConnectionsState.value = connectionsSnapPoints.large;
+    setCurrentConnectionsSnapPoint(connectionsSnapPoints.large);
+    connectionsBackdropOpacityShared.value = withSpring(1, {
+      damping: 20,
+      stiffness: 300,
+    });
   };
 
   const hideConnectionsModal = useCallback(() => {
@@ -892,27 +1011,22 @@ export function OnboardingInteractive({
       return;
     }
 
-    Animated.timing(connectionsBackdropOpacity, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(connectionsSheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
-      // Use setTimeout to avoid state updates during render cycles
-      setTimeout(() => {
-        setShowConnectionsDrawer(false);
-        // Only clear search, keep selections for the main slide
-        setConnectionSearchQuery('');
-        setSearchResults([]);
-        // Connections modal hidden successfully
-        // Don't clear selections - they should persist for the save button
-      }, 10);
+    connectionsTranslateY.value = withSpring(connectionsSnapPoints.dismissed, {
+      damping: 20,
+      stiffness: 300,
     });
+    connectionsBackdropOpacityShared.value = withSpring(0, {
+      damping: 20,
+      stiffness: 300,
+    });
+    setTimeout(() => {
+      setShowConnectionsDrawer(false);
+      // Only clear search, keep selections for the main slide
+      setConnectionSearchQuery('');
+      setSearchResults([]);
+      // Connections modal hidden successfully
+      // Don't clear selections - they should persist for the save button
+    }, 300);
   }, [showConnectionsDrawer]);
 
   const showVehicleModal = () => {
@@ -1460,6 +1574,32 @@ export function OnboardingInteractive({
       setExistingRelationships(transformedRelationships);
     } catch (error) {
       console.error('Error loading existing relationships:', error);
+    }
+  };
+
+  // Load pending invitations for the user
+  const loadPendingInvitations = async () => {
+    if (!user?.id) return;
+
+    try {
+      console.log('📤 Loading pending invitations for user:', user.id);
+      
+      const { data: invitations, error } = await supabase
+        .from('pending_invitations')
+        .select('*')
+        .eq('invited_by', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading pending invitations:', error);
+        return;
+      }
+
+      console.log('📤 Loaded pending invitations:', invitations);
+      setPendingInvitations(invitations || []);
+    } catch (error) {
+      console.error('Error loading pending invitations:', error);
     }
   };
 
@@ -2055,38 +2195,131 @@ export function OnboardingInteractive({
               <YStack gap="$4" marginTop="$6" width="100%">
                 {item.id === 'relationships' ? (
                   <YStack gap="$3" width="100%">
-                    {/* Show existing relationships */}
-                    {existingRelationships.length > 0 && (
-                      <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
-                        <Text size="md" fontWeight="600" color="$color">
-                          {t('onboarding.relationships.existingTitle') || 'Your Existing Relationships'} ({existingRelationships.length}):
-                        </Text>
-                        {existingRelationships.map((relationship) => (
-                          <XStack key={relationship.id} gap="$2" alignItems="center">
-                            <YStack flex={1}>
-                              <RadioButton
-                                onPress={() => {}} // No action on tap for existing relationships
-                                title={relationship.name}
-                                description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? (t('onboarding.relationships.yourSupervisor') || 'Your supervisor') : (t('onboarding.relationships.studentYouSupervise') || 'Student you supervise')} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
-                                isSelected={false} // Don't show as selected
-                              />
-                            </YStack>
-                            <TouchableOpacity
-                              onPress={() => {
-                                setRelationshipRemovalTarget({
-                                  id: relationship.id,
-                                  name: relationship.name,
-                                  email: relationship.email,
-                                  role: relationship.role,
-                                  relationship_type: relationship.relationship_type,
-                                });
-                                openRelationshipRemovalModal();
-                              }}
+                    {/* Tabbed interface for relationships */}
+                    {(existingRelationships.length > 0 || pendingInvitations.length > 0) && (
+                      <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4" maxHeight="300">
+                        {/* Tab headers */}
+                        <XStack gap="$2" marginBottom="$2">
+                          <TouchableOpacity
+                            onPress={() => setActiveRelationshipsTab('pending')}
+                            style={{
+                              paddingHorizontal: 16,
+                              paddingVertical: 8,
+                              borderRadius: 8,
+                              backgroundColor: activeRelationshipsTab === 'pending' ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : 'transparent',
+                            }}
+                          >
+                            <Text 
+                              size="sm" 
+                              fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'} 
+                              color={activeRelationshipsTab === 'pending' ? textColor : handleColor}
                             >
-                              <Feather name="trash-2" size={16} color="#EF4444" />
-                            </TouchableOpacity>
-                          </XStack>
-                        ))}
+                              {t('onboarding.relationships.pendingTitle') || 'Pending'} ({pendingInvitations.length})
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => setActiveRelationshipsTab('existing')}
+                            style={{
+                              paddingHorizontal: 16,
+                              paddingVertical: 8,
+                              borderRadius: 8,
+                              backgroundColor: activeRelationshipsTab === 'existing' ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : 'transparent',
+                            }}
+                          >
+                            <Text 
+                              size="sm" 
+                              fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'} 
+                              color={activeRelationshipsTab === 'existing' ? textColor : handleColor}
+                            >
+                              {t('onboarding.relationships.existingTitle') || 'Existing'} ({existingRelationships.length})
+                            </Text>
+                          </TouchableOpacity>
+                        </XStack>
+
+                        {/* Tab content */}
+                        <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={true}>
+                          <YStack gap="$3">
+                            {activeRelationshipsTab === 'pending' ? (
+                              // Pending invitations
+                              pendingInvitations.length > 0 ? (
+                                pendingInvitations.map((invitation) => (
+                                  <XStack key={invitation.id} gap="$2" alignItems="center">
+                                    <YStack flex={1}>
+                                      <Text size="md" fontWeight="600" color="$color">
+                                        {invitation.metadata?.targetUserName || invitation.email}
+                                      </Text>
+                                      <Text size="sm" color="$gray11">
+                                        {invitation.email} • {invitation.role} • {t('onboarding.relationships.pending') || 'Pending'}
+                                      </Text>
+                                      {invitation.metadata?.customMessage && (
+                                        <Text size="sm" color="$gray11" fontStyle="italic">
+                                          "{invitation.metadata.customMessage}"
+                                        </Text>
+                                      )}
+                                    </YStack>
+                                    <TouchableOpacity
+                                      onPress={async () => {
+                                        // Delete pending invitation
+                                        try {
+                                          const { error } = await supabase
+                                            .from('pending_invitations')
+                                            .delete()
+                                            .eq('id', invitation.id);
+                                          
+                                          if (!error) {
+                                            loadPendingInvitations(); // Refresh list
+                                          }
+                                        } catch (error) {
+                                          console.error('Error deleting invitation:', error);
+                                        }
+                                      }}
+                                    >
+                                      <Feather name="trash-2" size={16} color="#EF4444" />
+                                    </TouchableOpacity>
+                                  </XStack>
+                                ))
+                              ) : (
+                                <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                                  {t('onboarding.relationships.noPending') || 'No pending invitations'}
+                                </Text>
+                              )
+                            ) : (
+                              // Existing relationships
+                              existingRelationships.length > 0 ? (
+                                existingRelationships.map((relationship) => (
+                                  <XStack key={relationship.id} gap="$2" alignItems="center">
+                                    <YStack flex={1}>
+                                      <RadioButton
+                                        onPress={() => {}} // No action on tap for existing relationships
+                                        title={relationship.name}
+                                        description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? (t('onboarding.relationships.yourSupervisor') || 'Your supervisor') : (t('onboarding.relationships.studentYouSupervise') || 'Student you supervise')} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
+                                        isSelected={false} // Don't show as selected
+                                      />
+                                    </YStack>
+                                    <TouchableOpacity
+                                      onPress={() => {
+                                        setRelationshipRemovalTarget({
+                                          id: relationship.id,
+                                          name: relationship.name,
+                                          email: relationship.email,
+                                          role: relationship.role,
+                                          relationship_type: relationship.relationship_type,
+                                        });
+                                        openRelationshipRemovalModal();
+                                      }}
+                                    >
+                                      <Feather name="trash-2" size={16} color="#EF4444" />
+                                    </TouchableOpacity>
+                                  </XStack>
+                                ))
+                              ) : (
+                                <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                                  {t('onboarding.relationships.noExisting') || 'No existing relationships'}
+                                </Text>
+                              )
+                            )}
+                          </YStack>
+                        </ScrollView>
                       </YStack>
                     )}
                     
@@ -2467,11 +2700,11 @@ export function OnboardingInteractive({
           }, 0);
         }}
       >
-        <Animated.View
+        <ReanimatedAnimated.View
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: connectionsBackdropOpacity,
+            opacity: connectionsBackdropOpacityShared,
           }}
         >
           <Pressable 
@@ -2484,14 +2717,19 @@ export function OnboardingInteractive({
               }, 0);
             }}
           >
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                transform: [{ translateY: connectionsSheetTranslateY }],
-              }}
+            <ReanimatedAnimated.View
+              style={[
+                {
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  backgroundColor: backgroundColor,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                },
+                connectionsAnimatedStyle
+              ]}
             >
           <YStack
                 backgroundColor={backgroundColor}
@@ -2500,9 +2738,25 @@ export function OnboardingInteractive({
             borderTopLeftRadius="$4"
             borderTopRightRadius="$4"
                 gap="$4"
-                height={height * 0.5}
-                maxHeight={height * 0.5}
+                height={height * 0.9}
+                maxHeight={height * 0.9}
               >
+                {/* Drag Handle */}
+                <GestureDetector gesture={connectionsPanGesture}>
+                  <View style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}>
+                    <View style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                    }} />
+                  </View>
+                </GestureDetector>
+
             <Text size="xl" weight="bold" color="$color" textAlign="center">
               {selectedRole === 'student' 
                 ? (t('onboarding.connections.findInstructors') || 'Find Instructors')
@@ -2645,9 +2899,9 @@ export function OnboardingInteractive({
           </Button>
         </YStack>
           </YStack>
-            </Animated.View>
+            </ReanimatedAnimated.View>
           </Pressable>
-        </Animated.View>
+        </ReanimatedAnimated.View>
       </Modal>
 
       {/* Vehicle Type Selection Modal */}

@@ -1,8 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { YStack, XStack, ScrollView, TextArea, Switch } from 'tamagui';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import { Dimensions } from 'react-native';
 
 import { Text } from '../../components/Text';
 import { Feather } from '@expo/vector-icons';
+import { useThemeColor } from '../../../hooks/useThemeColor';
 import { 
   View, 
   TouchableOpacity, 
@@ -36,6 +40,9 @@ export const GettingStarted = () => {
   const { isActive: tourActive, currentStep, steps } = useTour();
   const { t, language } = useTranslation();
   const colorScheme = useColorScheme();
+  
+  // Theme colors
+  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
   
   // Register license plan card for tour targeting
   const licensePlanRef = useTourTarget('GettingStarted.LicensePlan');
@@ -92,6 +99,105 @@ export const GettingStarted = () => {
   const connectionsBackdropOpacity = useRef(new Animated.Value(0)).current;
   const connectionsSheetTranslateY = useRef(new Animated.Value(300)).current;
 
+  // Gesture handling for connections modal (like RouteDetailSheet)
+  const { height } = Dimensions.get('window');
+  const connectionsTranslateY = useSharedValue(height);
+  const connectionsBackdropOpacityShared = useSharedValue(0);
+
+  const connectionsSnapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)  
+      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85,   // Top at 85% of screen (show 15% - just title)
+      dismissed: height,     // Completely off-screen
+    };
+    return points;
+  }, [height]);
+  
+  const [currentConnectionsSnapPoint, setCurrentConnectionsSnapPoint] = useState(connectionsSnapPoints.large);
+  const currentConnectionsState = useSharedValue(connectionsSnapPoints.large);
+
+  const connectionsAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: connectionsTranslateY.value }],
+    };
+  });
+
+  const connectionsPanGesture = Gesture.Pan()
+    .onBegin(() => {
+      console.log('🎯 [GettingStarted] DRAG HANDLE GESTURE STARTED');
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        console.log('🎯 [GettingStarted] DRAG HANDLE GESTURE UPDATE - translationY:', translationY);
+        const newPosition = currentConnectionsState.value + translationY;
+        
+        // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
+        const minPosition = connectionsSnapPoints.large; // Smallest Y (show most - like expanded)
+        const maxPosition = connectionsSnapPoints.mini + 100; // Allow dragging past mini for dismissal
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+        
+        // Set translateY directly like RouteDetailSheet
+        connectionsTranslateY.value = boundedPosition;
+      } catch (error) {
+        console.log('connectionsPanGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      console.log('🎯 [GettingStarted] DRAG HANDLE GESTURE END - translationY:', translationY, 'velocityY:', velocityY);
+      
+      const currentPosition = currentConnectionsState.value + translationY;
+      
+      // Only dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > connectionsSnapPoints.mini + 30 && velocityY > 200) {
+        console.log('🎯 [GettingStarted] DRAG HANDLE - DISMISSING MODAL');
+        runOnJS(hideConnectionsSheet)();
+        return;
+      }
+      
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        // Fast upward swipe - go to larger size (smaller Y)
+        targetSnapPoint = connectionsSnapPoints.large;
+        console.log('🎯 [GettingStarted] DRAG HANDLE - FAST UPWARD SWIPE - going to LARGE');
+      } else if (velocityY > 500) {
+        // Fast downward swipe - go to smaller size (larger Y)
+        targetSnapPoint = connectionsSnapPoints.mini;
+        console.log('🎯 [GettingStarted] DRAG HANDLE - FAST DOWNWARD SWIPE - going to MINI');
+      } else {
+        // Find closest snap point
+        const positions = [connectionsSnapPoints.large, connectionsSnapPoints.medium, connectionsSnapPoints.small, connectionsSnapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+        console.log('🎯 [GettingStarted] DRAG HANDLE - SNAP TO CLOSEST - targetSnapPoint:', targetSnapPoint);
+      }
+      
+      // Constrain target to valid range
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, connectionsSnapPoints.large),
+        connectionsSnapPoints.mini,
+      );
+      
+      console.log('🎯 [GettingStarted] DRAG HANDLE - ANIMATING TO:', boundedTarget);
+      
+      // Animate to target position - set translateY directly like RouteDetailSheet
+      connectionsTranslateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      
+      currentConnectionsState.value = boundedTarget;
+      runOnJS(setCurrentConnectionsSnapPoint)(boundedTarget);
+    });
 
   // Helper function to check if license plan should be highlighted
   const isLicensePlanHighlighted = (): boolean => {
@@ -132,6 +238,9 @@ export const GettingStarted = () => {
 
   // Pending invitations state
   const [pendingInvitations, setPendingInvitations] = React.useState<any[]>([]);
+  
+  // Tab state for relationships
+  const [activeRelationshipsTab, setActiveRelationshipsTab] = React.useState<'pending' | 'existing'>('pending');
 
   // Körkortsplan modal show/hide functions (copied from ProfileScreen)
   const showKorkortsplanSheet = () => {
@@ -309,33 +418,34 @@ export const GettingStarted = () => {
     loadPendingInvitations();
     
     setShowConnectionsModal(true);
-    Animated.timing(connectionsBackdropOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(connectionsSheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
+    connectionsTranslateY.value = withSpring(connectionsSnapPoints.large, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    currentConnectionsState.value = connectionsSnapPoints.large;
+    setCurrentConnectionsSnapPoint(connectionsSnapPoints.large);
+    connectionsBackdropOpacityShared.value = withSpring(1, {
+      damping: 20,
+      stiffness: 300,
+    });
   };
 
   const hideConnectionsSheet = () => {
-    Animated.timing(connectionsBackdropOpacity, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(connectionsSheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
-      setShowConnectionsModal(false);
+    connectionsTranslateY.value = withSpring(connectionsSnapPoints.dismissed, {
+      damping: 20,
+      stiffness: 300,
     });
+    connectionsBackdropOpacityShared.value = withSpring(0, {
+      damping: 20,
+      stiffness: 300,
+    });
+    setTimeout(() => {
+      setShowConnectionsModal(false);
+    }, 300);
   };
 
   // Relationship removal modal show/hide functions
@@ -1531,30 +1641,35 @@ export const GettingStarted = () => {
         </Animated.View>
       </Modal>
 
-      {/* Connections Selection Modal - copied from OnboardingInteractive */}
+      {/* Connections Selection Modal - with gesture handling like RouteDetailSheet */}
       <Modal
         visible={showConnectionsModal}
         transparent
         animationType="none"
         onRequestClose={hideConnectionsSheet}
       >
-        <Animated.View
+        <ReanimatedAnimated.View
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: connectionsBackdropOpacity,
+            opacity: connectionsBackdropOpacityShared,
           }}
         >
           <View style={{ flex: 1 }}>
             <Pressable style={{ flex: 1 }} onPress={hideConnectionsSheet} />
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                transform: [{ translateY: connectionsSheetTranslateY }],
-              }}
+            <ReanimatedAnimated.View
+              style={[
+                {
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  backgroundColor: backgroundColor,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                },
+                connectionsAnimatedStyle
+              ]}
             >
               <YStack
                 backgroundColor="$background"
@@ -1563,8 +1678,24 @@ export const GettingStarted = () => {
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
                 gap="$4"
-                maxHeight="90%"
+                maxHeight="95%"
               >
+                {/* Drag Handle */}
+                <GestureDetector gesture={connectionsPanGesture}>
+                  <View style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}>
+                    <View style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                    }} />
+                  </View>
+                </GestureDetector>
+
                 <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
                   {selectedRole === 'student' 
                     ? 'Find Instructors'
@@ -1583,224 +1714,272 @@ export const GettingStarted = () => {
                   }
                 </Text>
 
-                {/* Show existing relationships - using OnboardingInteractive styling */}
-                {existingRelationships.length > 0 && (
-                  <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
-                    <Text size="md" fontWeight="600" color="$color">
-                      {t('onboarding.relationships.existingTitle') || 'Your Existing Relationships'} ({existingRelationships.length}):
-                    </Text>
-                    {existingRelationships.map((relationship) => (
-                      <XStack key={relationship.id} gap="$2" alignItems="center">
-                        <YStack flex={1}>
-                          <RadioButton
-                            onPress={() => {}} // No action on tap for existing relationships
-                            title={relationship.name}
-                            description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? (t('onboarding.relationships.yourSupervisor') || 'Your supervisor') : (t('onboarding.relationships.studentYouSupervise') || 'Student you supervise')} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
-                            isSelected={false} // Don't show as selected
-                          />
-                        </YStack>
-                        <TouchableOpacity
-                          onPress={() => {
-                            setRelationshipRemovalTarget({
-                              id: relationship.id,
-                              name: relationship.name,
-                              email: relationship.email,
-                              role: relationship.role,
-                              relationship_type: relationship.relationship_type,
-                            });
-                            openRelationshipRemovalModal();
-                          }}
+                {/* Tabbed interface for relationships */}
+                {(existingRelationships.length > 0 || pendingInvitations.length > 0) && (
+                  <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4" maxHeight="300">
+                    {/* Tab headers */}
+                    <XStack gap="$2" marginBottom="$2">
+                      <TouchableOpacity
+                        onPress={() => setActiveRelationshipsTab('pending')}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          backgroundColor: activeRelationshipsTab === 'pending' ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : 'transparent',
+                        }}
+                      >
+                        <Text 
+                          size="sm" 
+                          fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'} 
+                          color={activeRelationshipsTab === 'pending' ? (colorScheme === 'dark' ? '#ECEDEE' : '#11181C') : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)')}
                         >
-                          <Feather name="trash-2" size={16} color="#EF4444" />
-                        </TouchableOpacity>
-                      </XStack>
-                    ))}
-                  </YStack>
-                )}
-
-                {/* Show pending invitations */}
-                {pendingInvitations.length > 0 && (
-                  <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
-                    <Text size="md" fontWeight="600" color="$color">
-                      Pending Invitations ({pendingInvitations.length}):
-                    </Text>
-                    {pendingInvitations.map((invitation) => (
-                      <XStack key={invitation.id} gap="$2" alignItems="center">
-                        <YStack flex={1}>
-                          <Text fontSize="$4" fontWeight="600" color="$color">
-                            {invitation.metadata?.targetUserName || invitation.email}
-                          </Text>
-                          <Text fontSize="$3" color="$gray11">
-                            {invitation.email} • Invited as {invitation.role} • {new Date(invitation.created_at).toLocaleDateString()}
-                          </Text>
-                          {invitation.metadata?.customMessage && (
-                            <Text fontSize="$2" color="$gray9" fontStyle="italic">
-                              Message: "{invitation.metadata.customMessage}"
-                            </Text>
-                          )}
-                        </YStack>
-                        <Text fontSize="$3" color="$orange10" fontWeight="600">
-                          PENDING
+                          {t('onboarding.relationships.pendingTitle') || 'Pending'} ({pendingInvitations.length})
                         </Text>
-                        <TouchableOpacity
-                          onPress={async () => {
-                            console.log('🗑️ [GettingStarted] TRASH BUTTON PRESSED for invitation:', invitation.id);
-                            
-                            // Add haptic feedback to confirm tap
-                            try {
-                              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                            } catch (e) {
-                              // Haptics might not be available
-                            }
-                            
-                            try {
-                              console.log('🗑️ [GettingStarted] FORCE DELETING invitation with ID:', invitation.id);
-                              console.log('🗑️ [GettingStarted] Full invitation object:', JSON.stringify(invitation, null, 2));
-                              
-                              // First, let's check if the invitation actually exists
-                              const { data: checkData, error: checkError } = await supabase
-                                .from('pending_invitations')
-                                .select('*')
-                                .eq('id', invitation.id);
-
-                              console.log('🗑️ [GettingStarted] Check if invitation exists:', { data: checkData, error: checkError });
-                              
-                              // Try multiple deletion approaches
-                              let deletionSuccess = false;
-                              
-                              // Method 1: Direct DELETE with RLS
-                              console.log('🗑️ [GettingStarted] Method 1: Direct DELETE with RLS');
-                              const { data: pendingData, error: pendingError } = await supabase
-                                .from('pending_invitations')
-                                .delete()
-                                .eq('id', invitation.id)
-                                .select();
-
-                              console.log('🗑️ [GettingStarted] Method 1 result:', { data: pendingData, error: pendingError });
-                              
-                              if (pendingData && pendingData.length > 0) {
-                                deletionSuccess = true;
-                                console.log('✅ [GettingStarted] Method 1 successful - deleted', pendingData.length, 'rows');
-                              } else if (pendingError) {
-                                console.log('❌ [GettingStarted] Method 1 failed with error:', pendingError);
-                              }
-
-                              // Method 2: Try UPDATE to 'cancelled' status first, then DELETE
-                              if (!deletionSuccess) {
-                                console.log('🗑️ [GettingStarted] Method 2: UPDATE to cancelled, then DELETE');
-                                
-                                // First update to cancelled
-                                const { data: updateData, error: updateError } = await supabase
-                                  .from('pending_invitations')
-                                  .update({ status: 'cancelled' })
-                                  .eq('id', invitation.id)
-                                  .select();
-
-                                console.log('🗑️ [GettingStarted] Method 2 UPDATE result:', { data: updateData, error: updateError });
-                                
-                                if (updateData && updateData.length > 0) {
-                                  // Now try to delete
-                                  const { data: deleteData, error: deleteError } = await supabase
-                                    .from('pending_invitations')
-                                    .delete()
-                                    .eq('id', invitation.id)
-                                    .select();
-
-                                  console.log('🗑️ [GettingStarted] Method 2 DELETE result:', { data: deleteData, error: deleteError });
-                                  
-                                  if (deleteData && deleteData.length > 0) {
-                                    deletionSuccess = true;
-                                    console.log('✅ [GettingStarted] Method 2 successful - deleted', deleteData.length, 'rows');
-                                  }
-                                }
-                              }
-
-                              // Method 3: Try using RPC function if available
-                              if (!deletionSuccess) {
-                                console.log('🗑️ [GettingStarted] Method 3: Try RPC function');
-                                try {
-                                  const { data: rpcData, error: rpcError } = await supabase
-                                    .rpc('delete_pending_invitation', { invitation_id: invitation.id });
-                                  
-                                  console.log('🗑️ [GettingStarted] Method 3 RPC result:', { data: rpcData, error: rpcError });
-                                  
-                                  if (!rpcError && rpcData?.success) {
-                                    deletionSuccess = true;
-                                    console.log('✅ [GettingStarted] Method 3 successful');
-                                  }
-                                } catch (rpcErr) {
-                                  console.log('❌ [GettingStarted] Method 3 RPC not available:', rpcErr);
-                                }
-                              }
-
-                              // Method 4: Try alternative RPC function (UPDATE then DELETE)
-                              if (!deletionSuccess) {
-                                console.log('🗑️ [GettingStarted] Method 4: Try alternative RPC function');
-                                try {
-                                  const { data: altRpcData, error: altRpcError } = await supabase
-                                    .rpc('cancel_and_delete_invitation', { invitation_id: invitation.id });
-                                  
-                                  console.log('🗑️ [GettingStarted] Method 4 RPC result:', { data: altRpcData, error: altRpcError });
-                                  
-                                  if (!altRpcError && altRpcData?.success) {
-                                    deletionSuccess = true;
-                                    console.log('✅ [GettingStarted] Method 4 successful');
-                                  }
-                                } catch (altRpcErr) {
-                                  console.log('❌ [GettingStarted] Method 4 RPC not available:', altRpcErr);
-                                }
-                              }
-
-                              // Also try to delete from notifications table
-                              const { data: notifData, error: notifError } = await supabase
-                                .from('notifications')
-                                .delete()
-                                .eq('id', invitation.id)
-                                .select();
-
-                              console.log('🗑️ [GettingStarted] Notifications DELETE result:', { data: notifData, error: notifError });
-
-                              // Also try to delete by invitation_id in metadata
-                              const { data: metadataData, error: metadataError } = await supabase
-                                .from('notifications')
-                                .delete()
-                                .eq('metadata->>invitation_id', invitation.id)
-                                .select();
-
-                              console.log('🗑️ [GettingStarted] Metadata DELETE result:', { data: metadataData, error: metadataError });
-
-                              if (!deletionSuccess) {
-                                console.log('❌ [GettingStarted] All deletion methods failed - this might be an RLS policy issue');
-                                console.log('❌ [GettingStarted] Please run the SQL scripts to fix RLS policies');
-                              }
-
-                              // FORCE REMOVE from local state immediately
-                              setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
-                              console.log('🗑️ [GettingStarted] Removed from local state immediately');
-                              
-                              // Refresh the pending invitations list
-                              console.log('🔄 [GettingStarted] Refreshing pending invitations list...');
-                              await loadPendingInvitations();
-                              console.log('🔄 [GettingStarted] Pending invitations refreshed');
-                            } catch (error) {
-                              console.error('❌ [GettingStarted] Caught error removing invitation:', error);
-                              // Even if there's an error, remove from local state
-                              setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
-                            }
-                          }}
-                          style={{ 
-                            padding: 12,
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            borderRadius: 8,
-                            marginLeft: 8
-                          }}
-                          activeOpacity={0.6}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => setActiveRelationshipsTab('existing')}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          backgroundColor: activeRelationshipsTab === 'existing' ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : 'transparent',
+                        }}
+                      >
+                        <Text 
+                          size="sm" 
+                          fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'} 
+                          color={activeRelationshipsTab === 'existing' ? (colorScheme === 'dark' ? '#ECEDEE' : '#11181C') : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)')}
                         >
-                          <Feather name="trash-2" size={16} color="#EF4444" />
-                        </TouchableOpacity>
-                      </XStack>
-                    ))}
+                          {t('onboarding.relationships.existingTitle') || 'Existing'} ({existingRelationships.length})
+                        </Text>
+                      </TouchableOpacity>
+                    </XStack>
+
+                    {/* Tab content */}
+                    <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={true}>
+                      <YStack gap="$3">
+                        {activeRelationshipsTab === 'pending' ? (
+                          // Pending invitations
+                          pendingInvitations.length > 0 ? (
+                            pendingInvitations.map((invitation) => (
+                              <XStack key={invitation.id} gap="$2" alignItems="center">
+                                <YStack flex={1}>
+                                  <Text fontSize="$4" fontWeight="600" color="$color">
+                                    {invitation.metadata?.targetUserName || invitation.email}
+                                  </Text>
+                                  <Text fontSize="$3" color="$gray11">
+                                    {invitation.email} • Invited as {invitation.role} • {new Date(invitation.created_at).toLocaleDateString()}
+                                  </Text>
+                                  {invitation.metadata?.customMessage && (
+                                    <Text fontSize="$2" color="$gray9" fontStyle="italic">
+                                      Message: "{invitation.metadata.customMessage}"
+                                    </Text>
+                                  )}
+                                </YStack>
+                                <Text fontSize="$3" color="$orange10" fontWeight="600">
+                                  PENDING
+                                </Text>
+                                <TouchableOpacity
+                                  onPress={async () => {
+                                    console.log('🗑️ [GettingStarted] TRASH BUTTON PRESSED for invitation:', invitation.id);
+                                    
+                                    // Add haptic feedback to confirm tap
+                                    try {
+                                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    } catch (e) {
+                                      // Haptics might not be available
+                                    }
+                                    
+                                    try {
+                                      console.log('🗑️ [GettingStarted] FORCE DELETING invitation with ID:', invitation.id);
+                                      console.log('🗑️ [GettingStarted] Full invitation object:', JSON.stringify(invitation, null, 2));
+                                      
+                                      // First, let's check if the invitation actually exists
+                                      const { data: checkData, error: checkError } = await supabase
+                                        .from('pending_invitations')
+                                        .select('*')
+                                        .eq('id', invitation.id);
+
+                                      console.log('🗑️ [GettingStarted] Check if invitation exists:', { data: checkData, error: checkError });
+                                      
+                                      // Try multiple deletion approaches
+                                      let deletionSuccess = false;
+                                      
+                                      // Method 1: Direct DELETE with RLS
+                                      console.log('🗑️ [GettingStarted] Method 1: Direct DELETE with RLS');
+                                      const { data: pendingData, error: pendingError } = await supabase
+                                        .from('pending_invitations')
+                                        .delete()
+                                        .eq('id', invitation.id)
+                                        .select();
+
+                                      console.log('🗑️ [GettingStarted] Method 1 result:', { data: pendingData, error: pendingError });
+                                      
+                                      if (pendingData && pendingData.length > 0) {
+                                        deletionSuccess = true;
+                                        console.log('✅ [GettingStarted] Method 1 successful - deleted', pendingData.length, 'rows');
+                                      } else if (pendingError) {
+                                        console.log('❌ [GettingStarted] Method 1 failed with error:', pendingError);
+                                      }
+
+                                      // Method 2: Try UPDATE to 'cancelled' status first, then DELETE
+                                      if (!deletionSuccess) {
+                                        console.log('🗑️ [GettingStarted] Method 2: UPDATE to cancelled, then DELETE');
+                                        
+                                        // First update to cancelled
+                                        const { data: updateData, error: updateError } = await supabase
+                                          .from('pending_invitations')
+                                          .update({ status: 'cancelled' })
+                                          .eq('id', invitation.id)
+                                          .select();
+
+                                        console.log('🗑️ [GettingStarted] Method 2 UPDATE result:', { data: updateData, error: updateError });
+                                        
+                                        if (updateData && updateData.length > 0) {
+                                          // Now try to delete
+                                          const { data: deleteData, error: deleteError } = await supabase
+                                            .from('pending_invitations')
+                                            .delete()
+                                            .eq('id', invitation.id)
+                                            .select();
+
+                                          console.log('🗑️ [GettingStarted] Method 2 DELETE result:', { data: deleteData, error: deleteError });
+                                          
+                                          if (deleteData && deleteData.length > 0) {
+                                            deletionSuccess = true;
+                                            console.log('✅ [GettingStarted] Method 2 successful - deleted', deleteData.length, 'rows');
+                                          }
+                                        }
+                                      }
+
+                                      // Method 3: Try using RPC function if available
+                                      if (!deletionSuccess) {
+                                        console.log('🗑️ [GettingStarted] Method 3: Try RPC function');
+                                        try {
+                                          const { data: rpcData, error: rpcError } = await supabase
+                                            .rpc('delete_pending_invitation', { invitation_id: invitation.id });
+                                          
+                                          console.log('🗑️ [GettingStarted] Method 3 RPC result:', { data: rpcData, error: rpcError });
+                                          
+                                          if (!rpcError && rpcData?.success) {
+                                            deletionSuccess = true;
+                                            console.log('✅ [GettingStarted] Method 3 successful');
+                                          }
+                                        } catch (rpcErr) {
+                                          console.log('❌ [GettingStarted] Method 3 RPC not available:', rpcErr);
+                                        }
+                                      }
+
+                                      // Method 4: Try alternative RPC function (UPDATE then DELETE)
+                                      if (!deletionSuccess) {
+                                        console.log('🗑️ [GettingStarted] Method 4: Try alternative RPC function');
+                                        try {
+                                          const { data: altRpcData, error: altRpcError } = await supabase
+                                            .rpc('cancel_and_delete_invitation', { invitation_id: invitation.id });
+                                          
+                                          console.log('🗑️ [GettingStarted] Method 4 RPC result:', { data: altRpcData, error: altRpcError });
+                                          
+                                          if (!altRpcError && altRpcData?.success) {
+                                            deletionSuccess = true;
+                                            console.log('✅ [GettingStarted] Method 4 successful');
+                                          }
+                                        } catch (altRpcErr) {
+                                          console.log('❌ [GettingStarted] Method 4 RPC not available:', altRpcErr);
+                                        }
+                                      }
+
+                                      // Also try to delete from notifications table
+                                      const { data: notifData, error: notifError } = await supabase
+                                        .from('notifications')
+                                        .delete()
+                                        .eq('id', invitation.id)
+                                        .select();
+
+                                      console.log('🗑️ [GettingStarted] Notifications DELETE result:', { data: notifData, error: notifError });
+
+                                      // Also try to delete by invitation_id in metadata
+                                      const { data: metadataData, error: metadataError } = await supabase
+                                        .from('notifications')
+                                        .delete()
+                                        .eq('metadata->>invitation_id', invitation.id)
+                                        .select();
+
+                                      console.log('🗑️ [GettingStarted] Metadata DELETE result:', { data: metadataData, error: metadataError });
+
+                                      if (!deletionSuccess) {
+                                        console.log('❌ [GettingStarted] All deletion methods failed - this might be an RLS policy issue');
+                                        console.log('❌ [GettingStarted] Please run the SQL scripts to fix RLS policies');
+                                      }
+
+                                      // FORCE REMOVE from local state immediately
+                                      setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
+                                      console.log('🗑️ [GettingStarted] Removed from local state immediately');
+                                      
+                                      // Refresh the pending invitations list
+                                      console.log('🔄 [GettingStarted] Refreshing pending invitations list...');
+                                      await loadPendingInvitations();
+                                      console.log('🔄 [GettingStarted] Pending invitations refreshed');
+                                    } catch (error) {
+                                      console.error('❌ [GettingStarted] Caught error removing invitation:', error);
+                                      // Even if there's an error, remove from local state
+                                      setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
+                                    }
+                                  }}
+                                  style={{ 
+                                    padding: 12,
+                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                    borderRadius: 8,
+                                    marginLeft: 8
+                                  }}
+                                  activeOpacity={0.6}
+                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                  <Feather name="trash-2" size={16} color="#EF4444" />
+                                </TouchableOpacity>
+                              </XStack>
+                            ))
+                          ) : (
+                            <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                              {t('onboarding.relationships.noPending') || 'No pending invitations'}
+                            </Text>
+                          )
+                        ) : (
+                          // Existing relationships
+                          existingRelationships.length > 0 ? (
+                            existingRelationships.map((relationship) => (
+                              <XStack key={relationship.id} gap="$2" alignItems="center">
+                                <YStack flex={1}>
+                                  <RadioButton
+                                    onPress={() => {}} // No action on tap for existing relationships
+                                    title={relationship.name}
+                                    description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? (t('onboarding.relationships.yourSupervisor') || 'Your supervisor') : (t('onboarding.relationships.studentYouSupervise') || 'Student you supervise')} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
+                                    isSelected={false} // Don't show as selected
+                                  />
+                                </YStack>
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    setRelationshipRemovalTarget({
+                                      id: relationship.id,
+                                      name: relationship.name,
+                                      email: relationship.email,
+                                      role: relationship.role,
+                                      relationship_type: relationship.relationship_type,
+                                    });
+                                    openRelationshipRemovalModal();
+                                  }}
+                                >
+                                  <Feather name="trash-2" size={16} color="#EF4444" />
+                                </TouchableOpacity>
+                              </XStack>
+                            ))
+                          ) : (
+                            <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                              {t('onboarding.relationships.noExisting') || 'No existing relationships'}
+                            </Text>
+                          )
+                        )}
+                      </YStack>
+                    </ScrollView>
                   </YStack>
                 )}
                 
@@ -1940,7 +2119,7 @@ export const GettingStarted = () => {
                   </Button>
                   
                   <Button
-                    variant="outline"
+                    variant="outlined"
                     size="lg"
                     onPress={hideConnectionsSheet}
                   >
@@ -1948,9 +2127,9 @@ export const GettingStarted = () => {
                   </Button>
                 </YStack>
               </YStack>
-            </Animated.View>
+            </ReanimatedAnimated.View>
           </View>
-        </Animated.View>
+        </ReanimatedAnimated.View>
       </Modal>
 
       {/* Relationship Removal Modal - copied from OnboardingInteractive */}

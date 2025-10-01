@@ -16,6 +16,7 @@ import { supabase } from './lib/supabase';
 import { StatusBar } from 'expo-status-bar';
 import { setupTranslationSubscription } from './services/translationService';
 import { ToastProvider, useToast } from './contexts/ToastContext';
+import { useTranslation } from './contexts/TranslationContext';
 import { clearOldCrashReports } from './components/ErrorBoundary';
 import { NetworkAlert } from './components/NetworkAlert';
 import { logInfo, logWarn, logError } from './utils/logger';
@@ -110,7 +111,7 @@ import { GlobalRecordingWidget } from './components/GlobalRecordingWidget';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-async function registerForPushNotificationsAsync(showToast?: (toast: { title: string; message: string; type: 'success' | 'error' | 'info' }) => void) {
+async function registerForPushNotificationsAsync(showToast?: (toast: { title: string; message: string; type: 'success' | 'error' | 'info' }) => void, t?: (key: string) => string) {
   let token;
 
   if (Platform.OS === 'android') {
@@ -132,12 +133,12 @@ async function registerForPushNotificationsAsync(showToast?: (toast: { title: st
     if (finalStatus !== 'granted') {
       if (showToast) {
         showToast({
-          title: 'Push Notifications',
-          message: 'Failed to get push token for push notification!',
+          title: t?.('pushNotifications.title') || 'Push Notifications',
+          message: t?.('pushNotifications.failedToken') || 'Failed to get push token for push notification!',
           type: 'error'
         });
       } else {
-        alert('Failed to get push token for push notification!');
+        alert(t?.('pushNotifications.failedToken') || 'Failed to get push token for push notification!');
       }
       return;
     }
@@ -161,12 +162,12 @@ async function registerForPushNotificationsAsync(showToast?: (toast: { title: st
   } else {
     if (showToast) {
       showToast({
-        title: 'Push Notifications',
-        message: 'Must use physical device for Push Notifications',
+        title: t?.('pushNotifications.title') || 'Push Notifications',
+        message: t?.('pushNotifications.physicalDevice') || 'Must use physical device for Push Notifications',
         type: 'info'
       });
     } else {
-      alert('Must use physical device for Push Notifications');
+      alert(t?.('pushNotifications.physicalDevice') || 'Must use physical device for Push Notifications');
     }
   }
 
@@ -194,13 +195,14 @@ function UnauthenticatedAppContent() {
 function AuthenticatedAppContent() {
   const authData = useAuth();
   const { showToast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!authData?.user?.id) {
       return;
     }
 
-    registerForPushNotificationsAsync(showToast).then(async (token) => {
+    registerForPushNotificationsAsync(showToast, t).then(async (token) => {
       try {
         if (!token || !authData?.user?.id || token.includes('Error')) {
           return;

@@ -708,14 +708,14 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       {viewingUserName && (
         <YStack paddingHorizontal="$4" marginBottom={4}>
           <YStack padding={10} backgroundColor="#162023" borderRadius={12}>
-            <Text color="#00E6C3" fontSize={12}>Viewing as: {viewingUserName}</Text>
+            <Text color="#00E6C3" fontSize={12}>{t('progressSection.viewingAs') || 'Viewing as'}: {viewingUserName}</Text>
           </YStack>
         </YStack>
       )}
       {lastAudit && (
         <YStack paddingHorizontal="$4" marginBottom={4}>
           <Text color="$gray11" fontSize={12}>
-            Last: {lastAudit.action.replace('_', ' ')} by {lastAudit.actor_name || 'Unknown'} at{' '}
+            {t('progressSection.lastCompleted') || 'Last'}: {lastAudit.action.replace('_', ' ')} by {lastAudit.actor_name || 'Unknown'} at{' '}
             {new Date(lastAudit.created_at).toLocaleString()}
           </Text>
         </YStack>
