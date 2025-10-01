@@ -3,7 +3,7 @@ import { Modal, Pressable, useColorScheme } from 'react-native';
 import { YStack, XStack, Heading, Paragraph } from 'tamagui';
 import { Button } from './Button';
 import { Text } from './Text';
-import { useTranslation } from '../contexts/TranslationContext';
+import { useTranslation } from '@/src/contexts/TranslationContext';
 import { X, User, Users, Check, X as XIcon } from '@tamagui/lucide-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -18,8 +18,10 @@ interface UnifiedInvitationModalProps {
 interface PendingInvitation {
   id: string;
   type: 'relationship' | 'collection';
-  title: string;
-  message: string;
+  title_key?: string; // Translation key for title
+  title?: string; // Fallback title
+  message_key?: string; // Translation key for message
+  message?: string; // Fallback message
   from_user_name: string;
   from_user_email: string;
   custom_message?: string;
@@ -35,7 +37,7 @@ export function UnifiedInvitationModal({
   onClose, 
   onInvitationHandled 
 }: UnifiedInvitationModalProps) {
-  const { t } = useTranslation();
+  const { t, refreshTranslations, language } = useTranslation();
   const { user } = useAuth();
   const { showToast } = useToast();
   const colorScheme = useColorScheme();
@@ -48,10 +50,27 @@ export function UnifiedInvitationModal({
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
   const textColor = colorScheme === 'dark' ? 'white' : 'black';
   const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
+  
+  // DEBUG: Log translations on render
+  useEffect(() => {
+    console.log('🔍 [UnifiedInvitationModal] DEBUG Translation check:', {
+      language,
+      'invitations.newInvitations': t('invitations.newInvitations'),
+      'invitations.personalMessage': t('invitations.personalMessage'),
+      'invitations.supervisorInvitation': t('invitations.supervisorInvitation'),
+    });
+  }, [language, t]);
 
   // Fetch pending invitations
   useEffect(() => {
     if (visible && user) {
+      // Refresh translations when modal opens to ensure we have latest
+      refreshTranslations().then(() => {
+        // Force a state update after translations refresh to trigger re-render
+        setInvitations(prev => [...prev]);
+      }).catch(() => {
+        // Silent fail on translation refresh
+      });
       fetchPendingInvitations();
     }
   }, [visible, user]);
@@ -160,12 +179,14 @@ export function UnifiedInvitationModal({
       // Add relationship invitations from notifications
       filteredRelationshipInvitations?.forEach(notif => {
         const metadata = notif.metadata || {};
-        const isSupervisorInvitation = notif.message?.includes('supervisor') || notif.message?.includes('supervise');
+        const isSupervisorInvitation = notif.message?.includes('supervisor') || notif.message?.includes('supervise') || notif.message?.includes('handledare');
         
         formattedInvitations.push({
           id: notif.id,
           type: 'relationship',
-          title: isSupervisorInvitation ? t('invitations.supervisorInvitation') : t('invitations.studentInvitation'),
+          title_key: isSupervisorInvitation ? 'invitations.supervisorInvitation' : 'invitations.studentInvitation',
+          title: isSupervisorInvitation ? 'Supervisor Invitation' : 'Student Invitation',
+          message_key: isSupervisorInvitation ? 'invitations.supervisorMessage' : 'invitations.studentMessage',
           message: notif.message,
           from_user_name: notif.profiles?.full_name || metadata.from_user_name || 'Unknown',
           from_user_email: notif.profiles?.email || metadata.from_user_name || '',
@@ -181,8 +202,10 @@ export function UnifiedInvitationModal({
         formattedInvitations.push({
           id: inv.id,
           type: 'collection',
-          title: t('invitations.collectionInvitation'),
-          message: t('invitations.collectionMessage'),
+          title_key: 'invitations.collectionInvitation',
+          title: 'Collection Invitation',
+          message_key: 'invitations.collectionMessage',
+          message: 'wants to share a collection with you',
           from_user_name: 'Unknown', // We'll get this from notifications instead
           from_user_email: '',
           custom_message: inv.message,
@@ -199,7 +222,9 @@ export function UnifiedInvitationModal({
         formattedInvitations.push({
           id: notif.id,
           type: 'collection',
-          title: t('invitations.collectionInvitation'),
+          title_key: 'invitations.collectionInvitation',
+          title: 'Collection Invitation',
+          message_key: 'invitations.collectionMessage',
           message: notif.message,
           from_user_name: notif.profiles?.full_name || metadata.from_user_name || 'Unknown',
           from_user_email: notif.profiles?.email || metadata.from_user_name || '',
@@ -217,8 +242,8 @@ export function UnifiedInvitationModal({
     } catch (error) {
       console.error('Error fetching invitations:', error);
       showToast({
-        title: 'Error',
-        message: 'Failed to load invitations',
+        title: t('common.error') || 'Error',
+        message: t('invitations.loadingError') || 'Error loading pending invitations',
         type: 'error',
       });
     } finally {
@@ -341,8 +366,10 @@ export function UnifiedInvitationModal({
       }
 
       showToast({
-        title: 'Success',
-        message: 'Invitation accepted',
+        title: t('invitations.accepted') || 'Invitation Accepted',
+        message: invitation.type === 'relationship' 
+          ? (t('invitations.youAreNowConnected') || 'You are now connected!')
+          : (t('invitations.youNowHaveAccess') || 'You now have access to this collection!'),
         type: 'success',
       });
 
@@ -356,8 +383,8 @@ export function UnifiedInvitationModal({
     } catch (error) {
       console.error('Error accepting invitation:', error);
       showToast({
-        title: 'Error',
-        message: 'Failed to accept invitation',
+        title: t('common.error') || 'Error',
+        message: t('invitations.failedToAccept') || 'Failed to accept invitation',
         type: 'error',
       });
     } finally {
@@ -424,8 +451,8 @@ export function UnifiedInvitationModal({
       }
 
       showToast({
-        title: 'Success',
-        message: 'Invitation declined',
+        title: t('common.success') || 'Success',
+        message: t('invitations.invitationDeclined') || 'Invitation declined',
         type: 'success',
       });
 
@@ -439,8 +466,8 @@ export function UnifiedInvitationModal({
     } catch (error) {
       console.error('Error declining invitation:', error);
       showToast({
-        title: 'Error',
-        message: 'Failed to decline invitation',
+        title: t('common.error') || 'Error',
+        message: t('invitations.failedToDecline') || 'Failed to decline invitation',
         type: 'error',
       });
     } finally {
@@ -490,7 +517,11 @@ export function UnifiedInvitationModal({
             {/* Header */}
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$2">
               <Heading size="$5" color={textColor} flex={1} textAlign="center">
-                {t('invitations.newInvitations')}
+                {(() => {
+                  const translated = t('invitations.newInvitations');
+                  console.log('🔍 [UnifiedInvitationModal] Header translation:', translated);
+                  return translated === 'invitations.newInvitations' ? 'New Invitations' : translated;
+                })()}
               </Heading>
               <Button
                 variant="ghost"
@@ -512,28 +543,33 @@ export function UnifiedInvitationModal({
                   <Users size={24} color={textColor} />
                 )}
                 <Text color={textColor} fontWeight="bold" fontSize="$4">
-                  {currentInvitation.title}
+                  {currentInvitation.title_key ? t(currentInvitation.title_key) : currentInvitation.title}
                 </Text>
               </XStack>
 
               <Paragraph color={textColor} textAlign="center" lineHeight="$4">
-                {currentInvitation.message}
+                <Text fontWeight="600">{currentInvitation.from_user_name}</Text>{' '}
+                {currentInvitation.message_key ? t(currentInvitation.message_key) : currentInvitation.message}
               </Paragraph>
 
               {currentInvitation.custom_message && (
                 <YStack backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'} padding="$3" borderRadius="$2">
                   <Text color={textColor} fontWeight="bold" fontSize="$3" marginBottom="$2">
-                    {t('invitations.customMessage')}
+                    {(() => {
+                      const translated = t('invitations.personalMessage');
+                      console.log('🔍 [UnifiedInvitationModal] PersonalMessage translation:', translated);
+                      return translated === 'invitations.personalMessage' ? 'Personal message:' : translated;
+                    })()}
                   </Text>
                   <Text color={textColor} fontSize="$3">
-                    {currentInvitation.custom_message}
+                    "{currentInvitation.custom_message}"
                   </Text>
                 </YStack>
               )}
 
               {currentInvitation.collection_name && (
                 <Text color={textColor} fontSize="$3" textAlign="center">
-                  {t('invitations.collectionName')}: {currentInvitation.collection_name}
+                  {t('invitations.collectionName') || 'Collection'}: {currentInvitation.collection_name}
                 </Text>
               )}
 
@@ -550,7 +586,7 @@ export function UnifiedInvitationModal({
                 onPress={handleDismiss}
                 disabled={isProcessing}
               >
-                {t('invitations.dismiss')}
+                {t('invitations.dismiss') || 'Dismiss'}
               </Button>
               <Button 
                 flex={1} 
@@ -559,7 +595,7 @@ export function UnifiedInvitationModal({
                 disabled={isProcessing}
                 borderColor="$red10"
               >
-                <Text color="$red10">{t('invitations.decline')}</Text>
+                <Text color="$red10">{t('invitations.decline') || 'Decline'}</Text>
               </Button>
               <Button 
                 flex={1} 
@@ -569,7 +605,7 @@ export function UnifiedInvitationModal({
                 backgroundColor="$green10"
                 borderColor="$green10"
               >
-                <Text color="white" fontWeight="600">{t('invitations.accept')}</Text>
+                <Text color="white" fontWeight="600">{t('invitations.accept') || 'Accept'}</Text>
               </Button>
             </XStack>
 

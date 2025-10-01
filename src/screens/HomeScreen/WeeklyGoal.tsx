@@ -79,12 +79,19 @@ const DayProgressCircle = ({
 export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   const { user, profile } = useAuth();
   const { activeStudentId } = useStudentSwitch();
-  const { t } = useTranslation();
+  const { t, refreshTranslations } = useTranslation();
   const colorScheme = useColorScheme();
   
   const [weeklyProgress, setWeeklyProgress] = useState<DayProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [weeklyGoal, setWeeklyGoal] = useState(5); // Default goal: 5 exercises per week
+  
+  // Refresh translations on mount to ensure latest translations are loaded
+  useEffect(() => {
+    refreshTranslations().catch(() => {
+      // Silent fail on translation refresh
+    });
+  }, []);
   
   // Week navigation state
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0); // 0 = current week, -1 = last week, etc.
@@ -389,7 +396,10 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
         <YStack flex={1}>
           <XStack alignItems="center" gap="$2" marginBottom="$1">
             <Text fontSize="$5" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-              {t('weeklyGoals.title') || 'Weekly Goal'}
+              {(() => {
+                const translated = t('weeklyGoals.title');
+                return translated === 'weeklyGoals.title' ? 'Weekly Goal' : translated;
+              })()}
             </Text>
             <TouchableOpacity
               onPress={openGoalModal}
@@ -552,7 +562,13 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
           color={colorScheme === 'dark' ? '#CCC' : '#666'}
           marginLeft="$2"
         >
-          {t('weeklyGoals.goalPerDayText') || `Goal: ${weeklyGoal} exercises per day`}
+          {(() => {
+            const translated = t('weeklyGoals.goalPerDayText');
+            if (translated && translated !== 'weeklyGoals.goalPerDayText') {
+              return translated.replace('{goal}', weeklyGoal.toString());
+            }
+            return `Goal: ${weeklyGoal} exercises per day`;
+          })()}
         </Text>
       </XStack>
       
