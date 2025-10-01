@@ -83,7 +83,7 @@ interface CityRoutesProps {
 }
 
 export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
-  const { t } = useTranslation();
+  const { t, refreshTranslations } = useTranslation();
   const [selectedCity, setSelectedCity] = React.useState<string | null>(null);
   const [cityRoutes, setCityRoutes] = React.useState<{ [key: string]: Route[] }>({});
   const [routes, setRoutes] = React.useState<Route[]>([]);
@@ -95,6 +95,13 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
   const citySheetTranslateY = React.useRef(new Animated.Value(300)).current;
 
   const userLocation = useUserLocation();
+  
+  // Refresh translations on mount
+  React.useEffect(() => {
+    refreshTranslations().catch(() => {
+      // Silent fail on translation refresh
+    });
+  }, []);
 
   React.useEffect(() => {
     const fetchCityRoutes = async () => {
@@ -197,7 +204,10 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
   return (
     <YStack gap="$4">
       <SectionHeader
-        title={selectedCity || (t('home.cityRoutes.selectCity') || 'Select a city')}
+        title={selectedCity || (() => {
+          const translated = t('home.cityRoutes.selectCity');
+          return translated === 'home.cityRoutes.selectCity' ? 'Select a city' : translated;
+        })()}
         variant="dropdown"
         onAction={showCityModal}
         actionLabel={selectedCity || 'Select'}
@@ -296,16 +306,31 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
           ))
         ) : (
           <EmptyState 
-            title={t('home.cityRoutes.noRoutesInCity') || 'No Routes in This City'} 
-            message={t('home.cityRoutes.noRoutesMessage')?.replace('{city}', selectedCity || '') || `No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`}
+            title={(() => {
+              const translated = t('home.cityRoutes.noRoutesInCity');
+              return translated === 'home.cityRoutes.noRoutesInCity' ? 'No Routes in This City' : translated;
+            })()}
+            message={(() => {
+              const translated = t('home.cityRoutes.noRoutesMessage');
+              if (translated && translated !== 'home.cityRoutes.noRoutesMessage') {
+                return translated.replace('{city}', selectedCity || '');
+              }
+              return `No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`;
+            })()}
             icon="map-pin"
             variant="warning"
-            actionLabel={t('home.cityRoutes.createRouteHere') || 'Create Route Here'}
+            actionLabel={(() => {
+              const translated = t('home.cityRoutes.createRouteHere');
+              return translated === 'home.cityRoutes.createRouteHere' ? 'Create Route Here' : translated;
+            })()}
             actionIcon="plus"
             onAction={() => navigation.navigate('CreateRoute')}
-            secondaryLabel={t('home.cityRoutes.changeCity') || 'Change City'}
+            secondaryLabel={(() => {
+              const translated = t('home.cityRoutes.changeCity');
+              return translated === 'home.cityRoutes.changeCity' ? 'Change City' : translated;
+            })()}
             secondaryIcon="map"
-            onSecondaryAction={() => setIsModalVisible(true)}
+            onSecondaryAction={showCityModal}
           />
         )}
       </YStack>
@@ -367,7 +392,10 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
               />
 
               <Text size="xl" weight="bold" color="white" textAlign="center">
-                {t('home.cityRoutes.selectCity') || 'Select City'}
+                {(() => {
+                  const translated = t('home.cityRoutes.selectCity');
+                  return translated === 'home.cityRoutes.selectCity' ? 'Select City' : translated;
+                })()}
               </Text>
 
               <ScrollView style={{ maxHeight: '70%' }}>

@@ -51,7 +51,7 @@ interface FeaturedExercise {
 
 export function FeaturedContent() {
   const navigation = useNavigation<NavigationProp>();
-  const { t, language: lang } = useTranslation();
+  const { t, language: lang, refreshTranslations } = useTranslation();
   const colorScheme = useColorScheme();
   const { user: authUser, profile } = useAuth();
   const { showToast } = useToast();
@@ -69,6 +69,13 @@ export function FeaturedContent() {
   const [featuredPaths, setFeaturedPaths] = useState<FeaturedLearningPath[]>([]);
   const [featuredExercises, setFeaturedExercises] = useState<FeaturedExercise[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Refresh translations on mount
+  useEffect(() => {
+    refreshTranslations().catch(() => {
+      // Silent fail on translation refresh
+    });
+  }, []);
   
   // Modal state for ExerciseListSheet
   const [showExerciseSheet, setShowExerciseSheet] = useState(false);
@@ -261,7 +268,10 @@ export function FeaturedContent() {
     return (
       <YStack marginBottom="$6">
         <SectionHeader 
-          title={t('home.featuredContent') || 'Featured Learning'} 
+          title={(() => {
+            const translated = t('home.featuredContent');
+            return translated === 'home.featuredContent' ? 'Featured Learning' : translated;
+          })()} 
         />
         <YStack alignItems="center" justifyContent="center" padding="$4">
           <Text color="$gray11">{t('common.loading') || 'Loading...'}</Text>
@@ -277,15 +287,24 @@ export function FeaturedContent() {
     return (
       <YStack marginBottom="$6">
         <SectionHeader 
-          title={t('home.featuredContent') || 'Featured Learning'} 
+          title={(() => {
+            const translated = t('home.featuredContent');
+            return translated === 'home.featuredContent' ? 'Featured Learning' : translated;
+          })()} 
         />
         <YStack alignItems="center" justifyContent="center" padding="$4" gap="$2">
           <Feather name="star" size={48} color="#666" />
           <Text color="$gray11" textAlign="center">
-            {t('home.noFeaturedContent') || 'No featured content yet'}
+            {(() => {
+              const translated = t('home.noFeaturedContent');
+              return translated === 'home.noFeaturedContent' ? 'No featured content yet' : translated;
+            })()}
           </Text>
           <Text fontSize="$2" color="$gray11" textAlign="center">
-            {t('home.featuredContentDescription') || 'Featured learning paths and exercises will appear here'}
+            {(() => {
+              const translated = t('home.featuredContentDescription');
+              return translated === 'home.featuredContentDescription' ? 'Featured learning paths and exercises will appear here' : translated;
+            })()}
           </Text>
           
         </YStack>
@@ -296,7 +315,10 @@ export function FeaturedContent() {
   return (
     <YStack marginBottom="$6">
       <SectionHeader 
-        title={t('home.featuredContent') || 'Featured Learning'} 
+        title={(() => {
+          const translated = t('home.featuredContent');
+          return translated === 'home.featuredContent' ? 'Featured Learning' : translated;
+        })()} 
       />
       
       
@@ -381,7 +403,10 @@ export function FeaturedContent() {
                     />
                   )}
                   <Text fontSize="$3" fontWeight="600" color="#00FFBC">
-                    {t('home.learningPath') || 'Learning Path'}
+                    {(() => {
+                      const translated = t('home.learningPath');
+                      return translated === 'home.learningPath' ? 'Learning Path' : translated;
+                    })()}
                   </Text>
                 </XStack>
                 
@@ -398,7 +423,10 @@ export function FeaturedContent() {
                 <XStack alignItems="center" gap="$2" marginTop="$2">
                   <Feather name="book-open" size={16} color="$gray11" />
                   <Text fontSize="$2" color="$gray11">
-                    {t('home.startLearning') || 'Start Learning'}
+                    {(() => {
+                      const translated = t('home.startLearning');
+                      return translated === 'home.startLearning' ? 'Start Learning' : translated;
+                    })()}
                   </Text>
                   <Feather name="arrow-right" size={14} color="$gray11" />
                 </XStack>
@@ -484,7 +512,10 @@ export function FeaturedContent() {
                     />
                   )}
                   <Text fontSize="$3" fontWeight="600" color="#4B6BFF">
-                    {t('home.exercise') || 'Exercise'}
+                    {(() => {
+                      const translated = t('home.exercise');
+                      return translated === 'home.exercise' ? 'Exercise' : translated;
+                    })()}
                   </Text>
                 </XStack>
                 
@@ -501,7 +532,10 @@ export function FeaturedContent() {
                 <XStack alignItems="center" gap="$2" marginTop="$2">
                   <Feather name="play-circle" size={16} color="$gray11" />
                   <Text fontSize="$2" color="$gray11">
-                    {t('home.startExercise') || 'Start Exercise'}
+                    {(() => {
+                      const translated = t('home.startExercise');
+                      return translated === 'home.startExercise' ? 'Start Exercise' : translated;
+                    })()}
                   </Text>
                   <Feather name="arrow-right" size={14} color="$gray11" />
                 </XStack>
