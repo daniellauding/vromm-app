@@ -23,16 +23,18 @@ interface BulkInvitationResult {
  * Send invitation to a new user using Supabase Auth
  * This will trigger Supabase's invitation email template
  */
-export async function inviteNewUser(data: InvitationData): Promise<{ success: boolean; error?: string; invitationId?: string; note?: string }> {
+export async function inviteNewUser(
+  data: InvitationData,
+): Promise<{ success: boolean; error?: string; invitationId?: string; note?: string }> {
   try {
-    const { 
-      email, 
-      role = 'student', 
-      supervisorId, 
-      supervisorName, 
+    const {
+      email,
+      role = 'student',
+      supervisorId,
+      supervisorName,
       inviterRole,
       relationshipType,
-      metadata = {} 
+      metadata = {},
     } = data;
 
     // Validate email format
@@ -41,8 +43,14 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
     }
 
     // Validate UUID format if supervisorId is provided
-    if (supervisorId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(supervisorId)) {
-      return { success: false, error: 'Invalid supervisor ID. Please try again or contact support.' };
+    if (
+      supervisorId &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(supervisorId)
+    ) {
+      return {
+        success: false,
+        error: 'Invalid supervisor ID. Please try again or contact support.',
+      };
     }
 
     // Determine the actual role to assign based on invitation type
@@ -84,16 +92,19 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
 
     // Try Edge Function first, fallback to simple approach if it fails
     try {
-      const { data: functionResponse, error: emailError } = await supabase.functions.invoke('send-invitation', {
-        body: {
-          email: email.toLowerCase(),
-          role: targetRole,
-          supervisorId,
-          supervisorName,
-          inviterRole,
-          relationshipType,
+      const { data: functionResponse, error: emailError } = await supabase.functions.invoke(
+        'send-invitation',
+        {
+          body: {
+            email: email.toLowerCase(),
+            role: targetRole,
+            supervisorId,
+            supervisorName,
+            inviterRole,
+            relationshipType,
+          },
         },
-      });
+      );
 
       if (emailError) {
         console.warn('Edge Function not available, using fallback approach:', emailError.message);
@@ -132,10 +143,9 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
         console.warn('Could not notify invitee in-app:', e);
       }
       return { success: true, invitationId: invitation?.id };
-
     } catch (functionError) {
       console.log('📧 Edge Function failed, using Supabase Auth fallback...');
-      
+
       // Fallback: Use Supabase Auth's built-in invitation (requires service role, so this might also fail)
       // For now, we'll just return success for the invitation record creation
       if (invitation) {
@@ -160,17 +170,17 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
             } catch {}
           }
         } catch {}
-        return { 
-          success: true, 
+        return {
+          success: true,
           note: 'Invitation record created. Email sending requires Edge Function deployment or manual setup.',
-          invitationId: invitationData?.id
+          invitationId: invitationData?.id,
         };
       } else {
         console.log('⚠️ Creating basic invitation record without email...');
         // Even if database fails, let's provide a user-friendly message
-        return { 
-          success: true, 
-          note: 'Invitation processed. Please ensure the recipient checks their email or contact them directly.' 
+        return {
+          success: true,
+          note: 'Invitation processed. Please ensure the recipient checks their email or contact them directly.',
         };
       }
     }
@@ -178,9 +188,9 @@ export async function inviteNewUser(data: InvitationData): Promise<{ success: bo
     return { success: true, invitationId: invitation?.id };
   } catch (error) {
     console.error('Error inviting user:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to send invitation' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send invitation',
     };
   }
 }
@@ -192,7 +202,7 @@ export async function inviteMultipleUsers(
   emails: string[],
   role: UserRole = 'student',
   supervisorId?: string,
-  supervisorName?: string
+  supervisorName?: string,
 ): Promise<BulkInvitationResult> {
   const successful: string[] = [];
   const failed: Array<{ email: string; error: string }> = [];
@@ -201,7 +211,7 @@ export async function inviteMultipleUsers(
   const BATCH_SIZE = 5;
   for (let i = 0; i < emails.length; i += BATCH_SIZE) {
     const batch = emails.slice(i, i + BATCH_SIZE);
-    
+
     const results = await Promise.all(
       batch.map(async (email) => {
         const result = await inviteNewUser({
@@ -210,20 +220,20 @@ export async function inviteMultipleUsers(
           supervisorId,
           supervisorName,
         });
-        
+
         if (result.success) {
           successful.push(email);
         } else {
           failed.push({ email, error: result.error || 'Unknown error' });
         }
-        
+
         return result;
-      })
+      }),
     );
-    
+
     // Small delay between batches to avoid rate limiting
     if (i + BATCH_SIZE < emails.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
 
@@ -325,10 +335,10 @@ export async function acceptInvitation(email: string, userId: string): Promise<b
     // Update invitation status
     const { error: updateError } = await supabase
       .from('pending_invitations')
-      .update({ 
+      .update({
         status: 'accepted',
         accepted_at: new Date().toISOString(),
-        accepted_by: userId
+        accepted_by: userId,
       })
       .eq('id', invitation.id);
 
@@ -342,36 +352,34 @@ export async function acceptInvitation(email: string, userId: string): Promise<b
       // Determine the correct relationship direction based on invitation metadata
       const relationshipType = invitation.metadata?.relationshipType;
       let studentId, supervisorId;
-      
+
       if (relationshipType === 'student_invites_supervisor') {
         // Student invited supervisor, so student is the inviter and supervisor is accepting
-        studentId = invitation.invited_by;  // The inviter (student)
-        supervisorId = userId;              // The accepter (supervisor)
+        studentId = invitation.invited_by; // The inviter (student)
+        supervisorId = userId; // The accepter (supervisor)
       } else if (relationshipType === 'supervisor_invites_student') {
         // Supervisor invited student, so supervisor is the inviter and student is accepting
-        studentId = userId;                 // The accepter (student)
+        studentId = userId; // The accepter (student)
         supervisorId = invitation.invited_by; // The inviter (supervisor)
       } else {
         // Fallback to old logic for backward compatibility
         studentId = userId;
         supervisorId = invitation.invited_by;
       }
-      
+
       console.log('Creating relationship with correct direction:', {
         relationshipType,
         studentId,
         supervisorId,
         invitedBy: invitation.invited_by,
-        acceptingUserId: userId
+        acceptingUserId: userId,
       });
-      
-      const { error: relError } = await supabase
-        .from('student_supervisor_relationships')
-        .insert({
-          student_id: studentId,
-          supervisor_id: supervisorId,
-          status: 'active'
-        });
+
+      const { error: relError } = await supabase.from('student_supervisor_relationships').insert({
+        student_id: studentId,
+        supervisor_id: supervisorId,
+        status: 'active',
+      });
 
       if (relError) {
         console.error('Error creating supervisor relationship:', relError);
@@ -403,13 +411,23 @@ export async function acceptInvitation(email: string, userId: string): Promise<b
  */
 export async function acceptInvitationById(invitationId: string, userId: string): Promise<boolean> {
   try {
-    console.log('🎯 acceptInvitationById: Using fixed universal function for invitation:', { invitationId, userId });
-    
+    console.log('🎯 acceptInvitationById: Using fixed universal function for invitation:', {
+      invitationId,
+      userId,
+    });
+
     // Use the fixed universal RPC function that handles both types
+    console.log({
+      p_invitation_id: invitationId,
+      p_accepted_by: userId,
+    });
     const { data, error } = await supabase.rpc('accept_any_invitation_universal', {
       p_invitation_id: invitationId,
-      p_accepted_by: userId
+      p_accepted_by: userId,
     });
+
+    console.log(data);
+    console.log(error);
 
     if (error) {
       console.error('🎯 acceptInvitationById: RPC error:', error);
@@ -421,7 +439,9 @@ export async function acceptInvitationById(invitationId: string, userId: string)
       return false;
     }
 
-    console.log('🎯 acceptInvitationById: Invitation accepted successfully via fixed universal function');
+    console.log(
+      '🎯 acceptInvitationById: Invitation accepted successfully via fixed universal function',
+    );
     return true;
   } catch (error) {
     console.error('🎯 acceptInvitationById: Error accepting invitation:', error);
@@ -483,10 +503,10 @@ export async function resendInvitation(invitationId: string): Promise<boolean> {
  * This removes the entire relationship and allows both parties to start fresh
  */
 export async function removeSupervisorRelationship(
-  studentId: string, 
-  supervisorId: string, 
+  studentId: string,
+  supervisorId: string,
   removalMessage?: string,
-  removedByUserId?: string
+  removedByUserId?: string,
 ): Promise<boolean> {
   try {
     // Get user details for notification
@@ -495,7 +515,7 @@ export async function removeSupervisorRelationship(
       .select('full_name, email')
       .eq('id', studentId)
       .single();
-      
+
     const { data: supervisorProfile } = await supabase
       .from('profiles')
       .select('full_name, email')
@@ -514,30 +534,34 @@ export async function removeSupervisorRelationship(
       return false;
     }
 
-    console.log('✅ Relationship removed completely - both parties can now invite each other again');
+    console.log(
+      '✅ Relationship removed completely - both parties can now invite each other again',
+    );
 
     // Clean up any pending invitations between these users
     await supabase
       .from('pending_invitations')
       .delete()
-      .or(`and(invited_by.eq.${studentId},email.eq.${supervisorProfile?.email}),and(invited_by.eq.${supervisorId},email.eq.${studentProfile?.email})`);
+      .or(
+        `and(invited_by.eq.${studentId},email.eq.${supervisorProfile?.email}),and(invited_by.eq.${supervisorId},email.eq.${studentProfile?.email})`,
+      );
 
     // Send notification to BOTH parties about the relationship ending
     const removedByStudent = removedByUserId === studentId;
-    const removerName = removedByStudent 
-      ? (studentProfile?.full_name || studentProfile?.email || 'Student')
-      : (supervisorProfile?.full_name || supervisorProfile?.email || 'Supervisor');
-    
+    const removerName = removedByStudent
+      ? studentProfile?.full_name || studentProfile?.email || 'Student'
+      : supervisorProfile?.full_name || supervisorProfile?.email || 'Supervisor';
+
     // Notify the other party
     const notificationRecipientId = removedByStudent ? supervisorId : studentId;
-    const recipientName = removedByStudent 
-      ? (supervisorProfile?.full_name || supervisorProfile?.email || 'Supervisor')
-      : (studentProfile?.full_name || studentProfile?.email || 'Student');
-    
+    const recipientName = removedByStudent
+      ? supervisorProfile?.full_name || supervisorProfile?.email || 'Supervisor'
+      : studentProfile?.full_name || studentProfile?.email || 'Student';
+
     let notificationMessage = removedByStudent
       ? `${removerName} is no longer your student`
       : `${removerName} is no longer your supervisor`;
-      
+
     // Add removal message if provided
     if (removalMessage && removalMessage.trim()) {
       notificationMessage += `\n\nMessage: "${removalMessage.trim()}"`;
@@ -561,9 +585,9 @@ export async function removeSupervisorRelationship(
         priority: 'normal',
         is_read: false,
       });
-      
+
       console.log('✅ Relationship removal notification sent to other party');
-      
+
       // Also send a confirmation notification to the person who initiated the removal
       await supabase.from('notifications').insert({
         user_id: removedByUserId || (removedByStudent ? studentId : supervisorId),
@@ -583,14 +607,16 @@ export async function removeSupervisorRelationship(
         priority: 'normal',
         is_read: false,
       });
-      
+
       console.log('✅ Confirmation notification sent to remover');
     } catch (notificationError) {
       console.warn('Failed to send relationship removal notifications:', notificationError);
       // Don't fail the whole operation for notification errors
     }
 
-    console.log(`✅ Supervisor relationship removed completely - both parties can invite each other again`);
+    console.log(
+      `✅ Supervisor relationship removed completely - both parties can invite each other again`,
+    );
     return true;
   } catch (error) {
     console.error('Error removing supervisor relationship:', error);
