@@ -30,7 +30,7 @@ interface PendingInvitation {
 }
 
 export function InvitationModal({ visible, onClose, onInvitationHandled }: InvitationModalProps) {
-  const { t } = useTranslation();
+  const { t, refreshTranslations } = useTranslation();
   const { user } = useAuth();
   const { showToast } = useToast();
   const theme = useTheme();
@@ -45,6 +45,10 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
 
   useEffect(() => {
     if (visible && user?.id) {
+      // Refresh translations when modal opens to ensure we have latest
+      refreshTranslations().catch(() => {
+        // Silent fail on translation refresh
+      });
       loadPendingInvitations();
     }
   }, [visible, user?.id]);
@@ -352,7 +356,7 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
                       disabled={processing === invitation.id}
                     >
                       <XIcon size={14} />
-                      <Text size="sm">{t('common.decline') || 'Decline'}</Text>
+                      <Text size="sm">{t('invitations.decline') || 'Decline'}</Text>
                     </Button>
                     <Button
                       variant="primary"
@@ -361,7 +365,7 @@ export function InvitationModal({ visible, onClose, onInvitationHandled }: Invit
                       disabled={processing === invitation.id}
                     >
                       <Check size={14} />
-                      <Text size="sm">{t('common.accept') || 'Accept'}</Text>
+                      <Text size="sm">{t('invitations.accept') || 'Accept'}</Text>
                     </Button>
                   </XStack>
                 </YStack>
