@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useRef, ReactNode, useCallback, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useRef,
+  ReactNode,
+  useCallback,
+  useEffect,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
@@ -36,7 +44,7 @@ interface RecordingContextType {
   // State
   recordingState: RecordingState;
   isRecordingActive: boolean;
-  
+
   // Actions
   startRecording: () => Promise<void>;
   pauseRecording: () => void;
@@ -46,11 +54,11 @@ interface RecordingContextType {
   maximizeRecording: () => void;
   saveRecording: (onCreateRoute?: (routeData: any) => void) => void;
   cancelRecording: () => void;
-  
+
   // State management
   updateRecordingState: (updates: Partial<RecordingState>) => void;
   clearRecordingState: () => void;
-  
+
   // Recovery
   checkForRecovery: () => Promise<boolean>;
   recoverRecording: () => Promise<void>;
@@ -83,7 +91,7 @@ const RecordingContext = createContext<RecordingContextType | undefined>(undefin
 export function RecordingProvider({ children }: { children: ReactNode }) {
   const [recordingState, setRecordingState] = useState<RecordingState>(defaultRecordingState);
   const [isRecordingActive, setIsRecordingActive] = useState(false);
-  
+
   // Refs for data that doesn't need to trigger renders
   const startTimeRef = useRef<number | null>(null);
   const pausedTimeRef = useRef<number>(0);
@@ -104,23 +112,29 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const MIN_SPEED_THRESHOLD = 0.5; // 0.5 km/h
 
   // Enhanced Haversine formula for accurate distance calculation
-  const calculateDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number): number => {
-    const R = 6371000; // Earth's radius in meters
-    const lat1Rad = (lat1 * Math.PI) / 180;
-    const lat2Rad = (lat2 * Math.PI) / 180;
-    const deltaLatRad = ((lat2 - lat1) * Math.PI) / 180;
-    const deltaLngRad = ((lng2 - lng1) * Math.PI) / 180;
+  const calculateDistance = useCallback(
+    (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+      const R = 6371000; // Earth's radius in meters
+      const lat1Rad = (lat1 * Math.PI) / 180;
+      const lat2Rad = (lat2 * Math.PI) / 180;
+      const deltaLatRad = ((lat2 - lat1) * Math.PI) / 180;
+      const deltaLngRad = ((lng2 - lng1) * Math.PI) / 180;
 
-    const a =
-      Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
-      Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLngRad / 2) * Math.sin(deltaLngRad / 2);
+      const a =
+        Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
+        Math.cos(lat1Rad) *
+          Math.cos(lat2Rad) *
+          Math.sin(deltaLngRad / 2) *
+          Math.sin(deltaLngRad / 2);
 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distanceMeters = R * c;
-    const distanceKm = distanceMeters / 1000;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distanceMeters = R * c;
+      const distanceKm = distanceMeters / 1000;
 
-    return distanceMeters > 1 ? distanceKm : 0;
-  }, []);
+      return distanceMeters > 1 ? distanceKm : 0;
+    },
+    [],
+  );
 
   // Auto-save current recording session
   const autoSaveSession = useCallback(async () => {
@@ -161,7 +175,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       }
 
       const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync().catch(
-        () => ({ status: 'error' })
+        () => ({ status: 'error' }),
       );
 
       if (foregroundStatus !== 'granted') {
@@ -200,12 +214,13 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
           if (wayPointsRef.current.length > 0) {
             const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 1];
-            distanceFromLast = calculateDistance(
-              lastWaypoint.latitude,
-              lastWaypoint.longitude,
-              newWaypoint.latitude,
-              newWaypoint.longitude,
-            ) * 1000;
+            distanceFromLast =
+              calculateDistance(
+                lastWaypoint.latitude,
+                lastWaypoint.longitude,
+                newWaypoint.latitude,
+                newWaypoint.longitude,
+              ) * 1000;
 
             if (distanceFromLast < MIN_DISTANCE_FILTER) {
               shouldAddWaypoint = false;
@@ -233,7 +248,10 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
             maxSpeed: Math.max(recordingState.maxSpeed, finalSpeed),
           });
 
-          if (now - waypointThrottleRef.current < MIN_TIME_FILTER && waypointThrottleRef.current !== 0) {
+          if (
+            now - waypointThrottleRef.current < MIN_TIME_FILTER &&
+            waypointThrottleRef.current !== 0
+          ) {
             return;
           }
 
@@ -288,7 +306,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   // Update recording state
   const updateRecordingState = useCallback((updates: Partial<RecordingState>) => {
-    setRecordingState(prev => ({ ...prev, ...updates }));
+    setRecordingState((prev) => ({ ...prev, ...updates }));
   }, []);
 
   // Start recording
@@ -399,64 +417,78 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   }, [updateRecordingState]);
 
   // Save recording
-  const saveRecording = useCallback((onCreateRoute?: (routeData: any) => void) => {
-    try {
-      if (wayPointsRef.current.length === 0) {
-        console.warn('No waypoints to save');
-        return;
+  const saveRecording = useCallback(
+    (onCreateRoute?: (routeData: any) => void) => {
+      try {
+        if (wayPointsRef.current.length === 0) {
+          console.warn('No waypoints to save');
+          return;
+        }
+
+        const validWaypoints = wayPointsRef.current.filter((wp) => {
+          return (
+            wp &&
+            typeof wp.latitude === 'number' &&
+            typeof wp.longitude === 'number' &&
+            !isNaN(wp.latitude) &&
+            !isNaN(wp.longitude) &&
+            wp.latitude >= -90 &&
+            wp.latitude <= 90 &&
+            wp.longitude >= -180 &&
+            wp.longitude <= 180
+          );
+        });
+
+        if (validWaypoints.length === 0) {
+          console.warn('No valid waypoints found');
+          return;
+        }
+
+        const limitedWaypoints = validWaypoints.slice(0, 100);
+        const routeData = {
+          waypoints: limitedWaypoints.map((wp, index) => ({
+            latitude: wp.latitude,
+            longitude: wp.longitude,
+            title: `Waypoint ${index + 1}`,
+            description: `Recorded at ${new Date(wp.timestamp).toLocaleTimeString()}`,
+          })),
+          name: `Recorded Route ${new Date().toLocaleDateString()}`,
+          description: `Recorded drive - Distance: ${recordingState.distance.toFixed(2)} km, Duration: ${Math.floor(recordingState.totalElapsedTime / 60)}:${(recordingState.totalElapsedTime % 60).toString().padStart(2, '0')}`,
+          searchCoordinates:
+            limitedWaypoints.length > 0
+              ? `${limitedWaypoints[0].latitude.toFixed(6)}, ${limitedWaypoints[0].longitude.toFixed(6)}`
+              : '',
+          routePath: limitedWaypoints.map((wp) => ({
+            latitude: wp.latitude,
+            longitude: wp.longitude,
+          })),
+          startPoint:
+            limitedWaypoints.length > 0
+              ? {
+                  latitude: limitedWaypoints[0].latitude,
+                  longitude: limitedWaypoints[0].longitude,
+                }
+              : undefined,
+          endPoint:
+            limitedWaypoints.length > 1
+              ? {
+                  latitude: limitedWaypoints[limitedWaypoints.length - 1].latitude,
+                  longitude: limitedWaypoints[limitedWaypoints.length - 1].longitude,
+                }
+              : undefined,
+        };
+
+        if (onCreateRoute) {
+          onCreateRoute(routeData);
+        }
+
+        clearRecordingState();
+      } catch (error) {
+        console.error('Error saving recording:', error);
       }
-
-      const validWaypoints = wayPointsRef.current.filter((wp) => {
-        return wp && 
-               typeof wp.latitude === 'number' && 
-               typeof wp.longitude === 'number' &&
-               !isNaN(wp.latitude) && 
-               !isNaN(wp.longitude) &&
-               wp.latitude >= -90 && wp.latitude <= 90 &&
-               wp.longitude >= -180 && wp.longitude <= 180;
-      });
-
-      if (validWaypoints.length === 0) {
-        console.warn('No valid waypoints found');
-        return;
-      }
-
-      const limitedWaypoints = validWaypoints.slice(0, 100);
-      const routeData = {
-        waypoints: limitedWaypoints.map((wp, index) => ({
-          latitude: wp.latitude,
-          longitude: wp.longitude,
-          title: `Waypoint ${index + 1}`,
-          description: `Recorded at ${new Date(wp.timestamp).toLocaleTimeString()}`,
-        })),
-        name: `Recorded Route ${new Date().toLocaleDateString()}`,
-        description: `Recorded drive - Distance: ${recordingState.distance.toFixed(2)} km, Duration: ${Math.floor(recordingState.totalElapsedTime / 60)}:${(recordingState.totalElapsedTime % 60).toString().padStart(2, '0')}`,
-        searchCoordinates: limitedWaypoints.length > 0 
-          ? `${limitedWaypoints[0].latitude.toFixed(6)}, ${limitedWaypoints[0].longitude.toFixed(6)}`
-          : '',
-        routePath: limitedWaypoints.map((wp) => ({
-          latitude: wp.latitude,
-          longitude: wp.longitude,
-        })),
-        startPoint: limitedWaypoints.length > 0 ? {
-          latitude: limitedWaypoints[0].latitude,
-          longitude: limitedWaypoints[0].longitude,
-        } : undefined,
-        endPoint: limitedWaypoints.length > 1 ? {
-          latitude: limitedWaypoints[limitedWaypoints.length - 1].latitude,
-          longitude: limitedWaypoints[limitedWaypoints.length - 1].longitude,
-        } : undefined,
-      };
-
-      if (onCreateRoute) {
-        onCreateRoute(routeData);
-      }
-
-      clearRecordingState();
-    } catch (error) {
-      console.error('Error saving recording:', error);
-    }
-  }, [recordingState.distance, recordingState.totalElapsedTime]);
+    },
+    [recordingState.distance, recordingState.totalElapsedTime],
+  );
 
   // Cancel recording
   const cancelRecording = useCallback(() => {
@@ -524,11 +556,13 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       if (!sessionData) return;
 
       const recoveredState = JSON.parse(sessionData);
-      
+
       // Restore state
       setRecordingState({
         ...recoveredState,
-        recordingStartTime: recoveredState.recordingStartTime ? new Date(recoveredState.recordingStartTime) : null,
+        recordingStartTime: recoveredState.recordingStartTime
+          ? new Date(recoveredState.recordingStartTime)
+          : null,
         locationSubscription: null, // Will be recreated if needed
       });
 
@@ -625,11 +659,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     recoverRecording,
   };
 
-  return (
-    <RecordingContext.Provider value={value}>
-      {children}
-    </RecordingContext.Provider>
-  );
+  return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>;
 }
 
 export function useRecording() {
