@@ -1,6 +1,15 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { YStack, XStack } from 'tamagui';
-import { Modal, ScrollView, TouchableOpacity, View, Alert, Image, Animated, Pressable } from 'react-native';
+import {
+  Modal,
+  ScrollView,
+  TouchableOpacity,
+  View,
+  Alert,
+  Image,
+  Animated,
+  Pressable,
+} from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import { Button } from '../../components/Button';
@@ -41,9 +50,11 @@ export const HomeHeader = () => {
   const profileAvatarRef = useTourTarget('Header.ProfileAvatar');
 
   const [showStudentPicker, setShowStudentPicker] = React.useState(false);
-  const [students, setStudents] = React.useState<Array<{ id: string; full_name: string; email: string; created_at?: string }>>([]);
+  const [students, setStudents] = React.useState<
+    Array<{ id: string; full_name: string; email: string; created_at?: string }>
+  >([]);
   const isSupervisorRole = ['instructor', 'admin', 'school'].includes((profile as any)?.role || '');
-  
+
   // Sheet states
   const [showMessagesSheet, setShowMessagesSheet] = React.useState(false);
   const [showNotificationsSheet, setShowNotificationsSheet] = React.useState(false);
@@ -55,7 +66,7 @@ export const HomeHeader = () => {
 
   // Progress state for avatar circle
   const [userProgress, setUserProgress] = useState(0);
-  const [studentProgress, setStudentProgress] = useState<{[key: string]: number}>({});
+  const [studentProgress, setStudentProgress] = useState<{ [key: string]: number }>({});
 
   // Animation refs for avatar modal
   const avatarBackdropOpacity = useRef(new Animated.Value(0)).current;
@@ -133,20 +144,25 @@ export const HomeHeader = () => {
       }
 
       // Calculate overall progress
-      const completedIds = completions?.map(c => c.exercise_id) || [];
-      const totalExercises = paths.reduce((total, path) => total + path.learning_path_exercises.length, 0);
+      const completedIds = completions?.map((c) => c.exercise_id) || [];
+      const totalExercises = paths.reduce(
+        (total, path) => total + path.learning_path_exercises.length,
+        0,
+      );
       const completedExercises = paths.reduce((total, path) => {
-        return total + path.learning_path_exercises.filter(ex => completedIds.includes(ex.id)).length;
+        return (
+          total + path.learning_path_exercises.filter((ex) => completedIds.includes(ex.id)).length
+        );
       }, 0);
 
       const progress = totalExercises > 0 ? completedExercises / totalExercises : 0;
       setUserProgress(progress);
-      
+
       console.log('🔍 [Header] Progress calculated:', {
         effectiveUserId,
         totalExercises,
         completedExercises,
-        progress: Math.round(progress * 100) + '%'
+        progress: Math.round(progress * 100) + '%',
       });
     } catch (error) {
       console.error('🔍 [Header] Error calculating progress:', error);
@@ -182,14 +198,19 @@ export const HomeHeader = () => {
       }
 
       // Calculate progress for each student
-      const totalExercises = paths.reduce((total, path) => total + path.learning_path_exercises.length, 0);
-      const progressMap: {[key: string]: number} = {};
+      const totalExercises = paths.reduce(
+        (total, path) => total + path.learning_path_exercises.length,
+        0,
+      );
+      const progressMap: { [key: string]: number } = {};
 
-      studentIds.forEach(studentId => {
-        const studentCompletions = completions?.filter(c => c.user_id === studentId) || [];
-        const completedIds = studentCompletions.map(c => c.exercise_id);
+      studentIds.forEach((studentId) => {
+        const studentCompletions = completions?.filter((c) => c.user_id === studentId) || [];
+        const completedIds = studentCompletions.map((c) => c.exercise_id);
         const completedExercises = paths.reduce((total, path) => {
-          return total + path.learning_path_exercises.filter(ex => completedIds.includes(ex.id)).length;
+          return (
+            total + path.learning_path_exercises.filter((ex) => completedIds.includes(ex.id)).length
+          );
         }, 0);
 
         const progress = totalExercises > 0 ? completedExercises / totalExercises : 0;
@@ -235,7 +256,9 @@ export const HomeHeader = () => {
     }
   }, [showAvatarModal, avatarBackdropOpacity, avatarSheetTranslateY]);
 
-  const loadSupervisedStudents = React.useCallback(async (): Promise<Array<{ id: string; full_name: string; email: string; created_at?: string }>> => {
+  const loadSupervisedStudents = React.useCallback(async (): Promise<
+    Array<{ id: string; full_name: string; email: string; created_at?: string }>
+  > => {
     if (!profile?.id) {
       setStudents([]);
       return [];
@@ -262,8 +285,16 @@ export const HomeHeader = () => {
         .in('id', studentIds);
       if (profErr) throw profErr;
 
-      const createdAtById = Object.fromEntries((rels || []).map((r: any) => [r.student_id, r.created_at]));
-      const list: Array<{ id: string; full_name: string; email: string; avatar_url?: string; created_at?: string }> = (profs || []).map((p: any) => ({
+      const createdAtById = Object.fromEntries(
+        (rels || []).map((r: any) => [r.student_id, r.created_at]),
+      );
+      const list: Array<{
+        id: string;
+        full_name: string;
+        email: string;
+        avatar_url?: string;
+        created_at?: string;
+      }> = (profs || []).map((p: any) => ({
         id: p.id,
         full_name: p.full_name || 'Unknown',
         email: p.email || '',
@@ -271,11 +302,11 @@ export const HomeHeader = () => {
         created_at: createdAtById[p.id],
       }));
       setStudents(list);
-      
+
       // Load progress for all students
-      const studentIdList = list.map(s => s.id);
+      const studentIdList = list.map((s) => s.id);
       loadStudentProgress(studentIdList);
-      
+
       return list;
     } catch (e) {
       console.warn('Failed to load supervised students', e);
@@ -289,7 +320,9 @@ export const HomeHeader = () => {
   };
 
   const handleViewProfile = () => {
-    console.log('🔍 [Header] View Profile clicked - closing avatar modal and opening UserProfileSheet');
+    console.log(
+      '🔍 [Header] View Profile clicked - closing avatar modal and opening UserProfileSheet',
+    );
     setShowAvatarModal(false);
     setShowUserProfileSheet(true);
   };
@@ -301,7 +334,7 @@ export const HomeHeader = () => {
       if ((list?.length || 0) > 0) {
         setShowStudentPicker(true);
       } else {
-        Alert.alert('No Students', 'You don\'t have any students yet.');
+        Alert.alert('No Students', "You don't have any students yet.");
       }
     } catch {
       Alert.alert('Error', 'Failed to load students.');
@@ -314,21 +347,17 @@ export const HomeHeader = () => {
   };
 
   const handleLogout = () => {
-    // Alert.alert(
-    //   'Logout',
-    //   'Are you sure you want to logout?',
-    //   [
-    //     { text: 'Cancel', style: 'cancel' },
-    //     { 
-    //       text: 'Logout', 
-    //       style: 'destructive',
-    //       onPress: () => {
-    //         setShowAvatarModal(false);
-    //         signOut();
-    //       }
-    //     }
-    //   ]
-    // );
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          setShowAvatarModal(false);
+          signOut();
+        },
+      },
+    ]);
   };
   return (
     <YStack
@@ -342,14 +371,14 @@ export const HomeHeader = () => {
           <View style={{ position: 'relative' }}>
             {/* Progress Circle */}
             {userProgress > 0 && (
-              <ProgressCircle 
-                percent={userProgress} 
-                size={44} 
-                color="#00E6C3" 
-                bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'} 
+              <ProgressCircle
+                percent={userProgress}
+                size={44}
+                color="#00E6C3"
+                bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
               />
             )}
-            
+
             <TouchableOpacity
               ref={profileAvatarRef}
               onPress={onPressAvatar}
@@ -404,7 +433,12 @@ export const HomeHeader = () => {
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => setShowStudentPicker(false)}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            padding: 20,
+          }}
         >
           <TouchableOpacity
             activeOpacity={1}
@@ -446,20 +480,27 @@ export const HomeHeader = () => {
                         <View style={{ position: 'relative' }}>
                           {/* Progress Circle */}
                           {studentProgressValue > 0 && (
-                            <ProgressCircle 
-                              percent={studentProgressValue} 
-                              size={32} 
-                              color="#00E6C3" 
-                              bg="#333" 
+                            <ProgressCircle
+                              percent={studentProgressValue}
+                              size={32}
+                              color="#00E6C3"
+                              bg="#333"
                             />
                           )}
-                          
-                          <View style={{
-                            width: 28, height: 28, borderRadius: 14, backgroundColor: '#333',
-                            alignItems: 'center', justifyContent: 'center',
-                            borderWidth: activeStudentId === s.id ? 2 : 0, borderColor: '#00E6C3',
-                            margin: 2, // Small margin to show progress circle
-                          }}>
+
+                          <View
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 14,
+                              backgroundColor: '#333',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderWidth: activeStudentId === s.id ? 2 : 0,
+                              borderColor: '#00E6C3',
+                              margin: 2, // Small margin to show progress circle
+                            }}
+                          >
                             {s.avatar_url ? (
                               <Image
                                 source={{ uri: s.avatar_url }}
@@ -471,8 +512,12 @@ export const HomeHeader = () => {
                           </View>
                         </View>
                         <YStack flex={1}>
-                          <Text color="#fff" weight="semibold" size="sm">{s.full_name || 'Unknown'}</Text>
-                          <Text color="#ccc" size="xs">{s.email}</Text>
+                          <Text color="#fff" weight="semibold" size="sm">
+                            {s.full_name || 'Unknown'}
+                          </Text>
+                          <Text color="#ccc" size="xs">
+                            {s.email}
+                          </Text>
                           {studentProgressValue > 0 && (
                             <Text color="#00E6C3" size="xs">
                               {Math.round(studentProgressValue * 100)}% complete
@@ -547,7 +592,8 @@ export const HomeHeader = () => {
                           {t('profile.myProgression') || 'My Progression'}
                         </Text>
                         <Text fontSize={14} color={colorScheme === 'dark' ? '#999' : '#666'}>
-                          {t('profile.myProgressionDescription') || 'View your learning progress and achievements'}
+                          {t('profile.myProgressionDescription') ||
+                            'View your learning progress and achievements'}
                         </Text>
                       </YStack>
                     </XStack>
@@ -629,13 +675,15 @@ export const HomeHeader = () => {
       </Modal>
 
       {/* Profile Sheet */}
-      <ProfileSheet
-        visible={showProfileSheet}
-        onClose={() => setShowProfileSheet(false)}
-      />
+      <ProfileSheet visible={showProfileSheet} onClose={() => setShowProfileSheet(false)} />
 
       {/* User Profile Sheet */}
-      {console.log('🔍 [Header] Rendering UserProfileSheet with visible:', showUserProfileSheet, 'userId:', profile?.id)}
+      {console.log(
+        '🔍 [Header] Rendering UserProfileSheet with visible:',
+        showUserProfileSheet,
+        'userId:',
+        profile?.id,
+      )}
       <UserProfileSheet
         visible={showUserProfileSheet}
         onClose={() => {
@@ -648,17 +696,16 @@ export const HomeHeader = () => {
           console.log('View all routes for user:', userId);
         }}
         onEditProfile={() => {
-          console.log('🔍 [Header] Edit Profile clicked - closing UserProfileSheet and opening ProfileSheet');
+          console.log(
+            '🔍 [Header] Edit Profile clicked - closing UserProfileSheet and opening ProfileSheet',
+          );
           setShowUserProfileSheet(false);
           setShowProfileSheet(true);
         }}
       />
 
       {/* Messages Sheet */}
-      <MessagesSheet
-        visible={showMessagesSheet}
-        onClose={() => setShowMessagesSheet(false)}
-      />
+      <MessagesSheet visible={showMessagesSheet} onClose={() => setShowMessagesSheet(false)} />
 
       {/* Notifications Sheet */}
       <NotificationsSheet
@@ -667,10 +714,7 @@ export const HomeHeader = () => {
       />
 
       {/* Events Sheet */}
-      <EventsSheet
-        visible={showEventsSheet}
-        onClose={() => setShowEventsSheet(false)}
-      />
+      <EventsSheet visible={showEventsSheet} onClose={() => setShowEventsSheet(false)} />
 
       {/* Progression Modal */}
       <Modal
@@ -682,15 +726,20 @@ export const HomeHeader = () => {
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => setShowProgressionModal(false)}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            padding: 20,
+          }}
         >
           <TouchableOpacity
             activeOpacity={1}
             onPress={(e) => e.stopPropagation()}
-            style={{ 
-              backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#fff', 
-              borderRadius: 16, 
-              maxHeight: '80%', 
+            style={{
+              backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#fff',
+              borderRadius: 16,
+              maxHeight: '80%',
               padding: 24,
               borderWidth: 1,
               borderColor: colorScheme === 'dark' ? '#333' : '#E0E0E0',
@@ -710,13 +759,13 @@ export const HomeHeader = () => {
             <YStack gap="$4" marginBottom="$4">
               <XStack alignItems="center" gap="$3">
                 <View style={{ position: 'relative' }}>
-                  <ProgressCircle 
-                    percent={userProgress} 
-                    size={60} 
-                    color="#00E6C3" 
-                    bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'} 
+                  <ProgressCircle
+                    percent={userProgress}
+                    size={60}
+                    color="#00E6C3"
+                    bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                   />
-                  <Text 
+                  <Text
                     style={{
                       position: 'absolute',
                       top: 0,
@@ -728,7 +777,7 @@ export const HomeHeader = () => {
                       lineHeight: 60,
                       fontSize: 12,
                       fontWeight: 'bold',
-                      color: textColor
+                      color: textColor,
                     }}
                   >
                     {Math.round(userProgress * 100)}%
@@ -762,7 +811,7 @@ export const HomeHeader = () => {
               <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
                 • The circle shows your completion percentage
               </Text>
-              
+
               {activeStudentId && (
                 <>
                   <Text fontSize="$4" fontWeight="600" color={textColor} marginTop="$2">
