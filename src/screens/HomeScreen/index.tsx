@@ -9,9 +9,9 @@ import { NavigationProp } from '../../types/navigation';
 import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
 import { OnboardingModalInteractive } from '../../components/OnboardingModalInteractive';
+import { shouldShowInteractiveOnboarding, completeOnboardingWithVersion } from '../../components/OnboardingInteractive';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
-// shouldShowInteractiveOnboarding import removed
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useTour } from '../../contexts/TourContext';
 import { ProgressSection } from '../../components/ProgressSection';
@@ -102,22 +102,29 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isFirstLogin, setIsFirstLogin] = useState(false);
 
-  // Onboarding logic
+  // Onboarding logic - unified with OnboardingInteractive's storage system
   useEffect(() => {
     const checkFirstLogin = async () => {
       try {
-        const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
-        if (!hasSeenOnboarding) {
+        // Use the proper check that looks at both AsyncStorage AND user profile
+        const shouldShow = await shouldShowInteractiveOnboarding('interactive_onboarding', user?.id);
+        if (shouldShow && user?.id) {
+          console.log('🎯 [HomeScreen] Showing OnboardingInteractive for user:', user.id);
           setIsFirstLogin(true);
           setShowOnboarding(true);
+        } else {
+          console.log('🎯 [HomeScreen] User has completed onboarding, skipping');
         }
       } catch (error) {
         console.error('Error checking onboarding status:', error);
       }
     };
     
-    checkFirstLogin();
-  }, []);
+    // Only check if we have a user
+    if (user?.id) {
+      checkFirstLogin();
+    }
+  }, [user?.id]);
 
   // Check if tour should be shown after onboarding is complete (RE-ENABLED for HomeScreen)
   useEffect(() => {
@@ -186,7 +193,23 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
 
   // Debug functions for onboarding
   const resetOnboarding = async () => {
-    await AsyncStorage.removeItem('hasSeenOnboarding');
+    // Reset unified onboarding system (AsyncStorage + user profile)
+    await AsyncStorage.multiRemove([
+      'interactive_onboarding',
+      'hasSeenOnboarding', // Legacy key
+    ]);
+    
+    // Reset user profile flags
+    if (user?.id) {
+      await supabase
+        .from('profiles')
+        .update({
+          interactive_onboarding_completed: false,
+          interactive_onboarding_version: null,
+        })
+        .eq('id', user.id);
+    }
+    
     setShowOnboarding(true);
     setIsFirstLogin(true);
   };
@@ -266,10 +289,11 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       {showOnboarding && (
         <OnboardingModalInteractive
           visible={showOnboarding}
-          onClose={() => {
+          onClose={async () => {
+            // Save completion using unified system (both AsyncStorage + user profile)
+            await completeOnboardingWithVersion('interactive_onboarding', user?.id);
             setShowOnboarding(false);
             setIsFirstLogin(false);
-            AsyncStorage.setItem('hasSeenOnboarding', 'true');
           }}
         />
       )}

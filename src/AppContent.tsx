@@ -14,7 +14,7 @@ import { useColorScheme, Platform, NativeModules, AppState } from 'react-native'
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { StatusBar } from 'expo-status-bar';
-import { setupTranslationSubscription } from './services/translationService';
+import { setupTranslationSubscription, refreshTranslations } from './services/translationService';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { useTranslation } from './contexts/TranslationContext';
 import { clearOldCrashReports } from './components/ErrorBoundary';
@@ -113,6 +113,18 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 async function registerForPushNotificationsAsync(showToast?: (toast: { title: string; message: string; type: 'success' | 'error' | 'info' }) => void, t?: (key: string) => string) {
   let token;
+  
+  // Force refresh translations to ensure they're loaded
+  await refreshTranslations();
+  
+  // 🧪 TEST: Show a test toast to verify translations are working (REMOVE THIS AFTER TESTING)
+  if (showToast && __DEV__) {
+    showToast({
+      title: t?.('pushNotifications.title') || 'Push Notifications',
+      message: t?.('pushNotifications.physicalDevice') || 'Test message',
+      type: 'info'
+    });
+  }
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('myNotificationChannel', {
