@@ -1,13 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Pressable, useColorScheme } from 'react-native';
+import { Modal, Pressable, useColorScheme, Image } from 'react-native';
 import { YStack, XStack, Heading, Paragraph } from 'tamagui';
-import { Button } from './Button';
+import { Button } from '../components/Button';
 import { Text } from './Text';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { X, User, Users, Check, X as XIcon } from '@tamagui/lucide-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+
+// 🖼️ Import static images (OPTIONAL - comment out if files don't exist yet)
+/* eslint-disable @typescript-eslint/no-var-requires */
+// Uncomment these when you add image files to assets/images/invitations/
+const INVITATION_IMAGES = {
+  supervisor: require('../../assets/images/invitations/supervisor-invite.png'),
+  student: require('../../assets/images/invitations/student-invite.png'),
+  collection: require('../../assets/images/invitations/collection-invite.png'),
+};
+// const INVITATION_IMAGES = null;
+/* eslint-enable @typescript-eslint/no-var-requires */
 
 interface UnifiedInvitationModalProps {
   visible: boolean;
@@ -524,7 +535,7 @@ export function UnifiedInvitationModal({
                 })()}
               </Heading>
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
                 onPress={onClose}
                 padding="$2"
@@ -536,12 +547,28 @@ export function UnifiedInvitationModal({
 
             {/* Invitation Content */}
             <YStack gap="$3">
-              <XStack alignItems="center" gap="$2">
-                {currentInvitation.type === 'relationship' ? (
-                  <User size={24} color={textColor} />
-                ) : (
-                  <Users size={24} color={textColor} />
-                )}
+              {/* 🖼️ Header Image - Only renders if INVITATION_IMAGES is set */}
+              {INVITATION_IMAGES && (
+                <YStack alignItems="center" marginBottom="$2">
+                  <Image
+                    source={
+                      currentInvitation.type === 'collection'
+                        ? INVITATION_IMAGES.collection
+                        : currentInvitation.role === 'supervisor'
+                        ? INVITATION_IMAGES.supervisor
+                        : INVITATION_IMAGES.student
+                    }
+                    style={{
+                      width: 120,
+                      height: 120,
+                      borderRadius: 8,
+                    }}
+                    resizeMode="cover"
+                  />
+                </YStack>
+              )}
+
+              <XStack alignItems="center" gap="$2" justifyContent="center">
                 <Text color={textColor} fontWeight="bold" fontSize="$4">
                   {currentInvitation.title_key ? t(currentInvitation.title_key) : currentInvitation.title}
                 </Text>
@@ -580,32 +607,31 @@ export function UnifiedInvitationModal({
 
             {/* Action Buttons */}
             <XStack justifyContent="space-around" marginTop="$4" gap="$2">
-              <Button 
+              {/* <Button 
                 flex={1} 
                 variant="outline" 
                 onPress={handleDismiss}
                 disabled={isProcessing}
               >
                 {t('invitations.dismiss') || 'Dismiss'}
-              </Button>
+              </Button> */}
               <Button 
                 flex={1} 
-                variant="outline" 
+                variant="secondary" 
                 onPress={handleDecline}
                 disabled={isProcessing}
-                borderColor="$red10"
+                size="sm"
               >
-                <Text color="$red10">{t('invitations.decline') || 'Decline'}</Text>
+                {t('invitations.decline') || 'Decline'}
               </Button>
               <Button 
                 flex={1} 
                 variant="primary" 
                 onPress={handleAccept}
                 disabled={isProcessing}
-                backgroundColor="$green10"
-                borderColor="$green10"
+                size="sm"
               >
-                <Text color="white" fontWeight="600">{t('invitations.accept') || 'Accept'}</Text>
+                {t('invitations.accept') || 'Accept'}
               </Button>
             </XStack>
 
