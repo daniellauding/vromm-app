@@ -62,7 +62,15 @@ export function UserProfileSheet({
   const insets = useSafeAreaInsets();
   const { user, profile: currentUserProfile } = useAuth();
   const { t } = useTranslation();
-  const navigation = useNavigation<NavigationProp>();
+  
+  // 🔧 Make navigation optional (for use in modals outside NavigationContainer)
+  let navigation: NavigationProp | null = null;
+  try {
+    navigation = useNavigation<NavigationProp>();
+  } catch (e) {
+    console.log('🔍 [UserProfileSheet] No navigation context available (modal mode)');
+  }
+  
   const colorScheme = useColorScheme();
   const theme = useTheme();
   const iconColor = theme.color?.val || '#000000';
@@ -568,6 +576,12 @@ export function UserProfileSheet({
   const handleMessage = async () => {
     if (!profile || !user?.id || profile.id === user.id) return;
 
+    // 🔧 Check if navigation is available
+    if (!navigation) {
+      Alert.alert('Navigation not available', 'Please open this profile from the main app to send messages.');
+      return;
+    }
+
     try {
       // Check if conversation already exists
       const conversations = await messageService.getConversations();
@@ -733,10 +747,10 @@ export function UserProfileSheet({
                   <Button
                     onPress={onClose}
                     marginTop="$4"
-                    icon={<Feather name="arrow-left" size={18} color="white" />}
                     variant="primary"
                     size="$4"
                   >
+                    <Feather name="arrow-left" size={18} color="white" style={{ marginRight: 8 }} />
                     {t('common.goBack') || 'Go Back'}
                   </Button>
                 </YStack>
@@ -851,11 +865,11 @@ export function UserProfileSheet({
                           {/* Message Button */}
                           <Button
                             onPress={handleMessage}
-                            icon={<Feather name="message-circle" size={14} color="white" />}
                             variant="primary"
                             backgroundColor="$green10"
                             size="sm"
                           >
+                            <Feather name="message-circle" size={14} color="white" style={{ marginRight: 6 }} />
                             <Text color="white" fontSize="$2" fontWeight="500">
                               {t('profile.message') || 'Message'}
                             </Text>
@@ -864,7 +878,6 @@ export function UserProfileSheet({
                           {/* Share Button */}
                           <Button
                             onPress={handleShare}
-                            icon={<Feather name="share" size={14} color={iconColor} />}
                             variant="secondary"
                             size="sm"
                           />
@@ -872,10 +885,11 @@ export function UserProfileSheet({
                           {/* Report Button */}
                           <Button
                             onPress={() => setShowReportDialog(true)}
-                            icon={<Feather name="flag" size={14} color={iconColor} />}
                             variant="secondary"
                             size="sm"
-                          />
+                          >
+                            <Feather name="flag" size={14} color={iconColor} />
+                          </Button>
                         </XStack>
                       )}
 
@@ -903,7 +917,6 @@ export function UserProfileSheet({
                           {/* Share Button */}
                           <Button
                             onPress={handleShare}
-                            icon={<Feather name="share" size={14} color={iconColor} />}
                             variant="secondary"
                             size="sm"
                           />

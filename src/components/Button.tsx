@@ -4,7 +4,10 @@ import { Text } from 'tamagui';
 import { sizes } from '../theme/sizes';
 import { tokens } from '../tokens';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'link' | 'outlined';
+// 🎨 Type for icon components (works with lucide-icons and other icon libraries)
+type IconComponent = React.ComponentType<{ size?: number; color?: string }>;
+
+export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'link' | 'outlined' | 'icon';
 export type ButtonSize = keyof typeof sizes.button;
 export type ButtonRadius = keyof typeof sizes.radius;
 
@@ -38,6 +41,28 @@ const ButtonFrame = styled(Stack, {
         height: sizes.button.xl,
         paddingHorizontal: sizes.buttonPadding.xl,
       },
+    },
+
+    // 🔲 Icon-specific size overrides (makes icons perfectly square)
+    icon_xs: {
+      width: sizes.button.xs,
+      height: sizes.button.xs,
+    },
+    icon_sm: {
+      width: sizes.button.sm,
+      height: sizes.button.sm,
+    },
+    icon_md: {
+      width: sizes.button.md,
+      height: sizes.button.md,
+    },
+    icon_lg: {
+      width: sizes.button.lg,
+      height: sizes.button.lg,
+    },
+    icon_xl: {
+      width: sizes.button.xl,
+      height: sizes.button.xl,
     },
 
     radius: {
@@ -147,6 +172,19 @@ const ButtonFrame = styled(Stack, {
           backgroundColor: 'rgba(0, 255, 188, 0.1)', // Light teal background
         },
       },
+      icon: {
+        bg: 'rgba(0, 0, 0, 0.4)',
+        color: 'rgba(255, 255, 255, 0.2)', // Brand teal color for links
+        hoverStyle: {
+          opacity: 0.8,
+        },
+        pressStyle: {
+          opacity: 0.6,
+        },
+        radius: 'full',
+        // 🔲 Add padding so icon has breathing room
+        padding: 8,
+      },
     },
 
     disabled: {
@@ -212,6 +250,9 @@ const ButtonText = styled(Text, {
         textTransform: 'none',
         fontWeight: '600',
       },
+      icon: {
+        color: '#00FFBC', // Brand teal color for icons
+      },
     },
   } as const,
 
@@ -222,23 +263,67 @@ const ButtonText = styled(Text, {
 });
 
 type ButtonProps = GetProps<typeof ButtonFrame> & {
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  icon?: IconComponent; // 🎨 Optional icon prop (works with lucide-icons)
+  iconSize?: number; // 🎨 Optional icon size (default: 20)
+  iconColor?: string; // 🎨 Optional icon color (uses variant color if not set)
 };
 
 export const Button = forwardRef<React.ElementRef<typeof ButtonFrame>, ButtonProps>(
-  ({ children, variant, size, radius, disabled, ...props }, ref) => {
+  (
+    {
+      children,
+      variant,
+      size = 'md',
+      radius,
+      disabled,
+      icon: Icon,
+      iconSize = 20,
+      iconColor,
+      ...props
+    },
+    ref,
+  ) => {
+    // 🔲 Apply icon-specific size for icon variant to make it square
+    const effectiveSize = variant === 'icon' ? (`icon_${size}` as ButtonSize) : size;
+
+    // 🎨 Determine icon color based on variant if not explicitly set
+    const getIconColor = () => {
+      if (iconColor) return iconColor;
+
+      switch (variant) {
+        case 'primary':
+          return '#145251'; // Dark color for teal background
+        case 'secondary':
+          return 'white';
+        case 'tertiary':
+        case 'link':
+          return '#00FFBC'; // Teal color
+        case 'icon':
+          return 'white'; // White for icon buttons
+        default:
+          return '#00FFBC'; // Default teal
+      }
+    };
+
     return (
       <ButtonFrame
         ref={ref}
         variant={variant}
-        size={size}
+        size={effectiveSize}
         radius={radius}
         disabled={disabled}
         {...props}
       >
-        <ButtonText variant={variant} size={size}>
-          {children}
-        </ButtonText>
+        {/* 🎨 Render icon if provided */}
+        {Icon && <Icon size={iconSize} color={getIconColor()} />}
+
+        {/* 🎨 Render text if children provided */}
+        {children && (
+          <ButtonText variant={variant} size={size}>
+            {children}
+          </ButtonText>
+        )}
       </ButtonFrame>
     );
   },
@@ -295,6 +380,16 @@ export const NewButton = styled(TamaguiButton, {
         h: 'auto',
         p: 0,
         textDecorationLine: 'underline',
+        hoverStyle: {
+          opacity: 0.8,
+        },
+        pressStyle: {
+          opacity: 0.6,
+        },
+      },
+      icon: {
+        bg: 'rgba(255, 255, 255, 0.1)',
+        color: '#00FFBC', // Brand teal color for links
         hoverStyle: {
           opacity: 0.8,
         },

@@ -11,6 +11,13 @@
         "env": {
           "SUPABASE_ACCESS_TOKEN": "sbp_54de5fcb92f021e0dc5bc918b1dd869b5e122686"
         }
+      },
+      "RadonAi": {
+        "url": "http://127.0.0.1:60980/mcp",
+        "type": "http",
+        "headers": {
+          "nonce": "9e1ba8db-57e7-41f9-98db-a6cfc5912f3d"
+        }
       }
     }
   }

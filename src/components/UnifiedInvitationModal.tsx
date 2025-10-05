@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Pressable, useColorScheme, Image } from 'react-native';
-import { YStack, XStack, Heading, Paragraph } from 'tamagui';
+import { Modal, Pressable, useColorScheme, Image, TouchableOpacity } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { ScrollView, YStack, XStack, Heading, Paragraph } from 'tamagui';
 import { Button } from '../components/Button';
 import { Text } from './Text';
 import { useTranslation } from '@/src/contexts/TranslationContext';
@@ -8,6 +9,7 @@ import { X, User, Users, Check, X as XIcon } from '@tamagui/lucide-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { UserProfileSheet } from './UserProfileSheet';
 
 // 🖼️ Import static images (OPTIONAL - comment out if files don't exist yet)
 /* eslint-disable @typescript-eslint/no-var-requires */
@@ -35,6 +37,8 @@ interface PendingInvitation {
   message?: string; // Fallback message
   from_user_name: string;
   from_user_email: string;
+  from_user_id?: string; // 🎨 User ID for profile link
+  avatar_url?: string; // 🎨 Avatar URL
   custom_message?: string;
   role?: string;
   collection_name?: string;
@@ -57,6 +61,10 @@ export function UnifiedInvitationModal({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // 🎨 Profile sheet state
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
   const textColor = colorScheme === 'dark' ? 'white' : 'black';
@@ -101,7 +109,7 @@ export function UnifiedInvitationModal({
           metadata,
           created_at,
           actor_id,
-          profiles!notifications_actor_id_fkey(full_name, email)
+          profiles!notifications_actor_id_fkey(full_name, email, avatar_url)
         `)
         .eq('user_id', user.id)
         .in('type', ['supervisor_invitation', 'student_invitation'])
@@ -160,7 +168,7 @@ export function UnifiedInvitationModal({
       if (colError) throw colError;
 
       // Fetch collection invitations from notifications table
-      const { data: notificationInvitations, error: notifError } = await supabase
+      const { data: notificationInvitations, error: notifError} = await supabase
         .from('notifications')
         .select(`
           id,
@@ -168,7 +176,7 @@ export function UnifiedInvitationModal({
           metadata,
           created_at,
           actor_id,
-          profiles!notifications_actor_id_fkey(full_name, email)
+          profiles!notifications_actor_id_fkey(full_name, email, avatar_url)
         `)
         .eq('user_id', user.id)
         .eq('type', 'collection_invitation')
@@ -201,6 +209,8 @@ export function UnifiedInvitationModal({
           message: notif.message,
           from_user_name: notif.profiles?.full_name || metadata.from_user_name || 'Unknown',
           from_user_email: notif.profiles?.email || metadata.from_user_name || '',
+          from_user_id: notif.actor_id || metadata.targetUserId, // 🎨 Add user ID
+          avatar_url: notif.profiles?.avatar_url, // 🎨 Add avatar
           custom_message: metadata.customMessage || '',
           role: isSupervisorInvitation ? 'supervisor' : 'student',
           invitation_id: metadata.invitation_id || notif.id,
@@ -239,6 +249,8 @@ export function UnifiedInvitationModal({
           message: notif.message,
           from_user_name: notif.profiles?.full_name || metadata.from_user_name || 'Unknown',
           from_user_email: notif.profiles?.email || metadata.from_user_name || '',
+          from_user_id: notif.actor_id, // 🎨 Add user ID
+          avatar_url: notif.profiles?.avatar_url, // 🎨 Add avatar
           custom_message: metadata.customMessage || '',
           role: metadata.sharingRole || 'viewer',
           collection_name: metadata.collection_name,
@@ -505,144 +517,277 @@ export function UnifiedInvitationModal({
 
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
+      <BlurView
+        style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+        intensity={10}
+        tint={colorScheme === 'dark' ? 'dark' : 'light'}
+      />
       <Pressable 
         style={{ 
           flex: 1, 
           justifyContent: 'center', 
           alignItems: 'center', 
-          backgroundColor: 'rgba(0,0,0,0.5)' 
+          backgroundColor: 'rgba(0,0,0,0.3)', 
         }} 
         onPress={onClose}
       >
-        <Pressable>
+        <Pressable onPress={(e) => e.stopPropagation()}>
           <YStack
-            backgroundColor={backgroundColor}
-            padding="$4"
-            borderRadius="$4"
             width="90%"
-            maxWidth={400}
-            gap="$3"
-            borderColor={borderColor}
-            borderWidth={1}
+            maxHeight="90%"
+            backgroundColor="transparent"
+            justifyContent="center"
+            alignItems="center"
+            flex={1}
           >
-            {/* Header */}
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$2">
-              <Heading size="$5" color={textColor} flex={1} textAlign="center">
-                {(() => {
-                  const translated = t('invitations.newInvitations');
-                  console.log('🔍 [UnifiedInvitationModal] Header translation:', translated);
-                  return translated === 'invitations.newInvitations' ? 'New Invitations' : translated;
-                })()}
-              </Heading>
-              <Button
-                variant="secondary"
-                size="sm"
-                onPress={onClose}
-                padding="$2"
-                accessibilityLabel="Close"
+
+            <YStack
+              backgroundColor={backgroundColor}
+              paddingVertical="$4"
+              paddingTop="$0"
+              overflow="hidden"
+              paddingHorizontal="$0"
+              borderRadius="$4"
+              width="100%"
+              gap="$3"
+              borderColor={borderColor}
+              borderWidth={0}
+            >
+
+            {/* <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                padding: 0,
+                margin: 0,
+                gap: 0,
+                justifyContent: 'center', 
+                alignItems: 'center', 
+              }}
+              style={{
+                padding: 0,
+                margin: 0,
+                maxWidth: '85%',
+                maxHeight:'85%',
+              }}
+            > */}
+              <YStack
+                paddingVertical="$4"
+                paddingTop="$0"
+                overflow="hidden"
+                paddingHorizontal="$0"
+                borderRadius="$4"
+                width="100%"
+                gap="$3"
               >
-                <X size={20} color={textColor} />
-              </Button>
-            </XStack>
+                  
+                  {/* Invitation Content */}
+                  <YStack gap="$3">
+                    {/* 🖼️ Header Image - Only renders if INVITATION_IMAGES is set */}
+                    {INVITATION_IMAGES && (
+                      <YStack
+                        alignItems="center"
+                        marginBottom="$2"
+                        backgroundColor="rgba(255,255,255,0.1)"
+                        // paddingHorizontal="$2"
+                        // paddingVertical="$4"
+                      >
+                        <Button
+                          variant="icon"
+                          size="xs"
+                          onPress={onClose}
+                          padding="$2"
+                          accessibilityLabel="Close"
+                          position="absolute"
+                          zIndex={1}
+                          top="$4"
+                          right="$4"
+                        >
+                          <X size={20} color={textColor} />
+                        </Button>
+                        <YStack
+                            width="100%"
+                            height={230}
+                            justifyContent="center"
+                            alignItems="center"
+                            overflow="hidden"
+                        >
+                          <Image
+                            source={
+                              currentInvitation.type === 'collection'
+                                ? INVITATION_IMAGES.collection
+                                : currentInvitation.role === 'supervisor'
+                                ? INVITATION_IMAGES.supervisor
+                                : INVITATION_IMAGES.student
+                            }
+                            style={{
+                              borderRadius: '8px 8px 0 0',
+                              maxWidth: '100%',
+                              width: '100%',
+                              // aspectRatio: 306 / 325
+                            }}
+                            resizeMode="cover"
+                          />
+                        </YStack>
+                      </YStack>
+                    )}
 
-            {/* Invitation Content */}
-            <YStack gap="$3">
-              {/* 🖼️ Header Image - Only renders if INVITATION_IMAGES is set */}
-              {INVITATION_IMAGES && (
-                <YStack alignItems="center" marginBottom="$2">
-                  <Image
-                    source={
-                      currentInvitation.type === 'collection'
-                        ? INVITATION_IMAGES.collection
-                        : currentInvitation.role === 'supervisor'
-                        ? INVITATION_IMAGES.supervisor
-                        : INVITATION_IMAGES.student
-                    }
-                    style={{
-                      width: 120,
-                      height: 120,
-                      borderRadius: 8,
-                    }}
-                    resizeMode="cover"
-                  />
-                </YStack>
-              )}
+                    {/* Header */}
 
-              <XStack alignItems="center" gap="$2" justifyContent="center">
-                <Text color={textColor} fontWeight="bold" fontSize="$4">
-                  {currentInvitation.title_key ? t(currentInvitation.title_key) : currentInvitation.title}
-                </Text>
+                    <ScrollView
+                      showsVerticalScrollIndicator={false}
+                      contentContainerStyle={{
+                        padding: 0,
+                        margin: 0,
+                        gap: 0,
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                      }}
+                      style={{
+                        padding: 0,
+                        margin: 0,
+                      }}
+                    >
+
+                      {/* <XStack justifyContent="space-between" alignItems="center" marginBottom="$2">
+                        <Heading size="$5" color={textColor} flex={1} textAlign="center">
+                          {(() => {
+                            const translated = t('invitations.newInvitations');
+                            console.log('🔍 [UnifiedInvitationModal] Header translation:', translated);
+                            return translated === 'invitations.newInvitations' ? 'New Invitations' : translated;
+                          })()}
+                        </Heading>
+                      </XStack> */}
+                      <XStack alignItems="center" gap="$2" justifyContent="center">
+                        <Heading size="$5" color={textColor} flex={1} textAlign="center">
+                          {currentInvitation.title_key ? t(currentInvitation.title_key) : currentInvitation.title}
+                        </Heading>
+                      </XStack>
+
+                      {/* 🎨 Avatar - Pressable to open profile */}
+                      {currentInvitation.from_user_id && (
+                        <YStack alignItems="center" marginVertical="$3">
+                          <TouchableOpacity
+                            onPress={() => {
+                              setSelectedUserId(currentInvitation.from_user_id || null);
+                              setShowProfileSheet(true);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            {currentInvitation.avatar_url ? (
+                              <Image
+                                source={{ uri: currentInvitation.avatar_url }}
+                                style={{
+                                  width: 60,
+                                  height: 60,
+                                  borderRadius: 30,
+                                  borderWidth: 2,
+                                  borderColor: colorScheme === 'dark' ? '#00FFBC' : '#00CC96',
+                                }}
+                              />
+                            ) : (
+                              <YStack
+                                width={60}
+                                height={60}
+                                borderRadius={30}
+                                backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
+                                alignItems="center"
+                                justifyContent="center"
+                                borderWidth={2}
+                                borderColor={colorScheme === 'dark' ? '#00FFBC' : '#00CC96'}
+                              >
+                                <User size={30} color={textColor} />
+                              </YStack>
+                            )}
+                          </TouchableOpacity>
+                        </YStack>
+                      )}
+
+                      <Paragraph color={textColor} textAlign="center" lineHeight="$2">
+                        <Text fontWeight="600">{currentInvitation.from_user_name}</Text>{' '}
+                        {currentInvitation.message_key ? t(currentInvitation.message_key) : currentInvitation.message}
+                      </Paragraph>
+
+                      {currentInvitation.custom_message && (
+                        <YStack padding="$4">
+                          <Text color={textColor} fontWeight="bold" fontSize="$3" marginBottom="$2">
+                            {(() => {
+                              const translated = t('invitations.personalMessage');
+                              console.log('🔍 [UnifiedInvitationModal] PersonalMessage translation:', translated);
+                              return translated === 'invitations.personalMessage' ? 'Personal message:' : translated;
+                            })()}
+                          </Text>
+                          <Text color={textColor} fontSize="$3">
+                            "{currentInvitation.custom_message}"
+                          </Text>
+                          {/* <Text color={textColor} fontSize="$3">
+                          asdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasads
+                          </Text> */}
+                        </YStack>
+                      )}
+
+                      {currentInvitation.collection_name && (
+                        <Text color={textColor} fontSize="$3" textAlign="center">
+                          {t('invitations.collectionName') || 'Collection'}: {currentInvitation.collection_name}
+                        </Text>
+                      )}
+
+                    </ScrollView>
+                    {/* </ScrollView> */}
+                  </YStack>
+
+                  {isProcessing && (
+                    <XStack alignItems="center" justifyContent="center" gap="$2" marginTop="$2">
+                      <Text color={textColor} fontSize="$2">Processing...</Text>
+                    </XStack>
+                  )}
+                  
+              </YStack>
+
+              {/* Action Buttons */}
+              <XStack justifyContent="space-around" marginTop="$4" gap="$4" paddingHorizontal="$4">
+                {/* <Button 
+                  flex={1} 
+                  variant="outline" 
+                  onPress={handleDismiss}
+                  disabled={isProcessing}
+                >
+                  {t('invitations.dismiss') || 'Dismiss'}
+                </Button> */}
+                <Button 
+                  flex={1} 
+                  variant="secondary" 
+                  onPress={handleDecline}
+                  disabled={isProcessing}
+                  size="sm"
+                >
+                  {t('invitations.decline') || 'Decline'}
+                </Button>
+                <Button 
+                  flex={1} 
+                  variant="primary" 
+                  onPress={handleAccept}
+                  disabled={isProcessing}
+                  size="sm"
+                >
+                  {t('invitations.accept') || 'Accept'}
+                </Button>
               </XStack>
-
-              <Paragraph color={textColor} textAlign="center" lineHeight="$4">
-                <Text fontWeight="600">{currentInvitation.from_user_name}</Text>{' '}
-                {currentInvitation.message_key ? t(currentInvitation.message_key) : currentInvitation.message}
-              </Paragraph>
-
-              {currentInvitation.custom_message && (
-                <YStack backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'} padding="$3" borderRadius="$2">
-                  <Text color={textColor} fontWeight="bold" fontSize="$3" marginBottom="$2">
-                    {(() => {
-                      const translated = t('invitations.personalMessage');
-                      console.log('🔍 [UnifiedInvitationModal] PersonalMessage translation:', translated);
-                      return translated === 'invitations.personalMessage' ? 'Personal message:' : translated;
-                    })()}
-                  </Text>
-                  <Text color={textColor} fontSize="$3">
-                    "{currentInvitation.custom_message}"
-                  </Text>
-                </YStack>
-              )}
-
-              {currentInvitation.collection_name && (
-                <Text color={textColor} fontSize="$3" textAlign="center">
-                  {t('invitations.collectionName') || 'Collection'}: {currentInvitation.collection_name}
-                </Text>
-              )}
-
-              <Text color={textColor} fontSize="$2" textAlign="center" opacity={0.7}>
-                {currentIndex + 1} of {invitations.length}
-              </Text>
             </YStack>
-
-            {/* Action Buttons */}
-            <XStack justifyContent="space-around" marginTop="$4" gap="$2">
-              {/* <Button 
-                flex={1} 
-                variant="outline" 
-                onPress={handleDismiss}
-                disabled={isProcessing}
-              >
-                {t('invitations.dismiss') || 'Dismiss'}
-              </Button> */}
-              <Button 
-                flex={1} 
-                variant="secondary" 
-                onPress={handleDecline}
-                disabled={isProcessing}
-                size="sm"
-              >
-                {t('invitations.decline') || 'Decline'}
-              </Button>
-              <Button 
-                flex={1} 
-                variant="primary" 
-                onPress={handleAccept}
-                disabled={isProcessing}
-                size="sm"
-              >
-                {t('invitations.accept') || 'Accept'}
-              </Button>
-            </XStack>
-
-            {isProcessing && (
-              <XStack alignItems="center" justifyContent="center" gap="$2" marginTop="$2">
-                <Text color={textColor} fontSize="$2">Processing...</Text>
-              </XStack>
-            )}
+            <Text color={textColor} fontSize="$2" textAlign="center" opacity={0.7} marginTop="$4">
+              {currentIndex + 1} of {invitations.length}
+            </Text>
           </YStack>
-        </Pressable>
+          </Pressable>
       </Pressable>
+
+      {/* 🎨 User Profile Sheet - Opens when avatar is pressed */}
+      <UserProfileSheet
+        visible={showProfileSheet}
+        onClose={() => setShowProfileSheet(false)}
+        userId={selectedUserId}
+        onViewAllRoutes={() => {}}
+        onEditProfile={() => {}}
+      />
     </Modal>
   );
 }
