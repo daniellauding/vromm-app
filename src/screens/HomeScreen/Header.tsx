@@ -10,6 +10,7 @@ import {
   Animated,
   Pressable,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import Svg, { Circle } from 'react-native-svg';
 
 import { Button } from '../../components/Button';
@@ -39,12 +40,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { useThemeColor } from '../../hooks/useThemeColor';
 
 export const HomeHeader = () => {
-  const { t } = useTranslation();
+  const { t, refreshTranslations } = useTranslation();
   const colorScheme = useColorScheme();
   const { profile, signOut } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const { setActiveStudent, activeStudentId } = useStudentSwitch();
   const insets = useSafeAreaInsets();
+
+  // 🎨 Refresh translations on mount to ensure latest translations are loaded
+  useEffect(() => {
+    refreshTranslations().catch(() => {
+      // Silent fail on translation refresh
+    });
+  }, [refreshTranslations]);
 
   // Register profile avatar for instructor tour targeting
   const profileAvatarRef = useTourTarget('Header.ProfileAvatar');
@@ -421,12 +429,18 @@ export const HomeHeader = () => {
         animationType="fade"
         onRequestClose={() => setShowStudentPicker(false)}
       >
+        <BlurView
+          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+          intensity={10}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          pointerEvents="none"
+        />
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => setShowStudentPicker(false)}
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'rgba(0,0,0,0.3)',
             justifyContent: 'center',
             padding: 20,
           }}
@@ -532,10 +546,16 @@ export const HomeHeader = () => {
         animationType="none"
         onRequestClose={() => setShowAvatarModal(false)}
       >
+        <BlurView
+          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+          intensity={10}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          pointerEvents="none"
+        />
         <Animated.View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'rgba(0,0,0,0.3)',
             opacity: avatarBackdropOpacity,
           }}
         >
@@ -580,11 +600,20 @@ export const HomeHeader = () => {
                       <Feather name="trending-up" size={24} color={textColor} />
                       <YStack flex={1}>
                         <Text fontWeight="600" fontSize={18} color={textColor}>
-                          {t('profile.myProgression') || 'My Progression'}
+                          {(() => {
+                            const translated = t('profile.myProgression');
+                            return translated === 'profile.myProgression'
+                              ? 'My Progression'
+                              : translated;
+                          })()}
                         </Text>
                         <Text fontSize={14} color={colorScheme === 'dark' ? '#999' : '#666'}>
-                          {t('profile.myProgressionDescription') ||
-                            'View your learning progress and achievements'}
+                          {(() => {
+                            const translated = t('profile.myProgressionDescription');
+                            return translated === 'profile.myProgressionDescription'
+                              ? 'View your learning progress and achievements'
+                              : translated;
+                          })()}
                         </Text>
                       </YStack>
                     </XStack>
@@ -714,12 +743,18 @@ export const HomeHeader = () => {
         animationType="fade"
         onRequestClose={() => setShowProgressionModal(false)}
       >
+        <BlurView
+          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+          intensity={10}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          pointerEvents="none"
+        />
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => setShowProgressionModal(false)}
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'rgba(0,0,0,0.3)',
             justifyContent: 'center',
             padding: 20,
           }}
@@ -739,7 +774,10 @@ export const HomeHeader = () => {
             {/* Header */}
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
               <Text fontSize="$6" fontWeight="bold" color={textColor}>
-                {t('profile.myProgression') || 'My Progression'}
+                {(() => {
+                  const translated = t('profile.myProgression');
+                  return translated === 'profile.myProgression' ? 'My Progression' : translated;
+                })()}
               </Text>
               <TouchableOpacity onPress={() => setShowProgressionModal(false)}>
                 <Feather name="x" size={24} color={textColor} />

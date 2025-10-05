@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Button, Input } from 'tamagui';
 import { TouchableOpacity, View, Modal, Alert, Dimensions, Animated, Easing } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -579,10 +580,16 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
         animationType="fade"
         onRequestClose={closeGoalModal}
       >
+        <BlurView
+          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+          intensity={10}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          pointerEvents="none"
+        />
         <TouchableOpacity
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
             justifyContent: 'center',
             alignItems: 'center',
             padding: 20,
@@ -731,10 +738,16 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
         animationType="fade"
         onRequestClose={() => setShowInfoModal(false)}
       >
+        <BlurView
+          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+          intensity={10}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          pointerEvents="none"
+        />
         <TouchableOpacity
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
             justifyContent: 'center',
             alignItems: 'center',
             padding: 20,

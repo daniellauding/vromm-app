@@ -552,7 +552,7 @@ export function UnifiedInvitationModal({
               overflow="hidden"
               paddingHorizontal="$0"
               borderRadius="$4"
-              width="100%"
+              width="90%"
               gap="$3"
               borderColor={borderColor}
               borderWidth={0}
