@@ -15,7 +15,8 @@ import {
   Pressable, 
   useColorScheme,
   Platform,
-  TextInput 
+  TextInput,
+  Image 
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { supabase } from '../../lib/supabase';
@@ -35,6 +36,16 @@ import { useTour } from '../../contexts/TourContext';
 import { useTourTarget } from '../../components/TourOverlay';
 import { CreateRouteSheet } from '../../components/CreateRouteSheet';
 import { ExerciseListSheet } from '../../components/ExerciseListSheet';
+
+// Import getting started images
+const GETTING_STARTED_IMAGES = {
+  licensePlan: require('../../../assets/images/getting_started/getting_started_01.png'),
+  firstRoute: require('../../../assets/images/getting_started/getting_started_02.png'),
+  startLearning: require('../../../assets/images/getting_started/getting_started_03.png'),
+  saveRoute: require('../../../assets/images/getting_started/getting_started_04.png'),
+  chooseRole: require('../../../assets/images/getting_started/getting_started_05.png'),
+  connections: require('../../../assets/images/getting_started/getting_started_06.png'),
+};
 
 export const GettingStarted = () => {
   const { profile, user, updateProfile, refreshProfile } = useAuth();
@@ -1317,49 +1328,61 @@ export const GettingStarted = () => {
                     : '$blue5'
               }
               borderRadius={16}
-              padding="$4"
-              justifyContent="space-between"
+              padding="$0"
+              style={{ position: 'relative' }}
             >
-              <XStack justifyContent="space-between" alignItems="center">
-                <Feather
-                  name="clipboard"
-                  size={24}
-                  color={typedProfile?.license_plan_completed ? '#00E6C3' : '#4B6BFF'}
-                />
-                {typedProfile?.license_plan_completed ? (
-                  <View
-                    style={{
-                      backgroundColor: '#00E6C3',
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text fontSize={10} color="#000" fontWeight="bold">
-                      100%
-                    </Text>
-                  </View>
-                ) : (
-                  <View
-                    style={{
-                      backgroundColor: '#4B6BFF',
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text fontSize={10} color="#fff" fontWeight="bold">
-                      0%
-                    </Text>
-                  </View>
-                )}
-              </XStack>
-
-              <YStack>
-                <Text fontSize={18} fontWeight="bold" color="$color">
+              {/* Percentage badge - absolutely positioned */}
+              {typedProfile?.license_plan_completed ? (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    backgroundColor: '#00E6C3',
+                    borderRadius: 10,
+                    paddingHorizontal: 6,
+                    paddingVertical: 3,
+                    zIndex: 1,
+                  }}
+                >
+                  <Text fontSize={9} color="#000" fontWeight="bold">
+                    100%
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    backgroundColor: '#4B6BFF',
+                    borderRadius: 10,
+                    paddingHorizontal: 6,
+                    paddingVertical: 3,
+                    zIndex: 1,
+                  }}
+                >
+                  <Text fontSize={9} color="#fff" fontWeight="bold">
+                    0%
+                  </Text>
+                </View>
+              )}
+              <Image
+                source={GETTING_STARTED_IMAGES.licensePlan}
+                style={{
+                  width: 180,
+                  height: 100,
+                  resizeMode: 'cover',
+                  borderRadius: 16,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                }}
+              />
+              <YStack padding="$2" flex={1} justifyContent="flex-start">
+                <Text fontSize={12} fontWeight="bold" color="$color">
                   {t('home.gettingStarted.licensePlan.title') || 'Your License Plan'}
                 </Text>
-                <Text fontSize={14} color="$gray11" marginTop="$1">
+                <Text fontSize={10} color="$gray11" marginTop="$1">
                   {t('home.gettingStarted.licensePlan.description') || 'Tell us about yourself and your goals'}
                 </Text>
               </YStack>
@@ -1378,36 +1401,44 @@ export const GettingStarted = () => {
               height={180}
               backgroundColor={hasCreatedRoutes ? '$green5' : '$backgroundStrong'}
               borderRadius={16}
-              padding="$4"
-              justifyContent="space-between"
+              padding="$0"
+              style={{ position: 'relative' }}
             >
-              <XStack justifyContent="space-between" alignItems="center">
-                <Feather
-                  name="map-pin"
-                  size={24}
-                  color={hasCreatedRoutes ? '#00E6C3' : '#FF9500'}
-                />
-                {hasCreatedRoutes && (
-                  <View
-                    style={{
-                      backgroundColor: '#00E6C3',
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text fontSize={10} color="#000" fontWeight="bold">
-                      {t('home.gettingStarted.status.completed') || 'DONE'}
-                    </Text>
-                  </View>
-                )}
-              </XStack>
-
-              <YStack>
-                <Text fontSize={18} fontWeight="bold" color="$color">
+              {/* Completion badge - absolutely positioned */}
+              {hasCreatedRoutes && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    backgroundColor: '#00E6C3',
+                    borderRadius: 10,
+                    paddingHorizontal: 6,
+                    paddingVertical: 3,
+                    zIndex: 1,
+                  }}
+                >
+                  <Text fontSize={9} color="#000" fontWeight="bold">
+                    {t('home.gettingStarted.status.completed') || 'DONE'}
+                  </Text>
+                </View>
+              )}
+              <Image
+                source={GETTING_STARTED_IMAGES.firstRoute}
+                style={{
+                  width: 180,
+                  height: 100,
+                  resizeMode: 'cover',
+                  borderRadius: 16,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                }}
+              />
+              <YStack padding="$2" flex={1} justifyContent="flex-start">
+                <Text fontSize={12} fontWeight="bold" color="$color">
                   {t('home.gettingStarted.firstRoute.title') || 'Add Your First Route'}
                 </Text>
-                <Text fontSize={14} color="$gray11" marginTop="$1">
+                <Text fontSize={10} color="$gray11" marginTop="$1">
                   {t('home.gettingStarted.firstRoute.description') || 'Create a route you use often'}
                 </Text>
               </YStack>
@@ -1442,36 +1473,44 @@ export const GettingStarted = () => {
               height={180}
               backgroundColor={hasCompletedExercise ? '$green5' : '$backgroundStrong'}
               borderRadius={16}
-              padding="$4"
-              justifyContent="space-between"
+              padding="$0"
+              style={{ position: 'relative' }}
             >
-              <XStack justifyContent="space-between" alignItems="center">
-                <Feather
-                  name="play-circle"
-                  size={24}
-                  color={hasCompletedExercise ? '#00E6C3' : '#4B6BFF'}
-                />
-                {hasCompletedExercise && (
-                  <View
-                    style={{
-                      backgroundColor: '#00E6C3',
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text fontSize={10} color="#000" fontWeight="bold">
-                      {t('home.gettingStarted.status.completed') || 'DONE'}
-                    </Text>
-                  </View>
-                )}
-              </XStack>
-
-              <YStack>
-                <Text fontSize={18} fontWeight="bold" color="$color">
+              {/* Completion badge - absolutely positioned */}
+              {hasCompletedExercise && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    backgroundColor: '#00E6C3',
+                    borderRadius: 10,
+                    paddingHorizontal: 6,
+                    paddingVertical: 3,
+                    zIndex: 1,
+                  }}
+                >
+                  <Text fontSize={9} color="#000" fontWeight="bold">
+                    {t('home.gettingStarted.status.completed') || 'DONE'}
+                  </Text>
+                </View>
+              )}
+              <Image
+                source={GETTING_STARTED_IMAGES.startLearning}
+                style={{
+                  width: 180,
+                  height: 100,
+                  resizeMode: 'cover',
+                  borderRadius: 16,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                }}
+              />
+              <YStack padding="$2" flex={1} justifyContent="flex-start">
+                <Text fontSize={12} fontWeight="bold" color="$color">
                   {t('home.gettingStarted.startLearning.title') || 'Start on Step 1 of 16'}
                 </Text>
-                <Text fontSize={14} color="$gray11" marginTop="$1">
+                <Text fontSize={10} color="$gray11" marginTop="$1">
                   {t('home.gettingStarted.startLearning.description') || 'Start your license journey'}
                 </Text>
               </YStack>
@@ -1493,32 +1532,44 @@ export const GettingStarted = () => {
               height={180}
               backgroundColor={hasSavedRoute ? '$green5' : '$backgroundStrong'}
               borderRadius={16}
-              padding="$4"
-              justifyContent="space-between"
+              padding="$0"
+              style={{ position: 'relative' }}
             >
-              <XStack justifyContent="space-between" alignItems="center">
-                <Feather name="bookmark" size={24} color={hasSavedRoute ? '#00E6C3' : '#FF9500'} />
-                {hasSavedRoute && (
-                  <View
-                    style={{
-                      backgroundColor: '#00E6C3',
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text fontSize={10} color="#000" fontWeight="bold">
-                      {t('home.gettingStarted.status.completed') || 'DONE'}
-                    </Text>
-                  </View>
-                )}
-              </XStack>
-
-              <YStack>
-                <Text fontSize={18} fontWeight="bold" color="$color">
+              {/* Completion badge - absolutely positioned */}
+              {hasSavedRoute && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    backgroundColor: '#00E6C3',
+                    borderRadius: 10,
+                    paddingHorizontal: 6,
+                    paddingVertical: 3,
+                    zIndex: 1,
+                  }}
+                >
+                  <Text fontSize={9} color="#000" fontWeight="bold">
+                    {t('home.gettingStarted.status.completed') || 'DONE'}
+                  </Text>
+                </View>
+              )}
+              <Image
+                source={GETTING_STARTED_IMAGES.saveRoute}
+                style={{
+                  width: 180,
+                  height: 100,
+                  resizeMode: 'cover',
+                  borderRadius: 16,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                }}
+              />
+              <YStack padding="$2" flex={1} justifyContent="flex-start">
+                <Text fontSize={12} fontWeight="bold" color="$color">
                   {t('home.gettingStarted.saveRoute.title') || 'Save a Route'}
                 </Text>
-                <Text fontSize={14} color="$gray11" marginTop="$1">
+                <Text fontSize={10} color="$gray11" marginTop="$1">
                   {t('home.gettingStarted.saveRoute.description') || 'Find and save a route from the map'}
                 </Text>
               </YStack>
@@ -1537,45 +1588,61 @@ export const GettingStarted = () => {
               height={180}
               backgroundColor={hasRoleSelected ? '$green5' : '$backgroundStrong'}
               borderRadius={16}
-              padding="$4"
-              justifyContent="space-between"
+              padding="$0"
+              style={{ position: 'relative' }}
             >
-              <XStack justifyContent="space-between" alignItems="center">
-                <Feather name="user" size={24} color={hasRoleSelected ? '#00E6C3' : '#4B6BFF'} />
-                {hasRoleSelected ? (
-                  <View
-                    style={{
-                      backgroundColor: '#00E6C3',
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text fontSize={10} color="#000" fontWeight="bold">
-                      100%
-                    </Text>
-                  </View>
-                ) : (
-                  <View
-                    style={{
-                      backgroundColor: '#4B6BFF',
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text fontSize={10} color="#fff" fontWeight="bold">
-                      0%
-                    </Text>
-                  </View>
-                )}
-              </XStack>
-
-              <YStack>
-                <Text fontSize={18} fontWeight="bold" color="$color">
+              {/* Percentage badge - absolutely positioned */}
+              {hasRoleSelected ? (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    backgroundColor: '#00E6C3',
+                    borderRadius: 10,
+                    paddingHorizontal: 6,
+                    paddingVertical: 3,
+                    zIndex: 1,
+                  }}
+                >
+                  <Text fontSize={9} color="#000" fontWeight="bold">
+                    100%
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    backgroundColor: '#4B6BFF',
+                    borderRadius: 10,
+                    paddingHorizontal: 6,
+                    paddingVertical: 3,
+                    zIndex: 1,
+                  }}
+                >
+                  <Text fontSize={9} color="#fff" fontWeight="bold">
+                    0%
+                  </Text>
+                </View>
+              )}
+              <Image
+                source={GETTING_STARTED_IMAGES.chooseRole}
+                style={{
+                  width: 180,
+                  height: 100,
+                  resizeMode: 'cover',
+                  borderRadius: 16,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                }}
+              />
+              <YStack padding="$2" flex={1} justifyContent="flex-start">
+                <Text fontSize={12} fontWeight="bold" color="$color">
                   {t('home.gettingStarted.chooseRole.title') || 'Choose Your Role'}
                 </Text>
-                <Text fontSize={14} color="$gray11" marginTop="$1">
+                <Text fontSize={10} color="$gray11" marginTop="$1">
                   {t('home.gettingStarted.chooseRole.description') || 'Student, instructor, or driving school?'}
                 </Text>
               </YStack>
@@ -1595,35 +1662,47 @@ export const GettingStarted = () => {
                 height={180}
                 backgroundColor={hasConnections ? '$green5' : '$backgroundStrong'}
                 borderRadius={16}
-                padding="$4"
-                justifyContent="space-between"
+                padding="$0"
+                style={{ position: 'relative' }}
               >
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Feather name="users" size={24} color={hasConnections ? '#00E6C3' : '#4B6BFF'} />
-                  {hasConnections && (
-                    <View
-                      style={{
-                        backgroundColor: '#00E6C3',
-                        borderRadius: 12,
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                      }}
-                    >
-                      <Text fontSize={10} color="#000" fontWeight="bold">
-                        KLART
-                      </Text>
-                    </View>
-                  )}
-                </XStack>
-
-                <YStack>
-                  <Text fontSize={18} fontWeight="bold" color="$color">
+                {/* Completion badge - absolutely positioned */}
+                {hasConnections && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      backgroundColor: '#00E6C3',
+                      borderRadius: 10,
+                      paddingHorizontal: 6,
+                      paddingVertical: 3,
+                      zIndex: 1,
+                    }}
+                  >
+                    <Text fontSize={9} color="#000" fontWeight="bold">
+                      KLART
+                    </Text>
+                  </View>
+                )}
+                <Image
+                  source={GETTING_STARTED_IMAGES.connections}
+                  style={{
+                    width: 180,
+                    height: 100,
+                    resizeMode: 'cover',
+                    borderRadius: 16,
+                    borderBottomLeftRadius: 0,
+                    borderBottomRightRadius: 0,
+                  }}
+                />
+                <YStack padding="$2" flex={1} justifyContent="flex-start">
+                  <Text fontSize={12} fontWeight="bold" color="$color">
                     {typedProfile?.role === 'student' 
                       ? t('home.gettingStarted.connectStudent.title') || 'Add Supervisor'
                       : t('home.gettingStarted.connectInstructor.title') || 'Add Students'
                     }
                   </Text>
-                  <Text fontSize={14} color="$gray11" marginTop="$1">
+                  <Text fontSize={10} color="$gray11" marginTop="$1">
                     {typedProfile?.role === 'student'
                       ? t('home.gettingStarted.connectStudent.description') || 'Connect with driving schools and supervisors'
                       : t('home.gettingStarted.connectInstructor.description') || 'Connect with students to supervise'
