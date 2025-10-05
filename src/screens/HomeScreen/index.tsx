@@ -44,7 +44,7 @@ import { DrivenRoutes } from './DrivenRoutes';
 import { DraftRoutes } from './DraftRoutes';
 import { CommunityFeed } from './CommunityFeed';
 // import { UpcomingEvents } from './UpcomingEvents';
-import { CommunicationTools } from './CommunicationTools';
+// import { CommunicationTools } from './CommunicationTools';
 
 // Update the Route type to include creator id
 type Route = {
@@ -426,11 +426,11 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             
             <GettingStarted />
 
-            <CommunicationTools 
+            {/* <CommunicationTools 
               onMessagePress={() => setShowMessagesSheet(true)}
               onNotificationPress={() => setShowNotificationsSheet(true)}
               onEventPress={() => setShowEventsSheet(true)}
-            />
+            /> */}
 
         {/* Featured Content */}
         {console.log('🎯 [HomeScreen] Rendering FeaturedContent component')}

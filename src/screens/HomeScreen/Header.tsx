@@ -21,7 +21,7 @@ import { Calendar } from '@tamagui/lucide-icons';
 
 // ADD MESSAGING COMPONENTS
 // import { MessageBell } from '../../components/MessageBell';
-// import { NotificationBell } from '../../components/NotificationBell';
+import { NotificationBell } from '../../components/NotificationBell';
 // import { EventsBell } from '../../components/EventsBell';
 import { MessagesSheet } from '../../components/MessagesSheet';
 import { NotificationsSheet } from '../../components/NotificationsSheet';
@@ -408,11 +408,11 @@ export const HomeHeader = () => {
           </Text>
         </YStack>
 
-        {/* <XStack gap={12} alignItems="center">
-          <MessageBell onPress={() => setShowMessagesSheet(true)} />
+        <XStack gap={12} alignItems="center">
+          {/* <MessageBell onPress={() => setShowMessagesSheet(true)} /> */}
           <NotificationBell onPress={() => setShowNotificationsSheet(true)} />
-          <EventsBell onPress={() => setShowEventsSheet(true)} />
-        </XStack> */}
+          {/* <EventsBell onPress={() => setShowEventsSheet(true)} /> */}
+        </XStack>
       </XStack>
 
       {/* Student picker modal (only opens for instructor/admin/school) */}
