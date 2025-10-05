@@ -1413,82 +1413,37 @@ export function TabNavigator() {
           component={NoopScreen}
           options={{
             title: t('navigation.betaTesting'),
-            tabBarLabel: t('navigation.betaTesting'),
-            tabBarButton: (props: BottomTabBarButtonProps) => {
-              const isHighlighted = isTabHighlighted('BetaTestingTab');
-              const betaRef = useTourTarget('BetaTestingTab');
-              return (
-                <View style={[
-                  props.style as ViewStyle,
-                  { alignItems: 'center', justifyContent: 'center', flex: 1 }
-                ]}>
-                  <TouchableOpacity
-                    ref={betaRef}
-                    accessibilityLabel="Open beta testing"
-                    onPress={() => {
-                      logInfo('Beta testing tab pressed');
-                      showModal(
-                        <BetaTestingSheetModal
-                          onOpenBuyCoffee={() => setShowBuyCoffee(true)}
-                          onOpenBetaWebView={() => setShowBetaWebView(true)}
-                          onShareApp={async () => {
-                            try {
-                              await Share.share({
-                                message: 'Check out Vromm – smarter driving practice: https://www.vromm.se',
-                                url: 'https://www.vromm.se',
-                                title: 'Vromm',
-                              });
-                            } catch (e) {
-                              console.error('Failed to share app', e);
-                            }
-                          }}
-                          onOpenAbout={() => setShowAboutWebView(true)}
-                        />
-                      );
-                    }}
-                    style={[
-                      {
-                        display: 'flex',
-                        width: '100%',
-                        height: 56,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'transparent',
-                        borderRadius: 12,
-                        position: 'relative',
-                      },
-                      isHighlighted && {
-                        backgroundColor: 'rgba(0, 230, 195, 0.15)',
-                      },
-                    ]}
-                  >
-                    <YStack alignItems="center" space="$1">
-                      <Feather
-                        name="check-square"
-                        size={22}
-                        color={
-                          isHighlighted 
-                            ? (theme.primaryHover?.val || '#00E6C3')
-                            : theme.color?.val || '#000000'
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="check-square" size={size} color={color} />
+            ),
+            tabBarButton: (props: BottomTabBarButtonProps) => (
+              <CustomTabBarButton
+                {...props}
+                isHighlighted={isTabHighlighted('BetaTestingTab')}
+                tourTargetId="BetaTestingTab"
+                onPress={() => {
+                  logInfo('Beta testing tab pressed');
+                  showModal(
+                    <BetaTestingSheetModal
+                      onOpenBuyCoffee={() => setShowBuyCoffee(true)}
+                      onOpenBetaWebView={() => setShowBetaWebView(true)}
+                      onShareApp={async () => {
+                        try {
+                          await Share.share({
+                            message: 'Check out Vromm – smarter driving practice: https://www.vromm.se',
+                            url: 'https://www.vromm.se',
+                            title: 'Vromm',
+                          });
+                        } catch (e) {
+                          console.error('Failed to share app', e);
                         }
-                      />
-                      <Text 
-                        fontSize={10} 
-                        fontWeight="500"
-                        color={
-                          isHighlighted 
-                            ? (theme.primaryHover?.val || '#00E6C3')
-                            : theme.color?.val || '#000000'
-                        }
-                        textAlign="center"
-                      >
-                        {t('navigation.betaTesting')}
-                      </Text>
-                    </YStack>
-                  </TouchableOpacity>
-                </View>
-              );
-            },
+                      }}
+                      onOpenAbout={() => setShowAboutWebView(true)}
+                    />
+                  );
+                }}
+              />
+            ),
           }}
         />
         {/* Profile removed from tabs; accessible via drawer */}

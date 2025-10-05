@@ -66,6 +66,9 @@ export function UnifiedInvitationModal({
   // 🎨 Profile sheet state
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  
+  // 🎨 Scroll state for gradient visibility
+  const [isScrollable, setIsScrollable] = useState(false);
 
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
   const textColor = colorScheme === 'dark' ? 'white' : 'black';
@@ -522,6 +525,7 @@ export function UnifiedInvitationModal({
         style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
         intensity={10}
         tint={colorScheme === 'dark' ? 'dark' : 'light'}
+        pointerEvents="none"
       />
       <Pressable 
         style={{ 
@@ -535,11 +539,10 @@ export function UnifiedInvitationModal({
         <Pressable onPress={(e) => e.stopPropagation()}>
           <YStack
             width="90%"
-            maxHeight="90%"
+            maxWidth={400}
             backgroundColor="transparent"
             justifyContent="center"
             alignItems="center"
-            flex={1}
           >
 
             <YStack
@@ -693,6 +696,9 @@ export function UnifiedInvitationModal({
                         style={{
                           maxHeight: 250,
                         }}
+                        onContentSizeChange={(contentWidth, contentHeight) => {
+                          setIsScrollable(contentHeight > 250);
+                        }}
                       >
                         <YStack paddingTop={24}>
                         {/* <XStack justifyContent="space-between" alignItems="center" marginBottom="$2">
@@ -759,19 +765,21 @@ export function UnifiedInvitationModal({
                         </YStack>
                       </ScrollView>
 
-                      {/* 🔽 Faded overlay at bottom of scroll area */}
-                      <LinearGradient
-                        colors={['transparent', backgroundColor]}
-                        style={{
-                          position: 'absolute',
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          height: 40,
-                          zIndex: 10,
-                        }}
-                        pointerEvents="none"
-                      />
+                      {/* 🔽 Faded overlay at bottom of scroll area - only show if scrollable */}
+                      {isScrollable && (
+                        <LinearGradient
+                          colors={['transparent', backgroundColor]}
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 40,
+                            zIndex: 10,
+                          }}
+                          pointerEvents="none"
+                        />
+                      )}
                     </YStack>
                   </YStack>
 
