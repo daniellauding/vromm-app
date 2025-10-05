@@ -22,6 +22,8 @@ interface DayProgress {
 
 interface WeeklyGoalProps {
   activeUserId?: string | null;
+  onDateSelected?: (date: Date) => void;
+  selectedDate?: Date;
 }
 
 interface GoalSettings {
@@ -77,7 +79,7 @@ const DayProgressCircle = ({
   );
 };
 
-export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
+export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externalSelectedDate }: WeeklyGoalProps) {
   const { user, profile } = useAuth();
   const { activeStudentId } = useStudentSwitch();
   const { t, refreshTranslations } = useTranslation();
@@ -509,7 +511,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
 
         {/* Weekdays - Animated */}
         <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
-          <XStack flex={1} justifyContent="space-around" alignItems="center" paddingHorizontal="$2" gap="$2">
+          <XStack flex={1} justifyContent="space-around" alignItems="center" paddingHorizontal="$0" gap="$2">
             {weeklyProgress.length > 0 ? weeklyProgress.map((day, index) => {
               const today = new Date();
               const todayString = today.toDateString();
@@ -522,16 +524,41 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                 index
               });
               
+              const isSelected = externalSelectedDate && day.date === externalSelectedDate.toDateString();
+              
               return (
-                <YStack key={day.date} alignItems="center" gap="$1" backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'} padding="$2" borderRadius="$16">
+                <YStack 
+                  key={day.date} 
+                  alignItems="center" 
+                  gap="$1"
+                  backgroundColor={isSelected 
+                    ? 'rgba(0, 230, 195, 0.05)' 
+                    : colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'} padding="$2" borderRadius="$16"
+                  style={{
+                    padding: 4,
+                    borderRadius: 16,
+                    borderWidth: isSelected ? 2 : 2,
+                    borderColor: isSelected ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
+                    // backgroundColor: isSelected 
+                    //   ? 'rgba(0, 230, 195, 0.15)' 
+                    //   : (colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'),
+                  }}
+                >
                   {/* Day circle */}
                   <TouchableOpacity
                     activeOpacity={0.7}
                     style={{ alignItems: 'center' }}
+                    onPress={() => {
+                      if (onDateSelected) {
+                        const selectedDayDate = new Date(day.date);
+                        onDateSelected(selectedDayDate);
+                        console.log('🗓️ [WeeklyGoal] Date selected:', selectedDayDate.toDateString());
+                      }
+                    }}
                   >
                     <DayProgressCircle
                       progress={day.progress}
-                      size={isToday ? 32 : 32}
+                      size={isToday ? 28 : 28}
                       color={day.completed ? '#4CAF50' : '#00E6C3'}
                       bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                       completed={day.completed}
@@ -541,12 +568,11 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                         fontSize={9} 
                         fontWeight="bold" 
                         color={day.completed ? '#4CAF50' : '#00E6C3'}
-                        style={{ position: 'absolute', top: isToday ? 11 : 11 }}
+                        style={{ position: 'absolute', top: isToday ? 9 : 9 }}
                       >
                         {day.exercises}
                       </Text>
                     )}
-                  </TouchableOpacity>
                   
                   {/* Day name and date */}
                   <YStack alignItems="center" gap="$0.5">
@@ -560,13 +586,14 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                     
                     {/* Date - more prominent for today */}
                     <Text 
-                      fontSize={isToday ? "$3" : "$3"}
+                      fontSize={isToday ? "$2" : "$2"}
                       color={isToday ? '#00E6C3' : (colorScheme === 'dark' ? '#AAA' : '#555')}
                       fontWeight="600"
                     >
-                      {new Date(day.date).getDate()}
+                      {new Date(day.date).getDate()}/{String(new Date(day.date).getMonth() + 1).padStart(2, '0')}
                     </Text>
                   </YStack>
+                  </TouchableOpacity>
                 </YStack>
               );
             }) : (

@@ -18,9 +18,11 @@ interface DailyStatusData {
 
 interface DailyStatusProps {
   activeUserId?: string;
+  selectedDate?: Date;
+  onDateChange?: (date: Date) => void;
 }
 
-export function DailyStatus({ activeUserId }: DailyStatusProps) {
+export function DailyStatus({ activeUserId, selectedDate: externalSelectedDate, onDateChange }: DailyStatusProps) {
   const { profile } = useAuth();
   const { showToast } = useToast();
   const theme = useTheme();
@@ -44,9 +46,17 @@ export function DailyStatus({ activeUserId }: DailyStatusProps) {
     notes: ''
   });
   
-  // Date navigation state
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [pastStatuses, setPastStatuses] = useState<{[key: string]: DailyStatusData}>({});
+  // Date navigation state - use external date if provided
+  const [internalSelectedDate, setInternalSelectedDate] = useState(new Date());
+  const selectedDate = externalSelectedDate || internalSelectedDate;
+  const [pastStatuses, setPastStatuses] = useState<{[key: string]: DailyStatusData | null}>({});
+
+  // Update internal date when external date changes
+  useEffect(() => {
+    if (externalSelectedDate) {
+      setInternalSelectedDate(externalSelectedDate);
+    }
+  }, [externalSelectedDate]);
   
   const today = new Date();
   const todayString = today.toISOString().split('T')[0];
@@ -108,19 +118,34 @@ export function DailyStatus({ activeUserId }: DailyStatusProps) {
   const goToPreviousDay = () => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() - 1);
-    setSelectedDate(newDate);
+    if (!externalSelectedDate) {
+      setInternalSelectedDate(newDate);
+    }
+    if (onDateChange) {
+      onDateChange(newDate);
+    }
     loadStatusForDate(newDate);
   };
 
   const goToNextDay = () => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + 1);
-    setSelectedDate(newDate);
+    if (!externalSelectedDate) {
+      setInternalSelectedDate(newDate);
+    }
+    if (onDateChange) {
+      onDateChange(newDate);
+    }
     loadStatusForDate(newDate);
   };
 
   const goToToday = () => {
-    setSelectedDate(today);
+    if (!externalSelectedDate) {
+      setInternalSelectedDate(today);
+    }
+    if (onDateChange) {
+      onDateChange(today);
+    }
     loadStatusForDate(today);
   };
 
@@ -133,7 +158,11 @@ export function DailyStatus({ activeUserId }: DailyStatusProps) {
     
     // Don't allow saving for future dates
     if (isFuture) {
-      Alert.alert('Cannot Save', 'You cannot save status for future dates.');
+      showToast({
+        title: 'Cannot Save',
+        message: 'Come back on this day to share your status!',
+        type: 'info'
+      });
       return;
     }
     
@@ -250,158 +279,61 @@ export function DailyStatus({ activeUserId }: DailyStatusProps) {
   
   return (
     <>
-      {/* Daily Status Card */}
+      {/* Daily Status Input-like Box */}
       <View
         style={{
-          backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-          borderRadius: 12,
+          backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8',
+          borderRadius: 16,
           padding: 12,
-          borderWidth: 1,
-          borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
           marginBottom: 12,
-          shadowColor: colorScheme === 'dark' ? '#000' : '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: colorScheme === 'dark' ? 0.2 : 0.05,
-          shadowRadius: 4,
-          elevation: 2,
+          borderWidth: 1,
+          marginHorizontal: 16,
+          borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
         }}
       >
-        {/* Discrete Date Navigation */}
-        <XStack alignItems="center" justifyContent="space-between" marginBottom="$1">
-          <TouchableOpacity
-            onPress={goToPreviousDay}
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Feather 
-              name="chevron-left" 
-              size={12} 
-              color={colorScheme === 'dark' ? '#666' : '#999'} 
-            />
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={goToToday}
-            style={{
-              paddingHorizontal: 6,
-              paddingVertical: 2,
-              borderRadius: 4,
-              backgroundColor: isToday ? '#00E6C3' : 'transparent',
-            }}
-          >
-            <Text 
-              fontSize="$1" 
-              fontWeight="500"
-              color={isToday ? '#000' : (colorScheme === 'dark' ? '#999' : '#999')}
-            >
-              {isToday ? 'Idag' : selectedDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={goToNextDay}
-            disabled={isFuture}
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Feather 
-              name="chevron-right" 
-              size={12} 
-              color={isFuture 
-                ? (colorScheme === 'dark' ? '#444' : '#CCC')
-                : (colorScheme === 'dark' ? '#666' : '#999')} 
-            />
-          </TouchableOpacity>
-        </XStack>
 
-        {/* Status Content */}
+        {/* Status Content - Flat Input Style */}
         <TouchableOpacity
           onPress={() => setShowSheet(true)}
-          style={{ opacity: isFuture ? 0.5 : 1 }}
           disabled={isFuture}
         >
-          <XStack alignItems="center" justifyContent="space-between">
-            <XStack alignItems="center" gap="$3">
-              <View style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: getStatusColor() + '20',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <Feather 
-                  name={getStatusIcon()} 
-                  size={18} 
-                  color={getStatusColor()} 
-                />
-              </View>
-              <YStack flex={1}>
+          <XStack alignItems="center" gap="$2">
+            <YStack flex={1}>
+              <Text 
+                fontSize="$3" 
+                fontWeight="400" 
+                color={
+                  getStatusForSelectedDate() 
+                    ? (colorScheme === 'dark' ? '#FFF' : '#000')
+                    : (colorScheme === 'dark' ? '#666' : '#999')
+                }
+                numberOfLines={1}
+              >
+                {getStatusForSelectedDate() 
+                  ? getStatusText()
+                  : 'Did you drive today? Share your thoughts!'
+                }
+              </Text>
+              
+              {getStatusForSelectedDate()?.how_it_went && (
                 <Text 
-                  fontSize="$4" 
-                  fontWeight="600" 
-                  color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                  marginBottom="$0.5"
+                  fontSize="$2" 
+                  color={colorScheme === 'dark' ? '#999' : '#666'}
+                  numberOfLines={1}
+                  marginTop="$0.5"
                 >
-                  {getStatusText()}
+                  {getStatusForSelectedDate()?.how_it_went}
                 </Text>
-                {getStatusForSelectedDate()?.how_it_went && (
-                  <Text 
-                    fontSize="$2" 
-                    color={colorScheme === 'dark' ? '#CCC' : '#666'}
-                    numberOfLines={1}
-                    lineHeight={16}
-                  >
-                    {getStatusForSelectedDate()?.how_it_went}
-                  </Text>
-                )}
-                {!getStatusForSelectedDate() && !isFuture && (
-                  <Text 
-                    fontSize="$2" 
-                    color={colorScheme === 'dark' ? '#999' : '#999'}
-                  >
-                    {isToday ? 'Berätta om din körning idag' : 'Ingen status sparad för denna dag'}
-                  </Text>
-                )}
-                {isFuture && (
-                  <Text 
-                    fontSize="$2" 
-                    color={colorScheme === 'dark' ? '#666' : '#999'}
-                  >
-                    Kan inte spara status för framtida datum
-                  </Text>
-                )}
-              </YStack>
-            </XStack>
-            
-            {!isFuture && (
-              <View style={{
-                width: 28,
-                height: 28,
-                borderRadius: 14,
-                backgroundColor: colorScheme === 'dark' ? '#333' : '#F0F0F0',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <Feather 
-                  name="chevron-right" 
-                  size={14} 
-                  color={colorScheme === 'dark' ? '#CCC' : '#666'} 
-                />
-              </View>
-            )}
+              )}
+            </YStack>
+            {/* Only show icon if no status is shared */}
+            {/* {!getStatusForSelectedDate() && ( */}
+            <Feather 
+                name="message-circle" 
+                size={20} 
+                color={colorScheme === 'dark' ? '#666' : '#999'} 
+              />
+            {/* )} */}
           </XStack>
         </TouchableOpacity>
       </View>
@@ -588,14 +520,14 @@ export function DailyStatus({ activeUserId }: DailyStatusProps) {
                   {/* Save Button */}
                   <Button
                     onPress={saveDailyStatus}
-                    disabled={loading || isFuture}
-                    backgroundColor={isFuture ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : "#00E6C3"}
-                    color={isFuture ? (colorScheme === 'dark' ? '#666' : '#999') : "#000"}
+                    disabled={loading}
+                    backgroundColor={isFuture ? (colorScheme === 'dark' ? '#444' : '#F0F0F0') : "#00E6C3"}
+                    color={isFuture ? (colorScheme === 'dark' ? '#888' : '#666') : "#000"}
                     fontWeight="bold"
                     padding="$3"
                     borderRadius="$3"
                   >
-                    {loading ? 'Sparar...' : isFuture ? 'Kan inte spara för framtida datum' : 'Spara status'}
+                    {loading ? 'Sparar...' : isFuture ? 'Come back on this day' : 'Spara status'}
                   </Button>
                 </YStack>
               </YStack>

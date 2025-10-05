@@ -90,11 +90,14 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   // Communication sheet states
   const [showMessagesSheet, setShowMessagesSheet] = useState(false);
   const [showNotificationsSheet, setShowNotificationsSheet] = useState(false);
-  // const [showEventsSheet, setShowEventsSheet] = useState(false);
+  const [showEventsSheet, setShowEventsSheet] = useState(false);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
 
   // Use the effective user ID (either activeUserId prop, activeStudentId from context, or current user id)
   const effectiveUserId = activeUserId || getEffectiveUserId();
+  
+  // Shared date state for WeeklyGoal and DailyStatus connection
+  const [selectedDailyStatusDate, setSelectedDailyStatusDate] = useState(new Date());
 
   // Reduced logging to prevent console flooding
 
@@ -401,8 +404,22 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             )}
             
             {/* Weekly Goal Section */}
-            <WeeklyGoal activeUserId={effectiveUserId || undefined} />
-            <DailyStatus activeUserId={effectiveUserId || undefined} />
+            <WeeklyGoal 
+              activeUserId={effectiveUserId || undefined}
+              selectedDate={selectedDailyStatusDate}
+              onDateSelected={(date: Date) => {
+                console.log('🗓️ [HomeScreen] Date selected from WeeklyGoal:', date.toDateString());
+                setSelectedDailyStatusDate(date);
+              }}
+            />
+            <DailyStatus 
+              activeUserId={effectiveUserId || undefined}
+              selectedDate={selectedDailyStatusDate}
+              onDateChange={(date) => {
+                console.log('🗓️ [HomeScreen] Date changed from DailyStatus:', date.toDateString());
+                setSelectedDailyStatusDate(date);
+              }}
+            />
             
             {/* Jump Back In Section */}
             <JumpBackInSection activeUserId={effectiveUserId || undefined} />
