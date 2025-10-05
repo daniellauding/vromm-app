@@ -568,14 +568,14 @@ export const HomeHeader = () => {
                 gap="$4"
               >
                 {/* Header */}
-                <XStack justifyContent="space-between" alignItems="center">
+                {/* <XStack justifyContent="space-between" alignItems="center">
                   <Text fontSize="$6" fontWeight="bold" color={textColor}>
                     {t('profile.menu') || 'Profile Menu'}
                   </Text>
                   <TouchableOpacity onPress={() => setShowAvatarModal(false)}>
                     <Feather name="x" size={24} color={textColor} />
                   </TouchableOpacity>
-                </XStack>
+                </XStack> */}
 
                 {/* Menu Options */}
                 <YStack gap="$2">

@@ -18,6 +18,7 @@ import {
   Platform,
   TextInput 
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { supabase } from '../../lib/supabase';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Popover from 'react-native-popover-view';
@@ -1333,17 +1334,23 @@ export const GettingStarted = () => {
         </XStack>
       </ScrollView>
 
-      {/* Körkortsplan Modal - copied from ProfileScreen */}
+      {/* Körkortsplan Modal - with BlurView background */}
       <Modal
         animationType="none"
         transparent={true}
         visible={showKorkortsplanModal}
         onRequestClose={hideKorkortsplanSheet}
       >
+        <BlurView
+          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+          intensity={10}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          pointerEvents="none"
+        />
         <Animated.View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
             opacity: korkortsplanBackdropOpacity,
           }}
         >
@@ -1351,7 +1358,7 @@ export const GettingStarted = () => {
             <Pressable style={{ flex: 1 }} onPress={hideKorkortsplanSheet} />
             <Animated.View
               style={{
-                backgroundColor: '$background',
+                backgroundColor: backgroundColor,
                 borderTopLeftRadius: 20,
                 borderTopRightRadius: 20,
                 padding: 20,
@@ -1576,17 +1583,23 @@ export const GettingStarted = () => {
         </Animated.View>
       </Modal>
 
-      {/* Role Selection Modal - copied from OnboardingInteractive */}
+      {/* Role Selection Modal - with BlurView background */}
       <Modal
         visible={showRoleModal}
         transparent
         animationType="none"
         onRequestClose={hideRoleSheet}
       >
+        <BlurView
+          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+          intensity={10}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          pointerEvents="none"
+        />
         <Animated.View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'rgba(0,0,0,0.3)',
             opacity: roleBackdropOpacity,
           }}
         >
@@ -1598,7 +1611,7 @@ export const GettingStarted = () => {
               }}
             >
               <YStack
-                backgroundColor="$background"
+                backgroundColor={backgroundColor}
                 padding="$4"
                 paddingBottom={24}
                 borderTopLeftRadius="$4"
@@ -2132,17 +2145,23 @@ export const GettingStarted = () => {
         </ReanimatedAnimated.View>
       </Modal>
 
-      {/* Relationship Removal Modal - copied from OnboardingInteractive */}
+      {/* Relationship Removal Modal - with BlurView background */}
       <Modal
         visible={showRelationshipRemovalModal}
         transparent
         animationType="none"
         onRequestClose={closeRelationshipRemovalModal}
       >
+        <BlurView
+          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+          intensity={10}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          pointerEvents="none"
+        />
         <Animated.View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'rgba(0,0,0,0.3)',
             opacity: relationshipRemovalBackdropOpacity,
           }}
         >
@@ -2157,7 +2176,7 @@ export const GettingStarted = () => {
               }}
             >
               <YStack
-                backgroundColor="$background"
+                backgroundColor={backgroundColor}
                 padding="$4"
                 paddingBottom={24}
                 borderTopLeftRadius="$4"
