@@ -86,6 +86,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   const [weeklyProgress, setWeeklyProgress] = useState<DayProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [weeklyGoal, setWeeklyGoal] = useState(5); // Default goal: 5 exercises per week
+  const [weekTransitionLoading, setWeekTransitionLoading] = useState(false);
   
   // Refresh translations on mount to ensure latest translations are loaded
   useEffect(() => {
@@ -125,18 +126,30 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   // Get week's dates based on offset (0 = current week, -1 = last week, etc.)
   const getWeekDates = (weekOffset: number) => {
     const today = new Date();
-    const currentDay = today.getDay();
-    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // Handle Sunday as start of week
+    today.setHours(0, 0, 0, 0); // Reset to start of day for consistent comparison
+    
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // Calculate days to get to Monday
     
     const monday = new Date(today);
     monday.setDate(today.getDate() + mondayOffset + (weekOffset * 7));
+    monday.setHours(0, 0, 0, 0);
     
     const weekDates = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
+      date.setHours(0, 0, 0, 0); // Ensure consistent time for comparison
       weekDates.push(date);
     }
+    
+    console.log('🗓️ [WeeklyGoal] Week dates calculated:', {
+      today: today.toDateString(),
+      currentDay: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][currentDay],
+      weekOffset,
+      mondayOffset,
+      weekDates: weekDates.map(d => d.toDateString())
+    });
     
     return weekDates;
   };
@@ -149,7 +162,10 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
     }
     
     try {
-      setLoading(true);
+      // Only show main loading on initial load, not on week transitions
+      if (currentWeekOffset === 0 && weeklyProgress.length === 0) {
+        setLoading(true);
+      }
       const weekDates = getWeekDates(currentWeekOffset);
       
       // Get user's exercise completions for this week
@@ -187,11 +203,20 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
         
         return {
           day: dayNames[index],
-          date: date.toISOString().split('T')[0],
+          date: date.toDateString(), // Use toDateString for consistent comparison
           completed,
           progress,
           exercises
         };
+      });
+      
+      console.log('🗓️ [WeeklyGoal] Progress data created:', {
+        todayString: new Date().toDateString(),
+        progressData: progressData.map(d => ({
+          day: d.day,
+          date: d.date,
+          dateString: new Date(d.date).toDateString()
+        }))
       });
       
       setWeeklyProgress(progressData);
@@ -326,17 +351,62 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
     setShowGoalModal(false);
   };
   
-  // Week navigation functions
+  // Animation ref for smooth transitions
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Week navigation functions with smooth transitions
   const goToPreviousWeek = () => {
-    setCurrentWeekOffset(prev => prev - 1);
+    setWeekTransitionLoading(true);
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setCurrentWeekOffset(prev => prev - 1);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setWeekTransitionLoading(false);
+      });
+    });
   };
   
   const goToNextWeek = () => {
-    setCurrentWeekOffset(prev => prev + 1);
+    setWeekTransitionLoading(true);
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setCurrentWeekOffset(prev => prev + 1);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setWeekTransitionLoading(false);
+      });
+    });
   };
   
   const goToCurrentWeek = () => {
-    setCurrentWeekOffset(0);
+    setWeekTransitionLoading(true);
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setCurrentWeekOffset(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setWeekTransitionLoading(false);
+      });
+    });
   };
   
   // Get week display info
@@ -384,83 +454,32 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   
   return (
     <YStack 
-      backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'}
+      // backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'}
       marginHorizontal="$4"
       marginBottom="$4"
       padding="$4"
       borderRadius="$4"
-      borderWidth={1}
-      borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
     >
       {/* Header */}
       <XStack justifyContent="space-between" alignItems="center" marginBottom="$3">
-        <YStack flex={1}>
-          <XStack alignItems="center" gap="$2" marginBottom="$1">
-            <Text fontSize="$5" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-              {(() => {
-                const translated = t('weeklyGoals.title');
-                return translated === 'weeklyGoals.title' ? 'Weekly Goal' : translated;
-              })()}
-            </Text>
-            <TouchableOpacity
-              onPress={openGoalModal}
-              style={{
-                padding: 4,
-                borderRadius: 12,
-                backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
-              }}
-            >
-              <Feather name="settings" size={12} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
-            </TouchableOpacity>
-          </XStack>
-          
-          {/* Week Navigation */}
-          <XStack alignItems="center" gap="$2" marginBottom="$1">
-            <TouchableOpacity
-              onPress={goToPreviousWeek}
-              style={{
-                padding: 4,
-                borderRadius: 8,
-                backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
-              }}
-            >
-              <Feather name="chevron-left" size={14} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              onPress={goToCurrentWeek}
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 8,
-                backgroundColor: weekInfo.isCurrentWeek ? '#00E6C3' : (colorScheme === 'dark' ? '#333' : '#E5E5E5'),
-              }}
-            >
-              <Text 
-                fontSize="$2" 
-                fontWeight="600"
-                color={weekInfo.isCurrentWeek ? '#000' : (colorScheme === 'dark' ? '#CCC' : '#666')}
-              >
-                {weekInfo.weekLabel}
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              onPress={goToNextWeek}
-              style={{
-                padding: 4,
-                borderRadius: 8,
-                backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
-              }}
-            >
-              <Feather name="chevron-right" size={14} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
-            </TouchableOpacity>
-          </XStack>
-          
-          <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-            {completedDays}/7 days • {totalExercises} exercises
+        <XStack alignItems="center" gap="$2">
+          <Text fontSize="$5" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+            {(() => {
+              const translated = t('weeklyGoals.title');
+              return translated === 'weeklyGoals.title' ? 'Weekly Goal' : translated;
+            })()}
           </Text>
-        </YStack>
+          <TouchableOpacity
+            onPress={openGoalModal}
+            style={{
+              padding: 4,
+              borderRadius: 12,
+              backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+            }}
+          >
+            <Feather name="settings" size={12} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
+          </TouchableOpacity>
+        </XStack>
         
         {/* Weekly progress indicator - clickable for info */}
         <TouchableOpacity
@@ -493,85 +512,148 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
         </TouchableOpacity>
       </XStack>
       
-      {/* Days of the week */}
+      {/* Days of the week with navigation arrows */}
       <XStack justifyContent="space-between" alignItems="center">
-        {weeklyProgress.map((day, index) => (
-          <YStack key={day.date} alignItems="center" gap="$1" flex={1}>
-            {/* Day circle */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={{ alignItems: 'center' }}
-            >
-              <DayProgressCircle
-                progress={day.progress}
-                size={32}
-                color={day.completed ? '#4CAF50' : '#00E6C3'}
-                bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                completed={day.completed}
-              />
-              {day.exercises > 0 && (
-                <Text 
-                  fontSize={8} 
-                  fontWeight="bold" 
-                  color={day.completed ? '#4CAF50' : '#00E6C3'}
-                  style={{ position: 'absolute', top: 8 }}
-                >
-                  {day.exercises}
-                </Text>
-              )}
-            </TouchableOpacity>
-            
-            {/* Day name and date */}
-            <YStack alignItems="center" gap="$0.5">
-              <Text 
-                fontSize="$2" 
-                color={colorScheme === 'dark' ? '#CCC' : '#666'}
-                fontWeight={day.completed ? 'bold' : 'normal'}
-              >
-                {day.day}
-              </Text>
+        {/* Previous Week Arrow */}
+        <TouchableOpacity
+          onPress={goToPreviousWeek}
+          style={{
+            padding: 8,
+            borderRadius: 20,
+            // backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+          }}
+        >
+          <Feather name="chevron-left" size={16} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
+        </TouchableOpacity>
+
+        {/* Weekdays - Animated */}
+        <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
+          <XStack flex={1} justifyContent="space-around" alignItems="center" paddingHorizontal="$2" gap="$8">
+            {weeklyProgress.length > 0 ? weeklyProgress.map((day, index) => {
+              const today = new Date();
+              const todayString = today.toDateString();
+              const isToday = day.date === todayString;
               
-              {/* Date - more prominent */}
-              <Text 
-                fontSize="$1" 
-                color={colorScheme === 'dark' ? '#AAA' : '#555'}
-                fontWeight="600"
-              >
-                {new Date(day.date).getDate()}
-              </Text>
-            </YStack>
-          </YStack>
-        ))}
+              console.log('🗓️ [WeeklyGoal] Day comparison for', day.day, ':', {
+                dayDate: day.date,
+                todayDate: todayString,
+                isToday,
+                index
+              });
+              
+              return (
+                <YStack key={day.date} alignItems="center" gap="$1" backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'} padding="$2" borderRadius="$16">
+                  {/* Day circle */}
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={{ alignItems: 'center' }}
+                  >
+                    <DayProgressCircle
+                      progress={day.progress}
+                      size={isToday ? 36 : 32}
+                      color={day.completed ? '#4CAF50' : '#00E6C3'}
+                      bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                      completed={day.completed}
+                    />
+                    {day.exercises > 0 && (
+                      <Text 
+                        fontSize={8} 
+                        fontWeight="bold" 
+                        color={day.completed ? '#4CAF50' : '#00E6C3'}
+                        style={{ position: 'absolute', top: isToday ? 10 : 8 }}
+                      >
+                        {day.exercises}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                  
+                  {/* Day name and date */}
+                  <YStack alignItems="center" gap="$0.5">
+                    <Text 
+                      fontSize={isToday ? "$3" : "$2"}
+                      color={isToday ? '#00E6C3' : (colorScheme === 'dark' ? '#CCC' : '#666')}
+                      fontWeight={day.completed || isToday ? 'bold' : 'normal'}
+                    >
+                      {day.day}
+                    </Text>
+                    
+                    {/* Date - more prominent for today */}
+                    <Text 
+                      fontSize={isToday ? "$2" : "$1"}
+                      color={isToday ? '#00E6C3' : (colorScheme === 'dark' ? '#AAA' : '#555')}
+                      fontWeight="600"
+                    >
+                      {new Date(day.date).getDate()}
+                    </Text>
+                  </YStack>
+                </YStack>
+              );
+            }) : (
+              // Placeholder circles while loading to prevent jumping
+              ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayName, index) => (
+                <YStack key={`placeholder-${dayName}-${index}`} alignItems="center" gap="$1">
+                  <DayProgressCircle
+                    progress={0}
+                    size={32}
+                    color="#00E6C3"
+                    bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                    completed={false}
+                  />
+                  <YStack alignItems="center" gap="$0.5">
+                    <Text 
+                      fontSize="$2"
+                      color={colorScheme === 'dark' ? '#555' : '#AAA'}
+                      fontWeight="normal"
+                    >
+                      {dayName}
+                    </Text>
+                    <Text 
+                      fontSize="$1"
+                      color={colorScheme === 'dark' ? '#444' : '#BBB'}
+                      fontWeight="600"
+                    >
+                      -
+                    </Text>
+                  </YStack>
+                </YStack>
+              ))
+            )}
+          </XStack>
+        </Animated.View>
+
+        {/* Next Week Arrow */}
+        <TouchableOpacity
+          onPress={goToNextWeek}
+          style={{
+            padding: 8,
+            borderRadius: 20,
+            backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+          }}
+        >
+          <Feather name="chevron-right" size={16} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
+        </TouchableOpacity>
       </XStack>
       
-      {/* Goal info */}
-      <XStack 
-        justifyContent="center" 
-        alignItems="center" 
-        marginTop="$3"
-        padding="$2"
-        backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F0F0F0'}
-        borderRadius="$2"
-      >
-        <Feather 
-          name="target" 
-          size={14} 
-          color={colorScheme === 'dark' ? '#CCC' : '#666'} 
-        />
-        <Text 
-          fontSize="$2" 
-          color={colorScheme === 'dark' ? '#CCC' : '#666'}
-          marginLeft="$2"
+      {/* Week info - show current week label and stats */}
+      {/* <XStack justifyContent="center" alignItems="center" marginTop="$3">
+        <TouchableOpacity
+          onPress={goToCurrentWeek}
+          style={{
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 12,
+            backgroundColor: weekInfo.isCurrentWeek ? '#00E6C3' : (colorScheme === 'dark' ? '#333' : '#E5E5E5'),
+          }}
         >
-          {(() => {
-            const translated = t('weeklyGoals.goalPerDayText');
-            if (translated && translated !== 'weeklyGoals.goalPerDayText') {
-              return translated.replace('{goal}', weeklyGoal.toString());
-            }
-            return `Goal: ${weeklyGoal} exercises per day`;
-          })()}
-        </Text>
-      </XStack>
+          <Text 
+            fontSize="$2" 
+            fontWeight="600"
+            color={weekInfo.isCurrentWeek ? '#000' : (colorScheme === 'dark' ? '#CCC' : '#666')}
+          >
+            {weekInfo.weekLabel}
+          </Text>
+        </TouchableOpacity>
+      </XStack> */}
       
       {/* Goal Settings Modal */}
       <Modal
