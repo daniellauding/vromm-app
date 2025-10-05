@@ -300,6 +300,11 @@ export const GettingStarted = () => {
   // Sheet modals state
   const [showCreateRouteSheet, setShowCreateRouteSheet] = React.useState(false);
   const [showExerciseListSheet, setShowExerciseListSheet] = React.useState(false);
+  
+  // Learning paths state (like ProgressSection.tsx)
+  const [learningPaths, setLearningPaths] = React.useState<any[]>([]);
+  const [firstLearningPathId, setFirstLearningPathId] = React.useState<string | null>(null);
+  const [firstLearningPathTitle, setFirstLearningPathTitle] = React.useState<string>('');
 
   // License plan gesture handler (like RouteDetailSheet)
   const licensePlanPanGesture = Gesture.Pan()
@@ -1084,6 +1089,53 @@ export const GettingStarted = () => {
     checkCreatedRoutes();
   }, [user]);
 
+  // Load learning paths (like ProgressSection.tsx)
+  React.useEffect(() => {
+    const loadLearningPaths = async () => {
+      try {
+        console.log('🎯 [GettingStarted] Loading learning paths for exercise sheet...');
+        
+        const { data, error } = await supabase
+          .from('learning_paths')
+          .select('*')
+          .eq('active', true)
+          .order('order_index', { ascending: true });
+
+        if (error) {
+          console.error('🎯 [GettingStarted] Error loading learning paths:', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setLearningPaths(data);
+          
+          // Use the first available path (like ProgressSection.tsx does)
+          const firstPath = data[0];
+          setFirstLearningPathId(firstPath.id);
+          setFirstLearningPathTitle(firstPath.title?.[language] || firstPath.title?.en || 'Learning Path');
+          
+          console.log('🎯 [GettingStarted] First learning path loaded:', {
+            id: firstPath.id,
+            title: firstPath.title?.[language] || firstPath.title?.en,
+            totalPaths: data.length
+          });
+        } else {
+          console.log('🎯 [GettingStarted] No active learning paths found');
+          setFirstLearningPathId(null);
+          setFirstLearningPathTitle('');
+        }
+      } catch (error) {
+        console.error('🎯 [GettingStarted] Error loading learning paths:', error);
+        setFirstLearningPathId(null);
+        setFirstLearningPathTitle('');
+      }
+    };
+
+    if (user) {
+      loadLearningPaths();
+    }
+  }, [user, language]);
+
   // Query supabase and check if the user has completed at least one exercise
   React.useEffect(() => {
     if (!user) return;
@@ -1364,7 +1416,23 @@ export const GettingStarted = () => {
 
           {/* 3. Progress start step 1 */}
           <TouchableOpacity
-            onPress={() => setShowExerciseListSheet(true)}
+            onPress={() => {
+              console.log('🎯 [GettingStarted] Start Learning pressed:', {
+                firstLearningPathId,
+                firstLearningPathTitle,
+                hasLearningPaths: learningPaths.length > 0,
+                learningPathsData: learningPaths.map(p => ({ id: p.id, title: p.title }))
+              });
+              
+              if (firstLearningPathId) {
+                console.log('🎯 [GettingStarted] Opening ExerciseListSheet with path:', firstLearningPathId);
+                setShowExerciseListSheet(true);
+              } else {
+                console.warn('🎯 [GettingStarted] No specific learning path available - showing all paths');
+                // If no specific path, still open the sheet but show all paths
+                setShowExerciseListSheet(true);
+              }
+            }}
             activeOpacity={0.8}
             delayPressIn={50}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -2602,12 +2670,22 @@ export const GettingStarted = () => {
       />
 
       {/* Exercise List Sheet Modal */}
-      <ExerciseListSheet
-        visible={showExerciseListSheet}
-        onClose={() => setShowExerciseListSheet(false)}
-        title={t('home.gettingStarted.startLearning.title') || 'Start Learning'}
-        showAllPaths={true}
-      />
+      {showExerciseListSheet && (
+        <ExerciseListSheet
+          visible={showExerciseListSheet}
+          onClose={() => {
+            console.log('🎯 [GettingStarted] ExerciseListSheet closed');
+            setShowExerciseListSheet(false);
+          }}
+          title={
+            firstLearningPathId 
+              ? firstLearningPathTitle 
+              : t('exercises.allLearningPaths') || 'All Learning Paths'
+          }
+          learningPathId={firstLearningPathId || undefined}
+          showAllPaths={!firstLearningPathId} // Show all paths if we don't have a specific one
+        />
+      )}
     </YStack>
   );
 };

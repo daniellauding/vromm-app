@@ -13,10 +13,10 @@
         }
       },
       "RadonAi": {
-        "url": "http://127.0.0.1:60980/mcp",
+        "url": "http://127.0.0.1:53629/mcp",
         "type": "http",
         "headers": {
-          "nonce": "9e1ba8db-57e7-41f9-98db-a6cfc5912f3d"
+          "nonce": "8bc97ef6-cb6d-4bd3-8810-05061c2181e7"
         }
       }
     }

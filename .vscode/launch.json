@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "name": "Testar",
+            "type": "radon-ide",
+            "request": "launch",
+            "appRoot": "./",
+            "env": {},
+            "ios": {},
+            "android": {},
+            "usePrebuild": false
+        }
+    ]
+}
