@@ -1,9 +1,8 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { YStack, XStack, ScrollView, TextArea, Switch } from 'tamagui';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, PanGestureHandler } from 'react-native-gesture-handler';
 import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { Dimensions } from 'react-native';
-
 import { Text } from '../../components/Text';
 import { Feather } from '@expo/vector-icons';
 import { useThemeColor } from '../../../hooks/useThemeColor';
@@ -42,6 +41,9 @@ export const GettingStarted = () => {
   const { t, language } = useTranslation();
   const colorScheme = useColorScheme();
   
+  // Get window dimensions
+  const { height } = Dimensions.get('window');
+  
   // Theme colors
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
   
@@ -52,6 +54,23 @@ export const GettingStarted = () => {
   const [showKorkortsplanModal, setShowKorkortsplanModal] = React.useState(false);
   const korkortsplanBackdropOpacity = useRef(new Animated.Value(0)).current;
   const korkortsplanSheetTranslateY = useRef(new Animated.Value(300)).current;
+  
+  // Snap points for license plan modal (like RouteDetailSheet)
+  const licensePlanSnapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)
+      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85,   // Top at 85% of screen (show 15% - just title)
+      dismissed: height,     // Completely off-screen
+    };
+    return points;
+  }, [height]);
+  
+  const licensePlanTranslateY = useSharedValue(height);
+  const [currentLicensePlanSnapPoint, setCurrentLicensePlanSnapPoint] = useState(licensePlanSnapPoints.large);
+  const licensePlanCurrentState = useSharedValue(licensePlanSnapPoints.large);
+  const licensePlanIsAnimating = useSharedValue(false);
 
   // License plan form state (copied from ProfileScreen)
   const [targetDate, setTargetDate] = React.useState<Date | null>(() => {
@@ -90,6 +109,23 @@ export const GettingStarted = () => {
   });
   const roleBackdropOpacity = useRef(new Animated.Value(0)).current;
   const roleSheetTranslateY = useRef(new Animated.Value(300)).current;
+  
+  // Role modal snap points
+  const roleSnapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.3,   // Smaller modal - starts at 30%
+      medium: height * 0.5,  // Medium at 50%
+      small: height * 0.7,   // Small at 70%
+      mini: height * 0.85,   // Mini at 85%
+      dismissed: height,     // Dismissed
+    };
+    return points;
+  }, [height]);
+  
+  const roleTranslateY = useSharedValue(height);
+  const [currentRoleSnapPoint, setCurrentRoleSnapPoint] = useState(roleSnapPoints.large);
+  const roleCurrentState = useSharedValue(roleSnapPoints.large);
+  const roleIsAnimating = useSharedValue(false);
 
   // Connections modal state (copied from OnboardingInteractive)
   const [showConnectionsModal, setShowConnectionsModal] = React.useState(false);
@@ -101,7 +137,6 @@ export const GettingStarted = () => {
   const connectionsSheetTranslateY = useRef(new Animated.Value(300)).current;
 
   // Gesture handling for connections modal (like RouteDetailSheet)
-  const { height } = Dimensions.get('window');
   const connectionsTranslateY = useSharedValue(height);
   const connectionsBackdropOpacityShared = useSharedValue(0);
 
@@ -236,6 +271,23 @@ export const GettingStarted = () => {
   const [relationshipRemovalMessage, setRelationshipRemovalMessage] = React.useState('');
   const relationshipRemovalBackdropOpacity = useRef(new Animated.Value(0)).current;
   const relationshipRemovalSheetTranslateY = useRef(new Animated.Value(300)).current;
+  
+  // Relationship removal modal snap points
+  const relationshipRemovalSnapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.2,   // Smaller modal - starts at 20%
+      medium: height * 0.4,  // Medium at 40%
+      small: height * 0.6,   // Small at 60%
+      mini: height * 0.8,    // Mini at 80%
+      dismissed: height,     // Dismissed
+    };
+    return points;
+  }, [height]);
+  
+  const relationshipRemovalTranslateY = useSharedValue(height);
+  const [currentRelationshipRemovalSnapPoint, setCurrentRelationshipRemovalSnapPoint] = useState(relationshipRemovalSnapPoints.large);
+  const relationshipRemovalCurrentState = useSharedValue(relationshipRemovalSnapPoints.large);
+  const relationshipRemovalIsAnimating = useSharedValue(false);
 
   // Pending invitations state
   const [pendingInvitations, setPendingInvitations] = React.useState<any[]>([]);
@@ -243,36 +295,112 @@ export const GettingStarted = () => {
   // Tab state for relationships
   const [activeRelationshipsTab, setActiveRelationshipsTab] = React.useState<'pending' | 'existing'>('pending');
 
-  // Körkortsplan modal show/hide functions (copied from ProfileScreen)
+  // License plan gesture handler (like RouteDetailSheet)
+  const licensePlanPanGesture = Gesture.Pan()
+    .enableTrackpadTwoFingerGesture(false)
+    .onBegin(() => {
+      if (licensePlanIsAnimating.value) return;
+      licensePlanIsAnimating.value = true;
+    })
+    .onUpdate((event) => {
+      if (licensePlanIsAnimating.value === false) return;
+      
+      const { translationY } = event;
+      const newPosition = licensePlanCurrentState.value + translationY;
+      
+      // Constrain to snap points range
+      const minPosition = licensePlanSnapPoints.large;
+      const maxPosition = licensePlanSnapPoints.mini + 100;
+      const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+      
+      licensePlanTranslateY.value = boundedPosition;
+    })
+    .onEnd((event) => {
+      if (licensePlanIsAnimating.value === false) return;
+      
+      const { translationY, velocityY } = event;
+      const currentPosition = licensePlanCurrentState.value + translationY;
+      
+      // Dismiss if dragged down past mini with reasonable velocity
+      if (currentPosition > licensePlanSnapPoints.mini + 30 && velocityY > 200) {
+        licensePlanIsAnimating.value = false;
+        runOnJS(hideKorkortsplanSheet)();
+        return;
+      }
+      
+      // Determine target snap point
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        targetSnapPoint = licensePlanSnapPoints.large;
+      } else if (velocityY > 500) {
+        targetSnapPoint = licensePlanSnapPoints.mini;
+      } else {
+        const positions = [licensePlanSnapPoints.large, licensePlanSnapPoints.medium, licensePlanSnapPoints.small, licensePlanSnapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+      
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, licensePlanSnapPoints.large),
+        licensePlanSnapPoints.mini,
+      );
+      
+      licensePlanTranslateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      }, () => {
+        licensePlanIsAnimating.value = false;
+      });
+      
+      licensePlanCurrentState.value = boundedTarget;
+      runOnJS(setCurrentLicensePlanSnapPoint)(boundedTarget);
+    });
+
+  // Körkortsplan modal show/hide functions (updated for snap points)
   const showKorkortsplanSheet = () => {
+    if (showKorkortsplanModal) return; // Prevent multiple calls
+    
     setShowKorkortsplanModal(true);
+    licensePlanIsAnimating.value = false; // Reset animation state
+    licensePlanTranslateY.value = withSpring(licensePlanSnapPoints.large, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    licensePlanCurrentState.value = licensePlanSnapPoints.large;
+    setCurrentLicensePlanSnapPoint(licensePlanSnapPoints.large);
+    
     Animated.timing(korkortsplanBackdropOpacity, {
       toValue: 1,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    Animated.timing(korkortsplanSheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
   };
 
   const hideKorkortsplanSheet = () => {
+    if (!showKorkortsplanModal) return; // Prevent multiple calls
+    
+    licensePlanIsAnimating.value = false; // Stop any ongoing gestures
+    licensePlanTranslateY.value = withSpring(licensePlanSnapPoints.dismissed, {
+      damping: 20,
+      stiffness: 300,
+    });
     Animated.timing(korkortsplanBackdropOpacity, {
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    Animated.timing(korkortsplanSheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
+    setTimeout(() => {
       setShowKorkortsplanModal(false);
-    });
+    }, 300);
   };
 
   // License plan functions (copied from ProfileScreen)
@@ -321,36 +449,108 @@ export const GettingStarted = () => {
     }
   };
 
-  // Role modal show/hide functions (copied from OnboardingInteractive)
+  // Role modal gesture handler
+  const rolePanGesture = Gesture.Pan()
+    .onBegin(() => {
+      if (roleIsAnimating.value) return;
+      roleIsAnimating.value = true;
+    })
+    .onUpdate((event) => {
+      if (roleIsAnimating.value === false) return;
+      
+      const { translationY } = event;
+      const newPosition = roleCurrentState.value + translationY;
+      
+      const minPosition = roleSnapPoints.large;
+      const maxPosition = roleSnapPoints.mini + 100;
+      const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+      
+      roleTranslateY.value = boundedPosition;
+    })
+    .onEnd((event) => {
+      if (roleIsAnimating.value === false) return;
+      
+      const { translationY, velocityY } = event;
+      const currentPosition = roleCurrentState.value + translationY;
+      
+      if (currentPosition > roleSnapPoints.mini + 30 && velocityY > 200) {
+        roleIsAnimating.value = false;
+        runOnJS(hideRoleSheet)();
+        return;
+      }
+      
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        targetSnapPoint = roleSnapPoints.large;
+      } else if (velocityY > 500) {
+        targetSnapPoint = roleSnapPoints.mini;
+      } else {
+        const positions = [roleSnapPoints.large, roleSnapPoints.medium, roleSnapPoints.small, roleSnapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+      
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, roleSnapPoints.large),
+        roleSnapPoints.mini,
+      );
+      
+      roleTranslateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      }, () => {
+        roleIsAnimating.value = false;
+      });
+      
+      roleCurrentState.value = boundedTarget;
+      runOnJS(setCurrentRoleSnapPoint)(boundedTarget);
+    });
+
+  // Role modal show/hide functions (updated for snap points)
   const showRoleSheet = () => {
+    if (showRoleModal) return; // Prevent multiple calls
+    
     setShowRoleModal(true);
+    roleIsAnimating.value = false; // Reset animation state
+    roleTranslateY.value = withSpring(roleSnapPoints.large, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    roleCurrentState.value = roleSnapPoints.large;
+    setCurrentRoleSnapPoint(roleSnapPoints.large);
+    
     Animated.timing(roleBackdropOpacity, {
       toValue: 1,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    Animated.timing(roleSheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
   };
 
   const hideRoleSheet = () => {
+    if (!showRoleModal) return; // Prevent multiple calls
+    
+    roleIsAnimating.value = false; // Stop any ongoing gestures
+    roleTranslateY.value = withSpring(roleSnapPoints.dismissed, {
+      damping: 20,
+      stiffness: 300,
+    });
     Animated.timing(roleBackdropOpacity, {
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    Animated.timing(roleSheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
+    setTimeout(() => {
       setShowRoleModal(false);
-    });
+    }, 300);
   };
 
   // Load pending invitations
@@ -449,38 +649,110 @@ export const GettingStarted = () => {
     }, 300);
   };
 
-  // Relationship removal modal show/hide functions
+  // Relationship removal modal gesture handler
+  const relationshipRemovalPanGesture = Gesture.Pan()
+    .onBegin(() => {
+      if (relationshipRemovalIsAnimating.value) return;
+      relationshipRemovalIsAnimating.value = true;
+    })
+    .onUpdate((event) => {
+      if (relationshipRemovalIsAnimating.value === false) return;
+      
+      const { translationY } = event;
+      const newPosition = relationshipRemovalCurrentState.value + translationY;
+      
+      const minPosition = relationshipRemovalSnapPoints.large;
+      const maxPosition = relationshipRemovalSnapPoints.mini + 100;
+      const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+      
+      relationshipRemovalTranslateY.value = boundedPosition;
+    })
+    .onEnd((event) => {
+      if (relationshipRemovalIsAnimating.value === false) return;
+      
+      const { translationY, velocityY } = event;
+      const currentPosition = relationshipRemovalCurrentState.value + translationY;
+      
+      if (currentPosition > relationshipRemovalSnapPoints.mini + 30 && velocityY > 200) {
+        relationshipRemovalIsAnimating.value = false;
+        runOnJS(closeRelationshipRemovalModal)();
+        return;
+      }
+      
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        targetSnapPoint = relationshipRemovalSnapPoints.large;
+      } else if (velocityY > 500) {
+        targetSnapPoint = relationshipRemovalSnapPoints.mini;
+      } else {
+        const positions = [relationshipRemovalSnapPoints.large, relationshipRemovalSnapPoints.medium, relationshipRemovalSnapPoints.small, relationshipRemovalSnapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+      
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, relationshipRemovalSnapPoints.large),
+        relationshipRemovalSnapPoints.mini,
+      );
+      
+      relationshipRemovalTranslateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      }, () => {
+        relationshipRemovalIsAnimating.value = false;
+      });
+      
+      relationshipRemovalCurrentState.value = boundedTarget;
+      runOnJS(setCurrentRelationshipRemovalSnapPoint)(boundedTarget);
+    });
+
+  // Relationship removal modal show/hide functions (updated for snap points)
   const openRelationshipRemovalModal = () => {
+    if (showRelationshipRemovalModal) return; // Prevent multiple calls
+    
     setShowRelationshipRemovalModal(true);
+    relationshipRemovalIsAnimating.value = false; // Reset animation state
+    relationshipRemovalTranslateY.value = withSpring(relationshipRemovalSnapPoints.large, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    relationshipRemovalCurrentState.value = relationshipRemovalSnapPoints.large;
+    setCurrentRelationshipRemovalSnapPoint(relationshipRemovalSnapPoints.large);
+    
     Animated.timing(relationshipRemovalBackdropOpacity, {
       toValue: 1,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    Animated.timing(relationshipRemovalSheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
   };
 
   const closeRelationshipRemovalModal = () => {
+    if (!showRelationshipRemovalModal) return; // Prevent multiple calls
+    
+    relationshipRemovalIsAnimating.value = false; // Stop any ongoing gestures
+    relationshipRemovalTranslateY.value = withSpring(relationshipRemovalSnapPoints.dismissed, {
+      damping: 20,
+      stiffness: 300,
+    });
     Animated.timing(relationshipRemovalBackdropOpacity, {
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    Animated.timing(relationshipRemovalSheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
+    setTimeout(() => {
       setShowRelationshipRemovalModal(false);
       setRelationshipRemovalTarget(null);
       setRelationshipRemovalMessage('');
-    });
+    }, 300);
   };
 
   // Role and connections handlers (copied from OnboardingInteractive)
@@ -1354,20 +1626,46 @@ export const GettingStarted = () => {
             opacity: korkortsplanBackdropOpacity,
           }}
         >
-          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <Pressable style={{ flex: 1 }} onPress={hideKorkortsplanSheet} />
-            <Animated.View
-              style={{
-                backgroundColor: backgroundColor,
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                padding: 20,
-                minHeight: '85%',
-                transform: [{ translateY: korkortsplanSheetTranslateY }],
-              }}
-            >
+          <View style={{ flex: 1 }}>
+            <Pressable style={{ flex: 1 }} onPress={() => {
+              licensePlanIsAnimating.value = false; // Reset state on backdrop tap
+              hideKorkortsplanSheet();
+            }} />
+            <GestureDetector gesture={licensePlanPanGesture}>
+              <ReanimatedAnimated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: height,
+                    backgroundColor: backgroundColor,
+                    borderTopLeftRadius: 20,
+                    borderTopRightRadius: 20,
+                    padding: 20,
+                  },
+                  {
+                    transform: [{ translateY: licensePlanTranslateY }],
+                  }
+                ]}
+              >
+                {/* Drag Handle - outside ScrollView with gesture */}
+                <View style={{
+                  alignItems: 'center',
+                  paddingVertical: 8,
+                  paddingBottom: 16,
+                }}>
+                  <View style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                  }} />
+                </View>
+
               <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-                <YStack gap="$4">
+                <YStack gap="$4" paddingBottom="$16">
                   {/* Header - matching connections modal style (centered, no X) */}
                   <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
                     {t('onboarding.licensePlan.title') || 'Your License Journey'}
@@ -1578,7 +1876,8 @@ export const GettingStarted = () => {
                   </Button>
                 </YStack>
               </ScrollView>
-            </Animated.View>
+              </ReanimatedAnimated.View>
+            </GestureDetector>
           </View>
         </Animated.View>
       </Modal>
@@ -1603,21 +1902,44 @@ export const GettingStarted = () => {
             opacity: roleBackdropOpacity,
           }}
         >
-          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <Pressable style={{ flex: 1 }} onPress={hideRoleSheet} />
-            <Animated.View
-              style={{
-                transform: [{ translateY: roleSheetTranslateY }],
-              }}
-            >
-              <YStack
-                backgroundColor={backgroundColor}
-                padding="$4"
-                paddingBottom={24}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                gap="$4"
+          <View style={{ flex: 1 }}>
+            <Pressable style={{ flex: 1 }} onPress={() => {
+              roleIsAnimating.value = false; // Reset state on backdrop tap
+              hideRoleSheet();
+            }} />
+            <GestureDetector gesture={rolePanGesture}>
+              <ReanimatedAnimated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: height,
+                    backgroundColor: backgroundColor,
+                    borderTopLeftRadius: 20,
+                    borderTopRightRadius: 20,
+                    padding: 20,
+                  },
+                  {
+                    transform: [{ translateY: roleTranslateY }],
+                  }
+                ]}
               >
+                {/* Drag Handle */}
+                <View style={{
+                  alignItems: 'center',
+                  paddingVertical: 8,
+                  paddingBottom: 16,
+                }}>
+                  <View style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                  }} />
+                </View>
+
                 <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
                   Choose Your Role
                 </Text>
@@ -1648,8 +1970,8 @@ export const GettingStarted = () => {
                     />
                   ))}
                 </YStack>
-              </YStack>
-            </Animated.View>
+              </ReanimatedAnimated.View>
+            </GestureDetector>
           </View>
         </Animated.View>
       </Modal>
@@ -2165,25 +2487,44 @@ export const GettingStarted = () => {
             opacity: relationshipRemovalBackdropOpacity,
           }}
         >
-          <Pressable style={{ flex: 1 }} onPress={closeRelationshipRemovalModal}>
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                transform: [{ translateY: relationshipRemovalSheetTranslateY }],
-              }}
-            >
-              <YStack
-                backgroundColor={backgroundColor}
-                padding="$4"
-                paddingBottom={24}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                gap="$4"
-                minHeight="60%"
+          <View style={{ flex: 1 }}>
+            <Pressable style={{ flex: 1 }} onPress={() => {
+              relationshipRemovalIsAnimating.value = false; // Reset state on backdrop tap
+              closeRelationshipRemovalModal();
+            }} />
+            <GestureDetector gesture={relationshipRemovalPanGesture}>
+              <ReanimatedAnimated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: height,
+                    backgroundColor: backgroundColor,
+                    borderTopLeftRadius: 20,
+                    borderTopRightRadius: 20,
+                    padding: 20,
+                  },
+                  {
+                    transform: [{ translateY: relationshipRemovalTranslateY }],
+                  }
+                ]}
               >
+                {/* Drag Handle */}
+                <View style={{
+                  alignItems: 'center',
+                  paddingVertical: 8,
+                  paddingBottom: 16,
+                }}>
+                  <View style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                  }} />
+                </View>
+
                 <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
                   {relationshipRemovalTarget?.relationship_type === 'has_supervisor' 
                     ? (t('onboarding.relationships.removeSupervisorTitle') || 'Remove Supervisor')
@@ -2236,9 +2577,9 @@ export const GettingStarted = () => {
                     {t('common.cancel') || 'Cancel'}
                   </Button>
                 </YStack>
-              </YStack>
-            </Animated.View>
-          </Pressable>
+              </ReanimatedAnimated.View>
+            </GestureDetector>
+          </View>
         </Animated.View>
       </Modal>
     </YStack>
