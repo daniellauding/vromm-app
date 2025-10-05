@@ -455,14 +455,14 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   return (
     <YStack 
       // backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'}
-      marginHorizontal="$4"
+      marginHorizontal="$0"
       marginBottom="$4"
-      padding="$4"
+      padding="$0"
       borderRadius="$4"
     >
       {/* Header */}
       <XStack justifyContent="space-between" alignItems="center" marginBottom="$3">
-        <XStack alignItems="center" gap="$2">
+        <XStack alignItems="center" gap="$2" paddingHorizontal="$4">
           <Text fontSize="$5" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
             {(() => {
               const translated = t('weeklyGoals.title');
@@ -474,7 +474,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
             style={{
               padding: 4,
               borderRadius: 12,
-              backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+              // backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
             }}
           >
             <Feather name="settings" size={12} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
@@ -528,7 +528,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
 
         {/* Weekdays - Animated */}
         <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
-          <XStack flex={1} justifyContent="space-around" alignItems="center" paddingHorizontal="$2" gap="$8">
+          <XStack flex={1} justifyContent="space-around" alignItems="center" paddingHorizontal="$2" gap="$2">
             {weeklyProgress.length > 0 ? weeklyProgress.map((day, index) => {
               const today = new Date();
               const todayString = today.toDateString();
@@ -550,17 +550,17 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                   >
                     <DayProgressCircle
                       progress={day.progress}
-                      size={isToday ? 36 : 32}
+                      size={isToday ? 32 : 32}
                       color={day.completed ? '#4CAF50' : '#00E6C3'}
                       bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                       completed={day.completed}
                     />
                     {day.exercises > 0 && (
                       <Text 
-                        fontSize={8} 
+                        fontSize={9} 
                         fontWeight="bold" 
                         color={day.completed ? '#4CAF50' : '#00E6C3'}
-                        style={{ position: 'absolute', top: isToday ? 10 : 8 }}
+                        style={{ position: 'absolute', top: isToday ? 12 : 12 }}
                       >
                         {day.exercises}
                       </Text>
@@ -570,7 +570,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                   {/* Day name and date */}
                   <YStack alignItems="center" gap="$0.5">
                     <Text 
-                      fontSize={isToday ? "$3" : "$2"}
+                      fontSize={isToday ? "$2" : "$2"}
                       color={isToday ? '#00E6C3' : (colorScheme === 'dark' ? '#CCC' : '#666')}
                       fontWeight={day.completed || isToday ? 'bold' : 'normal'}
                     >
@@ -579,7 +579,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                     
                     {/* Date - more prominent for today */}
                     <Text 
-                      fontSize={isToday ? "$2" : "$1"}
+                      fontSize={isToday ? "$3" : "$3"}
                       color={isToday ? '#00E6C3' : (colorScheme === 'dark' ? '#AAA' : '#555')}
                       fontWeight="600"
                     >
@@ -627,7 +627,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
           style={{
             padding: 8,
             borderRadius: 20,
-            backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+            // backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
           }}
         >
           <Feather name="chevron-right" size={16} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
