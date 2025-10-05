@@ -536,8 +536,8 @@ export function UnifiedInvitationModal({
               paddingHorizontal="$0"
               borderRadius="$4"
               width="90%"
-              gap="$3"
-              borderColor={borderColor}
+            gap="$3"
+            borderColor={borderColor}
               borderWidth={0}
             >
 
@@ -667,7 +667,7 @@ export function UnifiedInvitationModal({
                       
                     )}
 
-                    {/* Header */}
+            {/* Header */}
 
                     {/* 🎨 Scrollable content wrapper with fade overlay */}
                     <YStack position="relative" width="100%" paddingHorizontal="$4">
@@ -685,37 +685,37 @@ export function UnifiedInvitationModal({
                       >
                         <YStack paddingTop={24}>
                         {/* <XStack justifyContent="space-between" alignItems="center" marginBottom="$2">
-                          <Heading size="$5" color={textColor} flex={1} textAlign="center">
-                            {(() => {
-                              const translated = t('invitations.newInvitations');
-                              console.log('🔍 [UnifiedInvitationModal] Header translation:', translated);
-                              return translated === 'invitations.newInvitations' ? 'New Invitations' : translated;
-                            })()}
-                          </Heading>
+              <Heading size="$5" color={textColor} flex={1} textAlign="center">
+                {(() => {
+                  const translated = t('invitations.newInvitations');
+                  console.log('🔍 [UnifiedInvitationModal] Header translation:', translated);
+                  return translated === 'invitations.newInvitations' ? 'New Invitations' : translated;
+                })()}
+              </Heading>
                         </XStack> */}
                         <XStack alignItems="center" gap="$2" justifyContent="center">
                           <Heading size="$5" color={textColor} flex={1} textAlign="center">
-                            {currentInvitation.title_key ? t(currentInvitation.title_key) : currentInvitation.title}
+                  {currentInvitation.title_key ? t(currentInvitation.title_key) : currentInvitation.title}
                           </Heading>
-                        </XStack>
+              </XStack>
 
                         <Paragraph color={textColor} textAlign="center" lineHeight="$2">
-                          <Text fontWeight="600">{currentInvitation.from_user_name}</Text>{' '}
-                          {currentInvitation.message_key ? t(currentInvitation.message_key) : currentInvitation.message}
-                        </Paragraph>
+                <Text fontWeight="600">{currentInvitation.from_user_name}</Text>{' '}
+                {currentInvitation.message_key ? t(currentInvitation.message_key) : currentInvitation.message}
+              </Paragraph>
 
-                        {currentInvitation.custom_message && (
+              {currentInvitation.custom_message && (
                           <YStack padding="$4">
                             {/* <Text color={textColor} fontWeight="bold" fontSize="$3" marginBottom="$2">
-                              {(() => {
-                                const translated = t('invitations.personalMessage');
-                                console.log('🔍 [UnifiedInvitationModal] PersonalMessage translation:', translated);
-                                return translated === 'invitations.personalMessage' ? 'Personal message:' : translated;
-                              })()}
+                    {(() => {
+                      const translated = t('invitations.personalMessage');
+                      console.log('🔍 [UnifiedInvitationModal] PersonalMessage translation:', translated);
+                      return translated === 'invitations.personalMessage' ? 'Personal message:' : translated;
+                    })()}
                             </Text> */}
                             <Text color={textColor} fontSize="$4" textAlign="center">
-                              "{currentInvitation.custom_message}"
-                            </Text>
+                    "{currentInvitation.custom_message}"
+                  </Text>
                             {/* <Text color={textColor} fontSize="$3">
                             asdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasja
                             sdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajd
@@ -737,13 +737,13 @@ export function UnifiedInvitationModal({
                             djdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjda
                             sjdasads
                             </Text> */}
-                          </YStack>
-                        )}
+                </YStack>
+              )}
 
-                        {currentInvitation.collection_name && (
-                          <Text color={textColor} fontSize="$3" textAlign="center">
-                            {t('invitations.collectionName') || 'Collection'}: {currentInvitation.collection_name}
-                          </Text>
+              {currentInvitation.collection_name && (
+                <Text color={textColor} fontSize="$3" textAlign="center">
+                  {t('invitations.collectionName') || 'Collection'}: {currentInvitation.collection_name}
+                </Text>
                         )}
                         </YStack>
                       </ScrollView>
@@ -772,43 +772,43 @@ export function UnifiedInvitationModal({
                     </XStack>
                   )}
                   
-              </YStack>
+            </YStack>
 
-              {/* Action Buttons */}
+            {/* Action Buttons */}
               <XStack justifyContent="space-around" marginTop="$4" gap="$4" paddingHorizontal="$4">
-                {/* <Button 
-                  flex={1} 
-                  variant="outline" 
-                  onPress={handleDismiss}
-                  disabled={isProcessing}
-                >
-                  {t('invitations.dismiss') || 'Dismiss'}
-                </Button> */}
-                <Button 
-                  flex={1} 
-                  variant="secondary" 
-                  onPress={handleDecline}
-                  disabled={isProcessing}
-                  size="sm"
-                >
-                  {t('invitations.decline') || 'Decline'}
-                </Button>
-                <Button 
-                  flex={1} 
-                  variant="primary" 
-                  onPress={handleAccept}
-                  disabled={isProcessing}
-                  size="sm"
-                >
-                  {t('invitations.accept') || 'Accept'}
-                </Button>
-              </XStack>
+              {/* <Button 
+                flex={1} 
+                variant="outline" 
+                onPress={handleDismiss}
+                disabled={isProcessing}
+              >
+                {t('invitations.dismiss') || 'Dismiss'}
+              </Button> */}
+              <Button 
+                flex={1} 
+                variant="secondary" 
+                onPress={handleDecline}
+                disabled={isProcessing}
+                size="sm"
+              >
+                {t('invitations.decline') || 'Decline'}
+              </Button>
+              <Button 
+                flex={1} 
+                variant="primary" 
+                onPress={handleAccept}
+                disabled={isProcessing}
+                size="sm"
+              >
+                {t('invitations.accept') || 'Accept'}
+              </Button>
+            </XStack>
             </YStack>
             <Text color={textColor} fontSize="$2" textAlign="center" opacity={0.7} marginTop="$4">
               {currentIndex + 1} of {invitations.length}
             </Text>
           </YStack>
-          </Pressable>
+        </Pressable>
       </Pressable>
 
       {/* 🎨 User Profile Sheet - Opens when avatar is pressed */}
