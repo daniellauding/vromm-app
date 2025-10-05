@@ -100,7 +100,6 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
   
   // Goal settings modal state
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [showInfoModal, setShowInfoModal] = useState(false);
   const [goalSettings, setGoalSettings] = useState<GoalSettings>({
     dailyGoal: 5,
     goalType: 'weekly',
@@ -461,55 +460,37 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
       borderRadius="$4"
     >
       {/* Header */}
-      <XStack justifyContent="space-between" alignItems="center" marginBottom="$3">
-        <XStack alignItems="center" gap="$2" paddingHorizontal="$4">
+      <XStack justifyContent="space-between" alignItems="center" marginBottom="$3" paddingHorizontal="$4">
+        <XStack alignItems="center" gap="$2">
           <Text fontSize="$5" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
             {(() => {
               const translated = t('weeklyGoals.title');
               return translated === 'weeklyGoals.title' ? 'Weekly Goal' : translated;
             })()}
           </Text>
-          <TouchableOpacity
-            onPress={openGoalModal}
-            style={{
-              padding: 4,
-              borderRadius: 12,
-              // backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
-            }}
-          >
-            <Feather name="settings" size={12} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
-          </TouchableOpacity>
         </XStack>
         
-        {/* Weekly progress indicator - clickable for info */}
-        <TouchableOpacity
-          onPress={() => setShowInfoModal(true)}
-          style={{ position: 'relative' }}
-        >
-          <DayProgressCircle 
-            progress={weeklyProgressPercent / 100} 
-            size={40}
-            color="#00E6C3"
-            bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-          />
+        <XStack alignItems="center">
+          {/* Simple percentage next to title */}
           <Text 
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: 40,
-              height: 40,
-              textAlign: 'center',
-              textAlignVertical: 'center',
-              lineHeight: 40,
-              fontSize: 10,
-              fontWeight: 'bold',
-              color: colorScheme === 'dark' ? '#FFF' : '#000'
-            }}
+            fontSize="$3"
+            color={colorScheme === 'dark' ? '#CCC' : '#666'}
+            fontWeight="300"
+            paddingHorizontal="$2"
           >
             {Math.round(weeklyProgressPercent)}%
           </Text>
+          <TouchableOpacity
+            onPress={openGoalModal}
+            style={{
+              padding: 0,
+              borderRadius: 12,
+            }}
+          >
+            <Feather name="settings" size={14} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
         </TouchableOpacity>
+
+        </XStack>
       </XStack>
       
       {/* Days of the week with navigation arrows */}
@@ -560,7 +541,7 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                         fontSize={9} 
                         fontWeight="bold" 
                         color={day.completed ? '#4CAF50' : '#00E6C3'}
-                        style={{ position: 'absolute', top: isToday ? 12 : 12 }}
+                        style={{ position: 'absolute', top: isToday ? 11 : 11 }}
                       >
                         {day.exercises}
                       </Text>
@@ -778,6 +759,22 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
               </XStack>
             </YStack>
             
+            {/* How it works section */}
+            <YStack gap="$3" marginBottom="$4" padding="$3" backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F8F8'} borderRadius="$3">
+              <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                📊 How Weekly Goals Work
+              </Text>
+              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                • Complete exercises daily to fill your progress circles
+              </Text>
+              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                • Green circles = daily goal achieved
+              </Text>
+              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                • Use arrows to view past or future weeks
+              </Text>
+            </YStack>
+            
             {/* Action Buttons */}
             <XStack gap="$3" justifyContent="center">
               <TouchableOpacity
@@ -809,107 +806,6 @@ export function WeeklyGoal({ activeUserId }: WeeklyGoalProps) {
                 </Text>
               </TouchableOpacity>
             </XStack>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-      
-      {/* Info Modal */}
-      <Modal
-        visible={showInfoModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowInfoModal(false)}
-      >
-        <BlurView
-          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
-          intensity={10}
-          tint={colorScheme === 'dark' ? 'dark' : 'light'}
-          pointerEvents="none"
-        />
-        <TouchableOpacity
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.3)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 20,
-          }}
-          activeOpacity={1}
-          onPress={() => setShowInfoModal(false)}
-        >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-            style={{
-              width: '100%',
-              maxWidth: 400,
-              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-              borderRadius: 24,
-              padding: 24,
-              borderWidth: 1,
-              borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
-            }}
-          >
-            {/* Modal Header */}
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-              <Text fontSize="$6" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                {t('weeklyGoals.howItWorksTitle') || 'How Weekly Goals Work'}
-              </Text>
-              <TouchableOpacity onPress={() => setShowInfoModal(false)}>
-                <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#666'} />
-              </TouchableOpacity>
-            </XStack>
-            
-            {/* Content */}
-            <YStack gap="$3" marginBottom="$4">
-              <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                📊 Progress Tracking
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Complete exercises to fill your daily circles
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Green circles = goal achieved for that day
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Blue circles = in progress
-              </Text>
-              
-              <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'} marginTop="$2">
-                🎯 Goal Setting
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Tap the settings icon to adjust your daily goal
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Choose between weekly or monthly tracking
-              </Text>
-              
-              <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'} marginTop="$2">
-                📅 Week Navigation
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Use arrows to view past or future weeks
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Tap "This Week" to return to current week
-              </Text>
-            </YStack>
-            
-            {/* Close Button */}
-            <TouchableOpacity
-              onPress={() => setShowInfoModal(false)}
-              style={{
-                backgroundColor: '#00E6C3',
-                padding: 16,
-                borderRadius: 12,
-                alignItems: 'center',
-              }}
-            >
-              <Text color="#000" fontWeight="bold">
-                Got it!
-              </Text>
-            </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
