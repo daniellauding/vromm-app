@@ -33,6 +33,8 @@ import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { useTour } from '../../contexts/TourContext';
 import { useTourTarget } from '../../components/TourOverlay';
+import { CreateRouteSheet } from '../../components/CreateRouteSheet';
+import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 
 export const GettingStarted = () => {
   const { profile, user, updateProfile, refreshProfile } = useAuth();
@@ -294,6 +296,10 @@ export const GettingStarted = () => {
   
   // Tab state for relationships
   const [activeRelationshipsTab, setActiveRelationshipsTab] = React.useState<'pending' | 'existing'>('pending');
+
+  // Sheet modals state
+  const [showCreateRouteSheet, setShowCreateRouteSheet] = React.useState(false);
+  const [showExerciseListSheet, setShowExerciseListSheet] = React.useState(false);
 
   // License plan gesture handler (like RouteDetailSheet)
   const licensePlanPanGesture = Gesture.Pan()
@@ -1310,7 +1316,7 @@ export const GettingStarted = () => {
 
           {/* 2. Lägg till din första rutt */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('CreateRoute', {})}
+            onPress={() => setShowCreateRouteSheet(true)}
             activeOpacity={0.8}
             delayPressIn={50}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1358,7 +1364,7 @@ export const GettingStarted = () => {
 
           {/* 3. Progress start step 1 */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('ProgressTab', { showDetail: false })}
+            onPress={() => setShowExerciseListSheet(true)}
             activeOpacity={0.8}
             delayPressIn={50}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -2582,6 +2588,26 @@ export const GettingStarted = () => {
           </View>
         </Animated.View>
       </Modal>
+
+      {/* Create Route Sheet Modal */}
+      <CreateRouteSheet
+        visible={showCreateRouteSheet}
+        onClose={() => setShowCreateRouteSheet(false)}
+        onRouteCreated={(routeId) => {
+          console.log('Route created:', routeId);
+          setShowCreateRouteSheet(false);
+          // Refresh routes state to update the "hasCreatedRoutes" status
+          // This will be handled by the existing useEffect for checking created routes
+        }}
+      />
+
+      {/* Exercise List Sheet Modal */}
+      <ExerciseListSheet
+        visible={showExerciseListSheet}
+        onClose={() => setShowExerciseListSheet(false)}
+        title={t('home.gettingStarted.startLearning.title') || 'Start Learning'}
+        showAllPaths={true}
+      />
     </YStack>
   );
 };
