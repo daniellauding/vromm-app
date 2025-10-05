@@ -266,7 +266,7 @@ export function FeaturedContent() {
 
   if (loading) {
     return (
-      <YStack marginBottom="$6">
+      <YStack marginBottom="$4">
         <SectionHeader 
           title={(() => {
             const translated = t('home.featuredContent');
@@ -285,7 +285,7 @@ export function FeaturedContent() {
   if (!hasContent) {
     console.log('🎯 [FeaturedContent] No featured content found, showing fallback');
     return (
-      <YStack marginBottom="$6">
+      <YStack marginBottom="$4">
         <SectionHeader 
           title={(() => {
             const translated = t('home.featuredContent');

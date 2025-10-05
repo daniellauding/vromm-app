@@ -1298,7 +1298,7 @@ export const GettingStarted = () => {
   //   return <></>;
   // }
   return (
-    <YStack space="$4" marginBottom="$6">
+    <YStack marginBottom="$3">
       {/* <SectionHeader title={t('home.gettingStarted.title') || 'Getting Started'} variant="chevron" onAction={() => {}} actionLabel="" /> */}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>

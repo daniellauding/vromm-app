@@ -384,7 +384,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       <FlatList
         data={[1]}
         keyExtractor={() => 'home-content'}
-        contentContainerStyle={{ paddingTop: 72, paddingBottom: 24 }}
+        contentContainerStyle={{ paddingTop: 72, paddingBottom: 12 }}
         showsVerticalScrollIndicator={false}
         renderItem={() => (
           <YStack f={1}>
@@ -425,16 +425,9 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             <JumpBackInSection activeUserId={effectiveUserId || undefined} />
             
             <GettingStarted />
-
-            {/* <CommunicationTools 
-              onMessagePress={() => setShowMessagesSheet(true)}
-              onNotificationPress={() => setShowNotificationsSheet(true)}
-              onEventPress={() => setShowEventsSheet(true)}
-            /> */}
-
-        {/* Featured Content */}
-        {console.log('🎯 [HomeScreen] Rendering FeaturedContent component')}
-        <FeaturedContent />
+            
+            {/* Featured Content */}
+            <FeaturedContent />
 
             {/* <UpcomingEvents 
               onEventPress={(eventId) => {

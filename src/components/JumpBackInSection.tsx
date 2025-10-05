@@ -198,7 +198,7 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
   
   return (
     <>
-      <YStack marginBottom="$4">
+      <YStack marginBottom="$2">
         <Text fontSize="$5" fontWeight="bold" color="$color" marginBottom="$3" marginHorizontal="$4">
           {(() => {
             const translated = t('home.jumpBackIn');
