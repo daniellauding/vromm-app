@@ -73,27 +73,10 @@ export function UnifiedInvitationModal({
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
   const textColor = colorScheme === 'dark' ? 'white' : 'black';
   const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
-  
-  // DEBUG: Log translations on render
-  useEffect(() => {
-    console.log('🔍 [UnifiedInvitationModal] DEBUG Translation check:', {
-      language,
-      'invitations.newInvitations': t('invitations.newInvitations'),
-      'invitations.personalMessage': t('invitations.personalMessage'),
-      'invitations.supervisorInvitation': t('invitations.supervisorInvitation'),
-    });
-  }, [language, t]);
 
   // Fetch pending invitations
   useEffect(() => {
     if (visible && user) {
-      // Refresh translations when modal opens to ensure we have latest
-      refreshTranslations().then(() => {
-        // Force a state update after translations refresh to trigger re-render
-        setInvitations(prev => [...prev]);
-      }).catch(() => {
-        // Silent fail on translation refresh
-      });
       fetchPendingInvitations();
     }
   }, [visible, user]);

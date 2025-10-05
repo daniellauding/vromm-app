@@ -40,19 +40,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { useThemeColor } from '../../hooks/useThemeColor';
 
 export const HomeHeader = () => {
-  const { t, refreshTranslations } = useTranslation();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const { profile, signOut } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const { setActiveStudent, activeStudentId } = useStudentSwitch();
   const insets = useSafeAreaInsets();
-
-  // 🎨 Refresh translations on mount to ensure latest translations are loaded
-  useEffect(() => {
-    refreshTranslations().catch(() => {
-      // Silent fail on translation refresh
-    });
-  }, [refreshTranslations]);
 
   // Register profile avatar for instructor tour targeting
   const profileAvatarRef = useTourTarget('Header.ProfileAvatar');

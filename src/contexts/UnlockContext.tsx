@@ -195,13 +195,7 @@ export function UnlockProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isPathUnlocked = useCallback((pathId: string) => {
-    const isUnlocked = unlockedPaths.includes(pathId);
-    console.log('🔓 [UnlockContext] Path unlock check:', pathId, {
-      isUnlocked,
-      unlockedPaths,
-      totalUnlocked: unlockedPaths.length
-    });
-    return isUnlocked;
+    return unlockedPaths.includes(pathId);
   }, [unlockedPaths]);
 
   const isExerciseUnlocked = useCallback((exerciseId: string) => {
@@ -209,41 +203,16 @@ export function UnlockProvider({ children }: { children: React.ReactNode }) {
   }, [unlockedExercises]);
 
   const hasPathPayment = useCallback((pathId: string) => {
-    const hasPayment = userPayments.some(
+    return userPayments.some(
       payment => {
         // Check both direct field and metadata field
         const hasDirectField = payment.learning_path_id === pathId;
         const hasMetadataField = payment.metadata?.path_id === pathId;
         const hasFeatureKey = payment.metadata?.feature_key === `learning_path_${pathId}`;
         
-        const result = (hasDirectField || hasMetadataField || hasFeatureKey) && payment.status === 'completed';
-        
-        if (result) {
-          console.log('✅ [UnlockContext] Found payment for path:', pathId, {
-            paymentId: payment.id,
-            hasDirectField,
-            hasMetadataField,
-            hasFeatureKey,
-            status: payment.status
-          });
-        }
-        
-        return result;
+        return (hasDirectField || hasMetadataField || hasFeatureKey) && payment.status === 'completed';
       }
     );
-    
-    console.log('🔍 [UnlockContext] Payment check for path:', pathId, {
-      hasPayment,
-      totalPayments: userPayments.length,
-      payments: userPayments.map(p => ({
-        id: p.id,
-        learning_path_id: p.learning_path_id,
-        metadata: p.metadata,
-        status: p.status
-      }))
-    });
-    
-    return hasPayment;
   }, [userPayments]);
 
   const hasExercisePayment = useCallback((exerciseId: string) => {

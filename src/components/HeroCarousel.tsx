@@ -123,8 +123,6 @@ function HeroCarouselItem({
     }
   }, [navigation, onItemPress, item]);
 
-  console.log('🎨 [HeroCarouselItem] Waypoints:');
-
   return (
     <Card
       key={item.id}
