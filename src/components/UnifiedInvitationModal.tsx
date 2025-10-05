@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { UserProfileSheet } from './UserProfileSheet';
+import { LinearGradient } from 'expo-linear-gradient'
 
 // 🖼️ Import static images (OPTIONAL - comment out if files don't exist yet)
 /* eslint-disable @typescript-eslint/no-var-requires */
@@ -573,7 +574,7 @@ export function UnifiedInvitationModal({
               <YStack
                 paddingVertical="$4"
                 paddingTop="$0"
-                overflow="hidden"
+                // overflow="hidden"
                 paddingHorizontal="$0"
                 borderRadius="$4"
                 width="100%"
@@ -609,7 +610,9 @@ export function UnifiedInvitationModal({
                             height={230}
                             justifyContent="center"
                             alignItems="center"
-                            overflow="hidden"
+                            // overflow="hidden"
+                            position="relative"
+                            paddingBottom={90}
                         >
                           <Image
                             source={
@@ -627,112 +630,149 @@ export function UnifiedInvitationModal({
                             }}
                             resizeMode="cover"
                           />
+
+                        {/* 🎨 Avatar - Pressable to open profile */}
+                        {currentInvitation.from_user_id && (
+                          <YStack
+                            alignItems="center"
+                            justifyContent="center"
+                            position="absolute"
+                            bottom={-30} // try also -25 or -40 depending on size
+                            zIndex={10}
+                          >
+                            <TouchableOpacity
+                              onPress={() => {
+                                setSelectedUserId(currentInvitation.from_user_id || null);
+                                setShowProfileSheet(true);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              {currentInvitation.avatar_url ? (
+                                <Image
+                                  source={{ uri: currentInvitation.avatar_url }}
+                                  style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: 30,
+                                    borderWidth: 2,
+                                    borderColor: colorScheme === 'dark' ? '#00FFBC' : '#00CC96',
+                                  }}
+                                />
+                              ) : (
+                                <YStack
+                                  width={60}
+                                  height={60}
+                                  borderRadius={30}
+                                  backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
+                                  alignItems="center"
+                                  justifyContent="center"
+                                  borderWidth={2}
+                                  borderColor={colorScheme === 'dark' ? '#00FFBC' : '#00CC96'}
+                                >
+                                  <User size={30} color={textColor} />
+                                </YStack>
+                              )}
+                            </TouchableOpacity>
+                          </YStack>
+                        )}
+
                         </YStack>
                       </YStack>
+                      
                     )}
 
                     {/* Header */}
 
-                    <ScrollView
-                      showsVerticalScrollIndicator={false}
-                      contentContainerStyle={{
-                        padding: 0,
-                        margin: 0,
-                        gap: 0,
-                        justifyContent: 'center', 
-                        alignItems: 'center', 
-                      }}
-                      style={{
-                        padding: 0,
-                        margin: 0,
-                      }}
-                    >
-
-                      {/* <XStack justifyContent="space-between" alignItems="center" marginBottom="$2">
-                        <Heading size="$5" color={textColor} flex={1} textAlign="center">
-                          {(() => {
-                            const translated = t('invitations.newInvitations');
-                            console.log('🔍 [UnifiedInvitationModal] Header translation:', translated);
-                            return translated === 'invitations.newInvitations' ? 'New Invitations' : translated;
-                          })()}
-                        </Heading>
-                      </XStack> */}
-                      <XStack alignItems="center" gap="$2" justifyContent="center">
-                        <Heading size="$5" color={textColor} flex={1} textAlign="center">
-                          {currentInvitation.title_key ? t(currentInvitation.title_key) : currentInvitation.title}
-                        </Heading>
-                      </XStack>
-
-                      {/* 🎨 Avatar - Pressable to open profile */}
-                      {currentInvitation.from_user_id && (
-                        <YStack alignItems="center" marginVertical="$3">
-                          <TouchableOpacity
-                            onPress={() => {
-                              setSelectedUserId(currentInvitation.from_user_id || null);
-                              setShowProfileSheet(true);
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            {currentInvitation.avatar_url ? (
-                              <Image
-                                source={{ uri: currentInvitation.avatar_url }}
-                                style={{
-                                  width: 60,
-                                  height: 60,
-                                  borderRadius: 30,
-                                  borderWidth: 2,
-                                  borderColor: colorScheme === 'dark' ? '#00FFBC' : '#00CC96',
-                                }}
-                              />
-                            ) : (
-                              <YStack
-                                width={60}
-                                height={60}
-                                borderRadius={30}
-                                backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
-                                alignItems="center"
-                                justifyContent="center"
-                                borderWidth={2}
-                                borderColor={colorScheme === 'dark' ? '#00FFBC' : '#00CC96'}
-                              >
-                                <User size={30} color={textColor} />
-                              </YStack>
-                            )}
-                          </TouchableOpacity>
-                        </YStack>
-                      )}
-
-                      <Paragraph color={textColor} textAlign="center" lineHeight="$2">
-                        <Text fontWeight="600">{currentInvitation.from_user_name}</Text>{' '}
-                        {currentInvitation.message_key ? t(currentInvitation.message_key) : currentInvitation.message}
-                      </Paragraph>
-
-                      {currentInvitation.custom_message && (
-                        <YStack padding="$4">
-                          <Text color={textColor} fontWeight="bold" fontSize="$3" marginBottom="$2">
+                    {/* 🎨 Scrollable content wrapper with fade overlay */}
+                    <YStack position="relative" width="100%" paddingHorizontal="$4">
+                      <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{
+                          paddingBottom: 20,
+                        }}
+                        style={{
+                          maxHeight: 250,
+                        }}
+                      >
+                        <YStack paddingTop={24}>
+                        {/* <XStack justifyContent="space-between" alignItems="center" marginBottom="$2">
+                          <Heading size="$5" color={textColor} flex={1} textAlign="center">
                             {(() => {
-                              const translated = t('invitations.personalMessage');
-                              console.log('🔍 [UnifiedInvitationModal] PersonalMessage translation:', translated);
-                              return translated === 'invitations.personalMessage' ? 'Personal message:' : translated;
+                              const translated = t('invitations.newInvitations');
+                              console.log('🔍 [UnifiedInvitationModal] Header translation:', translated);
+                              return translated === 'invitations.newInvitations' ? 'New Invitations' : translated;
                             })()}
+                          </Heading>
+                        </XStack> */}
+                        <XStack alignItems="center" gap="$2" justifyContent="center">
+                          <Heading size="$5" color={textColor} flex={1} textAlign="center">
+                            {currentInvitation.title_key ? t(currentInvitation.title_key) : currentInvitation.title}
+                          </Heading>
+                        </XStack>
+
+                        <Paragraph color={textColor} textAlign="center" lineHeight="$2">
+                          <Text fontWeight="600">{currentInvitation.from_user_name}</Text>{' '}
+                          {currentInvitation.message_key ? t(currentInvitation.message_key) : currentInvitation.message}
+                        </Paragraph>
+
+                        {currentInvitation.custom_message && (
+                          <YStack padding="$4">
+                            {/* <Text color={textColor} fontWeight="bold" fontSize="$3" marginBottom="$2">
+                              {(() => {
+                                const translated = t('invitations.personalMessage');
+                                console.log('🔍 [UnifiedInvitationModal] PersonalMessage translation:', translated);
+                                return translated === 'invitations.personalMessage' ? 'Personal message:' : translated;
+                              })()}
+                            </Text> */}
+                            <Text color={textColor} fontSize="$4" textAlign="center">
+                              "{currentInvitation.custom_message}"
+                            </Text>
+                            {/* <Text color={textColor} fontSize="$3">
+                            asdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasja
+                            sdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajd
+                            asjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasad
+                            sasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasj
+                            asdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsaj
+                            dasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasa
+                            dsasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdas
+                            adsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdja
+                            sjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjds
+                            ajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjda
+                            sadsasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjd
+                            asadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasd
+                            jasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadj
+                            dsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasj
+                            dasadsasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdas
+                            jdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdha
+                            sdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsa
+                            djdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjda
+                            sjdasads
+                            </Text> */}
+                          </YStack>
+                        )}
+
+                        {currentInvitation.collection_name && (
+                          <Text color={textColor} fontSize="$3" textAlign="center">
+                            {t('invitations.collectionName') || 'Collection'}: {currentInvitation.collection_name}
                           </Text>
-                          <Text color={textColor} fontSize="$3">
-                            "{currentInvitation.custom_message}"
-                          </Text>
-                          {/* <Text color={textColor} fontSize="$3">
-                          asdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasads
-                          </Text> */}
+                        )}
                         </YStack>
-                      )}
+                      </ScrollView>
 
-                      {currentInvitation.collection_name && (
-                        <Text color={textColor} fontSize="$3" textAlign="center">
-                          {t('invitations.collectionName') || 'Collection'}: {currentInvitation.collection_name}
-                        </Text>
-                      )}
-
-                    </ScrollView>
-                    {/* </ScrollView> */}
+                      {/* 🔽 Faded overlay at bottom of scroll area */}
+                      <LinearGradient
+                        colors={['transparent', backgroundColor]}
+                        style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 40,
+                          zIndex: 10,
+                        }}
+                        pointerEvents="none"
+                      />
+                    </YStack>
                   </YStack>
 
                   {isProcessing && (
