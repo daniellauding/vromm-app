@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Button, Input } from 'tamagui';
 import { TouchableOpacity, View, Modal, Alert, Dimensions, Animated, Easing } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
@@ -353,6 +354,23 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
   
   // Animation ref for smooth transitions
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  
+  // Swipe gesture for week navigation
+  const swipeGesture = Gesture.Pan()
+    .onEnd((event) => {
+      const { translationX, velocityX } = event;
+      
+      // Only respond to horizontal swipes with sufficient movement or velocity
+      if (Math.abs(translationX) > 50 || Math.abs(velocityX) > 500) {
+        if (translationX > 0 || velocityX > 0) {
+          // Swipe right - go to previous week
+          goToPreviousWeek();
+        } else {
+          // Swipe left - go to next week
+          goToNextWeek();
+        }
+      }
+    });
 
   // Week navigation functions with smooth transitions
   const goToPreviousWeek = () => {
@@ -508,9 +526,10 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
           <Feather name="chevron-left" size={16} color={colorScheme === 'dark' ? '#CCC' : '#666'} />
         </TouchableOpacity>
 
-        {/* Weekdays - Animated */}
-        <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
-          <XStack flex={1} justifyContent="space-around" alignItems="center" paddingHorizontal="$0" gap="$2">
+        {/* Weekdays - Animated with Swipe Support */}
+        <GestureDetector gesture={swipeGesture}>
+          <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
+            <XStack flex={1} justifyContent="space-around" alignItems="center" paddingHorizontal="$0" gap="$2">
             {weeklyProgress.length > 0 ? weeklyProgress.map((day, index) => {
               const today = new Date();
               const todayString = today.toDateString();
@@ -557,11 +576,29 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
                         onDateSelected(selectedDayDate);
                       }
                       
-                      // Also show learning content sheet for this date
-                      setSelectedDate(selectedDayDate);
-                      setShowLearningPathsSheet(true);
-                      
-                      console.log('🗓️ [WeeklyGoal] Date selected with learning sheet:', selectedDayDate.toDateString());
+                      // Smart sheet handling - if sheet is already open, just update the date
+                      if (showLearningPathsSheet || showExerciseListSheet) {
+                        // Sheet is already open - just update the selected date
+                        setSelectedDate(selectedDayDate);
+                        
+                        // If we're in ExerciseListSheet, go back to LearningPathsSheet with new date
+                        if (showExerciseListSheet) {
+                          setShowExerciseListSheet(false);
+                          setSelectedLearningPath(null);
+                          // Small delay to ensure smooth transition
+                          setTimeout(() => {
+                            setShowLearningPathsSheet(true);
+                          }, 100);
+                        }
+                        
+                        console.log('🗓️ [WeeklyGoal] Updated existing sheet with new date:', selectedDayDate.toDateString());
+                      } else {
+                        // No sheet open - show learning content sheet for this date
+                        setSelectedDate(selectedDayDate);
+                        setShowLearningPathsSheet(true);
+                        
+                        console.log('🗓️ [WeeklyGoal] Opening new learning sheet for date:', selectedDayDate.toDateString());
+                      }
                     }}
                   >
                     <DayProgressCircle
@@ -634,8 +671,9 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
                 </YStack>
               ))
             )}
-          </XStack>
-        </Animated.View>
+            </XStack>
+          </Animated.View>
+        </GestureDetector>
 
         {/* Next Week Arrow */}
         <TouchableOpacity
@@ -847,6 +885,7 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
       
       {/* Learning Paths Sheet Modal (Level 0) - Opens when date is pressed */}
       <LearningPathsSheet
+        key={`learning-paths-${selectedDate?.toISOString() || 'default'}`}
         visible={showLearningPathsSheet}
         onClose={() => {
           console.log('🗓️ [WeeklyGoal] LearningPathsSheet closed');
@@ -865,6 +904,7 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
 
       {/* Exercise List Sheet Modal (Level 1) */}
       <ExerciseListSheet
+        key={`exercise-list-${selectedLearningPath?.id || 'default'}`}
         visible={showExerciseListSheet}
         onClose={() => {
           console.log('🗓️ [WeeklyGoal] ExerciseListSheet closed');
