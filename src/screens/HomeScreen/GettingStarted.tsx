@@ -36,6 +36,7 @@ import { useTour } from '../../contexts/TourContext';
 import { useTourTarget } from '../../components/TourOverlay';
 import { CreateRouteSheet } from '../../components/CreateRouteSheet';
 import { ExerciseListSheet } from '../../components/ExerciseListSheet';
+import { LearningPathsSheet } from '../../components/LearningPathsSheet';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -310,12 +311,16 @@ export const GettingStarted = () => {
 
   // Sheet modals state
   const [showCreateRouteSheet, setShowCreateRouteSheet] = React.useState(false);
+  const [showLearningPathsSheet, setShowLearningPathsSheet] = React.useState(false);
   const [showExerciseListSheet, setShowExerciseListSheet] = React.useState(false);
   
   // Learning paths state (like ProgressSection.tsx)
   const [learningPaths, setLearningPaths] = React.useState<any[]>([]);
   const [firstLearningPathId, setFirstLearningPathId] = React.useState<string | null>(null);
   const [firstLearningPathTitle, setFirstLearningPathTitle] = React.useState<string>('');
+  
+  // Selected learning path state for sheet navigation
+  const [selectedLearningPath, setSelectedLearningPath] = React.useState<any | null>(null);
 
   // License plan gesture handler (like RouteDetailSheet)
   const licensePlanPanGesture = Gesture.Pan()
@@ -1448,21 +1453,8 @@ export const GettingStarted = () => {
           {/* 3. Progress start step 1 */}
           <TouchableOpacity
             onPress={() => {
-              console.log('🎯 [GettingStarted] Start Learning pressed:', {
-                firstLearningPathId,
-                firstLearningPathTitle,
-                hasLearningPaths: learningPaths.length > 0,
-                learningPathsData: learningPaths.map(p => ({ id: p.id, title: p.title }))
-              });
-              
-              if (firstLearningPathId) {
-                console.log('🎯 [GettingStarted] Opening ExerciseListSheet with path:', firstLearningPathId);
-                setShowExerciseListSheet(true);
-              } else {
-                console.warn('🎯 [GettingStarted] No specific learning path available - showing all paths');
-                // If no specific path, still open the sheet but show all paths
-                setShowExerciseListSheet(true);
-              }
+              console.log('🎯 [GettingStarted] Start Learning pressed - opening Learning Paths overview');
+              setShowLearningPathsSheet(true);
             }}
             activeOpacity={0.8}
             delayPressIn={50}
@@ -2748,23 +2740,44 @@ export const GettingStarted = () => {
         }}
       />
 
-      {/* Exercise List Sheet Modal */}
-      {showExerciseListSheet && (
-        <ExerciseListSheet
-          visible={showExerciseListSheet}
-          onClose={() => {
-            console.log('🎯 [GettingStarted] ExerciseListSheet closed');
-            setShowExerciseListSheet(false);
-          }}
-          title={
-            firstLearningPathId 
-              ? firstLearningPathTitle 
-              : t('exercises.allLearningPaths') || 'All Learning Paths'
-          }
-          learningPathId={firstLearningPathId || undefined}
-          showAllPaths={!firstLearningPathId} // Show all paths if we don't have a specific one
-        />
-      )}
+      {/* Learning Paths Overview Sheet Modal (Level 0) */}
+      <LearningPathsSheet
+        visible={showLearningPathsSheet}
+        onClose={() => {
+          console.log('🎯 [GettingStarted] LearningPathsSheet closed');
+          setShowLearningPathsSheet(false);
+        }}
+        onPathSelected={(path) => {
+          console.log('🎯 [GettingStarted] Learning path selected:', path.title[language] || path.title.en);
+          setSelectedLearningPath(path);
+          setShowLearningPathsSheet(false);
+          setShowExerciseListSheet(true);
+        }}
+        title={t('exercises.allLearningPaths') || 'All Learning Paths'}
+      />
+
+      {/* Exercise List Sheet Modal (Level 1) */}
+      <ExerciseListSheet
+        visible={showExerciseListSheet}
+        onClose={() => {
+          console.log('🎯 [GettingStarted] ExerciseListSheet closed');
+          setShowExerciseListSheet(false);
+          setSelectedLearningPath(null);
+        }}
+        onBackToAllPaths={selectedLearningPath ? () => {
+          console.log('🎯 [GettingStarted] Back to all paths from ExerciseListSheet');
+          setShowExerciseListSheet(false);
+          setSelectedLearningPath(null);
+          setShowLearningPathsSheet(true);
+        } : undefined}
+        title={
+          selectedLearningPath 
+            ? (selectedLearningPath.title[language] || selectedLearningPath.title.en)
+            : (firstLearningPathTitle || t('exercises.allLearningPaths') || 'All Learning Paths')
+        }
+        learningPathId={selectedLearningPath?.id || firstLearningPathId || undefined}
+        showAllPaths={!selectedLearningPath && !firstLearningPathId}
+      />
     </YStack>
   );
 };

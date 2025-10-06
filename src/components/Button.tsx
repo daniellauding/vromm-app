@@ -5,7 +5,7 @@ import { sizes } from '../theme/sizes';
 import { tokens } from '../tokens';
 
 // 🎨 Type for icon components (works with lucide-icons and other icon libraries)
-type IconComponent = React.ComponentType<{ size?: number; color?: string }>;
+type IconComponent = React.ComponentType<{ size?: number; color?: string }> | React.ReactElement;
 
 export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'link' | 'outlined' | 'icon';
 export type ButtonSize = keyof typeof sizes.button;
@@ -316,7 +316,11 @@ export const Button = forwardRef<React.ElementRef<typeof ButtonFrame>, ButtonPro
         {...props}
       >
         {/* 🎨 Render icon if provided */}
-        {Icon && <Icon size={iconSize} color={getIconColor()} />}
+        {Icon && (
+          typeof Icon === 'function' 
+            ? <Icon size={iconSize} color={getIconColor()} />
+            : Icon
+        )}
 
         {/* 🎨 Render text if children provided */}
         {children && (

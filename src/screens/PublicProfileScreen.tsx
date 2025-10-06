@@ -986,7 +986,7 @@ export function PublicProfileScreen() {
             {showAdminControls && (
               <Button
                 onPress={handleAdminDeleteUser}
-                icon={<Feather name="trash-2" size={20} color="red" />}
+                icon={(props: any) => <Feather name="trash-2" size={props.size || 20} color="red" />}
                 variant="secondary"
                 marginRight="$2"
               >

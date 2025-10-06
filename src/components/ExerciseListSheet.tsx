@@ -79,6 +79,7 @@ interface ExerciseListSheetProps {
   learningPathId?: string;
   showAllPaths?: boolean;
   initialExerciseId?: string; // New prop to open a specific exercise
+  onBackToAllPaths?: () => void; // New prop to go back to learning paths overview
 }
 
 // Progress Circle component (exact copy from ProgressScreen)
@@ -132,6 +133,7 @@ export function ExerciseListSheet({
   learningPathId,
   showAllPaths = false,
   initialExerciseId,
+  onBackToAllPaths,
 }: ExerciseListSheetProps) {
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
@@ -1234,9 +1236,23 @@ export function ExerciseListSheet({
               maxHeight={height * 0.85}
             >
               {/* Header */}
-              <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                {title}
-              </Text>
+              <XStack justifyContent="space-between" alignItems="center">
+                {onBackToAllPaths ? (
+                  <TouchableOpacity onPress={onBackToAllPaths}>
+                    <Feather name="arrow-left" size={24} color={colorScheme === 'dark' ? '#FFF' : '#000'} />
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ width: 24 }} />
+                )}
+                
+                <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center" flex={1}>
+                  {title}
+                </Text>
+                
+                <TouchableOpacity onPress={onClose}>
+                  <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#000'} />
+                </TouchableOpacity>
+              </XStack>
 
               {/* Featured Exercises Quick Access */}
               <Button
