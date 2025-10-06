@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Button, Input } from 'tamagui';
 import { TouchableOpacity, View, Modal, Alert, Dimensions, Animated, Easing } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
@@ -12,8 +13,6 @@ import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useTranslation } from '../../contexts/TranslationContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCelebration } from '../../contexts/CelebrationContext';
-import { LearningPathsSheet } from '../../components/LearningPathsSheet';
-import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 
 interface DayProgress {
   day: string;
@@ -116,11 +115,7 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
   
   // Celebration modal state - now using global context (removed local state)
   
-  // Learning content sheet states 
-  const [showLearningPathsSheet, setShowLearningPathsSheet] = useState(false);
-  const [showExerciseListSheet, setShowExerciseListSheet] = useState(false);
-  const [selectedLearningPath, setSelectedLearningPath] = useState<any | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  // Removed learning content sheet states - now handled by DailyStatus button
   
   // Use effective user ID (activeUserId prop, activeStudentId from context, or current user)
   const effectiveUserId = activeUserId || activeStudentId || user?.id || null;
@@ -355,76 +350,135 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
   // Animation ref for smooth transitions
   const fadeAnim = useRef(new Animated.Value(1)).current;
   
+  // Safe navigation functions that can be called from gesture thread
+  const handlePreviousWeek = () => {
+    console.log('🗓️ [WeeklyGoal] Swipe right - going to previous week');
+    goToPreviousWeek();
+  };
+  
+  const handleNextWeek = () => {
+    console.log('🗓️ [WeeklyGoal] Swipe left - going to next week');
+    goToNextWeek();
+  };
+
   // Swipe gesture for week navigation
   const swipeGesture = Gesture.Pan()
+    .minDistance(30) // Minimum distance before gesture activates
+    .activeOffsetX([-30, 30]) // Only activate for horizontal swipes
+    .failOffsetY([-30, 30]) // Fail if vertical movement is too much
     .onEnd((event) => {
-      const { translationX, velocityX } = event;
-      
-      // Only respond to horizontal swipes with sufficient movement or velocity
-      if (Math.abs(translationX) > 50 || Math.abs(velocityX) > 500) {
-        if (translationX > 0 || velocityX > 0) {
-          // Swipe right - go to previous week
-          goToPreviousWeek();
+      try {
+        const { translationX, velocityX } = event;
+        
+        console.log('🗓️ [WeeklyGoal] Swipe ended:', {
+          translationX,
+          velocityX,
+          absTranslationX: Math.abs(translationX),
+          absVelocityX: Math.abs(velocityX)
+        });
+        
+        // Only respond to horizontal swipes with sufficient movement or velocity
+        if (Math.abs(translationX) > 50 || Math.abs(velocityX) > 500) {
+          if (translationX > 0 || velocityX > 0) {
+            // Swipe right - go to previous week
+            console.log('🗓️ [WeeklyGoal] Detected swipe right - calling previous week');
+            runOnJS(handlePreviousWeek)();
+          } else {
+            // Swipe left - go to next week
+            console.log('🗓️ [WeeklyGoal] Detected swipe left - calling next week');
+            runOnJS(handleNextWeek)();
+          }
         } else {
-          // Swipe left - go to next week
-          goToNextWeek();
+          console.log('🗓️ [WeeklyGoal] Swipe not strong enough to trigger navigation');
         }
+      } catch (error) {
+        console.error('🗓️ [WeeklyGoal] Error in swipe gesture:', error);
       }
     });
 
   // Week navigation functions with smooth transitions
   const goToPreviousWeek = () => {
-    setWeekTransitionLoading(true);
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setCurrentWeekOffset(prev => prev - 1);
+    try {
+      console.log('🗓️ [WeeklyGoal] goToPreviousWeek called, current offset:', currentWeekOffset);
+      setWeekTransitionLoading(true);
       Animated.timing(fadeAnim, {
-        toValue: 1,
+        toValue: 0,
         duration: 200,
         useNativeDriver: true,
       }).start(() => {
-        setWeekTransitionLoading(false);
+        setCurrentWeekOffset(prev => {
+          const newOffset = prev - 1;
+          console.log('🗓️ [WeeklyGoal] Setting previous week offset:', newOffset);
+          return newOffset;
+        });
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          setWeekTransitionLoading(false);
+          console.log('🗓️ [WeeklyGoal] Previous week transition completed');
+        });
       });
-    });
+    } catch (error) {
+      console.error('🗓️ [WeeklyGoal] Error in goToPreviousWeek:', error);
+      setWeekTransitionLoading(false);
+    }
   };
   
   const goToNextWeek = () => {
-    setWeekTransitionLoading(true);
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setCurrentWeekOffset(prev => prev + 1);
+    try {
+      console.log('🗓️ [WeeklyGoal] goToNextWeek called, current offset:', currentWeekOffset);
+      setWeekTransitionLoading(true);
       Animated.timing(fadeAnim, {
-        toValue: 1,
+        toValue: 0,
         duration: 200,
         useNativeDriver: true,
       }).start(() => {
-        setWeekTransitionLoading(false);
+        setCurrentWeekOffset(prev => {
+          const newOffset = prev + 1;
+          console.log('🗓️ [WeeklyGoal] Setting next week offset:', newOffset);
+          return newOffset;
+        });
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          setWeekTransitionLoading(false);
+          console.log('🗓️ [WeeklyGoal] Next week transition completed');
+        });
       });
-    });
+    } catch (error) {
+      console.error('🗓️ [WeeklyGoal] Error in goToNextWeek:', error);
+      setWeekTransitionLoading(false);
+    }
   };
   
   const goToCurrentWeek = () => {
-    setWeekTransitionLoading(true);
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setCurrentWeekOffset(0);
+    try {
+      console.log('🗓️ [WeeklyGoal] goToCurrentWeek called, current offset:', currentWeekOffset);
+      setWeekTransitionLoading(true);
       Animated.timing(fadeAnim, {
-        toValue: 1,
+        toValue: 0,
         duration: 200,
         useNativeDriver: true,
       }).start(() => {
-        setWeekTransitionLoading(false);
+        setCurrentWeekOffset(0);
+        console.log('🗓️ [WeeklyGoal] Reset to current week (offset: 0)');
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          setWeekTransitionLoading(false);
+          console.log('🗓️ [WeeklyGoal] Current week transition completed');
+        });
       });
-    });
+    } catch (error) {
+      console.error('🗓️ [WeeklyGoal] Error in goToCurrentWeek:', error);
+      setWeekTransitionLoading(false);
+    }
   };
   
   // Get week display info
@@ -535,10 +589,17 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
               const todayString = today.toDateString();
               const isToday = day.date === todayString;
               
+              // Check if this day is in the future
+              const dayDate = new Date(day.date);
+              const todayEnd = new Date();
+              todayEnd.setHours(23, 59, 59, 999);
+              const isFuture = dayDate > todayEnd;
+              
               console.log('🗓️ [WeeklyGoal] Day comparison for', day.day, ':', {
                 dayDate: day.date,
                 todayDate: todayString,
                 isToday,
+                isFuture,
                 index
               });
               
@@ -566,49 +627,51 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
                 >
                   {/* Day circle */}
                   <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={{ alignItems: 'center' }}
+                    activeOpacity={isFuture ? 1 : 0.7}
+                    disabled={isFuture}
+                    style={{ 
+                      alignItems: 'center',
+                      opacity: isFuture ? 0.5 : 1 
+                    }}
                     onPress={() => {
                       const selectedDayDate = new Date(day.date);
+                      const today = new Date();
                       
-                      // Notify parent component about date selection (for DailyStatus)
-                      if (onDateSelected) {
-                        onDateSelected(selectedDayDate);
+                      console.log('🗓️ [WeeklyGoal] Date pressed:', {
+                        date: selectedDayDate.toDateString(),
+                        isSelected: externalSelectedDate && day.date === externalSelectedDate.toDateString(),
+                        currentSelected: externalSelectedDate?.toDateString()
+                      });
+                      
+                      // If clicking the same selected date, go back to today
+                      if (externalSelectedDate && day.date === externalSelectedDate.toDateString()) {
+                        console.log('🗓️ [WeeklyGoal] Same date clicked - going back to today');
+                        if (onDateSelected) {
+                          onDateSelected(today);
+                        }
+                        return;
                       }
                       
-                      // Smart sheet handling - if sheet is already open, just update the date
-                      if (showLearningPathsSheet || showExerciseListSheet) {
-                        // Sheet is already open - just update the selected date
-                        setSelectedDate(selectedDayDate);
-                        
-                        // If we're in ExerciseListSheet, go back to LearningPathsSheet with new date
-                        if (showExerciseListSheet) {
-                          setShowExerciseListSheet(false);
-                          setSelectedLearningPath(null);
-                          // Small delay to ensure smooth transition
-                          setTimeout(() => {
-                            setShowLearningPathsSheet(true);
-                          }, 100);
-                        }
-                        
-                        console.log('🗓️ [WeeklyGoal] Updated existing sheet with new date:', selectedDayDate.toDateString());
-                      } else {
-                        // No sheet open - show learning content sheet for this date
-                        setSelectedDate(selectedDayDate);
-                        setShowLearningPathsSheet(true);
-                        
-                        console.log('🗓️ [WeeklyGoal] Opening new learning sheet for date:', selectedDayDate.toDateString());
+                      // Otherwise, select the new date
+                      if (onDateSelected) {
+                        onDateSelected(selectedDayDate);
                       }
                     }}
                   >
                     <DayProgressCircle
-                      progress={day.progress}
+                      progress={isFuture ? 0 : day.progress}
                       size={isToday ? 28 : 28}
-                      color={day.completed ? '#4CAF50' : '#00E6C3'}
+                      color={
+                        isFuture 
+                          ? (colorScheme === 'dark' ? '#333' : '#DDD')
+                          : day.completed 
+                            ? '#4CAF50' 
+                            : '#00E6C3'
+                      }
                       bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                      completed={day.completed}
+                      completed={!isFuture && day.completed}
                     />
-                    {day.exercises > 0 && (
+                    {day.exercises > 0 && !isFuture && (
                       <Text 
                         fontSize={9} 
                         fontWeight="bold" 
@@ -623,7 +686,13 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
                   <YStack alignItems="center" gap="$0.5">
                     <Text 
                       fontSize={isToday ? "$2" : "$2"}
-                      color={isToday ? '#00E6C3' : (colorScheme === 'dark' ? '#CCC' : '#666')}
+                      color={
+                        isFuture 
+                          ? (colorScheme === 'dark' ? '#444' : '#BBB')
+                          : isToday 
+                            ? '#00E6C3' 
+                            : (colorScheme === 'dark' ? '#CCC' : '#666')
+                      }
                       fontWeight={day.completed || isToday ? 'bold' : 'normal'}
                     >
                       {day.day}
@@ -632,7 +701,13 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
                     {/* Date - more prominent for today */}
                     <Text 
                       fontSize={isToday ? "$2" : "$2"}
-                      color={isToday ? '#00E6C3' : (colorScheme === 'dark' ? '#AAA' : '#555')}
+                      color={
+                        isFuture 
+                          ? (colorScheme === 'dark' ? '#333' : '#CCC')
+                          : isToday 
+                            ? '#00E6C3' 
+                            : (colorScheme === 'dark' ? '#AAA' : '#555')
+                      }
                       fontWeight="600"
                     >
                       {new Date(day.date).getDate()}/{String(new Date(day.date).getMonth() + 1).padStart(2, '0')}
@@ -882,45 +957,6 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-      
-      {/* Learning Paths Sheet Modal (Level 0) - Opens when date is pressed */}
-      <LearningPathsSheet
-        key={`learning-paths-${selectedDate?.toISOString() || 'default'}`}
-        visible={showLearningPathsSheet}
-        onClose={() => {
-          console.log('🗓️ [WeeklyGoal] LearningPathsSheet closed');
-          setShowLearningPathsSheet(false);
-          setSelectedDate(null);
-        }}
-        onPathSelected={(path) => {
-          console.log('🗓️ [WeeklyGoal] Learning path selected:', path.title[lang] || path.title.en);
-          setSelectedLearningPath(path);
-          setShowLearningPathsSheet(false);
-          setShowExerciseListSheet(true);
-        }}
-        title={selectedDate ? `Learning for ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}` : (t('exercises.allLearningPaths') || 'All Learning Paths')}
-        initialSnapPoint="mini"
-      />
-
-      {/* Exercise List Sheet Modal (Level 1) */}
-      <ExerciseListSheet
-        key={`exercise-list-${selectedLearningPath?.id || 'default'}`}
-        visible={showExerciseListSheet}
-        onClose={() => {
-          console.log('🗓️ [WeeklyGoal] ExerciseListSheet closed');
-          setShowExerciseListSheet(false);
-          setSelectedLearningPath(null);
-        }}
-        onBackToAllPaths={() => {
-          console.log('🗓️ [WeeklyGoal] Back to all paths from ExerciseListSheet');
-          setShowExerciseListSheet(false);
-          setSelectedLearningPath(null);
-          setShowLearningPathsSheet(true);
-        }}
-        title={selectedLearningPath ? (selectedLearningPath.title[lang] || selectedLearningPath.title.en) : 'Exercises'}
-        learningPathId={selectedLearningPath?.id || undefined}
-        showAllPaths={false}
-      />
       
       {/* Celebration Modal - now handled globally */}
     </YStack>

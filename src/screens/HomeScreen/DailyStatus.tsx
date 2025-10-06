@@ -7,6 +7,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
+import { useTranslation } from '../../contexts/TranslationContext';
+import { LearningPathsSheet } from '../../components/LearningPathsSheet';
+import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 
 interface DailyStatusData {
   id?: string;
@@ -25,6 +28,7 @@ interface DailyStatusProps {
 export function DailyStatus({ activeUserId, selectedDate: externalSelectedDate, onDateChange }: DailyStatusProps) {
   const { profile } = useAuth();
   const { showToast } = useToast();
+  const { t, language: lang } = useTranslation();
   const theme = useTheme();
   const systemColorScheme = useColorScheme();
   const colorScheme = systemColorScheme || 'light';
@@ -50,6 +54,12 @@ export function DailyStatus({ activeUserId, selectedDate: externalSelectedDate, 
   const [internalSelectedDate, setInternalSelectedDate] = useState(new Date());
   const selectedDate = externalSelectedDate || internalSelectedDate;
   const [pastStatuses, setPastStatuses] = useState<{[key: string]: DailyStatusData | null}>({});
+
+  // Learning content sheet states
+  const [showLearningPathsSheet, setShowLearningPathsSheet] = useState(false);
+  const [showExerciseListSheet, setShowExerciseListSheet] = useState(false);
+  const [selectedLearningPath, setSelectedLearningPath] = useState<any | null>(null);
+  const [cameFromDailyStatus, setCameFromDailyStatus] = useState(false);
 
   // Update internal date when external date changes
   useEffect(() => {
@@ -216,6 +226,17 @@ export function DailyStatus({ activeUserId, selectedDate: externalSelectedDate, 
 
   useEffect(() => {
     loadStatusForDate(selectedDate);
+    
+    // Only close learning sheets if switching to a future date
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const isFuture = selectedDate > today;
+    if (isFuture) {
+      console.log('🎯 [DailyStatus] Future date selected - closing learning sheets');
+      setShowLearningPathsSheet(false);
+      setShowExerciseListSheet(false);
+      setSelectedLearningPath(null);
+    }
   }, [selectedDate, effectiveUserId]);
 
   // Note: DailyStatus doesn't need real-time subscriptions
@@ -337,6 +358,7 @@ export function DailyStatus({ activeUserId, selectedDate: externalSelectedDate, 
           </XStack>
         </TouchableOpacity>
       </View>
+      
       
       {/* Status Sheet */}
       {showSheet && (
@@ -517,6 +539,52 @@ export function DailyStatus({ activeUserId, selectedDate: externalSelectedDate, 
                     />
                   </YStack>
                   
+                  {/* Exercise Learning Button - Show for today and past dates */}
+                  {!isFuture && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        console.log('🎯 [DailyStatus] Opening learning paths from modal - hiding DailyStatus modal');
+                        
+                        // Hide DailyStatus modal first
+                        setShowSheet(false);
+                        
+                        // Set flag to remember we came from DailyStatus
+                        setCameFromDailyStatus(true);
+                        
+                        // Show learning paths sheet after a brief delay for smooth transition
+                        setTimeout(() => {
+                          setShowLearningPathsSheet(true);
+                        }, 200);
+                      }}
+                      style={{
+                        backgroundColor: colorScheme === 'dark' ? '#1A4A4A' : '#E6F7FF',
+                        borderRadius: 12,
+                        padding: 12,
+                        marginBottom: 12,
+                        borderWidth: 1,
+                        borderColor: colorScheme === 'dark' ? '#2A6A6A' : '#B3E5FC',
+                      }}
+                    >
+                      <XStack alignItems="center" justifyContent="center" gap="$2">
+                        <Feather 
+                          name="book-open" 
+                          size={18} 
+                          color="#00E6C3" 
+                        />
+                        <Text 
+                          fontSize="$3" 
+                          fontWeight="500"
+                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                        >
+                          {isToday 
+                            ? 'Did you do any exercises today?' 
+                            : `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`
+                          }
+                        </Text>
+                      </XStack>
+                    </TouchableOpacity>
+                  )}
+                  
                   {/* Save Button */}
                   <Button
                     onPress={saveDailyStatus}
@@ -535,6 +603,65 @@ export function DailyStatus({ activeUserId, selectedDate: externalSelectedDate, 
           </Animated.View>
         </Modal>
       )}
+
+      {/* Learning Paths Sheet Modal (Level 0) - Show for today and past dates */}
+      <LearningPathsSheet
+        visible={showLearningPathsSheet}
+        onClose={() => {
+          console.log('🎯 [DailyStatus] LearningPathsSheet closed via X button');
+          setShowLearningPathsSheet(false);
+          setCameFromDailyStatus(false);
+        }}
+        onBack={cameFromDailyStatus ? () => {
+          console.log('🎯 [DailyStatus] Back arrow pressed - returning to DailyStatus modal');
+          setShowLearningPathsSheet(false);
+          setCameFromDailyStatus(false);
+          setTimeout(() => {
+            setShowSheet(true);
+          }, 100);
+        } : undefined}
+        onPathSelected={(path) => {
+          console.log('🎯 [DailyStatus] Learning path selected:', path.title[lang] || path.title.en);
+          setSelectedLearningPath(path);
+          setShowLearningPathsSheet(false);
+          setShowExerciseListSheet(true);
+        }}
+        title={isToday 
+          ? "Learning for today" 
+          : `Learning for ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`
+        }
+        initialSnapPoint="large"
+      />
+
+      {/* Exercise List Sheet Modal (Level 1) - Show for today and past dates */}
+      <ExerciseListSheet
+        visible={showExerciseListSheet}
+        onClose={() => {
+          console.log('🎯 [DailyStatus] ExerciseListSheet closed - checking if came from DailyStatus');
+          setShowExerciseListSheet(false);
+          setSelectedLearningPath(null);
+          
+          // If came from DailyStatus, return to DailyStatus modal
+          if (cameFromDailyStatus) {
+            console.log('🎯 [DailyStatus] Returning to DailyStatus modal from ExerciseListSheet');
+            setCameFromDailyStatus(false);
+            setTimeout(() => {
+              setShowSheet(true);
+            }, 100);
+          }
+        }}
+        onBackToAllPaths={() => {
+          console.log('🎯 [DailyStatus] Back to all paths from ExerciseListSheet');
+          setShowExerciseListSheet(false);
+          setSelectedLearningPath(null);
+          
+          // Always go back to LearningPathsSheet when coming from DailyStatus
+          setShowLearningPathsSheet(true);
+        }}
+        title={selectedLearningPath ? (selectedLearningPath.title[lang] || selectedLearningPath.title.en) : 'Exercises'}
+        learningPathId={selectedLearningPath?.id || undefined}
+        showAllPaths={false}
+      />
     </>
   );
 }

@@ -40,6 +40,7 @@ interface LearningPathsSheetProps {
   onPathSelected: (path: LearningPath) => void;
   title?: string;
   initialSnapPoint?: 'large' | 'medium' | 'small' | 'mini';
+  onBack?: () => void;
 }
 
 // Progress Circle component (exact copy from ProgressScreen)
@@ -86,7 +87,7 @@ function ProgressCircle({
   );
 }
 
-export function LearningPathsSheet({ visible, onClose, onPathSelected, title = 'Learning Paths', initialSnapPoint = 'large' }: LearningPathsSheetProps) {
+export function LearningPathsSheet({ visible, onClose, onPathSelected, title = 'Learning Paths', initialSnapPoint = 'large', onBack }: LearningPathsSheetProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { activeStudentId } = useStudentSwitch();
@@ -408,9 +409,18 @@ export function LearningPathsSheet({ visible, onClose, onPathSelected, title = '
                   <View style={{ flex: 1 }}>
               {/* Header */}
               <XStack justifyContent="space-between" alignItems="center">
-                <Text fontSize="$6" fontWeight="bold" color="$color">
+                {onBack ? (
+                  <TouchableOpacity onPress={onBack}>
+                    <Feather name="arrow-left" size={24} color={colorScheme === 'dark' ? '#FFF' : '#000'} />
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ width: 24 }} />
+                )}
+                
+                <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center" flex={1}>
                   {title}
                 </Text>
+                
                 <TouchableOpacity onPress={onClose}>
                   <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#000'} />
                 </TouchableOpacity>
