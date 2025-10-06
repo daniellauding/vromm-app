@@ -2764,12 +2764,12 @@ export const GettingStarted = () => {
           setShowExerciseListSheet(false);
           setSelectedLearningPath(null);
         }}
-        onBackToAllPaths={selectedLearningPath ? () => {
+        onBackToAllPaths={() => {
           console.log('🎯 [GettingStarted] Back to all paths from ExerciseListSheet');
           setShowExerciseListSheet(false);
           setSelectedLearningPath(null);
           setShowLearningPathsSheet(true);
-        } : undefined}
+        }}
         title={
           selectedLearningPath 
             ? (selectedLearningPath.title[language] || selectedLearningPath.title.en)

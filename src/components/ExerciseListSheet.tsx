@@ -1,5 +1,7 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Modal, Animated, Pressable, Easing, View, Dimensions, ScrollView, TouchableOpacity, RefreshControl, Alert, TextInput } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,11 +11,12 @@ import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useToast } from '../contexts/ToastContext';
 import { useUnlock } from '../contexts/UnlockContext';
-import { CelebrationModal } from './CelebrationModal';
+import { useCelebration } from '../contexts/CelebrationContext';
 import { useStripe } from '@stripe/stripe-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { supabase } from '../lib/supabase';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { useColorScheme } from 'react-native';
@@ -154,6 +157,7 @@ export function ExerciseListSheet({
     hasPathPayment,
     hasExercisePayment,
   } = useUnlock();
+  const { showCelebration } = useCelebration();
   const colorScheme = useColorScheme();
   const navigation = useNavigation<NavigationProp>();
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
@@ -163,7 +167,110 @@ export function ExerciseListSheet({
 
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(300)).current;
+  const sheetTranslateY = useRef(new Animated.Value(300)).current; // For exercise detail modal
+  
+  // Gesture handling for drag-to-resize and snap points (like RouteDetailSheet)
+  const translateY = useSharedValue(height);
+  const isDragging = useRef(false);
+  
+  // Snap points for resizing (top Y coordinates like RouteDetailSheet)
+  const snapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)  
+      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85,   // Top at 85% of screen (show 15% - just title)
+      dismissed: height,     // Completely off-screen
+    };
+    return points;
+  }, [height]);
+  
+  const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
+  const currentState = useSharedValue(snapPoints.large);
+
+  const dismissSheet = useCallback(() => {
+    translateY.value = withSpring(snapPoints.dismissed, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    setTimeout(() => onClose(), 200);
+  }, [onClose, snapPoints.dismissed]);
+
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      isDragging.current = true;
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentState.value + translationY;
+        
+        // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
+        const minPosition = snapPoints.large; // Smallest Y (show most - like expanded)
+        const maxPosition = snapPoints.mini + 100; // Allow dragging past mini for dismissal
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+        
+        // Set translateY directly like RouteDetailSheet
+        translateY.value = boundedPosition;
+      } catch (error) {
+        console.log('panGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      isDragging.current = false;
+      
+      const currentPosition = currentState.value + translationY;
+      
+      // Only dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
+        runOnJS(dismissSheet)();
+        return;
+      }
+      
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        // Fast upward swipe - go to larger size (smaller Y)
+        targetSnapPoint = snapPoints.large;
+      } else if (velocityY > 500) {
+        // Fast downward swipe - go to smaller size (larger Y)
+        targetSnapPoint = snapPoints.mini;
+      } else {
+        // Find closest snap point
+        const positions = [snapPoints.large, snapPoints.medium, snapPoints.small, snapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+      
+      // Constrain target to valid range
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, snapPoints.large),
+        snapPoints.mini,
+      );
+      
+      // Animate to target position - set translateY directly like RouteDetailSheet
+      translateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      
+      currentState.value = boundedTarget;
+      runOnJS(setCurrentSnapPoint)(boundedTarget);
+    });
+
+  const animatedGestureStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   // State (exact copy from ProgressScreen)
   const [detailPath, setDetailPath] = useState<LearningPath | null>(null);
@@ -187,15 +294,7 @@ export function ExerciseListSheet({
   // Get effective user ID (student switch support)
   const effectiveUserId = activeStudentId || user?.id;
 
-  // Celebration modal state
-  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
-  const [celebrationData, setCelebrationData] = useState<{
-    learningPathTitle: { en: string; sv: string };
-    completedExercises: number;
-    totalExercises: number;
-    timeSpent?: number;
-    streakDays?: number;
-  } | null>(null);
+  // Celebration modal state - now using global context (removed local state)
   
   // Load shared unlock data when user changes
   useEffect(() => {
@@ -321,6 +420,46 @@ export function ExerciseListSheet({
     }
   }, [effectiveUserId]);
 
+  // Toggle completion for an exercise with all its repeats
+  const toggleCompletionWithRepeats = async (exerciseId: string, includeAllRepeats: boolean = false) => {
+    if (!effectiveUserId) return;
+    
+    // Find the exercise details
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    if (!exercise) return;
+    
+    const isDone = completedIds.includes(exerciseId);
+    
+    console.log('🎯 [ExerciseListSheet] Toggle Completion With Repeats:', {
+      exerciseId,
+      exerciseTitle: exercise?.title,
+      isCurrentlyCompleted: isDone,
+      includeAllRepeats,
+      repeatCount: exercise.repeat_count || 1,
+      actionToTake: isDone ? 'REMOVE ALL' : 'ADD ALL',
+    });
+
+    // Toggle main exercise
+    await toggleCompletion(exerciseId);
+    
+    // If includeAllRepeats and exercise has repeats, toggle all virtual repeats
+    if (includeAllRepeats && exercise.repeat_count && exercise.repeat_count > 1) {
+      const shouldMarkDone = !isDone; // If main was not done, we're marking everything as done
+      
+      for (let i = 2; i <= exercise.repeat_count; i++) {
+        const virtualId = `${exerciseId}-virtual-${i}`;
+        const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
+        
+        // Only toggle if virtual repeat state doesn't match desired state
+        if (shouldMarkDone && !isVirtualDone) {
+          await toggleVirtualRepeatCompletion(virtualId);
+        } else if (!shouldMarkDone && isVirtualDone) {
+          await toggleVirtualRepeatCompletion(virtualId);
+        }
+      }
+    }
+  };
+
   // Toggle completion functions (exact copy from ProgressScreen)
   const toggleCompletion = async (exerciseId: string) => {
     if (!effectiveUserId) return;
@@ -362,7 +501,7 @@ export function ExerciseListSheet({
         // Check for celebration triggers (include the current exercise in the count)
         if (detailPath) {
           const updatedCompletedIds = [...completedIds, exerciseId];
-          checkForCelebration(detailPath, updatedCompletedIds);
+          await checkForCelebration(detailPath, updatedCompletedIds);
         }
       } catch (error) {
         console.error('Error adding completion:', error);
@@ -434,15 +573,14 @@ export function ExerciseListSheet({
           console.log('📊 [ExerciseListSheet] Could not fetch celebration stats:', error);
         }
 
-        // Set celebration data and show modal
-        setCelebrationData({
+        // Use global celebration context
+        showCelebration({
           learningPathTitle: learningPath.title,
           completedExercises,
           totalExercises,
           timeSpent,
           streakDays,
         });
-        setShowCelebrationModal(true);
       }
     } catch (error) {
       console.error('🎉 [ExerciseListSheet] Error checking for celebration:', error);
@@ -706,34 +844,59 @@ export function ExerciseListSheet({
     };
   }, [effectiveUserId, visible]);
 
-  // Animation effects
+  // Animation effects - dual system for main sheet and exercise detail
   useEffect(() => {
     if (visible) {
-      Animated.timing(backdropOpacity, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-      Animated.timing(sheetTranslateY, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start();
+      if (selectedExercise) {
+        // Individual exercise detail - use traditional animation
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }).start();
+      } else {
+        // Main exercise list - use gesture system
+        translateY.value = withSpring(snapPoints.large, {
+          damping: 20,
+          mass: 1,
+          stiffness: 100,
+          overshootClamping: true,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        });
+        currentState.value = snapPoints.large;
+        setCurrentSnapPoint(snapPoints.large);
+        
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+      }
     } else {
+      // Reset all animations
       Animated.timing(backdropOpacity, {
         toValue: 0,
         duration: 200,
         useNativeDriver: true,
       }).start();
-      Animated.timing(sheetTranslateY, {
-        toValue: 300,
-        duration: 300,
-        easing: Easing.in(Easing.ease),
-        useNativeDriver: true,
-      }).start();
+      
+      if (selectedExercise) {
+        Animated.timing(sheetTranslateY, {
+          toValue: 300,
+          duration: 300,
+          easing: Easing.in(Easing.ease),
+          useNativeDriver: true,
+        }).start();
+      }
     }
-  }, [visible, backdropOpacity, sheetTranslateY]);
+  }, [visible, selectedExercise, backdropOpacity, sheetTranslateY, snapPoints.large, currentState]);
 
   // Refresh function
   const handleRefresh = async () => {
@@ -749,7 +912,7 @@ export function ExerciseListSheet({
 
   if (!visible) return null;
 
-  // Individual exercise detail view (exact copy from ProgressScreen)
+  // Individual exercise detail view with gesture support
   if (selectedExercise) {
     const isDone = completedIds.includes(selectedExercise.id);
     const isPasswordLocked = isExercisePasswordLocked(selectedExercise);
@@ -775,31 +938,60 @@ export function ExerciseListSheet({
         <Animated.View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'transparent',
             opacity: backdropOpacity,
           }}
         >
-          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <View style={{ flex: 1 }}>
             <Pressable style={{ flex: 1 }} onPress={onClose} />
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                transform: [{ translateY: sheetTranslateY }],
-              }}
-            >
-              <YStack
-                backgroundColor={backgroundColor}
-                padding="$4"
-                paddingBottom={insets.bottom || 20}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                gap="$4"
-                height={height * 0.85}
-                maxHeight={height * 0.85}
+            <GestureDetector gesture={panGesture}>
+              <ReanimatedAnimated.View 
+                style={[
+                  {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: height,
+                    backgroundColor: backgroundColor,
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                  },
+                  animatedGestureStyle
+                ]}
               >
+                <YStack
+                  padding="$3"
+                  paddingBottom={insets.bottom || 10}
+                  gap="$3"
+                  flex={1}
+                >
+                  {/* Drag Handle */}
+                  <View style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}>
+                    <View style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                    }} />
+                  </View>
+
+                  {/* Show mini title in mini mode */}
+                  {currentSnapPoint === snapPoints.mini && (
+                    <YStack alignItems="center" paddingVertical="$2">
+                      <Text fontSize="$5" fontWeight="bold" color="$color">
+                        {selectedExercise.title?.[lang] || selectedExercise.title?.en || 'Exercise'}
+                      </Text>
+                    </YStack>
+                  )}
+
+                  {/* Show content only if not in mini mode */}
+                  {currentSnapPoint !== snapPoints.mini && (
+                    <View style={{ flex: 1 }}>
                 <ScrollView
                   contentContainerStyle={{ padding: 0, paddingBottom: getTabContentPadding() }}
                   refreshControl={
@@ -945,10 +1137,8 @@ export function ExerciseListSheet({
                             />
                           </View>
                           <Button
-                            size="$5"
+                            size="lg"
                             backgroundColor="#FF9500"
-                            color="#000"
-                            fontWeight="bold"
                             onPress={async () => {
                               if (!selectedExercise.lock_password) return;
                               if (exercisePasswordInput === selectedExercise.lock_password) {
@@ -959,9 +1149,6 @@ export function ExerciseListSheet({
                                 Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
                               }
                             }}
-                            pressStyle={{ backgroundColor: '#FF7B00' }}
-                            borderRadius={12}
-                            paddingHorizontal={32}
                           >
                             Unlock
                           </Button>
@@ -1182,8 +1369,12 @@ export function ExerciseListSheet({
                     onClose={() => setReportExerciseId(null)} 
                   />
                 )}
-              </YStack>
-            </Animated.View>
+                    </View>
+                  )}
+
+                </YStack>
+              </ReanimatedAnimated.View>
+            </GestureDetector>
           </View>
         </Animated.View>
       </Modal>
@@ -1193,48 +1384,65 @@ export function ExerciseListSheet({
   // Exercise list view (reusing ProgressScreen's exercise list design)
   return (
     <>
-      {/* Celebration Modal */}
-      {showCelebrationModal && celebrationData && (
-        <CelebrationModal
-          visible={showCelebrationModal}
-          onClose={() => setShowCelebrationModal(false)}
-          learningPathTitle={celebrationData.learningPathTitle}
-          completedExercises={celebrationData.completedExercises}
-          totalExercises={celebrationData.totalExercises}
-          timeSpent={celebrationData.timeSpent}
-          streakDays={celebrationData.streakDays}
-        />
-      )}
       
       <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <Animated.View
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          backgroundColor: 'transparent',
           opacity: backdropOpacity,
         }}
       >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1 }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <Animated.View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              transform: [{ translateY: sheetTranslateY }],
-            }}
-          >
-            <YStack
-              backgroundColor={backgroundColor}
-              padding="$4"
-              paddingBottom={insets.bottom || 20}
-              borderTopLeftRadius="$4"
-              borderTopRightRadius="$4"
-              gap="$4"
-              height={height * 0.85}
-              maxHeight={height * 0.85}
+          <GestureDetector gesture={panGesture}>
+            <ReanimatedAnimated.View 
+              style={[
+                {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: height,
+                  backgroundColor: backgroundColor,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                },
+                animatedGestureStyle
+              ]}
             >
+              <YStack
+                padding="$3"
+                paddingBottom={insets.bottom || 10}
+                gap="$3"
+                flex={1}
+              >
+                {/* Drag Handle */}
+                <View style={{
+                  alignItems: 'center',
+                  paddingVertical: 8,
+                  paddingBottom: 16,
+                }}>
+                  <View style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                  }} />
+                </View>
+
+                {/* Show mini title in mini mode */}
+                {currentSnapPoint === snapPoints.mini && (
+                  <YStack alignItems="center" paddingVertical="$2">
+                    <Text fontSize="$5" fontWeight="bold" color="$color">
+                      {title}
+                    </Text>
+                  </YStack>
+                )}
+
+                {/* Show content only if not in mini mode */}
+                {currentSnapPoint !== snapPoints.mini && (
+                  <View style={{ flex: 1 }}>
               {/* Header */}
               <XStack justifyContent="space-between" alignItems="center">
                 {onBackToAllPaths ? (
@@ -1256,13 +1464,12 @@ export function ExerciseListSheet({
 
               {/* Featured Exercises Quick Access */}
               <Button
-                variant="outline"
+                variant="outlined"
                 size="md"
                 onPress={() => {
                   console.log('🎯 [ExerciseListSheet] Featured exercises pressed, navigating to ProgressScreen');
                   onClose();
                   navigation.navigate('ProgressTab', {
-                    showFeatured: true,
                     activeUserId: effectiveUserId || undefined,
                   });
                 }}
@@ -1355,7 +1562,8 @@ export function ExerciseListSheet({
                                     onPress={(e) => {
                                       e.stopPropagation();
                                       if (mainIsAvailable) {
-                                        toggleCompletion(main.id);
+                                        // Use new function that includes repeats for Level 2 checkboxes
+                                        toggleCompletionWithRepeats(main.id, true);
                                       }
                                     }}
                                     style={{
@@ -1483,7 +1691,6 @@ export function ExerciseListSheet({
                     onClose();
                     // Open a new ExerciseListSheet with showAllPaths=true
                     navigation.navigate('ProgressTab', {
-                      showFeatured: true,
                       activeUserId: effectiveUserId || undefined,
                     });
                   }}
@@ -1497,8 +1704,12 @@ export function ExerciseListSheet({
                   </XStack>
                 </Button>
               </YStack>
-            </YStack>
-          </Animated.View>
+                  </View>
+                )}
+
+              </YStack>
+            </ReanimatedAnimated.View>
+          </GestureDetector>
         </View>
       </Animated.View>
 
@@ -1744,7 +1955,7 @@ export function ExerciseListSheet({
                                 setShowPaywallModal(false);
                                 return;
                               }
-                            } catch (error) {
+                            } catch (error: any) {
                               if (error?.skipPaymentSheet) {
                                 setShowPaywallModal(false);
                                 return;

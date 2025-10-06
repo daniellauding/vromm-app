@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Dimensions, Animated } from 'react-native';
+import { View, Dimensions, Animated, Pressable } from 'react-native';
 import { YStack, XStack, Text, Button, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useColorScheme } from 'react-native';
+import { BlurView } from 'expo-blur';
 
 interface CelebrationModalProps {
   visible: boolean;
@@ -24,7 +25,7 @@ export function CelebrationModal({
   timeSpent,
   streakDays,
 }: CelebrationModalProps) {
-  const { t, lang } = useTranslation();
+  const { t, language: lang } = useTranslation();
   const colorScheme = useColorScheme();
   const [scaleAnim] = useState(new Animated.Value(0));
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -108,13 +109,29 @@ export function CelebrationModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1000,
         opacity: fadeAnim,
       }}
     >
+      <BlurView
+        style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+        intensity={10}
+        tint={colorScheme === 'dark' ? 'dark' : 'light'}
+        pointerEvents="none"
+      />
+      <Pressable 
+        style={{ 
+          flex: 1, 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          backgroundColor: 'rgba(0,0,0,0.3)',
+          width: '100%',
+        }} 
+        onPress={onClose}
+      >
+        <Pressable onPress={(e) => e.stopPropagation()} style={{ width: '90%', maxWidth: 400 }}>
       {/* Confetti Animation */}
       <Animated.View
         style={{
@@ -218,7 +235,7 @@ export function CelebrationModal({
               textAlign="center"
               numberOfLines={2}
             >
-              {learningPathTitle[lang] || learningPathTitle.en}
+              {learningPathTitle[lang as keyof typeof learningPathTitle] || learningPathTitle.en}
             </Text>
 
             {/* Message */}
@@ -285,7 +302,7 @@ export function CelebrationModal({
                   )}
                   {streakDays && (
                     <YStack alignItems="center" gap="$1">
-                      <Feather name="flame" size={16} color="#FF6B35" />
+                      <Feather name="zap" size={16} color="#FF6B35" />
                       <Text fontSize="$2" color="$gray11" textAlign="center">
                         {streakDays} {t('celebration.days') || 'days'}
                       </Text>
@@ -331,6 +348,8 @@ export function CelebrationModal({
           </YStack>
         </Card>
       </Animated.View>
+        </Pressable>
+      </Pressable>
     </Animated.View>
   );
 }

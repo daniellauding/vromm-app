@@ -201,6 +201,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useStripe } from '@stripe/stripe-react-native';
 import { useUnlock } from '../contexts/UnlockContext';
+import { useCelebration } from '../contexts/CelebrationContext';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // Tour imports DISABLED to prevent performance issues
@@ -281,6 +282,7 @@ export function ProgressScreen() {
   const { showToast } = useToast();
   const { activeStudentId, getEffectiveUserId } = useStudentSwitch();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { showCelebration } = useCelebration();
   const { selectedPathId, showDetail, activeUserId } = (route.params || {}) as any;
   const focusExerciseId: string | undefined = (route.params as any)?.focusExerciseId;
   const colorScheme = useColorScheme();
@@ -450,15 +452,7 @@ export function ProgressScreen() {
   // Student profile state for when viewing as student
   const [studentProfile, setStudentProfile] = useState<any>(null);
 
-  // Celebration modal state
-  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
-  const [celebrationData, setCelebrationData] = useState<{
-    learningPathTitle: { en: string; sv: string };
-    completedExercises: number;
-    totalExercises: number;
-    timeSpent?: number;
-    streakDays?: number;
-  } | null>(null);
+  // Celebration modal state - now using global context (removed local state)
 
     // Load categories from Supabase - RESTORED with proper error handling
   useEffect(() => {
@@ -1285,6 +1279,46 @@ export function ProgressScreen() {
     );
   };
 
+  // Toggle completion for an exercise with all its repeats
+  const toggleCompletionWithRepeats = async (exerciseId: string, includeAllRepeats: boolean = false) => {
+    if (!effectiveUserId) return;
+    
+    // Find the exercise details
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    if (!exercise) return;
+    
+    const isDone = completedIds.includes(exerciseId);
+    
+    console.log('🎯 [ProgressScreen] Toggle Completion With Repeats:', {
+      exerciseId,
+      exerciseTitle: exercise?.title,
+      isCurrentlyCompleted: isDone,
+      includeAllRepeats,
+      repeatCount: exercise.repeat_count || 1,
+      actionToTake: isDone ? 'REMOVE ALL' : 'ADD ALL',
+    });
+
+    // Toggle main exercise
+    await toggleCompletion(exerciseId);
+    
+    // If includeAllRepeats and exercise has repeats, toggle all virtual repeats
+    if (includeAllRepeats && exercise.repeat_count && exercise.repeat_count > 1) {
+      const shouldMarkDone = !isDone; // If main was not done, we're marking everything as done
+      
+      for (let i = 2; i <= exercise.repeat_count; i++) {
+        const virtualId = `${exerciseId}-virtual-${i}`;
+        const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
+        
+        // Only toggle if virtual repeat state doesn't match desired state
+        if (shouldMarkDone && !isVirtualDone) {
+          await toggleVirtualRepeatCompletion(virtualId);
+        } else if (!shouldMarkDone && isVirtualDone) {
+          await toggleVirtualRepeatCompletion(virtualId);
+        }
+      }
+    }
+  };
+
   // Toggle completion for an exercise
   const toggleCompletion = async (exerciseId: string) => {
     if (!effectiveUserId) return;
@@ -1443,15 +1477,14 @@ export function ProgressScreen() {
           console.log('📊 [ProgressScreen] Could not fetch celebration stats:', error);
         }
 
-        // Set celebration data and show modal
-        setCelebrationData({
+        // Use global celebration context
+        showCelebration({
           learningPathTitle: learningPath.title,
           completedExercises,
           totalExercises,
           timeSpent,
           streakDays,
         });
-        setShowCelebrationModal(true);
       }
     } catch (error) {
       console.error('🎉 [ProgressScreen] Error checking for celebration:', error);
@@ -4245,7 +4278,8 @@ export function ProgressScreen() {
                               onPress={(e) => {
                                 e.stopPropagation();
                                 if (mainIsAvailable) {
-                                  toggleCompletion(main.id);
+                                  // Use new function that includes repeats for Level 2 checkboxes
+                                  toggleCompletionWithRepeats(main.id, true);
                                 }
                               }}
                               style={{
@@ -4482,18 +4516,6 @@ export function ProgressScreen() {
 
   return (
     <YStack flex={1} backgroundColor="$background" padding={0}>
-      {/* Celebration Modal */}
-      {showCelebrationModal && celebrationData && (
-        <CelebrationModal
-          visible={showCelebrationModal}
-          onClose={() => setShowCelebrationModal(false)}
-          learningPathTitle={celebrationData.learningPathTitle}
-          completedExercises={celebrationData.completedExercises}
-          totalExercises={celebrationData.totalExercises}
-          timeSpent={celebrationData.timeSpent}
-          streakDays={celebrationData.streakDays}
-        />
-      )}
       
       <ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}

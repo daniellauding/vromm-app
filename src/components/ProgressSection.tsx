@@ -6,6 +6,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { SectionHeader } from './SectionHeader';
 import { ExerciseListSheet } from './ExerciseListSheet';
+import { LearningPathsSheet } from './LearningPathsSheet';
 import Svg, { Circle } from 'react-native-svg';
 import { useCallback } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -211,10 +212,12 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const [passwordPath, setPasswordPath] = useState<LearningPath | null>(null);
   const [pathPasswordInput, setPathPasswordInput] = useState('');
 
-  // Exercise List Sheet state
+  // Sheet states
+  const [showLearningPathsSheet, setShowLearningPathsSheet] = useState(false);
   const [showExerciseSheet, setShowExerciseSheet] = useState(false);
   const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const [selectedPathTitle, setSelectedPathTitle] = useState<string>('');
+  const [selectedLearningPath, setSelectedLearningPath] = useState<LearningPath | null>(null);
   const [viewingUserName, setViewingUserName] = useState<string | null>(null);
 
   // Load the display name/email for the user whose progress is being viewed (matching ProgressScreen.tsx)
@@ -696,11 +699,10 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       <SectionHeader
         title={viewingUserName ? `${viewingUserName}'s Progress` : t('home.yourProgress') || 'Your Progress'}
         variant="chevron"
-        onAction={() =>
-          navigation.navigate('ProgressTab', {
-            activeUserId: effectiveUserId || undefined,
-          })
-        }
+        onAction={() => {
+          console.log('🎯 [ProgressSection] See All pressed - opening LearningPathsSheet');
+          setShowLearningPathsSheet(true);
+        }}
         actionLabel={t('common.seeAll') || 'See All'}
       />
       
@@ -881,10 +883,37 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         </XStack>
       </ScrollView>
 
+      {/* Learning Paths Overview Sheet Modal (Level 0) */}
+      <LearningPathsSheet
+        visible={showLearningPathsSheet}
+        onClose={() => {
+          console.log('🎯 [ProgressSection] LearningPathsSheet closed');
+          setShowLearningPathsSheet(false);
+        }}
+        onPathSelected={(path) => {
+          console.log('🎯 [ProgressSection] Learning path selected:', path.title[lang] || path.title.en);
+          setSelectedLearningPath(path);
+          setSelectedPathId(path.id);
+          setSelectedPathTitle(path.title[lang] || path.title.en);
+          setShowLearningPathsSheet(false);
+          setShowExerciseSheet(true);
+        }}
+        title={t('exercises.allLearningPaths') || 'All Learning Paths'}
+      />
+
       {/* Exercise List Sheet for quick access */}
       <ExerciseListSheet
         visible={showExerciseSheet}
-        onClose={() => setShowExerciseSheet(false)}
+        onClose={() => {
+          setShowExerciseSheet(false);
+          setSelectedLearningPath(null);
+        }}
+        onBackToAllPaths={() => {
+          console.log('🎯 [ProgressSection] Back to all paths from ExerciseListSheet');
+          setShowExerciseSheet(false);
+          setSelectedLearningPath(null);
+          setShowLearningPathsSheet(true);
+        }}
         title={selectedPathTitle ? `${t('exercises.learningExercises') || 'Learning Exercises'}: ${selectedPathTitle}` : t('exercises.learningExercises') || 'Learning Exercises'}
         learningPathId={selectedPathId || undefined}
         showAllPaths={false}

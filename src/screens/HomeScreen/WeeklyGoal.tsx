@@ -10,7 +10,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useTranslation } from '../../contexts/TranslationContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CelebrationModal } from '../../components/CelebrationModal';
+import { useCelebration } from '../../contexts/CelebrationContext';
+import { LearningPathsSheet } from '../../components/LearningPathsSheet';
+import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 
 interface DayProgress {
   day: string;
@@ -82,7 +84,8 @@ const DayProgressCircle = ({
 export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externalSelectedDate }: WeeklyGoalProps) {
   const { user, profile } = useAuth();
   const { activeStudentId } = useStudentSwitch();
-  const { t, refreshTranslations } = useTranslation();
+  const { t, refreshTranslations, language: lang } = useTranslation();
+  const { showCelebration } = useCelebration();
   const colorScheme = useColorScheme();
   
   const [weeklyProgress, setWeeklyProgress] = useState<DayProgress[]>([]);
@@ -110,16 +113,13 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
   });
   const [tempGoalSettings, setTempGoalSettings] = useState<GoalSettings>(goalSettings);
   
-  // Celebration modal state
-  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
-  const [celebrationData, setCelebrationData] = useState<{
-    learningPathTitle: { en: string; sv: string };
-    completedExercises: number;
-    totalExercises: number;
-    timeSpent?: number;
-    streakDays?: number;
-  } | null>(null);
+  // Celebration modal state - now using global context (removed local state)
   
+  // Learning content sheet states 
+  const [showLearningPathsSheet, setShowLearningPathsSheet] = useState(false);
+  const [showExerciseListSheet, setShowExerciseListSheet] = useState(false);
+  const [selectedLearningPath, setSelectedLearningPath] = useState<any | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
   // Use effective user ID (activeUserId prop, activeStudentId from context, or current user)
   const effectiveUserId = activeUserId || activeStudentId || user?.id || null;
@@ -270,15 +270,14 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
         weeklyProgressPercent,
       });
       
-      // Set celebration data and show modal
-      setCelebrationData({
+      // Use global celebration context
+      showCelebration({
         learningPathTitle: { en: celebrationTitle, sv: celebrationTitle },
         completedExercises: completedDays,
         totalExercises: 7,
         timeSpent: totalExercises * 5, // Estimate 5 minutes per exercise
         streakDays: completedDays,
       });
-      setShowCelebrationModal(true);
     }
   };
   
@@ -533,7 +532,9 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
                   gap="$1"
                   backgroundColor={isSelected 
                     ? 'rgba(0, 230, 195, 0.05)' 
-                    : colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'} padding="$2" borderRadius="$16"
+                    : colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'} 
+                  padding="$2" 
+                  borderRadius="$4"
                   style={{
                     padding: 4,
                     borderRadius: 16,
@@ -549,11 +550,18 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
                     activeOpacity={0.7}
                     style={{ alignItems: 'center' }}
                     onPress={() => {
+                      const selectedDayDate = new Date(day.date);
+                      
+                      // Notify parent component about date selection (for DailyStatus)
                       if (onDateSelected) {
-                        const selectedDayDate = new Date(day.date);
                         onDateSelected(selectedDayDate);
-                        console.log('🗓️ [WeeklyGoal] Date selected:', selectedDayDate.toDateString());
                       }
+                      
+                      // Also show learning content sheet for this date
+                      setSelectedDate(selectedDayDate);
+                      setShowLearningPathsSheet(true);
+                      
+                      console.log('🗓️ [WeeklyGoal] Date selected with learning sheet:', selectedDayDate.toDateString());
                     }}
                   >
                     <DayProgressCircle
@@ -837,18 +845,44 @@ export function WeeklyGoal({ activeUserId, onDateSelected, selectedDate: externa
         </TouchableOpacity>
       </Modal>
       
-      {/* Celebration Modal */}
-      {showCelebrationModal && celebrationData && (
-        <CelebrationModal
-          visible={showCelebrationModal}
-          onClose={() => setShowCelebrationModal(false)}
-          learningPathTitle={celebrationData.learningPathTitle}
-          completedExercises={celebrationData.completedExercises}
-          totalExercises={celebrationData.totalExercises}
-          timeSpent={celebrationData.timeSpent}
-          streakDays={celebrationData.streakDays}
-        />
-      )}
+      {/* Learning Paths Sheet Modal (Level 0) - Opens when date is pressed */}
+      <LearningPathsSheet
+        visible={showLearningPathsSheet}
+        onClose={() => {
+          console.log('🗓️ [WeeklyGoal] LearningPathsSheet closed');
+          setShowLearningPathsSheet(false);
+          setSelectedDate(null);
+        }}
+        onPathSelected={(path) => {
+          console.log('🗓️ [WeeklyGoal] Learning path selected:', path.title[lang] || path.title.en);
+          setSelectedLearningPath(path);
+          setShowLearningPathsSheet(false);
+          setShowExerciseListSheet(true);
+        }}
+        title={selectedDate ? `Learning for ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}` : (t('exercises.allLearningPaths') || 'All Learning Paths')}
+        initialSnapPoint="mini"
+      />
+
+      {/* Exercise List Sheet Modal (Level 1) */}
+      <ExerciseListSheet
+        visible={showExerciseListSheet}
+        onClose={() => {
+          console.log('🗓️ [WeeklyGoal] ExerciseListSheet closed');
+          setShowExerciseListSheet(false);
+          setSelectedLearningPath(null);
+        }}
+        onBackToAllPaths={() => {
+          console.log('🗓️ [WeeklyGoal] Back to all paths from ExerciseListSheet');
+          setShowExerciseListSheet(false);
+          setSelectedLearningPath(null);
+          setShowLearningPathsSheet(true);
+        }}
+        title={selectedLearningPath ? (selectedLearningPath.title[lang] || selectedLearningPath.title.en) : 'Exercises'}
+        learningPathId={selectedLearningPath?.id || undefined}
+        showAllPaths={false}
+      />
+      
+      {/* Celebration Modal - now handled globally */}
     </YStack>
   );
 }

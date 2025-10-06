@@ -18,6 +18,7 @@ import { RecordingProvider } from './src/contexts/RecordingContext';
 import { MessagingProvider } from './src/contexts/MessagingContext';
 import { TourProvider } from './src/contexts/TourContext';
 import { UnlockProvider } from './src/contexts/UnlockContext';
+import { CelebrationProvider } from './src/contexts/CelebrationContext';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { logWarn } from './src/utils/logger';
 import { googleSignInService } from './src/services/googleSignInService';
@@ -129,9 +130,11 @@ export default function App() {
                             <ModalProvider>
                               <MessagingProvider>
                                 <UnlockProvider>
-                                  <TourProvider>
-                                    <AppContent />
-                                  </TourProvider>
+                                  <CelebrationProvider>
+                                    <TourProvider>
+                                      <AppContent />
+                                    </TourProvider>
+                                  </CelebrationProvider>
                                 </UnlockProvider>
                               </MessagingProvider>
                             </ModalProvider>

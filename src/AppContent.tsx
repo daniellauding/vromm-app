@@ -25,6 +25,7 @@ import { registerInvitationModalOpener } from './utils/invitationModalBridge';
 import { AppAnalytics } from './utils/analytics';
 import { TourOverlay } from './components/TourOverlay';
 import { PromotionalModal, usePromotionalModal } from './components/PromotionalModal';
+import { GlobalCelebrationModal } from './components/GlobalCelebrationModal';
 import type { NavigationContainerRef } from '@react-navigation/native';
 
 // Define a compatible type for WebBrowser dismiss helpers to avoid any-casts
@@ -1011,6 +1012,9 @@ function AppContent() {
 
           {/* Global Recording Widget - rendered at app level */}
           <GlobalRecordingWidget />
+
+          {/* Global Celebration Modal - rendered at app level */}
+          <GlobalCelebrationModal />
 
         </ToastProvider>
       </NavigationContainer>

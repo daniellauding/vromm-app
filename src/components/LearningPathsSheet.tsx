@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Modal, Animated, Pressable, Easing, View, Dimensions, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,6 +39,7 @@ interface LearningPathsSheetProps {
   onClose: () => void;
   onPathSelected: (path: LearningPath) => void;
   title?: string;
+  initialSnapPoint?: 'large' | 'medium' | 'small' | 'mini';
 }
 
 // Progress Circle component (exact copy from ProgressScreen)
@@ -83,7 +86,7 @@ function ProgressCircle({
   );
 }
 
-export function LearningPathsSheet({ visible, onClose, onPathSelected, title = 'Learning Paths' }: LearningPathsSheetProps) {
+export function LearningPathsSheet({ visible, onClose, onPathSelected, title = 'Learning Paths', initialSnapPoint = 'large' }: LearningPathsSheetProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { activeStudentId } = useStudentSwitch();
@@ -101,7 +104,110 @@ export function LearningPathsSheet({ visible, onClose, onPathSelected, title = '
 
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(300)).current;
+  
+  // Gesture handling for drag-to-resize and snap points (like RouteDetailSheet)
+  const translateY = useSharedValue(height);
+  const isDragging = useRef(false);
+  
+  // Snap points for resizing (top Y coordinates like RouteDetailSheet)
+  const snapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)  
+      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85,   // Top at 85% of screen (show 15% - just title)
+      dismissed: height,     // Completely off-screen
+    };
+    return points;
+  }, [height]);
+  
+  const getInitialSnapPoint = () => snapPoints[initialSnapPoint] || snapPoints.large;
+  const [currentSnapPoint, setCurrentSnapPoint] = useState(getInitialSnapPoint());
+  const currentState = useSharedValue(getInitialSnapPoint());
+
+  const dismissSheet = useCallback(() => {
+    translateY.value = withSpring(snapPoints.dismissed, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    setTimeout(() => onClose(), 200);
+  }, [onClose, snapPoints.dismissed]);
+
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      isDragging.current = true;
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentState.value + translationY;
+        
+        // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
+        const minPosition = snapPoints.large; // Smallest Y (show most - like expanded)
+        const maxPosition = snapPoints.mini + 100; // Allow dragging past mini for dismissal
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+        
+        // Set translateY directly like RouteDetailSheet
+        translateY.value = boundedPosition;
+      } catch (error) {
+        console.log('panGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      isDragging.current = false;
+      
+      const currentPosition = currentState.value + translationY;
+      
+      // Only dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
+        runOnJS(dismissSheet)();
+        return;
+      }
+      
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        // Fast upward swipe - go to larger size (smaller Y)
+        targetSnapPoint = snapPoints.large;
+      } else if (velocityY > 500) {
+        // Fast downward swipe - go to smaller size (larger Y)
+        targetSnapPoint = snapPoints.mini;
+      } else {
+        // Find closest snap point
+        const positions = [snapPoints.large, snapPoints.medium, snapPoints.small, snapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+      
+      // Constrain target to valid range
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, snapPoints.large),
+        snapPoints.mini,
+      );
+      
+      // Animate to target position - set translateY directly like RouteDetailSheet
+      translateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      
+      currentState.value = boundedTarget;
+      runOnJS(setCurrentSnapPoint)(boundedTarget);
+    });
+
+  const animatedGestureStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   // State
   const [paths, setPaths] = useState<LearningPath[]>([]);
@@ -197,18 +303,25 @@ export function LearningPathsSheet({ visible, onClose, onPathSelected, title = '
     }
   }, [visible, effectiveUserId, loadLearningPaths, fetchCompletions, loadUserPayments, loadUnlockedContent]);
 
-  // Animation effects
+  // Animation effects - updated for gesture system
   useEffect(() => {
     if (visible) {
+      // Reset gesture translateY when opening and set to initial snap point
+      const targetPoint = getInitialSnapPoint();
+      translateY.value = withSpring(targetPoint, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      currentState.value = targetPoint;
+      setCurrentSnapPoint(targetPoint);
+      
       Animated.timing(backdropOpacity, {
         toValue: 1,
         duration: 200,
-        useNativeDriver: true,
-      }).start();
-      Animated.timing(sheetTranslateY, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start();
     } else {
@@ -217,14 +330,8 @@ export function LearningPathsSheet({ visible, onClose, onPathSelected, title = '
         duration: 200,
         useNativeDriver: true,
       }).start();
-      Animated.timing(sheetTranslateY, {
-        toValue: 300,
-        duration: 300,
-        easing: Easing.in(Easing.ease),
-        useNativeDriver: true,
-      }).start();
     }
-  }, [visible, backdropOpacity, sheetTranslateY]);
+  }, [visible, backdropOpacity, initialSnapPoint, currentState]);
 
   // Refresh function
   const handleRefresh = async () => {
@@ -245,31 +352,60 @@ export function LearningPathsSheet({ visible, onClose, onPathSelected, title = '
       <Animated.View
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          backgroundColor: 'transparent',
           opacity: backdropOpacity,
         }}
       >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1 }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <Animated.View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              transform: [{ translateY: sheetTranslateY }],
-            }}
-          >
-            <YStack
-              backgroundColor={backgroundColor}
-              padding="$4"
-              paddingBottom={insets.bottom || 20}
-              borderTopLeftRadius="$4"
-              borderTopRightRadius="$4"
-              gap="$4"
-              height={height * 0.9}
-              maxHeight={height * 0.9}
+          <GestureDetector gesture={panGesture}>
+            <ReanimatedAnimated.View 
+              style={[
+                {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: height,
+                  backgroundColor: backgroundColor,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                },
+                animatedGestureStyle
+              ]}
             >
+              <YStack
+                padding="$3"
+                paddingBottom={insets.bottom || 10}
+                gap="$3"
+                flex={1}
+              >
+                {/* Drag Handle */}
+                <View style={{
+                  alignItems: 'center',
+                  paddingVertical: 8,
+                  paddingBottom: 16,
+                }}>
+                  <View style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                  }} />
+                </View>
+
+                {/* Show mini title in mini mode */}
+                {currentSnapPoint === snapPoints.mini && (
+                  <YStack alignItems="center" paddingVertical="$2">
+                    <Text fontSize="$5" fontWeight="bold" color="$color">
+                      {title}
+                    </Text>
+                  </YStack>
+                )}
+
+                {/* Show content only if not in mini mode */}
+                {currentSnapPoint !== snapPoints.mini && (
+                  <View style={{ flex: 1 }}>
               {/* Header */}
               <XStack justifyContent="space-between" alignItems="center">
                 <Text fontSize="$6" fontWeight="bold" color="$color">
@@ -444,8 +580,12 @@ export function LearningPathsSheet({ visible, onClose, onPathSelected, title = '
                   </ScrollView>
                 )}
               </YStack>
-            </YStack>
-          </Animated.View>
+                  </View>
+                )}
+
+              </YStack>
+            </ReanimatedAnimated.View>
+          </GestureDetector>
         </View>
       </Animated.View>
     </Modal>
