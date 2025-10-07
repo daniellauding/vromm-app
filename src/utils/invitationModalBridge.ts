@@ -3,13 +3,11 @@
 let openModalFn: (() => void) | null = null;
 
 export function registerInvitationModalOpener(fn: () => void) {
-	openModalFn = fn;
+  openModalFn = fn;
 }
 
 export function openInvitationModal() {
-	if (openModalFn) {
-		openModalFn();
-	}
+  if (openModalFn) {
+    openModalFn();
+  }
 }
-
-

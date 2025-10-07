@@ -1,3 +1,6 @@
+import { useColorScheme, Platform, NativeModules, AppState } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -10,11 +13,10 @@ import Constants from 'expo-constants';
 
 import { useAuth } from './context/AuthContext';
 import { RootStackParamList } from './types/navigation';
-import { useColorScheme, Platform, NativeModules, AppState } from 'react-native';
-import React, { useEffect, useState, useRef } from 'react';
+
 import { supabase } from './lib/supabase';
 import { StatusBar } from 'expo-status-bar';
-import { setupTranslationSubscription, refreshTranslations } from './services/translationService';
+import { setupTranslationSubscription } from './services/translationService';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { useTranslation } from './contexts/TranslationContext';
 import { clearOldCrashReports } from './components/ErrorBoundary';
@@ -112,18 +114,25 @@ import { GlobalRecordingWidget } from './components/GlobalRecordingWidget';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-async function registerForPushNotificationsAsync(showToast?: (toast: { title: string; message: string; type: 'success' | 'error' | 'info' }) => void, t?: (key: string) => string) {
+async function registerForPushNotificationsAsync(
+  showToast?: (toast: {
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  }) => void,
+  t?: (key: string) => string,
+) {
   let token;
-  
+
   // Force refresh translations to ensure they're loaded
   await refreshTranslations();
-  
+
   // 🧪 TEST: Show a test toast to verify translations are working (REMOVE THIS AFTER TESTING)
   if (showToast && __DEV__) {
     showToast({
       title: t?.('pushNotifications.title') || 'Push Notifications',
       message: t?.('pushNotifications.physicalDevice') || 'Test message',
-      type: 'info'
+      type: 'info',
     });
   }
 
@@ -147,11 +156,15 @@ async function registerForPushNotificationsAsync(showToast?: (toast: { title: st
       if (showToast) {
         showToast({
           title: t?.('pushNotifications.title') || 'Push Notifications',
-          message: t?.('pushNotifications.failedToken') || 'Failed to get push token for push notification!',
-          type: 'error'
+          message:
+            t?.('pushNotifications.failedToken') ||
+            'Failed to get push token for push notification!',
+          type: 'error',
         });
       } else {
-        alert(t?.('pushNotifications.failedToken') || 'Failed to get push token for push notification!');
+        alert(
+          t?.('pushNotifications.failedToken') || 'Failed to get push token for push notification!',
+        );
       }
       return;
     }
@@ -176,11 +189,16 @@ async function registerForPushNotificationsAsync(showToast?: (toast: { title: st
     if (showToast) {
       showToast({
         title: t?.('pushNotifications.title') || 'Push Notifications',
-        message: t?.('pushNotifications.physicalDevice') || 'Must use physical device for Push Notifications',
-        type: 'info'
+        message:
+          t?.('pushNotifications.physicalDevice') ||
+          'Must use physical device for Push Notifications',
+        type: 'info',
       });
     } else {
-      alert(t?.('pushNotifications.physicalDevice') || 'Must use physical device for Push Notifications');
+      alert(
+        t?.('pushNotifications.physicalDevice') ||
+          'Must use physical device for Push Notifications',
+      );
     }
   }
 
@@ -452,7 +470,7 @@ function AppContent() {
   const checkForGlobalInvitations = async () => {
     console.log('🌍 [AppContent] checkForGlobalInvitations called');
     console.log('🌍 [AppContent] User object:', { email: user?.email, id: user?.id });
-    
+
     if (!user?.email || !user?.id) {
       console.log('🌍 [AppContent] No user email or ID, skipping invitation check');
       return;
@@ -514,15 +532,19 @@ function AppContent() {
         return;
       }
 
-      const totalInvitations = (relationshipInvitations?.length || 0) + (notificationRelationshipInvitations?.length || 0) + (collectionInvitations?.length || 0) + (notificationInvitations?.length || 0);
-      
+      const totalInvitations =
+        (relationshipInvitations?.length || 0) +
+        (notificationRelationshipInvitations?.length || 0) +
+        (collectionInvitations?.length || 0) +
+        (notificationInvitations?.length || 0);
+
       console.log('🌍 [AppContent] Found invitations:', {
         relationship: relationshipInvitations?.length || 0,
         relationshipNotifications: notificationRelationshipInvitations?.length || 0,
         collection: collectionInvitations?.length || 0,
         notifications: notificationInvitations?.length || 0,
         total: totalInvitations,
-        alreadyShowing: showGlobalInvitationNotification
+        alreadyShowing: showGlobalInvitationNotification,
       });
 
       if (totalInvitations > 0 && !showGlobalInvitationNotification) {
@@ -539,7 +561,6 @@ function AppContent() {
       console.error('🌍 Global invitation check error:', error);
     }
   };
-
 
   // Register opener so other parts can open modal instantly without prop drilling
   useEffect(() => {
@@ -618,7 +639,9 @@ function AppContent() {
             if (row?.type === 'supervisor_invitation' || row?.type === 'student_invitation') {
               setShowGlobalInvitationNotification(true);
             } else if (row?.type === 'collection_invitation') {
-              console.log('📁 Fallback: Collection invitation notification inserted, opening unified modal');
+              console.log(
+                '📁 Fallback: Collection invitation notification inserted, opening unified modal',
+              );
               setShowGlobalInvitationNotification(true);
             }
           } catch {}
@@ -641,7 +664,9 @@ function AppContent() {
           try {
             const row = payload?.new;
             if (row?.status === 'pending') {
-              console.log('📁 Collection invitation INSERT matches current user → opening unified modal');
+              console.log(
+                '📁 Collection invitation INSERT matches current user → opening unified modal',
+              );
               setTimeout(() => setShowGlobalInvitationNotification(true), 150);
             }
           } catch (e) {
@@ -812,7 +837,6 @@ function AppContent() {
   // AGGRESSIVE DEBUG: Check for SIGNED_IN events and force navigation
   useEffect(() => {
     // Simple debug logging - let React handle everything
-
   }, []);
 
   // Simple fallback: just dismiss browser and let React's conditional rendering handle navigation
@@ -1015,7 +1039,6 @@ function AppContent() {
 
           {/* Global Celebration Modal - rendered at app level */}
           <GlobalCelebrationModal />
-
         </ToastProvider>
       </NavigationContainer>
     </>

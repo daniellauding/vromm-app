@@ -1,7 +1,6 @@
 import { registerRootComponent } from 'expo';
 import App from './App';
-import { AppRegistry, NativeModules } from 'react-native';
-import { name as appName } from './app.json';
+import { NativeModules } from 'react-native';
 
 // Only initialize Firebase if the native modules are available
 const firebaseModulesAvailable = NativeModules.RNFBAnalyticsModule && NativeModules.RNFBAppModule;

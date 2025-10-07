@@ -2,7 +2,6 @@ import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
-import { Database } from '../lib/database.types';
 import { SearchResult } from '../components/SearchView';
 import type { Route } from '../hooks/useRoutes';
 import type { Exercise } from './route';
@@ -82,7 +81,7 @@ export type RootStackParamList = {
   Conversation: { conversationId: string };
   Notifications: undefined;
   NewMessage: undefined;
-  
+
   // Events screens
   Events: undefined;
   EventDetail: { eventId: string };

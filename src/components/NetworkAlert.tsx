@@ -10,10 +10,10 @@ export function NetworkAlert() {
   const [slideAnim] = useState(new Animated.Value(-60)); // Start off-screen
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
       const connected = state.isConnected && state.isInternetReachable;
       setIsConnected(connected);
-      
+
       if (!connected) {
         // Slide down to show alert
         Animated.timing(slideAnim, {
@@ -78,4 +78,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-}); 
+});

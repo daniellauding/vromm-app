@@ -80,113 +80,89 @@ export function ToastProvider({ children }: ToastProviderProps) {
     [hideToast],
   );
 
-  const showRouteCreatedToast = (
-    routeId: string,
-    routeName: string,
-    isUpdate = false,
-    isDraft = false,
-  ) => {
-    const getTitle = () => {
-      if (isDraft) return 'Draft Saved!';
-      if (isUpdate) return 'Route Updated!';
-      return 'Route Created!';
-    };
+  const showRouteCreatedToast = React.useCallback(
+    (routeId: string, routeName: string, isUpdate = false, isDraft = false) => {
+      const getTitle = () => {
+        if (isDraft) return 'Draft Saved!';
+        if (isUpdate) return 'Route Updated!';
+        return 'Route Created!';
+      };
 
-    const getMessage = () => {
-      if (isDraft) return `"${routeName}" has been saved as a draft`;
-      if (isUpdate) return `"${routeName}" has been updated successfully`;
-      return `"${routeName}" has been created successfully`;
-    };
+      const getMessage = () => {
+        if (isDraft) return `"${routeName}" has been saved as a draft`;
+        if (isUpdate) return `"${routeName}" has been updated successfully`;
+        return `"${routeName}" has been created successfully`;
+      };
 
-    showToast({
-      title: getTitle(),
-      message: getMessage(),
-      type: 'success',
-      action: {
-        label: isDraft ? 'View Draft' : 'View',
-        onPress: () => {
-          navigation.navigate('RouteDetail', { routeId });
+      showToast({
+        title: getTitle(),
+        message: getMessage(),
+        type: 'success',
+        action: {
+          label: isDraft ? 'View Draft' : 'View',
+          onPress: () => {
+            navigation.navigate('RouteDetail', { routeId });
+          },
         },
-      },
-      routeId,
-      duration: 5000,
-    });
-  };
+        routeId,
+        duration: 5000,
+      });
+    },
+    [navigation, showToast],
+  );
 
-  const showEventCreatedToast = (eventId: string, eventName: string, isUpdate = false) => {
-    showToast({
-      title: isUpdate ? 'Event Updated!' : 'Event Created!',
-      message: `"${eventName}" has been ${isUpdate ? 'updated' : 'created'} successfully`,
-      type: 'success',
-      action: {
-        label: 'View',
-        onPress: () => {
-          navigation.navigate('EventDetail', { eventId });
+  const showEventCreatedToast = React.useCallback(
+    (eventId: string, eventName: string, isUpdate = false) => {
+      showToast({
+        title: isUpdate ? 'Event Updated!' : 'Event Created!',
+        message: `"${eventName}" has been ${isUpdate ? 'updated' : 'created'} successfully`,
+        type: 'success',
+        action: {
+          label: 'View',
+          onPress: () => {
+            navigation.navigate('EventDetail', { eventId });
+          },
         },
-      },
-      duration: 5000,
-    });
-  };
+        duration: 5000,
+      });
+    },
+    [navigation, showToast],
+  );
 
-  const showEventInviteToast = (eventId: string, eventName: string, inviteCount: number) => {
-    showToast({
-      title: 'Invitations Sent!',
-      message: `${inviteCount} invitation${inviteCount > 1 ? 's' : ''} sent for "${eventName}"`,
-      type: 'success',
-      action: {
-        label: 'View Event',
-        onPress: () => {
-          navigation.navigate('EventDetail', { eventId });
+  const showEventInviteToast = React.useCallback(
+    (eventId: string, eventName: string, inviteCount: number) => {
+      showToast({
+        title: 'Invitations Sent!',
+        message: `${inviteCount} invitation${inviteCount > 1 ? 's' : ''} sent for "${eventName}"`,
+        type: 'success',
+        action: {
+          label: 'View Event',
+          onPress: () => {
+            navigation.navigate('EventDetail', { eventId });
+          },
         },
-      },
-      duration: 4000,
-    });
-  };
+        duration: 4000,
+      });
+    },
+    [navigation, showToast],
+  );
 
-  console.log('toasts', toasts);
+  const value = React.useMemo(
+    () => ({
+      showToast,
+      hideToast,
+      showRouteCreatedToast,
+      showEventCreatedToast,
+      showEventInviteToast,
+    }),
+    [showToast, hideToast, showRouteCreatedToast, showEventCreatedToast, showEventInviteToast],
+  );
 
   return (
-    <ToastContext.Provider
-      value={{
-        showToast,
-        hideToast,
-        showRouteCreatedToast,
-        showEventCreatedToast,
-        showEventInviteToast,
-      }}
-    >
+    <ToastContext.Provider value={value}>
       {children}
       <ToastContainer toasts={toasts} onDismiss={hideToast} />
     </ToastContext.Provider>
-  );
-}
-
-interface ToastContainerProps {
-  toasts: ToastData[];
-  onDismiss: (id: string) => void;
-}
-
-function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
-  const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-
-  if (toasts.length === 0) return null;
-
-  return (
-    <View
-      style={{
-        position: 'absolute',
-        top: insets.top + 10,
-        left: 16,
-        right: 16,
-        zIndex: 10000,
-        pointerEvents: 'box-none',
-      }}
-    >
-      {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} colorScheme={colorScheme} />
-      ))}
-    </View>
   );
 }
 
@@ -214,7 +190,7 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
     return () => clearTimeout(timer);
   }, [translateY]);
 
-  const handleDismiss = () => {
+  const handleDismiss = React.useCallback(() => {
     // Animate out
     Animated.parallel([
       Animated.timing(translateY, {
@@ -228,7 +204,7 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
         useNativeDriver: true,
       }),
     ]).start(() => onDismiss(toast.id));
-  };
+  }, [toast.id, onDismiss, translateX, translateY]);
 
   const panResponder = PanResponder.create({
     onMoveShouldSetPanResponder: (_, gestureState) => {
@@ -250,7 +226,7 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
     },
   });
 
-  const getBackgroundColor = () => {
+  const getBackgroundColor = React.useCallback(() => {
     const isDark = colorScheme === 'dark';
     switch (toast.type) {
       case 'success':
@@ -261,9 +237,9 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
       default:
         return isDark ? '#1A3D3D' : '#D4E4F4';
     }
-  };
+  }, [colorScheme, toast.type]);
 
-  const getTextColor = () => {
+  const getTextColor = React.useCallback(() => {
     const isDark = colorScheme === 'dark';
     switch (toast.type) {
       case 'success':
@@ -274,9 +250,9 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
       default:
         return isDark ? '#69E3C4' : '#055160';
     }
-  };
+  }, [colorScheme, toast.type]);
 
-  const getIconName = () => {
+  const getIconName = React.useCallback(() => {
     switch (toast.type) {
       case 'success':
         return 'check-circle';
@@ -286,7 +262,7 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
       default:
         return 'info';
     }
-  };
+  }, [toast.type]);
 
   return (
     <Animated.View
@@ -363,5 +339,34 @@ function ToastItem({ toast, onDismiss, colorScheme }: ToastItemProps) {
         </TouchableOpacity>
       </TouchableOpacity>
     </Animated.View>
+  );
+}
+
+interface ToastContainerProps {
+  toasts: ToastData[];
+  onDismiss: (id: string) => void;
+}
+
+function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+
+  if (toasts.length === 0) return null;
+
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        top: insets.top + 10,
+        left: 16,
+        right: 16,
+        zIndex: 10000,
+        pointerEvents: 'box-none',
+      }}
+    >
+      {toasts.map((toast) => (
+        <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} colorScheme={colorScheme} />
+      ))}
+    </View>
   );
 }

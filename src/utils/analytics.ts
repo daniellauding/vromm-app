@@ -83,7 +83,11 @@ export const AppAnalytics = {
   },
 
   // === USER INTERACTIONS ===
-  trackButtonPress: async (buttonName: string, screenName: string, context?: Record<string, any>) => {
+  trackButtonPress: async (
+    buttonName: string,
+    screenName: string,
+    context?: Record<string, any>,
+  ) => {
     await safeLogEvent('button_press', {
       button_name: buttonName,
       screen_name: screenName,
@@ -105,7 +109,11 @@ export const AppAnalytics = {
     });
   },
 
-  trackFeatureUsage: async (featureName: string, action: string, metadata?: Record<string, any>) => {
+  trackFeatureUsage: async (
+    featureName: string,
+    action: string,
+    metadata?: Record<string, any>,
+  ) => {
     await safeLogEvent('feature_usage', {
       feature_name: featureName,
       action,
@@ -126,7 +134,7 @@ export const AppAnalytics = {
 
   // === ROUTE ANALYTICS ===
   trackRouteCreate: async (routeType: string, metadata?: Record<string, any>) => {
-    await safeLogEvent('route_create', { 
+    await safeLogEvent('route_create', {
       route_type: routeType,
       ...metadata,
     });
@@ -138,7 +146,7 @@ export const AppAnalytics = {
   },
 
   trackRouteView: async (routeId: string, viewContext?: string) => {
-    await safeLogEvent('route_view', { 
+    await safeLogEvent('route_view', {
       route_id: routeId,
       view_context: viewContext,
     });
@@ -246,13 +254,17 @@ export const AppAnalytics = {
 
   // === SEARCH & DISCOVERY ===
   trackSearch: async (searchTerm: string, resultCount?: number) => {
-    await safeLogEvent('search', { 
+    await safeLogEvent('search', {
       search_term: searchTerm,
       result_count: resultCount,
     });
   },
 
-  trackFilterUsage: async (filterType: string, filterValues: Record<string, any>, screenName: string) => {
+  trackFilterUsage: async (
+    filterType: string,
+    filterValues: Record<string, any>,
+    screenName: string,
+  ) => {
     await safeLogEvent('filter_usage', {
       filter_type: filterType,
       filter_values: filterValues,

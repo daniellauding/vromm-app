@@ -175,105 +175,100 @@ export function PromotionalModal({
             {/* Header - similar to OnboardingScreen */}
             <XStack justifyContent="space-between" alignItems="center">
               <XStack alignItems="center" gap="$2" flex={1}>
-                {currentContent.icon && (
-                  <Text fontSize={24}>{currentContent.icon}</Text>
-                )}
+                {currentContent.icon && <Text fontSize={24}>{currentContent.icon}</Text>}
                 <Text fontSize="$7" fontWeight="bold" color="$color" flex={1}>
                   {currentContent.title}
                 </Text>
               </XStack>
             </XStack>
 
-          {/* Content */}
-          <YStack gap="$3" flex={1}>
-            {/* Image */}
-            {currentContent.image_url && (
-              <Image
-                source={{ uri: currentContent.image_url }}
-                style={{
-                  width: '100%',
-                  height: 200,
-                  borderRadius: 12,
-                  resizeMode: 'cover',
-                }}
-              />
-            )}
-
-            {/* YouTube Embed */}
-            {currentContent.youtube_embed && (
-              <View style={{ height: 200, borderRadius: 12, overflow: 'hidden' }}>
-                <WebView
-                  source={{ uri: currentContent.youtube_embed }}
-                  style={{ flex: 1 }}
-                  allowsFullscreenVideo
-                />
-              </View>
-            )}
-
-            {/* iFrame Embed */}
-            {currentContent.iframe_embed && (
-              <View style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}>
-                <WebView
-                  source={{ html: currentContent.iframe_embed }}
-                  style={{ flex: 1 }}
-                />
-              </View>
-            )}
-
-            {/* Body Text */}
-            <Text fontSize="$4" color="#ccc" lineHeight="$1">
-              {currentContent.body}
-            </Text>
-          </YStack>
-
-          {/* Navigation */}
-          <XStack justifyContent="space-between" alignItems="center">
-            <Button
-              variant="secondary"
-              size="sm"
-              onPress={handlePrevious}
-              disabled={isFirst}
-              opacity={isFirst ? 0.5 : 1}
-              backgroundColor="#333"
-            >
-              <XStack alignItems="center" gap="$1">
-                <Feather name="chevron-left" size={16} color="white" />
-                <Text color="white">Previous</Text>
-              </XStack>
-            </Button>
-
-            {/* Progress indicator */}
-            <XStack gap="$1" alignItems="center">
-              {content.map((_, index) => (
-                <View
-                  key={index}
+            {/* Content */}
+            <YStack gap="$3" flex={1}>
+              {/* Image */}
+              {currentContent.image_url && (
+                <Image
+                  source={{ uri: currentContent.image_url }}
                   style={{
-                    width: index === currentIndex ? 16 : 8,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: index === currentIndex ? '#00E6C3' : '#444',
+                    width: '100%',
+                    height: 200,
+                    borderRadius: 12,
+                    resizeMode: 'cover',
                   }}
                 />
-              ))}
-            </XStack>
+              )}
 
-            <Button
-              variant="primary"
-              size="sm"
-              onPress={currentContent.target ? handleAction : (isLast ? handleClose : handleNext)}
-              backgroundColor="#00E6C3"
-            >
-              <XStack alignItems="center" gap="$1">
-                <Text color="#000">
-                  {currentContent.target ? 'Learn More' : isLast ? 'Close' : 'Next'}
-                </Text>
-                {!isLast && !currentContent.target && (
-                  <Feather name="chevron-right" size={16} color="#000" />
-                )}
+              {/* YouTube Embed */}
+              {currentContent.youtube_embed && (
+                <View style={{ height: 200, borderRadius: 12, overflow: 'hidden' }}>
+                  <WebView
+                    source={{ uri: currentContent.youtube_embed }}
+                    style={{ flex: 1 }}
+                    allowsFullscreenVideo
+                  />
+                </View>
+              )}
+
+              {/* iFrame Embed */}
+              {currentContent.iframe_embed && (
+                <View style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}>
+                  <WebView source={{ html: currentContent.iframe_embed }} style={{ flex: 1 }} />
+                </View>
+              )}
+
+              {/* Body Text */}
+              <Text fontSize="$4" color="#ccc" lineHeight="$1">
+                {currentContent.body}
+              </Text>
+            </YStack>
+
+            {/* Navigation */}
+            <XStack justifyContent="space-between" alignItems="center">
+              <Button
+                variant="secondary"
+                size="sm"
+                onPress={handlePrevious}
+                disabled={isFirst}
+                opacity={isFirst ? 0.5 : 1}
+                backgroundColor="#333"
+              >
+                <XStack alignItems="center" gap="$1">
+                  <Feather name="chevron-left" size={16} color="white" />
+                  <Text color="white">Previous</Text>
+                </XStack>
+              </Button>
+
+              {/* Progress indicator */}
+              <XStack gap="$1" alignItems="center">
+                {content.map((_, index) => (
+                  <View
+                    key={index}
+                    style={{
+                      width: index === currentIndex ? 16 : 8,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: index === currentIndex ? '#00E6C3' : '#444',
+                    }}
+                  />
+                ))}
               </XStack>
-            </Button>
-          </XStack>
-        </YStack>
+
+              <Button
+                variant="primary"
+                size="sm"
+                onPress={currentContent.target ? handleAction : isLast ? handleClose : handleNext}
+                backgroundColor="#00E6C3"
+              >
+                <XStack alignItems="center" gap="$1">
+                  <Text color="#000">
+                    {currentContent.target ? 'Learn More' : isLast ? 'Close' : 'Next'}
+                  </Text>
+                  {!isLast && !currentContent.target && (
+                    <Feather name="chevron-right" size={16} color="#000" />
+                  )}
+                </XStack>
+              </Button>
+            </XStack>
+          </YStack>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
@@ -288,11 +283,14 @@ export function usePromotionalModal() {
   const checkForPromotionalContent = async (contentType = 'modal') => {
     try {
       console.log('🎉 [PromotionalModal] Checking for promotional content:', contentType);
-      
+
       // Check if this promotional content has been seen
       const seen = await AsyncStorage.getItem(`promotional_${contentType}_seen`);
-      console.log('🎉 [PromotionalModal] AsyncStorage check:', { key: `promotional_${contentType}_seen`, seen });
-      
+      console.log('🎉 [PromotionalModal] AsyncStorage check:', {
+        key: `promotional_${contentType}_seen`,
+        seen,
+      });
+
       if (seen === 'true') {
         console.log('🎉 [PromotionalModal] Already seen - not showing');
         return false; // Already seen
@@ -306,10 +304,10 @@ export function usePromotionalModal() {
         .eq('content_type', contentType)
         .eq('active', true);
 
-      console.log('🎉 [PromotionalModal] Database query result:', { 
-        error: error?.message, 
+      console.log('🎉 [PromotionalModal] Database query result:', {
+        error: error?.message,
         dataLength: data?.length,
-        data: data?.map(d => ({ id: d.id, platforms: d.platforms }))
+        data: data?.map((d) => ({ id: d.id, platforms: d.platforms })),
       });
 
       if (error) {
@@ -323,15 +321,18 @@ export function usePromotionalModal() {
       }
 
       // Filter for mobile platforms
-      const mobileContent = data.filter(item => {
+      const mobileContent = data.filter((item) => {
         if (!item.platforms) return false;
-        const platforms = typeof item.platforms === 'string' ? JSON.parse(item.platforms) : item.platforms;
-        return Array.isArray(platforms) && (platforms.includes('mobile') || platforms.includes('both'));
+        const platforms =
+          typeof item.platforms === 'string' ? JSON.parse(item.platforms) : item.platforms;
+        return (
+          Array.isArray(platforms) && (platforms.includes('mobile') || platforms.includes('both'))
+        );
       });
 
-      console.log('🎉 [PromotionalModal] Mobile content filtered:', { 
-        total: data.length, 
-        mobile: mobileContent.length 
+      console.log('🎉 [PromotionalModal] Mobile content filtered:', {
+        total: data.length,
+        mobile: mobileContent.length,
       });
 
       if (mobileContent.length === 0) {

@@ -50,7 +50,9 @@ class PushNotificationService {
   // Register for push notifications
   async registerForPushNotifications(): Promise<string | null> {
     if (!hasNotificationsNativeModule()) {
-      console.log('[Notifications] Native module unavailable (Expo Go or web). Skipping registration.');
+      console.log(
+        '[Notifications] Native module unavailable (Expo Go or web). Skipping registration.',
+      );
       return null;
     }
 
@@ -74,11 +76,12 @@ class PushNotificationService {
     }
 
     // Resolve projectId from Expo config if not hardcoded
-    const projectId = Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
+    const projectId =
+      Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
 
     try {
       const token = await Notifications.getExpoPushTokenAsync(
-        projectId ? { projectId } : undefined as any,
+        projectId ? { projectId } : (undefined as any),
       );
 
       this.expoPushToken = token.data;
