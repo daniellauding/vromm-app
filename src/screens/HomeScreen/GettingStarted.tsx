@@ -987,21 +987,25 @@ export const GettingStarted = () => {
           );
 
           // Create pending invitation (exactly like OnboardingInteractive)
-          const { error: inviteError } = await supabase.from('pending_invitations').insert({
-            email: targetUser.email.toLowerCase(),
-            role: targetRole,
-            invited_by: user.id,
-            metadata: {
-              supervisorName: profile?.full_name || user.email,
-              inviterRole: selectedRole,
-              relationshipType,
-              invitedAt: new Date().toISOString(),
-              targetUserId: targetUser.id,
-              targetUserName: targetUser.full_name,
-              customMessage: connectionCustomMessage.trim() || undefined,
-            },
-            status: 'pending',
-          });
+          const { data: invitationData, error: inviteError } = await supabase
+            .from('pending_invitations')
+            .insert({
+              email: targetUser.email.toLowerCase(),
+              role: targetRole,
+              invited_by: user.id,
+              metadata: {
+                supervisorName: profile?.full_name || user.email,
+                inviterRole: selectedRole,
+                relationshipType,
+                invitedAt: new Date().toISOString(),
+                targetUserId: targetUser.id,
+                targetUserName: targetUser.full_name,
+                customMessage: connectionCustomMessage.trim() || undefined,
+              },
+              status: 'pending',
+            })
+            .select()
+            .single();
 
           if (inviteError && inviteError.code !== '23505') {
             console.error('🔗 [GettingStarted] Error creating invitation:', inviteError);
@@ -1035,6 +1039,7 @@ export const GettingStarted = () => {
               from_user_id: user.id,
               from_user_name: profile?.full_name || user.email,
               customMessage: connectionCustomMessage.trim() || undefined,
+              invitation_id: invitationData.id,
             },
             action_url: 'vromm://notifications',
             priority: 'high',
