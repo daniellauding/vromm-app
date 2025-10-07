@@ -1705,21 +1705,25 @@ export function OnboardingInteractive({
         }
 
         // Create pending invitation
-        const { error: inviteError } = await supabase.from('pending_invitations').insert({
-          email: targetUser.email.toLowerCase(),
-          role: targetRole,
-          invited_by: user.id,
-          metadata: {
-            supervisorName: profile?.full_name || user.email,
-            inviterRole: selectedRole,
-            relationshipType,
-            invitedAt: new Date().toISOString(),
-            targetUserId: targetUser.id,
-            targetUserName: targetUser.full_name,
-            customMessage: connectionCustomMessage.trim() || undefined,
-          },
-          status: 'pending',
-        });
+        const { data: invitationData, error: inviteError } = await supabase
+          .from('pending_invitations')
+          .insert({
+            email: targetUser.email.toLowerCase(),
+            role: targetRole,
+            invited_by: user.id,
+            metadata: {
+              supervisorName: profile?.full_name || user.email,
+              inviterRole: selectedRole,
+              relationshipType,
+              invitedAt: new Date().toISOString(),
+              targetUserId: targetUser.id,
+              targetUserName: targetUser.full_name,
+              customMessage: connectionCustomMessage.trim() || undefined,
+            },
+            status: 'pending',
+          })
+          .select()
+          .single();
 
         if (inviteError && inviteError.code !== '23505') {
           console.error('Error creating invitation:', inviteError);
@@ -1750,6 +1754,7 @@ export function OnboardingInteractive({
             from_user_id: user.id,
             from_user_name: profile?.full_name || user.email,
             customMessage: connectionCustomMessage.trim() || undefined,
+            invitation_id: invitationData.id, // Now guaranteed to exist
           },
           action_url: 'vromm://notifications',
           priority: 'high',

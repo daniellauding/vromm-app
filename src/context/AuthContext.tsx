@@ -411,20 +411,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [user?.id]);
 
   // Values for context provider
-  const contextValue: AuthContextData = {
-    user,
-    session,
-    profile,
-    loading,
-    initialized,
-    signIn,
-    signUp,
-    signOut,
-    updateProfile,
-    resetPassword,
-    forgotPassword,
-    refreshProfile,
-  };
+  const contextValue: AuthContextData = React.useMemo(
+    () => ({
+      user,
+      session,
+      profile,
+      loading,
+      initialized,
+      signIn,
+      signUp,
+      signOut,
+      updateProfile,
+      resetPassword,
+      forgotPassword,
+      refreshProfile,
+    }),
+    [
+      user,
+      session,
+      profile,
+      loading,
+      initialized,
+      signIn,
+      signUp,
+      signOut,
+      updateProfile,
+      resetPassword,
+      forgotPassword,
+      refreshProfile,
+    ],
+  );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };

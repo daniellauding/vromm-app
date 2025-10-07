@@ -52,7 +52,7 @@ export function UnifiedInvitationModal({
   onClose,
   onInvitationHandled,
 }: UnifiedInvitationModalProps) {
-  const { t, refreshTranslations, language } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { showToast } = useToast();
   const colorScheme = useColorScheme();
@@ -80,7 +80,7 @@ export function UnifiedInvitationModal({
     }
   }, [visible, user]);
 
-  const fetchPendingInvitations = async () => {
+  const fetchPendingInvitations = React.useCallback(async () => {
     if (!user) return;
 
     console.log('🔍 [UnifiedInvitationModal] Fetching invitations for user:', user.email);
@@ -276,9 +276,9 @@ export function UnifiedInvitationModal({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, showToast, t]);
 
-  const handleAccept = async () => {
+  const handleAccept = React.useCallback(async () => {
     if (!invitations[currentIndex]) return;
 
     setIsProcessing(true);
@@ -286,6 +286,7 @@ export function UnifiedInvitationModal({
       const invitation = invitations[currentIndex];
 
       console.log(invitation);
+      console.log(user?.id);
       if (invitation.type === 'relationship') {
         // Use fixed universal function for relationship invitations
         const { data, error } = await supabase.rpc('accept_any_invitation_universal', {
@@ -422,9 +423,18 @@ export function UnifiedInvitationModal({
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [
+    invitations,
+    currentIndex,
+    t,
+    showToast,
+    onClose,
+    onInvitationHandled,
+    user?.id,
+    user?.email,
+  ]);
 
-  const handleDecline = async () => {
+  const handleDecline = React.useCallback(async () => {
     if (!invitations[currentIndex]) return;
 
     setIsProcessing(true);
@@ -509,9 +519,9 @@ export function UnifiedInvitationModal({
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [invitations, currentIndex, t, showToast, onClose, onInvitationHandled]);
 
-  const handleDismiss = () => {
+  const handleDismiss = React.useCallback(() => {
     // Move to next invitation or close
     if (currentIndex < invitations.length - 1) {
       setCurrentIndex(currentIndex + 1);
@@ -519,7 +529,7 @@ export function UnifiedInvitationModal({
       onInvitationHandled();
       onClose();
     }
-  };
+  }, [invitations, currentIndex, onInvitationHandled, onClose]);
 
   if (!visible || invitations.length === 0) {
     return null;

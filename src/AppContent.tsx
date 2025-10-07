@@ -531,7 +531,7 @@ function AppContent() {
         (collectionInvitations?.length || 0) +
         (notificationInvitations?.length || 0);
 
-      if (totalInvitations > 0 && !showGlobalInvitationNotification) {
+      if (totalInvitations > 0) {
         setShowGlobalInvitationNotification(true);
       } else if (totalInvitations === 0) {
         // If no invitations, check for promotional content
@@ -542,7 +542,7 @@ function AppContent() {
     } catch (error) {
       console.error('🌍 Global invitation check error:', error);
     }
-  }, [user?.email, user?.id, showGlobalInvitationNotification, checkForPromotionalContent]);
+  }, [user?.email, user?.id, checkForPromotionalContent]);
 
   // Register opener so other parts can open modal instantly without prop drilling
   useEffect(() => {
@@ -926,6 +926,8 @@ function AppContent() {
       />
     );
   }
+
+  console.log('showGlobalInvitationNotification', showGlobalInvitationNotification);
 
   return (
     <>
