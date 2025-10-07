@@ -1,10 +1,12 @@
 import React, { useRef, useEffect } from 'react';
-import { Modal, Animated, Pressable, Easing, View, Dimensions } from 'react-native';
+import { Modal, Animated, Pressable, Easing, View, Dimensions, TouchableOpacity } from 'react-native';
 import { YStack, XStack, Text } from 'tamagui';
+import { Feather } from '@expo/vector-icons';
 import { RouteList } from './RouteList';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
+import { useColorScheme } from 'react-native';
 import type { Route } from '../hooks/useRoutes';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -21,6 +23,8 @@ interface RouteListSheetProps {
     id: string;
     label: string;
   };
+  onBack?: () => void;
+  onRoutePress?: (routeId: string) => void;
 }
 
 export function RouteListSheet({
@@ -30,9 +34,12 @@ export function RouteListSheet({
   routes: initialRoutes = [],
   type,
   activeFilter,
+  onBack,
+  onRoutePress,
 }: RouteListSheetProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
 
   // Theme colors - matching OnboardingInteractive exactly
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
@@ -46,15 +53,23 @@ export function RouteListSheet({
 
   // Load routes based on type
   React.useEffect(() => {
-    if (!visible || !user) return;
+    if (!visible || !user) {
+      console.log('📋 [RouteListSheet] Not loading routes - visible:', visible, 'user:', !!user);
+      return;
+    }
+
+    console.log('📋 [RouteListSheet] Loading routes for type:', type, 'user:', user.id);
 
     const loadRoutes = async () => {
       try {
         if (type === 'driven') {
-          const { data } = await supabase.from('driven_routes').select('*').eq('user_id', user.id);
+          console.log('📋 [RouteListSheet] Loading driven routes...');
+          const { data, error } = await supabase.from('driven_routes').select('*').eq('user_id', user.id);
+          console.log('📋 [RouteListSheet] Driven routes result:', { data, error, count: data?.length });
           setRoutes((data as unknown as Route[]) || []);
         } else if (type === 'drafts') {
-          const { data } = await supabase
+          console.log('📋 [RouteListSheet] Loading draft routes...');
+          const { data, error } = await supabase
             .from('routes')
             .select(`
               id,
@@ -72,9 +87,11 @@ export function RouteListSheet({
             .eq('is_draft', true)
             .eq('visibility', 'private')
             .order('created_at', { ascending: false });
+          console.log('📋 [RouteListSheet] Draft routes result:', { data, error, count: data?.length });
           setRoutes((data as unknown as Route[]) || []);
         } else if (type === 'created') {
-          const { data } = await supabase
+          console.log('📋 [RouteListSheet] Loading created routes...');
+          const { data, error } = await supabase
             .from('routes')
             .select(`
               id,
@@ -91,19 +108,45 @@ export function RouteListSheet({
             .eq('creator_id', user.id)
             .eq('is_draft', false)
             .order('created_at', { ascending: false });
+          console.log('📋 [RouteListSheet] Created routes result:', { data, error, count: data?.length });
           setRoutes((data as unknown as Route[]) || []);
+        } else if (type === 'saved') {
+          console.log('📋 [RouteListSheet] Loading saved routes...');
+          const { data, error } = await supabase
+            .from('saved_routes')
+            .select(`
+              route_id,
+              saved_at,
+              route:routes(
+                id,
+                name,
+                description,
+                difficulty,
+                spot_type,
+                created_at,
+                creator_id,
+                creator:creator_id(id, full_name)
+              )
+            `)
+            .eq('user_id', user.id)
+            .order('saved_at', { ascending: false });
+          console.log('📋 [RouteListSheet] Saved routes result:', { data, error, count: data?.length });
+          // Transform saved routes data
+          const transformedRoutes = data?.map(item => item.route).filter(Boolean) || [];
+          setRoutes(transformedRoutes as Route[]);
         } else {
-          // For saved, nearby, or other types, use the passed routes
+          console.log('📋 [RouteListSheet] Using initial routes for type:', type, 'count:', initialRoutes.length);
+          // For nearby or other types, use the passed routes
           setRoutes(initialRoutes);
         }
       } catch (error) {
-        console.error('Error loading routes for sheet:', error);
+        console.error('📋 [RouteListSheet] Error loading routes for sheet:', error);
         setRoutes(initialRoutes);
       }
     };
 
     loadRoutes();
-  }, [visible, type, user, initialRoutes]);
+  }, [visible, type, user?.id]);
 
   // Animation effects - matching OnboardingInteractive pattern exactly
   useEffect(() => {
@@ -170,10 +213,24 @@ export function RouteListSheet({
               height={height * 0.85}
               maxHeight={height * 0.85}
             >
-              {/* Header - matching OnboardingInteractive exactly */}
-              <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                {title}
-              </Text>
+              {/* Header */}
+              <XStack justifyContent="space-between" alignItems="center">
+                {onBack ? (
+                  <TouchableOpacity onPress={onBack}>
+                    <Feather name="arrow-left" size={24} color={colorScheme === 'dark' ? '#FFF' : '#000'} />
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ width: 24 }} />
+                )}
+                
+                <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center" flex={1}>
+                  {title}
+                </Text>
+                
+                <TouchableOpacity onPress={onClose}>
+                  <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#000'} />
+                </TouchableOpacity>
+              </XStack>
 
               {/* Active Filter Chip */}
               {activeFilter && (
@@ -186,7 +243,18 @@ export function RouteListSheet({
 
               {/* Routes List */}
               <YStack flex={1}>
-                <RouteList routes={routes} onRoutePress={onClose} />
+                <RouteList 
+                  routes={routes} 
+                  onRoutePress={(routeId) => {
+                    console.log('📋 [RouteListSheet] Route pressed in RouteList:', routeId);
+                    if (onRoutePress) {
+                      onRoutePress(routeId);
+                    } else {
+                      // Fallback: just close the sheet
+                      onClose();
+                    }
+                  }} 
+                />
               </YStack>
             </YStack>
           </Animated.View>

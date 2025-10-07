@@ -35,6 +35,7 @@ import { DailyStatus } from './DailyStatus';
 import { JumpBackInSection } from '../../components/JumpBackInSection';
 import { GettingStarted } from './GettingStarted';
 import { FeaturedContent } from './FeaturedContent';
+import { FeaturedContent2 } from './FeaturedContent2';
 import { SavedRoutes } from './SavedRoutes';
 // import { QuickFilters } from './QuickFilters';
 import { CityRoutes } from './CityRoutes';
@@ -428,6 +429,9 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             
             {/* Featured Content */}
             <FeaturedContent />
+            
+            {/* Featured Content 2 - Card Layout */}
+            <FeaturedContent2 />
 
             {/* <UpcomingEvents 
               onEventPress={(eventId) => {
