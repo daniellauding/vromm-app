@@ -180,24 +180,28 @@ class MessageService {
       if (error) {
         // Check if it's the webhook/http_post error
         if (error.code === '42883' && error.message?.includes('net.http_post')) {
-          console.warn('Database webhook error (net.http_post missing) - this is non-critical and can be ignored');
+          console.warn(
+            'Database webhook error (net.http_post missing) - this is non-critical and can be ignored',
+          );
           console.warn('Message was likely sent successfully despite the webhook error');
-          
+
           // Try to fetch the message that was likely created
           try {
             const { data: sentMessage } = await supabase
               .from('messages')
-              .select(`
+              .select(
+                `
                 *,
                 sender:profiles(*)
-              `)
+              `,
+              )
               .eq('conversation_id', conversationId)
               .eq('sender_id', user.id)
               .eq('content', content)
               .order('created_at', { ascending: false })
               .limit(1)
               .single();
-              
+
             if (sentMessage) {
               console.log('✅ Message was sent successfully despite webhook error');
               return sentMessage;
@@ -206,15 +210,17 @@ class MessageService {
             console.warn('Could not fetch sent message after webhook error:', fetchError);
           }
         }
-        
+
         throw error;
       }
-      
+
       return data;
     } catch (error) {
       // If it's specifically the webhook error, provide a user-friendly message
       if ((error as any).code === '42883' && (error as any).message?.includes('net.http_post')) {
-        throw new Error('Message sent successfully, but webhook notification failed (non-critical)');
+        throw new Error(
+          'Message sent successfully, but webhook notification failed (non-critical)',
+        );
       }
       throw error;
     }

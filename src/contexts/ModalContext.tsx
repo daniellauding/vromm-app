@@ -22,7 +22,7 @@ export const ModalProvider = ({ children }: { children: ReactNode }) => {
   const [modalContent, setModalContent] = useState<ReactNode | null>(null);
   const [modalPointerEvents, setModalPointerEventsState] = useState<'auto' | 'box-none'>('auto');
 
-  const showModal = (content: ReactNode) => {
+  const showModal = React.useCallback((content: ReactNode) => {
     // Ensure we're getting a proper React element
     if (React.isValidElement(content)) {
       setModalContent(content);
@@ -30,19 +30,24 @@ export const ModalProvider = ({ children }: { children: ReactNode }) => {
     } else {
       console.error('Invalid modal content - must be a valid React element');
     }
-  };
+  }, []);
 
-  const hideModal = () => {
+  const hideModal = React.useCallback(() => {
     setModalContent(null);
     setModalPointerEventsState('auto'); // Reset when hiding
-  };
+  }, []);
 
-  const setModalPointerEvents = (pointerEvents: 'auto' | 'box-none') => {
+  const setModalPointerEvents = React.useCallback((pointerEvents: 'auto' | 'box-none') => {
     setModalPointerEventsState(pointerEvents);
-  };
+  }, []);
+
+  const contextValue = React.useMemo(
+    () => ({ modalContent, showModal, hideModal, setModalPointerEvents }),
+    [modalContent, showModal, hideModal, setModalPointerEvents],
+  );
 
   return (
-    <ModalContext.Provider value={{ modalContent, showModal, hideModal, setModalPointerEvents }}>
+    <ModalContext.Provider value={contextValue}>
       {children}
       {modalContent && (
         <View

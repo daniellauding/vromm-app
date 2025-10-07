@@ -13,7 +13,11 @@ export type Follow = Database['public']['Tables']['user_follows']['Row'] & {
 
 class NotificationService {
   // Get all notifications for current user
-  async getNotifications(limit: number = 50, offset: number = 0, includeArchived: boolean = false): Promise<Notification[]> {
+  async getNotifications(
+    limit: number = 50,
+    offset: number = 0,
+    includeArchived: boolean = false,
+  ): Promise<Notification[]> {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -33,21 +37,21 @@ class NotificationService {
       `,
       )
       .eq('user_id', user.id);
-      
+
     // Filter by archived status if column exists
     if (!includeArchived) {
       // Try to filter out archived notifications, but gracefully handle if column doesn't exist
       query = query.or('archived.is.null,archived.eq.false');
     }
-    
+
     const { data, error } = await query
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    console.log('📊 Notifications query result:', { 
-      count: data?.length || 0, 
+    console.log('📊 Notifications query result:', {
+      count: data?.length || 0,
       error,
-      firstFew: data?.slice(0, 3).map(n => ({ id: n.id, type: n.type, message: n.message }))
+      firstFew: data?.slice(0, 3).map((n) => ({ id: n.id, type: n.type, message: n.message })),
     });
 
     if (error) throw error;
@@ -319,10 +323,10 @@ class NotificationService {
   // Subscribe to notification updates
   subscribeToNotifications(callback: (notification: Notification) => void) {
     console.log('🔔 Setting up notification subscription channel...');
-    
+
     // Create unique channel name to avoid conflicts
     const channelName = `notifications_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     return supabase
       .channel(channelName)
       .on(
@@ -373,7 +377,7 @@ class NotificationService {
     }
 
     console.log('📁 Archiving all notifications for user:', user.id);
-    
+
     const { error } = await supabase
       .from('notifications')
       .update({ archived: true })

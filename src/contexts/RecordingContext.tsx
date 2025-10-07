@@ -166,6 +166,11 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   // Location tracking task
   const LOCATION_TRACKING = 'location-tracking';
 
+  // Update recording state
+  const updateRecordingState = useCallback((updates: Partial<RecordingState>) => {
+    setRecordingState((prev) => ({ ...prev, ...updates }));
+  }, []);
+
   const startLocationTracking = useCallback(async () => {
     try {
       const serviceEnabled = await Location.hasServicesEnabledAsync().catch(() => false);
@@ -302,12 +307,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       console.error('Error starting location tracking:', error);
       updateRecordingState({ debugMessage: 'Failed to start tracking' });
     }
-  }, [calculateDistance, recordingState.maxSpeed, recordingState.distance]);
-
-  // Update recording state
-  const updateRecordingState = useCallback((updates: Partial<RecordingState>) => {
-    setRecordingState((prev) => ({ ...prev, ...updates }));
-  }, []);
+  }, [calculateDistance, recordingState.maxSpeed, recordingState.distance, updateRecordingState]);
 
   // Start recording
   const startRecording = useCallback(async () => {
@@ -416,6 +416,28 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     updateRecordingState({ isMinimized: false });
   }, [updateRecordingState]);
 
+  // Clear recording state
+  const clearRecordingState = useCallback(() => {
+    setRecordingState(defaultRecordingState);
+    setIsRecordingActive(false);
+    wayPointsRef.current = [];
+    startTimeRef.current = null;
+    pausedTimeRef.current = 0;
+    isPausedRef.current = false;
+    lastPauseTimeRef.current = null;
+    waypointThrottleRef.current = 0;
+    lastErrorRef.current = null;
+    lastStateUpdateRef.current = 0;
+
+    if (autoSaveTimerRef.current) {
+      clearInterval(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+
+    // Clear storage
+    AsyncStorage.multiRemove([RECORDING_STORAGE_KEY, RECOVERY_CHECK_KEY]).catch(() => {});
+  }, []);
+
   // Save recording
   const saveRecording = useCallback(
     (onCreateRoute?: (routeData: any) => void) => {
@@ -487,7 +509,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         console.error('Error saving recording:', error);
       }
     },
-    [recordingState.distance, recordingState.totalElapsedTime],
+    [recordingState.distance, recordingState.totalElapsedTime, clearRecordingState],
   );
 
   // Cancel recording
@@ -507,29 +529,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       console.error('Error cancelling recording:', error);
       clearRecordingState();
     }
-  }, [recordingState.locationSubscription]);
-
-  // Clear recording state
-  const clearRecordingState = useCallback(() => {
-    setRecordingState(defaultRecordingState);
-    setIsRecordingActive(false);
-    wayPointsRef.current = [];
-    startTimeRef.current = null;
-    pausedTimeRef.current = 0;
-    isPausedRef.current = false;
-    lastPauseTimeRef.current = null;
-    waypointThrottleRef.current = 0;
-    lastErrorRef.current = null;
-    lastStateUpdateRef.current = 0;
-
-    if (autoSaveTimerRef.current) {
-      clearInterval(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = null;
-    }
-
-    // Clear storage
-    AsyncStorage.multiRemove([RECORDING_STORAGE_KEY, RECOVERY_CHECK_KEY]).catch(() => {});
-  }, []);
+  }, [recordingState.locationSubscription, clearRecordingState]);
 
   // Check for recovery
   const checkForRecovery = useCallback(async (): Promise<boolean> => {
@@ -642,22 +642,40 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     return () => subscription?.remove();
   }, [recordingState.isRecording, autoSaveSession]);
 
-  const value: RecordingContextType = {
-    recordingState,
-    isRecordingActive,
-    startRecording,
-    pauseRecording,
-    resumeRecording,
-    stopRecording,
-    minimizeRecording,
-    maximizeRecording,
-    saveRecording,
-    cancelRecording,
-    updateRecordingState,
-    clearRecordingState,
-    checkForRecovery,
-    recoverRecording,
-  };
+  const value: RecordingContextType = React.useMemo(
+    () => ({
+      recordingState,
+      isRecordingActive,
+      startRecording,
+      pauseRecording,
+      resumeRecording,
+      stopRecording,
+      minimizeRecording,
+      maximizeRecording,
+      saveRecording,
+      cancelRecording,
+      updateRecordingState,
+      clearRecordingState,
+      checkForRecovery,
+      recoverRecording,
+    }),
+    [
+      recordingState,
+      isRecordingActive,
+      startRecording,
+      pauseRecording,
+      resumeRecording,
+      stopRecording,
+      minimizeRecording,
+      maximizeRecording,
+      saveRecording,
+      cancelRecording,
+      updateRecordingState,
+      clearRecordingState,
+      checkForRecovery,
+      recoverRecording,
+    ],
+  );
 
   return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>;
 }

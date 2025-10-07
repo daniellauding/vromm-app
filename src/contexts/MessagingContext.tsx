@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Platform, NativeModules } from 'react-native';
 import { messageService } from '../services/messageService';
 import { notificationService } from '../services/notificationService';
 import { supabase } from '../lib/supabase';
@@ -27,7 +28,7 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
-  const refreshCounts = async () => {
+  const refreshCounts = React.useCallback(async () => {
     try {
       const [messageCount, notificationCount] = await Promise.all([
         messageService.getUnreadCount(),
@@ -53,7 +54,7 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
     } catch (error) {
       console.error('Error refreshing counts:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const initializeMessaging = async () => {
@@ -64,7 +65,7 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
       if (!user) return;
 
       // Only import and use push notifications when native module exists
-      const { Platform, NativeModules } = require('react-native');
+
       const hasNative = Platform.OS !== 'web' && !!NativeModules?.ExpoPushTokenManager;
       if (!hasNative) {
         // Still refresh counts without push features
@@ -106,18 +107,23 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
       return () => {
         messageSubscription.unsubscribe();
         notificationSubscription.unsubscribe();
-        cleanup && cleanup();
+        if (cleanup) {
+          cleanup();
+        }
       };
     };
 
     initializeMessaging();
-  }, []);
+  }, [refreshCounts]);
 
-  const value: MessagingContextType = {
-    unreadMessageCount,
-    unreadNotificationCount,
-    refreshCounts,
-  };
+  const value: MessagingContextType = React.useMemo(
+    () => ({
+      unreadMessageCount,
+      unreadNotificationCount,
+      refreshCounts,
+    }),
+    [unreadMessageCount, unreadNotificationCount, refreshCounts],
+  );
 
   return <MessagingContext.Provider value={value}>{children}</MessagingContext.Provider>;
 };

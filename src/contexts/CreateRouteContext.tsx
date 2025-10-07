@@ -113,126 +113,122 @@ export function CreateRouteProvider({ children }: { children: ReactNode }) {
   const [recordingContext, setRecordingContext] = useState<string | null>(null);
   const [fromRecordingFlag, setFromRecordingFlag] = useState(false);
 
-  const saveState = (state: CreateRouteState) => {
-    console.log('🔄 Saving CreateRoute state:', {
-      waypointsCount: state.waypoints.length,
-      formName: state.formData.name,
-      drawingMode: state.drawingMode,
-      activeSection: state.activeSection,
-    });
+  const saveState = React.useCallback((state: CreateRouteState) => {
     setPersistedState(state);
-  };
+  }, []);
 
-  const restoreState = (): CreateRouteState | null => {
-    console.log('🔄 Restoring CreateRoute state:', {
-      hasPersistedState: !!persistedState,
-      waypointsCount: persistedState?.waypoints.length || 0,
-    });
+  const restoreState = React.useCallback((): CreateRouteState | null => {
     return persistedState;
-  };
+  }, [persistedState]);
 
-  const clearState = () => {
-    console.log('🔄 Clearing CreateRoute state');
+  const clearState = React.useCallback(() => {
     setPersistedState(null);
     setRecordingContext(null);
     setFromRecordingFlag(false);
-  };
+  }, []);
 
-  const setRecordingContextHandler = (routeId?: string) => {
-    console.log('🔄 Setting recording context:', { routeId });
+  const setRecordingContextHandler = React.useCallback((routeId?: string) => {
     setRecordingContext(routeId || null);
-  };
+  }, []);
 
-  const getAndClearRecordingContext = (): string | null => {
+  const getAndClearRecordingContext = React.useCallback((): string | null => {
     const context = recordingContext;
-    console.log('🔄 Getting and clearing recording context:', { context });
     setRecordingContext(null);
     return context;
-  };
+  }, [recordingContext]);
 
-  const mergeRecordedData = (recordedData: RecordedRouteData): CreateRouteState | null => {
-    console.log('🔄 Merging recorded data with persisted state:', {
-      hasPersistedState: !!persistedState,
-      recordedWaypointsCount: recordedData.waypoints.length,
-      recordedName: recordedData.name,
-    });
+  const mergeRecordedData = React.useCallback(
+    (recordedData: RecordedRouteData): CreateRouteState | null => {
+      if (!persistedState) {
+        // No persisted state, create new state with recorded data
+        return {
+          formData: {
+            ...defaultFormData,
+            name: recordedData.name || '',
+            description: recordedData.description || '',
+          },
+          waypoints: recordedData.waypoints,
+          exercises: [],
+          media: [],
+          drawingMode: 'record',
+          snapToRoads: false,
+          penPath: [],
+          routePath: recordedData.routePath,
+          region: calculateRegionFromWaypoints(recordedData.waypoints) || defaultRegion,
+          activeSection: 'basic',
 
-    if (!persistedState) {
-      // No persisted state, create new state with recorded data
-      return {
-        formData: {
-          ...defaultFormData,
-          name: recordedData.name || '',
-          description: recordedData.description || '',
-        },
+          youtubeLink: '',
+          isFromRecording: true,
+        };
+      }
+
+      // Merge recorded data with persisted state
+      const mergedState: CreateRouteState = {
+        ...persistedState,
+        // Override with recorded route data
         waypoints: recordedData.waypoints,
-        exercises: [],
-        media: [],
-        drawingMode: 'record',
-        snapToRoads: false,
-        penPath: [],
         routePath: recordedData.routePath,
-        region: calculateRegionFromWaypoints(recordedData.waypoints) || defaultRegion,
-        activeSection: 'basic',
+        drawingMode: 'record',
+        region: calculateRegionFromWaypoints(recordedData.waypoints) || persistedState.region,
 
-        youtubeLink: '',
         isFromRecording: true,
+        // Keep existing form data but update with recorded info if user hasn't entered anything
+        formData: {
+          ...persistedState.formData,
+          name: persistedState.formData.name || recordedData.name || '',
+          description: persistedState.formData.description || recordedData.description || '',
+        },
       };
-    }
 
-    // Merge recorded data with persisted state
-    const mergedState: CreateRouteState = {
-      ...persistedState,
-      // Override with recorded route data
-      waypoints: recordedData.waypoints,
-      routePath: recordedData.routePath,
-      drawingMode: 'record',
-      region: calculateRegionFromWaypoints(recordedData.waypoints) || persistedState.region,
+      console.log('🔄 Merged state created:', {
+        waypointsCount: mergedState.waypoints.length,
+        formName: mergedState.formData.name,
+        drawingMode: mergedState.drawingMode,
+      });
 
-      isFromRecording: true,
-      // Keep existing form data but update with recorded info if user hasn't entered anything
-      formData: {
-        ...persistedState.formData,
-        name: persistedState.formData.name || recordedData.name || '',
-        description: persistedState.formData.description || recordedData.description || '',
-      },
-    };
+      return mergedState;
+    },
+    [persistedState],
+  );
 
-    console.log('🔄 Merged state created:', {
-      waypointsCount: mergedState.waypoints.length,
-      formName: mergedState.formData.name,
-      drawingMode: mergedState.drawingMode,
-    });
-
-    return mergedState;
-  };
-
-  const markFromRecording = () => {
-    console.log('🔄 Marking as from recording');
+  const markFromRecording = React.useCallback(() => {
     setFromRecordingFlag(true);
-  };
+  }, []);
 
-  const isFromRecording = (): boolean => {
+  const isFromRecording = React.useCallback((): boolean => {
     return fromRecordingFlag;
-  };
+  }, [fromRecordingFlag]);
 
-  const clearRecordingFlag = () => {
-    console.log('🔄 Clearing recording flag');
+  const clearRecordingFlag = React.useCallback(() => {
     setFromRecordingFlag(false);
-  };
+  }, []);
 
-  const value: CreateRouteContextType = {
-    persistedState,
-    saveState,
-    restoreState,
-    clearState,
-    setRecordingContext: setRecordingContextHandler,
-    getAndClearRecordingContext,
-    mergeRecordedData,
-    markFromRecording,
-    isFromRecording,
-    clearRecordingFlag,
-  };
+  const value: CreateRouteContextType = React.useMemo(
+    () => ({
+      persistedState,
+      saveState,
+      restoreState,
+      clearState,
+      setRecordingContext: setRecordingContextHandler,
+      getAndClearRecordingContext,
+      mergeRecordedData,
+      markFromRecording,
+      isFromRecording,
+      clearRecordingFlag,
+    }),
+    [
+      persistedState,
+      saveState,
+      restoreState,
+      clearState,
+      setRecordingContextHandler,
+      getAndClearRecordingContext,
+      mergeRecordedData,
+      markFromRecording,
+      isFromRecording,
+      clearRecordingFlag,
+    ],
+  );
 
   return <CreateRouteContext.Provider value={value}>{children}</CreateRouteContext.Provider>;
 }

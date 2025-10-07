@@ -1,4 +1,11 @@
+import { useEffect, useState } from 'react';
+
 import { TamaguiProvider } from 'tamagui';
+
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useColorScheme, Platform, NativeModules } from 'react-native';
+import * as Font from 'expo-font';
 
 import { config } from './src/theme/components';
 import { AuthProvider } from './src/context/AuthContext';
@@ -6,11 +13,6 @@ import { ThemeProvider } from './src/components/ThemeProvider';
 import { LocationProvider } from './src/context/LocationContext';
 import { StudentSwitchProvider } from './src/context/StudentSwitchContext';
 import { TranslationProvider } from './src/contexts/TranslationContext';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useColorScheme, Platform, NativeModules } from 'react-native';
-import * as Font from 'expo-font';
-import { useEffect, useState } from 'react';
 
 import { ModalProvider } from './src/contexts/ModalContext';
 import { CreateRouteProvider } from './src/contexts/CreateRouteContext';
