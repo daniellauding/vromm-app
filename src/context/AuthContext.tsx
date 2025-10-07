@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { supabase, db } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { Database } from '../lib/database.types';
-import { Platform, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import { AppAnalytics } from '../utils/analytics';
 import { clearContentCache } from '../services/contentService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,38 +60,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Load profile data
   useEffect(() => {
     if (user?.id) {
-      console.log('🔧 [AuthContext] Loading profile for user:', user.id, 'email:', user.email);
       db.profiles
         .get(user.id)
         .then((data) => {
-          console.log('🔧 [AuthContext] Profile data received:', { 
-            hasData: !!data, 
-            hasEmail: !!data?.email, 
-            userEmail: user.email 
-          });
-          
           // Ensure email is populated from user if missing in profile
           if (data && !data.email && user.email) {
-            console.log('🔧 [AuthContext] Profile missing email, updating from user.email');
             const updatedProfile = { ...data, email: user.email };
             setProfile(updatedProfile);
-            
+
             // Update the profile in database to fix the missing email
             supabase
               .from('profiles')
               .update({ email: user.email })
               .eq('id', user.id)
-              .then(() => {
-                console.log('✅ [AuthContext] Profile email updated from user.email');
-              })
               .catch((err) => {
                 console.warn('Failed to update profile email:', err);
               });
           } else if (data && data.email) {
-            console.log('✅ [AuthContext] Profile has email:', data.email);
             setProfile(data);
           } else {
-            console.log('⚠️ [AuthContext] No profile data or email found');
             setProfile(data);
           }
         })
@@ -103,7 +90,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [user?.id, user?.email]);
 
   useEffect(() => {
-    console.log('AuthProvider mounted');
     // Get initial session
     const checkSession = async () => {
       try {
@@ -119,12 +105,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(session?.user || null);
         setLoading(false);
         setInitialized(true);
-        console.log('[AUTH_DEBUG_INIT] Initial session fetched', {
-          hasSession: !!session,
-          hasUser: !!session?.user,
-          userId: session?.user?.id,
-          userEmail: session?.user?.email,
-        });
       } catch (error) {
         console.error('Error checking session:', error);
       }
@@ -136,7 +116,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-
       // If user just signed in, ensure they have a profile
       if (_event === 'SIGNED_IN' && session?.user) {
         try {
@@ -148,7 +127,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .single();
 
           if (fetchError && fetchError.code === 'PGRST116') {
-            console.log('[AUTH_STATE_DEBUG] No profile found, creating new profile...');
             // No profile found
             // Create profile with user metadata
             const metadata = session.user.user_metadata;
@@ -166,13 +144,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             if (createError) {
               console.error('[AUTH_STATE_DEBUG] Error creating profile on sign in:', createError);
-            } else {
-              console.log('[AUTH_STATE_DEBUG] Profile created successfully');
             }
           } else {
             // Check if user account is deleted
             if (profile?.account_status === 'deleted') {
-              console.log('🚫 Deleted user attempted login:', session.user.email);
               await supabase.auth.signOut();
               Alert.alert(
                 'Account Deleted',
@@ -187,17 +162,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
 
-      console.log(
-        '[AUTH_STATE_DEBUG] Updating state - session:',
-        !!session,
-        'user:',
-        !!session?.user,
-      );
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
       setInitialized(true);
-      console.log('[AUTH_STATE_DEBUG] State updated successfully');
 
       // Emit a global debug ping to help root navigation decide
       try {
@@ -211,8 +179,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = React.useCallback(
     async (email: string, password: string, onSuccess?: () => void) => {
-      console.log('Starting signup process for:', email);
-
       try {
         setLoading(true);
 
@@ -232,20 +198,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           },
         });
 
-        console.log('Auth signup response:', { authData, authError });
-
         if (authError) throw authError;
         if (!authData.user?.id) throw new Error('User creation failed');
 
         // Create user profile using our simple function
         try {
-          const { data: profileResult, error: profileError } = await supabase.rpc('ensure_profile_exists');
-          
+          const { error: profileError } = await supabase.rpc('ensure_profile_exists');
+
           if (profileError) {
             console.warn('Profile creation failed:', profileError);
             // Don't throw here - user is created, profile can be created later
-          } else {
-            console.log('Profile creation result:', profileResult);
           }
         } catch (profileError) {
           console.warn('Profile creation failed:', profileError);
@@ -254,16 +216,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // CRITICAL: Ensure email is set in profile immediately after signup
         try {
-          console.log('🔧 [AuthContext] Ensuring email is set in profile for user:', authData.user.id);
           const { error: updateError } = await supabase
             .from('profiles')
             .update({ email: email })
             .eq('id', authData.user.id);
-          
+
           if (updateError) {
             console.warn('Failed to update profile email:', updateError);
-          } else {
-            console.log('✅ [AuthContext] Profile email updated successfully');
           }
         } catch (emailUpdateError) {
           console.warn('Failed to ensure email in profile:', emailUpdateError);
@@ -277,8 +236,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch (analyticsError) {
           console.warn('Analytics tracking failed:', analyticsError);
         }
-
-        console.log('Signup successful for user:', authData.user.id);
 
         // Email confirmation is disabled in the dashboard, so we do not show any
         // confirmation dialog here. Invoke optional success callback directly.
@@ -294,29 +251,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 
   const signIn = React.useCallback(async (email: string, password: string) => {
-    console.log('[AUTH_DEBUG] signIn called with email:', email);
-
     try {
-      console.log('[AUTH_DEBUG] Setting loading to true');
       setLoading(true);
 
-      console.log('[AUTH_DEBUG] Attempting Supabase auth...');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-      console.log('[AUTH_DEBUG] Supabase response:', {
-        hasUser: !!data?.user,
-        hasSession: !!data?.session,
-        errorMessage: error?.message,
-      });
-
       if (error) {
-        console.log('[AUTH_DEBUG] Supabase auth error:', error);
         throw error;
       }
 
       // Check if email is confirmed
       if (data?.user && !data.user.email_confirmed_at) {
-        console.log('[AUTH_DEBUG] Email not confirmed for user:', data.user.id);
         Alert.alert('Email Not Confirmed', 'Please confirm your email address before signing in.', [
           {
             text: 'Resend Confirmation',
@@ -339,13 +284,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error('Please confirm your email before signing in');
       }
 
-      console.log('[AUTH_DEBUG] Authentication successful, clearing content cache...');
       // Clear content cache to ensure fresh data
       await clearContentCache();
 
       // Only track signin event if successful
       if (data?.user) {
-        console.log('[AUTH_DEBUG] Tracking sign-in analytics...');
         try {
           AppAnalytics.trackSignIn('email').catch((err) => {
             console.warn('Analytics tracking failed:', err);
@@ -354,13 +297,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.warn('Analytics tracking failed:', analyticsError);
         }
       }
-
-      console.log('[AUTH_DEBUG] signIn process completed successfully');
     } catch (error) {
       console.log('[AUTH_DEBUG] signIn failed, throwing error:', error);
       throw error;
     } finally {
-      console.log('[AUTH_DEBUG] Setting loading to false');
       setLoading(false);
     }
   }, []);

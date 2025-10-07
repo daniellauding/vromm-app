@@ -1,6 +1,6 @@
 import { createTamagui } from 'tamagui';
 import { tokens } from './tokens';
-import { systemLightTheme, systemDarkTheme, manualLightTheme, manualDarkTheme } from './theme-control';
+import { manualLightTheme, manualDarkTheme } from './theme-control';
 import { shorthands } from '@tamagui/shorthands';
 import { createMedia } from '@tamagui/react-native-media-driver';
 import { rubikFont } from './fonts';
@@ -220,13 +220,13 @@ export const config = createTamagui({
     heading: rubikFont,
     body: rubikFont,
   },
-          themes: {
-            // Use Tamagui's default themes for system mode (preserves original behavior)
-            ...defaultThemes,
-            // Add our custom themes for manual mode
-            light_manual: manualLightTheme,
-            dark_manual: manualDarkTheme,
-          },
+  themes: {
+    // Use Tamagui's default themes for system mode (preserves original behavior)
+    ...defaultThemes,
+    // Add our custom themes for manual mode
+    light_manual: manualLightTheme,
+    dark_manual: manualDarkTheme,
+  },
   tokens,
   media,
   ...componentThemes,

@@ -1,4 +1,4 @@
-import { TamaguiProvider, Theme } from 'tamagui';
+import { TamaguiProvider } from 'tamagui';
 
 import { config } from './src/theme/components';
 import { AuthProvider } from './src/context/AuthContext';
@@ -20,11 +20,11 @@ import { TourProvider } from './src/contexts/TourContext';
 import { UnlockProvider } from './src/contexts/UnlockContext';
 import { CelebrationProvider } from './src/contexts/CelebrationContext';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
-import { logWarn } from './src/utils/logger';
 import { googleSignInService } from './src/services/googleSignInService';
 import * as WebBrowser from 'expo-web-browser';
 import AppContent from './src/AppContent';
 import { StripeProvider } from '@stripe/stripe-react-native';
+import { LoadingScreen } from './src/components/LoadingScreen';
 
 // Disable reanimated warnings about reading values during render
 
@@ -65,8 +65,6 @@ export default function App() {
       try {
         if (Platform.OS !== 'web' && (NativeModules as any)?.RNGoogleSignin) {
           await googleSignInService.configure();
-        } else {
-          console.log('ℹ️ Google Sign-In not available (Expo Go or web). Skipping initialization.');
         }
       } catch (error) {
         console.error('❌ Google Sign-In initialization failed:', error);
@@ -82,7 +80,6 @@ export default function App() {
           process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_live_Xr9mSHZSsJqaYS3q82xBNVtJ'; // Fallback test key
 
         setStripePublishableKey(publishableKey);
-        console.log('✅ Stripe publishable key set:', publishableKey.substring(0, 15) + '...');
       } catch (error) {
         console.error('❌ Stripe initialization failed:', error);
       }
@@ -93,14 +90,12 @@ export default function App() {
   }, []);
 
   if (!fontsLoaded) {
-    const LoadingScreen = require('./src/components/LoadingScreen').LoadingScreen;
     return (
       <LoadingScreen
         message="Loading fonts..."
         showAfterMs={500}
         timeout={10000}
         onTimeout={() => {
-          logWarn('Font loading timeout - continuing without custom fonts');
           setFontsLoaded(true); // Force continue
         }}
       />

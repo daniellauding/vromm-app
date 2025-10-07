@@ -12,21 +12,17 @@ interface ThemeProviderProps {
  */
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { effectiveTheme, userPreference } = useThemePreference();
-  
-  console.log('🎨 ThemeProvider - userPreference:', userPreference);
-  console.log('🎨 ThemeProvider - effectiveTheme:', effectiveTheme);
-  
+
   // Use system themes for 'system' preference, manual themes for explicit choices
   // When user has manual preference, ignore system changes completely
-  const themeName = userPreference === 'system' 
-    ? (effectiveTheme === 'dark' ? 'dark' : 'light')  // Use default Tamagui themes
-    : (userPreference === 'dark' ? 'dark_manual' : 'light_manual');  // Use our custom themes based on user preference, not system
-  
-  console.log('🎨 ThemeProvider - applying theme:', themeName);
-  
-  return (
-    <Theme name={themeName}>
-      {children}
-    </Theme>
-  );
+  const themeName =
+    userPreference === 'system'
+      ? effectiveTheme === 'dark'
+        ? 'dark'
+        : 'light' // Use default Tamagui themes
+      : userPreference === 'dark'
+        ? 'dark_manual'
+        : 'light_manual'; // Use our custom themes based on user preference, not system
+
+  return <Theme name={themeName}>{children}</Theme>;
 }
