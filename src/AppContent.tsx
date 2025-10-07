@@ -30,6 +30,8 @@ import { PromotionalModal, usePromotionalModal } from './components/PromotionalM
 import { GlobalCelebrationModal } from './components/GlobalCelebrationModal';
 import type { NavigationContainerRef } from '@react-navigation/native';
 
+import { LoadingScreen } from './components/LoadingScreen';
+
 // Define a compatible type for WebBrowser dismiss helpers to avoid any-casts
 type WebBrowserCompat = typeof WebBrowser & {
   dismissAuthSession?: () => Promise<void>;
@@ -125,7 +127,7 @@ async function registerForPushNotificationsAsync(
   let token;
 
   // Force refresh translations to ensure they're loaded
-  await refreshTranslations();
+  // await refreshTranslations();
 
   // 🧪 TEST: Show a test toast to verify translations are working (REMOVE THIS AFTER TESTING)
   if (showToast && __DEV__) {
@@ -259,7 +261,7 @@ function AuthenticatedAppContent() {
         console.error('Failed to store push token:', error);
       }
     });
-  }, [authData?.user?.id]);
+  }, [authData?.user?.id, showToast, t]);
 
   return (
     <Stack.Navigator
@@ -467,16 +469,11 @@ function AppContent() {
   } = usePromotionalModal();
 
   // Global unified invitation checking function
-  const checkForGlobalInvitations = async () => {
-    console.log('🌍 [AppContent] checkForGlobalInvitations called');
-    console.log('🌍 [AppContent] User object:', { email: user?.email, id: user?.id });
-
+  const checkForGlobalInvitations = React.useCallback(async () => {
     if (!user?.email || !user?.id) {
-      console.log('🌍 [AppContent] No user email or ID, skipping invitation check');
       return;
     }
 
-    console.log('🌍 [AppContent] Checking for global invitations for user:', user.email, user.id);
     try {
       // Check for relationship invitations from pending_invitations table
       const { data: relationshipInvitations, error: relError } = await supabase
@@ -487,7 +484,6 @@ function AppContent() {
         .order('created_at', { ascending: false });
 
       if (relError) {
-        console.error('🌍 Relationship invitation check error:', relError);
         return;
       }
 
@@ -501,7 +497,6 @@ function AppContent() {
         .order('created_at', { ascending: false });
 
       if (notifRelError) {
-        console.error('🌍 Notification relationship invitation check error:', notifRelError);
         return;
       }
 
@@ -514,7 +509,6 @@ function AppContent() {
         .order('created_at', { ascending: false });
 
       if (colError) {
-        console.error('🌍 Collection invitation check error:', colError);
         return;
       }
 
@@ -528,7 +522,6 @@ function AppContent() {
         .order('created_at', { ascending: false });
 
       if (notifError) {
-        console.error('🌍 Notification invitation check error:', notifError);
         return;
       }
 
@@ -538,20 +531,9 @@ function AppContent() {
         (collectionInvitations?.length || 0) +
         (notificationInvitations?.length || 0);
 
-      console.log('🌍 [AppContent] Found invitations:', {
-        relationship: relationshipInvitations?.length || 0,
-        relationshipNotifications: notificationRelationshipInvitations?.length || 0,
-        collection: collectionInvitations?.length || 0,
-        notifications: notificationInvitations?.length || 0,
-        total: totalInvitations,
-        alreadyShowing: showGlobalInvitationNotification,
-      });
-
       if (totalInvitations > 0 && !showGlobalInvitationNotification) {
-        console.log('🌍 Global invitation check: Found pending invitations, showing unified modal');
         setShowGlobalInvitationNotification(true);
       } else if (totalInvitations === 0) {
-        console.log('🌍 [AppContent] No invitations found, checking for promotional content');
         // If no invitations, check for promotional content
         setTimeout(async () => {
           const result = await checkForPromotionalContent('modal');
@@ -560,7 +542,7 @@ function AppContent() {
     } catch (error) {
       console.error('🌍 Global invitation check error:', error);
     }
-  };
+  }, [user?.email, user?.id, showGlobalInvitationNotification, checkForPromotionalContent]);
 
   // Register opener so other parts can open modal instantly without prop drilling
   useEffect(() => {
@@ -569,13 +551,10 @@ function AppContent() {
 
   // Set up global invitation subscription
   useEffect(() => {
-    console.log('🌍 [AppContent] useEffect triggered for invitations, user:', user?.email);
     if (!user?.email) {
-      console.log('🌍 [AppContent] No user email, skipping invitation setup');
       return;
     }
 
-    console.log('🌍 [AppContent] Setting up invitation check for user:', user.email);
     // Check immediately when user is available
     checkForGlobalInvitations();
 
@@ -639,9 +618,6 @@ function AppContent() {
             if (row?.type === 'supervisor_invitation' || row?.type === 'student_invitation') {
               setShowGlobalInvitationNotification(true);
             } else if (row?.type === 'collection_invitation') {
-              console.log(
-                '📁 Fallback: Collection invitation notification inserted, opening unified modal',
-              );
               setShowGlobalInvitationNotification(true);
             }
           } catch {}
@@ -664,9 +640,6 @@ function AppContent() {
           try {
             const row = payload?.new;
             if (row?.status === 'pending') {
-              console.log(
-                '📁 Collection invitation INSERT matches current user → opening unified modal',
-              );
               setTimeout(() => setShowGlobalInvitationNotification(true), 150);
             }
           } catch (e) {
@@ -681,20 +654,13 @@ function AppContent() {
       notifSubscription.unsubscribe();
       collectionInvitationSubscription.unsubscribe();
     };
-  }, [user?.email, user?.id]);
+  }, [user?.email, user?.id, checkForGlobalInvitations]);
 
   // React Native doesn't have window, use a different approach for cross-component communication
   // The NotificationBell will trigger checkForGlobalInvitations directly via the subscription
 
   // Add app-level logging and crash monitoring
   useEffect(() => {
-    logInfo('App started', {
-      platform: Platform.OS,
-      platformVersion: Platform.Version,
-      colorScheme,
-      timestamp: new Date().toISOString(),
-    });
-
     // Clear old crash reports
     clearOldCrashReports().catch((error) => {
       logError('Failed to clear old crash reports', error);
@@ -702,11 +668,6 @@ function AppContent() {
 
     // Monitor app state changes
     const handleAppStateChange = (nextAppState: string) => {
-      logInfo(`App state changed to: ${nextAppState}`, {
-        previousState: AppState.currentState,
-        nextState: nextAppState,
-      });
-
       if (nextAppState === 'background') {
         logWarn('App went to background - potential memory pressure point');
       } else if (nextAppState === 'active') {
@@ -718,7 +679,6 @@ function AppContent() {
 
     return () => {
       subscription?.remove();
-      logInfo('App cleanup completed');
     };
   }, [colorScheme]);
 
@@ -728,7 +688,7 @@ function AppContent() {
       pushNotificationService.setNavigationRef(navigationRef);
       logInfo('Push notification navigation reference set');
     }
-  }, [navigationRef.current]);
+  }, []);
 
   // Enable analytics collection when the app starts
   useEffect(() => {
@@ -736,13 +696,11 @@ function AppContent() {
       try {
         // Check if the analytics module is available
         if (!analytics().app) {
-          logWarn('Firebase Analytics not available');
           return;
         }
 
         // Make sure analytics collection is enabled
         await analytics().setAnalyticsCollectionEnabled(true);
-        logInfo('Firebase Analytics initialized');
       } catch (error) {
         logError('Failed to initialize analytics', error);
       }
@@ -773,7 +731,6 @@ function AppContent() {
           if (error) {
             logError('OAuth exchange failed', error);
           } else {
-            logInfo('OAuth code exchange succeeded');
             didSetSession = true;
           }
         } else {
@@ -789,7 +746,6 @@ function AppContent() {
               if (error) {
                 logError('OAuth setSession (fragment) failed', error);
               } else {
-                logInfo('OAuth session set from fragment tokens');
                 didSetSession = true;
               }
             }
@@ -958,9 +914,6 @@ function AppContent() {
   // Only return null during initial app startup, not during login attempts
   // This prevents navigation stack from being destroyed during authentication
   if (authLoading && !initialized) {
-    logInfo('Initial auth check in progress');
-    // Import LoadingScreen dynamically to avoid circular imports
-    const LoadingScreen = require('./components/LoadingScreen').LoadingScreen;
     return (
       <LoadingScreen
         message="Starting app..."
