@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, ScrollView, Alert, Platform } from 'react-native';
 import { YStack, Card, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { logError, getCrashReport, logInfo } from '../utils/logger';

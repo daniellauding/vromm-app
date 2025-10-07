@@ -43,12 +43,12 @@ class GoogleSignInService {
 
     try {
       // iOS OAuth client ID from GoogleService-Info.plist (CLIENT_ID)
-      const IOS_CLIENT_ID = '380014826230-1tnnca8r2p14p3uo6ou1dhcank58lskc.apps.googleusercontent.com';
+      const IOS_CLIENT_ID =
+        '380014826230-1tnnca8r2p14p3uo6ou1dhcank58lskc.apps.googleusercontent.com';
 
       const { GoogleSignin } = await getGoogleSignInModule();
       GoogleSignin.configure({
-        webClientId:
-          '380014826230-9oj2214epv1b9vbsq3skeig0mfkh71nj.apps.googleusercontent.com',
+        webClientId: '380014826230-9oj2214epv1b9vbsq3skeig0mfkh71nj.apps.googleusercontent.com',
         // Only need idToken for Supabase; keep it simple to avoid invalid_audience
         iosClientId: IOS_CLIENT_ID,
         scopes: ['openid', 'email', 'profile'],
@@ -128,10 +128,9 @@ class GoogleSignInService {
     } catch (error: any) {
       console.error('❌ Google Sign-In failed:', error);
 
-      const fallbackMessage =
-        error?.message?.includes('native module unavailable')
-          ? 'Google Sign-In is unavailable in Expo Go. Please use a dev build.'
-          : 'Google Sign-In failed';
+      const fallbackMessage = error?.message?.includes('native module unavailable')
+        ? 'Google Sign-In is unavailable in Expo Go. Please use a dev build.'
+        : 'Google Sign-In failed';
 
       let errorMessage = fallbackMessage;
 
@@ -230,4 +229,4 @@ class GoogleSignInService {
 
 // Export singleton instance
 export const googleSignInService = new GoogleSignInService();
-export default googleSignInService; 
+export default googleSignInService;

@@ -25,30 +25,27 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [data, setData] = useState<CelebrationData | null>(null);
 
-  const showCelebration = (celebrationData: CelebrationData) => {
-    console.log('🎉 [CelebrationContext] Showing celebration:', celebrationData);
+  const showCelebration = React.useCallback((celebrationData: CelebrationData) => {
     setData(celebrationData);
     setIsVisible(true);
-  };
+  }, []);
 
-  const hideCelebration = () => {
-    console.log('🎉 [CelebrationContext] Hiding celebration');
+  const hideCelebration = React.useCallback(() => {
     setIsVisible(false);
     setData(null);
-  };
+  }, []);
 
-  const value = {
-    showCelebration,
-    hideCelebration,
-    isVisible,
-    data,
-  };
-
-  return (
-    <CelebrationContext.Provider value={value}>
-      {children}
-    </CelebrationContext.Provider>
+  const value: CelebrationContextType = React.useMemo(
+    () => ({
+      showCelebration,
+      hideCelebration,
+      isVisible,
+      data,
+    }),
+    [showCelebration, hideCelebration, isVisible, data],
   );
+
+  return <CelebrationContext.Provider value={value}>{children}</CelebrationContext.Provider>;
 }
 
 export function useCelebration() {
