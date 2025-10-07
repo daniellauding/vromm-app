@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { YStack, XStack } from 'tamagui';
+import { YStack, XStack, Card } from 'tamagui';
 import { TouchableOpacity, useColorScheme, View } from 'react-native';
 import { SectionHeader } from '@/src/components/SectionHeader';
 import { useTranslation } from '@/src/contexts/TranslationContext';
