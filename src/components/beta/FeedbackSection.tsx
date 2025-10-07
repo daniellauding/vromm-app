@@ -32,10 +32,17 @@ export const FeedbackSection: React.FC = () => {
 
   return (
     <YStack gap="$4">
-      <Text fontSize="$6" fontWeight="700">Share Your Feedback</Text>
+      <Text fontSize="$6" fontWeight="700">
+        Share Your Feedback
+      </Text>
 
       <Input placeholder="Your name" value={name} onChangeText={setName} />
-      <Input placeholder="Email (optional)" value={email} onChangeText={setEmail} keyboardType="email-address" />
+      <Input
+        placeholder="Email (optional)"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+      />
 
       <XStack gap="$2" alignItems="center">
         <Text>Rating:</Text>
@@ -53,9 +60,11 @@ export const FeedbackSection: React.FC = () => {
         multiline
       />
 
-      <Button onPress={save} disabled={!name || !comment || rating === 0}>Submit</Button>
+      <Button onPress={save} disabled={!name || !comment || rating === 0}>
+        Submit
+      </Button>
     </YStack>
   );
 };
 
-export default FeedbackSection; 
+export default FeedbackSection;
