@@ -1,11 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
-import {
-  View,
-  Platform,
-  PanResponder,
-  Dimensions,
-  Alert,
-} from 'react-native';
+import { View, Platform, PanResponder, Dimensions, Alert } from 'react-native';
 import { Text, XStack, YStack, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import MapView, { Marker, Polyline } from 'react-native-maps';
@@ -57,13 +51,17 @@ export function RouteMapEditor({
   colorScheme = 'dark',
 }: RouteMapEditorProps) {
   const mapRef = useRef<MapView>(null);
-  
+
   // Debug waypoints prop changes
   React.useEffect(() => {
     console.log(`🗺️ RouteMapEditor: ${waypoints.length} waypoints, mode: ${drawingMode}`);
   }, [waypoints.length, drawingMode]);
   const containerRef = useRef<View>(null);
-  const lastDrawPointRef = useRef<{ latitude: number; longitude: number; timestamp?: number } | null>(null);
+  const lastDrawPointRef = useRef<{
+    latitude: number;
+    longitude: number;
+    timestamp?: number;
+  } | null>(null);
   const drawingRef = useRef(false);
   const [undoneWaypoints, setUndoneWaypoints] = useState<Waypoint[]>([]);
 
@@ -80,24 +78,27 @@ export function RouteMapEditor({
   };
 
   // Handle map press events
-  const handleMapPress = useCallback((e: any) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
+  const handleMapPress = useCallback(
+    (e: any) => {
+      const { latitude, longitude } = e.nativeEvent.coordinate;
 
-    switch (drawingMode) {
-      case 'pin':
-        handlePinMode(latitude, longitude);
-        break;
-      case 'waypoint':
-        handleWaypointMode(latitude, longitude);
-        break;
-      case 'pen':
-        handlePenMode(latitude, longitude);
-        break;
-      case 'record':
-        // Record mode doesn't use map press
-        break;
-    }
-  }, [drawingMode]);
+      switch (drawingMode) {
+        case 'pin':
+          handlePinMode(latitude, longitude);
+          break;
+        case 'waypoint':
+          handleWaypointMode(latitude, longitude);
+          break;
+        case 'pen':
+          handlePenMode(latitude, longitude);
+          break;
+        case 'record':
+          // Record mode doesn't use map press
+          break;
+      }
+    },
+    [drawingMode],
+  );
 
   const handlePinMode = async (latitude: number, longitude: number) => {
     try {
@@ -106,13 +107,13 @@ export function RouteMapEditor({
         longitude,
       });
 
-      const title = result?.street 
+      const title = result?.street
         ? `${result.street}${result.streetNumber ? ` ${result.streetNumber}` : ''}`
         : 'Custom Location';
 
-      const description = [result?.city, result?.region, result?.country]
-        .filter(Boolean)
-        .join(', ') || 'Added via map pin';
+      const description =
+        [result?.city, result?.region, result?.country].filter(Boolean).join(', ') ||
+        'Added via map pin';
 
       const newWaypoint = {
         latitude,
@@ -139,8 +140,10 @@ export function RouteMapEditor({
   const handleWaypointMode = async (latitude: number, longitude: number) => {
     try {
       const waypointNumber = waypoints.length + 1;
-      console.log(`🗺️ Adding waypoint ${waypointNumber} at ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-      
+      console.log(
+        `🗺️ Adding waypoint ${waypointNumber} at ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+      );
+
       // Create waypoint immediately to prevent UI lag
       const newWaypoint = {
         latitude,
@@ -153,7 +156,7 @@ export function RouteMapEditor({
       const updatedWaypoints = [...waypoints, newWaypoint];
       onWaypointsChange(updatedWaypoints);
       setUndoneWaypoints([]);
-      
+
       console.log(`🗺️ ✅ Now have ${updatedWaypoints.length} waypoints total`);
 
       // Try to get address in background with delay to prevent rate limiting
@@ -166,13 +169,15 @@ export function RouteMapEditor({
 
           if (result?.street) {
             const addressTitle = `${result.street}${result.streetNumber ? ` ${result.streetNumber}` : ''}`;
-            const addressDescription = [result?.city, result?.region, result?.country]
-              .filter(Boolean)
-              .join(', ') || `Waypoint ${waypointNumber} description`;
-            
+            const addressDescription =
+              [result?.city, result?.region, result?.country].filter(Boolean).join(', ') ||
+              `Waypoint ${waypointNumber} description`;
+
             // Update the specific waypoint with real address
             const waypointsWithAddress = updatedWaypoints.map((wp, index) =>
-              index === updatedWaypoints.length - 1 ? { ...wp, title: addressTitle, description: addressDescription } : wp
+              index === updatedWaypoints.length - 1
+                ? { ...wp, title: addressTitle, description: addressDescription }
+                : wp,
             );
             onWaypointsChange(waypointsWithAddress);
           }
@@ -180,7 +185,6 @@ export function RouteMapEditor({
           // Silent fail for address lookup
         }
       }, 500);
-      
     } catch (error) {
       console.error('🗺️ ❌ Error adding waypoint:', error);
       const waypointNumber = waypoints.length + 1;
@@ -204,13 +208,13 @@ export function RouteMapEditor({
   const startContinuousDrawing = (latitude: number, longitude: number) => {
     console.log('🎨 Starting continuous drawing at:', latitude, longitude);
     const newPoint = { latitude, longitude };
-    
+
     // Clear any existing pen path and start fresh
     onPenPathChange([newPoint]);
     lastDrawPointRef.current = { ...newPoint, timestamp: Date.now() };
     drawingRef.current = true;
     onDrawingChange?.(true);
-    
+
     console.log('🎨 Drawing state set - map interactions should now be blocked');
   };
 
@@ -218,14 +222,14 @@ export function RouteMapEditor({
     if (!drawingRef.current) return;
 
     const newPoint = { latitude, longitude };
-    
+
     // Check distance from last point to avoid too many close points
     if (lastDrawPointRef.current) {
       const distance = Math.sqrt(
         Math.pow(latitude - lastDrawPointRef.current.latitude, 2) +
-        Math.pow(longitude - lastDrawPointRef.current.longitude, 2)
+          Math.pow(longitude - lastDrawPointRef.current.longitude, 2),
       );
-      
+
       // Only add point if it's far enough from the last one
       if (distance < 0.0001) return; // Approximately 10 meters
     }
@@ -292,7 +296,7 @@ export function RouteMapEditor({
       if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
         console.log('🎨 PEN DRAWING STARTED - Blocking map interactions');
         const { locationX, locationY } = evt.nativeEvent;
-        
+
         // Set drawing state immediately to block map interactions
         drawingRef.current = true;
         onDrawingChange?.(true);
@@ -367,11 +371,11 @@ export function RouteMapEditor({
   const handleLocateMe = async () => {
     try {
       console.log('🗺️ [RouteMapEditor] Locate Me pressed - checking location permission');
-      
+
       // Check current permission status first
       const currentStatus = await Location.getForegroundPermissionsAsync();
       console.log('🗺️ [RouteMapEditor] Current permission status:', currentStatus.status);
-      
+
       if (currentStatus.status === 'granted') {
         // Permission already granted, get location
         const location = await Location.getCurrentPositionAsync({});
@@ -381,16 +385,16 @@ export function RouteMapEditor({
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         };
-        
+
         onRegionChange(newRegion);
         mapRef.current?.animateToRegion(newRegion, 1000);
         return;
       }
-      
+
       // Request permission - this shows the native dialog
       const { status } = await Location.requestForegroundPermissionsAsync();
       console.log('🗺️ [RouteMapEditor] Permission request result:', status);
-      
+
       if (status === 'granted') {
         // Permission granted, get location
         const location = await Location.getCurrentPositionAsync({});
@@ -400,7 +404,7 @@ export function RouteMapEditor({
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         };
-        
+
         onRegionChange(newRegion);
         mapRef.current?.animateToRegion(newRegion, 1000);
       } else {
@@ -411,8 +415,8 @@ export function RouteMapEditor({
           'To use "Locate Me", please enable location access for this app in your device settings.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Try Again', onPress: handleLocateMe }
-          ]
+            { text: 'Try Again', onPress: handleLocateMe },
+          ],
         );
       }
     } catch (error) {
@@ -485,9 +489,7 @@ export function RouteMapEditor({
                 size={16}
                 color={drawingMode === 'waypoint' ? 'white' : iconColor}
               />
-              <Text color={drawingMode === 'waypoint' ? 'white' : '$color'}>
-                Waypoints
-              </Text>
+              <Text color={drawingMode === 'waypoint' ? 'white' : '$color'}>Waypoints</Text>
             </XStack>
           </Button>
 
@@ -524,9 +526,7 @@ export function RouteMapEditor({
                 size={16}
                 color={drawingMode === 'record' ? 'white' : iconColor}
               />
-              <Text color={drawingMode === 'record' ? 'white' : '$color'}>
-                Record
-              </Text>
+              <Text color={drawingMode === 'record' ? 'white' : '$color'}>Record</Text>
             </XStack>
           </Button>
         </XStack>
@@ -534,7 +534,8 @@ export function RouteMapEditor({
         {/* Mode descriptions */}
         <Text size="sm" color="$gray10">
           {drawingMode === 'pin' && 'Drop a single location marker'}
-          {drawingMode === 'waypoint' && 'Create discrete waypoints connected by lines (minimum 2 required)'}
+          {drawingMode === 'waypoint' &&
+            'Create discrete waypoints connected by lines (minimum 2 required)'}
           {drawingMode === 'pen' && 'Freehand drawing: click and drag to draw continuous lines'}
           {drawingMode === 'record' && initialWaypoints?.length
             ? 'Recorded route loaded • Click Record Again to start new recording'
@@ -579,7 +580,9 @@ export function RouteMapEditor({
           showsUserLocation={true}
           userInterfaceStyle="dark"
           zoomTapEnabled={!(drawingMode === 'pen' && (isDrawing || drawingRef.current))}
-          scrollDuringRotateOrZoomEnabled={!(drawingMode === 'pen' && (isDrawing || drawingRef.current))}
+          scrollDuringRotateOrZoomEnabled={
+            !(drawingMode === 'pen' && (isDrawing || drawingRef.current))
+          }
           onTouchStart={() => {
             if (drawingMode === 'pen') {
               console.log('🎨 Map touch start in pen mode - should be blocked');
@@ -850,13 +853,7 @@ export function RouteMapEditor({
         {drawingMode === 'pen' && (
           <Text
             size="sm"
-            color={
-              isDrawing
-                ? '$orange10'
-                : waypoints.length > 0
-                  ? '$green10'
-                  : '$blue10'
-            }
+            color={isDrawing ? '$orange10' : waypoints.length > 0 ? '$green10' : '$blue10'}
           >
             {isDrawing
               ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom`
@@ -867,7 +864,8 @@ export function RouteMapEditor({
         )}
         {drawingMode === 'record' && initialWaypoints?.length && (
           <Text size="sm" color="$green10">
-            Recorded route loaded • {routePath?.length || 0} GPS points • Click Record Again to start new recording
+            Recorded route loaded • {routePath?.length || 0} GPS points • Click Record Again to
+            start new recording
           </Text>
         )}
       </XStack>

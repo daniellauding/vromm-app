@@ -42,7 +42,10 @@ export const commentService = {
           .from('profiles')
           .select('id, full_name, avatar_url')
           .in('id', authorIds);
-        const map: Record<string, { id: string; full_name?: string | null; avatar_url?: string | null }> = {};
+        const map: Record<
+          string,
+          { id: string; full_name?: string | null; avatar_url?: string | null }
+        > = {};
         (profiles || []).forEach((p: any) => (map[p.id] = p));
         comments.forEach((c) => (c.author = map[c.author_id]));
       }
@@ -53,7 +56,13 @@ export const commentService = {
     }
   },
 
-  async add(targetType: CommentTargetType, targetId: string, body: string, parentId?: string, rich?: any) {
+  async add(
+    targetType: CommentTargetType,
+    targetId: string,
+    body: string,
+    parentId?: string,
+    rich?: any,
+  ) {
     console.log('💬 [comments] add', { targetType, targetId, parentId });
     const { data: auth } = await supabase.auth.getUser();
     const authorId = auth.user?.id;
@@ -81,7 +90,8 @@ export const commentService = {
     // Mentions support: notify any users referenced as @<uuid>
     try {
       const mentionedUserIds = new Set<string>();
-      const mentionRegex = /@([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/g;
+      const mentionRegex =
+        /@([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/g;
       let m: RegExpExecArray | null;
       while ((m = mentionRegex.exec(body))) {
         if (m[1] && m[1] !== authorId) mentionedUserIds.add(m[1]);
@@ -175,14 +185,15 @@ export const commentService = {
       .channel(`comments_${targetType}_${targetId}_${Date.now()}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'comments', filter: `target_type=eq.${targetType},target_id=eq.${targetId}` },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'comments',
+          filter: `target_type=eq.${targetType},target_id=eq.${targetId}`,
+        },
         handler,
       )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'comment_reactions' },
-        handler,
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_reactions' }, handler)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'comment_attachments' },
@@ -192,5 +203,3 @@ export const commentService = {
     return () => supabase.removeChannel(channel);
   },
 };
-
-

@@ -1,5 +1,16 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Modal, Animated, Pressable, Easing, View, Dimensions, ScrollView, TouchableOpacity, RefreshControl, FlatList } from 'react-native';
+import {
+  Modal,
+  Animated,
+  Pressable,
+  Easing,
+  View,
+  Dimensions,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  FlatList,
+} from 'react-native';
 import { YStack, XStack, Text, Spinner } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
@@ -21,7 +32,13 @@ const { height } = Dimensions.get('window');
 
 interface ActivityItem {
   id: string;
-  type: 'route_created' | 'event_created' | 'event_attending' | 'exercise_completed' | 'learning_path_step' | 'learning_path_completed';
+  type:
+    | 'route_created'
+    | 'event_created'
+    | 'event_attending'
+    | 'exercise_completed'
+    | 'learning_path_step'
+    | 'learning_path_completed';
   user: {
     id: string;
     full_name: string;
@@ -92,7 +109,7 @@ export function CommunityFeedSheet({
         .eq('follower_id', user.id);
 
       if (!error && data) {
-        setFollowingUserIds(data.map(f => f.following_id));
+        setFollowingUserIds(data.map((f) => f.following_id));
       }
     } catch (error) {
       console.error('Error loading following users:', error);
@@ -115,14 +132,16 @@ export function CommunityFeedSheet({
       // Load recent public routes
       let routesQuery = supabase
         .from('routes')
-        .select(`
+        .select(
+          `
           *,
           creator:profiles!routes_creator_id_fkey(
             id,
             full_name,
             avatar_url
           )
-        `)
+        `,
+        )
         .neq('visibility', 'private')
         .order('created_at', { ascending: false })
         .limit(30);
@@ -134,14 +153,14 @@ export function CommunityFeedSheet({
       const { data: routes, error: routesError } = await routesQuery;
 
       if (!routesError && routes) {
-        routes.forEach(route => {
+        routes.forEach((route) => {
           if (route.creator) {
             feedItems.push({
               id: `route_${route.id}`,
               type: 'route_created',
               user: route.creator,
               created_at: route.created_at,
-              data: route
+              data: route,
             });
           }
         });
@@ -150,14 +169,16 @@ export function CommunityFeedSheet({
       // Load recent public events
       let eventsQuery = supabase
         .from('events')
-        .select(`
+        .select(
+          `
           *,
           creator:profiles!events_created_by_fkey(
             id,
             full_name,
             avatar_url
           )
-        `)
+        `,
+        )
         .neq('visibility', 'private')
         .order('created_at', { ascending: false })
         .limit(30);
@@ -169,14 +190,14 @@ export function CommunityFeedSheet({
       const { data: events, error: eventsError } = await eventsQuery;
 
       if (!eventsError && events) {
-        events.forEach(event => {
+        events.forEach((event) => {
           if (event.creator) {
             feedItems.push({
               id: `event_${event.id}`,
               type: 'event_created',
               user: event.creator,
               created_at: event.created_at,
-              data: event
+              data: event,
             });
           }
         });
@@ -185,7 +206,8 @@ export function CommunityFeedSheet({
       // Load recent exercise completions
       let completionsQuery = supabase
         .from('virtual_repeat_completions')
-        .select(`
+        .select(
+          `
           *,
           user:profiles!virtual_repeat_completions_user_id_fkey(
             id,
@@ -199,7 +221,8 @@ export function CommunityFeedSheet({
             icon,
             image
           )
-        `)
+        `,
+        )
         .order('completed_at', { ascending: false })
         .limit(50);
 
@@ -210,7 +233,7 @@ export function CommunityFeedSheet({
       const { data: completions, error: completionsError } = await completionsQuery;
 
       if (!completionsError && completions) {
-        completions.forEach(completion => {
+        completions.forEach((completion) => {
           if (completion.user && completion.learning_path_exercises) {
             feedItems.push({
               id: `completion_${completion.id}`,
@@ -219,8 +242,8 @@ export function CommunityFeedSheet({
               created_at: completion.completed_at,
               data: {
                 exercise: completion.learning_path_exercises,
-                completion: completion
-              }
+                completion: completion,
+              },
             });
           }
         });
@@ -229,7 +252,8 @@ export function CommunityFeedSheet({
       // Load learning path completions (celebration activities)
       let pathCompletionsQuery = supabase
         .from('learning_path_exercise_completions')
-        .select(`
+        .select(
+          `
           *,
           user:profiles!learning_path_exercise_completions_user_id_fkey(
             id,
@@ -249,7 +273,8 @@ export function CommunityFeedSheet({
               icon
             )
           )
-        `)
+        `,
+        )
         .order('completed_at', { ascending: false })
         .limit(100);
 
@@ -262,8 +287,8 @@ export function CommunityFeedSheet({
       if (!pathCompletionsError && pathCompletions) {
         // Group completions by learning path to detect path completions
         const pathCompletionMap = new Map<string, any[]>();
-        
-        pathCompletions.forEach(completion => {
+
+        pathCompletions.forEach((completion) => {
           if (completion.user && completion.learning_path_exercises?.learning_paths) {
             const pathId = completion.learning_path_exercises.learning_path_id;
             if (!pathCompletionMap.has(pathId)) {
@@ -278,7 +303,7 @@ export function CommunityFeedSheet({
           if (completions.length > 0) {
             const learningPath = completions[0].learning_path_exercises.learning_paths;
             const user = completions[0].user;
-            
+
             // Get total exercises in this learning path
             const { data: totalExercises } = await supabase
               .from('learning_path_exercises')
@@ -296,8 +321,8 @@ export function CommunityFeedSheet({
                   learningPath: learningPath,
                   completedExercises: completions.length,
                   totalExercises: totalExercises.length,
-                  completion: completions[completions.length - 1]
-                }
+                  completion: completions[completions.length - 1],
+                },
               });
             }
           }
@@ -433,15 +458,17 @@ export function CommunityFeedSheet({
     }
 
     // Add media attachments
-    const mediaAttachmentsArray = Array.isArray(route.media_attachments) ? route.media_attachments : [];
-    const validAttachments = mediaAttachmentsArray.filter((m: any) =>
-      m?.url && (
-        m.url.startsWith('http://') ||
-        m.url.startsWith('https://') ||
-        m.url.startsWith('file://') ||
-        m.url.startsWith('data:') ||
-        m.url.startsWith('content://')
-      )
+    const mediaAttachmentsArray = Array.isArray(route.media_attachments)
+      ? route.media_attachments
+      : [];
+    const validAttachments = mediaAttachmentsArray.filter(
+      (m: any) =>
+        m?.url &&
+        (m.url.startsWith('http://') ||
+          m.url.startsWith('https://') ||
+          m.url.startsWith('file://') ||
+          m.url.startsWith('data:') ||
+          m.url.startsWith('content://')),
     );
 
     const media = validAttachments.map((m: any) => ({
@@ -460,15 +487,18 @@ export function CommunityFeedSheet({
     if (event.location) {
       try {
         const locationData = JSON.parse(event.location);
-        
+
         if (locationData.waypoints && locationData.waypoints.length > 0) {
-          const validWaypoints = locationData.waypoints.filter((wp: any) =>
-            typeof wp.latitude === 'number' &&
-            typeof wp.longitude === 'number' &&
-            !isNaN(wp.latitude) &&
-            !isNaN(wp.longitude) &&
-            wp.latitude >= -90 && wp.latitude <= 90 &&
-            wp.longitude >= -180 && wp.longitude <= 180
+          const validWaypoints = locationData.waypoints.filter(
+            (wp: any) =>
+              typeof wp.latitude === 'number' &&
+              typeof wp.longitude === 'number' &&
+              !isNaN(wp.latitude) &&
+              !isNaN(wp.longitude) &&
+              wp.latitude >= -90 &&
+              wp.latitude <= 90 &&
+              wp.longitude >= -180 &&
+              wp.longitude <= 180,
           );
 
           if (validWaypoints.length > 0) {
@@ -505,9 +535,12 @@ export function CommunityFeedSheet({
           if (
             typeof latitude === 'number' &&
             typeof longitude === 'number' &&
-            !isNaN(latitude) && !isNaN(longitude) &&
-            latitude >= -90 && latitude <= 90 &&
-            longitude >= -180 && longitude <= 180
+            !isNaN(latitude) &&
+            !isNaN(longitude) &&
+            latitude >= -90 &&
+            latitude <= 90 &&
+            longitude >= -180 &&
+            longitude <= 180
           ) {
             const region = {
               latitude,
@@ -567,13 +600,15 @@ export function CommunityFeedSheet({
           <XStack alignItems="center" gap={12}>
             {/* Avatar Display */}
             {activity.user.avatar_url ? (
-              <View style={{ 
-                width: 40, 
-                height: 40, 
-                borderRadius: 20, 
-                overflow: 'hidden',
-                backgroundColor: colorScheme === 'dark' ? '#444' : '#eee'
-              }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  overflow: 'hidden',
+                  backgroundColor: colorScheme === 'dark' ? '#444' : '#eee',
+                }}
+              >
                 <ImageWithFallback
                   source={{ uri: activity.user.avatar_url }}
                   style={{ width: 40, height: 40 }}
@@ -581,34 +616,32 @@ export function CommunityFeedSheet({
                 />
               </View>
             ) : (
-              <View style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: colorScheme === 'dark' ? '#444' : '#eee',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: colorScheme === 'dark' ? '#444' : '#eee',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 <Feather name="user" size={20} color={colorScheme === 'dark' ? '#ddd' : '#666'} />
               </View>
             )}
-            
+
             <YStack flex={1}>
               <Text fontSize={16} fontWeight="600" color="$color">
                 {activity.user.full_name}
               </Text>
               <XStack alignItems="center" gap={6}>
-                <Feather 
-                  name={getActivityIcon(activity.type)} 
-                  size={14} 
-                  color="#00FFBC" 
-                />
+                <Feather name={getActivityIcon(activity.type)} size={14} color="#00FFBC" />
                 <Text fontSize={14} color="$gray11">
                   {getActivityText(activity.type)}
                 </Text>
               </XStack>
             </YStack>
-            
+
             <Text fontSize={12} color="$gray9">
               {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
             </Text>
@@ -635,26 +668,30 @@ export function CommunityFeedSheet({
                     penDrawingCoordinates={mediaItems[0].data.penDrawingCoordinates}
                   />
                 ) : mediaItems[0].type === 'video' ? (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={{ width: '100%', height: '100%', position: 'relative' }}
                     onPress={() => console.log('🎥 Video play requested:', mediaItems[0].data.url)}
                     activeOpacity={0.8}
                   >
-                    <View style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      backgroundColor: '#000', 
-                      justifyContent: 'center', 
-                      alignItems: 'center' 
-                    }}>
-                      <View style={{
-                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                        borderRadius: 40,
-                        width: 80,
-                        height: 80,
+                    <View
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: '#000',
                         justifyContent: 'center',
-                        alignItems: 'center'
-                      }}>
+                        alignItems: 'center',
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                          borderRadius: 40,
+                          width: 80,
+                          height: 80,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
                         <Play size={32} color="#FFF" />
                       </View>
                       <Text style={{ color: '#FFF', marginTop: 8, fontSize: 14 }}>
@@ -696,26 +733,30 @@ export function CommunityFeedSheet({
                         penDrawingCoordinates={item.data.penDrawingCoordinates}
                       />
                     ) : item.type === 'video' ? (
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={{ width: '100%', height: '100%', position: 'relative' }}
                         onPress={() => console.log('🎥 Video play requested:', item.data.url)}
                         activeOpacity={0.8}
                       >
-                        <View style={{ 
-                          width: '100%', 
-                          height: '100%', 
-                          backgroundColor: '#000', 
-                          justifyContent: 'center', 
-                          alignItems: 'center' 
-                        }}>
-                          <View style={{
-                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                            borderRadius: 40,
-                            width: 80,
-                            height: 80,
+                        <View
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: '#000',
                             justifyContent: 'center',
-                            alignItems: 'center'
-                          }}>
+                            alignItems: 'center',
+                          }}
+                        >
+                          <View
+                            style={{
+                              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                              borderRadius: 40,
+                              width: 80,
+                              height: 80,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
                             <Play size={32} color="#FFF" />
                           </View>
                           <Text style={{ color: '#FFF', marginTop: 8, fontSize: 14 }}>
@@ -747,11 +788,15 @@ export function CommunityFeedSheet({
               <XStack gap={16}>
                 <XStack alignItems="center" gap={6}>
                   <Feather name="bar-chart" size={14} color="$gray11" />
-                  <Text fontSize={13} color="$gray11">{activity.data.difficulty}</Text>
+                  <Text fontSize={13} color="$gray11">
+                    {activity.data.difficulty}
+                  </Text>
                 </XStack>
                 <XStack alignItems="center" gap={6}>
                   <Feather name="map-pin" size={14} color="$gray11" />
-                  <Text fontSize={13} color="$gray11">{activity.data.spot_type}</Text>
+                  <Text fontSize={13} color="$gray11">
+                    {activity.data.spot_type}
+                  </Text>
                 </XStack>
               </XStack>
               {activity.data.description && (
@@ -772,10 +817,9 @@ export function CommunityFeedSheet({
               <XStack alignItems="center" gap={6}>
                 <Feather name="calendar" size={14} color="$gray11" />
                 <Text fontSize={13} color="$gray11">
-                  {activity.data.event_date ? 
-                    new Date(activity.data.event_date).toLocaleDateString() : 
-                    'No date set'
-                  }
+                  {activity.data.event_date
+                    ? new Date(activity.data.event_date).toLocaleDateString()
+                    : 'No date set'}
                 </Text>
               </XStack>
               {activity.data.description && (
@@ -788,22 +832,26 @@ export function CommunityFeedSheet({
         )}
 
         {activity.type === 'exercise_completed' && (
-          <TouchableOpacity onPress={() => {
-            navigation.navigate('RouteExercise', { 
-              routeId: null,
-              exercises: [activity.data.exercise],
-              routeName: 'Exercise',
-              startIndex: 0
-            });
-            onClose();
-          }}>
+          <TouchableOpacity
+            onPress={() => {
+              navigation.navigate('RouteExercise', {
+                routeId: null,
+                exercises: [activity.data.exercise],
+                routeName: 'Exercise',
+                startIndex: 0,
+              });
+              onClose();
+            }}
+          >
             <YStack gap={8} backgroundColor="$backgroundStrong" borderRadius={8} padding={12}>
               <Text fontSize={16} fontWeight="500" color="$color">
                 {activity.data.exercise.title?.en || activity.data.exercise.title?.sv || 'Exercise'}
               </Text>
               <XStack alignItems="center" gap={6}>
                 <Feather name="check-circle" size={14} color="#10B981" />
-                <Text fontSize={13} color="#10B981">Exercise Completed</Text>
+                <Text fontSize={13} color="#10B981">
+                  Exercise Completed
+                </Text>
               </XStack>
               {activity.data.exercise.description && (
                 <Text fontSize={13} color="$gray9" numberOfLines={3}>
@@ -815,31 +863,39 @@ export function CommunityFeedSheet({
         )}
 
         {activity.type === 'learning_path_completed' && (
-          <TouchableOpacity onPress={() => {
-            navigation.navigate('ProgressTab', { 
-              selectedPathId: activity.data.learningPath.id
-            });
-            onClose();
-          }}>
+          <TouchableOpacity
+            onPress={() => {
+              navigation.navigate('ProgressTab', {
+                selectedPathId: activity.data.learningPath.id,
+              });
+              onClose();
+            }}
+          >
             <YStack gap={8} backgroundColor="$backgroundStrong" borderRadius={8} padding={12}>
               <XStack alignItems="center" gap={8}>
-                <View style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: '#FFD700',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: '#FFD700',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
                   <Feather name="trophy" size={16} color="#000" />
                 </View>
                 <YStack flex={1}>
                   <Text fontSize={16} fontWeight="600" color="$color">
-                    {activity.data.learningPath.title?.en || activity.data.learningPath.title?.sv || 'Learning Path'}
+                    {activity.data.learningPath.title?.en ||
+                      activity.data.learningPath.title?.sv ||
+                      'Learning Path'}
                   </Text>
                   <XStack alignItems="center" gap={6}>
                     <Feather name="trophy" size={14} color="#FFD700" />
-                    <Text fontSize={13} color="#FFD700">Path Completed!</Text>
+                    <Text fontSize={13} color="#FFD700">
+                      Path Completed!
+                    </Text>
                   </XStack>
                 </YStack>
               </XStack>
@@ -851,12 +907,16 @@ export function CommunityFeedSheet({
                   </Text>
                 </XStack>
                 <Text fontSize={12} color="$gray9">
-                  {Math.round((activity.data.completedExercises / activity.data.totalExercises) * 100)}% complete
+                  {Math.round(
+                    (activity.data.completedExercises / activity.data.totalExercises) * 100,
+                  )}
+                  % complete
                 </Text>
               </XStack>
               {activity.data.learningPath.description && (
                 <Text fontSize={13} color="$gray9" numberOfLines={2}>
-                  {activity.data.learningPath.description?.en || activity.data.learningPath.description?.sv}
+                  {activity.data.learningPath.description?.en ||
+                    activity.data.learningPath.description?.sv}
                 </Text>
               )}
             </YStack>
@@ -868,26 +928,21 @@ export function CommunityFeedSheet({
 
   const EmptyState = () => {
     const isFollowingFilter = filter === 'following';
-    
+
     return (
       <YStack flex={1} justifyContent="center" alignItems="center" padding={32}>
-        <Feather 
-          name={isFollowingFilter ? "users" : "activity"} 
-          size={64} 
-          color="$gray9" 
-        />
+        <Feather name={isFollowingFilter ? 'users' : 'activity'} size={64} color="$gray9" />
         <Text fontSize={20} fontWeight="600" color="$gray11" textAlign="center" marginTop={16}>
           {isFollowingFilter ? 'No activity from people you follow' : 'No community activity yet'}
         </Text>
         <Text fontSize={16} color="$gray9" textAlign="center" marginTop={8}>
-          {isFollowingFilter 
-            ? 'The people you follow haven\'t posted anything recently'
-            : 'Be the first to create routes, events, or complete exercises!'
-          }
+          {isFollowingFilter
+            ? "The people you follow haven't posted anything recently"
+            : 'Be the first to create routes, events, or complete exercises!'}
         </Text>
-        
+
         {isFollowingFilter && (
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
               // Could trigger UserListSheet here if available
               navigation.navigate('UsersScreen');
@@ -986,11 +1041,7 @@ export function CommunityFeedSheet({
 
               {/* Filter chips */}
               <XStack gap={12}>
-                <Chip
-                  active={filter === 'all'}
-                  onPress={() => setFilter('all')}
-                  icon="activity"
-                >
+                <Chip active={filter === 'all'} onPress={() => setFilter('all')} icon="activity">
                   All Activity
                 </Chip>
                 <Chip
@@ -1018,15 +1069,17 @@ export function CommunityFeedSheet({
                     keyExtractor={(item) => item.id}
                     nestedScrollEnabled
                     refreshControl={
-                      <RefreshControl 
-                        refreshing={refreshing} 
-                        onRefresh={onRefresh} 
+                      <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
                         tintColor="#00FFBC"
                       />
                     }
                     showsVerticalScrollIndicator={false}
                     ListEmptyComponent={EmptyState}
-                    contentContainerStyle={activities.length === 0 ? { flex: 1 } : { paddingBottom: 32 }}
+                    contentContainerStyle={
+                      activities.length === 0 ? { flex: 1 } : { paddingBottom: 32 }
+                    }
                   />
                 )}
               </YStack>

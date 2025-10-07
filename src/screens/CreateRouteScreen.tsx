@@ -1363,8 +1363,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     // Show success message
     Alert.alert(
       getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected'),
-      getTranslation(t, 'createRoute.routeWillBeSavedTo', 'Route will be saved to "{collectionName}"').replace('{collectionName}', collectionName),
-      [{ text: getTranslation(t, 'common.ok', 'OK') }]
+      getTranslation(
+        t,
+        'createRoute.routeWillBeSavedTo',
+        'Route will be saved to "{collectionName}"',
+      ).replace('{collectionName}', collectionName),
+      [{ text: getTranslation(t, 'common.ok', 'OK') }],
     );
   };
 
@@ -1630,13 +1634,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         // Add route to selected collection if one was selected
         if (selectedCollectionId && route?.id) {
           try {
-            const { error: collectionError } = await supabase
-              .from('map_preset_routes')
-              .insert({
-                preset_id: selectedCollectionId,
-                route_id: route.id,
-                added_at: new Date().toISOString(),
-              });
+            const { error: collectionError } = await supabase.from('map_preset_routes').insert({
+              preset_id: selectedCollectionId,
+              route_id: route.id,
+              added_at: new Date().toISOString(),
+            });
 
             if (collectionError) {
               console.error('Error adding route to collection:', collectionError);
@@ -3365,10 +3367,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           <XStack gap="$2" alignItems="center">
             <Feather name="map" size={18} color="$color" />
             <Text color="$color">
-              {selectedCollectionId 
+              {selectedCollectionId
                 ? getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected')
-                : getTranslation(t, 'createRoute.selectCollection', 'Select Collection (Optional)')
-              }
+                : getTranslation(t, 'createRoute.selectCollection', 'Select Collection (Optional)')}
             </Text>
           </XStack>
         </Button>
@@ -3518,15 +3519,19 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       {/* Collection Selector Sheet */}
       <AddToPresetSheet
         isVisible={showCollectionSelector}
-        routeId={isEditing && routeId ? routeId : "temp-route-id"} // Use actual route ID when editing, temp ID for new routes
+        routeId={isEditing && routeId ? routeId : 'temp-route-id'} // Use actual route ID when editing, temp ID for new routes
         selectedCollectionId={selectedCollectionId} // Pass the currently selected collection ID
         onRouteAdded={(presetId, presetName) => {
           setSelectedCollectionId(presetId);
           setShowCollectionSelector(false);
           showToast({
             title: getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected'),
-            message: getTranslation(t, 'createRoute.routeWillBeSavedTo', 'Route will be saved to "{collectionName}"').replace('{collectionName}', presetName),
-            type: 'success'
+            message: getTranslation(
+              t,
+              'createRoute.routeWillBeSavedTo',
+              'Route will be saved to "{collectionName}"',
+            ).replace('{collectionName}', presetName),
+            type: 'success',
           });
         }}
         onRouteRemoved={() => {}} // Not applicable for new routes
@@ -3535,8 +3540,12 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           setShowCollectionSelector(false);
           showToast({
             title: getTranslation(t, 'createRoute.collectionCreated', 'Collection Created'),
-            message: getTranslation(t, 'createRoute.newCollectionCreated', 'New collection "{collectionName}" has been created').replace('{collectionName}', preset.name),
-            type: 'success'
+            message: getTranslation(
+              t,
+              'createRoute.newCollectionCreated',
+              'New collection "{collectionName}" has been created',
+            ).replace('{collectionName}', preset.name),
+            type: 'success',
           });
         }}
         onClose={() => setShowCollectionSelector(false)}

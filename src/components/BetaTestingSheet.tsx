@@ -18,7 +18,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BetaTestingSheetProps {
@@ -34,35 +39,75 @@ const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 
 // Snap points for resizing (like RouteDetailSheet)
 const snapPoints = {
-  large: screenHeight * 0.1,   // Top at 10% of screen (show 90% - largest)
-  medium: screenHeight * 0.4,  // Top at 40% of screen (show 60% - medium)  
-  small: screenHeight * 0.7,   // Top at 70% of screen (show 30% - small)
-  mini: screenHeight * 0.85,   // Top at 85% of screen (show 15% - just title)
-  dismissed: screenHeight,     // Completely off-screen
+  large: screenHeight * 0.1, // Top at 10% of screen (show 90% - largest)
+  medium: screenHeight * 0.4, // Top at 40% of screen (show 60% - medium)
+  small: screenHeight * 0.7, // Top at 70% of screen (show 30% - small)
+  mini: screenHeight * 0.85, // Top at 85% of screen (show 15% - just title)
+  dismissed: screenHeight, // Completely off-screen
 };
 
 // Dynamic checklist items will be loaded from database
 
 // Feedback areas
 const FEEDBACK_AREAS = [
-  { id: 'ux', label: 'User Experience', description: 'Is the app intuitive? Are features easy to find?' },
-  { id: 'performance', label: 'Performance', description: 'How fast does the app load? Any crashes?' },
+  {
+    id: 'ux',
+    label: 'User Experience',
+    description: 'Is the app intuitive? Are features easy to find?',
+  },
+  {
+    id: 'performance',
+    label: 'Performance',
+    description: 'How fast does the app load? Any crashes?',
+  },
   { id: 'navigation', label: 'Navigation & GPS', description: 'How accurate is route tracking?' },
   { id: 'exercises', label: 'Exercise Quality', description: 'Are the driving exercises helpful?' },
-  { id: 'community', label: 'Community Features', description: 'How engaging are social features?' },
+  {
+    id: 'community',
+    label: 'Community Features',
+    description: 'How engaging are social features?',
+  },
   { id: 'concept', label: 'Overall Concept', description: 'Does the app solve real problems?' },
 ];
 
 // Premium features for pricing feedback
 const PREMIUM_FEATURES = [
-  { id: 'advanced_analytics', label: 'Advanced Analytics', description: 'Detailed progress tracking and insights' },
-  { id: 'personalized_routes', label: 'Personalized Routes', description: 'AI-generated routes based on your needs' },
-  { id: 'instructor_access', label: 'Instructor Access', description: 'Connect with certified driving instructors' },
-  { id: 'offline_mode', label: 'Offline Mode', description: 'Practice without internet connection' },
+  {
+    id: 'advanced_analytics',
+    label: 'Advanced Analytics',
+    description: 'Detailed progress tracking and insights',
+  },
+  {
+    id: 'personalized_routes',
+    label: 'Personalized Routes',
+    description: 'AI-generated routes based on your needs',
+  },
+  {
+    id: 'instructor_access',
+    label: 'Instructor Access',
+    description: 'Connect with certified driving instructors',
+  },
+  {
+    id: 'offline_mode',
+    label: 'Offline Mode',
+    description: 'Practice without internet connection',
+  },
   { id: 'priority_support', label: 'Priority Support', description: '24/7 customer support' },
-  { id: 'premium_exercises', label: 'Premium Exercises', description: 'Advanced driving exercises and scenarios' },
-  { id: 'family_sharing', label: 'Family Sharing', description: 'Share progress with family members' },
-  { id: 'certification_tracking', label: 'Certification Tracking', description: 'Track driving license progress' },
+  {
+    id: 'premium_exercises',
+    label: 'Premium Exercises',
+    description: 'Advanced driving exercises and scenarios',
+  },
+  {
+    id: 'family_sharing',
+    label: 'Family Sharing',
+    description: 'Share progress with family members',
+  },
+  {
+    id: 'certification_tracking',
+    label: 'Certification Tracking',
+    description: 'Track driving license progress',
+  },
 ];
 
 export function BetaTestingSheet({
@@ -86,7 +131,9 @@ export function BetaTestingSheet({
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'checklist' | 'feedback' | 'pricing' | 'video'>('checklist');
+  const [activeTab, setActiveTab] = useState<'checklist' | 'feedback' | 'pricing' | 'video'>(
+    'checklist',
+  );
 
   // Checklist state
   const [checklistItems, setChecklistItems] = useState<any[]>([]);
@@ -127,40 +174,141 @@ export function BetaTestingSheet({
 
   // Create default assignments for a user based on their role
   const createDefaultAssignments = async (userId: string, userRole: string) => {
-    console.log('🔍 [BetaTestingSheet] Creating default assignments for user:', userId, 'role:', userRole);
-    
+    console.log(
+      '🔍 [BetaTestingSheet] Creating default assignments for user:',
+      userId,
+      'role:',
+      userRole,
+    );
+
     const roleAssignments = {
       student: [
-        { id: 'connect_supervisor', title: 'Connect with a supervisor', description: 'Find and connect with a supervisor through the app', order: 1 },
-        { id: 'browse_routes', title: 'Browse driving routes', description: 'Explore available routes in your area', order: 2 },
-        { id: 'create_account', title: 'Create your student account', description: 'Complete the registration process and set up your profile', order: 3 },
-        { id: 'join_session', title: 'Join a practice session', description: 'Participate in a group practice session or theory test event', order: 4 },
-        { id: 'complete_exercise', title: 'Complete a practice exercise', description: 'Try at least one interactive exercise along a route', order: 5 },
-        { id: 'test_features', title: 'Test core features', description: 'Spend 15-20 minutes exploring the main app features', order: 6 },
+        {
+          id: 'connect_supervisor',
+          title: 'Connect with a supervisor',
+          description: 'Find and connect with a supervisor through the app',
+          order: 1,
+        },
+        {
+          id: 'browse_routes',
+          title: 'Browse driving routes',
+          description: 'Explore available routes in your area',
+          order: 2,
+        },
+        {
+          id: 'create_account',
+          title: 'Create your student account',
+          description: 'Complete the registration process and set up your profile',
+          order: 3,
+        },
+        {
+          id: 'join_session',
+          title: 'Join a practice session',
+          description: 'Participate in a group practice session or theory test event',
+          order: 4,
+        },
+        {
+          id: 'complete_exercise',
+          title: 'Complete a practice exercise',
+          description: 'Try at least one interactive exercise along a route',
+          order: 5,
+        },
+        {
+          id: 'test_features',
+          title: 'Test core features',
+          description: 'Spend 15-20 minutes exploring the main app features',
+          order: 6,
+        },
       ],
       instructor: [
-        { id: 'setup_profile', title: 'Set up instructor profile', description: 'Complete your instructor profile and verification', order: 1 },
-        { id: 'create_routes', title: 'Create driving routes', description: 'Create at least 3 driving routes for your students', order: 2 },
-        { id: 'invite_students', title: 'Invite students', description: 'Invite students to join your supervision', order: 3 },
-        { id: 'test_supervision', title: 'Test supervision features', description: 'Test the supervision and monitoring features', order: 4 },
-        { id: 'provide_feedback', title: 'Provide student feedback', description: 'Give feedback to at least one student', order: 5 },
-        { id: 'test_analytics', title: 'Test analytics dashboard', description: 'Explore the analytics and progress tracking features', order: 6 },
+        {
+          id: 'setup_profile',
+          title: 'Set up instructor profile',
+          description: 'Complete your instructor profile and verification',
+          order: 1,
+        },
+        {
+          id: 'create_routes',
+          title: 'Create driving routes',
+          description: 'Create at least 3 driving routes for your students',
+          order: 2,
+        },
+        {
+          id: 'invite_students',
+          title: 'Invite students',
+          description: 'Invite students to join your supervision',
+          order: 3,
+        },
+        {
+          id: 'test_supervision',
+          title: 'Test supervision features',
+          description: 'Test the supervision and monitoring features',
+          order: 4,
+        },
+        {
+          id: 'provide_feedback',
+          title: 'Provide student feedback',
+          description: 'Give feedback to at least one student',
+          order: 5,
+        },
+        {
+          id: 'test_analytics',
+          title: 'Test analytics dashboard',
+          description: 'Explore the analytics and progress tracking features',
+          order: 6,
+        },
       ],
       school: [
-        { id: 'setup_school', title: 'Set up school profile', description: 'Complete your school profile and verification', order: 1 },
-        { id: 'create_instructors', title: 'Add instructors', description: 'Add instructor accounts to your school', order: 2 },
-        { id: 'create_students', title: 'Add students', description: 'Add student accounts to your school', order: 3 },
-        { id: 'test_management', title: 'Test management features', description: 'Test the school management and administration features', order: 4 },
-        { id: 'test_reporting', title: 'Test reporting', description: 'Test the reporting and analytics features', order: 5 },
-        { id: 'test_billing', title: 'Test billing features', description: 'Test the billing and payment features', order: 6 },
+        {
+          id: 'setup_school',
+          title: 'Set up school profile',
+          description: 'Complete your school profile and verification',
+          order: 1,
+        },
+        {
+          id: 'create_instructors',
+          title: 'Add instructors',
+          description: 'Add instructor accounts to your school',
+          order: 2,
+        },
+        {
+          id: 'create_students',
+          title: 'Add students',
+          description: 'Add student accounts to your school',
+          order: 3,
+        },
+        {
+          id: 'test_management',
+          title: 'Test management features',
+          description: 'Test the school management and administration features',
+          order: 4,
+        },
+        {
+          id: 'test_reporting',
+          title: 'Test reporting',
+          description: 'Test the reporting and analytics features',
+          order: 5,
+        },
+        {
+          id: 'test_billing',
+          title: 'Test billing features',
+          description: 'Test the billing and payment features',
+          order: 6,
+        },
       ],
     };
 
-    const assignments = roleAssignments[userRole as keyof typeof roleAssignments] || roleAssignments.student;
-    console.log('🔍 [BetaTestingSheet] Selected assignments for role:', userRole, 'assignments:', assignments);
+    const assignments =
+      roleAssignments[userRole as keyof typeof roleAssignments] || roleAssignments.student;
+    console.log(
+      '🔍 [BetaTestingSheet] Selected assignments for role:',
+      userRole,
+      'assignments:',
+      assignments,
+    );
 
     try {
-      const assignmentData = assignments.map(assignment => ({
+      const assignmentData = assignments.map((assignment) => ({
         assignment_id: `${userRole}_${assignment.id}_${Date.now()}`,
         browser_id: userId,
         role: userRole,
@@ -175,16 +323,16 @@ export function BetaTestingSheet({
 
       console.log('🔍 [BetaTestingSheet] Assignment data to insert:', assignmentData);
 
-      const { error } = await supabase
-        .from('beta_test_assignments')
-        .insert(assignmentData);
+      const { error } = await supabase.from('beta_test_assignments').insert(assignmentData);
 
       if (error) {
         console.error('🔍 [BetaTestingSheet] Error creating default assignments:', error);
         throw error;
       }
 
-      console.log(`✅ [BetaTestingSheet] Created ${assignments.length} default assignments for ${userRole}`);
+      console.log(
+        `✅ [BetaTestingSheet] Created ${assignments.length} default assignments for ${userRole}`,
+      );
     } catch (error) {
       console.error('🔍 [BetaTestingSheet] Error creating default assignments:', error);
     }
@@ -193,41 +341,50 @@ export function BetaTestingSheet({
   // Load checklist items from database
   const loadChecklistItems = async () => {
     if (!user?.id) return;
-    
+
     try {
       setChecklistLoading(true);
       console.log('🔍 [BetaTestingSheet] Loading checklist items for user:', user.id);
-      
+
       // Get user's role from profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
-      
+
       const userRole = profile?.role || 'student';
       console.log('🔍 [BetaTestingSheet] User role from profile:', userRole);
-      
+
       // Load assignments for this specific user
       const { data: assignments, error } = await supabase
         .from('beta_test_assignments')
         .select('*')
         .eq('browser_id', user.id)
         .order('order_index', { ascending: true });
-      
+
       console.log('🔍 [BetaTestingSheet] Existing assignments:', assignments);
       console.log('🔍 [BetaTestingSheet] Assignment error:', error);
-      
+
       // Check if assignments are standardized (should have 6 items for each role)
       const expectedCount = 6;
-      const hasStandardizedAssignments = assignments && assignments.length === expectedCount && 
-        assignments.every(a => a.role === userRole && a.order_index > 0);
-      
-      console.log('🔍 [BetaTestingSheet] Has standardized assignments:', hasStandardizedAssignments, 'count:', assignments?.length);
-      
+      const hasStandardizedAssignments =
+        assignments &&
+        assignments.length === expectedCount &&
+        assignments.every((a) => a.role === userRole && a.order_index > 0);
+
+      console.log(
+        '🔍 [BetaTestingSheet] Has standardized assignments:',
+        hasStandardizedAssignments,
+        'count:',
+        assignments?.length,
+      );
+
       if (error || !assignments || assignments.length === 0 || !hasStandardizedAssignments) {
-        console.log('🔍 [BetaTestingSheet] No standardized assignments found, cleaning up and creating new ones...');
-        
+        console.log(
+          '🔍 [BetaTestingSheet] No standardized assignments found, cleaning up and creating new ones...',
+        );
+
         // Clean up old assignments if they exist
         if (assignments && assignments.length > 0) {
           console.log('🔍 [BetaTestingSheet] Cleaning up old assignments...');
@@ -235,38 +392,87 @@ export function BetaTestingSheet({
             .from('beta_test_assignments')
             .delete()
             .eq('browser_id', user.id);
-          
+
           if (deleteError) {
             console.error('🔍 [BetaTestingSheet] Error cleaning up old assignments:', deleteError);
           }
         }
-        
+
         // Create default assignments for this user's role
         await createDefaultAssignments(user.id, userRole);
-        
+
         // Reload assignments after creating them
         const { data: newAssignments, error: reloadError } = await supabase
           .from('beta_test_assignments')
           .select('*')
           .eq('browser_id', user.id)
           .order('order_index', { ascending: true });
-        
+
         if (reloadError) {
           console.error('Error reloading assignments:', reloadError);
           // Fallback to basic checklist if database fails
           setChecklistItems([
-            { id: 'download', label: 'Download and install the app', description: 'Get the app from the store', completed: false },
-            { id: 'account', label: 'Create account and complete onboarding', description: 'Set up your profile', completed: false },
-            { id: 'explore', label: 'Spend 15-20 minutes exploring core features', description: 'Try different features', completed: false },
-            { id: 'workflows', label: 'Complete typical user workflows', description: 'Test common use cases', completed: false },
-            { id: 'edge_cases', label: 'Test edge cases (poor internet, GPS issues)', description: 'Test in different conditions', completed: false },
-            { id: 'document', label: 'Document bugs, crashes, or confusing experiences', description: 'Note any issues you find', completed: false },
+            {
+              id: 'download',
+              label: 'Download and install the app',
+              description: 'Get the app from the store',
+              completed: false,
+            },
+            {
+              id: 'account',
+              label: 'Create account and complete onboarding',
+              description: 'Set up your profile',
+              completed: false,
+            },
+            {
+              id: 'explore',
+              label: 'Spend 15-20 minutes exploring core features',
+              description: 'Try different features',
+              completed: false,
+            },
+            {
+              id: 'workflows',
+              label: 'Complete typical user workflows',
+              description: 'Test common use cases',
+              completed: false,
+            },
+            {
+              id: 'edge_cases',
+              label: 'Test edge cases (poor internet, GPS issues)',
+              description: 'Test in different conditions',
+              completed: false,
+            },
+            {
+              id: 'document',
+              label: 'Document bugs, crashes, or confusing experiences',
+              description: 'Note any issues you find',
+              completed: false,
+            },
           ]);
           return;
         }
-        
+
         // Use the newly created assignments
-        const itemsWithStatus = newAssignments?.map(assignment => ({
+        const itemsWithStatus =
+          newAssignments?.map((assignment) => ({
+            id: assignment.assignment_id,
+            label: assignment.title,
+            description: assignment.description,
+            completed: assignment.is_completed || false,
+            completedAt: assignment.completed_at,
+            orderIndex: assignment.order_index,
+            metadata: assignment.metadata,
+            assignmentId: assignment.assignment_id,
+          })) || [];
+
+        console.log('🔍 [BetaTestingSheet] New assignments created:', itemsWithStatus);
+        setChecklistItems(itemsWithStatus);
+        return;
+      }
+
+      // Merge assignments with completion status
+      const itemsWithStatus =
+        assignments?.map((assignment) => ({
           id: assignment.assignment_id,
           label: assignment.title,
           description: assignment.description,
@@ -276,36 +482,49 @@ export function BetaTestingSheet({
           metadata: assignment.metadata,
           assignmentId: assignment.assignment_id,
         })) || [];
-        
-        console.log('🔍 [BetaTestingSheet] New assignments created:', itemsWithStatus);
-        setChecklistItems(itemsWithStatus);
-        return;
-      }
-      
-      // Merge assignments with completion status
-      const itemsWithStatus = assignments?.map(assignment => ({
-        id: assignment.assignment_id,
-        label: assignment.title,
-        description: assignment.description,
-        completed: assignment.is_completed || false,
-        completedAt: assignment.completed_at,
-        orderIndex: assignment.order_index,
-        metadata: assignment.metadata,
-        assignmentId: assignment.assignment_id,
-      })) || [];
-      
+
       console.log('🔍 [BetaTestingSheet] Final checklist items:', itemsWithStatus);
       setChecklistItems(itemsWithStatus);
     } catch (error) {
       console.error('Error loading checklist items:', error);
       // Fallback to basic checklist if everything fails
       setChecklistItems([
-        { id: 'download', label: 'Download and install the app', description: 'Get the app from the store', completed: false },
-        { id: 'account', label: 'Create account and complete onboarding', description: 'Set up your profile', completed: false },
-        { id: 'explore', label: 'Spend 15-20 minutes exploring core features', description: 'Try different features', completed: false },
-        { id: 'workflows', label: 'Complete typical user workflows', description: 'Test common use cases', completed: false },
-        { id: 'edge_cases', label: 'Test edge cases (poor internet, GPS issues)', description: 'Test in different conditions', completed: false },
-        { id: 'document', label: 'Document bugs, crashes, or confusing experiences', description: 'Note any issues you find', completed: false },
+        {
+          id: 'download',
+          label: 'Download and install the app',
+          description: 'Get the app from the store',
+          completed: false,
+        },
+        {
+          id: 'account',
+          label: 'Create account and complete onboarding',
+          description: 'Set up your profile',
+          completed: false,
+        },
+        {
+          id: 'explore',
+          label: 'Spend 15-20 minutes exploring core features',
+          description: 'Try different features',
+          completed: false,
+        },
+        {
+          id: 'workflows',
+          label: 'Complete typical user workflows',
+          description: 'Test common use cases',
+          completed: false,
+        },
+        {
+          id: 'edge_cases',
+          label: 'Test edge cases (poor internet, GPS issues)',
+          description: 'Test in different conditions',
+          completed: false,
+        },
+        {
+          id: 'document',
+          label: 'Document bugs, crashes, or confusing experiences',
+          description: 'Note any issues you find',
+          completed: false,
+        },
       ]);
     } finally {
       setChecklistLoading(false);
@@ -408,19 +627,25 @@ export function BetaTestingSheet({
   // Handle checklist toggle
   const toggleChecklistItem = async (id: string) => {
     if (!user?.id) return;
-    
+
     try {
-      const item = checklistItems.find(item => item.id === id);
+      const item = checklistItems.find((item) => item.id === id);
       if (!item) return;
-      
+
       const isCompleted = !item.completed;
-      
+
       // Update local state immediately
-      const updated = checklistItems.map(item =>
-        item.id === id ? { ...item, completed: isCompleted, completedAt: isCompleted ? new Date().toISOString() : null } : item
+      const updated = checklistItems.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              completed: isCompleted,
+              completedAt: isCompleted ? new Date().toISOString() : null,
+            }
+          : item,
       );
       setChecklistItems(updated);
-      
+
       // Save to database - update the existing assignment
       const { error } = await supabase
         .from('beta_test_assignments')
@@ -431,7 +656,7 @@ export function BetaTestingSheet({
         })
         .eq('assignment_id', item.assignmentId || id)
         .eq('browser_id', user.id);
-      
+
       if (error) {
         console.error('Error saving checklist completion:', error);
         // Revert local state on error
@@ -446,9 +671,9 @@ export function BetaTestingSheet({
   // Handle feedback area toggle
   const toggleFeedbackArea = (areaId: string) => {
     const updated = feedbackForm.areas.includes(areaId)
-      ? feedbackForm.areas.filter(id => id !== areaId)
+      ? feedbackForm.areas.filter((id) => id !== areaId)
       : [...feedbackForm.areas, areaId];
-    
+
     const newForm = { ...feedbackForm, areas: updated };
     setFeedbackForm(newForm);
     saveFeedback(newForm);
@@ -457,9 +682,9 @@ export function BetaTestingSheet({
   // Handle premium features toggle
   const togglePremiumFeature = (featureId: string) => {
     const updated = pricingForm.premiumFeatures.includes(featureId)
-      ? pricingForm.premiumFeatures.filter(id => id !== featureId)
+      ? pricingForm.premiumFeatures.filter((id) => id !== featureId)
       : [...pricingForm.premiumFeatures, featureId];
-    
+
     const newForm = { ...pricingForm, premiumFeatures: updated };
     setPricingForm(newForm);
     savePricing(newForm);
@@ -513,7 +738,7 @@ export function BetaTestingSheet({
       await AsyncStorage.setItem('beta_feedback_submissions', JSON.stringify(submissions));
 
       Alert.alert('Thank You!', 'Your feedback has been saved and will help us improve Vromm.');
-      
+
       // Reset form
       setFeedbackForm({
         name: '',
@@ -532,7 +757,10 @@ export function BetaTestingSheet({
   // Submit pricing feedback
   const submitPricing = async () => {
     if (!pricingForm.name || !pricingForm.suggestedPrice || !pricingForm.reasoning) {
-      Alert.alert('Missing Information', 'Please provide your name, suggested price, and reasoning.');
+      Alert.alert(
+        'Missing Information',
+        'Please provide your name, suggested price, and reasoning.',
+      );
       return;
     }
 
@@ -578,8 +806,11 @@ export function BetaTestingSheet({
       submissions.push(pricingData);
       await AsyncStorage.setItem('beta_pricing_submissions', JSON.stringify(submissions));
 
-      Alert.alert('Thank You!', 'Your pricing feedback has been saved and will help us set the right price for Vromm.');
-      
+      Alert.alert(
+        'Thank You!',
+        'Your pricing feedback has been saved and will help us set the right price for Vromm.',
+      );
+
       // Reset form
       setPricingForm({
         name: '',
@@ -636,7 +867,7 @@ export function BetaTestingSheet({
       <Text fontSize="$4" color={textColor} opacity={0.7}>
         Complete these tasks to help us test Vromm effectively:
       </Text>
-      
+
       {checklistLoading ? (
         <Card padding="$4" backgroundColor={`${primaryColor}10`}>
           <XStack alignItems="center" gap="$3">
@@ -662,33 +893,37 @@ export function BetaTestingSheet({
                 style={[
                   styles.checklistItem,
                   { backgroundColor, borderColor },
-                  item.completed && { backgroundColor: `${primaryColor}20` }
+                  item.completed && { backgroundColor: `${primaryColor}20` },
                 ]}
               >
                 <XStack alignItems="center" gap="$3">
-                  <View style={[
-                    styles.checkbox,
-                    { borderColor: item.completed ? primaryColor : borderColor },
-                    item.completed && { backgroundColor: primaryColor }
-                  ]}>
-                    {item.completed && (
-                      <Feather name="check" size={16} color="#FFFFFF" />
-                    )}
+                  <View
+                    style={[
+                      styles.checkbox,
+                      { borderColor: item.completed ? primaryColor : borderColor },
+                      item.completed && { backgroundColor: primaryColor },
+                    ]}
+                  >
+                    {item.completed && <Feather name="check" size={16} color="#FFFFFF" />}
                   </View>
                   <YStack flex={1}>
-                    <Text 
-                      fontSize="$4" 
+                    <Text
+                      fontSize="$4"
                       color={textColor}
-                      style={item.completed ? { textDecorationLine: 'line-through', opacity: 0.8 } : {}}
+                      style={
+                        item.completed ? { textDecorationLine: 'line-through', opacity: 0.8 } : {}
+                      }
                     >
                       {item.label}
                     </Text>
                     {item.description && (
-                      <Text 
-                        fontSize="$3" 
-                        color={textColor} 
+                      <Text
+                        fontSize="$3"
+                        color={textColor}
                         opacity={0.7}
-                        style={item.completed ? { textDecorationLine: 'line-through', opacity: 0.6 } : {}}
+                        style={
+                          item.completed ? { textDecorationLine: 'line-through', opacity: 0.6 } : {}
+                        }
                       >
                         {item.description}
                       </Text>
@@ -708,7 +943,8 @@ export function BetaTestingSheet({
 
       <Card padding="$4" backgroundColor={`${primaryColor}10`}>
         <Text fontSize="$3" color={textColor} opacity={0.8}>
-          💡 Tip: Check off items as you complete them. Your progress is saved automatically to the database!
+          💡 Tip: Check off items as you complete them. Your progress is saved automatically to the
+          database!
         </Text>
       </Card>
     </YStack>
@@ -734,7 +970,7 @@ export function BetaTestingSheet({
             saveFeedback(newForm);
           }}
         />
-        
+
         <Input
           placeholder="Email (optional)"
           value={feedbackForm.email}
@@ -781,15 +1017,21 @@ export function BetaTestingSheet({
                 style={[
                   styles.feedbackArea,
                   { backgroundColor, borderColor },
-                  feedbackForm.areas.includes(area.id) && { backgroundColor: `${primaryColor}20` }
+                  feedbackForm.areas.includes(area.id) && { backgroundColor: `${primaryColor}20` },
                 ]}
               >
                 <XStack alignItems="center" gap="$3">
-                  <View style={[
-                    styles.checkbox,
-                    { borderColor: feedbackForm.areas.includes(area.id) ? primaryColor : borderColor },
-                    feedbackForm.areas.includes(area.id) && { backgroundColor: primaryColor }
-                  ]}>
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        borderColor: feedbackForm.areas.includes(area.id)
+                          ? primaryColor
+                          : borderColor,
+                      },
+                      feedbackForm.areas.includes(area.id) && { backgroundColor: primaryColor },
+                    ]}
+                  >
                     {feedbackForm.areas.includes(area.id) && (
                       <Feather name="check" size={16} color="#FFFFFF" />
                     )}
@@ -850,7 +1092,7 @@ export function BetaTestingSheet({
             savePricing(newForm);
           }}
         />
-        
+
         <Input
           placeholder="Email (optional)"
           value={pricingForm.email}
@@ -897,11 +1139,11 @@ export function BetaTestingSheet({
                 style={[
                   styles.ratingButton,
                   { borderColor: num <= pricingForm.willingness ? primaryColor : borderColor },
-                  num <= pricingForm.willingness && { backgroundColor: `${primaryColor}20` }
+                  num <= pricingForm.willingness && { backgroundColor: `${primaryColor}20` },
                 ]}
               >
-                <Text 
-                  fontSize="$4" 
+                <Text
+                  fontSize="$4"
                   color={num <= pricingForm.willingness ? primaryColor : textColor}
                   fontWeight={num <= pricingForm.willingness ? '600' : '400'}
                 >
@@ -924,15 +1166,25 @@ export function BetaTestingSheet({
                 style={[
                   styles.feedbackArea,
                   { backgroundColor, borderColor },
-                  pricingForm.premiumFeatures.includes(feature.id) && { backgroundColor: `${primaryColor}20` }
+                  pricingForm.premiumFeatures.includes(feature.id) && {
+                    backgroundColor: `${primaryColor}20`,
+                  },
                 ]}
               >
                 <XStack alignItems="center" gap="$3">
-                  <View style={[
-                    styles.checkbox,
-                    { borderColor: pricingForm.premiumFeatures.includes(feature.id) ? primaryColor : borderColor },
-                    pricingForm.premiumFeatures.includes(feature.id) && { backgroundColor: primaryColor }
-                  ]}>
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        borderColor: pricingForm.premiumFeatures.includes(feature.id)
+                          ? primaryColor
+                          : borderColor,
+                      },
+                      pricingForm.premiumFeatures.includes(feature.id) && {
+                        backgroundColor: primaryColor,
+                      },
+                    ]}
+                  >
                     {pricingForm.premiumFeatures.includes(feature.id) && (
                       <Feather name="check" size={16} color="#FFFFFF" />
                     )}
@@ -1121,7 +1373,10 @@ export function BetaTestingSheet({
           {renderTabs()}
 
           {/* Content */}
-          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: screenHeight * 0.6 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={{ maxHeight: screenHeight * 0.6 }}
+          >
             {renderTabContent()}
           </ScrollView>
         </YStack>

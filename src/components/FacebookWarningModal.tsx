@@ -20,19 +20,14 @@ export function FacebookWarningModal({ visible, onContinue, onCancel }: Facebook
   const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onCancel}
-    >
-      <Pressable 
-        style={{ 
-          flex: 1, 
-          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-          justifyContent: 'center', 
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <Pressable
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
           alignItems: 'center',
-          padding: 20 
+          padding: 20,
         }}
         onPress={onCancel}
       >
@@ -72,11 +67,11 @@ export function FacebookWarningModal({ visible, onContinue, onCancel }: Facebook
               <Text size="md" color={textColor}>
                 {t('auth.facebookWarning.message')}
               </Text>
-              
+
               <Text size="md" color={textColor} fontWeight="600">
                 {t('auth.facebookWarning.important')}
               </Text>
-              
+
               <Text size="md" color={textColor}>
                 {t('auth.facebookWarning.instruction')}
               </Text>
@@ -84,20 +79,10 @@ export function FacebookWarningModal({ visible, onContinue, onCancel }: Facebook
 
             {/* Actions */}
             <XStack gap="$3" justifyContent="flex-end">
-              <Button
-                variant="secondary"
-                size="md"
-                onPress={onCancel}
-                flex={1}
-              >
+              <Button variant="secondary" size="md" onPress={onCancel} flex={1}>
                 {t('auth.facebookWarning.cancel')}
               </Button>
-              <Button
-                variant="primary"
-                size="md"
-                onPress={onContinue}
-                flex={1}
-              >
+              <Button variant="primary" size="md" onPress={onContinue} flex={1}>
                 {t('auth.facebookWarning.continue')}
               </Button>
             </XStack>

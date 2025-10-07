@@ -28,18 +28,20 @@ export function useUserCollections() {
 
     setLoading(true);
     setError(null);
-    
+
     try {
       console.log('🔍 [useUserCollections] Loading collections for user:', effectiveUserId);
-      
+
       // Get collections where user is creator OR public OR member
       // First get collections where user is the creator
       const { data: ownedData, error: ownedError } = await supabase
         .from('map_presets')
-        .select(`
+        .select(
+          `
           *,
           route_count:map_preset_routes(count)
-        `)
+        `,
+        )
         .eq('creator_id', effectiveUserId)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: false });
@@ -52,10 +54,12 @@ export function useUserCollections() {
       // Get public collections
       const { data: publicData, error: publicError } = await supabase
         .from('map_presets')
-        .select(`
+        .select(
+          `
           *,
           route_count:map_preset_routes(count)
-        `)
+        `,
+        )
         .eq('visibility', 'public')
         .neq('creator_id', effectiveUserId) // Exclude ones they already own
         .order('created_at', { ascending: false });
@@ -68,14 +72,16 @@ export function useUserCollections() {
       // Get collections where user is a member (but not creator)
       const { data: memberData, error: memberError } = await supabase
         .from('map_preset_members')
-        .select(`
+        .select(
+          `
           preset_id,
           role,
           map_presets!inner(
             *,
             route_count:map_preset_routes(count)
           )
-        `)
+        `,
+        )
         .eq('user_id', effectiveUserId)
         .neq('map_presets.creator_id', effectiveUserId); // Exclude ones they already own
 
@@ -87,13 +93,16 @@ export function useUserCollections() {
       // Combine the results
       const ownedCollections = ownedData || [];
       const publicCollections = publicData || [];
-      const memberCollections = memberData?.map(item => ({
-        ...item.map_presets,
-        member_role: item.role // Include the member role
-      })).filter(Boolean) || [];
-      
+      const memberCollections =
+        memberData
+          ?.map((item) => ({
+            ...item.map_presets,
+            member_role: item.role, // Include the member role
+          }))
+          .filter(Boolean) || [];
+
       const allCollections = [...ownedCollections, ...publicCollections, ...memberCollections];
-      
+
       // Sort combined results
       const sortedCollections = allCollections.sort((a, b) => {
         // Default collections first
@@ -103,16 +112,17 @@ export function useUserCollections() {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
 
-      const transformedCollections = sortedCollections?.map(collection => ({
-        ...collection,
-        route_count: collection.route_count?.[0]?.count || 0,
-      })) || [];
+      const transformedCollections =
+        sortedCollections?.map((collection) => ({
+          ...collection,
+          route_count: collection.route_count?.[0]?.count || 0,
+        })) || [];
 
       console.log('✅ [useUserCollections] Loaded collections:', {
         owned: ownedCollections.length,
         public: publicCollections.length,
         member: memberCollections.length,
-        total: transformedCollections.length
+        total: transformedCollections.length,
       });
 
       setCollections(transformedCollections);
@@ -133,6 +143,6 @@ export function useUserCollections() {
     collections,
     loading,
     error,
-    refetch: loadCollections
+    refetch: loadCollections,
   };
 }

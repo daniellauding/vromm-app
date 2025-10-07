@@ -1,12 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-  PanResponder,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform, PanResponder, Alert } from 'react-native';
 import { Text, YStack, XStack, Button, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../../contexts/TranslationContext';
@@ -23,7 +16,7 @@ interface MapInteractionStepProps {
 
 export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionStepProps) {
   const { t } = useTranslation();
-  
+
   // Local state for map interaction
   const [region, setRegion] = useState<Region>({
     latitude: 55.7047,
@@ -45,86 +38,104 @@ export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionS
   // Drawing mode options
   const drawingModes = [
     { key: 'pin', label: 'Pin', icon: 'map-pin', description: 'Drop a single location marker' },
-    { key: 'waypoint', label: 'Waypoints', icon: 'navigation', description: 'Create multiple connected points' },
+    {
+      key: 'waypoint',
+      label: 'Waypoints',
+      icon: 'navigation',
+      description: 'Create multiple connected points',
+    },
     { key: 'pen', label: 'Draw', icon: 'edit-3', description: 'Freehand drawing on map' },
     { key: 'record', label: 'Record', icon: 'circle', description: 'GPS-based live recording' },
   ];
 
   // Map press handler
-  const handleMapPress = useCallback((event: any) => {
-    if (!event.nativeEvent?.coordinate) return;
-    
-    const { latitude, longitude } = event.nativeEvent.coordinate;
-    
-    switch (data.drawingMode) {
-      case 'pin':
-        // Replace existing pin
-        onUpdate({
-          waypoints: [{
+  const handleMapPress = useCallback(
+    (event: any) => {
+      if (!event.nativeEvent?.coordinate) return;
+
+      const { latitude, longitude } = event.nativeEvent.coordinate;
+
+      switch (data.drawingMode) {
+        case 'pin':
+          // Replace existing pin
+          onUpdate({
+            waypoints: [
+              {
+                latitude,
+                longitude,
+                title: `Pin (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+                description: 'Pin location',
+              },
+            ],
+          });
+          break;
+
+        case 'waypoint':
+          // Add new waypoint
+          const newWaypoint = {
             latitude,
             longitude,
-            title: `Pin (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
-            description: 'Pin location',
-          }],
-        });
-        break;
-        
-      case 'waypoint':
-        // Add new waypoint
-        const newWaypoint = {
-          latitude,
-          longitude,
-          title: `Waypoint ${data.waypoints.length + 1}`,
-          description: 'Route waypoint',
-        };
-        onUpdate({
-          waypoints: [...data.waypoints, newWaypoint],
-        });
-        setUndoneWaypoints([]);
-        break;
-        
-      case 'pen':
-        if (!isDrawing) {
-          setIsDrawing(true);
+            title: `Waypoint ${data.waypoints.length + 1}`,
+            description: 'Route waypoint',
+          };
           onUpdate({
-            penPath: [{ latitude, longitude }],
+            waypoints: [...data.waypoints, newWaypoint],
           });
-        } else {
-          onUpdate({
-            penPath: [...(data.penPath || []), { latitude, longitude }],
-          });
-        }
-        break;
-    }
-  }, [data.drawingMode, data.waypoints, data.penPath, isDrawing, onUpdate]);
+          setUndoneWaypoints([]);
+          break;
+
+        case 'pen':
+          if (!isDrawing) {
+            setIsDrawing(true);
+            onUpdate({
+              penPath: [{ latitude, longitude }],
+            });
+          } else {
+            onUpdate({
+              penPath: [...(data.penPath || []), { latitude, longitude }],
+            });
+          }
+          break;
+      }
+    },
+    [data.drawingMode, data.waypoints, data.penPath, isDrawing, onUpdate],
+  );
 
   // Drawing mode change handler
-  const handleDrawingModeChange = useCallback((mode: 'pin' | 'waypoint' | 'pen' | 'record') => {
-    if (mode === 'record') {
-      onRecord();
-      return;
-    }
-    
-    onUpdate({ drawingMode: mode });
-    
-    // Reset drawing state when changing modes
-    setIsDrawing(false);
-    if (mode !== 'pen') {
-      onUpdate({ penPath: [] });
-    }
-  }, [onUpdate, onRecord]);
+  const handleDrawingModeChange = useCallback(
+    (mode: 'pin' | 'waypoint' | 'pen' | 'record') => {
+      if (mode === 'record') {
+        onRecord();
+        return;
+      }
+
+      onUpdate({ drawingMode: mode });
+
+      // Reset drawing state when changing modes
+      setIsDrawing(false);
+      if (mode !== 'pen') {
+        onUpdate({ penPath: [] });
+      }
+    },
+    [onUpdate, onRecord],
+  );
 
   // Finish pen drawing
   const finishPenDrawing = useCallback(() => {
     if (!data.penPath?.length) return;
-    
+
     const newWaypoints = data.penPath.map((point, index) => ({
       latitude: point.latitude,
       longitude: point.longitude,
-      title: index === 0 ? 'Drawing Start' : index === data.penPath!.length - 1 ? 'Drawing End' : `Point ${index + 1}`,
+      title:
+        index === 0
+          ? 'Drawing Start'
+          : index === data.penPath!.length - 1
+            ? 'Drawing End'
+            : `Point ${index + 1}`,
       description: 'Drawing waypoint',
     }));
-    
+
     onUpdate({
       waypoints: [...data.waypoints, ...newWaypoints],
     });
@@ -155,7 +166,7 @@ export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionS
   // Location search
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
-    
+
     if (!query.trim()) {
       setSearchResults([]);
       setShowSearchResults(false);
@@ -178,9 +189,9 @@ export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionS
                 longitude: result.longitude,
               },
             };
-          })
+          }),
         );
-        
+
         setSearchResults(addresses.filter(Boolean));
         setShowSearchResults(true);
       }
@@ -190,34 +201,39 @@ export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionS
   }, []);
 
   // Location select
-  const handleLocationSelect = useCallback((result: any) => {
-    if (result.coords) {
-      const { latitude, longitude } = result.coords;
-      
-      setRegion({
-        latitude,
-        longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
-      
-      const title = [result.street, result.city, result.country].filter(Boolean).join(', ');
-      
-      if (data.drawingMode === 'pin') {
-        onUpdate({
-          waypoints: [{
-            latitude,
-            longitude,
-            title,
-            description: 'Searched location',
-          }],
+  const handleLocationSelect = useCallback(
+    (result: any) => {
+      if (result.coords) {
+        const { latitude, longitude } = result.coords;
+
+        setRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
         });
+
+        const title = [result.street, result.city, result.country].filter(Boolean).join(', ');
+
+        if (data.drawingMode === 'pin') {
+          onUpdate({
+            waypoints: [
+              {
+                latitude,
+                longitude,
+                title,
+                description: 'Searched location',
+              },
+            ],
+          });
+        }
+
+        setSearchQuery(title);
+        setShowSearchResults(false);
       }
-      
-      setSearchQuery(title);
-      setShowSearchResults(false);
-    }
-  }, [data.drawingMode, onUpdate]);
+    },
+    [data.drawingMode, onUpdate],
+  );
 
   return (
     <YStack flex={1} backgroundColor="$background">
@@ -314,24 +330,25 @@ export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionS
           userInterfaceStyle="dark"
         >
           {/* Waypoint markers */}
-          {data.drawingMode !== 'pen' && data.waypoints.map((waypoint, index) => {
-            const isFirst = index === 0;
-            const isLast = index === data.waypoints.length - 1 && data.waypoints.length > 1;
-            const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
-            
-            return (
-              <Marker
-                key={`waypoint-${index}`}
-                coordinate={{
-                  latitude: waypoint.latitude,
-                  longitude: waypoint.longitude,
-                }}
-                title={waypoint.title}
-                description={waypoint.description}
-                pinColor={markerColor}
-              />
-            );
-          })}
+          {data.drawingMode !== 'pen' &&
+            data.waypoints.map((waypoint, index) => {
+              const isFirst = index === 0;
+              const isLast = index === data.waypoints.length - 1 && data.waypoints.length > 1;
+              const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
+
+              return (
+                <Marker
+                  key={`waypoint-${index}`}
+                  coordinate={{
+                    latitude: waypoint.latitude,
+                    longitude: waypoint.longitude,
+                  }}
+                  title={waypoint.title}
+                  description={waypoint.description}
+                  pinColor={markerColor}
+                />
+              );
+            })}
 
           {/* Pen drawing */}
           {data.drawingMode === 'pen' && data.penPath && data.penPath.length > 1 && (
@@ -378,7 +395,7 @@ export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionS
             >
               <Feather name="corner-up-left" size={16} color="white" />
             </Button>
-            
+
             <Button
               onPress={clearAllWaypoints}
               disabled={data.waypoints.length === 0 && (!data.penPath || data.penPath.length === 0)}
@@ -413,18 +430,22 @@ export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionS
       {/* Compact Status */}
       <YStack padding="$2">
         <Text size="xs" color="$gray11" textAlign="center">
-          {data.waypoints.length} waypoint{data.waypoints.length !== 1 ? 's' : ''} • {data.drawingMode} mode
+          {data.waypoints.length} waypoint{data.waypoints.length !== 1 ? 's' : ''} •{' '}
+          {data.drawingMode} mode
         </Text>
         {data.drawingMode === 'waypoint' && data.waypoints.length === 1 && (
           <Text size="xs" color="$orange10" textAlign="center">
             Add 1+ more waypoint
           </Text>
         )}
-        {data.drawingMode === 'pen' && data.penPath && data.penPath.length > 0 && !data.waypoints.length && (
-          <Text size="xs" color="$orange10" textAlign="center">
-            Tap "Finish" to complete drawing
-          </Text>
-        )}
+        {data.drawingMode === 'pen' &&
+          data.penPath &&
+          data.penPath.length > 0 &&
+          !data.waypoints.length && (
+            <Text size="xs" color="$orange10" textAlign="center">
+              Tap "Finish" to complete drawing
+            </Text>
+          )}
       </YStack>
     </YStack>
   );

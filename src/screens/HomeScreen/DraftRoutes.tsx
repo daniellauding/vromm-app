@@ -37,7 +37,7 @@ export function DraftRoutes({ onRoutePress }: DraftRoutesProps = {}) {
 
   const loadDrafts = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -72,7 +72,7 @@ export function DraftRoutes({ onRoutePress }: DraftRoutesProps = {}) {
       title: 'Draft Routes',
       routes: [],
       type: 'drafts',
-      activeFilter: { label: 'Drafts', type: 'drafts' }
+      activeFilter: { label: 'Drafts', type: 'drafts' },
     });
   };
 
@@ -91,7 +91,7 @@ export function DraftRoutes({ onRoutePress }: DraftRoutesProps = {}) {
         actionLabel={t('common.seeAll')}
         icon={<Feather name="edit-3" size={18} color="#666" />}
       />
-      
+
       <YStack gap="$2">
         {drafts.slice(0, 3).map((draft) => (
           <TouchableOpacity
@@ -99,12 +99,7 @@ export function DraftRoutes({ onRoutePress }: DraftRoutesProps = {}) {
             onPress={() => handleDraftPress(draft)}
             activeOpacity={0.7}
           >
-            <Card
-              backgroundColor="$backgroundStrong"
-              bordered
-              padding="$3"
-              borderRadius="$4"
-            >
+            <Card backgroundColor="$backgroundStrong" bordered padding="$3" borderRadius="$4">
               <XStack alignItems="center" justifyContent="space-between">
                 <YStack flex={1} gap="$1">
                   <XStack alignItems="center" gap="$2">
@@ -113,13 +108,13 @@ export function DraftRoutes({ onRoutePress }: DraftRoutesProps = {}) {
                       {draft.name}
                     </Text>
                   </XStack>
-                  
+
                   {draft.description && (
                     <Text fontSize="$3" color="$gray11" numberOfLines={1}>
                       {draft.description}
                     </Text>
                   )}
-                  
+
                   <XStack alignItems="center" gap="$3">
                     <XStack alignItems="center" gap="$1">
                       <Feather name="map-pin" size={12} color="#666" />
@@ -127,7 +122,7 @@ export function DraftRoutes({ onRoutePress }: DraftRoutesProps = {}) {
                         {draft.waypoint_details?.length || 0} waypoints
                       </Text>
                     </XStack>
-                    
+
                     <XStack alignItems="center" gap="$1">
                       <Feather name="clock" size={12} color="#666" />
                       <Text fontSize="$2" color="$gray9">
@@ -136,7 +131,7 @@ export function DraftRoutes({ onRoutePress }: DraftRoutesProps = {}) {
                     </XStack>
                   </XStack>
                 </YStack>
-                
+
                 <XStack alignItems="center" gap="$2">
                   <Text fontSize="$2" color="#FF9500" fontWeight="600">
                     DRAFT

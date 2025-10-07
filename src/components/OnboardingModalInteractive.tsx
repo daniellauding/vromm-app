@@ -15,10 +15,10 @@ interface OnboardingModalInteractiveProps {
   forceShow?: boolean; // Used for first-time users or for testing
 }
 
-export function OnboardingModalInteractive({ 
-  visible, 
-  onClose, 
-  forceShow = false 
+export function OnboardingModalInteractive({
+  visible,
+  onClose,
+  forceShow = false,
 }: OnboardingModalInteractiveProps) {
   const [loading, setLoading] = useState(false);
   const [showDebugOptions, setShowDebugOptions] = useState(false);
@@ -34,7 +34,7 @@ export function OnboardingModalInteractive({
         // Screen focused - reopening modal
         setIsTemporarilyClosed(false);
       }
-    }, [isTemporarilyClosed, visible])
+    }, [isTemporarilyClosed, visible]),
   );
 
   const handleComplete = () => {
@@ -50,9 +50,9 @@ export function OnboardingModalInteractive({
         'interactive_onboarding',
         'vromm_first_login',
         'vromm_onboarding',
-        'vromm_app_tour_completed'
+        'vromm_app_tour_completed',
       ]);
-      
+
       // Reset user's profile flags (USER-BASED)
       if (user?.id) {
         const { error } = await supabase
@@ -62,18 +62,20 @@ export function OnboardingModalInteractive({
             interactive_onboarding_version: null,
           })
           .eq('id', user.id);
-          
+
         if (error) {
           console.error('Error resetting user profile onboarding flags:', error);
         } else {
           console.log('🎯 [OnboardingModal] Reset user profile onboarding flags for:', user.id);
         }
       }
-      
+
       // Close modal first
       onClose();
       // Show confirmation
-      alert('All onboarding flags (device + user) have been reset. Restart the app to see onboarding again.');
+      alert(
+        'All onboarding flags (device + user) have been reset. Restart the app to see onboarding again.',
+      );
     } catch (error) {
       console.error('Error resetting interactive onboarding:', error);
       alert('Failed to reset onboarding. Check console for details.');
@@ -92,14 +94,17 @@ export function OnboardingModalInteractive({
         'interactive_onboarding',
         'vromm_first_login',
         'vromm_onboarding',
-        'vromm_app_tour_completed'
+        'vromm_app_tour_completed',
       ]);
-      
-      const storageState = values.reduce((acc, [key, value]) => {
-        acc[key] = value;
-        return acc;
-      }, {} as Record<string, string | null>);
-      
+
+      const storageState = values.reduce(
+        (acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        },
+        {} as Record<string, string | null>,
+      );
+
       console.log('🎯 [OnboardingModal] Current AsyncStorage state:', storageState);
       alert(`Storage State:\n${JSON.stringify(storageState, null, 2)}`);
     } catch (error) {
@@ -136,7 +141,7 @@ export function OnboardingModalInteractive({
   }
 
   // Rendering OnboardingModalInteractive
-  
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.centeredView}>

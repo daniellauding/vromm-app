@@ -139,9 +139,11 @@ export function MessagesSheet({ visible, onClose }: MessagesSheetProps) {
                   </TouchableOpacity>
                 )}
                 <Text fontSize="$6" fontWeight="bold" color="$color" flex={1}>
-                  {currentView === 'list' ? 'Messages' : 
-                   currentView === 'conversation' ? 'Conversation' : 
-                   'New Message'}
+                  {currentView === 'list'
+                    ? 'Messages'
+                    : currentView === 'conversation'
+                      ? 'Conversation'
+                      : 'New Message'}
                 </Text>
                 {currentView === 'list' && (
                   <TouchableOpacity onPress={handleNewMessage} style={{ marginRight: 12 }}>
@@ -174,12 +176,12 @@ export function MessagesSheet({ visible, onClose }: MessagesSheetProps) {
 }
 
 // Wrapper components to handle navigation properly
-const MessagesScreenWrapper = ({ onConversationPress }: { onConversationPress: (id: string) => void }) => {
-  return (
-    <MessagesScreen 
-      onConversationPress={onConversationPress}
-    />
-  );
+const MessagesScreenWrapper = ({
+  onConversationPress,
+}: {
+  onConversationPress: (id: string) => void;
+}) => {
+  return <MessagesScreen onConversationPress={onConversationPress} />;
 };
 
 const ConversationScreenWrapper = ({ conversationId }: { conversationId: string }) => {
@@ -190,15 +192,9 @@ const ConversationScreenWrapper = ({ conversationId }: { conversationId: string 
     name: 'Conversation',
   };
 
-  return (
-    <ConversationScreen route={mockRoute as any} />
-  );
+  return <ConversationScreen route={mockRoute as any} />;
 };
 
 const NewMessageScreenWrapper = ({ onMessageSent }: { onMessageSent: () => void }) => {
-  return (
-    <NewMessageScreen 
-      onMessageSent={onMessageSent}
-    />
-  );
+  return <NewMessageScreen onMessageSent={onMessageSent} />;
 };

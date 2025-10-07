@@ -63,7 +63,7 @@ export const InviteUsersScreen: React.FC<InviteUsersScreenProps> = ({ route }) =
   const loadUsers = async () => {
     try {
       setLoading(true);
-      
+
       // Get all profiles excluding the current user
       const { data, error } = await supabase
         .from('profiles')
@@ -109,7 +109,7 @@ export const InviteUsersScreen: React.FC<InviteUsersScreenProps> = ({ route }) =
       (u) =>
         u.full_name?.toLowerCase().includes(query) ||
         u.email?.toLowerCase().includes(query) ||
-        u.role?.toLowerCase().includes(query)
+        u.role?.toLowerCase().includes(query),
     );
     setFilteredUsers(filtered);
   };
@@ -196,7 +196,7 @@ export const InviteUsersScreen: React.FC<InviteUsersScreenProps> = ({ route }) =
 
       // Show toast notification
       showEventInviteToast(eventId, eventTitle, selectedUserIds.size);
-      
+
       if (onInvitesSent) {
         onInvitesSent(Array.from(selectedUserIds));
       }
@@ -224,8 +224,8 @@ export const InviteUsersScreen: React.FC<InviteUsersScreenProps> = ({ route }) =
           borderColor: isSelected
             ? '#00FFBC'
             : isDisabled
-            ? 'rgba(255, 255, 255, 0.1)'
-            : 'rgba(255, 255, 255, 0.2)',
+              ? 'rgba(255, 255, 255, 0.1)'
+              : 'rgba(255, 255, 255, 0.2)',
           borderRadius: 12,
           padding: 16,
           marginVertical: 4,
@@ -431,4 +431,4 @@ export const InviteUsersScreen: React.FC<InviteUsersScreenProps> = ({ route }) =
       </YStack>
     </SafeAreaView>
   );
-}; 
+};

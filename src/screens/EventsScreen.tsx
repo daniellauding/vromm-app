@@ -59,7 +59,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
   useEffect(() => {
     loadEvents();
     loadInvitations();
-    
+
     // Track screen view
     AppAnalytics.trackScreenView('EventsScreen', {
       tab: activeTab,
@@ -71,7 +71,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
     React.useCallback(() => {
       loadEvents();
       loadInvitations();
-    }, [])
+    }, []),
   );
 
   const loadEvents = async () => {
@@ -93,7 +93,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
       // Get events where user is invited with pending status
       const { data, error } = await supabase
         .from('event_attendees')
-        .select(`
+        .select(
+          `
           event_id,
           status,
           events!inner(
@@ -112,16 +113,18 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
               avatar_url
             )
           )
-        `)
+        `,
+        )
         .eq('user_id', user.id)
         .eq('status', 'invited');
 
       if (error) throw error;
 
-      const invitationEvents = data?.map(invitation => ({
-        ...invitation.events,
-        invitationStatus: invitation.status
-      })) || [];
+      const invitationEvents =
+        data?.map((invitation) => ({
+          ...invitation.events,
+          invitationStatus: invitation.status,
+        })) || [];
 
       setInvitations(invitationEvents);
     } catch (error) {
@@ -152,7 +155,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
       if (error) throw error;
 
       // Remove from invitations and refresh
-      setInvitations(prev => prev.filter(inv => inv.id !== eventId));
+      setInvitations((prev) => prev.filter((inv) => inv.id !== eventId));
       loadEvents(); // Refresh events list
     } catch (error) {
       console.error('Error accepting invitation:', error);
@@ -175,7 +178,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
       if (error) throw error;
 
       // Remove from invitations
-      setInvitations(prev => prev.filter(inv => inv.id !== eventId));
+      setInvitations((prev) => prev.filter((inv) => inv.id !== eventId));
     } catch (error) {
       console.error('Error rejecting invitation:', error);
     }
@@ -257,11 +260,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
           }}
         >
           <Calendar size={16} color={activeTab === 'all' ? '#000' : '#FFF'} />
-          <Text
-            fontSize={14}
-            fontWeight="600"
-            color={activeTab === 'all' ? '#000' : '#FFF'}
-          >
+          <Text fontSize={14} fontWeight="600" color={activeTab === 'all' ? '#000' : '#FFF'}>
             All Events ({events.length})
           </Text>
         </TouchableOpacity>
@@ -336,7 +335,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
       ) : (
         <FlatList
           data={activeTab === 'all' ? events : invitations}
-          renderItem={({ item }: { item: Event }) => (
+          renderItem={({ item }: { item: Event }) =>
             activeTab === 'invitations' ? (
               // Invitation with accept/reject buttons
               <YStack
@@ -349,9 +348,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
                 gap={12}
               >
                 <EventCard event={item} onEventPress={onEventPress} />
-                
+
                 {/* Invitation Actions */}
-                <XStack gap={12} paddingTop={8} borderTopWidth={1} borderTopColor="rgba(255, 255, 255, 0.1)">
+                <XStack
+                  gap={12}
+                  paddingTop={8}
+                  borderTopWidth={1}
+                  borderTopColor="rgba(255, 255, 255, 0.1)"
+                >
                   <TouchableOpacity
                     onPress={() => handleAcceptInvitation(item.id)}
                     style={{
@@ -395,7 +399,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ onEventPress }) => {
               // Regular event card
               <EventCard event={item} onEventPress={onEventPress} />
             )
-          )}
+          }
           keyExtractor={(item) => item.id}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FFBC" />

@@ -69,12 +69,15 @@ export const NearByRoutes = ({ onRoutePress }: NearByRoutesProps = {}) => {
         onAction={onNavigateToRouteList}
         actionLabel={t('common.seeAll')}
       />
-      
+
       {nearbyRoutes.length === 0 ? (
         <YStack px="$4">
           <EmptyState
             title={t('home.nearbyRoutes.noRoutes') || 'No Nearby Routes'}
-            message={t('home.nearbyRoutes.noRoutesMessage') || 'No practice routes found within 100km of your location. Create the first route in your area or explore the map!'}
+            message={
+              t('home.nearbyRoutes.noRoutesMessage') ||
+              'No practice routes found within 100km of your location. Create the first route in your area or explore the map!'
+            }
             icon="map-pin"
             variant="warning"
             actionLabel={t('home.nearbyRoutes.createRouteHere') || 'Create Route Here'}
@@ -92,8 +95,8 @@ export const NearByRoutes = ({ onRoutePress }: NearByRoutesProps = {}) => {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <XStack paddingHorizontal="$4" marginRight="$4">
-              <RouteCard 
-                route={item} 
+              <RouteCard
+                route={item}
                 onPress={onRoutePress ? () => onRoutePress(item.id) : undefined}
               />
             </XStack>

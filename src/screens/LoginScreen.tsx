@@ -183,7 +183,6 @@ export function LoginScreen() {
         nonce: rawNonce,
       });
       if (error) throw error;
-
     } catch (error) {
       console.error('Apple login error:', error);
       const msg = (error as Error)?.message?.toLowerCase?.() || '';

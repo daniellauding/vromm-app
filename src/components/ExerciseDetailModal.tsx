@@ -86,9 +86,13 @@ export function ExerciseDetailModal({
   const colorScheme = useColorScheme();
   const [isCompleted, setIsCompleted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [lastAudit, setLastAudit] = useState<{ actor_name: string | null; created_at: string; action: string } | null>(null);
+  const [lastAudit, setLastAudit] = useState<{
+    actor_name: string | null;
+    created_at: string;
+    action: string;
+  } | null>(null);
   const [viewingUserName, setViewingUserName] = useState<string | null>(null);
-  
+
   // Use activeStudentId if available (for instructor viewing student data)
   const effectiveUserId = activeStudentId || user?.id;
 
@@ -155,7 +159,12 @@ export function ExerciseDetailModal({
     if (!exercise || !effectiveUserId) return;
 
     try {
-      console.log('🔍 [ExerciseDetailModal] Checking completion for user:', effectiveUserId, 'exercise:', exercise.id);
+      console.log(
+        '🔍 [ExerciseDetailModal] Checking completion for user:',
+        effectiveUserId,
+        'exercise:',
+        exercise.id,
+      );
       const { data, error } = await supabase
         .from('route_exercise_completions')
         .select('*')
@@ -428,7 +437,12 @@ export function ExerciseDetailModal({
 
     setLoading(true);
     try {
-      console.log('✅ [ExerciseDetailModal] Marking complete for user:', effectiveUserId, 'exercise:', exercise.id);
+      console.log(
+        '✅ [ExerciseDetailModal] Marking complete for user:',
+        effectiveUserId,
+        'exercise:',
+        exercise.id,
+      );
       // Create session first
       const { data: session, error: sessionError } = await supabase
         .from('route_exercise_sessions')
@@ -878,7 +892,12 @@ export function ExerciseDetailModal({
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
             {viewingUserName && (
-              <YStack marginBottom={12} padding={10} backgroundColor={colorScheme === 'dark' ? '#162023' : '#E6FFFA'} borderRadius={12}>
+              <YStack
+                marginBottom={12}
+                padding={10}
+                backgroundColor={colorScheme === 'dark' ? '#162023' : '#E6FFFA'}
+                borderRadius={12}
+              >
                 <Text color={colorScheme === 'dark' ? '#00E6C3' : '#0F766E'} fontSize={12}>
                   Viewing as: {viewingUserName}
                 </Text>
@@ -994,7 +1013,9 @@ export function ExerciseDetailModal({
 
               {lastAudit && (
                 <Text color="$gray11" size="sm" marginBottom="$2">
-                  Last action: {lastAudit.action.replace('_', ' ')} by {lastAudit.actor_name || 'Unknown'} at {new Date(lastAudit.created_at).toLocaleString()}
+                  Last action: {lastAudit.action.replace('_', ' ')} by{' '}
+                  {lastAudit.actor_name || 'Unknown'} at{' '}
+                  {new Date(lastAudit.created_at).toLocaleString()}
                 </Text>
               )}
 

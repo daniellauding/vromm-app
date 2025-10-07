@@ -42,11 +42,23 @@ export const TodoSection: React.FC = () => {
 
   return (
     <YStack gap="$4">
-      <Text fontSize="$6" fontWeight="700">Testing Checklist</Text>
+      <Text fontSize="$6" fontWeight="700">
+        Testing Checklist
+      </Text>
 
       <XStack gap="$2">
-        <Button variant={role === 'student' ? 'outlined' : 'ghost'} onPress={() => setRole('student')}>Student</Button>
-        <Button variant={role === 'teacher' ? 'outlined' : 'ghost'} onPress={() => setRole('teacher')}>Teacher</Button>
+        <Button
+          variant={role === 'student' ? 'outlined' : 'ghost'}
+          onPress={() => setRole('student')}
+        >
+          Student
+        </Button>
+        <Button
+          variant={role === 'teacher' ? 'outlined' : 'ghost'}
+          onPress={() => setRole('teacher')}
+        >
+          Teacher
+        </Button>
       </XStack>
 
       <YStack gap="$2">
@@ -69,4 +81,4 @@ export const TodoSection: React.FC = () => {
   );
 };
 
-export default TodoSection; 
+export default TodoSection;

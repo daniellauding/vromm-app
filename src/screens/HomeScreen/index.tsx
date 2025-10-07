@@ -9,7 +9,10 @@ import { NavigationProp } from '../../types/navigation';
 import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
 import { OnboardingModalInteractive } from '../../components/OnboardingModalInteractive';
-import { shouldShowInteractiveOnboarding, completeOnboardingWithVersion } from '../../components/OnboardingInteractive';
+import {
+  shouldShowInteractiveOnboarding,
+  completeOnboardingWithVersion,
+} from '../../components/OnboardingInteractive';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { useTranslation } from '../../contexts/TranslationContext';
@@ -84,7 +87,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   // Conditional tours still DISABLED
   // const { triggerConditionalTour } = useConditionalTours();
   const { showModal, checkForPromotionalContent } = usePromotionalModal();
-  
+
   // Debug state for development
   const [showDebugOptions, setShowDebugOptions] = useState(false);
 
@@ -95,7 +98,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   const [showRouteDetailSheet, setShowRouteDetailSheet] = useState(false);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [showCommunityFeedSheet, setShowCommunityFeedSheet] = useState(false);
-  
+
   // Communication sheet states
   const [showMessagesSheet, setShowMessagesSheet] = useState(false);
   const [showNotificationsSheet, setShowNotificationsSheet] = useState(false);
@@ -104,7 +107,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
 
   // Use the effective user ID (either activeUserId prop, activeStudentId from context, or current user id)
   const effectiveUserId = activeUserId || getEffectiveUserId();
-  
+
   // Shared date state for WeeklyGoal and DailyStatus connection
   const [selectedDailyStatusDate, setSelectedDailyStatusDate] = useState(new Date());
 
@@ -128,7 +131,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
     const checkFirstLogin = async () => {
       try {
         // Use the proper check that looks at both AsyncStorage AND user profile
-        const shouldShow = await shouldShowInteractiveOnboarding('interactive_onboarding', user?.id);
+        const shouldShow = await shouldShowInteractiveOnboarding(
+          'interactive_onboarding',
+          user?.id,
+        );
         if (shouldShow && user?.id) {
           console.log('🎯 [HomeScreen] Showing OnboardingInteractive for user:', user.id);
           setIsFirstLogin(true);
@@ -140,7 +146,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         console.error('Error checking onboarding status:', error);
       }
     };
-    
+
     // Only check if we have a user
     if (user?.id) {
       checkFirstLogin();
@@ -150,12 +156,12 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   // Check if tour should be shown after onboarding is complete (RE-ENABLED for HomeScreen)
   useEffect(() => {
     let isMounted = true;
-    
+
     const checkTour = async () => {
       // Only show tour if user exists and no promotional modal
       if (user && !showModal && isMounted) {
         const shouldShow = await shouldShowTour();
-        
+
         if (shouldShow && isMounted) {
           // Start database tour after a delay to ensure UI is fully ready
           setTimeout(() => {
@@ -187,7 +193,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   // useEffect(() => {
   //   let isMounted = true;
   //   let timeoutId: NodeJS.Timeout;
-  //   
+  //
   //   const checkConditionalTours = async () => {
   //     try {
   //       if (user && !showOnboarding && !showModal && isMounted) {
@@ -201,9 +207,9 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   //       console.error('Error checking conditional tours:', error);
   //     }
   //   };
-  // 
+  //
   //   checkConditionalTours();
-  // 
+  //
   //   return () => {
   //     isMounted = false;
   //     if (timeoutId) {
@@ -219,7 +225,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       'interactive_onboarding',
       'hasSeenOnboarding', // Legacy key
     ]);
-    
+
     // Reset user profile flags
     if (user?.id) {
       await supabase
@@ -230,7 +236,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         })
         .eq('id', user.id);
     }
-    
+
     setShowOnboarding(true);
     setIsFirstLogin(true);
   };
@@ -246,14 +252,17 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         'interactive_onboarding',
         'vromm_first_login',
         'vromm_onboarding',
-        'vromm_app_tour_completed'
+        'vromm_app_tour_completed',
       ]);
-      
-      const storageState = values.reduce((acc, [key, value]) => {
-        acc[key] = value;
-        return acc;
-      }, {} as Record<string, string | null>);
-      
+
+      const storageState = values.reduce(
+        (acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        },
+        {} as Record<string, string | null>,
+      );
+
       console.log('🎯 [HomeScreen] AsyncStorage state:', storageState);
       alert(`AsyncStorage State:\n${JSON.stringify(storageState, null, 2)}`);
     } catch (error) {
@@ -277,7 +286,9 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
 
   // Scroll to top and optionally trigger refresh when resetKey changes
   useEffect(() => {
-    const resetKey = (navigation as any)?.getState?.()?.routes?.find((r: any) => r.name === 'HomeScreen')?.params?.resetKey;
+    const resetKey = (navigation as any)
+      ?.getState?.()
+      ?.routes?.find((r: any) => r.name === 'HomeScreen')?.params?.resetKey;
     if (resetKey) {
       try {
         // Scroll FlatList to top by toggling key or using ref (here: key bump via state already supported by parent)
@@ -290,18 +301,23 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   useFocusEffect(
     useCallback(() => {
       console.log('🎯 HomeScreen: Screen focused');
-      
+
       // Check if we should reopen RouteDetailSheet after returning from AddReview
-      const routeParams = (navigation as any)?.getState?.()?.routes?.find((r: any) => r.name === 'HomeScreen')?.params;
+      const routeParams = (navigation as any)
+        ?.getState?.()
+        ?.routes?.find((r: any) => r.name === 'HomeScreen')?.params;
       if (routeParams?.reopenRouteDetail && routeParams?.routeId) {
-        console.log('🎯 HomeScreen: Reopening RouteDetailSheet after AddReview - routeId:', routeParams.routeId);
+        console.log(
+          '🎯 HomeScreen: Reopening RouteDetailSheet after AddReview - routeId:',
+          routeParams.routeId,
+        );
         setSelectedRouteId(routeParams.routeId);
         setShowRouteDetailSheet(true);
-        
+
         // Clear the params to prevent reopening again
         navigation.setParams({ reopenRouteDetail: undefined, routeId: undefined });
       }
-    }, [navigation])
+    }, [navigation]),
   );
 
   // Load community feed when Community tab is active
@@ -328,7 +344,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         .eq('follower_id', user.id);
 
       if (!error && data) {
-        setFollowingUserIds(data.map(f => f.following_id));
+        setFollowingUserIds(data.map((f) => f.following_id));
       }
     } catch (error) {
       console.error('Error loading following users:', error);
@@ -382,15 +398,17 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
     }
 
     // Add media attachments
-    const mediaAttachmentsArray = Array.isArray(route.media_attachments) ? route.media_attachments : [];
-    const validAttachments = mediaAttachmentsArray.filter((m: any) =>
-      m?.url && (
-        m.url.startsWith('http://') ||
-        m.url.startsWith('https://') ||
-        m.url.startsWith('file://') ||
-        m.url.startsWith('data:') ||
-        m.url.startsWith('content://')
-      )
+    const mediaAttachmentsArray = Array.isArray(route.media_attachments)
+      ? route.media_attachments
+      : [];
+    const validAttachments = mediaAttachmentsArray.filter(
+      (m: any) =>
+        m?.url &&
+        (m.url.startsWith('http://') ||
+          m.url.startsWith('https://') ||
+          m.url.startsWith('file://') ||
+          m.url.startsWith('data:') ||
+          m.url.startsWith('content://')),
     );
 
     const media = validAttachments.map((m: any) => ({
@@ -406,19 +424,22 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       setCommunityLoading(true);
       const feedItems: any[] = [];
 
-      const shouldFilterByFollowing = communityFilter === 'following' && followingUserIds.length > 0;
+      const shouldFilterByFollowing =
+        communityFilter === 'following' && followingUserIds.length > 0;
 
       // Load recent public routes
       let routesQuery = supabase
         .from('routes')
-        .select(`
+        .select(
+          `
           *,
           creator:profiles!routes_creator_id_fkey(
             id,
             full_name,
             avatar_url
           )
-        `)
+        `,
+        )
         .neq('visibility', 'private')
         .order('created_at', { ascending: false })
         .limit(30);
@@ -430,14 +451,14 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       const { data: routes, error: routesError } = await routesQuery;
 
       if (!routesError && routes) {
-        routes.forEach(route => {
+        routes.forEach((route) => {
           if (route.creator) {
             feedItems.push({
               id: `route_${route.id}`,
               type: 'route_created',
               user: route.creator,
               created_at: route.created_at,
-              data: route
+              data: route,
             });
           }
         });
@@ -446,14 +467,16 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       // Load recent public events
       let eventsQuery = supabase
         .from('events')
-        .select(`
+        .select(
+          `
           *,
           creator:profiles!events_created_by_fkey(
             id,
             full_name,
             avatar_url
           )
-        `)
+        `,
+        )
         .neq('visibility', 'private')
         .order('created_at', { ascending: false })
         .limit(30);
@@ -465,14 +488,14 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       const { data: events, error: eventsError } = await eventsQuery;
 
       if (!eventsError && events) {
-        events.forEach(event => {
+        events.forEach((event) => {
           if (event.creator) {
             feedItems.push({
               id: `event_${event.id}`,
               type: 'event_created',
               user: event.creator,
               created_at: event.created_at,
-              data: event
+              data: event,
             });
           }
         });
@@ -481,7 +504,8 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       // Load recent exercise completions
       let completionsQuery = supabase
         .from('virtual_repeat_completions')
-        .select(`
+        .select(
+          `
           *,
           user:profiles!virtual_repeat_completions_user_id_fkey(
             id,
@@ -495,7 +519,8 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             icon,
             image
           )
-        `)
+        `,
+        )
         .order('completed_at', { ascending: false })
         .limit(50);
 
@@ -506,7 +531,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       const { data: completions, error: completionsError } = await completionsQuery;
 
       if (!completionsError && completions) {
-        completions.forEach(completion => {
+        completions.forEach((completion) => {
           if (completion.user && completion.learning_path_exercises) {
             feedItems.push({
               id: `completion_${completion.id}`,
@@ -515,8 +540,8 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
               created_at: completion.completed_at,
               data: {
                 exercise: completion.learning_path_exercises,
-                completion: completion
-              }
+                completion: completion,
+              },
             });
           }
         });
@@ -547,7 +572,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
           }}
         />
       )}
-      
+
       {/* Debug options DISABLED to prevent console flooding */}
       {false && __DEV__ && (
         <>
@@ -564,7 +589,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
             }}
             onPress={() => setShowDebugOptions(!showDebugOptions)}
           />
-          
+
           {/* Debug menu */}
           {showDebugOptions && (
             <View
@@ -579,9 +604,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                 minWidth: 200,
               }}
             >
-              <Text style={{ color: 'white', fontSize: 12, marginBottom: 8 }}>
-                Debug Options
-              </Text>
+              <Text style={{ color: 'white', fontSize: 12, marginBottom: 8 }}>Debug Options</Text>
               <TouchableOpacity
                 style={{ backgroundColor: '#007AFF', padding: 8, borderRadius: 4, marginBottom: 4 }}
                 onPress={handleCheckAsyncStorage}
@@ -608,7 +631,9 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                     console.log('🎉 [HomeScreen] Cleared promotional_modal_seen flag');
                     const result = await checkForPromotionalContent('modal');
                     console.log('🎉 [HomeScreen] Force promotional check result:', result);
-                    alert(result ? 'Promotional modal should show!' : 'No promotional content found');
+                    alert(
+                      result ? 'Promotional modal should show!' : 'No promotional content found',
+                    );
                   } catch (error) {
                     console.error('Error testing promotional modal:', error);
                     alert('Error testing promotional modal');
@@ -636,11 +661,11 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         renderItem={() => (
           <YStack f={1}>
             <HomeHeader />
-            
+
             {/* Tab Switcher */}
-            <XStack 
-              paddingHorizontal="$4" 
-              paddingVertical="$3" 
+            <XStack
+              paddingHorizontal="$4"
+              paddingVertical="$3"
               gap="$2"
               borderBottomWidth={1}
               borderBottomColor="rgba(255, 255, 255, 0.1)"
@@ -653,11 +678,12 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                   borderRadius: 8,
                   backgroundColor: activeTab === 'you' ? 'rgba(0, 230, 195, 0.15)' : 'transparent',
                   borderWidth: 1,
-                  borderColor: activeTab === 'you' ? 'rgba(0, 230, 195, 0.5)' : 'rgba(255, 255, 255, 0.1)',
+                  borderColor:
+                    activeTab === 'you' ? 'rgba(0, 230, 195, 0.5)' : 'rgba(255, 255, 255, 0.1)',
                 }}
               >
-                <Text 
-                  textAlign="center" 
+                <Text
+                  textAlign="center"
                   fontWeight={activeTab === 'you' ? '700' : '500'}
                   color={activeTab === 'you' ? '$primary' : '$gray11'}
                   fontSize="$4"
@@ -665,20 +691,24 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                   You
                 </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 onPress={() => setActiveTab('community')}
                 style={{
                   flex: 1,
                   paddingVertical: 12,
                   borderRadius: 8,
-                  backgroundColor: activeTab === 'community' ? 'rgba(0, 230, 195, 0.15)' : 'transparent',
+                  backgroundColor:
+                    activeTab === 'community' ? 'rgba(0, 230, 195, 0.15)' : 'transparent',
                   borderWidth: 1,
-                  borderColor: activeTab === 'community' ? 'rgba(0, 230, 195, 0.5)' : 'rgba(255, 255, 255, 0.1)',
+                  borderColor:
+                    activeTab === 'community'
+                      ? 'rgba(0, 230, 195, 0.5)'
+                      : 'rgba(255, 255, 255, 0.1)',
                 }}
               >
-                <Text 
-                  textAlign="center" 
+                <Text
+                  textAlign="center"
                   fontWeight={activeTab === 'community' ? '700' : '500'}
                   color={activeTab === 'community' ? '$primary' : '$gray11'}
                   fontSize="$4"
@@ -701,92 +731,98 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                 </Text>
               </YStack>
             )}
-            
+
             {/* Content based on active tab */}
             {activeTab === 'you' ? (
               <YStack>
                 {/* Weekly Goal Section */}
-                <WeeklyGoal 
-              activeUserId={effectiveUserId || undefined}
-              selectedDate={selectedDailyStatusDate}
-              onDateSelected={(date: Date) => {
-                console.log('🗓️ [HomeScreen] Date selected from WeeklyGoal:', date.toDateString());
-                setSelectedDailyStatusDate(date);
-              }}
-            />
-            <DailyStatus 
-              activeUserId={effectiveUserId || undefined}
-              selectedDate={selectedDailyStatusDate}
-              onDateChange={(date) => {
-                console.log('🗓️ [HomeScreen] Date changed from DailyStatus:', date.toDateString());
-                setSelectedDailyStatusDate(date);
-              }}
-            />
-            
-            {/* Jump Back In Section */}
-            <JumpBackInSection activeUserId={effectiveUserId || undefined} />
-            
-            <GettingStarted />
-            
-            {/* Featured Content */}
-            <FeaturedContent />
-            
-            {/* Featured Content 2 - Card Layout */}
-            <FeaturedContent2 />
+                <WeeklyGoal
+                  activeUserId={effectiveUserId || undefined}
+                  selectedDate={selectedDailyStatusDate}
+                  onDateSelected={(date: Date) => {
+                    console.log(
+                      '🗓️ [HomeScreen] Date selected from WeeklyGoal:',
+                      date.toDateString(),
+                    );
+                    setSelectedDailyStatusDate(date);
+                  }}
+                />
+                <DailyStatus
+                  activeUserId={effectiveUserId || undefined}
+                  selectedDate={selectedDailyStatusDate}
+                  onDateChange={(date) => {
+                    console.log(
+                      '🗓️ [HomeScreen] Date changed from DailyStatus:',
+                      date.toDateString(),
+                    );
+                    setSelectedDailyStatusDate(date);
+                  }}
+                />
 
-            {/* <UpcomingEvents 
+                {/* Jump Back In Section */}
+                <JumpBackInSection activeUserId={effectiveUserId || undefined} />
+
+                <GettingStarted />
+
+                {/* Featured Content */}
+                <FeaturedContent />
+
+                {/* Featured Content 2 - Card Layout */}
+                <FeaturedContent2 />
+
+                {/* <UpcomingEvents 
               onEventPress={(eventId) => {
                 navigation.navigate('EventDetail', { eventId });
               }}
               onShowEventsSheet={() => setShowEventsSheet(true)}
             /> */}
 
-            <ProgressSection activeUserId={effectiveUserId} />
-            <DraftRoutes onRoutePress={handleRoutePress} />
-            <SavedRoutes onRoutePress={handleRoutePress} />
-            <CommunityFeed 
-              onOpenFeedSheet={() => setShowCommunityFeedSheet(true)}
-              onUserPress={(userId) => {
-                setSelectedUserId(userId);
-                setShowUserProfileSheet(true);
-              }}
-              onRoutePress={handleRoutePress}
-            />
-            {/* <QuickFilters handleFilterPress={handleFilterPress} /> */}
-            <Button
-              onPress={() => navigation.navigate('CreateRoute', {})}
-              variant="primary"
-              size="lg"
-            >
-              {t('home.createNewRoute')}
-            </Button>
-            <YStack gap="$4">
-              <CityRoutes onRoutePress={handleRoutePress} />
-              <CreatedRoutes onRoutePress={handleRoutePress} />
-              <NearByRoutes onRoutePress={handleRoutePress} />
-              <DrivenRoutes onRoutePress={handleRoutePress} />
-            </YStack>
-            <YStack gap="$4" marginTop="$6" marginBottom="$6">
-              <SectionHeader
-                title="Users"
-                variant="chevron"
-                onAction={() => setShowUserListSheet(true)}
-                actionLabel={t('common.seeAll')}
-              />
-              <UsersList 
-                onUserPress={(userId: string) => {
-                  if (userId) {
+                <ProgressSection activeUserId={effectiveUserId} />
+                <DraftRoutes onRoutePress={handleRoutePress} />
+                <SavedRoutes onRoutePress={handleRoutePress} />
+                <CommunityFeed
+                  onOpenFeedSheet={() => setShowCommunityFeedSheet(true)}
+                  onUserPress={(userId) => {
                     setSelectedUserId(userId);
                     setShowUserProfileSheet(true);
-                  }
-                }} 
-              />
-            </YStack>
+                  }}
+                  onRoutePress={handleRoutePress}
+                />
+                {/* <QuickFilters handleFilterPress={handleFilterPress} /> */}
+                <Button
+                  onPress={() => navigation.navigate('CreateRoute', {})}
+                  variant="primary"
+                  size="lg"
+                >
+                  {t('home.createNewRoute')}
+                </Button>
+                <YStack gap="$4">
+                  <CityRoutes onRoutePress={handleRoutePress} />
+                  <CreatedRoutes onRoutePress={handleRoutePress} />
+                  <NearByRoutes onRoutePress={handleRoutePress} />
+                  <DrivenRoutes onRoutePress={handleRoutePress} />
+                </YStack>
+                <YStack gap="$4" marginTop="$6" marginBottom="$6">
+                  <SectionHeader
+                    title="Users"
+                    variant="chevron"
+                    onAction={() => setShowUserListSheet(true)}
+                    actionLabel={t('common.seeAll')}
+                  />
+                  <UsersList
+                    onUserPress={(userId: string) => {
+                      if (userId) {
+                        setSelectedUserId(userId);
+                        setShowUserProfileSheet(true);
+                      }
+                    }}
+                  />
+                </YStack>
               </YStack>
             ) : (
               <YStack paddingTop="$4" gap="$4">
                 {/* Community Tab Content - Full vertical feed */}
-                
+
                 {/* Filter chips */}
                 <XStack paddingHorizontal="$4" gap="$3">
                   <Chip
@@ -815,26 +851,34 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                   </YStack>
                 ) : communityActivities.length === 0 ? (
                   <YStack flex={1} justifyContent="center" alignItems="center" padding="$8">
-                    <Feather 
-                      name={communityFilter === 'following' ? "users" : "activity"} 
-                      size={64} 
-                      color="$gray9" 
+                    <Feather
+                      name={communityFilter === 'following' ? 'users' : 'activity'}
+                      size={64}
+                      color="$gray9"
                     />
-                    <Text fontSize={20} fontWeight="600" color="$gray11" textAlign="center" marginTop="$4">
-                      {communityFilter === 'following' ? 'No activity from people you follow' : 'No community activity yet'}
+                    <Text
+                      fontSize={20}
+                      fontWeight="600"
+                      color="$gray11"
+                      textAlign="center"
+                      marginTop="$4"
+                    >
+                      {communityFilter === 'following'
+                        ? 'No activity from people you follow'
+                        : 'No community activity yet'}
                     </Text>
                     <Text fontSize={16} color="$gray9" textAlign="center" marginTop="$2">
-                      {communityFilter === 'following' 
-                        ? 'The people you follow haven\'t posted anything recently'
-                        : 'Be the first to create routes, events, or complete exercises!'
-                      }
+                      {communityFilter === 'following'
+                        ? "The people you follow haven't posted anything recently"
+                        : 'Be the first to create routes, events, or complete exercises!'}
                     </Text>
                   </YStack>
                 ) : (
                   <YStack gap="$4" paddingHorizontal="$4">
                     {communityActivities.map((activity) => {
                       // Get media items for this activity
-                      const mediaItems = activity.type === 'route_created' ? getRouteMediaItems(activity.data) : [];
+                      const mediaItems =
+                        activity.type === 'route_created' ? getRouteMediaItems(activity.data) : [];
                       const screenWidth = Dimensions.get('window').width;
 
                       return (
@@ -848,19 +892,23 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                           borderColor="rgba(255, 255, 255, 0.1)"
                         >
                           {/* User info header */}
-                          <TouchableOpacity onPress={() => {
-                            setSelectedUserId(activity.user.id);
-                            setShowUserProfileSheet(true);
-                          }}>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setSelectedUserId(activity.user.id);
+                              setShowUserProfileSheet(true);
+                            }}
+                          >
                             <XStack alignItems="center" gap="$3">
                               {activity.user.avatar_url ? (
-                                <View style={{ 
-                                  width: 40, 
-                                  height: 40, 
-                                  borderRadius: 20, 
-                                  overflow: 'hidden',
-                                  backgroundColor: '#444'
-                                }}>
+                                <View
+                                  style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 20,
+                                    overflow: 'hidden',
+                                    backgroundColor: '#444',
+                                  }}
+                                >
                                   <ImageWithFallback
                                     source={{ uri: activity.user.avatar_url }}
                                     style={{ width: 40, height: 40 }}
@@ -868,36 +916,50 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                                   />
                                 </View>
                               ) : (
-                                <View style={{
-                                  width: 40,
-                                  height: 40,
-                                  borderRadius: 20,
-                                  backgroundColor: '#444',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}>
+                                <View
+                                  style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 20,
+                                    backgroundColor: '#444',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
                                   <Feather name="user" size={20} color="#ddd" />
                                 </View>
                               )}
-                              
+
                               <YStack flex={1}>
                                 <Text fontSize={16} fontWeight="600" color="$color">
                                   {activity.user.full_name}
                                 </Text>
                                 <XStack alignItems="center" gap={6}>
-                                  <Feather 
-                                    name={activity.type === 'route_created' ? 'map' : activity.type === 'event_created' ? 'calendar' : 'check-circle'} 
-                                    size={14} 
-                                    color="$primary" 
+                                  <Feather
+                                    name={
+                                      activity.type === 'route_created'
+                                        ? 'map'
+                                        : activity.type === 'event_created'
+                                          ? 'calendar'
+                                          : 'check-circle'
+                                    }
+                                    size={14}
+                                    color="$primary"
                                   />
                                   <Text fontSize={14} color="$gray11">
-                                    {activity.type === 'route_created' ? 'created a route' : activity.type === 'event_created' ? 'created an event' : 'completed exercise'}
+                                    {activity.type === 'route_created'
+                                      ? 'created a route'
+                                      : activity.type === 'event_created'
+                                        ? 'created an event'
+                                        : 'completed exercise'}
                                   </Text>
                                 </XStack>
                               </YStack>
-                              
+
                               <Text fontSize={12} color="$gray9">
-                                {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                                {formatDistanceToNow(new Date(activity.created_at), {
+                                  addSuffix: true,
+                                })}
                               </Text>
                             </XStack>
                           </TouchableOpacity>
@@ -920,26 +982,32 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                                   penDrawingCoordinates={mediaItems[0].data.penDrawingCoordinates}
                                 />
                               ) : mediaItems[0].type === 'video' ? (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                   style={{ width: '100%', height: '100%', position: 'relative' }}
-                                  onPress={() => console.log('🎥 Video play requested:', mediaItems[0].data.url)}
+                                  onPress={() =>
+                                    console.log('🎥 Video play requested:', mediaItems[0].data.url)
+                                  }
                                   activeOpacity={0.8}
                                 >
-                                  <View style={{ 
-                                    width: '100%', 
-                                    height: '100%', 
-                                    backgroundColor: '#000', 
-                                    justifyContent: 'center', 
-                                    alignItems: 'center' 
-                                  }}>
-                                    <View style={{
-                                      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                      borderRadius: 40,
-                                      width: 60,
-                                      height: 60,
+                                  <View
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      backgroundColor: '#000',
                                       justifyContent: 'center',
-                                      alignItems: 'center'
-                                    }}>
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <View
+                                      style={{
+                                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                        borderRadius: 40,
+                                        width: 60,
+                                        height: 60,
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                      }}
+                                    >
                                       <Play size={24} color="#FFF" />
                                     </View>
                                   </View>
@@ -955,80 +1023,94 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
                           )}
 
                           {/* Activity content */}
-                        {activity.type === 'route_created' && (
-                          <TouchableOpacity onPress={() => handleRoutePress(activity.data.id)}>
-                            <YStack gap="$2">
-                              <Text fontSize={16} fontWeight="500" color="$color">
-                                {activity.data.name}
-                              </Text>
-                              <XStack gap="$4">
-                                <XStack alignItems="center" gap={4}>
-                                  <Feather name="bar-chart" size={12} color="$gray11" />
-                                  <Text fontSize={13} color="$gray11">{activity.data.difficulty}</Text>
+                          {activity.type === 'route_created' && (
+                            <TouchableOpacity onPress={() => handleRoutePress(activity.data.id)}>
+                              <YStack gap="$2">
+                                <Text fontSize={16} fontWeight="500" color="$color">
+                                  {activity.data.name}
+                                </Text>
+                                <XStack gap="$4">
+                                  <XStack alignItems="center" gap={4}>
+                                    <Feather name="bar-chart" size={12} color="$gray11" />
+                                    <Text fontSize={13} color="$gray11">
+                                      {activity.data.difficulty}
+                                    </Text>
+                                  </XStack>
+                                  <XStack alignItems="center" gap={4}>
+                                    <Feather name="map-pin" size={12} color="$gray11" />
+                                    <Text fontSize={13} color="$gray11">
+                                      {activity.data.spot_type}
+                                    </Text>
+                                  </XStack>
                                 </XStack>
+                                {activity.data.description && (
+                                  <Text fontSize={13} color="$gray10" numberOfLines={2}>
+                                    {activity.data.description}
+                                  </Text>
+                                )}
+                              </YStack>
+                            </TouchableOpacity>
+                          )}
+
+                          {activity.type === 'event_created' && (
+                            <TouchableOpacity
+                              onPress={() =>
+                                navigation.navigate('EventDetail', { eventId: activity.data.id })
+                              }
+                            >
+                              <YStack gap="$2">
+                                <Text fontSize={16} fontWeight="500" color="$color">
+                                  {activity.data.title}
+                                </Text>
                                 <XStack alignItems="center" gap={4}>
-                                  <Feather name="map-pin" size={12} color="$gray11" />
-                                  <Text fontSize={13} color="$gray11">{activity.data.spot_type}</Text>
+                                  <Feather name="calendar" size={12} color="$gray11" />
+                                  <Text fontSize={13} color="$gray11">
+                                    {activity.data.event_date
+                                      ? new Date(activity.data.event_date).toLocaleDateString()
+                                      : 'No date set'}
+                                  </Text>
                                 </XStack>
-                              </XStack>
-                              {activity.data.description && (
-                                <Text fontSize={13} color="$gray10" numberOfLines={2}>
-                                  {activity.data.description}
-                                </Text>
-                              )}
-                            </YStack>
-                          </TouchableOpacity>
-                        )}
+                                {activity.data.description && (
+                                  <Text fontSize={13} color="$gray10" numberOfLines={2}>
+                                    {activity.data.description}
+                                  </Text>
+                                )}
+                              </YStack>
+                            </TouchableOpacity>
+                          )}
 
-                        {activity.type === 'event_created' && (
-                          <TouchableOpacity onPress={() => navigation.navigate('EventDetail', { eventId: activity.data.id })}>
-                            <YStack gap="$2">
-                              <Text fontSize={16} fontWeight="500" color="$color">
-                                {activity.data.title}
-                              </Text>
-                              <XStack alignItems="center" gap={4}>
-                                <Feather name="calendar" size={12} color="$gray11" />
-                                <Text fontSize={13} color="$gray11">
-                                  {activity.data.event_date ? 
-                                    new Date(activity.data.event_date).toLocaleDateString() : 
-                                    'No date set'
-                                  }
+                          {activity.type === 'exercise_completed' && (
+                            <TouchableOpacity
+                              onPress={() => {
+                                navigation.navigate('RouteExercise', {
+                                  routeId: '',
+                                  exercises: [activity.data.exercise],
+                                  routeName: 'Exercise',
+                                  startIndex: 0,
+                                });
+                              }}
+                            >
+                              <YStack gap="$2">
+                                <Text fontSize={16} fontWeight="500" color="$color">
+                                  {activity.data.exercise.title?.en ||
+                                    activity.data.exercise.title?.sv ||
+                                    'Exercise'}
                                 </Text>
-                              </XStack>
-                              {activity.data.description && (
-                                <Text fontSize={13} color="$gray10" numberOfLines={2}>
-                                  {activity.data.description}
-                                </Text>
-                              )}
-                            </YStack>
-                          </TouchableOpacity>
-                        )}
-
-                        {activity.type === 'exercise_completed' && (
-                          <TouchableOpacity onPress={() => {
-                            navigation.navigate('RouteExercise', { 
-                              routeId: '',
-                              exercises: [activity.data.exercise],
-                              routeName: 'Exercise',
-                              startIndex: 0
-                            });
-                          }}>
-                            <YStack gap="$2">
-                              <Text fontSize={16} fontWeight="500" color="$color">
-                                {activity.data.exercise.title?.en || activity.data.exercise.title?.sv || 'Exercise'}
-                              </Text>
-                              <XStack alignItems="center" gap={4}>
-                                <Feather name="check-circle" size={12} color="$green9" />
-                                <Text fontSize={13} color="$green9">Exercise Completed</Text>
-                              </XStack>
-                              {activity.data.exercise.description && (
-                                <Text fontSize={13} color="$gray10" numberOfLines={2}>
-                                  {activity.data.exercise.description?.en || activity.data.exercise.description?.sv}
-                                </Text>
-                              )}
-                            </YStack>
-                          </TouchableOpacity>
-                        )}
+                                <XStack alignItems="center" gap={4}>
+                                  <Feather name="check-circle" size={12} color="$green9" />
+                                  <Text fontSize={13} color="$green9">
+                                    Exercise Completed
+                                  </Text>
+                                </XStack>
+                                {activity.data.exercise.description && (
+                                  <Text fontSize={13} color="$gray10" numberOfLines={2}>
+                                    {activity.data.exercise.description?.en ||
+                                      activity.data.exercise.description?.sv}
+                                  </Text>
+                                )}
+                              </YStack>
+                            </TouchableOpacity>
+                          )}
                         </YStack>
                       );
                     })}
@@ -1072,7 +1154,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       <RouteDetailSheet
         visible={showRouteDetailSheet}
         onClose={() => {
-          console.log('🎯 HomeScreen: RouteDetailSheet closing - selectedRouteId:', selectedRouteId);
+          console.log(
+            '🎯 HomeScreen: RouteDetailSheet closing - selectedRouteId:',
+            selectedRouteId,
+          );
           setShowRouteDetailSheet(false);
           // Don't clear selectedRouteId here to allow for reopening
         }}
@@ -1092,7 +1177,10 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
           setShowUserProfileSheet(true);
         }}
         onReopen={() => {
-          console.log('🎯 HomeScreen: Reopening RouteDetailSheet - selectedRouteId:', selectedRouteId);
+          console.log(
+            '🎯 HomeScreen: Reopening RouteDetailSheet - selectedRouteId:',
+            selectedRouteId,
+          );
           if (selectedRouteId) {
             setShowRouteDetailSheet(true);
           } else {
@@ -1125,10 +1213,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
       />
 
       {/* Communication Sheets */}
-      <MessagesSheet
-        visible={showMessagesSheet}
-        onClose={() => setShowMessagesSheet(false)}
-      />
+      <MessagesSheet visible={showMessagesSheet} onClose={() => setShowMessagesSheet(false)} />
 
       <NotificationsSheet
         visible={showNotificationsSheet}
@@ -1140,10 +1225,7 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
         onClose={() => setShowEventsSheet(false)}
       /> */}
 
-      <ProfileSheet
-        visible={showProfileSheet}
-        onClose={() => setShowProfileSheet(false)}
-      />
+      <ProfileSheet visible={showProfileSheet} onClose={() => setShowProfileSheet(false)} />
     </Screen>
   );
 }

@@ -22,10 +22,12 @@ export class RelationshipReviewService {
   static async getReviewsForUser(userId: string): Promise<RelationshipReview[]> {
     const { data, error } = await supabase
       .from('relationship_reviews')
-      .select(`
+      .select(
+        `
         *,
         reviewer_profile:profiles!reviewer_id(full_name, role)
-      `)
+      `,
+      )
       .or(`student_id.eq.${userId},supervisor_id.eq.${userId}`)
       .order('created_at', { ascending: false });
 
@@ -52,7 +54,9 @@ export class RelationshipReviewService {
         const { data: relationship } = await supabase
           .from('student_supervisor_relationships')
           .select('*')
-          .or(`and(student_id.eq.${currentUser.id},supervisor_id.eq.${userId}),and(student_id.eq.${userId},supervisor_id.eq.${currentUser.id})`)
+          .or(
+            `and(student_id.eq.${currentUser.id},supervisor_id.eq.${userId}),and(student_id.eq.${userId},supervisor_id.eq.${currentUser.id})`,
+          )
           .single();
 
         canReview = !!relationship;
@@ -63,7 +67,9 @@ export class RelationshipReviewService {
             .from('relationship_reviews')
             .select('id')
             .eq('reviewer_id', currentUser.id)
-            .or(`and(student_id.eq.${userId},supervisor_id.eq.${currentUser.id}),and(student_id.eq.${currentUser.id},supervisor_id.eq.${userId})`)
+            .or(
+              `and(student_id.eq.${userId},supervisor_id.eq.${currentUser.id}),and(student_id.eq.${currentUser.id},supervisor_id.eq.${userId})`,
+            )
             .single();
 
           alreadyReviewed = !!existingReview;
@@ -123,7 +129,7 @@ export class RelationshipReviewService {
     profileUserRole: string,
     rating: number,
     content: string,
-    isAnonymous: boolean = false
+    isAnonymous: boolean = false,
   ): Promise<void> {
     const currentUser = (await supabase.auth.getUser()).data.user;
     if (!currentUser) {
@@ -131,24 +137,21 @@ export class RelationshipReviewService {
     }
 
     // Determine review type and relationship IDs
-    const reviewType = profileUserRole === 'student' 
-      ? 'supervisor_reviews_student' 
-      : 'student_reviews_supervisor';
-    
+    const reviewType =
+      profileUserRole === 'student' ? 'supervisor_reviews_student' : 'student_reviews_supervisor';
+
     const studentId = profileUserRole === 'student' ? profileUserId : currentUser.id;
     const supervisorId = profileUserRole === 'student' ? currentUser.id : profileUserId;
 
-    const { error } = await supabase
-      .from('relationship_reviews')
-      .insert({
-        student_id: studentId,
-        supervisor_id: supervisorId,
-        reviewer_id: currentUser.id,
-        rating,
-        content,
-        review_type: reviewType,
-        is_anonymous: isAnonymous,
-      });
+    const { error } = await supabase.from('relationship_reviews').insert({
+      student_id: studentId,
+      supervisor_id: supervisorId,
+      reviewer_id: currentUser.id,
+      rating,
+      content,
+      review_type: reviewType,
+      is_anonymous: isAnonymous,
+    });
 
     if (error) {
       console.error('Error submitting relationship review:', error);
@@ -160,9 +163,8 @@ export class RelationshipReviewService {
    * Get top rated users by role (for featuring)
    */
   static async getTopRatedUsers(role: string, limit: number = 10) {
-    const reviewTypeCondition = role === 'student' 
-      ? 'supervisor_reviews_student'
-      : 'student_reviews_supervisor';
+    const reviewTypeCondition =
+      role === 'student' ? 'supervisor_reviews_student' : 'student_reviews_supervisor';
 
     const userIdField = role === 'student' ? 'student_id' : 'supervisor_id';
 
@@ -170,7 +172,7 @@ export class RelationshipReviewService {
       target_role: role,
       review_type: reviewTypeCondition,
       user_id_field: userIdField,
-      result_limit: limit
+      result_limit: limit,
     });
 
     if (error) {

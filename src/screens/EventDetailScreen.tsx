@@ -82,7 +82,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const navigation = useNavigation<NavigationProp>();
   const routeFromHook = useRoute();
-  
+
   // Use route prop if provided, otherwise use hook (for navigation compatibility)
   const finalRoute = route || routeFromHook;
   const { eventId } = finalRoute.params as { eventId: string };
@@ -110,7 +110,9 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
   }, [eventId]);
 
   const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     setCurrentUserId(user?.id || null);
   };
 
@@ -119,9 +121,11 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
       setLoading(true);
       const event = await db.events.getById(eventId);
       setEvent(event);
-      
+
       // Check if current user is in attendees list
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user && event.attendees) {
         const currentUserAttendance = event.attendees.find((a: any) => a.user_id === user.id);
         setUserStatus(currentUserAttendance?.status || null);
@@ -144,7 +148,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
   const handleJoin = async () => {
     try {
       if (!currentUserId) return;
-      
+
       if (userStatus === null) {
         // Add user to event
         await db.events.addAttendee(eventId, currentUserId);
@@ -153,7 +157,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
         // Update existing attendance status
         await db.events.updateAttendeeStatus(eventId, currentUserId, 'accepted');
       }
-      
+
       setUserStatus('accepted');
       loadEvent(); // Refresh the event data
     } catch (error) {
@@ -164,7 +168,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
   const handleLeave = async () => {
     try {
       if (!currentUserId) return;
-      
+
       if (userStatus === 'invited') {
         await db.events.updateAttendeeStatus(eventId, currentUserId, 'rejected');
         setUserStatus('rejected');
@@ -172,7 +176,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
         await db.events.updateAttendeeStatus(eventId, currentUserId, 'rejected');
         setUserStatus(null);
       }
-      
+
       loadEvent(); // Refresh the event data
     } catch (error) {
       console.error('Error leaving event:', error);
@@ -181,7 +185,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
 
   const handleInviteUsers = () => {
     if (!event) return;
-    
+
     // Only event creators can invite users
     if (event.created_by !== currentUserId) {
       Alert.alert('Permission Denied', 'Only the event creator can invite users');
@@ -195,7 +199,10 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
       onInvitesSent: (invitedUserIds: string[]) => {
         // Refresh the event data to show new attendees
         loadEvent();
-        Alert.alert('Success', `Invited ${invitedUserIds.length} user${invitedUserIds.length === 1 ? '' : 's'}`);
+        Alert.alert(
+          'Success',
+          `Invited ${invitedUserIds.length} user${invitedUserIds.length === 1 ? '' : 's'}`,
+        );
       },
     });
   };
@@ -203,74 +210,66 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
   const handleRemoveInvitation = async (attendeeId: string, userName: string) => {
     if (!event || event.created_by !== currentUserId) return;
 
-    Alert.alert(
-      'Remove Invitation',
-      `Remove invitation for ${userName}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await supabase
-                .from('event_attendees')
-                .delete()
-                .eq('id', attendeeId);
-              
-              loadEvent(); // Refresh the event data
-              Alert.alert('Success', `Removed invitation for ${userName}`);
-            } catch (error) {
-              console.error('Error removing invitation:', error);
-              Alert.alert('Error', 'Failed to remove invitation');
-            }
-          },
+    Alert.alert('Remove Invitation', `Remove invitation for ${userName}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await supabase.from('event_attendees').delete().eq('id', attendeeId);
+
+            loadEvent(); // Refresh the event data
+            Alert.alert('Success', `Removed invitation for ${userName}`);
+          } catch (error) {
+            console.error('Error removing invitation:', error);
+            Alert.alert('Error', 'Failed to remove invitation');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleExportToCalendar = () => {
     if (!event) return;
 
-    Alert.alert(
-      'Export to Calendar',
-      'Choose how to export this event to your calendar',
-      [
-        {
-          text: 'Download .ics File',
-          onPress: async () => {
-            try {
-              await CalendarService.exportEvent(event);
-            } catch (error) {
-              console.error('Calendar export error:', error);
-              Alert.alert('Export Failed', 'Could not export event to calendar');
-            }
-          },
+    Alert.alert('Export to Calendar', 'Choose how to export this event to your calendar', [
+      {
+        text: 'Download .ics File',
+        onPress: async () => {
+          try {
+            await CalendarService.exportEvent(event);
+          } catch (error) {
+            console.error('Calendar export error:', error);
+            Alert.alert('Export Failed', 'Could not export event to calendar');
+          }
         },
-        {
-          text: 'Open in Google Calendar',
-          onPress: () => {
-            const url = CalendarService.generateCalendarUrl(event, 'google');
-            Alert.alert(
-              'Google Calendar',
-              'This will open Google Calendar in your browser. Copy this URL if needed:',
-              [
-                { text: 'Copy URL', onPress: () => {
+      },
+      {
+        text: 'Open in Google Calendar',
+        onPress: () => {
+          const url = CalendarService.generateCalendarUrl(event, 'google');
+          Alert.alert(
+            'Google Calendar',
+            'This will open Google Calendar in your browser. Copy this URL if needed:',
+            [
+              {
+                text: 'Copy URL',
+                onPress: () => {
                   // Note: You might want to add Clipboard API here
                   console.log('Calendar URL:', url);
-                }},
-                { text: 'Cancel', style: 'cancel' }
-              ]
-            );
-          },
+                },
+              },
+              { text: 'Cancel', style: 'cancel' },
+            ],
+          );
         },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+      },
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+    ]);
   };
 
   const getVisibilityColor = (visibility: string) => {
@@ -346,22 +345,26 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
   const getOrdinalSuffix = (day: number): string => {
     if (day >= 11 && day <= 13) return 'th';
     switch (day % 10) {
-      case 1: return 'st';
-      case 2: return 'nd';
-      case 3: return 'rd';
-      default: return 'th';
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
     }
   };
 
   const getStatusCounts = () => {
     if (!event?.attendees) return { accepted: 0, invited: 0, rejected: 0 };
-    
+
     return event.attendees.reduce(
       (acc, attendee) => {
         acc[attendee.status]++;
         return acc;
       },
-      { accepted: 0, invited: 0, rejected: 0 }
+      { accepted: 0, invited: 0, rejected: 0 },
     );
   };
 
@@ -408,9 +411,18 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
             Event Details
           </Text>
           {commentCount > 0 && (
-            <XStack alignItems="center" gap={4} backgroundColor="#1f2937" paddingHorizontal={8} paddingVertical={2} borderRadius={10}>
+            <XStack
+              alignItems="center"
+              gap={4}
+              backgroundColor="#1f2937"
+              paddingHorizontal={8}
+              paddingVertical={2}
+              borderRadius={10}
+            >
               <Users size={12} color="#00FFBC" />
-              <Text fontSize={12} color="#00FFBC">{commentCount}</Text>
+              <Text fontSize={12} color="#00FFBC">
+                {commentCount}
+              </Text>
             </XStack>
           )}
         </XStack>
@@ -422,7 +434,10 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
         )}
       </XStack>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: getTabContentPadding() }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: getTabContentPadding() }}
+      >
         <YStack padding={16} gap={24}>
           {/* Event Info */}
           <YStack gap={16}>
@@ -466,7 +481,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                       // Try to parse enhanced location data
                       try {
                         const locationData = JSON.parse(event.location);
-                        
+
                         if (locationData.waypoints && Array.isArray(locationData.waypoints)) {
                           // Enhanced location with waypoints
                           return (
@@ -475,11 +490,15 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                                 {locationData.searchQuery || 'Multiple locations'}
                               </Text>
                               <YStack gap={4}>
-                                {locationData.waypoints.slice(0, 3).map((waypoint: any, index: number) => (
-                                  <Text key={index} fontSize={12} color="$gray9">
-                                    📍 {waypoint.title || `${waypoint.latitude.toFixed(4)}, ${waypoint.longitude.toFixed(4)}`}
-                                  </Text>
-                                ))}
+                                {locationData.waypoints
+                                  .slice(0, 3)
+                                  .map((waypoint: any, index: number) => (
+                                    <Text key={index} fontSize={12} color="$gray9">
+                                      📍{' '}
+                                      {waypoint.title ||
+                                        `${waypoint.latitude.toFixed(4)}, ${waypoint.longitude.toFixed(4)}`}
+                                    </Text>
+                                  ))}
                                 {locationData.waypoints.length > 3 && (
                                   <Text fontSize={12} color="$gray9">
                                     +{locationData.waypoints.length - 3} more locations
@@ -492,14 +511,15 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                           // Simple coordinate format
                           return (
                             <Text fontSize={14} color="$gray11">
-                              {locationData.address || `${locationData.coordinates.latitude.toFixed(6)}, ${locationData.coordinates.longitude.toFixed(6)}`}
+                              {locationData.address ||
+                                `${locationData.coordinates.latitude.toFixed(6)}, ${locationData.coordinates.longitude.toFixed(6)}`}
                             </Text>
                           );
                         }
                       } catch (e) {
                         // Fallback for simple string location
                       }
-                      
+
                       // Simple string location
                       return (
                         <Text fontSize={14} color="$gray11">
@@ -514,13 +534,13 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                 {(() => {
                   try {
                     const locationData = JSON.parse(event.location);
-                    
+
                     if (locationData.waypoints && Array.isArray(locationData.waypoints)) {
                       // Calculate region for waypoints
                       const waypoints = locationData.waypoints;
                       const lats = waypoints.map((w: any) => w.latitude);
                       const lngs = waypoints.map((w: any) => w.longitude);
-                      
+
                       const region = {
                         latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
                         longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
@@ -529,7 +549,9 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                       };
 
                       return (
-                        <View style={{ height: 200, borderRadius: 8, overflow: 'hidden', marginTop: 8 }}>
+                        <View
+                          style={{ height: 200, borderRadius: 8, overflow: 'hidden', marginTop: 8 }}
+                        >
                           <MapComponent
                             waypoints={waypoints}
                             region={region}
@@ -540,13 +562,15 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                       );
                     } else if (locationData.coordinates) {
                       // Single location with coordinates
-                      const waypoints = [{
-                        latitude: locationData.coordinates.latitude,
-                        longitude: locationData.coordinates.longitude,
-                        title: 'Event Location',
-                        description: locationData.address || 'Event location',
-                      }];
-                      
+                      const waypoints = [
+                        {
+                          latitude: locationData.coordinates.latitude,
+                          longitude: locationData.coordinates.longitude,
+                          title: 'Event Location',
+                          description: locationData.address || 'Event location',
+                        },
+                      ];
+
                       const region = {
                         latitude: locationData.coordinates.latitude,
                         longitude: locationData.coordinates.longitude,
@@ -555,7 +579,9 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                       };
 
                       return (
-                        <View style={{ height: 200, borderRadius: 8, overflow: 'hidden', marginTop: 8 }}>
+                        <View
+                          style={{ height: 200, borderRadius: 8, overflow: 'hidden', marginTop: 8 }}
+                        >
                           <MapComponent
                             waypoints={waypoints}
                             region={region}
@@ -568,7 +594,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                   } catch (e) {
                     // No enhanced location data, no map
                   }
-                  
+
                   return null;
                 })()}
               </YStack>
@@ -622,105 +648,113 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
           </YStack>
 
           {/* Practice Exercises */}
-          {event.embeds?.exercises && Array.isArray(event.embeds.exercises) && event.embeds.exercises.length > 0 && (
-            <YStack gap={16}>
-              <XStack alignItems="center" justifyContent="space-between">
-                <XStack alignItems="center" gap={12}>
-                  <BookOpen size={20} color="#8B5CF6" />
-                  <Text fontSize={18} fontWeight="bold" color="$color">
-                    Practice Exercises ({event.embeds.exercises.length})
-                  </Text>
+          {event.embeds?.exercises &&
+            Array.isArray(event.embeds.exercises) &&
+            event.embeds.exercises.length > 0 && (
+              <YStack gap={16}>
+                <XStack alignItems="center" justifyContent="space-between">
+                  <XStack alignItems="center" gap={12}>
+                    <BookOpen size={20} color="#8B5CF6" />
+                    <Text fontSize={18} fontWeight="bold" color="$color">
+                      Practice Exercises ({event.embeds.exercises.length})
+                    </Text>
+                  </XStack>
                 </XStack>
-              </XStack>
-              
-              <Text fontSize={14} color="$gray11">
-                Complete these exercises to prepare for the event
-              </Text>
 
-              <YStack gap={12}>
-                {event.embeds.exercises.map((exercise: any, index: number) => (
-                  <TouchableOpacity
-                    key={exercise.id || index}
-                    onPress={() => {
-                                             // Navigate to RouteExerciseScreen with this single exercise
-                       (navigation as any).navigate('RouteExercise', {
-                         routeId: null, // No route ID for event exercises
-                         exercises: [exercise],
-                         routeName: `${event.title} - Exercise`,
-                         startIndex: 0,
-                       });
-                    }}
-                    style={{
-                      backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#F9FAFB',
-                      padding: 16,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: colorScheme === 'dark' ? '#374151' : '#E5E7EB',
-                    }}
-                  >
-                    <XStack alignItems="center" gap={12}>
-                      <View
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          backgroundColor: '#8B5CF6',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Text fontSize={18} color="white" fontWeight="600">
-                          {index + 1}
-                        </Text>
-                      </View>
-                      
-                      <YStack flex={1}>
-                        <Text fontSize={16} fontWeight="600" color="$color">
-                          {typeof exercise.title === 'string' ? exercise.title : exercise.title?.en || 'Exercise'}
-                        </Text>
-                        {exercise.description && (
-                          <Text fontSize={14} color="$gray11" numberOfLines={2}>
-                            {typeof exercise.description === 'string' ? exercise.description : exercise.description?.en || ''}
+                <Text fontSize={14} color="$gray11">
+                  Complete these exercises to prepare for the event
+                </Text>
+
+                <YStack gap={12}>
+                  {event.embeds.exercises.map((exercise: any, index: number) => (
+                    <TouchableOpacity
+                      key={exercise.id || index}
+                      onPress={() => {
+                        // Navigate to RouteExerciseScreen with this single exercise
+                        (navigation as any).navigate('RouteExercise', {
+                          routeId: null, // No route ID for event exercises
+                          exercises: [exercise],
+                          routeName: `${event.title} - Exercise`,
+                          startIndex: 0,
+                        });
+                      }}
+                      style={{
+                        backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#F9FAFB',
+                        padding: 16,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: colorScheme === 'dark' ? '#374151' : '#E5E7EB',
+                      }}
+                    >
+                      <XStack alignItems="center" gap={12}>
+                        <View
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: '#8B5CF6',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Text fontSize={18} color="white" fontWeight="600">
+                            {index + 1}
                           </Text>
-                        )}
-                        {exercise.duration && (
-                          <Text fontSize={12} color="#8B5CF6" marginTop={4}>
-                            📝 Duration: {exercise.duration}
+                        </View>
+
+                        <YStack flex={1}>
+                          <Text fontSize={16} fontWeight="600" color="$color">
+                            {typeof exercise.title === 'string'
+                              ? exercise.title
+                              : exercise.title?.en || 'Exercise'}
                           </Text>
-                        )}
-                      </YStack>
-                      
-                      <ArrowRight size={20} color="$gray9" />
-                    </XStack>
-                  </TouchableOpacity>
-                ))}
+                          {exercise.description && (
+                            <Text fontSize={14} color="$gray11" numberOfLines={2}>
+                              {typeof exercise.description === 'string'
+                                ? exercise.description
+                                : exercise.description?.en || ''}
+                            </Text>
+                          )}
+                          {exercise.duration && (
+                            <Text fontSize={12} color="#8B5CF6" marginTop={4}>
+                              📝 Duration: {exercise.duration}
+                            </Text>
+                          )}
+                        </YStack>
+
+                        <ArrowRight size={20} color="$gray9" />
+                      </XStack>
+                    </TouchableOpacity>
+                  ))}
+                </YStack>
               </YStack>
-            </YStack>
-          )}
+            )}
 
           {/* Recommended Routes */}
-          {event.embeds?.routes && Array.isArray(event.embeds.routes) && event.embeds.routes.length > 0 && (
-            <YStack gap={16}>
-              <XStack alignItems="center" gap={12}>
-                <RouteIcon size={20} color="#10B981" />
-                <Text fontSize={18} fontWeight="bold" color="$color">
-                  Recommended Routes ({event.embeds.routes.length})
-                </Text>
-              </XStack>
-              
-              <Text fontSize={14} color="$gray11">
-                These routes are recommended for this event
-              </Text>
-
+          {event.embeds?.routes &&
+            Array.isArray(event.embeds.routes) &&
+            event.embeds.routes.length > 0 && (
               <YStack gap={16}>
-                {event.embeds.routes.map((route: any) => (
-                  <View key={route.id}>
-                    <RouteCard route={route} />
-                  </View>
-                ))}
+                <XStack alignItems="center" gap={12}>
+                  <RouteIcon size={20} color="#10B981" />
+                  <Text fontSize={18} fontWeight="bold" color="$color">
+                    Recommended Routes ({event.embeds.routes.length})
+                  </Text>
+                </XStack>
+
+                <Text fontSize={14} color="$gray11">
+                  These routes are recommended for this event
+                </Text>
+
+                <YStack gap={16}>
+                  {event.embeds.routes.map((route: any) => (
+                    <View key={route.id}>
+                      <RouteCard route={route} />
+                    </View>
+                  ))}
+                </YStack>
               </YStack>
-            </YStack>
-          )}
+            )}
 
           {/* Action Buttons */}
           <YStack gap={12}>
@@ -817,7 +851,7 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
               <Text fontSize={18} fontWeight="bold" color="$color">
                 Attendees ({event.attendees.length})
               </Text>
-              
+
               {event.attendees.map((attendee) => (
                 <XStack
                   key={attendee.id}
@@ -832,16 +866,16 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                       {attendee.user?.full_name || 'Unknown User'}
                     </Text>
                   </YStack>
-                  
+
                   <YStack
                     paddingHorizontal={8}
                     paddingVertical={4}
                     backgroundColor={
-                      attendee.status === 'accepted' 
-                        ? '#00FFBC' 
+                      attendee.status === 'accepted'
+                        ? '#00FFBC'
                         : attendee.status === 'rejected'
-                        ? '#EF4444'
-                        : '#F59E0B'
+                          ? '#EF4444'
+                          : '#F59E0B'
                     }
                     borderRadius={6}
                   >
@@ -853,7 +887,12 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
                   {/* Remove invitation button (only for event creators) */}
                   {event.created_by === currentUserId && (
                     <TouchableOpacity
-                      onPress={() => handleRemoveInvitation(attendee.id, attendee.user?.full_name || 'Unknown User')}
+                      onPress={() =>
+                        handleRemoveInvitation(
+                          attendee.id,
+                          attendee.user?.full_name || 'Unknown User',
+                        )
+                      }
                       style={{
                         padding: 6,
                         backgroundColor: 'rgba(239, 68, 68, 0.2)',
@@ -869,9 +908,9 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
           )}
 
           {/* Creator Info */}
-          <YStack 
-            padding={16} 
-            backgroundColor="rgba(255, 255, 255, 0.05)" 
+          <YStack
+            padding={16}
+            backgroundColor="rgba(255, 255, 255, 0.05)"
             borderRadius={12}
             gap={8}
           >
@@ -897,7 +936,11 @@ export const EventDetailScreen: React.FC<EventDetailScreenProps> = ({ route }) =
       </ScrollView>
 
       {showReport && (
-        <ReportDialog reportableId={event.id} reportableType="event" onClose={() => setShowReport(false)} />
+        <ReportDialog
+          reportableId={event.id}
+          reportableType="event"
+          onClose={() => setShowReport(false)}
+        />
       )}
     </YStack>
   );

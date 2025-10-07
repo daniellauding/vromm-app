@@ -9,11 +9,11 @@ interface ImageWithFallbackProps {
   fallbackStyle?: ViewStyle;
 }
 
-export function ImageWithFallback({ 
-  source, 
-  style, 
+export function ImageWithFallback({
+  source,
+  style,
   resizeMode = 'cover',
-  fallbackStyle 
+  fallbackStyle,
 }: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,7 +33,10 @@ export function ImageWithFallback({
       style={style}
       resizeMode={resizeMode}
       onError={() => {
-        console.log('🖼️ [ImageWithFallback] Image failed to load, showing placeholder:', source.uri);
+        console.log(
+          '🖼️ [ImageWithFallback] Image failed to load, showing placeholder:',
+          source.uri,
+        );
         setHasError(true);
         setIsLoading(false);
       }}
@@ -59,4 +62,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
   },
-}); 
+});

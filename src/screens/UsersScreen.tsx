@@ -75,21 +75,21 @@ export function UsersScreen() {
           .eq('follower_id', user.id);
 
         const followingIds = new Set(followData?.map((f) => f.following_id) || []);
-        
+
         // Check instructor relationships (users that are instructors for current user)
         const { data: instructorData } = await supabase
           .from('student_supervisor_relationships')
           .select('supervisor_id')
           .eq('student_id', user.id);
-        
+
         const instructorIds = new Set(instructorData?.map((r) => r.supervisor_id) || []);
-        
+
         // Check student relationships (users that are students of current user)
         const { data: studentData } = await supabase
           .from('student_supervisor_relationships')
           .select('student_id')
           .eq('supervisor_id', user.id);
-        
+
         const studentIds = new Set(studentData?.map((r) => r.student_id) || []);
 
         usersWithFollowStatus = (data || []).map((userData) => ({
@@ -133,16 +133,16 @@ export function UsersScreen() {
 
   const handleInstructorToggle = async (targetUserId: string, isCurrentlyInstructor: boolean) => {
     if (!user?.id || relationshipLoading[targetUserId]) return;
-    
+
     console.log('🎓 INSTRUCTOR TOGGLE (UsersScreen) - Starting');
     console.log('🎓 Current user ID:', user.id);
     console.log('🎓 Target user ID:', targetUserId);
     console.log('🎓 Current isInstructor state:', isCurrentlyInstructor);
     console.log('🎓 Action:', isCurrentlyInstructor ? 'UNSET as instructor' : 'SET as instructor');
-    
+
     try {
       setRelationshipLoading((prev) => ({ ...prev, [targetUserId]: true }));
-      
+
       if (isCurrentlyInstructor) {
         // Remove instructor relationship
         console.log('🎓 REMOVING instructor relationship...');
@@ -151,12 +151,12 @@ export function UsersScreen() {
           .delete()
           .eq('student_id', user.id)
           .eq('supervisor_id', targetUserId);
-        
+
         if (error) throw error;
-        
+
         console.log('✅ INSTRUCTOR REMOVED successfully');
         setUsers((prev) =>
-          prev.map((u) => (u.id === targetUserId ? { ...u, isInstructor: false } : u))
+          prev.map((u) => (u.id === targetUserId ? { ...u, isInstructor: false } : u)),
         );
         Alert.alert('Success', 'Removed as your instructor');
       } else {
@@ -194,9 +194,9 @@ export function UsersScreen() {
         if (!result.success) throw new Error(result.error || 'Failed to send invitation');
         Alert.alert('Invitation Sent', 'They will appear once they accept.');
         relLog.inviteSuccess(result.invitationId);
-        setUsers((prev) => prev.map((u) => (
-          u.id === targetUserId ? { ...u, pendingInvited: true } as any : u
-        )));
+        setUsers((prev) =>
+          prev.map((u) => (u.id === targetUserId ? ({ ...u, pendingInvited: true } as any) : u)),
+        );
       }
     } catch (error) {
       console.error('❌ ERROR toggling instructor:', error);
@@ -206,36 +206,36 @@ export function UsersScreen() {
       console.log('🎓 INSTRUCTOR TOGGLE (UsersScreen) - Complete');
     }
   };
-  
+
   const handleStudentToggle = async (targetUserId: string, isCurrentlyStudent: boolean) => {
     if (!user?.id || relationshipLoading[targetUserId]) return;
-    
+
     console.log('👨‍🎓 STUDENT TOGGLE (UsersScreen) - Starting');
     console.log('👨‍🎓 Current user ID:', user.id);
     console.log('👨‍🎓 Target user ID:', targetUserId);
     console.log('👨‍🎓 Current isStudent state:', isCurrentlyStudent);
     console.log('👨‍🎓 Action:', isCurrentlyStudent ? 'UNSET as student' : 'SET as student');
-    
+
     try {
       setRelationshipLoading((prev) => ({ ...prev, [targetUserId]: true }));
-      
+
       if (isCurrentlyStudent) {
         // Remove student relationship with notification
         console.log('👨‍🎓 REMOVING student relationship...');
-        
+
         const { removeSupervisorRelationship } = await import('../services/invitationService');
         const success = await removeSupervisorRelationship(
           targetUserId, // studentId
           user.id, // supervisorId
           undefined, // no message for now
-          user.id // removedByUserId
+          user.id, // removedByUserId
         );
-        
+
         if (!success) throw new Error('Failed to remove relationship');
-        
+
         console.log('✅ STUDENT REMOVED successfully');
         setUsers((prev) =>
-          prev.map((u) => (u.id === targetUserId ? { ...u, isStudent: false } : u))
+          prev.map((u) => (u.id === targetUserId ? { ...u, isStudent: false } : u)),
         );
         Alert.alert('Success', 'Removed as your student');
       } else {
@@ -273,9 +273,9 @@ export function UsersScreen() {
         if (!result.success) throw new Error(result.error || 'Failed to send invitation');
         Alert.alert('Invitation Sent', 'They will appear once they accept.');
         relLog.inviteSuccess(result.invitationId);
-        setUsers((prev) => prev.map((u) => (
-          u.id === targetUserId ? { ...u, pendingInvited: true } as any : u
-        )));
+        setUsers((prev) =>
+          prev.map((u) => (u.id === targetUserId ? ({ ...u, pendingInvited: true } as any) : u)),
+        );
       }
     } catch (error) {
       console.error('❌ ERROR toggling student:', error);
@@ -427,7 +427,9 @@ export function UsersScreen() {
               <Card padding="$1" backgroundColor="$orange5" borderRadius="$4">
                 <XStack alignItems="center" gap="$1">
                   <Feather name="clock" size={12} color="#7C2D12" />
-                  <Text color="#7C2D12" fontSize="$2">Invited</Text>
+                  <Text color="#7C2D12" fontSize="$2">
+                    Invited
+                  </Text>
                 </XStack>
               </Card>
             )}
@@ -460,90 +462,92 @@ export function UsersScreen() {
                           color={user.isFollowing ? '$red11' : 'white'}
                           fontSize="$2"
                           fontWeight="500"
-                      >
-                        {user.isFollowing ? 'Unfollow' : 'Follow'}
-                      </Text>
-                    </>
-                  )}
-                </XStack>
-              </Button>
-              
-              {/* Instructor/Student Relationship Buttons */}
-              {currentUserProfile && (
-                <>
-                  {/* Set as Instructor button for instructor/admin/school users viewing student profiles */}
-                  {['instructor', 'admin', 'school'].includes(currentUserProfile.role) && 
-                   user.role === 'student' && (
-                    <Button
-                      size="sm"
-                      variant={user.isStudent ? 'secondary' : 'primary'}
-                      backgroundColor={user.isStudent ? '$orange5' : '$green10'}
-                      onPress={() => handleStudentToggle(user.id, user.isStudent || false)}
-                      disabled={relationshipLoading[user.id]}
-                      minWidth={80}
-                    >
-                      <XStack gap="$1" alignItems="center">
-                        {relationshipLoading[user.id] ? (
-                          <Text color={user.isStudent ? '$orange11' : 'white'} fontSize="$2">
-                            ...
-                          </Text>
-                        ) : (
-                          <>
-                            <Feather
-                              name={user.isStudent ? 'user-x' : 'user-check'}
-                              size={12}
-                              color={user.isStudent ? '#F97316' : 'white'}
-                            />
-                            <Text
-                              color={user.isStudent ? '$orange11' : 'white'}
-                              fontSize="$2"
-                              fontWeight="500"
-                            >
-                              {user.isStudent ? 'Unset Student' : 'Set Student'}
-                            </Text>
-                          </>
-                        )}
-                      </XStack>
-                    </Button>
-                  )}
-                  
-                  {/* Set as Instructor button for student users viewing instructor profiles */}
-                  {currentUserProfile.role === 'student' && 
-                   ['instructor', 'admin', 'school'].includes(user.role || '') && (
-                    <Button
-                      size="sm"
-                      variant={user.isInstructor ? 'secondary' : 'primary'}
-                      backgroundColor={user.isInstructor ? '$purple5' : '$blue10'}
-                      onPress={() => handleInstructorToggle(user.id, user.isInstructor || false)}
-                      disabled={relationshipLoading[user.id]}
-                      minWidth={80}
-                    >
-                      <XStack gap="$1" alignItems="center">
-                        {relationshipLoading[user.id] ? (
-                          <Text color={user.isInstructor ? '$purple11' : 'white'} fontSize="$2">
-                            ...
-                          </Text>
-                        ) : (
-                          <>
-                            <Feather
-                              name={user.isInstructor ? 'user-x' : 'user-check'}
-                              size={12}
-                              color={user.isInstructor ? '#A855F7' : 'white'}
-                            />
-                            <Text
-                              color={user.isInstructor ? '$purple11' : 'white'}
-                              fontSize="$2"
-                              fontWeight="500"
-                            >
-                              {user.isInstructor ? 'Unset Instructor' : 'Set Instructor'}
-                            </Text>
-                          </>
-                        )}
-                      </XStack>
-                    </Button>
-                  )}
-                </>
-              )}
+                        >
+                          {user.isFollowing ? 'Unfollow' : 'Follow'}
+                        </Text>
+                      </>
+                    )}
+                  </XStack>
+                </Button>
+
+                {/* Instructor/Student Relationship Buttons */}
+                {currentUserProfile && (
+                  <>
+                    {/* Set as Instructor button for instructor/admin/school users viewing student profiles */}
+                    {['instructor', 'admin', 'school'].includes(currentUserProfile.role) &&
+                      user.role === 'student' && (
+                        <Button
+                          size="sm"
+                          variant={user.isStudent ? 'secondary' : 'primary'}
+                          backgroundColor={user.isStudent ? '$orange5' : '$green10'}
+                          onPress={() => handleStudentToggle(user.id, user.isStudent || false)}
+                          disabled={relationshipLoading[user.id]}
+                          minWidth={80}
+                        >
+                          <XStack gap="$1" alignItems="center">
+                            {relationshipLoading[user.id] ? (
+                              <Text color={user.isStudent ? '$orange11' : 'white'} fontSize="$2">
+                                ...
+                              </Text>
+                            ) : (
+                              <>
+                                <Feather
+                                  name={user.isStudent ? 'user-x' : 'user-check'}
+                                  size={12}
+                                  color={user.isStudent ? '#F97316' : 'white'}
+                                />
+                                <Text
+                                  color={user.isStudent ? '$orange11' : 'white'}
+                                  fontSize="$2"
+                                  fontWeight="500"
+                                >
+                                  {user.isStudent ? 'Unset Student' : 'Set Student'}
+                                </Text>
+                              </>
+                            )}
+                          </XStack>
+                        </Button>
+                      )}
+
+                    {/* Set as Instructor button for student users viewing instructor profiles */}
+                    {currentUserProfile.role === 'student' &&
+                      ['instructor', 'admin', 'school'].includes(user.role || '') && (
+                        <Button
+                          size="sm"
+                          variant={user.isInstructor ? 'secondary' : 'primary'}
+                          backgroundColor={user.isInstructor ? '$purple5' : '$blue10'}
+                          onPress={() =>
+                            handleInstructorToggle(user.id, user.isInstructor || false)
+                          }
+                          disabled={relationshipLoading[user.id]}
+                          minWidth={80}
+                        >
+                          <XStack gap="$1" alignItems="center">
+                            {relationshipLoading[user.id] ? (
+                              <Text color={user.isInstructor ? '$purple11' : 'white'} fontSize="$2">
+                                ...
+                              </Text>
+                            ) : (
+                              <>
+                                <Feather
+                                  name={user.isInstructor ? 'user-x' : 'user-check'}
+                                  size={12}
+                                  color={user.isInstructor ? '#A855F7' : 'white'}
+                                />
+                                <Text
+                                  color={user.isInstructor ? '$purple11' : 'white'}
+                                  fontSize="$2"
+                                  fontWeight="500"
+                                >
+                                  {user.isInstructor ? 'Unset Instructor' : 'Set Instructor'}
+                                </Text>
+                              </>
+                            )}
+                          </XStack>
+                        </Button>
+                      )}
+                  </>
+                )}
               </XStack>
             )}
           </YStack>

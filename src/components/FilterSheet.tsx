@@ -19,7 +19,12 @@ import { useUserCollections } from '../hooks/useUserCollections';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 import { LeaveCollectionModal } from './LeaveCollectionModal';
 import { CollectionSharingModal } from './CollectionSharingModal';
 
@@ -202,7 +207,7 @@ export function FilterSheet({
   const handleColor = theme.gray8?.val || '#999';
 
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
-  
+
   // Get effective user ID for student-specific storage
   const effectiveUserId = getEffectiveUserId();
 
@@ -226,7 +231,11 @@ export function FilterSheet({
       const saved = await AsyncStorage.getItem(filterKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        console.log('✅ [FilterSheet] Loaded saved filter preferences for user:', effectiveUserId, parsed);
+        console.log(
+          '✅ [FilterSheet] Loaded saved filter preferences for user:',
+          effectiveUserId,
+          parsed,
+        );
         return parsed;
       }
     } catch (error) {
@@ -245,7 +254,7 @@ export function FilterSheet({
   // Collection display state
   const [showAllCollections, setShowAllCollections] = useState(false);
   const MAX_VISIBLE_COLLECTIONS = 5; // Changed to 5 for better UX
-  
+
   // Loading state for collections
   const [collectionsLoading, setCollectionsLoading] = useState(true);
 
@@ -260,15 +269,15 @@ export function FilterSheet({
   // Snap points for resizing (like RouteDetailSheet)
   const snapPoints = useMemo(() => {
     const points = {
-      large: screenHeight * 0.1,   // Top at 10% of screen (show 90% - largest)
-      medium: screenHeight * 0.4,  // Top at 40% of screen (show 60% - medium)  
-      small: screenHeight * 0.7,   // Top at 70% of screen (show 30% - small)
-      mini: screenHeight * 0.85,   // Top at 85% of screen (show 15% - just title)
-      dismissed: screenHeight,     // Completely off-screen
+      large: screenHeight * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: screenHeight * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: screenHeight * 0.7, // Top at 70% of screen (show 30% - small)
+      mini: screenHeight * 0.85, // Top at 85% of screen (show 15% - just title)
+      dismissed: screenHeight, // Completely off-screen
     };
     return points;
   }, [screenHeight]);
-  
+
   const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
   const currentState = useSharedValue(snapPoints.large);
   const translateY = useSharedValue(snapPoints.large);
@@ -280,125 +289,131 @@ export function FilterSheet({
     console.log('🔢 [FilterSheet] Using routeCount from MapScreen (already filtered):', routeCount);
     console.log('🔢 [FilterSheet] Current filters:', filters);
     console.log('🔢 [FilterSheet] Selected preset ID:', selectedPresetId);
-    
+
     // The routeCount prop from MapScreen is already the filtered count (activeRoutes.length)
     // So we can use it directly instead of recalculating
     return routeCount;
   }, [routeCount, filters, selectedPresetId]);
 
   // Helper function to count routes for a specific filter value
-  const getFilterCount = useCallback((filterType: keyof FilterOptions, value: string | number | boolean) => {
-    if (!routes || routes.length === 0) return 0;
+  const getFilterCount = useCallback(
+    (filterType: keyof FilterOptions, value: string | number | boolean) => {
+      if (!routes || routes.length === 0) return 0;
 
-    let count = 0;
-    
-    switch (filterType) {
-      case 'difficulty':
-        count = routes.filter(route => route.difficulty === value).length;
-        break;
-      case 'spotType':
-        count = routes.filter(route => route.spot_type === value).length;
-        break;
-      case 'category':
-        count = routes.filter(route => route.category === value).length;
-        break;
-      case 'transmissionType':
-        count = routes.filter(route => route.transmission_type === value).length;
-        break;
-      case 'activityLevel':
-        count = routes.filter(route => route.activity_level === value).length;
-        break;
-      case 'bestSeason':
-        count = routes.filter(route => route.best_season === value).length;
-        break;
-      case 'vehicleTypes':
-        count = routes.filter(route => 
-          route.vehicle_types?.some((type: string) => type === value)
-        ).length;
-        break;
-      case 'hasExercises':
-        count = routes.filter(route => {
-          if (route.suggested_exercises) {
-            try {
-              const exercises = Array.isArray(route.suggested_exercises)
-                ? route.suggested_exercises
-                : JSON.parse(String(route.suggested_exercises));
-              return Array.isArray(exercises) && exercises.length > 0;
-            } catch {
-              return false;
+      let count = 0;
+
+      switch (filterType) {
+        case 'difficulty':
+          count = routes.filter((route) => route.difficulty === value).length;
+          break;
+        case 'spotType':
+          count = routes.filter((route) => route.spot_type === value).length;
+          break;
+        case 'category':
+          count = routes.filter((route) => route.category === value).length;
+          break;
+        case 'transmissionType':
+          count = routes.filter((route) => route.transmission_type === value).length;
+          break;
+        case 'activityLevel':
+          count = routes.filter((route) => route.activity_level === value).length;
+          break;
+        case 'bestSeason':
+          count = routes.filter((route) => route.best_season === value).length;
+          break;
+        case 'vehicleTypes':
+          count = routes.filter((route) =>
+            route.vehicle_types?.some((type: string) => type === value),
+          ).length;
+          break;
+        case 'hasExercises':
+          count = routes.filter((route) => {
+            if (route.suggested_exercises) {
+              try {
+                const exercises = Array.isArray(route.suggested_exercises)
+                  ? route.suggested_exercises
+                  : JSON.parse(String(route.suggested_exercises));
+                return Array.isArray(exercises) && exercises.length > 0;
+              } catch {
+                return false;
+              }
             }
-          }
-          return false;
-        }).length;
-        break;
-      case 'hasMedia':
-        count = routes.filter(route => {
-          if (route.media_attachments) {
-            try {
-              const media = Array.isArray(route.media_attachments)
-                ? route.media_attachments
-                : typeof route.media_attachments === 'string'
-                  ? JSON.parse(route.media_attachments)
-                  : [];
-              return Array.isArray(media) && media.length > 0;
-            } catch {
-              return false;
+            return false;
+          }).length;
+          break;
+        case 'hasMedia':
+          count = routes.filter((route) => {
+            if (route.media_attachments) {
+              try {
+                const media = Array.isArray(route.media_attachments)
+                  ? route.media_attachments
+                  : typeof route.media_attachments === 'string'
+                    ? JSON.parse(route.media_attachments)
+                    : [];
+                return Array.isArray(media) && media.length > 0;
+              } catch {
+                return false;
+              }
             }
-          }
-          return false;
-        }).length;
-        break;
-      case 'isVerified':
-        count = routes.filter(route => route.is_verified === true).length;
-        break;
-      case 'minRating':
-        count = routes.filter(route => {
-          if (!route.average_rating) return false;
-          return route.average_rating >= (value as number);
-        }).length;
-        break;
-      case 'routeType':
-        count = routes.filter(route => {
-          if (value === 'recorded') {
-            return (
-              route.drawing_mode === 'record' ||
-              route.description?.includes('Recorded drive') ||
-              route.description?.includes('Distance:') ||
-              route.description?.includes('Duration:')
-            );
-          }
-          if (value === 'waypoint') return route.drawing_mode === 'waypoint';
-          if (value === 'pen') return route.drawing_mode === 'pen';
-          return false;
-        }).length;
-        break;
-      case 'experienceLevel': // Added for experience level
-        count = routes.filter(route => route.experience_level === value).length;
-        break;
-      case 'maxDistance': // Added for distance filtering
-        // For distance, we need to calculate based on current user location or route center
-        // For now, return total routes since distance calculation requires location data
-        count = routes.length;
-        break;
-      default:
-        count = 0;
-    }
-    
-    return count;
-  }, [routes]);
+            return false;
+          }).length;
+          break;
+        case 'isVerified':
+          count = routes.filter((route) => route.is_verified === true).length;
+          break;
+        case 'minRating':
+          count = routes.filter((route) => {
+            if (!route.average_rating) return false;
+            return route.average_rating >= (value as number);
+          }).length;
+          break;
+        case 'routeType':
+          count = routes.filter((route) => {
+            if (value === 'recorded') {
+              return (
+                route.drawing_mode === 'record' ||
+                route.description?.includes('Recorded drive') ||
+                route.description?.includes('Distance:') ||
+                route.description?.includes('Duration:')
+              );
+            }
+            if (value === 'waypoint') return route.drawing_mode === 'waypoint';
+            if (value === 'pen') return route.drawing_mode === 'pen';
+            return false;
+          }).length;
+          break;
+        case 'experienceLevel': // Added for experience level
+          count = routes.filter((route) => route.experience_level === value).length;
+          break;
+        case 'maxDistance': // Added for distance filtering
+          // For distance, we need to calculate based on current user location or route center
+          // For now, return total routes since distance calculation requires location data
+          count = routes.length;
+          break;
+        default:
+          count = 0;
+      }
+
+      return count;
+    },
+    [routes],
+  );
 
   // Helper function to count routes for cities (simplified - just return total for now)
   const getCityRouteCount = useCallback((cityName: string) => {
-    // For now, return a placeholder count. In a real implementation, 
+    // For now, return a placeholder count. In a real implementation,
     // you'd filter routes by city/region
     return Math.floor(Math.random() * 10) + 1; // Random count 1-10 for demo
   }, []);
 
   // Helper function to count routes for sort options
-  const getSortRouteCount = useCallback((sortType: string) => {
-    // For sort options, return the total route count since sorting doesn't filter
-    return routes?.length || 0;
-  }, [routes]);
+  const getSortRouteCount = useCallback(
+    (sortType: string) => {
+      // For sort options, return the total route count since sorting doesn't filter
+      return routes?.length || 0;
+    },
+    [routes],
+  );
 
   // Animation values (keeping original for backdrop)
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -416,10 +431,13 @@ export function FilterSheet({
     setTimeout(() => onClose(), 200);
   }, [onClose, snapPoints.dismissed]);
 
-  const snapTo = useCallback((point: number) => {
-    currentState.value = point;
-    setCurrentSnapPoint(point);
-  }, [currentState]);
+  const snapTo = useCallback(
+    (point: number) => {
+      currentState.value = point;
+      setCurrentSnapPoint(point);
+    },
+    [currentState],
+  );
 
   // Pan gesture for drag-to-dismiss and snap points
   const panGesture = Gesture.Pan()
@@ -430,12 +448,12 @@ export function FilterSheet({
       try {
         const { translationY } = event;
         const newPosition = currentState.value + translationY;
-        
+
         // Constrain to snap points range
         const minPosition = snapPoints.large;
         const maxPosition = snapPoints.mini + 100;
         const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
-        
+
         translateY.value = boundedPosition;
       } catch (error) {
         console.log('panGesture error', error);
@@ -444,15 +462,15 @@ export function FilterSheet({
     .onEnd((event) => {
       const { translationY, velocityY } = event;
       isDragging.current = false;
-      
+
       const currentPosition = currentState.value + translationY;
-      
+
       // Dismiss if dragged down past the mini snap point with reasonable velocity
       if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
         runOnJS(dismissSheet)();
         return;
       }
-      
+
       // Determine target snap point based on position and velocity
       let targetSnapPoint;
       if (velocityY < -500) {
@@ -465,12 +483,9 @@ export function FilterSheet({
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
       }
-      
-      const boundedTarget = Math.min(
-        Math.max(targetSnapPoint, snapPoints.large),
-        snapPoints.mini,
-      );
-      
+
+      const boundedTarget = Math.min(Math.max(targetSnapPoint, snapPoints.large), snapPoints.mini);
+
       translateY.value = withSpring(boundedTarget, {
         damping: 20,
         mass: 1,
@@ -479,7 +494,7 @@ export function FilterSheet({
         restDisplacementThreshold: 0.01,
         restSpeedThreshold: 0.01,
       });
-      
+
       currentState.value = boundedTarget;
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
@@ -501,7 +516,7 @@ export function FilterSheet({
         }
       }
     };
-    
+
     loadSavedFilters();
   }, [isVisible, effectiveUserId, initialFilters]);
 
@@ -514,13 +529,13 @@ export function FilterSheet({
       // Reset loading state when sheet becomes visible
       setCollectionsLoading(true);
       console.log('🔄 [FilterSheet] Sheet visible, setting loading to true');
-      
+
       // Set a timeout to stop loading state after 3 seconds
       const timeout = setTimeout(() => {
         setCollectionsLoading(false);
         console.log('⏰ [FilterSheet] Loading timeout reached, setting loading to false');
       }, 3000);
-      
+
       return () => clearTimeout(timeout);
     }
   }, [userCollections, isVisible]);
@@ -539,10 +554,10 @@ export function FilterSheet({
       });
       currentState.value = snapPoints.large;
       setCurrentSnapPoint(snapPoints.large);
-      
+
       // Set backdrop opacity to be more transparent for better map interaction
       backdropOpacityShared.value = 0.3;
-      
+
       Animated.timing(backdropOpacity, {
         toValue: 0.3, // More transparent for map interaction
         duration: 200,
@@ -561,12 +576,12 @@ export function FilterSheet({
   const handleReset = React.useCallback(async () => {
     console.log('🔄 [FilterSheet] Reset button pressed - clearing all filters');
     setFilters({});
-    
+
     // Also clear the selected preset/collection
     if (onPresetSelect) {
       onPresetSelect(null);
     }
-    
+
     // Clear saved filter preferences
     await saveFilterPreferences({});
     console.log('🔄 [FilterSheet] Cleared all filters and saved preferences');
@@ -584,25 +599,33 @@ export function FilterSheet({
 
     // Track filter usage for smart recommendations
     if (filters.difficulty?.length) {
-      filters.difficulty.forEach(diff => trackFilterUsage(`difficulty_${diff}`, 'difficulty'));
+      filters.difficulty.forEach((diff) => trackFilterUsage(`difficulty_${diff}`, 'difficulty'));
     }
     if (filters.spotType?.length) {
-      filters.spotType.forEach(spot => trackFilterUsage(`spot_type_${spot}`, 'spot_type'));
+      filters.spotType.forEach((spot) => trackFilterUsage(`spot_type_${spot}`, 'spot_type'));
     }
     if (filters.category?.length) {
-      filters.category.forEach(cat => trackFilterUsage(`category_${cat}`, 'category'));
+      filters.category.forEach((cat) => trackFilterUsage(`category_${cat}`, 'category'));
     }
     if (filters.transmissionType?.length) {
-      filters.transmissionType.forEach(trans => trackFilterUsage(`transmission_type_${trans}`, 'transmission_type'));
+      filters.transmissionType.forEach((trans) =>
+        trackFilterUsage(`transmission_type_${trans}`, 'transmission_type'),
+      );
     }
     if (filters.activityLevel?.length) {
-      filters.activityLevel.forEach(level => trackFilterUsage(`activity_level_${level}`, 'activity_level'));
+      filters.activityLevel.forEach((level) =>
+        trackFilterUsage(`activity_level_${level}`, 'activity_level'),
+      );
     }
     if (filters.bestSeason?.length) {
-      filters.bestSeason.forEach(season => trackFilterUsage(`best_season_${season}`, 'best_season'));
+      filters.bestSeason.forEach((season) =>
+        trackFilterUsage(`best_season_${season}`, 'best_season'),
+      );
     }
     if (filters.vehicleTypes?.length) {
-      filters.vehicleTypes.forEach(vehicle => trackFilterUsage(`vehicle_types_${vehicle}`, 'vehicle_types'));
+      filters.vehicleTypes.forEach((vehicle) =>
+        trackFilterUsage(`vehicle_types_${vehicle}`, 'vehicle_types'),
+      );
     }
     if (filters.hasExercises) {
       trackFilterUsage('has_exercises', 'content');
@@ -811,23 +834,26 @@ export function FilterSheet({
   }, [onNearMePress, onClose]);
 
   // Handle preset selection
-  const handlePresetSelect = React.useCallback(async (presetId: string | null) => {
-    console.log('✅ [FilterSheet] Collection selected:', presetId);
-    onPresetSelect?.(presetId);
-    
-    // Save the preset selection immediately as part of filters
-    const updatedFilters = {
-      ...filters,
-      selectedPresetId: presetId,
-    };
-    
-    // Save to storage immediately
-    await saveFilterPreferences(updatedFilters);
-    console.log('💾 [FilterSheet] Saved collection selection immediately:', presetId);
-    
-    // Close the filter sheet immediately (like city selection)
-    onClose();
-  }, [onPresetSelect, filters, saveFilterPreferences, onClose]);
+  const handlePresetSelect = React.useCallback(
+    async (presetId: string | null) => {
+      console.log('✅ [FilterSheet] Collection selected:', presetId);
+      onPresetSelect?.(presetId);
+
+      // Save the preset selection immediately as part of filters
+      const updatedFilters = {
+        ...filters,
+        selectedPresetId: presetId,
+      };
+
+      // Save to storage immediately
+      await saveFilterPreferences(updatedFilters);
+      console.log('💾 [FilterSheet] Saved collection selection immediately:', presetId);
+
+      // Close the filter sheet immediately (like city selection)
+      onClose();
+    },
+    [onPresetSelect, filters, saveFilterPreferences, onClose],
+  );
 
   // Handle collection settings
   const handleCollectionSettings = React.useCallback((collection: any) => {
@@ -844,28 +870,27 @@ export function FilterSheet({
   }, []);
 
   // Handle leave collection confirmation
-  const handleLeaveCollectionConfirm = React.useCallback(async (customMessage?: string) => {
-    if (!selectedCollectionForLeave) return;
+  const handleLeaveCollectionConfirm = React.useCallback(
+    async (customMessage?: string) => {
+      if (!selectedCollectionForLeave) return;
 
-    try {
-      // Remove user from collection
-      const { error } = await supabase
-        .from('map_preset_members')
-        .delete()
-        .eq('preset_id', selectedCollectionForLeave.id)
-        .eq('user_id', getEffectiveUserId());
+      try {
+        // Remove user from collection
+        const { error } = await supabase
+          .from('map_preset_members')
+          .delete()
+          .eq('preset_id', selectedCollectionForLeave.id)
+          .eq('user_id', getEffectiveUserId());
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Create notification for collection owner with custom message
-      const baseMessage = `A member has left your collection "${selectedCollectionForLeave.name}".`;
-      const fullMessage = customMessage?.trim() 
-        ? `${baseMessage}\n\nPersonal message: "${customMessage.trim()}"`
-        : baseMessage;
+        // Create notification for collection owner with custom message
+        const baseMessage = `A member has left your collection "${selectedCollectionForLeave.name}".`;
+        const fullMessage = customMessage?.trim()
+          ? `${baseMessage}\n\nPersonal message: "${customMessage.trim()}"`
+          : baseMessage;
 
-      const { error: notificationError } = await supabase
-        .from('notifications')
-        .insert({
+        const { error: notificationError } = await supabase.from('notifications').insert({
           user_id: selectedCollectionForLeave.creator_id,
           actor_id: getEffectiveUserId(),
           type: 'collection_member_left',
@@ -883,35 +908,39 @@ export function FilterSheet({
           is_read: false,
         });
 
-      if (notificationError) {
-        console.warn('Failed to create leave notification:', notificationError);
-      }
+        if (notificationError) {
+          console.warn('Failed to create leave notification:', notificationError);
+        }
 
-      showToast({
-        title: t('routeCollections.leftCollection') || 'Left Collection',
-        message: t('routeCollections.leftCollectionSuccess') || `You have left "${selectedCollectionForLeave.name}".`,
-        type: 'success',
-      });
+        showToast({
+          title: t('routeCollections.leftCollection') || 'Left Collection',
+          message:
+            t('routeCollections.leftCollectionSuccess') ||
+            `You have left "${selectedCollectionForLeave.name}".`,
+          type: 'success',
+        });
 
-      // Refresh collections
-      if (onPresetSelect) {
-        onPresetSelect(null); // Clear selection
+        // Refresh collections
+        if (onPresetSelect) {
+          onPresetSelect(null); // Clear selection
+        }
+
+        // Close filter sheet
+        onClose();
+      } catch (error) {
+        console.error('Error leaving collection:', error);
+        showToast({
+          title: t('common.error') || 'Error',
+          message: t('routeCollections.failedToLeaveCollection') || 'Failed to leave collection',
+          type: 'error',
+        });
+      } finally {
+        setLeaveModalVisible(false);
+        setSelectedCollectionForLeave(null);
       }
-      
-      // Close filter sheet
-      onClose();
-    } catch (error) {
-      console.error('Error leaving collection:', error);
-      showToast({
-        title: t('common.error') || 'Error',
-        message: t('routeCollections.failedToLeaveCollection') || 'Failed to leave collection',
-        type: 'error',
-      });
-    } finally {
-      setLeaveModalVisible(false);
-      setSelectedCollectionForLeave(null);
-    }
-  }, [selectedCollectionForLeave, getEffectiveUserId, showToast, t, onPresetSelect, onClose]);
+    },
+    [selectedCollectionForLeave, getEffectiveUserId, showToast, t, onPresetSelect, onClose],
+  );
 
   // Handle leave collection cancellation
   const handleLeaveCollectionCancel = React.useCallback(() => {
@@ -938,7 +967,7 @@ export function FilterSheet({
         onTouchEnd={handleBackdropPress}
       />
       <GestureDetector gesture={panGesture}>
-        <ReanimatedAnimated.View 
+        <ReanimatedAnimated.View
           style={[
             {
               position: 'absolute',
@@ -952,27 +981,26 @@ export function FilterSheet({
               zIndex: 1501, // Above backdrop
               width: screenWidth,
             },
-            animatedGestureStyle
+            animatedGestureStyle,
           ]}
         >
-          <YStack
-            padding="$3"
-            paddingBottom={20 + BOTTOM_INSET}
-            gap="$3"
-            flex={1}
-          >
+          <YStack padding="$3" paddingBottom={20 + BOTTOM_INSET} gap="$3" flex={1}>
             {/* Drag Handle */}
-            <View style={{
-              alignItems: 'center',
-              paddingVertical: 8,
-              paddingBottom: 16,
-            }}>
-              <View style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: handleColor,
-              }} />
+            <View
+              style={{
+                alignItems: 'center',
+                paddingVertical: 8,
+                paddingBottom: 16,
+              }}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: handleColor,
+                }}
+              />
             </View>
 
             {/* Header */}
@@ -980,10 +1008,7 @@ export function FilterSheet({
               <Text fontWeight="600" fontSize="$5" color={textColor}>
                 {t('map.filters')}
               </Text>
-              <TouchableOpacity 
-                onPress={onClose}
-                style={{ position: 'absolute', right: 0 }}
-              >
+              <TouchableOpacity onPress={onClose} style={{ position: 'absolute', right: 0 }}>
                 <Feather name="x" size={24} color={textColor} />
               </TouchableOpacity>
             </XStack>
@@ -992,1224 +1017,1302 @@ export function FilterSheet({
             {currentSnapPoint !== snapPoints.mini && (
               <View style={{ flex: 1 }}>
                 <ScrollView style={{ flex: 1 }}>
-          {/* Search Section - MOVED TO TOP */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('search.title') || 'Search'}
-            </SizableText>
+                  {/* Search Section - MOVED TO TOP */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('search.title') || 'Search'}
+                    </SizableText>
 
-            {/* Search Input */}
-            <XStack alignItems="center" gap="$2" marginBottom="$3">
-              <Input
-                flex={1}
-                value={searchQuery}
-                onChangeText={handleSearch}
-                placeholder={t('search.placeholder') || 'Search for cities, places...'}
-                backgroundColor="$backgroundHover"
-                borderColor={borderColor}
-                color={textColor}
-                placeholderTextColor="$gray10"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Feather name="x" size={20} color={textColor} />
-                </TouchableOpacity>
-              )}
-            </XStack>
+                    {/* Search Input */}
+                    <XStack alignItems="center" gap="$2" marginBottom="$3">
+                      <Input
+                        flex={1}
+                        value={searchQuery}
+                        onChangeText={handleSearch}
+                        placeholder={t('search.placeholder') || 'Search for cities, places...'}
+                        backgroundColor="$backgroundHover"
+                        borderColor={borderColor}
+                        color={textColor}
+                        placeholderTextColor="$gray10"
+                      />
+                      {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')}>
+                          <Feather name="x" size={20} color={textColor} />
+                        </TouchableOpacity>
+                      )}
+                    </XStack>
 
-            {/* Search Results */}
-            {isSearching ? (
-              <XStack padding="$2" justifyContent="center">
-                <Text color={textColor}>{t('search.searching') || 'Searching...'}</Text>
-              </XStack>
-            ) : searchResults.length > 0 ? (
-              <YStack gap="$1" maxHeight={200}>
-                <ScrollView>
-                  {searchResults.slice(0, 5).map((result) => {
-                    if (!result || !result.id) {
-                      console.warn('⚠️ [FilterSheet] Invalid search result:', result);
-                      return null;
-                    }
-                    return (
-                    <TouchableOpacity
-                      key={result.id}
-                      onPress={() => handleResultSelect(result)}
-                      style={{
-                        paddingVertical: 8,
-                        paddingHorizontal: 12,
-                        borderBottomWidth: 1,
-                        borderBottomColor: borderColor,
-                      }}
-                    >
-                      <XStack alignItems="center" gap="$2">
-                        <Feather
-                          name={
-                            result.place_type[0] === 'country'
-                              ? 'flag'
-                              : result.place_type[0] === 'region'
-                                ? 'map'
-                                : result.place_type[0] === 'place'
-                                  ? 'map-pin'
-                                  : 'navigation'
-                          }
-                          size={16}
-                          color={textColor}
-                        />
-                        <YStack flex={1}>
-                          <Text numberOfLines={1} fontWeight="600" color={textColor}>
-                            {result.place_name.split(',')[0]}
-                          </Text>
-                          <Text numberOfLines={1} fontSize="$1" color="$gray10">
-                            {result.place_name.split(',').slice(1).join(',').trim()}
-                          </Text>
-                        </YStack>
+                    {/* Search Results */}
+                    {isSearching ? (
+                      <XStack padding="$2" justifyContent="center">
+                        <Text color={textColor}>{t('search.searching') || 'Searching...'}</Text>
                       </XStack>
-                    </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </YStack>
-            ) : searchQuery.length === 0 ? (
-              /* Default content when no search */
-              <YStack gap="$2">
-                {/* Near Me Button */}
-                <TouchableOpacity
-                  onPress={handleNearMe}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingVertical: 12,
-                    paddingHorizontal: 16,
-                    borderWidth: 1,
-                    borderColor: borderColor,
-                    borderRadius: 8,
-                    backgroundColor: 'transparent',
-                    opacity: isLocating ? 0.6 : 1,
-                  }}
-                  disabled={isLocating}
-                >
-                  {isLocating ? (
-                    <Animated.View
-                      style={{
-                        marginRight: 12,
-                        transform: [
-                          {
-                            rotate: '45deg', // Static rotation for navigation icon during loading
-                          },
-                        ],
-                      }}
-                    >
-                      <Feather name="navigation" size={20} color={textColor} />
-                    </Animated.View>
-                  ) : (
-                    <Feather
-                      name="navigation"
-                      size={20}
-                      color={textColor}
-                      style={{ marginRight: 12 }}
-                    />
-                  )}
-                  <Text color={textColor} fontWeight="500">
-                    {isLocating
-                      ? t('search.locating') || 'Locating...'
-                      : t('search.nearMe') || 'Near Me'}
-                  </Text>
-                </TouchableOpacity>
+                    ) : searchResults.length > 0 ? (
+                      <YStack gap="$1" maxHeight={200}>
+                        <ScrollView>
+                          {searchResults.slice(0, 5).map((result) => {
+                            if (!result || !result.id) {
+                              console.warn('⚠️ [FilterSheet] Invalid search result:', result);
+                              return null;
+                            }
+                            return (
+                              <TouchableOpacity
+                                key={result.id}
+                                onPress={() => handleResultSelect(result)}
+                                style={{
+                                  paddingVertical: 8,
+                                  paddingHorizontal: 12,
+                                  borderBottomWidth: 1,
+                                  borderBottomColor: borderColor,
+                                }}
+                              >
+                                <XStack alignItems="center" gap="$2">
+                                  <Feather
+                                    name={
+                                      result.place_type[0] === 'country'
+                                        ? 'flag'
+                                        : result.place_type[0] === 'region'
+                                          ? 'map'
+                                          : result.place_type[0] === 'place'
+                                            ? 'map-pin'
+                                            : 'navigation'
+                                    }
+                                    size={16}
+                                    color={textColor}
+                                  />
+                                  <YStack flex={1}>
+                                    <Text numberOfLines={1} fontWeight="600" color={textColor}>
+                                      {result.place_name.split(',')[0]}
+                                    </Text>
+                                    <Text numberOfLines={1} fontSize="$1" color="$gray10">
+                                      {result.place_name.split(',').slice(1).join(',').trim()}
+                                    </Text>
+                                  </YStack>
+                                </XStack>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      </YStack>
+                    ) : searchQuery.length === 0 ? (
+                      /* Default content when no search */
+                      <YStack gap="$2">
+                        {/* Near Me Button */}
+                        <TouchableOpacity
+                          onPress={handleNearMe}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingVertical: 12,
+                            paddingHorizontal: 16,
+                            borderWidth: 1,
+                            borderColor: borderColor,
+                            borderRadius: 8,
+                            backgroundColor: 'transparent',
+                            opacity: isLocating ? 0.6 : 1,
+                          }}
+                          disabled={isLocating}
+                        >
+                          {isLocating ? (
+                            <Animated.View
+                              style={{
+                                marginRight: 12,
+                                transform: [
+                                  {
+                                    rotate: '45deg', // Static rotation for navigation icon during loading
+                                  },
+                                ],
+                              }}
+                            >
+                              <Feather name="navigation" size={20} color={textColor} />
+                            </Animated.View>
+                          ) : (
+                            <Feather
+                              name="navigation"
+                              size={20}
+                              color={textColor}
+                              style={{ marginRight: 12 }}
+                            />
+                          )}
+                          <Text color={textColor} fontWeight="500">
+                            {isLocating
+                              ? t('search.locating') || 'Locating...'
+                              : t('search.nearMe') || 'Near Me'}
+                          </Text>
+                        </TouchableOpacity>
 
-                {/* Popular Swedish Cities - All 10 with wrapping and route counts */}
-                <Text color="$gray10" fontSize="$2" marginTop="$2" marginBottom="$2">
-                  {t('search.popularCities') || 'Popular Cities'}
-                </Text>
-                <View style={[styles.filterRow, { flexWrap: 'wrap' }]}>
-                  {POPULAR_CITIES.map((city, index) => {
-                    const cityCount = getCityRouteCount(city.name);
-                    return (
+                        {/* Popular Swedish Cities - All 10 with wrapping and route counts */}
+                        <Text color="$gray10" fontSize="$2" marginTop="$2" marginBottom="$2">
+                          {t('search.popularCities') || 'Popular Cities'}
+                        </Text>
+                        <View style={[styles.filterRow, { flexWrap: 'wrap' }]}>
+                          {POPULAR_CITIES.map((city, index) => {
+                            const cityCount = getCityRouteCount(city.name);
+                            return (
+                              <TouchableOpacity
+                                key={index}
+                                onPress={() => handleCitySelect(city.name, city.country)}
+                                style={[
+                                  styles.filterChip,
+                                  {
+                                    borderColor,
+                                    backgroundColor: 'transparent',
+                                  },
+                                ]}
+                              >
+                                <XStack alignItems="center" gap="$1">
+                                  <Text style={[styles.chipText, { color: textColor }]}>
+                                    {city.name}
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      styles.chipText,
+                                      {
+                                        color: textColor,
+                                        fontSize: 12,
+                                        opacity: 0.7,
+                                      },
+                                    ]}
+                                  >
+                                    ({cityCount})
+                                  </Text>
+                                </XStack>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </YStack>
+                    ) : (
+                      /* No results found */
+                      <XStack padding="$2" justifyContent="center">
+                        <Text color={textColor}>{t('search.noResults') || 'No results found'}</Text>
+                      </XStack>
+                    )}
+                  </YStack>
+
+                  {/* Collections Section */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('routeCollections.title') || 'Collections'}
+                    </SizableText>
+
+                    {/* Collection Chips - REMOVED ICONS */}
+                    <View style={[styles.filterRow, { flexWrap: 'wrap' }]}>
+                      {/* "All Routes" option */}
                       <TouchableOpacity
-                        key={index}
-                        onPress={() => handleCitySelect(city.name, city.country)}
                         style={[
                           styles.filterChip,
                           {
                             borderColor,
-                            backgroundColor: 'transparent',
+                            backgroundColor: !selectedPresetId ? '#00E6C3' : 'transparent',
                           },
                         ]}
+                        onPress={() => handlePresetSelect(null)}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            {
+                              color: !selectedPresetId ? '#000000' : textColor,
+                              fontWeight: !selectedPresetId ? '600' : '500',
+                            },
+                          ]}
+                        >
+                          {t('routeCollections.allRoutes') || 'All Routes'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* User Collections - Filter out VROMM collections and show only relevant ones */}
+                      {(() => {
+                        console.log('🔍 [FilterSheet] All userCollections:', userCollections);
+                        console.log('🔍 [FilterSheet] Current user ID:', getEffectiveUserId());
+
+                        // Debug each collection individually
+                        userCollections.forEach((collection, index) => {
+                          console.log(`🔍 [FilterSheet] Collection ${index}:`, {
+                            id: collection.id,
+                            name: collection.name,
+                            nameType: typeof collection.name,
+                            nameLength: collection.name?.length,
+                            nameValue: JSON.stringify(collection.name),
+                            visibility: collection.visibility,
+                            creator_id: collection.creator_id,
+                            route_count: collection.route_count,
+                          });
+                        });
+
+                        const filteredCollections = userCollections.filter((collection) => {
+                          console.log(`🔍 [FilterSheet] Processing collection:`, {
+                            id: collection.id,
+                            name: collection.name,
+                            visibility: collection.visibility,
+                            creator_id: collection.creator_id,
+                            current_user_id: getEffectiveUserId(),
+                            route_count: collection.route_count,
+                            member_role: collection.member_role,
+                          });
+
+                          // Filter out VROMM collections (legacy global collection)
+                          const name = collection.name?.toLowerCase() || '';
+                          if (name.includes('vromm')) {
+                            console.log(
+                              `🔍 [FilterSheet] Filtering out VROMM collection: "${collection.name}"`,
+                            );
+                            return false;
+                          }
+
+                          // Show collections where user is a member, has routes, or is the creator
+                          const isCreator = collection.creator_id === getEffectiveUserId();
+                          const hasRoutes = collection.route_count && collection.route_count > 0;
+                          const isMember = collection.member_role; // If user is a member, they should see it
+                          const isPublic = collection.visibility === 'public';
+                          const isShared = collection.visibility === 'shared';
+
+                          console.log(
+                            `🔍 [FilterSheet] Collection "${collection.name}" filtering logic:`,
+                            {
+                              isCreator,
+                              hasRoutes,
+                              isMember,
+                              isPublic,
+                              isShared,
+                              member_role: collection.member_role,
+                              visibility: collection.visibility,
+                              route_count: collection.route_count,
+                              willShow: isCreator || isMember || isPublic || isShared,
+                            },
+                          );
+
+                          // Show if user is creator, member, or if it's a public/shared collection
+                          // Don't require routes for user's own collections or collections they're members of
+                          return isCreator || isMember || isPublic || isShared;
+                        });
+
+                        console.log('🔍 [FilterSheet] Filtered collections:', filteredCollections);
+
+                        const visibleCollections = showAllCollections
+                          ? filteredCollections
+                          : filteredCollections.slice(0, MAX_VISIBLE_COLLECTIONS);
+
+                        console.log(
+                          '🔍 [FilterSheet] Visible collections to render:',
+                          visibleCollections,
+                        );
+
+                        // Show loading state while collections are being loaded
+                        if (collectionsLoading) {
+                          console.log('🔄 [FilterSheet] Collections still loading...');
+                          return (
+                            <XStack alignItems="center" gap="$2" padding="$2">
+                              <Feather name="loader" size={16} color={textColor} />
+                              <Text color="$gray10" fontSize="$2" fontStyle="italic">
+                                {t('common.loading') || 'Loading collections...'}
+                              </Text>
+                            </XStack>
+                          );
+                        }
+
+                        // If no collections to show after loading, return empty
+                        if (visibleCollections.length === 0) {
+                          console.log('🔍 [FilterSheet] No collections to show');
+                          return (
+                            <Text color="$gray10" fontSize="$2" fontStyle="italic">
+                              {t('routeCollections.noCollections') || 'No collections available'}
+                            </Text>
+                          );
+                        }
+
+                        return (
+                          <>
+                            {visibleCollections.map((collection) => {
+                              const isMember = (collection as any).member_role;
+                              const isCreator = collection.creator_id === getEffectiveUserId();
+                              const canLeave = isMember && !isCreator; // Can leave if member but not creator
+
+                              console.log('🔍 [FilterSheet] Rendering collection:', {
+                                id: collection.id,
+                                name: collection.name,
+                                nameType: typeof collection.name,
+                                nameLength: collection.name?.length,
+                                route_count: collection.route_count,
+                                visibility: collection.visibility,
+                                selectedPresetId: selectedPresetId,
+                                isSelected: selectedPresetId === collection.id,
+                                textColor:
+                                  selectedPresetId === collection.id ? '#000000' : textColor,
+                                backgroundColor:
+                                  selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
+                              });
+
+                              // Debug the actual text content
+                              const rawText =
+                                collection.name || collection.id || 'Unnamed Collection';
+                              const displayText = rawText.replace(/[\r\n]/g, '').trim(); // Remove line breaks and trim
+                              console.log('🔍 [FilterSheet] Text to display:', {
+                                rawText,
+                                displayText,
+                                textLength: displayText.length,
+                                textType: typeof displayText,
+                                textColor:
+                                  selectedPresetId === collection.id ? '#000000' : '#FFFFFF',
+                                backgroundColor:
+                                  selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
+                                hasLineBreaks: rawText !== displayText,
+                              });
+
+                              return (
+                                <XStack
+                                  key={collection.id || `collection-${Math.random()}`}
+                                  alignItems="center"
+                                  gap="$1"
+                                >
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.filterChip,
+                                      {
+                                        borderColor,
+                                        backgroundColor:
+                                          selectedPresetId === collection.id
+                                            ? '#00E6C3'
+                                            : 'transparent',
+                                      },
+                                    ]}
+                                    onPress={() => handlePresetSelect(collection.id)}
+                                  >
+                                    <XStack alignItems="center" gap="$1">
+                                      <Text
+                                        color={
+                                          selectedPresetId === collection.id ? '#000000' : textColor
+                                        }
+                                        fontWeight={
+                                          selectedPresetId === collection.id ? '600' : '500'
+                                        }
+                                        fontSize={14}
+                                      >
+                                        {displayText}
+                                      </Text>
+                                      {collection.route_count != null &&
+                                        collection.route_count > 0 && (
+                                          <Text
+                                            color={
+                                              selectedPresetId === collection.id
+                                                ? '#000000'
+                                                : textColor
+                                            }
+                                            fontSize={12}
+                                            opacity={0.7}
+                                          >
+                                            ({String(collection.route_count || 0)})
+                                          </Text>
+                                        )}
+                                    </XStack>
+                                  </TouchableOpacity>
+
+                                  {/* Settings cog for collection info */}
+                                  <TouchableOpacity
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      handleCollectionSettings(collection);
+                                    }}
+                                    style={{
+                                      padding: 4,
+                                      backgroundColor: 'rgba(0, 230, 195, 0.1)',
+                                      borderRadius: 4,
+                                      marginLeft: 4,
+                                    }}
+                                    activeOpacity={0.7}
+                                  >
+                                    <Feather name="settings" size={14} color="#00E6C3" />
+                                  </TouchableOpacity>
+
+                                  {/* X button for leaving collection */}
+                                  {canLeave && (
+                                    <TouchableOpacity
+                                      onPress={(e) => {
+                                        e.stopPropagation();
+                                        handleLeaveCollection(collection);
+                                      }}
+                                      style={{
+                                        padding: 4,
+                                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                        borderRadius: 4,
+                                        marginLeft: 4,
+                                      }}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Feather name="x" size={14} color="#EF4444" />
+                                    </TouchableOpacity>
+                                  )}
+                                </XStack>
+                              );
+                            })}
+
+                            {/* View More/Less Toggle */}
+                            {filteredCollections.length > MAX_VISIBLE_COLLECTIONS && (
+                              <TouchableOpacity
+                                onPress={() => setShowAllCollections(!showAllCollections)}
+                                style={[
+                                  styles.filterChip,
+                                  {
+                                    borderColor,
+                                    backgroundColor: 'transparent',
+                                    borderStyle: 'dashed',
+                                  },
+                                ]}
+                              >
+                                <XStack alignItems="center" gap="$1">
+                                  <Feather
+                                    name={showAllCollections ? 'chevron-up' : 'chevron-down'}
+                                    size={14}
+                                    color={textColor}
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.chipText,
+                                      {
+                                        color: textColor,
+                                        fontWeight: '500',
+                                        fontStyle: 'italic',
+                                      },
+                                    ]}
+                                  >
+                                    {showAllCollections
+                                      ? `${t('filters.showLess') || 'Show Less'} (${MAX_VISIBLE_COLLECTIONS})`
+                                      : `${t('filters.viewMore') || 'View More'} (${filteredCollections.length - MAX_VISIBLE_COLLECTIONS} ${t('filters.more') || 'more'})`}
+                                  </Text>
+                                </XStack>
+                              </TouchableOpacity>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </View>
+                  </YStack>
+
+                  {/* Sort Options - WITH ROUTE COUNTS */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.sortBy')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {[
+                        'best_match',
+                        'most_popular',
+                        'closest',
+                        'newly_added',
+                        'newest',
+                        'my_created',
+                        'best_review',
+                        'has_image',
+                      ].map((sort) => {
+                        const sortCount = getSortRouteCount(sort);
+                        return (
+                          <TouchableOpacity
+                            key={sort}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: filters.sort === sort ? '#00E6C3' : 'transparent',
+                              },
+                            ]}
+                            onPress={() =>
+                              setSingleFilter('sort', filters.sort === sort ? undefined : sort)
+                            }
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: filters.sort === sort ? '#000000' : textColor,
+                                    fontWeight: filters.sort === sort ? '600' : '500',
+                                  },
+                                ]}
+                              >
+                                {t(`filters.sort.${sort}`)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: filters.sort === sort ? '#000000' : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({sortCount})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Difficulty */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.difficulty')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {['beginner', 'intermediate', 'advanced'].map((difficulty) => {
+                        const count = getFilterCount('difficulty', difficulty);
+                        return (
+                          <TouchableOpacity
+                            key={difficulty}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: isSelected('difficulty', difficulty)
+                                  ? '#00E6C3'
+                                  : 'transparent',
+                              },
+                            ]}
+                            onPress={() => toggleFilter('difficulty', difficulty)}
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('difficulty', difficulty)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontWeight: isSelected('difficulty', difficulty)
+                                      ? '600'
+                                      : '500',
+                                  },
+                                ]}
+                              >
+                                {t(`filters.difficulty.${difficulty}`)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('difficulty', difficulty)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({count})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Spot Type */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.spotType')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {['urban', 'highway', 'rural', 'parking'].map((spotType) => {
+                        const count = getFilterCount('spotType', spotType);
+                        return (
+                          <TouchableOpacity
+                            key={spotType}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: isSelected('spotType', spotType)
+                                  ? '#00E6C3'
+                                  : 'transparent',
+                              },
+                            ]}
+                            onPress={() => toggleFilter('spotType', spotType)}
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('spotType', spotType) ? '#000000' : textColor,
+                                    fontWeight: isSelected('spotType', spotType) ? '600' : '500',
+                                  },
+                                ]}
+                              >
+                                {t(`filters.spotType.${spotType}`)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('spotType', spotType) ? '#000000' : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({count})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Category */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.category')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {['parking', 'incline_start'].map((category) => {
+                        const count = getFilterCount('category', category);
+                        return (
+                          <TouchableOpacity
+                            key={category}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: isSelected('category', category)
+                                  ? '#00E6C3'
+                                  : 'transparent',
+                              },
+                            ]}
+                            onPress={() => toggleFilter('category', category)}
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('category', category) ? '#000000' : textColor,
+                                    fontWeight: isSelected('category', category) ? '600' : '500',
+                                  },
+                                ]}
+                              >
+                                {t(`filters.category.${category}`)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('category', category) ? '#000000' : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({count})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Transmission Type */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.transmissionType')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {['automatic', 'manual', 'both'].map((transmissionType) => {
+                        const count = getFilterCount('transmissionType', transmissionType);
+                        return (
+                          <TouchableOpacity
+                            key={transmissionType}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: isSelected('transmissionType', transmissionType)
+                                  ? '#00E6C3'
+                                  : 'transparent',
+                              },
+                            ]}
+                            onPress={() => toggleFilter('transmissionType', transmissionType)}
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('transmissionType', transmissionType)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontWeight: isSelected('transmissionType', transmissionType)
+                                      ? '600'
+                                      : '500',
+                                  },
+                                ]}
+                              >
+                                {t(`filters.transmissionType.${transmissionType}`)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('transmissionType', transmissionType)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({count})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Activity Level */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.activityLevel')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {['moderate', 'high'].map((activityLevel) => {
+                        const count = getFilterCount('activityLevel', activityLevel);
+                        return (
+                          <TouchableOpacity
+                            key={activityLevel}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: isSelected('activityLevel', activityLevel)
+                                  ? '#00E6C3'
+                                  : 'transparent',
+                              },
+                            ]}
+                            onPress={() => toggleFilter('activityLevel', activityLevel)}
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('activityLevel', activityLevel)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontWeight: isSelected('activityLevel', activityLevel)
+                                      ? '600'
+                                      : '500',
+                                  },
+                                ]}
+                              >
+                                {t(`filters.activityLevel.${activityLevel}`)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('activityLevel', activityLevel)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({count})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Best Season */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.bestSeason')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {['all', 'year-round', 'avoid-winter'].map((bestSeason) => {
+                        const count = getFilterCount('bestSeason', bestSeason);
+                        return (
+                          <TouchableOpacity
+                            key={bestSeason}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: isSelected('bestSeason', bestSeason)
+                                  ? '#00E6C3'
+                                  : 'transparent',
+                              },
+                            ]}
+                            onPress={() => toggleFilter('bestSeason', bestSeason)}
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('bestSeason', bestSeason)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontWeight: isSelected('bestSeason', bestSeason)
+                                      ? '600'
+                                      : '500',
+                                  },
+                                ]}
+                              >
+                                {t(`filters.bestSeason.${bestSeason}`)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('bestSeason', bestSeason)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({count})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Vehicle Types */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.vehicleTypes')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {['passenger_car', 'rv'].map((vehicleType) => {
+                        const count = getFilterCount('vehicleTypes', vehicleType);
+                        return (
+                          <TouchableOpacity
+                            key={vehicleType}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: isSelected('vehicleTypes', vehicleType)
+                                  ? '#00E6C3'
+                                  : 'transparent',
+                              },
+                            ]}
+                            onPress={() => toggleFilter('vehicleTypes', vehicleType)}
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('vehicleTypes', vehicleType)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontWeight: isSelected('vehicleTypes', vehicleType)
+                                      ? '600'
+                                      : '500',
+                                  },
+                                ]}
+                              >
+                                {t(`filters.vehicleTypes.${vehicleType}`)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: isSelected('vehicleTypes', vehicleType)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({count})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Experience Level */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.experienceLevel')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {['beginner', 'intermediate', 'advanced', 'expert'].map((level) => {
+                        const count = getFilterCount('experienceLevel', level);
+                        return (
+                          <TouchableOpacity
+                            key={level}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor:
+                                  filters.experienceLevel === level ? '#00E6C3' : 'transparent',
+                              },
+                            ]}
+                            onPress={() =>
+                              setSingleFilter(
+                                'experienceLevel',
+                                filters.experienceLevel === level ? undefined : level,
+                              )
+                            }
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color:
+                                      filters.experienceLevel === level ? '#000000' : textColor,
+                                    fontWeight: filters.experienceLevel === level ? '600' : '500',
+                                  },
+                                ]}
+                              >
+                                {t(`filters.experienceLevel.${level}`)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color:
+                                      filters.experienceLevel === level ? '#000000' : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({count})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Content Filters - REMOVED ICONS */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.content')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {/* Has Exercises */}
+                      <TouchableOpacity
+                        style={[
+                          styles.filterChip,
+                          {
+                            borderColor,
+                            backgroundColor: filters.hasExercises ? '#00E6C3' : 'transparent',
+                          },
+                        ]}
+                        onPress={() =>
+                          setSingleFilter('hasExercises', filters.hasExercises ? undefined : true)
+                        }
                       >
                         <XStack alignItems="center" gap="$1">
-                          <Text style={[styles.chipText, { color: textColor }]}>{city.name}</Text>
                           <Text
                             style={[
                               styles.chipText,
                               {
-                                color: textColor,
+                                color: filters.hasExercises ? '#000000' : textColor,
+                                fontWeight: filters.hasExercises ? '600' : '500',
+                              },
+                            ]}
+                          >
+                            {t('filters.hasExercises')}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.chipText,
+                              {
+                                color: filters.hasExercises ? '#000000' : textColor,
                                 fontSize: 12,
                                 opacity: 0.7,
                               },
                             ]}
                           >
-                            ({cityCount})
+                            ({getFilterCount('hasExercises', true)})
                           </Text>
                         </XStack>
                       </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </YStack>
-            ) : (
-              /* No results found */
-              <XStack padding="$2" justifyContent="center">
-                <Text color={textColor}>{t('search.noResults') || 'No results found'}</Text>
-              </XStack>
-            )}
-          </YStack>
 
-          {/* Collections Section */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('routeCollections.title') || 'Collections'}
-            </SizableText>
-            
-            {/* Collection Chips - REMOVED ICONS */}
-            <View style={[styles.filterRow, { flexWrap: 'wrap' }]}>
-              {/* "All Routes" option */}
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  {
-                    borderColor,
-                    backgroundColor: !selectedPresetId ? '#00E6C3' : 'transparent',
-                  },
-                ]}
-                onPress={() => handlePresetSelect(null)}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    {
-                      color: !selectedPresetId ? '#000000' : textColor,
-                      fontWeight: !selectedPresetId ? '600' : '500',
-                    },
-                  ]}
-                >
-                  {t('routeCollections.allRoutes') || 'All Routes'}
-                </Text>
-              </TouchableOpacity>
-
-              {/* User Collections - Filter out VROMM collections and show only relevant ones */}
-              {(() => {
-                console.log('🔍 [FilterSheet] All userCollections:', userCollections);
-                console.log('🔍 [FilterSheet] Current user ID:', getEffectiveUserId());
-                
-                // Debug each collection individually
-                userCollections.forEach((collection, index) => {
-                  console.log(`🔍 [FilterSheet] Collection ${index}:`, {
-                    id: collection.id,
-                    name: collection.name,
-                    nameType: typeof collection.name,
-                    nameLength: collection.name?.length,
-                    nameValue: JSON.stringify(collection.name),
-                    visibility: collection.visibility,
-                    creator_id: collection.creator_id,
-                    route_count: collection.route_count
-                  });
-                });
-                
-                const filteredCollections = userCollections
-                  .filter(collection => {
-                    console.log(`🔍 [FilterSheet] Processing collection:`, {
-                      id: collection.id,
-                      name: collection.name,
-                      visibility: collection.visibility,
-                      creator_id: collection.creator_id,
-                      current_user_id: getEffectiveUserId(),
-                      route_count: collection.route_count,
-                      member_role: collection.member_role
-                    });
-                    
-                    // Filter out VROMM collections (legacy global collection)
-                    const name = collection.name?.toLowerCase() || '';
-                    if (name.includes('vromm')) {
-                      console.log(`🔍 [FilterSheet] Filtering out VROMM collection: "${collection.name}"`);
-                      return false;
-                    }
-                    
-                    // Show collections where user is a member, has routes, or is the creator
-                    const isCreator = collection.creator_id === getEffectiveUserId();
-                    const hasRoutes = collection.route_count && collection.route_count > 0;
-                    const isMember = collection.member_role; // If user is a member, they should see it
-                    const isPublic = collection.visibility === 'public';
-                    const isShared = collection.visibility === 'shared';
-                    
-                    console.log(`🔍 [FilterSheet] Collection "${collection.name}" filtering logic:`, {
-                      isCreator,
-                      hasRoutes,
-                      isMember,
-                      isPublic,
-                      isShared,
-                      member_role: collection.member_role,
-                      visibility: collection.visibility,
-                      route_count: collection.route_count,
-                      willShow: isCreator || isMember || isPublic || isShared
-                    });
-                    
-                    // Show if user is creator, member, or if it's a public/shared collection
-                    // Don't require routes for user's own collections or collections they're members of
-                    return isCreator || isMember || isPublic || isShared;
-                  });
-                
-                console.log('🔍 [FilterSheet] Filtered collections:', filteredCollections);
-
-                const visibleCollections = showAllCollections 
-                  ? filteredCollections 
-                  : filteredCollections.slice(0, MAX_VISIBLE_COLLECTIONS);
-
-                console.log('🔍 [FilterSheet] Visible collections to render:', visibleCollections);
-
-                // Show loading state while collections are being loaded
-                if (collectionsLoading) {
-                  console.log('🔄 [FilterSheet] Collections still loading...');
-                  return (
-                    <XStack alignItems="center" gap="$2" padding="$2">
-                      <Feather name="loader" size={16} color={textColor} />
-                      <Text color="$gray10" fontSize="$2" fontStyle="italic">
-                        {t('common.loading') || 'Loading collections...'}
-                      </Text>
-                    </XStack>
-                  );
-                }
-
-                // If no collections to show after loading, return empty
-                if (visibleCollections.length === 0) {
-                  console.log('🔍 [FilterSheet] No collections to show');
-                  return (
-                    <Text color="$gray10" fontSize="$2" fontStyle="italic">
-                      {t('routeCollections.noCollections') || 'No collections available'}
-                    </Text>
-                  );
-                }
-
-                return (
-                  <>
-                    {visibleCollections.map((collection) => {
-                      const isMember = (collection as any).member_role;
-                      const isCreator = collection.creator_id === getEffectiveUserId();
-                      const canLeave = isMember && !isCreator; // Can leave if member but not creator
-                      
-                      console.log('🔍 [FilterSheet] Rendering collection:', {
-                        id: collection.id,
-                        name: collection.name,
-                        nameType: typeof collection.name,
-                        nameLength: collection.name?.length,
-                        route_count: collection.route_count,
-                        visibility: collection.visibility,
-                        selectedPresetId: selectedPresetId,
-                        isSelected: selectedPresetId === collection.id,
-                        textColor: selectedPresetId === collection.id ? '#000000' : textColor,
-                        backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent'
-                      });
-                      
-                      // Debug the actual text content
-                      const rawText = collection.name || collection.id || 'Unnamed Collection';
-                      const displayText = rawText.replace(/[\r\n]/g, '').trim(); // Remove line breaks and trim
-                      console.log('🔍 [FilterSheet] Text to display:', {
-                        rawText,
-                        displayText,
-                        textLength: displayText.length,
-                        textType: typeof displayText,
-                        textColor: selectedPresetId === collection.id ? '#000000' : '#FFFFFF',
-                        backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
-                        hasLineBreaks: rawText !== displayText
-                      });
-                      
-                      return (
-                        <XStack key={collection.id || `collection-${Math.random()}`} alignItems="center" gap="$1">
-                          <TouchableOpacity
-                            style={[
-                              styles.filterChip,
-                              {
-                                borderColor,
-                                backgroundColor: selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
-                              },
-                            ]}
-                            onPress={() => handlePresetSelect(collection.id)}
-                          >
-                            <XStack alignItems="center" gap="$1">
-                              <Text
-                                color={selectedPresetId === collection.id ? '#000000' : textColor}
-                                fontWeight={selectedPresetId === collection.id ? '600' : '500'}
-                                fontSize={14}
-                              >
-                                {displayText}
-                              </Text>
-                              {collection.route_count != null && collection.route_count > 0 && (
-                                <Text
-                                  color={selectedPresetId === collection.id ? '#000000' : textColor}
-                                  fontSize={12}
-                                  opacity={0.7}
-                                >
-                                  ({String(collection.route_count || 0)})
-                                </Text>
-                              )}
-                            </XStack>
-                          </TouchableOpacity>
-                          
-                          {/* Settings cog for collection info */}
-                          <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleCollectionSettings(collection);
-                            }}
-                            style={{
-                              padding: 4,
-                              backgroundColor: 'rgba(0, 230, 195, 0.1)',
-                              borderRadius: 4,
-                              marginLeft: 4,
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <Feather name="settings" size={14} color="#00E6C3" />
-                          </TouchableOpacity>
-                          
-                          {/* X button for leaving collection */}
-                          {canLeave && (
-                            <TouchableOpacity
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                handleLeaveCollection(collection);
-                              }}
-                              style={{
-                                padding: 4,
-                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                borderRadius: 4,
-                                marginLeft: 4,
-                              }}
-                              activeOpacity={0.7}
-                            >
-                              <Feather name="x" size={14} color="#EF4444" />
-                            </TouchableOpacity>
-                          )}
-                        </XStack>
-                      );
-                    })}
-
-                    {/* View More/Less Toggle */}
-                    {filteredCollections.length > MAX_VISIBLE_COLLECTIONS && (
+                      {/* Has Media */}
                       <TouchableOpacity
-                        onPress={() => setShowAllCollections(!showAllCollections)}
                         style={[
                           styles.filterChip,
                           {
                             borderColor,
-                            backgroundColor: 'transparent',
-                            borderStyle: 'dashed',
+                            backgroundColor: filters.hasMedia ? '#00E6C3' : 'transparent',
                           },
                         ]}
+                        onPress={() =>
+                          setSingleFilter('hasMedia', filters.hasMedia ? undefined : true)
+                        }
                       >
                         <XStack alignItems="center" gap="$1">
-                          <Feather 
-                            name={showAllCollections ? "chevron-up" : "chevron-down"} 
-                            size={14} 
-                            color={textColor} 
-                          />
                           <Text
                             style={[
                               styles.chipText,
                               {
-                                color: textColor,
-                                fontWeight: '500',
-                                fontStyle: 'italic',
+                                color: filters.hasMedia ? '#000000' : textColor,
+                                fontWeight: filters.hasMedia ? '600' : '500',
                               },
                             ]}
                           >
-                            {showAllCollections 
-                              ? `${t('filters.showLess') || 'Show Less'} (${MAX_VISIBLE_COLLECTIONS})` 
-                              : `${t('filters.viewMore') || 'View More'} (${filteredCollections.length - MAX_VISIBLE_COLLECTIONS} ${t('filters.more') || 'more'})`
-                            }
+                            {t('filters.hasMedia')}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.chipText,
+                              {
+                                color: filters.hasMedia ? '#000000' : textColor,
+                                fontSize: 12,
+                                opacity: 0.7,
+                              },
+                            ]}
+                          >
+                            ({getFilterCount('hasMedia', true)})
                           </Text>
                         </XStack>
                       </TouchableOpacity>
-                    )}
-                  </>
-                );
-              })()}
-            </View>
-          </YStack>
 
-
-          {/* Sort Options - WITH ROUTE COUNTS */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.sortBy')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {[
-                'best_match',
-                'most_popular',
-                'closest',
-                'newly_added',
-                'newest',
-                'my_created',
-                'best_review',
-                'has_image',
-              ].map((sort) => {
-                const sortCount = getSortRouteCount(sort);
-                return (
-                  <TouchableOpacity
-                    key={sort}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor: filters.sort === sort ? '#00E6C3' : 'transparent',
-                      },
-                    ]}
-                    onPress={() => setSingleFilter('sort', filters.sort === sort ? undefined : sort)}
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
+                      {/* Verified Routes */}
+                      <TouchableOpacity
                         style={[
-                          styles.chipText,
+                          styles.filterChip,
                           {
-                            color: filters.sort === sort ? '#000000' : textColor,
-                            fontWeight: filters.sort === sort ? '600' : '500',
+                            borderColor,
+                            backgroundColor: filters.isVerified ? '#00E6C3' : 'transparent',
                           },
                         ]}
+                        onPress={() =>
+                          setSingleFilter('isVerified', filters.isVerified ? undefined : true)
+                        }
                       >
-                        {t(`filters.sort.${sort}`)}
+                        <XStack alignItems="center" gap="$1">
+                          <Text
+                            style={[
+                              styles.chipText,
+                              {
+                                color: filters.isVerified ? '#000000' : textColor,
+                                fontWeight: filters.isVerified ? '600' : '500',
+                              },
+                            ]}
+                          >
+                            {t('filters.verified')}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.chipText,
+                              {
+                                color: filters.isVerified ? '#000000' : textColor,
+                                fontSize: 12,
+                                opacity: 0.7,
+                              },
+                            ]}
+                          >
+                            ({getFilterCount('isVerified', true)})
+                          </Text>
+                        </XStack>
+                      </TouchableOpacity>
+                    </View>
+                  </YStack>
+
+                  {/* Route Type - REMOVED ICONS */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.routeType')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {['recorded', 'waypoint', 'pen'].map((type) => {
+                        const count = getFilterCount('routeType', type);
+                        return (
+                          <TouchableOpacity
+                            key={type}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: filters.routeType?.includes(type)
+                                  ? '#00E6C3'
+                                  : 'transparent',
+                              },
+                            ]}
+                            onPress={() => toggleFilter('routeType', type)}
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: filters.routeType?.includes(type)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontWeight: filters.routeType?.includes(type) ? '600' : '500',
+                                  },
+                                ]}
+                              >
+                                {t(`filters.routeType.${type}`)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: filters.routeType?.includes(type)
+                                      ? '#000000'
+                                      : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({count})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Minimum Rating - REMOVED ICONS */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.minRating')}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      {[0, 3, 4, 5].map((rating) => {
+                        const count = getFilterCount('minRating', rating);
+                        return (
+                          <TouchableOpacity
+                            key={rating}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor:
+                                  filters.minRating === rating ? '#00E6C3' : 'transparent',
+                              },
+                            ]}
+                            onPress={() =>
+                              setSingleFilter(
+                                'minRating',
+                                filters.minRating === rating ? undefined : rating,
+                              )
+                            }
+                          >
+                            <XStack alignItems="center" gap="$1">
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: filters.minRating === rating ? '#000000' : textColor,
+                                    fontWeight: filters.minRating === rating ? '600' : '500',
+                                  },
+                                ]}
+                              >
+                                {rating === 0 ? t('filters.allRatings') : `${rating}+`}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  {
+                                    color: filters.minRating === rating ? '#000000' : textColor,
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                  },
+                                ]}
+                              >
+                                ({count})
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </YStack>
+
+                  {/* Distance Range - IMPROVED STYLING */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {t('filters.maxDistance')}
+                    </SizableText>
+                    <XStack alignItems="center" justifyContent="space-between" marginBottom="$3">
+                      <Text color={textColor} fontWeight="600" fontSize="$4">
+                        {String(filters.maxDistance || 100)} km
                       </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: filters.sort === sort ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({sortCount})
+                      <Text color="$gray10" fontSize="$3">
+                        ({getFilterCount('maxDistance', filters.maxDistance || 100)} routes)
                       </Text>
                     </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Difficulty */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.difficulty')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {['beginner', 'intermediate', 'advanced'].map((difficulty) => {
-                const count = getFilterCount('difficulty', difficulty);
-                return (
-                  <TouchableOpacity
-                    key={difficulty}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor: isSelected('difficulty', difficulty)
-                          ? '#00E6C3'
-                          : 'transparent',
-                      },
-                    ]}
-                    onPress={() => toggleFilter('difficulty', difficulty)}
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('difficulty', difficulty) ? '#000000' : textColor,
-                            fontWeight: isSelected('difficulty', difficulty) ? '600' : '500',
-                          },
-                        ]}
+                    <Slider
+                      defaultValue={[filters.maxDistance || 100]}
+                      min={0}
+                      max={100}
+                      step={5}
+                      onValueChange={(value) => {
+                        setSingleFilter('maxDistance', value[0]);
+                      }}
+                    >
+                      <Slider.Track backgroundColor={borderColor} height={6}>
+                        <Slider.TrackActive backgroundColor="#00E6C3" />
+                      </Slider.Track>
+                      <Slider.Thumb
+                        circular
+                        index={0}
+                        backgroundColor="#00E6C3"
+                        borderWidth={2}
+                        borderColor="#FFFFFF"
                       >
-                        {t(`filters.difficulty.${difficulty}`)}
+                        <View
+                          style={{
+                            width: 20,
+                            height: 20,
+                            backgroundColor: '#00E6C3',
+                            borderRadius: 10,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.25,
+                            shadowRadius: 3.84,
+                            elevation: 5,
+                          }}
+                        >
+                          <Feather name="move" size={12} color="#000000" />
+                        </View>
+                      </Slider.Thumb>
+                    </Slider>
+                    <XStack marginTop="$2" alignItems="center" justifyContent="space-between">
+                      <Text color="$gray10" fontSize="$2">
+                        0 km
                       </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('difficulty', difficulty) ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({count})
+                      <Text color="$gray10" fontSize="$2">
+                        100 km
                       </Text>
                     </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Spot Type */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.spotType')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {['urban', 'highway', 'rural', 'parking'].map((spotType) => {
-                const count = getFilterCount('spotType', spotType);
-                return (
-                  <TouchableOpacity
-                    key={spotType}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor: isSelected('spotType', spotType) ? '#00E6C3' : 'transparent',
-                      },
-                    ]}
-                    onPress={() => toggleFilter('spotType', spotType)}
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('spotType', spotType) ? '#000000' : textColor,
-                            fontWeight: isSelected('spotType', spotType) ? '600' : '500',
-                          },
-                        ]}
-                      >
-                        {t(`filters.spotType.${spotType}`)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('spotType', spotType) ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({count})
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Category */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.category')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {['parking', 'incline_start'].map((category) => {
-                const count = getFilterCount('category', category);
-                return (
-                  <TouchableOpacity
-                    key={category}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor: isSelected('category', category) ? '#00E6C3' : 'transparent',
-                      },
-                    ]}
-                    onPress={() => toggleFilter('category', category)}
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('category', category) ? '#000000' : textColor,
-                            fontWeight: isSelected('category', category) ? '600' : '500',
-                          },
-                        ]}
-                      >
-                        {t(`filters.category.${category}`)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('category', category) ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({count})
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Transmission Type */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.transmissionType')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {['automatic', 'manual', 'both'].map((transmissionType) => {
-                const count = getFilterCount('transmissionType', transmissionType);
-                return (
-                  <TouchableOpacity
-                    key={transmissionType}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor: isSelected('transmissionType', transmissionType)
-                          ? '#00E6C3'
-                          : 'transparent',
-                      },
-                    ]}
-                    onPress={() => toggleFilter('transmissionType', transmissionType)}
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('transmissionType', transmissionType)
-                              ? '#000000'
-                              : textColor,
-                            fontWeight: isSelected('transmissionType', transmissionType)
-                              ? '600'
-                              : '500',
-                          },
-                        ]}
-                      >
-                        {t(`filters.transmissionType.${transmissionType}`)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('transmissionType', transmissionType)
-                              ? '#000000'
-                              : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({count})
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Activity Level */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.activityLevel')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {['moderate', 'high'].map((activityLevel) => {
-                const count = getFilterCount('activityLevel', activityLevel);
-                return (
-                  <TouchableOpacity
-                    key={activityLevel}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor: isSelected('activityLevel', activityLevel)
-                          ? '#00E6C3'
-                          : 'transparent',
-                      },
-                    ]}
-                    onPress={() => toggleFilter('activityLevel', activityLevel)}
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('activityLevel', activityLevel) ? '#000000' : textColor,
-                            fontWeight: isSelected('activityLevel', activityLevel) ? '600' : '500',
-                          },
-                        ]}
-                      >
-                        {t(`filters.activityLevel.${activityLevel}`)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('activityLevel', activityLevel) ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({count})
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Best Season */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.bestSeason')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {['all', 'year-round', 'avoid-winter'].map((bestSeason) => {
-                const count = getFilterCount('bestSeason', bestSeason);
-                return (
-                  <TouchableOpacity
-                    key={bestSeason}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor: isSelected('bestSeason', bestSeason)
-                          ? '#00E6C3'
-                          : 'transparent',
-                      },
-                    ]}
-                    onPress={() => toggleFilter('bestSeason', bestSeason)}
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('bestSeason', bestSeason) ? '#000000' : textColor,
-                            fontWeight: isSelected('bestSeason', bestSeason) ? '600' : '500',
-                          },
-                        ]}
-                      >
-                        {t(`filters.bestSeason.${bestSeason}`)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('bestSeason', bestSeason) ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({count})
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Vehicle Types */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.vehicleTypes')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {['passenger_car', 'rv'].map((vehicleType) => {
-                const count = getFilterCount('vehicleTypes', vehicleType);
-                return (
-                  <TouchableOpacity
-                    key={vehicleType}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor: isSelected('vehicleTypes', vehicleType)
-                          ? '#00E6C3'
-                          : 'transparent',
-                      },
-                    ]}
-                    onPress={() => toggleFilter('vehicleTypes', vehicleType)}
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('vehicleTypes', vehicleType) ? '#000000' : textColor,
-                            fontWeight: isSelected('vehicleTypes', vehicleType) ? '600' : '500',
-                          },
-                        ]}
-                      >
-                        {t(`filters.vehicleTypes.${vehicleType}`)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected('vehicleTypes', vehicleType) ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({count})
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Experience Level */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.experienceLevel')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {['beginner', 'intermediate', 'advanced', 'expert'].map((level) => {
-                const count = getFilterCount('experienceLevel', level);
-                return (
-                  <TouchableOpacity
-                    key={level}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor:
-                          filters.experienceLevel === level ? '#00E6C3' : 'transparent',
-                      },
-                    ]}
-                    onPress={() =>
-                      setSingleFilter(
-                        'experienceLevel',
-                        filters.experienceLevel === level ? undefined : level,
-                      )
-                    }
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: filters.experienceLevel === level ? '#000000' : textColor,
-                            fontWeight: filters.experienceLevel === level ? '600' : '500',
-                          },
-                        ]}
-                      >
-                        {t(`filters.experienceLevel.${level}`)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: filters.experienceLevel === level ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({count})
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Content Filters - REMOVED ICONS */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.content')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {/* Has Exercises */}
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  {
-                    borderColor,
-                    backgroundColor: filters.hasExercises ? '#00E6C3' : 'transparent',
-                  },
-                ]}
-                onPress={() =>
-                  setSingleFilter('hasExercises', filters.hasExercises ? undefined : true)
-                }
-              >
-                <XStack alignItems="center" gap="$1">
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {
-                        color: filters.hasExercises ? '#000000' : textColor,
-                        fontWeight: filters.hasExercises ? '600' : '500',
-                      },
-                    ]}
-                  >
-                    {t('filters.hasExercises')}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {
-                        color: filters.hasExercises ? '#000000' : textColor,
-                        fontSize: 12,
-                        opacity: 0.7,
-                      },
-                    ]}
-                  >
-                    ({getFilterCount('hasExercises', true)})
-                  </Text>
-                </XStack>
-              </TouchableOpacity>
-
-              {/* Has Media */}
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  {
-                    borderColor,
-                    backgroundColor: filters.hasMedia ? '#00E6C3' : 'transparent',
-                  },
-                ]}
-                onPress={() => setSingleFilter('hasMedia', filters.hasMedia ? undefined : true)}
-              >
-                <XStack alignItems="center" gap="$1">
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {
-                        color: filters.hasMedia ? '#000000' : textColor,
-                        fontWeight: filters.hasMedia ? '600' : '500',
-                      },
-                    ]}
-                  >
-                    {t('filters.hasMedia')}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {
-                        color: filters.hasMedia ? '#000000' : textColor,
-                        fontSize: 12,
-                        opacity: 0.7,
-                      },
-                    ]}
-                  >
-                    ({getFilterCount('hasMedia', true)})
-                  </Text>
-                </XStack>
-              </TouchableOpacity>
-
-              {/* Verified Routes */}
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  {
-                    borderColor,
-                    backgroundColor: filters.isVerified ? '#00E6C3' : 'transparent',
-                  },
-                ]}
-                onPress={() => setSingleFilter('isVerified', filters.isVerified ? undefined : true)}
-              >
-                <XStack alignItems="center" gap="$1">
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {
-                        color: filters.isVerified ? '#000000' : textColor,
-                        fontWeight: filters.isVerified ? '600' : '500',
-                      },
-                    ]}
-                  >
-                    {t('filters.verified')}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {
-                        color: filters.isVerified ? '#000000' : textColor,
-                        fontSize: 12,
-                        opacity: 0.7,
-                      },
-                    ]}
-                  >
-                    ({getFilterCount('isVerified', true)})
-                  </Text>
-                </XStack>
-              </TouchableOpacity>
-            </View>
-          </YStack>
-
-          {/* Route Type - REMOVED ICONS */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.routeType')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {['recorded', 'waypoint', 'pen'].map((type) => {
-                const count = getFilterCount('routeType', type);
-                return (
-                  <TouchableOpacity
-                    key={type}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor: filters.routeType?.includes(type)
-                          ? '#00E6C3'
-                          : 'transparent',
-                      },
-                    ]}
-                    onPress={() => toggleFilter('routeType', type)}
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: filters.routeType?.includes(type) ? '#000000' : textColor,
-                            fontWeight: filters.routeType?.includes(type) ? '600' : '500',
-                          },
-                        ]}
-                      >
-                        {t(`filters.routeType.${type}`)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: filters.routeType?.includes(type) ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({count})
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Minimum Rating - REMOVED ICONS */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.minRating')}
-            </SizableText>
-            <View style={styles.filterRow}>
-              {[0, 3, 4, 5].map((rating) => {
-                const count = getFilterCount('minRating', rating);
-                return (
-                  <TouchableOpacity
-                    key={rating}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor,
-                        backgroundColor: filters.minRating === rating ? '#00E6C3' : 'transparent',
-                      },
-                    ]}
-                    onPress={() =>
-                      setSingleFilter('minRating', filters.minRating === rating ? undefined : rating)
-                    }
-                  >
-                    <XStack alignItems="center" gap="$1">
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: filters.minRating === rating ? '#000000' : textColor,
-                            fontWeight: filters.minRating === rating ? '600' : '500',
-                          },
-                        ]}
-                      >
-                        {rating === 0 ? t('filters.allRatings') : `${rating}+`}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: filters.minRating === rating ? '#000000' : textColor,
-                            fontSize: 12,
-                            opacity: 0.7,
-                          },
-                        ]}
-                      >
-                        ({count})
-                      </Text>
-                    </XStack>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </YStack>
-
-          {/* Distance Range - IMPROVED STYLING */}
-          <YStack style={styles.filterSection}>
-            <SizableText fontWeight="600" style={styles.sectionTitle}>
-              {t('filters.maxDistance')}
-            </SizableText>
-            <XStack alignItems="center" justifyContent="space-between" marginBottom="$3">
-              <Text color={textColor} fontWeight="600" fontSize="$4">
-                {String(filters.maxDistance || 100)} km
-              </Text>
-              <Text color="$gray10" fontSize="$3">
-                ({getFilterCount('maxDistance', filters.maxDistance || 100)} routes)
-              </Text>
-            </XStack>
-            <Slider
-              defaultValue={[filters.maxDistance || 100]}
-              min={0}
-              max={100}
-              step={5}
-              onValueChange={(value) => {
-                setSingleFilter('maxDistance', value[0]);
-              }}
-            >
-              <Slider.Track backgroundColor={borderColor} height={6}>
-                <Slider.TrackActive backgroundColor="#00E6C3" />
-              </Slider.Track>
-              <Slider.Thumb circular index={0} backgroundColor="#00E6C3" borderWidth={2} borderColor="#FFFFFF">
-                <View
-                  style={{
-                    width: 20,
-                    height: 20,
-                    backgroundColor: '#00E6C3',
-                    borderRadius: 10,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 3.84,
-                    elevation: 5,
-                  }}
-                >
-                  <Feather name="move" size={12} color="#000000" />
-                </View>
-              </Slider.Thumb>
-            </Slider>
-            <XStack marginTop="$2" alignItems="center" justifyContent="space-between">
-              <Text color="$gray10" fontSize="$2">
-                0 km
-              </Text>
-              <Text color="$gray10" fontSize="$2">
-                100 km
-              </Text>
-            </XStack>
-          </YStack>
+                  </YStack>
                 </ScrollView>
 
                 {/* Footer Buttons */}
@@ -2223,14 +2326,19 @@ export function FilterSheet({
                   ]}
                 >
                   <YStack gap="$2">
-                    <Button backgroundColor="#00E6C3" color="#000000" size="$5" onPress={handleApply}>
+                    <Button
+                      backgroundColor="#00E6C3"
+                      color="#000000"
+                      size="$5"
+                      onPress={handleApply}
+                    >
                       <Text color="#000000" fontWeight="700">
                         {t('filters.seeRoutes')} ({filteredCount})
                       </Text>
                     </Button>
-                    <Button 
-                      variant="outlined" 
-                      size="$4" 
+                    <Button
+                      variant="outlined"
+                      size="$4"
                       onPress={handleReset}
                       borderColor={borderColor}
                     >

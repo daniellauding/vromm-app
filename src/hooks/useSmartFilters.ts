@@ -49,10 +49,14 @@ export function useSmartFilters() {
       if (saved) {
         const parsed = JSON.parse(saved) as FilterUsage[];
         // Filter out old usage (older than 30 days)
-        const cutoffDate = Date.now() - (USAGE_DECAY_DAYS * 24 * 60 * 60 * 1000);
-        const recentUsage = parsed.filter(usage => usage.lastUsed > cutoffDate);
+        const cutoffDate = Date.now() - USAGE_DECAY_DAYS * 24 * 60 * 60 * 1000;
+        const recentUsage = parsed.filter((usage) => usage.lastUsed > cutoffDate);
         setFilterUsage(recentUsage);
-        console.log('✅ [useSmartFilters] Loaded filter usage:', recentUsage.length, 'recent filters');
+        console.log(
+          '✅ [useSmartFilters] Loaded filter usage:',
+          recentUsage.length,
+          'recent filters',
+        );
       }
     } catch (error) {
       console.error('❌ [useSmartFilters] Error loading filter usage:', error);
@@ -60,108 +64,119 @@ export function useSmartFilters() {
   }, [effectiveUserId]);
 
   // Save filter usage history
-  const saveFilterUsage = useCallback(async (usage: FilterUsage[]) => {
-    try {
-      const usageKey = `vromm_filter_usage_${effectiveUserId || 'default'}`;
-      await AsyncStorage.setItem(usageKey, JSON.stringify(usage));
-      console.log('✅ [useSmartFilters] Saved filter usage for user:', effectiveUserId);
-    } catch (error) {
-      console.error('❌ [useSmartFilters] Error saving filter usage:', error);
-    }
-  }, [effectiveUserId]);
+  const saveFilterUsage = useCallback(
+    async (usage: FilterUsage[]) => {
+      try {
+        const usageKey = `vromm_filter_usage_${effectiveUserId || 'default'}`;
+        await AsyncStorage.setItem(usageKey, JSON.stringify(usage));
+        console.log('✅ [useSmartFilters] Saved filter usage for user:', effectiveUserId);
+      } catch (error) {
+        console.error('❌ [useSmartFilters] Error saving filter usage:', error);
+      }
+    },
+    [effectiveUserId],
+  );
 
   // Track filter usage
-  const trackFilterUsage = useCallback((filterId: string, filterType: string) => {
-    setFilterUsage(prev => {
-      const existing = prev.find(usage => usage.filterId === filterId);
-      const now = Date.now();
-      
-      let updated: FilterUsage[];
-      if (existing) {
-        // Update existing usage
-        updated = prev.map(usage => 
-          usage.filterId === filterId 
-            ? { ...usage, lastUsed: now, usageCount: usage.usageCount + 1 }
-            : usage
-        );
-      } else {
-        // Add new usage
-        updated = [...prev, { filterId, lastUsed: now, usageCount: 1, type: filterType }];
-      }
-      
-      // Save to storage
-      saveFilterUsage(updated);
-      console.log('📊 [useSmartFilters] Tracked filter usage:', filterId, filterType);
-      
-      return updated;
-    });
-  }, [saveFilterUsage]);
+  const trackFilterUsage = useCallback(
+    (filterId: string, filterType: string) => {
+      setFilterUsage((prev) => {
+        const existing = prev.find((usage) => usage.filterId === filterId);
+        const now = Date.now();
+
+        let updated: FilterUsage[];
+        if (existing) {
+          // Update existing usage
+          updated = prev.map((usage) =>
+            usage.filterId === filterId
+              ? { ...usage, lastUsed: now, usageCount: usage.usageCount + 1 }
+              : usage,
+          );
+        } else {
+          // Add new usage
+          updated = [...prev, { filterId, lastUsed: now, usageCount: 1, type: filterType }];
+        }
+
+        // Save to storage
+        saveFilterUsage(updated);
+        console.log('📊 [useSmartFilters] Tracked filter usage:', filterId, filterType);
+
+        return updated;
+      });
+    },
+    [saveFilterUsage],
+  );
 
   // Get smart filter list (most relevant filters first)
-  const getSmartFilters = useCallback((allFilters: FilterCategory[], activeFilters: string[] = []) => {
-    // Always show active filters first
-    const activeFilterObjects = allFilters.filter(filter => activeFilters.includes(filter.id));
-    
-    // Get usage scores for remaining filters
-    const remainingFilters = allFilters.filter(filter => !activeFilters.includes(filter.id));
-    const scoredFilters = remainingFilters.map(filter => {
-      const usage = filterUsage.find(u => u.filterId === filter.id);
-      const daysSinceLastUse = usage ? (Date.now() - usage.lastUsed) / (24 * 60 * 60 * 1000) : Infinity;
-      const usageScore = usage ? usage.usageCount * Math.exp(-daysSinceLastUse / 7) : 0; // Decay over 7 days
-      
-      return {
-        filter,
-        score: usageScore,
-        lastUsed: usage?.lastUsed || 0,
-        usageCount: usage?.usageCount || 0
-      };
-    });
+  const getSmartFilters = useCallback(
+    (allFilters: FilterCategory[], activeFilters: string[] = []) => {
+      // Always show active filters first
+      const activeFilterObjects = allFilters.filter((filter) => activeFilters.includes(filter.id));
 
-    // Sort by score (most relevant first)
-    scoredFilters.sort((a, b) => b.score - a.score);
+      // Get usage scores for remaining filters
+      const remainingFilters = allFilters.filter((filter) => !activeFilters.includes(filter.id));
+      const scoredFilters = remainingFilters.map((filter) => {
+        const usage = filterUsage.find((u) => u.filterId === filter.id);
+        const daysSinceLastUse = usage
+          ? (Date.now() - usage.lastUsed) / (24 * 60 * 60 * 1000)
+          : Infinity;
+        const usageScore = usage ? usage.usageCount * Math.exp(-daysSinceLastUse / 7) : 0; // Decay over 7 days
 
-    // Take top filters, but ensure we don't exceed MAX_DISPLAYED_FILTERS
-    const topFilters = scoredFilters.slice(0, MAX_DISPLAYED_FILTERS - activeFilterObjects.length);
-    
-    // Combine active filters (first) with top scored filters
-    const smartFilters = [
-      ...activeFilterObjects,
-      ...topFilters.map(item => item.filter)
-    ];
+        return {
+          filter,
+          score: usageScore,
+          lastUsed: usage?.lastUsed || 0,
+          usageCount: usage?.usageCount || 0,
+        };
+      });
 
-    console.log('🧠 [useSmartFilters] Smart filter selection:', {
-      total: allFilters.length,
-      active: activeFilterObjects.length,
-      smart: smartFilters.length,
-      topScores: scoredFilters.slice(0, 3).map(item => ({ 
-        id: item.filter.id, 
-        score: item.score.toFixed(2),
-        usage: item.usageCount 
-      }))
-    });
+      // Sort by score (most relevant first)
+      scoredFilters.sort((a, b) => b.score - a.score);
 
-    return smartFilters;
-  }, [filterUsage]);
+      // Take top filters, but ensure we don't exceed MAX_DISPLAYED_FILTERS
+      const topFilters = scoredFilters.slice(0, MAX_DISPLAYED_FILTERS - activeFilterObjects.length);
+
+      // Combine active filters (first) with top scored filters
+      const smartFilters = [...activeFilterObjects, ...topFilters.map((item) => item.filter)];
+
+      console.log('🧠 [useSmartFilters] Smart filter selection:', {
+        total: allFilters.length,
+        active: activeFilterObjects.length,
+        smart: smartFilters.length,
+        topScores: scoredFilters.slice(0, 3).map((item) => ({
+          id: item.filter.id,
+          score: item.score.toFixed(2),
+          usage: item.usageCount,
+        })),
+      });
+
+      return smartFilters;
+    },
+    [filterUsage],
+  );
 
   // Add user collections to filter options
   const addUserCollections = useCallback((collections: Array<{ id: string; name: string }>) => {
-    const collectionFilters: CollectionFilter[] = collections.map(collection => ({
+    const collectionFilters: CollectionFilter[] = collections.map((collection) => ({
       id: `collection_${collection.id}`,
       label: collection.name,
       value: collection.id,
       type: 'collection',
       collectionId: collection.id,
-      collectionName: collection.name
+      collectionName: collection.name,
     }));
-    
+
     setUserCollections(collectionFilters);
     console.log('📁 [useSmartFilters] Added user collections:', collectionFilters.length);
   }, []);
 
   // Get all available filters including collections
-  const getAllFilters = useCallback((baseFilters: FilterCategory[]) => {
-    return [...baseFilters, ...userCollections];
-  }, [userCollections]);
+  const getAllFilters = useCallback(
+    (baseFilters: FilterCategory[]) => {
+      return [...baseFilters, ...userCollections];
+    },
+    [userCollections],
+  );
 
   // Load filter usage on mount
   useEffect(() => {
@@ -174,6 +189,6 @@ export function useSmartFilters() {
     addUserCollections,
     getAllFilters,
     filterUsage,
-    userCollections
+    userCollections,
   };
 }

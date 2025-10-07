@@ -32,14 +32,13 @@ interface CalendarEvent {
 }
 
 export class CalendarService {
-  
   /**
    * Convert app event to calendar event format
    */
   static eventToCalendarEvent(event: Event): CalendarEvent {
     const startDate = event.event_date ? new Date(event.event_date) : new Date();
-    const endDate = new Date(startDate.getTime() + (2 * 60 * 60 * 1000)); // Default 2 hours duration
-    
+    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // Default 2 hours duration
+
     // Parse location from complex JSON or use simple string
     let locationText = '';
     if (event.location) {
@@ -51,7 +50,8 @@ export class CalendarService {
           locationText = firstWaypoint?.title || locationData.searchQuery || 'Multiple locations';
         } else if (locationData.coordinates) {
           // Single coordinate - use address or coordinates
-          locationText = locationData.address || 
+          locationText =
+            locationData.address ||
             `${locationData.coordinates.latitude.toFixed(6)}, ${locationData.coordinates.longitude.toFixed(6)}`;
         } else {
           locationText = event.location;
@@ -65,7 +65,12 @@ export class CalendarService {
     // Convert recurrence pattern
     let recurrence = undefined;
     if (event.repeat && event.repeat !== 'none') {
-      recurrence = this.convertRecurrenceRule(event.repeat, event.recurrence_rule, event.recurrence_end_date, event.recurrence_count);
+      recurrence = this.convertRecurrenceRule(
+        event.repeat,
+        event.recurrence_rule,
+        event.recurrence_end_date,
+        event.recurrence_count,
+      );
     }
 
     return {
@@ -87,7 +92,7 @@ export class CalendarService {
     repeat: string,
     recurrenceRule: any,
     endDate?: string,
-    count?: number
+    count?: number,
   ) {
     let frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
     let interval = 1;
@@ -148,7 +153,7 @@ export class CalendarService {
       return text.replace(/[\\,;]/g, '\\$&').replace(/\n/g, '\\n');
     };
 
-    let icalContent = [
+    const icalContent = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//VROMM//Events//EN',
@@ -174,30 +179,25 @@ export class CalendarService {
     if (calendarEvent.recurrence) {
       const recur = calendarEvent.recurrence;
       let rrule = `FREQ=${recur.frequency}`;
-      
+
       if (recur.interval && recur.interval > 1) {
         rrule += `;INTERVAL=${recur.interval}`;
       }
-      
+
       if (recur.until) {
         rrule += `;UNTIL=${formatDate(recur.until)}`;
       } else if (recur.count) {
         rrule += `;COUNT=${recur.count}`;
       }
-      
+
       if (recur.byDay && recur.byDay.length > 0) {
         rrule += `;BYDAY=${recur.byDay.join(',')}`;
       }
-      
+
       icalContent.push(`RRULE:${rrule}`);
     }
 
-    icalContent.push(
-      'STATUS:CONFIRMED',
-      'TRANSP:OPAQUE',
-      'END:VEVENT',
-      'END:VCALENDAR'
-    );
+    icalContent.push('STATUS:CONFIRMED', 'TRANSP:OPAQUE', 'END:VEVENT', 'END:VCALENDAR');
 
     return icalContent.join('\r\n');
   }
@@ -209,11 +209,11 @@ export class CalendarService {
     try {
       const calendarEvent = this.eventToCalendarEvent(event);
       const icalContent = this.generateICalContent(calendarEvent);
-      
+
       // Create filename
       const filename = `${event.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
       const fileUri = `${FileSystem.documentDirectory}${filename}`;
-      
+
       // Write iCal file
       await FileSystem.writeAsStringAsync(fileUri, icalContent, {
         encoding: FileSystem.EncodingType.UTF8,
@@ -231,7 +231,7 @@ export class CalendarService {
         Alert.alert(
           'Calendar Export',
           `Event exported to: ${filename}\n\nYou can import this file into your calendar app.`,
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
       }
     } catch (error) {
@@ -261,12 +261,12 @@ export class CalendarService {
       for (const event of events) {
         const calendarEvent = this.eventToCalendarEvent(event);
         const eventContent = this.generateICalContent(calendarEvent);
-        
+
         // Extract just the VEVENT part
         const lines = eventContent.split('\r\n');
-        const eventStart = lines.findIndex(line => line === 'BEGIN:VEVENT');
-        const eventEnd = lines.findIndex(line => line === 'END:VEVENT');
-        
+        const eventStart = lines.findIndex((line) => line === 'BEGIN:VEVENT');
+        const eventEnd = lines.findIndex((line) => line === 'END:VEVENT');
+
         if (eventStart !== -1 && eventEnd !== -1) {
           const eventLines = lines.slice(eventStart, eventEnd + 1);
           icalContent += eventLines.join('\r\n') + '\r\n';
@@ -278,7 +278,7 @@ export class CalendarService {
       // Create filename
       const filename = `VROMM_Events_${new Date().toISOString().split('T')[0]}.ics`;
       const fileUri = `${FileSystem.documentDirectory}${filename}`;
-      
+
       // Write iCal file
       await FileSystem.writeAsStringAsync(fileUri, icalContent, {
         encoding: FileSystem.EncodingType.UTF8,
@@ -296,7 +296,7 @@ export class CalendarService {
         Alert.alert(
           'Calendar Export',
           `${events.length} events exported to: ${filename}\n\nYou can import this file into your calendar app.`,
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
       }
     } catch (error) {
@@ -308,9 +308,12 @@ export class CalendarService {
   /**
    * Generate quick add to calendar URL (for web fallback)
    */
-  static generateCalendarUrl(event: Event, provider: 'google' | 'outlook' | 'apple' = 'google'): string {
+  static generateCalendarUrl(
+    event: Event,
+    provider: 'google' | 'outlook' | 'apple' = 'google',
+  ): string {
     const calendarEvent = this.eventToCalendarEvent(event);
-    
+
     const formatDateForUrl = (date: Date): string => {
       return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     };
@@ -353,4 +356,4 @@ export class CalendarService {
         return '';
     }
   }
-} 
+}

@@ -59,7 +59,9 @@ export const PricingSection: React.FC = () => {
 
   return (
     <YStack gap="$4">
-      <Text fontSize="$6" fontWeight="700">Help Us Price Vromm</Text>
+      <Text fontSize="$6" fontWeight="700">
+        Help Us Price Vromm
+      </Text>
 
       <YStack gap="$3">
         {plans.map((plan) => (
@@ -80,19 +82,36 @@ export const PricingSection: React.FC = () => {
       {selectedPlan === 'custom' && (
         <YStack gap="$2">
           <Text>Your suggested price (SEK/month):</Text>
-          <Input value={customPrice} onChangeText={setCustomPrice} keyboardType="numeric" placeholder="99" />
-          <Input value={priceMotivation} onChangeText={setPriceMotivation} placeholder="What motivates this price?" multiline />
+          <Input
+            value={customPrice}
+            onChangeText={setCustomPrice}
+            keyboardType="numeric"
+            placeholder="99"
+          />
+          <Input
+            value={priceMotivation}
+            onChangeText={setPriceMotivation}
+            placeholder="What motivates this price?"
+            multiline
+          />
         </YStack>
       )}
 
       <YStack gap="$2">
         <Text>Email (optional):</Text>
-        <Input value={userEmail} onChangeText={setUserEmail} keyboardType="email-address" placeholder="your@email.com" />
+        <Input
+          value={userEmail}
+          onChangeText={setUserEmail}
+          keyboardType="email-address"
+          placeholder="your@email.com"
+        />
       </YStack>
 
-      <Button onPress={submit} disabled={!selectedPlan}>Submit</Button>
+      <Button onPress={submit} disabled={!selectedPlan}>
+        Submit
+      </Button>
     </YStack>
   );
 };
 
-export default PricingSection; 
+export default PricingSection;

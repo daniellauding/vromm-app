@@ -1,22 +1,27 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { YStack, XStack, ScrollView, TextArea, Switch } from 'tamagui';
 import { Gesture, GestureDetector, PanGestureHandler } from 'react-native-gesture-handler';
-import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 import { Dimensions } from 'react-native';
 import { Text } from '../../components/Text';
 import { Feather } from '@expo/vector-icons';
 import { useThemeColor } from '../../../hooks/useThemeColor';
-import { 
-  View, 
-  TouchableOpacity, 
-  Modal, 
-  Animated, 
-  Easing, 
-  Pressable, 
+import {
+  View,
+  TouchableOpacity,
+  Modal,
+  Animated,
+  Easing,
+  Pressable,
   useColorScheme,
   Platform,
   TextInput,
-  Image 
+  Image,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { supabase } from '../../lib/supabase';
@@ -54,35 +59,37 @@ export const GettingStarted = () => {
   const { isActive: tourActive, currentStep, steps } = useTour();
   const { t, language } = useTranslation();
   const colorScheme = useColorScheme();
-  
+
   // Get window dimensions
   const { height } = Dimensions.get('window');
-  
+
   // Theme colors
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
-  
+
   // Register license plan card for tour targeting
   const licensePlanRef = useTourTarget('GettingStarted.LicensePlan');
-  
+
   // License plan modal state and animation refs
   const [showKorkortsplanModal, setShowKorkortsplanModal] = React.useState(false);
   const korkortsplanBackdropOpacity = useRef(new Animated.Value(0)).current;
   const korkortsplanSheetTranslateY = useRef(new Animated.Value(300)).current;
-  
+
   // Snap points for license plan modal (like RouteDetailSheet)
   const licensePlanSnapPoints = useMemo(() => {
     const points = {
-      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
-      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)
-      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
-      mini: height * 0.85,   // Top at 85% of screen (show 15% - just title)
-      dismissed: height,     // Completely off-screen
+      large: height * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: height * 0.7, // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85, // Top at 85% of screen (show 15% - just title)
+      dismissed: height, // Completely off-screen
     };
     return points;
   }, [height]);
-  
+
   const licensePlanTranslateY = useSharedValue(height);
-  const [currentLicensePlanSnapPoint, setCurrentLicensePlanSnapPoint] = useState(licensePlanSnapPoints.large);
+  const [currentLicensePlanSnapPoint, setCurrentLicensePlanSnapPoint] = useState(
+    licensePlanSnapPoints.large,
+  );
   const licensePlanCurrentState = useSharedValue(licensePlanSnapPoints.large);
   const licensePlanIsAnimating = useSharedValue(false);
 
@@ -123,19 +130,19 @@ export const GettingStarted = () => {
   });
   const roleBackdropOpacity = useRef(new Animated.Value(0)).current;
   const roleSheetTranslateY = useRef(new Animated.Value(300)).current;
-  
+
   // Role modal snap points
   const roleSnapPoints = useMemo(() => {
     const points = {
-      large: height * 0.3,   // Smaller modal - starts at 30%
-      medium: height * 0.5,  // Medium at 50%
-      small: height * 0.7,   // Small at 70%
-      mini: height * 0.85,   // Mini at 85%
-      dismissed: height,     // Dismissed
+      large: height * 0.3, // Smaller modal - starts at 30%
+      medium: height * 0.5, // Medium at 50%
+      small: height * 0.7, // Small at 70%
+      mini: height * 0.85, // Mini at 85%
+      dismissed: height, // Dismissed
     };
     return points;
   }, [height]);
-  
+
   const roleTranslateY = useSharedValue(height);
   const [currentRoleSnapPoint, setCurrentRoleSnapPoint] = useState(roleSnapPoints.large);
   const roleCurrentState = useSharedValue(roleSnapPoints.large);
@@ -145,7 +152,9 @@ export const GettingStarted = () => {
   const [showConnectionsModal, setShowConnectionsModal] = React.useState(false);
   const [connectionSearchQuery, setConnectionSearchQuery] = React.useState('');
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
-  const [selectedConnections, setSelectedConnections] = React.useState<Array<{ id: string; full_name: string; email: string; role?: string }>>([]);
+  const [selectedConnections, setSelectedConnections] = React.useState<
+    Array<{ id: string; full_name: string; email: string; role?: string }>
+  >([]);
   const [connectionCustomMessage, setConnectionCustomMessage] = React.useState('');
   const connectionsBackdropOpacity = useRef(new Animated.Value(0)).current;
   const connectionsSheetTranslateY = useRef(new Animated.Value(300)).current;
@@ -156,16 +165,18 @@ export const GettingStarted = () => {
 
   const connectionsSnapPoints = useMemo(() => {
     const points = {
-      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
-      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)  
-      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
-      mini: height * 0.85,   // Top at 85% of screen (show 15% - just title)
-      dismissed: height,     // Completely off-screen
+      large: height * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: height * 0.7, // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85, // Top at 85% of screen (show 15% - just title)
+      dismissed: height, // Completely off-screen
     };
     return points;
   }, [height]);
-  
-  const [currentConnectionsSnapPoint, setCurrentConnectionsSnapPoint] = useState(connectionsSnapPoints.large);
+
+  const [currentConnectionsSnapPoint, setCurrentConnectionsSnapPoint] = useState(
+    connectionsSnapPoints.large,
+  );
   const currentConnectionsState = useSharedValue(connectionsSnapPoints.large);
 
   const connectionsAnimatedStyle = useAnimatedStyle(() => {
@@ -183,12 +194,12 @@ export const GettingStarted = () => {
         const { translationY } = event;
         console.log('🎯 [GettingStarted] DRAG HANDLE GESTURE UPDATE - translationY:', translationY);
         const newPosition = currentConnectionsState.value + translationY;
-        
+
         // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
         const minPosition = connectionsSnapPoints.large; // Smallest Y (show most - like expanded)
         const maxPosition = connectionsSnapPoints.mini + 100; // Allow dragging past mini for dismissal
         const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
-        
+
         // Set translateY directly like RouteDetailSheet
         connectionsTranslateY.value = boundedPosition;
       } catch (error) {
@@ -197,17 +208,22 @@ export const GettingStarted = () => {
     })
     .onEnd((event) => {
       const { translationY, velocityY } = event;
-      console.log('🎯 [GettingStarted] DRAG HANDLE GESTURE END - translationY:', translationY, 'velocityY:', velocityY);
-      
+      console.log(
+        '🎯 [GettingStarted] DRAG HANDLE GESTURE END - translationY:',
+        translationY,
+        'velocityY:',
+        velocityY,
+      );
+
       const currentPosition = currentConnectionsState.value + translationY;
-      
+
       // Only dismiss if dragged down past the mini snap point with reasonable velocity
       if (currentPosition > connectionsSnapPoints.mini + 30 && velocityY > 200) {
         console.log('🎯 [GettingStarted] DRAG HANDLE - DISMISSING MODAL');
         runOnJS(hideConnectionsSheet)();
         return;
       }
-      
+
       // Determine target snap point based on position and velocity
       let targetSnapPoint;
       if (velocityY < -500) {
@@ -220,21 +236,29 @@ export const GettingStarted = () => {
         console.log('🎯 [GettingStarted] DRAG HANDLE - FAST DOWNWARD SWIPE - going to MINI');
       } else {
         // Find closest snap point
-        const positions = [connectionsSnapPoints.large, connectionsSnapPoints.medium, connectionsSnapPoints.small, connectionsSnapPoints.mini];
+        const positions = [
+          connectionsSnapPoints.large,
+          connectionsSnapPoints.medium,
+          connectionsSnapPoints.small,
+          connectionsSnapPoints.mini,
+        ];
         targetSnapPoint = positions.reduce((prev, curr) =>
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
-        console.log('🎯 [GettingStarted] DRAG HANDLE - SNAP TO CLOSEST - targetSnapPoint:', targetSnapPoint);
+        console.log(
+          '🎯 [GettingStarted] DRAG HANDLE - SNAP TO CLOSEST - targetSnapPoint:',
+          targetSnapPoint,
+        );
       }
-      
+
       // Constrain target to valid range
       const boundedTarget = Math.min(
         Math.max(targetSnapPoint, connectionsSnapPoints.large),
         connectionsSnapPoints.mini,
       );
-      
+
       console.log('🎯 [GettingStarted] DRAG HANDLE - ANIMATING TO:', boundedTarget);
-      
+
       // Animate to target position - set translateY directly like RouteDetailSheet
       connectionsTranslateY.value = withSpring(boundedTarget, {
         damping: 20,
@@ -244,7 +268,7 @@ export const GettingStarted = () => {
         restDisplacementThreshold: 0.01,
         restSpeedThreshold: 0.01,
       });
-      
+
       currentConnectionsState.value = boundedTarget;
       runOnJS(setCurrentConnectionsSnapPoint)(boundedTarget);
     });
@@ -253,8 +277,10 @@ export const GettingStarted = () => {
   const isLicensePlanHighlighted = (): boolean => {
     if (!tourActive || typeof currentStep !== 'number' || !steps[currentStep]) return false;
     const step = steps[currentStep];
-    return step.targetScreen === 'GettingStarted.LicensePlan' || 
-           step.targetElement === 'GettingStarted.LicensePlan';
+    return (
+      step.targetScreen === 'GettingStarted.LicensePlan' ||
+      step.targetElement === 'GettingStarted.LicensePlan'
+    );
   };
 
   const [hasCreatedRoutes, setHasCreatedRoutes] = React.useState(false);
@@ -262,16 +288,18 @@ export const GettingStarted = () => {
   const [hasSavedRoute, setHasSavedRoute] = React.useState(false);
   const [hasConnections, setHasConnections] = React.useState(false);
   const [hasCreatedEvent, setHasCreatedEvent] = React.useState(false);
-  
+
   // Existing relationships state (copied from OnboardingInteractive)
-  const [existingRelationships, setExistingRelationships] = React.useState<Array<{ 
-    id: string; 
-    name: string; 
-    email: string; 
-    role: string; 
-    relationship_type: string;
-    created_at: string;
-  }>>([]);
+  const [existingRelationships, setExistingRelationships] = React.useState<
+    Array<{
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      relationship_type: string;
+      created_at: string;
+    }>
+  >([]);
 
   // Relationship removal modal state
   const [showRelationshipRemovalModal, setShowRelationshipRemovalModal] = React.useState(false);
@@ -285,40 +313,44 @@ export const GettingStarted = () => {
   const [relationshipRemovalMessage, setRelationshipRemovalMessage] = React.useState('');
   const relationshipRemovalBackdropOpacity = useRef(new Animated.Value(0)).current;
   const relationshipRemovalSheetTranslateY = useRef(new Animated.Value(300)).current;
-  
+
   // Relationship removal modal snap points
   const relationshipRemovalSnapPoints = useMemo(() => {
     const points = {
-      large: height * 0.2,   // Smaller modal - starts at 20%
-      medium: height * 0.4,  // Medium at 40%
-      small: height * 0.6,   // Small at 60%
-      mini: height * 0.8,    // Mini at 80%
-      dismissed: height,     // Dismissed
+      large: height * 0.2, // Smaller modal - starts at 20%
+      medium: height * 0.4, // Medium at 40%
+      small: height * 0.6, // Small at 60%
+      mini: height * 0.8, // Mini at 80%
+      dismissed: height, // Dismissed
     };
     return points;
   }, [height]);
-  
+
   const relationshipRemovalTranslateY = useSharedValue(height);
-  const [currentRelationshipRemovalSnapPoint, setCurrentRelationshipRemovalSnapPoint] = useState(relationshipRemovalSnapPoints.large);
+  const [currentRelationshipRemovalSnapPoint, setCurrentRelationshipRemovalSnapPoint] = useState(
+    relationshipRemovalSnapPoints.large,
+  );
   const relationshipRemovalCurrentState = useSharedValue(relationshipRemovalSnapPoints.large);
   const relationshipRemovalIsAnimating = useSharedValue(false);
 
   // Pending invitations state
   const [pendingInvitations, setPendingInvitations] = React.useState<any[]>([]);
-  
+
   // Tab state for relationships
-  const [activeRelationshipsTab, setActiveRelationshipsTab] = React.useState<'pending' | 'existing'>('pending');
+  const [activeRelationshipsTab, setActiveRelationshipsTab] = React.useState<
+    'pending' | 'existing'
+  >('pending');
 
   // Sheet modals state
   const [showCreateRouteSheet, setShowCreateRouteSheet] = React.useState(false);
   const [showLearningPathsSheet, setShowLearningPathsSheet] = React.useState(false);
   const [showExerciseListSheet, setShowExerciseListSheet] = React.useState(false);
-  
+
   // Learning paths state (like ProgressSection.tsx)
   const [learningPaths, setLearningPaths] = React.useState<any[]>([]);
   const [firstLearningPathId, setFirstLearningPathId] = React.useState<string | null>(null);
   const [firstLearningPathTitle, setFirstLearningPathTitle] = React.useState<string>('');
-  
+
   // Selected learning path state for sheet navigation
   const [selectedLearningPath, setSelectedLearningPath] = React.useState<any | null>(null);
 
@@ -331,30 +363,30 @@ export const GettingStarted = () => {
     })
     .onUpdate((event) => {
       if (licensePlanIsAnimating.value === false) return;
-      
+
       const { translationY } = event;
       const newPosition = licensePlanCurrentState.value + translationY;
-      
+
       // Constrain to snap points range
       const minPosition = licensePlanSnapPoints.large;
       const maxPosition = licensePlanSnapPoints.mini + 100;
       const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
-      
+
       licensePlanTranslateY.value = boundedPosition;
     })
     .onEnd((event) => {
       if (licensePlanIsAnimating.value === false) return;
-      
+
       const { translationY, velocityY } = event;
       const currentPosition = licensePlanCurrentState.value + translationY;
-      
+
       // Dismiss if dragged down past mini with reasonable velocity
       if (currentPosition > licensePlanSnapPoints.mini + 30 && velocityY > 200) {
         licensePlanIsAnimating.value = false;
         runOnJS(hideKorkortsplanSheet)();
         return;
       }
-      
+
       // Determine target snap point
       let targetSnapPoint;
       if (velocityY < -500) {
@@ -362,28 +394,37 @@ export const GettingStarted = () => {
       } else if (velocityY > 500) {
         targetSnapPoint = licensePlanSnapPoints.mini;
       } else {
-        const positions = [licensePlanSnapPoints.large, licensePlanSnapPoints.medium, licensePlanSnapPoints.small, licensePlanSnapPoints.mini];
+        const positions = [
+          licensePlanSnapPoints.large,
+          licensePlanSnapPoints.medium,
+          licensePlanSnapPoints.small,
+          licensePlanSnapPoints.mini,
+        ];
         targetSnapPoint = positions.reduce((prev, curr) =>
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
       }
-      
+
       const boundedTarget = Math.min(
         Math.max(targetSnapPoint, licensePlanSnapPoints.large),
         licensePlanSnapPoints.mini,
       );
-      
-      licensePlanTranslateY.value = withSpring(boundedTarget, {
-        damping: 20,
-        mass: 1,
-        stiffness: 100,
-        overshootClamping: true,
-        restDisplacementThreshold: 0.01,
-        restSpeedThreshold: 0.01,
-      }, () => {
-        licensePlanIsAnimating.value = false;
-      });
-      
+
+      licensePlanTranslateY.value = withSpring(
+        boundedTarget,
+        {
+          damping: 20,
+          mass: 1,
+          stiffness: 100,
+          overshootClamping: true,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        },
+        () => {
+          licensePlanIsAnimating.value = false;
+        },
+      );
+
       licensePlanCurrentState.value = boundedTarget;
       runOnJS(setCurrentLicensePlanSnapPoint)(boundedTarget);
     });
@@ -391,7 +432,7 @@ export const GettingStarted = () => {
   // Körkortsplan modal show/hide functions (updated for snap points)
   const showKorkortsplanSheet = () => {
     if (showKorkortsplanModal) return; // Prevent multiple calls
-    
+
     setShowKorkortsplanModal(true);
     licensePlanIsAnimating.value = false; // Reset animation state
     licensePlanTranslateY.value = withSpring(licensePlanSnapPoints.large, {
@@ -404,7 +445,7 @@ export const GettingStarted = () => {
     });
     licensePlanCurrentState.value = licensePlanSnapPoints.large;
     setCurrentLicensePlanSnapPoint(licensePlanSnapPoints.large);
-    
+
     Animated.timing(korkortsplanBackdropOpacity, {
       toValue: 1,
       duration: 200,
@@ -414,7 +455,7 @@ export const GettingStarted = () => {
 
   const hideKorkortsplanSheet = () => {
     if (!showKorkortsplanModal) return; // Prevent multiple calls
-    
+
     licensePlanIsAnimating.value = false; // Stop any ongoing gestures
     licensePlanTranslateY.value = withSpring(licensePlanSnapPoints.dismissed, {
       damping: 20,
@@ -484,56 +525,65 @@ export const GettingStarted = () => {
     })
     .onUpdate((event) => {
       if (roleIsAnimating.value === false) return;
-      
+
       const { translationY } = event;
       const newPosition = roleCurrentState.value + translationY;
-      
+
       const minPosition = roleSnapPoints.large;
       const maxPosition = roleSnapPoints.mini + 100;
       const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
-      
+
       roleTranslateY.value = boundedPosition;
     })
     .onEnd((event) => {
       if (roleIsAnimating.value === false) return;
-      
+
       const { translationY, velocityY } = event;
       const currentPosition = roleCurrentState.value + translationY;
-      
+
       if (currentPosition > roleSnapPoints.mini + 30 && velocityY > 200) {
         roleIsAnimating.value = false;
         runOnJS(hideRoleSheet)();
         return;
       }
-      
+
       let targetSnapPoint;
       if (velocityY < -500) {
         targetSnapPoint = roleSnapPoints.large;
       } else if (velocityY > 500) {
         targetSnapPoint = roleSnapPoints.mini;
       } else {
-        const positions = [roleSnapPoints.large, roleSnapPoints.medium, roleSnapPoints.small, roleSnapPoints.mini];
+        const positions = [
+          roleSnapPoints.large,
+          roleSnapPoints.medium,
+          roleSnapPoints.small,
+          roleSnapPoints.mini,
+        ];
         targetSnapPoint = positions.reduce((prev, curr) =>
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
       }
-      
+
       const boundedTarget = Math.min(
         Math.max(targetSnapPoint, roleSnapPoints.large),
         roleSnapPoints.mini,
       );
-      
-      roleTranslateY.value = withSpring(boundedTarget, {
-        damping: 20,
-        mass: 1,
-        stiffness: 100,
-        overshootClamping: true,
-        restDisplacementThreshold: 0.01,
-        restSpeedThreshold: 0.01,
-      }, () => {
-        roleIsAnimating.value = false;
-      });
-      
+
+      roleTranslateY.value = withSpring(
+        boundedTarget,
+        {
+          damping: 20,
+          mass: 1,
+          stiffness: 100,
+          overshootClamping: true,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        },
+        () => {
+          roleIsAnimating.value = false;
+        },
+      );
+
       roleCurrentState.value = boundedTarget;
       runOnJS(setCurrentRoleSnapPoint)(boundedTarget);
     });
@@ -541,7 +591,7 @@ export const GettingStarted = () => {
   // Role modal show/hide functions (updated for snap points)
   const showRoleSheet = () => {
     if (showRoleModal) return; // Prevent multiple calls
-    
+
     setShowRoleModal(true);
     roleIsAnimating.value = false; // Reset animation state
     roleTranslateY.value = withSpring(roleSnapPoints.large, {
@@ -554,7 +604,7 @@ export const GettingStarted = () => {
     });
     roleCurrentState.value = roleSnapPoints.large;
     setCurrentRoleSnapPoint(roleSnapPoints.large);
-    
+
     Animated.timing(roleBackdropOpacity, {
       toValue: 1,
       duration: 200,
@@ -564,7 +614,7 @@ export const GettingStarted = () => {
 
   const hideRoleSheet = () => {
     if (!showRoleModal) return; // Prevent multiple calls
-    
+
     roleIsAnimating.value = false; // Stop any ongoing gestures
     roleTranslateY.value = withSpring(roleSnapPoints.dismissed, {
       damping: 20,
@@ -583,7 +633,7 @@ export const GettingStarted = () => {
   // Load pending invitations
   const loadPendingInvitations = async () => {
     if (!user?.id) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('pending_invitations')
@@ -603,19 +653,25 @@ export const GettingStarted = () => {
         for (const invitation of data) {
           // Get the target user ID from the invitation
           const targetUserId = invitation.targetUserId || invitation.invited_by;
-          
+
           // Check if relationship already exists
           const { data: existingRelationship } = await supabase
             .from('student_supervisor_relationships')
             .select('id')
-            .or(`and(student_id.eq.${targetUserId},supervisor_id.eq.${user.id}),and(student_id.eq.${user.id},supervisor_id.eq.${targetUserId})`)
+            .or(
+              `and(student_id.eq.${targetUserId},supervisor_id.eq.${user.id}),and(student_id.eq.${user.id},supervisor_id.eq.${targetUserId})`,
+            )
             .eq('status', 'active')
             .single();
 
           if (!existingRelationship) {
             filteredInvitations.push(invitation);
           } else {
-            console.log('📤 [GettingStarted] Filtering out processed invitation:', invitation.id, 'relationship already exists');
+            console.log(
+              '📤 [GettingStarted] Filtering out processed invitation:',
+              invitation.id,
+              'relationship already exists',
+            );
             // Mark the invitation as processed
             await supabase
               .from('pending_invitations')
@@ -628,11 +684,14 @@ export const GettingStarted = () => {
       console.log('📤 [GettingStarted] Loaded pending invitations:', {
         total: data?.length || 0,
         filtered: filteredInvitations.length,
-        removed: (data?.length || 0) - filteredInvitations.length
+        removed: (data?.length || 0) - filteredInvitations.length,
       });
-      console.log('📤 [GettingStarted] Invitation IDs:', filteredInvitations.map(inv => inv.id));
+      console.log(
+        '📤 [GettingStarted] Invitation IDs:',
+        filteredInvitations.map((inv) => inv.id),
+      );
       console.log('📤 [GettingStarted] Full invitation data:', filteredInvitations);
-      
+
       setPendingInvitations(filteredInvitations);
     } catch (error) {
       console.error('Error loading pending invitations:', error);
@@ -644,7 +703,7 @@ export const GettingStarted = () => {
     // Load existing relationships and pending invitations when opening the modal
     loadExistingRelationships();
     loadPendingInvitations();
-    
+
     setShowConnectionsModal(true);
     connectionsTranslateY.value = withSpring(connectionsSnapPoints.large, {
       damping: 20,
@@ -684,56 +743,65 @@ export const GettingStarted = () => {
     })
     .onUpdate((event) => {
       if (relationshipRemovalIsAnimating.value === false) return;
-      
+
       const { translationY } = event;
       const newPosition = relationshipRemovalCurrentState.value + translationY;
-      
+
       const minPosition = relationshipRemovalSnapPoints.large;
       const maxPosition = relationshipRemovalSnapPoints.mini + 100;
       const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
-      
+
       relationshipRemovalTranslateY.value = boundedPosition;
     })
     .onEnd((event) => {
       if (relationshipRemovalIsAnimating.value === false) return;
-      
+
       const { translationY, velocityY } = event;
       const currentPosition = relationshipRemovalCurrentState.value + translationY;
-      
+
       if (currentPosition > relationshipRemovalSnapPoints.mini + 30 && velocityY > 200) {
         relationshipRemovalIsAnimating.value = false;
         runOnJS(closeRelationshipRemovalModal)();
         return;
       }
-      
+
       let targetSnapPoint;
       if (velocityY < -500) {
         targetSnapPoint = relationshipRemovalSnapPoints.large;
       } else if (velocityY > 500) {
         targetSnapPoint = relationshipRemovalSnapPoints.mini;
       } else {
-        const positions = [relationshipRemovalSnapPoints.large, relationshipRemovalSnapPoints.medium, relationshipRemovalSnapPoints.small, relationshipRemovalSnapPoints.mini];
+        const positions = [
+          relationshipRemovalSnapPoints.large,
+          relationshipRemovalSnapPoints.medium,
+          relationshipRemovalSnapPoints.small,
+          relationshipRemovalSnapPoints.mini,
+        ];
         targetSnapPoint = positions.reduce((prev, curr) =>
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
       }
-      
+
       const boundedTarget = Math.min(
         Math.max(targetSnapPoint, relationshipRemovalSnapPoints.large),
         relationshipRemovalSnapPoints.mini,
       );
-      
-      relationshipRemovalTranslateY.value = withSpring(boundedTarget, {
-        damping: 20,
-        mass: 1,
-        stiffness: 100,
-        overshootClamping: true,
-        restDisplacementThreshold: 0.01,
-        restSpeedThreshold: 0.01,
-      }, () => {
-        relationshipRemovalIsAnimating.value = false;
-      });
-      
+
+      relationshipRemovalTranslateY.value = withSpring(
+        boundedTarget,
+        {
+          damping: 20,
+          mass: 1,
+          stiffness: 100,
+          overshootClamping: true,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        },
+        () => {
+          relationshipRemovalIsAnimating.value = false;
+        },
+      );
+
       relationshipRemovalCurrentState.value = boundedTarget;
       runOnJS(setCurrentRelationshipRemovalSnapPoint)(boundedTarget);
     });
@@ -741,7 +809,7 @@ export const GettingStarted = () => {
   // Relationship removal modal show/hide functions (updated for snap points)
   const openRelationshipRemovalModal = () => {
     if (showRelationshipRemovalModal) return; // Prevent multiple calls
-    
+
     setShowRelationshipRemovalModal(true);
     relationshipRemovalIsAnimating.value = false; // Reset animation state
     relationshipRemovalTranslateY.value = withSpring(relationshipRemovalSnapPoints.large, {
@@ -754,7 +822,7 @@ export const GettingStarted = () => {
     });
     relationshipRemovalCurrentState.value = relationshipRemovalSnapPoints.large;
     setCurrentRelationshipRemovalSnapPoint(relationshipRemovalSnapPoints.large);
-    
+
     Animated.timing(relationshipRemovalBackdropOpacity, {
       toValue: 1,
       duration: 200,
@@ -764,7 +832,7 @@ export const GettingStarted = () => {
 
   const closeRelationshipRemovalModal = () => {
     if (!showRelationshipRemovalModal) return; // Prevent multiple calls
-    
+
     relationshipRemovalIsAnimating.value = false; // Stop any ongoing gestures
     relationshipRemovalTranslateY.value = withSpring(relationshipRemovalSnapPoints.dismissed, {
       damping: 20,
@@ -785,7 +853,7 @@ export const GettingStarted = () => {
   // Role and connections handlers (copied from OnboardingInteractive)
   const handleRoleSelect = async (roleId: string) => {
     setSelectedRole(roleId);
-    
+
     if (!user) return;
 
     try {
@@ -851,9 +919,13 @@ export const GettingStarted = () => {
     if (!user?.id || selectedConnections.length === 0) return;
 
     try {
-      console.log('🔗 [GettingStarted] Creating connections for:', selectedConnections.length, 'users');
+      console.log(
+        '🔗 [GettingStarted] Creating connections for:',
+        selectedConnections.length,
+        'users',
+      );
       console.log('🔗 [GettingStarted] User role:', selectedRole);
-      
+
       let successCount = 0;
       let failCount = 0;
       let duplicateCount = 0;
@@ -865,14 +937,14 @@ export const GettingStarted = () => {
           failCount++;
           continue;
         }
-        
+
         try {
           // Check if relationship already exists
           const { data: existingRelationship } = await supabase
             .from('student_supervisor_relationships')
             .select('id')
             .or(
-              `and(student_id.eq.${user.id},supervisor_id.eq.${targetUser.id}),and(student_id.eq.${targetUser.id},supervisor_id.eq.${user.id})`
+              `and(student_id.eq.${user.id},supervisor_id.eq.${targetUser.id}),and(student_id.eq.${targetUser.id},supervisor_id.eq.${user.id})`,
             )
             .single();
 
@@ -892,37 +964,44 @@ export const GettingStarted = () => {
             .single();
 
           if (existingInvitation) {
-            console.log('⚠️ [GettingStarted] Pending invitation already exists for:', targetUser.email);
+            console.log(
+              '⚠️ [GettingStarted] Pending invitation already exists for:',
+              targetUser.email,
+            );
             duplicateCount++;
             continue;
           }
 
           // Determine relationship type and target role
-          const relationshipType = selectedRole === 'student' 
-            ? 'student_invites_supervisor' 
-            : 'supervisor_invites_student';
+          const relationshipType =
+            selectedRole === 'student'
+              ? 'student_invites_supervisor'
+              : 'supervisor_invites_student';
           const targetRole = selectedRole === 'student' ? 'instructor' : 'student';
-          
-          console.log('🔗 [GettingStarted] Creating invitation for:', targetUser.email, 'as', targetRole);
-          
+
+          console.log(
+            '🔗 [GettingStarted] Creating invitation for:',
+            targetUser.email,
+            'as',
+            targetRole,
+          );
+
           // Create pending invitation (exactly like OnboardingInteractive)
-          const { error: inviteError } = await supabase
-            .from('pending_invitations')
-            .insert({
-              email: targetUser.email.toLowerCase(),
-              role: targetRole,
-              invited_by: user.id,
-              metadata: {
-                supervisorName: profile?.full_name || user.email,
-                inviterRole: selectedRole,
-                relationshipType,
-                invitedAt: new Date().toISOString(),
-                targetUserId: targetUser.id,
-                targetUserName: targetUser.full_name,
-                customMessage: connectionCustomMessage.trim() || undefined,
-              },
-              status: 'pending',
-            });
+          const { error: inviteError } = await supabase.from('pending_invitations').insert({
+            email: targetUser.email.toLowerCase(),
+            role: targetRole,
+            invited_by: user.id,
+            metadata: {
+              supervisorName: profile?.full_name || user.email,
+              inviterRole: selectedRole,
+              relationshipType,
+              invitedAt: new Date().toISOString(),
+              targetUserId: targetUser.id,
+              targetUserName: targetUser.full_name,
+              customMessage: connectionCustomMessage.trim() || undefined,
+            },
+            status: 'pending',
+          });
 
           if (inviteError && inviteError.code !== '23505') {
             console.error('🔗 [GettingStarted] Error creating invitation:', inviteError);
@@ -931,67 +1010,75 @@ export const GettingStarted = () => {
           }
 
           console.log('✅ [GettingStarted] Invitation created successfully');
-          
+
           // Create notification for the target user (exactly like OnboardingInteractive)
-          const notificationType = selectedRole === 'student' 
-            ? 'supervisor_invitation' 
-            : 'student_invitation';
-          const baseMessage = selectedRole === 'student' 
-            ? `${profile?.full_name || user.email || 'Someone'} wants you to be their supervisor`
-            : `${profile?.full_name || user.email || 'Someone'} wants you to be their student`;
-          
+          const notificationType =
+            selectedRole === 'student' ? 'supervisor_invitation' : 'student_invitation';
+          const baseMessage =
+            selectedRole === 'student'
+              ? `${profile?.full_name || user.email || 'Someone'} wants you to be their supervisor`
+              : `${profile?.full_name || user.email || 'Someone'} wants you to be their student`;
+
           // Include custom message if provided
-          const fullMessage = connectionCustomMessage.trim() 
+          const fullMessage = connectionCustomMessage.trim()
             ? `${baseMessage}\n\nPersonal message: "${connectionCustomMessage.trim()}"`
             : baseMessage;
-          
-          await supabase
-            .from('notifications')
-            .insert({
-              user_id: targetUser.id,
-              actor_id: user.id,
-              type: notificationType as any,
-              title: 'New Supervision Request',
-              message: fullMessage,
-              metadata: {
-                relationship_type: relationshipType,
-                from_user_id: user.id,
-                from_user_name: profile?.full_name || user.email,
-                customMessage: connectionCustomMessage.trim() || undefined,
-              },
-              action_url: 'vromm://notifications',
-              priority: 'high',
-              is_read: false,
-            });
+
+          await supabase.from('notifications').insert({
+            user_id: targetUser.id,
+            actor_id: user.id,
+            type: notificationType as any,
+            title: 'New Supervision Request',
+            message: fullMessage,
+            metadata: {
+              relationship_type: relationshipType,
+              from_user_id: user.id,
+              from_user_name: profile?.full_name || user.email,
+              customMessage: connectionCustomMessage.trim() || undefined,
+            },
+            action_url: 'vromm://notifications',
+            priority: 'high',
+            is_read: false,
+          });
 
           console.log('✅ [GettingStarted] Notification created for:', targetUser.email);
 
           successCount++;
         } catch (error) {
-          console.error('🔗 [GettingStarted] Error processing invitation for:', targetUser.email, error);
+          console.error(
+            '🔗 [GettingStarted] Error processing invitation for:',
+            targetUser.email,
+            error,
+          );
           failCount++;
         }
       }
-      
-      console.log('🔗 [GettingStarted] Invitations complete. Success:', successCount, 'Duplicates:', duplicateCount, 'Failed:', failCount);
-      
+
+      console.log(
+        '🔗 [GettingStarted] Invitations complete. Success:',
+        successCount,
+        'Duplicates:',
+        duplicateCount,
+        'Failed:',
+        failCount,
+      );
+
       // Show success message
       if (successCount > 0) {
         console.log('🎉 [GettingStarted] Showing success message for', successCount, 'invitations');
       }
-      
+
       // Refresh pending invitations to show the new ones
       await loadPendingInvitations();
-      
+
       // Clear selections and search query
       setSelectedConnections([]);
       setConnectionCustomMessage('');
       setConnectionSearchQuery('');
       setSearchResults([]);
-      
+
       // Close the modal after sending invitations
       hideConnectionsSheet();
-      
     } catch (error) {
       console.error('🔗 [GettingStarted] Error creating connections:', error);
     }
@@ -1000,29 +1087,28 @@ export const GettingStarted = () => {
   // Handle relationship removal (copied from OnboardingInteractive)
   const handleRemoveRelationship = async () => {
     if (!relationshipRemovalTarget || !user?.id) return;
-    
+
     try {
       // Remove the relationship
       const { error } = await supabase
         .from('student_supervisor_relationships')
         .delete()
         .or(
-          relationshipRemovalTarget.relationship_type === 'has_supervisor' 
+          relationshipRemovalTarget.relationship_type === 'has_supervisor'
             ? `and(student_id.eq.${user.id},supervisor_id.eq.${relationshipRemovalTarget.id})`
-            : `and(student_id.eq.${relationshipRemovalTarget.id},supervisor_id.eq.${user.id})`
+            : `and(student_id.eq.${relationshipRemovalTarget.id},supervisor_id.eq.${user.id})`,
         );
 
       if (error) throw error;
-      
+
       // TODO: Save removal message if provided
       if (relationshipRemovalMessage.trim()) {
         console.log('Removal message:', relationshipRemovalMessage.trim());
         // Could save to a removal_logs table or as metadata
       }
-      
+
       loadExistingRelationships(); // Refresh the list
       closeRelationshipRemovalModal(); // Use animated close
-      
     } catch (error) {
       console.error('Error removing relationship:', error);
     }
@@ -1036,13 +1122,15 @@ export const GettingStarted = () => {
       // Get relationships where user is either student or supervisor
       const { data: relationships, error } = await supabase
         .from('student_supervisor_relationships')
-        .select(`
+        .select(
+          `
           student_id,
           supervisor_id,
           created_at,
           student:profiles!ssr_student_id_fkey (id, full_name, email, role),
           supervisor:profiles!ssr_supervisor_id_fkey (id, full_name, email, role)
-        `)
+        `,
+        )
         .or(`student_id.eq.${user.id},supervisor_id.eq.${user.id}`);
 
       if (error) {
@@ -1050,19 +1138,20 @@ export const GettingStarted = () => {
         return;
       }
 
-      const transformedRelationships = relationships?.map(rel => {
-        const isUserStudent = rel.student_id === user.id;
-        const otherUser = isUserStudent ? (rel as any).supervisor : (rel as any).student;
-        
-        return {
-          id: otherUser?.id || '',
-          name: otherUser?.full_name || 'Unknown User',
-          email: otherUser?.email || '',
-          role: otherUser?.role || '',
-          relationship_type: isUserStudent ? 'has_supervisor' : 'supervises_student',
-          created_at: rel.created_at,
-        };
-      }) || [];
+      const transformedRelationships =
+        relationships?.map((rel) => {
+          const isUserStudent = rel.student_id === user.id;
+          const otherUser = isUserStudent ? (rel as any).supervisor : (rel as any).student;
+
+          return {
+            id: otherUser?.id || '',
+            name: otherUser?.full_name || 'Unknown User',
+            email: otherUser?.email || '',
+            role: otherUser?.role || '',
+            relationship_type: isUserStudent ? 'has_supervisor' : 'supervises_student',
+            created_at: rel.created_at,
+          };
+        }) || [];
 
       setExistingRelationships(transformedRelationships);
     } catch (error) {
@@ -1110,7 +1199,7 @@ export const GettingStarted = () => {
     const loadLearningPaths = async () => {
       try {
         console.log('🎯 [GettingStarted] Loading learning paths for exercise sheet...');
-        
+
         const { data, error } = await supabase
           .from('learning_paths')
           .select('*')
@@ -1124,16 +1213,18 @@ export const GettingStarted = () => {
 
         if (data && data.length > 0) {
           setLearningPaths(data);
-          
+
           // Use the first available path (like ProgressSection.tsx does)
           const firstPath = data[0];
           setFirstLearningPathId(firstPath.id);
-          setFirstLearningPathTitle(firstPath.title?.[language] || firstPath.title?.en || 'Learning Path');
-          
+          setFirstLearningPathTitle(
+            firstPath.title?.[language] || firstPath.title?.en || 'Learning Path',
+          );
+
           console.log('🎯 [GettingStarted] First learning path loaded:', {
             id: firstPath.id,
             title: firstPath.title?.[language] || firstPath.title?.en,
-            totalPaths: data.length
+            totalPaths: data.length,
           });
         } else {
           console.log('🎯 [GettingStarted] No active learning paths found');
@@ -1279,7 +1370,7 @@ export const GettingStarted = () => {
       setHasPractice(planData?.has_practice || false);
       setPreviousExperience(planData?.previous_experience || '');
       setSpecificGoals(planData?.specific_goals || '');
-      
+
       // Also update role selection
       setSelectedRole(profile?.role || 'student');
     }
@@ -1296,8 +1387,8 @@ export const GettingStarted = () => {
     hasSavedRoute &&
     hasRoleSelected &&
     hasConnections;
-    // hasCreatedEvent; // DISABLED FOR BETA
-  
+  // hasCreatedEvent; // DISABLED FOR BETA
+
   // Always show GettingStarted section for all users
   // if (isAllOnboardingCompleted) {
   //   return <></>;
@@ -1326,10 +1417,10 @@ export const GettingStarted = () => {
               width={180}
               height={180}
               backgroundColor={
-                isLicensePlanHighlighted() 
+                isLicensePlanHighlighted()
                   ? 'rgba(0, 230, 195, 0.2)' // Tour highlight background
-                  : typedProfile?.license_plan_completed 
-                    ? '$green5' 
+                  : typedProfile?.license_plan_completed
+                    ? '$green5'
                     : '$blue5'
               }
               borderRadius={16}
@@ -1388,7 +1479,8 @@ export const GettingStarted = () => {
                   {t('home.gettingStarted.licensePlan.title') || 'Your License Plan'}
                 </Text>
                 <Text fontSize={10} color="$gray11" marginTop="$1">
-                  {t('home.gettingStarted.licensePlan.description') || 'Tell us about yourself and your goals'}
+                  {t('home.gettingStarted.licensePlan.description') ||
+                    'Tell us about yourself and your goals'}
                 </Text>
               </YStack>
             </YStack>
@@ -1444,7 +1536,8 @@ export const GettingStarted = () => {
                   {t('home.gettingStarted.firstRoute.title') || 'Add Your First Route'}
                 </Text>
                 <Text fontSize={10} color="$gray11" marginTop="$1">
-                  {t('home.gettingStarted.firstRoute.description') || 'Create a route you use often'}
+                  {t('home.gettingStarted.firstRoute.description') ||
+                    'Create a route you use often'}
                 </Text>
               </YStack>
             </YStack>
@@ -1453,7 +1546,9 @@ export const GettingStarted = () => {
           {/* 3. Progress start step 1 */}
           <TouchableOpacity
             onPress={() => {
-              console.log('🎯 [GettingStarted] Start Learning pressed - opening Learning Paths overview');
+              console.log(
+                '🎯 [GettingStarted] Start Learning pressed - opening Learning Paths overview',
+              );
               setShowLearningPathsSheet(true);
             }}
             activeOpacity={0.8}
@@ -1503,7 +1598,8 @@ export const GettingStarted = () => {
                   {t('home.gettingStarted.startLearning.title') || 'Start on Step 1 of 16'}
                 </Text>
                 <Text fontSize={10} color="$gray11" marginTop="$1">
-                  {t('home.gettingStarted.startLearning.description') || 'Start your license journey'}
+                  {t('home.gettingStarted.startLearning.description') ||
+                    'Start your license journey'}
                 </Text>
               </YStack>
             </YStack>
@@ -1511,10 +1607,12 @@ export const GettingStarted = () => {
 
           {/* 4. Save a public route */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('MainTabs', {
-              screen: 'MapTab',
-              params: { screen: 'MapScreen' }
-            } as any)}
+            onPress={() =>
+              navigation.navigate('MainTabs', {
+                screen: 'MapTab',
+                params: { screen: 'MapScreen' },
+              } as any)
+            }
             activeOpacity={0.8}
             delayPressIn={50}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1562,7 +1660,8 @@ export const GettingStarted = () => {
                   {t('home.gettingStarted.saveRoute.title') || 'Save a Route'}
                 </Text>
                 <Text fontSize={10} color="$gray11" marginTop="$1">
-                  {t('home.gettingStarted.saveRoute.description') || 'Find and save a route from the map'}
+                  {t('home.gettingStarted.saveRoute.description') ||
+                    'Find and save a route from the map'}
                 </Text>
               </YStack>
             </YStack>
@@ -1635,7 +1734,8 @@ export const GettingStarted = () => {
                   {t('home.gettingStarted.chooseRole.title') || 'Choose Your Role'}
                 </Text>
                 <Text fontSize={10} color="$gray11" marginTop="$1">
-                  {t('home.gettingStarted.chooseRole.description') || 'Student, instructor, or driving school?'}
+                  {t('home.gettingStarted.chooseRole.description') ||
+                    'Student, instructor, or driving school?'}
                 </Text>
               </YStack>
             </YStack>
@@ -1689,16 +1789,16 @@ export const GettingStarted = () => {
                 />
                 <YStack padding="$2" flex={1} justifyContent="flex-start">
                   <Text fontSize={12} fontWeight="bold" color="$color">
-                    {typedProfile?.role === 'student' 
+                    {typedProfile?.role === 'student'
                       ? t('home.gettingStarted.connectStudent.title') || 'Add Supervisor'
-                      : t('home.gettingStarted.connectInstructor.title') || 'Add Students'
-                    }
+                      : t('home.gettingStarted.connectInstructor.title') || 'Add Students'}
                   </Text>
                   <Text fontSize={10} color="$gray11" marginTop="$1">
                     {typedProfile?.role === 'student'
-                      ? t('home.gettingStarted.connectStudent.description') || 'Connect with driving schools and supervisors'
-                      : t('home.gettingStarted.connectInstructor.description') || 'Connect with students to supervise'
-                    }
+                      ? t('home.gettingStarted.connectStudent.description') ||
+                        'Connect with driving schools and supervisors'
+                      : t('home.gettingStarted.connectInstructor.description') ||
+                        'Connect with students to supervise'}
                   </Text>
                 </YStack>
               </YStack>
@@ -1772,10 +1872,13 @@ export const GettingStarted = () => {
           }}
         >
           <View style={{ flex: 1 }}>
-            <Pressable style={{ flex: 1 }} onPress={() => {
-              licensePlanIsAnimating.value = false; // Reset state on backdrop tap
-              hideKorkortsplanSheet();
-            }} />
+            <Pressable
+              style={{ flex: 1 }}
+              onPress={() => {
+                licensePlanIsAnimating.value = false; // Reset state on backdrop tap
+                hideKorkortsplanSheet();
+              }}
+            />
             <GestureDetector gesture={licensePlanPanGesture}>
               <ReanimatedAnimated.View
                 style={[
@@ -1792,235 +1895,303 @@ export const GettingStarted = () => {
                   },
                   {
                     transform: [{ translateY: licensePlanTranslateY }],
-                  }
+                  },
                 ]}
               >
                 {/* Drag Handle - outside ScrollView with gesture */}
-                <View style={{
-                  alignItems: 'center',
-                  paddingVertical: 8,
-                  paddingBottom: 16,
-                }}>
-                  <View style={{
-                    width: 40,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
-                  }} />
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                    }}
+                  />
                 </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-                <YStack gap="$4" paddingBottom="$16">
-                  {/* Header - matching connections modal style (centered, no X) */}
-                  <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                    {t('onboarding.licensePlan.title') || 'Your License Journey'}
-                  </Text>
+                <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+                  <YStack gap="$4" paddingBottom="$16">
+                    {/* Header - matching connections modal style (centered, no X) */}
+                    <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                      {t('onboarding.licensePlan.title') || 'Your License Journey'}
+                    </Text>
 
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {t('onboarding.licensePlan.description') || 'Tell us about your experience level, driving goals and vehicle preferences'}
-                  </Text>
+                    <Text fontSize="$3" color="$gray11" textAlign="center">
+                      {t('onboarding.licensePlan.description') ||
+                        'Tell us about your experience level, driving goals and vehicle preferences'}
+                    </Text>
 
-                  <YStack gap="$4" marginTop="$4">
-                    {/* Target License Date with Quick Options */}
-                    <YStack gap="$2">
-                      <Text weight="bold" size="lg">{t('onboarding.date.title') || 'When do you want your license?'}</Text>
-                      
-                      {/* Quick Date Options */}
-                      {[
-                        { label: t('onboarding.date.within3months') || 'Within 3 months', months: 3, key: '3months' },
-                        { label: t('onboarding.date.within6months') || 'Within 6 months', months: 6, key: '6months' },
-                        { label: t('onboarding.date.within1year') || 'Within 1 year', months: 12, key: '1year' },
-                        { label: t('onboarding.date.noSpecific') || 'No specific date', months: 24, key: 'nodate' },
-                      ].map((option) => {
-                        const optionTargetDate = new Date();
-                        optionTargetDate.setMonth(optionTargetDate.getMonth() + option.months);
-                        const isSelected = selectedDateOption === option.key;
-                        
-                        return (
-                          <RadioButton
-                            key={option.label}
-                            onPress={() => {
-                              setTargetDate(optionTargetDate);
-                              setSelectedDateOption(option.key);
-                            }}
-                            title={option.label}
-                            description={optionTargetDate.toLocaleDateString('sv-SE')}
-                            isSelected={isSelected}
-                          />
-                        );
-                      })}
-                      
-                      {/* Custom Date Picker with Popover - using RadioButton component */}
-                      <View ref={dateButtonRef}>
-                        <RadioButton
-                          onPress={() => {
-                            console.log('🗓️ [GettingStarted] Opening date popover');
-                            setSelectedDateOption('custom');
-                            setShowDatePopover(true);
-                          }}
-                          title={t('onboarding.date.pickSpecific') || 'Pick specific date'}
-                          description={targetDate ? targetDate.toLocaleDateString() : new Date().toLocaleDateString()}
-                          isSelected={selectedDateOption === 'custom'}
-                        />
-                      </View>
-                      
-                      <Popover
-                        isVisible={showDatePopover}
-                        onRequestClose={() => {
-                          console.log('🗓️ [GettingStarted] Popover onRequestClose called');
-                          setShowDatePopover(false);
-                          // Complete cleanup to prevent any blocking issues
-                          setTimeout(() => {
-                            console.log('🗓️ [GettingStarted] Complete cleanup after popover close');
-                            setSelectedDateOption('custom');
-                          }, 10);
-                        }}
-                        from={dateButtonRef}
-                        placement={'top' as any}
-                        backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
-                        popoverStyle={{
-                          backgroundColor: '$background',
-                          borderRadius: 12,
-                          padding: 16,
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.3,
-                          shadowRadius: 12,
-                          elevation: 12,
-                          width: 380,
-                          height: 480,
-                          borderWidth: colorScheme === 'dark' ? 1 : 0,
-                          borderColor: colorScheme === 'dark' ? '#333' : 'transparent',
-                        }}
-                      >
-                        <YStack alignItems="center" gap="$2" width="100%">
-                          <Text color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} size="lg" weight="semibold" textAlign="center">
-                            {t('onboarding.date.selectTarget') || 'Select Target Date'}
-                          </Text>
-                          
-                          {/* Container for full inline DateTimePicker */}
-                          <View style={{
-                            width: 350,
-                            height: 380,
-                            backgroundColor: '$background',
-                            borderRadius: 8,
-                            overflow: 'visible',
-                          }}>
-                            <DateTimePicker
-                              testID="dateTimePicker"
-                              value={targetDate || new Date()}
-                              mode="date"
-                              display="inline"
-                              minimumDate={new Date()}
-                              maximumDate={(() => {
-                                const maxDate = new Date();
-                                maxDate.setFullYear(maxDate.getFullYear() + 3);
-                                return maxDate;
-                              })()}
-                              onChange={(event, selectedDate) => {
-                                console.log('🗓️ [GettingStarted] Date changed:', selectedDate?.toLocaleDateString());
-                                if (selectedDate) {
-                                  setTargetDate(selectedDate);
-                                  setSelectedDateOption('custom');
-                                  // Don't auto-close - let user press save button
-                                  console.log('🗓️ [GettingStarted] Date updated, waiting for save button');
-                                }
+                    <YStack gap="$4" marginTop="$4">
+                      {/* Target License Date with Quick Options */}
+                      <YStack gap="$2">
+                        <Text weight="bold" size="lg">
+                          {t('onboarding.date.title') || 'When do you want your license?'}
+                        </Text>
+
+                        {/* Quick Date Options */}
+                        {[
+                          {
+                            label: t('onboarding.date.within3months') || 'Within 3 months',
+                            months: 3,
+                            key: '3months',
+                          },
+                          {
+                            label: t('onboarding.date.within6months') || 'Within 6 months',
+                            months: 6,
+                            key: '6months',
+                          },
+                          {
+                            label: t('onboarding.date.within1year') || 'Within 1 year',
+                            months: 12,
+                            key: '1year',
+                          },
+                          {
+                            label: t('onboarding.date.noSpecific') || 'No specific date',
+                            months: 24,
+                            key: 'nodate',
+                          },
+                        ].map((option) => {
+                          const optionTargetDate = new Date();
+                          optionTargetDate.setMonth(optionTargetDate.getMonth() + option.months);
+                          const isSelected = selectedDateOption === option.key;
+
+                          return (
+                            <RadioButton
+                              key={option.label}
+                              onPress={() => {
+                                setTargetDate(optionTargetDate);
+                                setSelectedDateOption(option.key);
                               }}
-                              style={{ 
-                                width: 350, 
+                              title={option.label}
+                              description={optionTargetDate.toLocaleDateString('sv-SE')}
+                              isSelected={isSelected}
+                            />
+                          );
+                        })}
+
+                        {/* Custom Date Picker with Popover - using RadioButton component */}
+                        <View ref={dateButtonRef}>
+                          <RadioButton
+                            onPress={() => {
+                              console.log('🗓️ [GettingStarted] Opening date popover');
+                              setSelectedDateOption('custom');
+                              setShowDatePopover(true);
+                            }}
+                            title={t('onboarding.date.pickSpecific') || 'Pick specific date'}
+                            description={
+                              targetDate
+                                ? targetDate.toLocaleDateString()
+                                : new Date().toLocaleDateString()
+                            }
+                            isSelected={selectedDateOption === 'custom'}
+                          />
+                        </View>
+
+                        <Popover
+                          isVisible={showDatePopover}
+                          onRequestClose={() => {
+                            console.log('🗓️ [GettingStarted] Popover onRequestClose called');
+                            setShowDatePopover(false);
+                            // Complete cleanup to prevent any blocking issues
+                            setTimeout(() => {
+                              console.log(
+                                '🗓️ [GettingStarted] Complete cleanup after popover close',
+                              );
+                              setSelectedDateOption('custom');
+                            }, 10);
+                          }}
+                          from={dateButtonRef}
+                          placement={'top' as any}
+                          backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
+                          popoverStyle={{
+                            backgroundColor: '$background',
+                            borderRadius: 12,
+                            padding: 16,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 12,
+                            elevation: 12,
+                            width: 380,
+                            height: 480,
+                            borderWidth: colorScheme === 'dark' ? 1 : 0,
+                            borderColor: colorScheme === 'dark' ? '#333' : 'transparent',
+                          }}
+                        >
+                          <YStack alignItems="center" gap="$2" width="100%">
+                            <Text
+                              color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
+                              size="lg"
+                              weight="semibold"
+                              textAlign="center"
+                            >
+                              {t('onboarding.date.selectTarget') || 'Select Target Date'}
+                            </Text>
+
+                            {/* Container for full inline DateTimePicker */}
+                            <View
+                              style={{
+                                width: 350,
                                 height: 380,
                                 backgroundColor: '$background',
+                                borderRadius: 8,
+                                overflow: 'visible',
                               }}
-                              themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
-                              accentColor="#00E6C3"
-                              locale={language === 'sv' ? 'sv-SE' : 'en-US'}
-                            />
-                          </View>
-                          
-                        </YStack>
-                      </Popover>
-                    </YStack>
+                            >
+                              <DateTimePicker
+                                testID="dateTimePicker"
+                                value={targetDate || new Date()}
+                                mode="date"
+                                display="inline"
+                                minimumDate={new Date()}
+                                maximumDate={(() => {
+                                  const maxDate = new Date();
+                                  maxDate.setFullYear(maxDate.getFullYear() + 3);
+                                  return maxDate;
+                                })()}
+                                onChange={(event, selectedDate) => {
+                                  console.log(
+                                    '🗓️ [GettingStarted] Date changed:',
+                                    selectedDate?.toLocaleDateString(),
+                                  );
+                                  if (selectedDate) {
+                                    setTargetDate(selectedDate);
+                                    setSelectedDateOption('custom');
+                                    // Don't auto-close - let user press save button
+                                    console.log(
+                                      '🗓️ [GettingStarted] Date updated, waiting for save button',
+                                    );
+                                  }
+                                }}
+                                style={{
+                                  width: 350,
+                                  height: 380,
+                                  backgroundColor: '$background',
+                                }}
+                                themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
+                                accentColor="#00E6C3"
+                                locale={language === 'sv' ? 'sv-SE' : 'en-US'}
+                              />
+                            </View>
+                          </YStack>
+                        </Popover>
+                      </YStack>
 
-                    {/* Theory Test Toggle */}
-                    <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
-                      <Text size="md" weight="semibold" color="$color">
-                        {t('onboarding.licensePlan.hasTheory') || 'Have you passed the theory test?'}
-                      </Text>
-                      <XStack alignItems="center" gap="$2">
-                        <Switch 
-                          size="$4"
-                          checked={hasTheory} 
-                          onCheckedChange={setHasTheory}
-                          backgroundColor={hasTheory ? '$blue8' : '$gray6'}
-                        >
-                          <Switch.Thumb />
-                        </Switch>
-                        <Text size="md" color="$color">
-                          {hasTheory ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                      {/* Theory Test Toggle */}
+                      <YStack
+                        gap="$2"
+                        padding="$3"
+                        backgroundColor="$backgroundHover"
+                        borderRadius="$3"
+                      >
+                        <Text size="md" weight="semibold" color="$color">
+                          {t('onboarding.licensePlan.hasTheory') ||
+                            'Have you passed the theory test?'}
                         </Text>
-                      </XStack>
-                    </YStack>
+                        <XStack alignItems="center" gap="$2">
+                          <Switch
+                            size="$4"
+                            checked={hasTheory}
+                            onCheckedChange={setHasTheory}
+                            backgroundColor={hasTheory ? '$blue8' : '$gray6'}
+                          >
+                            <Switch.Thumb />
+                          </Switch>
+                          <Text size="md" color="$color">
+                            {hasTheory ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
+                          </Text>
+                        </XStack>
+                      </YStack>
 
-                    {/* Practice Test Toggle */}
-                    <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
-                      <Text size="md" weight="semibold" color="$color">
-                        {t('onboarding.licensePlan.hasPractice') || 'Have you passed the practical test?'}
-                      </Text>
-                      <XStack alignItems="center" gap="$2">
-                        <Switch 
-                          size="$4"
-                          checked={hasPractice} 
-                          onCheckedChange={setHasPractice}
-                          backgroundColor={hasPractice ? '$blue8' : '$gray6'}
-                        >
-                          <Switch.Thumb />
-                        </Switch>
-                        <Text size="md" color="$color">
-                          {hasPractice ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                      {/* Practice Test Toggle */}
+                      <YStack
+                        gap="$2"
+                        padding="$3"
+                        backgroundColor="$backgroundHover"
+                        borderRadius="$3"
+                      >
+                        <Text size="md" weight="semibold" color="$color">
+                          {t('onboarding.licensePlan.hasPractice') ||
+                            'Have you passed the practical test?'}
                         </Text>
-                      </XStack>
+                        <XStack alignItems="center" gap="$2">
+                          <Switch
+                            size="$4"
+                            checked={hasPractice}
+                            onCheckedChange={setHasPractice}
+                            backgroundColor={hasPractice ? '$blue8' : '$gray6'}
+                          >
+                            <Switch.Thumb />
+                          </Switch>
+                          <Text size="md" color="$color">
+                            {hasPractice ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
+                          </Text>
+                        </XStack>
+                      </YStack>
+
+                      {/* Previous Experience */}
+                      <YStack gap="$2">
+                        <Text weight="bold" size="lg">
+                          {t('onboarding.licensePlan.previousExperience') ||
+                            'Previous driving experience'}
+                        </Text>
+                        <TextArea
+                          placeholder={
+                            t('onboarding.licensePlan.experiencePlaceholder') ||
+                            'Describe your previous driving experience'
+                          }
+                          value={previousExperience}
+                          onChangeText={setPreviousExperience}
+                          minHeight={100}
+                          backgroundColor="$background"
+                          borderColor="$borderColor"
+                          color="$color"
+                          focusStyle={{
+                            borderColor: '$blue8',
+                          }}
+                        />
+                      </YStack>
+
+                      {/* Specific Goals */}
+                      <YStack gap="$2">
+                        <Text weight="bold" size="lg">
+                          {t('onboarding.licensePlan.specificGoals') || 'Specific goals'}
+                        </Text>
+                        <TextArea
+                          placeholder={
+                            t('onboarding.licensePlan.goalsPlaceholder') ||
+                            'Do you have specific goals with your license?'
+                          }
+                          value={specificGoals}
+                          onChangeText={setSpecificGoals}
+                          minHeight={100}
+                          backgroundColor="$background"
+                          borderColor="$borderColor"
+                          color="$color"
+                          focusStyle={{
+                            borderColor: '$blue8',
+                          }}
+                        />
+                      </YStack>
                     </YStack>
 
-                    {/* Previous Experience */}
-                    <YStack gap="$2">
-                      <Text weight="bold" size="lg">{t('onboarding.licensePlan.previousExperience') || 'Previous driving experience'}</Text>
-                      <TextArea
-                        placeholder={t('onboarding.licensePlan.experiencePlaceholder') || 'Describe your previous driving experience'}
-                        value={previousExperience}
-                        onChangeText={setPreviousExperience}
-                        minHeight={100}
-                        backgroundColor="$background"
-                        borderColor="$borderColor"
-                        color="$color"
-                        focusStyle={{
-                          borderColor: '$blue8',
-                        }}
-                      />
-                    </YStack>
-
-                    {/* Specific Goals */}
-                    <YStack gap="$2">
-                      <Text weight="bold" size="lg">{t('onboarding.licensePlan.specificGoals') || 'Specific goals'}</Text>
-                      <TextArea
-                        placeholder={t('onboarding.licensePlan.goalsPlaceholder') || 'Do you have specific goals with your license?'}
-                        value={specificGoals}
-                        onChangeText={setSpecificGoals}
-                        minHeight={100}
-                        backgroundColor="$background"
-                        borderColor="$borderColor"
-                        color="$color"
-                        focusStyle={{
-                          borderColor: '$blue8',
-                        }}
-                      />
-                    </YStack>
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      onPress={handleLicensePlanSubmit}
+                      marginTop="$4"
+                    >
+                      {t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
+                    </Button>
                   </YStack>
-
-                  <Button variant="primary" size="lg" onPress={handleLicensePlanSubmit} marginTop="$4">
-                    {t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
-                  </Button>
-                </YStack>
-              </ScrollView>
+                </ScrollView>
               </ReanimatedAnimated.View>
             </GestureDetector>
           </View>
@@ -2048,10 +2219,13 @@ export const GettingStarted = () => {
           }}
         >
           <View style={{ flex: 1 }}>
-            <Pressable style={{ flex: 1 }} onPress={() => {
-              roleIsAnimating.value = false; // Reset state on backdrop tap
-              hideRoleSheet();
-            }} />
+            <Pressable
+              style={{ flex: 1 }}
+              onPress={() => {
+                roleIsAnimating.value = false; // Reset state on backdrop tap
+                hideRoleSheet();
+              }}
+            />
             <GestureDetector gesture={rolePanGesture}>
               <ReanimatedAnimated.View
                 style={[
@@ -2068,21 +2242,25 @@ export const GettingStarted = () => {
                   },
                   {
                     transform: [{ translateY: roleTranslateY }],
-                  }
+                  },
                 ]}
               >
                 {/* Drag Handle */}
-                <View style={{
-                  alignItems: 'center',
-                  paddingVertical: 8,
-                  paddingBottom: 16,
-                }}>
-                  <View style={{
-                    width: 40,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
-                  }} />
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                    }}
+                  />
                 </View>
 
                 <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
@@ -2093,17 +2271,20 @@ export const GettingStarted = () => {
                     {
                       id: 'student',
                       title: t('onboarding.role.student') || 'Student',
-                      description: t('onboarding.role.studentDescription') || 'I want to learn to drive',
+                      description:
+                        t('onboarding.role.studentDescription') || 'I want to learn to drive',
                     },
                     {
                       id: 'instructor',
                       title: t('onboarding.role.instructor') || 'Instructor',
-                      description: t('onboarding.role.instructorDescription') || 'I teach others to drive',
+                      description:
+                        t('onboarding.role.instructorDescription') || 'I teach others to drive',
                     },
                     {
                       id: 'school',
                       title: t('onboarding.role.school') || 'Driving School',
-                      description: t('onboarding.role.schoolDescription') || 'I represent a driving school',
+                      description:
+                        t('onboarding.role.schoolDescription') || 'I represent a driving school',
                     },
                   ].map((role) => (
                     <RadioButton
@@ -2148,7 +2329,7 @@ export const GettingStarted = () => {
                   borderTopLeftRadius: 16,
                   borderTopRightRadius: 16,
                 },
-                connectionsAnimatedStyle
+                connectionsAnimatedStyle,
               ]}
             >
               <YStack
@@ -2162,41 +2343,49 @@ export const GettingStarted = () => {
               >
                 {/* Drag Handle */}
                 <GestureDetector gesture={connectionsPanGesture}>
-                  <View style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}>
-                    <View style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
-                    }} />
+                  <View
+                    style={{
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      paddingBottom: 16,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                      }}
+                    />
                   </View>
                 </GestureDetector>
 
                 <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                  {selectedRole === 'student' 
+                  {selectedRole === 'student'
                     ? 'Find Instructors'
-                    : selectedRole === 'instructor' || selectedRole === 'school' 
+                    : selectedRole === 'instructor' || selectedRole === 'school'
                       ? 'Find Students'
-                      : 'Find Users'
-                  }
+                      : 'Find Users'}
                 </Text>
-                
+
                 <Text fontSize="$3" color="$gray11" textAlign="center">
-                  {selectedRole === 'student' 
+                  {selectedRole === 'student'
                     ? 'Search for driving instructors to connect with'
-                    : selectedRole === 'instructor' || selectedRole === 'school' 
+                    : selectedRole === 'instructor' || selectedRole === 'school'
                       ? 'Search for students to connect with'
-                      : 'Search for users to connect with'
-                  }
+                      : 'Search for users to connect with'}
                 </Text>
 
                 {/* Tabbed interface for relationships */}
                 {(existingRelationships.length > 0 || pendingInvitations.length > 0) && (
-                  <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4" maxHeight="300">
+                  <YStack
+                    gap="$3"
+                    padding="$4"
+                    backgroundColor="$backgroundHover"
+                    borderRadius="$4"
+                    maxHeight="300"
+                  >
                     {/* Tab headers */}
                     <XStack gap="$2" marginBottom="$2">
                       <TouchableOpacity
@@ -2205,15 +2394,29 @@ export const GettingStarted = () => {
                           paddingHorizontal: 16,
                           paddingVertical: 8,
                           borderRadius: 8,
-                          backgroundColor: activeRelationshipsTab === 'pending' ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : 'transparent',
+                          backgroundColor:
+                            activeRelationshipsTab === 'pending'
+                              ? colorScheme === 'dark'
+                                ? '#333'
+                                : '#E5E5E5'
+                              : 'transparent',
                         }}
                       >
-                        <Text 
-                          size="sm" 
-                          fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'} 
-                          color={activeRelationshipsTab === 'pending' ? (colorScheme === 'dark' ? '#ECEDEE' : '#11181C') : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)')}
+                        <Text
+                          size="sm"
+                          fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'}
+                          color={
+                            activeRelationshipsTab === 'pending'
+                              ? colorScheme === 'dark'
+                                ? '#ECEDEE'
+                                : '#11181C'
+                              : colorScheme === 'dark'
+                                ? 'rgba(255, 255, 255, 0.3)'
+                                : 'rgba(0, 0, 0, 0.3)'
+                          }
                         >
-                          {t('onboarding.relationships.pendingTitle') || 'Pending'} ({pendingInvitations.length})
+                          {t('onboarding.relationships.pendingTitle') || 'Pending'} (
+                          {pendingInvitations.length})
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -2222,15 +2425,29 @@ export const GettingStarted = () => {
                           paddingHorizontal: 16,
                           paddingVertical: 8,
                           borderRadius: 8,
-                          backgroundColor: activeRelationshipsTab === 'existing' ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : 'transparent',
+                          backgroundColor:
+                            activeRelationshipsTab === 'existing'
+                              ? colorScheme === 'dark'
+                                ? '#333'
+                                : '#E5E5E5'
+                              : 'transparent',
                         }}
                       >
-                        <Text 
-                          size="sm" 
-                          fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'} 
-                          color={activeRelationshipsTab === 'existing' ? (colorScheme === 'dark' ? '#ECEDEE' : '#11181C') : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)')}
+                        <Text
+                          size="sm"
+                          fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'}
+                          color={
+                            activeRelationshipsTab === 'existing'
+                              ? colorScheme === 'dark'
+                                ? '#ECEDEE'
+                                : '#11181C'
+                              : colorScheme === 'dark'
+                                ? 'rgba(255, 255, 255, 0.3)'
+                                : 'rgba(0, 0, 0, 0.3)'
+                          }
                         >
-                          {t('onboarding.relationships.existingTitle') || 'Existing'} ({existingRelationships.length})
+                          {t('onboarding.relationships.existingTitle') || 'Existing'} (
+                          {existingRelationships.length})
                         </Text>
                       </TouchableOpacity>
                     </XStack>
@@ -2248,7 +2465,8 @@ export const GettingStarted = () => {
                                     {invitation.metadata?.targetUserName || invitation.email}
                                   </Text>
                                   <Text fontSize="$3" color="$gray11">
-                                    {invitation.email} • Invited as {invitation.role} • {new Date(invitation.created_at).toLocaleDateString()}
+                                    {invitation.email} • Invited as {invitation.role} •{' '}
+                                    {new Date(invitation.created_at).toLocaleDateString()}
                                   </Text>
                                   {invitation.metadata?.customMessage && (
                                     <Text fontSize="$2" color="$gray9" fontStyle="italic">
@@ -2261,110 +2479,169 @@ export const GettingStarted = () => {
                                 </Text>
                                 <TouchableOpacity
                                   onPress={async () => {
-                                    console.log('🗑️ [GettingStarted] TRASH BUTTON PRESSED for invitation:', invitation.id);
-                                    
+                                    console.log(
+                                      '🗑️ [GettingStarted] TRASH BUTTON PRESSED for invitation:',
+                                      invitation.id,
+                                    );
+
                                     // Add haptic feedback to confirm tap
                                     try {
                                       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                     } catch (e) {
                                       // Haptics might not be available
                                     }
-                                    
+
                                     try {
-                                      console.log('🗑️ [GettingStarted] FORCE DELETING invitation with ID:', invitation.id);
-                                      console.log('🗑️ [GettingStarted] Full invitation object:', JSON.stringify(invitation, null, 2));
-                                      
+                                      console.log(
+                                        '🗑️ [GettingStarted] FORCE DELETING invitation with ID:',
+                                        invitation.id,
+                                      );
+                                      console.log(
+                                        '🗑️ [GettingStarted] Full invitation object:',
+                                        JSON.stringify(invitation, null, 2),
+                                      );
+
                                       // First, let's check if the invitation actually exists
                                       const { data: checkData, error: checkError } = await supabase
                                         .from('pending_invitations')
                                         .select('*')
                                         .eq('id', invitation.id);
 
-                                      console.log('🗑️ [GettingStarted] Check if invitation exists:', { data: checkData, error: checkError });
-                                      
+                                      console.log(
+                                        '🗑️ [GettingStarted] Check if invitation exists:',
+                                        { data: checkData, error: checkError },
+                                      );
+
                                       // Try multiple deletion approaches
                                       let deletionSuccess = false;
-                                      
-                                      // Method 1: Direct DELETE with RLS
-                                      console.log('🗑️ [GettingStarted] Method 1: Direct DELETE with RLS');
-                                      const { data: pendingData, error: pendingError } = await supabase
-                                        .from('pending_invitations')
-                                        .delete()
-                                        .eq('id', invitation.id)
-                                        .select();
 
-                                      console.log('🗑️ [GettingStarted] Method 1 result:', { data: pendingData, error: pendingError });
-                                      
+                                      // Method 1: Direct DELETE with RLS
+                                      console.log(
+                                        '🗑️ [GettingStarted] Method 1: Direct DELETE with RLS',
+                                      );
+                                      const { data: pendingData, error: pendingError } =
+                                        await supabase
+                                          .from('pending_invitations')
+                                          .delete()
+                                          .eq('id', invitation.id)
+                                          .select();
+
+                                      console.log('🗑️ [GettingStarted] Method 1 result:', {
+                                        data: pendingData,
+                                        error: pendingError,
+                                      });
+
                                       if (pendingData && pendingData.length > 0) {
                                         deletionSuccess = true;
-                                        console.log('✅ [GettingStarted] Method 1 successful - deleted', pendingData.length, 'rows');
+                                        console.log(
+                                          '✅ [GettingStarted] Method 1 successful - deleted',
+                                          pendingData.length,
+                                          'rows',
+                                        );
                                       } else if (pendingError) {
-                                        console.log('❌ [GettingStarted] Method 1 failed with error:', pendingError);
+                                        console.log(
+                                          '❌ [GettingStarted] Method 1 failed with error:',
+                                          pendingError,
+                                        );
                                       }
 
                                       // Method 2: Try UPDATE to 'cancelled' status first, then DELETE
                                       if (!deletionSuccess) {
-                                        console.log('🗑️ [GettingStarted] Method 2: UPDATE to cancelled, then DELETE');
-                                        
-                                        // First update to cancelled
-                                        const { data: updateData, error: updateError } = await supabase
-                                          .from('pending_invitations')
-                                          .update({ status: 'cancelled' })
-                                          .eq('id', invitation.id)
-                                          .select();
+                                        console.log(
+                                          '🗑️ [GettingStarted] Method 2: UPDATE to cancelled, then DELETE',
+                                        );
 
-                                        console.log('🗑️ [GettingStarted] Method 2 UPDATE result:', { data: updateData, error: updateError });
-                                        
-                                        if (updateData && updateData.length > 0) {
-                                          // Now try to delete
-                                          const { data: deleteData, error: deleteError } = await supabase
+                                        // First update to cancelled
+                                        const { data: updateData, error: updateError } =
+                                          await supabase
                                             .from('pending_invitations')
-                                            .delete()
+                                            .update({ status: 'cancelled' })
                                             .eq('id', invitation.id)
                                             .select();
 
-                                          console.log('🗑️ [GettingStarted] Method 2 DELETE result:', { data: deleteData, error: deleteError });
-                                          
+                                        console.log('🗑️ [GettingStarted] Method 2 UPDATE result:', {
+                                          data: updateData,
+                                          error: updateError,
+                                        });
+
+                                        if (updateData && updateData.length > 0) {
+                                          // Now try to delete
+                                          const { data: deleteData, error: deleteError } =
+                                            await supabase
+                                              .from('pending_invitations')
+                                              .delete()
+                                              .eq('id', invitation.id)
+                                              .select();
+
+                                          console.log(
+                                            '🗑️ [GettingStarted] Method 2 DELETE result:',
+                                            { data: deleteData, error: deleteError },
+                                          );
+
                                           if (deleteData && deleteData.length > 0) {
                                             deletionSuccess = true;
-                                            console.log('✅ [GettingStarted] Method 2 successful - deleted', deleteData.length, 'rows');
+                                            console.log(
+                                              '✅ [GettingStarted] Method 2 successful - deleted',
+                                              deleteData.length,
+                                              'rows',
+                                            );
                                           }
                                         }
                                       }
 
                                       // Method 3: Try using RPC function if available
                                       if (!deletionSuccess) {
-                                        console.log('🗑️ [GettingStarted] Method 3: Try RPC function');
+                                        console.log(
+                                          '🗑️ [GettingStarted] Method 3: Try RPC function',
+                                        );
                                         try {
-                                          const { data: rpcData, error: rpcError } = await supabase
-                                            .rpc('delete_pending_invitation', { invitation_id: invitation.id });
-                                          
-                                          console.log('🗑️ [GettingStarted] Method 3 RPC result:', { data: rpcData, error: rpcError });
-                                          
+                                          const { data: rpcData, error: rpcError } =
+                                            await supabase.rpc('delete_pending_invitation', {
+                                              invitation_id: invitation.id,
+                                            });
+
+                                          console.log('🗑️ [GettingStarted] Method 3 RPC result:', {
+                                            data: rpcData,
+                                            error: rpcError,
+                                          });
+
                                           if (!rpcError && rpcData?.success) {
                                             deletionSuccess = true;
                                             console.log('✅ [GettingStarted] Method 3 successful');
                                           }
                                         } catch (rpcErr) {
-                                          console.log('❌ [GettingStarted] Method 3 RPC not available:', rpcErr);
+                                          console.log(
+                                            '❌ [GettingStarted] Method 3 RPC not available:',
+                                            rpcErr,
+                                          );
                                         }
                                       }
 
                                       // Method 4: Try alternative RPC function (UPDATE then DELETE)
                                       if (!deletionSuccess) {
-                                        console.log('🗑️ [GettingStarted] Method 4: Try alternative RPC function');
+                                        console.log(
+                                          '🗑️ [GettingStarted] Method 4: Try alternative RPC function',
+                                        );
                                         try {
-                                          const { data: altRpcData, error: altRpcError } = await supabase
-                                            .rpc('cancel_and_delete_invitation', { invitation_id: invitation.id });
-                                          
-                                          console.log('🗑️ [GettingStarted] Method 4 RPC result:', { data: altRpcData, error: altRpcError });
-                                          
+                                          const { data: altRpcData, error: altRpcError } =
+                                            await supabase.rpc('cancel_and_delete_invitation', {
+                                              invitation_id: invitation.id,
+                                            });
+
+                                          console.log('🗑️ [GettingStarted] Method 4 RPC result:', {
+                                            data: altRpcData,
+                                            error: altRpcError,
+                                          });
+
                                           if (!altRpcError && altRpcData?.success) {
                                             deletionSuccess = true;
                                             console.log('✅ [GettingStarted] Method 4 successful');
                                           }
                                         } catch (altRpcErr) {
-                                          console.log('❌ [GettingStarted] Method 4 RPC not available:', altRpcErr);
+                                          console.log(
+                                            '❌ [GettingStarted] Method 4 RPC not available:',
+                                            altRpcErr,
+                                          );
                                         }
                                       }
 
@@ -2375,41 +2652,65 @@ export const GettingStarted = () => {
                                         .eq('id', invitation.id)
                                         .select();
 
-                                      console.log('🗑️ [GettingStarted] Notifications DELETE result:', { data: notifData, error: notifError });
+                                      console.log(
+                                        '🗑️ [GettingStarted] Notifications DELETE result:',
+                                        { data: notifData, error: notifError },
+                                      );
 
                                       // Also try to delete by invitation_id in metadata
-                                      const { data: metadataData, error: metadataError } = await supabase
-                                        .from('notifications')
-                                        .delete()
-                                        .eq('metadata->>invitation_id', invitation.id)
-                                        .select();
+                                      const { data: metadataData, error: metadataError } =
+                                        await supabase
+                                          .from('notifications')
+                                          .delete()
+                                          .eq('metadata->>invitation_id', invitation.id)
+                                          .select();
 
-                                      console.log('🗑️ [GettingStarted] Metadata DELETE result:', { data: metadataData, error: metadataError });
+                                      console.log('🗑️ [GettingStarted] Metadata DELETE result:', {
+                                        data: metadataData,
+                                        error: metadataError,
+                                      });
 
                                       if (!deletionSuccess) {
-                                        console.log('❌ [GettingStarted] All deletion methods failed - this might be an RLS policy issue');
-                                        console.log('❌ [GettingStarted] Please run the SQL scripts to fix RLS policies');
+                                        console.log(
+                                          '❌ [GettingStarted] All deletion methods failed - this might be an RLS policy issue',
+                                        );
+                                        console.log(
+                                          '❌ [GettingStarted] Please run the SQL scripts to fix RLS policies',
+                                        );
                                       }
 
                                       // FORCE REMOVE from local state immediately
-                                      setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
-                                      console.log('🗑️ [GettingStarted] Removed from local state immediately');
-                                      
+                                      setPendingInvitations((prev) =>
+                                        prev.filter((inv) => inv.id !== invitation.id),
+                                      );
+                                      console.log(
+                                        '🗑️ [GettingStarted] Removed from local state immediately',
+                                      );
+
                                       // Refresh the pending invitations list
-                                      console.log('🔄 [GettingStarted] Refreshing pending invitations list...');
+                                      console.log(
+                                        '🔄 [GettingStarted] Refreshing pending invitations list...',
+                                      );
                                       await loadPendingInvitations();
-                                      console.log('🔄 [GettingStarted] Pending invitations refreshed');
+                                      console.log(
+                                        '🔄 [GettingStarted] Pending invitations refreshed',
+                                      );
                                     } catch (error) {
-                                      console.error('❌ [GettingStarted] Caught error removing invitation:', error);
+                                      console.error(
+                                        '❌ [GettingStarted] Caught error removing invitation:',
+                                        error,
+                                      );
                                       // Even if there's an error, remove from local state
-                                      setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
+                                      setPendingInvitations((prev) =>
+                                        prev.filter((inv) => inv.id !== invitation.id),
+                                      );
                                     }
                                   }}
-                                  style={{ 
+                                  style={{
                                     padding: 12,
                                     backgroundColor: 'rgba(239, 68, 68, 0.1)',
                                     borderRadius: 8,
-                                    marginLeft: 8
+                                    marginLeft: 8,
                                   }}
                                   activeOpacity={0.6}
                                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -2423,59 +2724,64 @@ export const GettingStarted = () => {
                               {t('onboarding.relationships.noPending') || 'No pending invitations'}
                             </Text>
                           )
+                        ) : // Existing relationships
+                        existingRelationships.length > 0 ? (
+                          existingRelationships.map((relationship) => (
+                            <XStack key={relationship.id} gap="$2" alignItems="center">
+                              <YStack flex={1}>
+                                <RadioButton
+                                  onPress={() => {}} // No action on tap for existing relationships
+                                  title={relationship.name}
+                                  description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? t('onboarding.relationships.yourSupervisor') || 'Your supervisor' : t('onboarding.relationships.studentYouSupervise') || 'Student you supervise'} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
+                                  isSelected={false} // Don't show as selected
+                                />
+                              </YStack>
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setRelationshipRemovalTarget({
+                                    id: relationship.id,
+                                    name: relationship.name,
+                                    email: relationship.email,
+                                    role: relationship.role,
+                                    relationship_type: relationship.relationship_type,
+                                  });
+                                  openRelationshipRemovalModal();
+                                }}
+                              >
+                                <Feather name="trash-2" size={16} color="#EF4444" />
+                              </TouchableOpacity>
+                            </XStack>
+                          ))
                         ) : (
-                          // Existing relationships
-                          existingRelationships.length > 0 ? (
-                            existingRelationships.map((relationship) => (
-                              <XStack key={relationship.id} gap="$2" alignItems="center">
-                                <YStack flex={1}>
-                                  <RadioButton
-                                    onPress={() => {}} // No action on tap for existing relationships
-                                    title={relationship.name}
-                                    description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? (t('onboarding.relationships.yourSupervisor') || 'Your supervisor') : (t('onboarding.relationships.studentYouSupervise') || 'Student you supervise')} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
-                                    isSelected={false} // Don't show as selected
-                                  />
-                                </YStack>
-                                <TouchableOpacity
-                                  onPress={() => {
-                                    setRelationshipRemovalTarget({
-                                      id: relationship.id,
-                                      name: relationship.name,
-                                      email: relationship.email,
-                                      role: relationship.role,
-                                      relationship_type: relationship.relationship_type,
-                                    });
-                                    openRelationshipRemovalModal();
-                                  }}
-                                >
-                                  <Feather name="trash-2" size={16} color="#EF4444" />
-                                </TouchableOpacity>
-                              </XStack>
-                            ))
-                          ) : (
-                            <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                              {t('onboarding.relationships.noExisting') || 'No existing relationships'}
-                            </Text>
-                          )
+                          <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                            {t('onboarding.relationships.noExisting') ||
+                              'No existing relationships'}
+                          </Text>
                         )}
                       </YStack>
                     </ScrollView>
                   </YStack>
                 )}
-                
+
                 {/* Show selected connections with message - using OnboardingInteractive styling */}
                 {selectedConnections.length > 0 && (
-                  <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
+                  <YStack
+                    gap="$3"
+                    padding="$4"
+                    backgroundColor="$backgroundHover"
+                    borderRadius="$4"
+                  >
                     <Text size="md" fontWeight="600" color="$color">
-                      {t('onboarding.relationships.newConnectionsTitle') || 'New Connection to Add'} ({selectedConnections.length}):
+                      {t('onboarding.relationships.newConnectionsTitle') || 'New Connection to Add'}{' '}
+                      ({selectedConnections.length}):
                     </Text>
                     {selectedConnections.map((connection) => (
                       <RadioButton
                         key={connection.id}
                         onPress={() => {
                           // Remove this connection
-                          setSelectedConnections(prev => 
-                            prev.filter(conn => conn.id !== connection.id)
+                          setSelectedConnections((prev) =>
+                            prev.filter((conn) => conn.id !== connection.id),
                           );
                         }}
                         title={connection.full_name || connection.email}
@@ -2483,11 +2789,19 @@ export const GettingStarted = () => {
                         isSelected={true}
                       />
                     ))}
-                    
+
                     {/* Show custom message if provided */}
                     {connectionCustomMessage.trim() && (
-                      <YStack gap="$1" marginTop="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
-                        <Text size="sm" color="$gray11" fontWeight="600">Your message:</Text>
+                      <YStack
+                        gap="$1"
+                        marginTop="$2"
+                        padding="$3"
+                        backgroundColor="$backgroundHover"
+                        borderRadius="$3"
+                      >
+                        <Text size="sm" color="$gray11" fontWeight="600">
+                          Your message:
+                        </Text>
                         <Text size="sm" color="$color" fontStyle="italic">
                           "{connectionCustomMessage.trim()}"
                         </Text>
@@ -2495,10 +2809,12 @@ export const GettingStarted = () => {
                     )}
                   </YStack>
                 )}
-                
+
                 {/* Custom message input */}
                 <YStack gap="$2">
-                  <Text fontSize="$3" color="$gray11">Optional message:</Text>
+                  <Text fontSize="$3" color="$gray11">
+                    Optional message:
+                  </Text>
                   <TextInput
                     value={connectionCustomMessage}
                     onChangeText={setConnectionCustomMessage}
@@ -2507,23 +2823,26 @@ export const GettingStarted = () => {
                     style={{
                       backgroundColor: '$background',
                       color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
-                      borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                      borderColor:
+                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                       borderWidth: 1,
                       borderRadius: 8,
                       padding: 12,
                       minHeight: 60,
                       textAlignVertical: 'top',
                     }}
-                    placeholderTextColor={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
+                    placeholderTextColor={
+                      colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'
+                    }
                   />
                 </YStack>
-                
+
                 <FormField
                   placeholder="Search by name or email..."
                   value={connectionSearchQuery}
                   onChangeText={handleSearchUsers}
                 />
-                
+
                 <ScrollView style={{ flex: 1, maxHeight: 300 }} showsVerticalScrollIndicator={true}>
                   <YStack gap="$2">
                     {searchResults.length === 0 && connectionSearchQuery.length >= 2 && (
@@ -2531,25 +2850,27 @@ export const GettingStarted = () => {
                         No users found
                       </Text>
                     )}
-                    
+
                     {searchResults.length === 0 && connectionSearchQuery.length < 2 && (
                       <Text fontSize="$3" color="$gray11" textAlign="center" paddingVertical="$4">
                         Start typing to search for users
                       </Text>
                     )}
-                    
+
                     {searchResults.map((user) => {
-                      const isSelected = selectedConnections.some(conn => conn.id === user.id);
+                      const isSelected = selectedConnections.some((conn) => conn.id === user.id);
                       return (
                         <TouchableOpacity
                           key={user.id}
                           onPress={async () => {
                             if (isSelected) {
                               // Remove from selection
-                              setSelectedConnections(prev => prev.filter(conn => conn.id !== user.id));
+                              setSelectedConnections((prev) =>
+                                prev.filter((conn) => conn.id !== user.id),
+                              );
                             } else {
                               // Add to selection
-                              setSelectedConnections(prev => [...prev, user]);
+                              setSelectedConnections((prev) => [...prev, user]);
                             }
                           }}
                           style={{
@@ -2581,7 +2902,7 @@ export const GettingStarted = () => {
                     })}
                   </YStack>
                 </ScrollView>
-                
+
                 {/* Action Buttons */}
                 <YStack gap="$2" marginTop="$4">
                   <Button
@@ -2591,18 +2912,13 @@ export const GettingStarted = () => {
                     disabled={selectedConnections.length === 0}
                   >
                     <Text color="white" fontWeight="600">
-                      {selectedConnections.length > 0 
+                      {selectedConnections.length > 0
                         ? `Send ${selectedConnections.length} Invitation${selectedConnections.length > 1 ? 's' : ''}`
-                        : 'Select Users to Invite'
-                      }
+                        : 'Select Users to Invite'}
                     </Text>
                   </Button>
-                  
-                  <Button
-                    variant="outlined"
-                    size="lg"
-                    onPress={hideConnectionsSheet}
-                  >
+
+                  <Button variant="outlined" size="lg" onPress={hideConnectionsSheet}>
                     <Text color="$color">Cancel</Text>
                   </Button>
                 </YStack>
@@ -2633,10 +2949,13 @@ export const GettingStarted = () => {
           }}
         >
           <View style={{ flex: 1 }}>
-            <Pressable style={{ flex: 1 }} onPress={() => {
-              relationshipRemovalIsAnimating.value = false; // Reset state on backdrop tap
-              closeRelationshipRemovalModal();
-            }} />
+            <Pressable
+              style={{ flex: 1 }}
+              onPress={() => {
+                relationshipRemovalIsAnimating.value = false; // Reset state on backdrop tap
+                closeRelationshipRemovalModal();
+              }}
+            />
             <GestureDetector gesture={relationshipRemovalPanGesture}>
               <ReanimatedAnimated.View
                 style={[
@@ -2653,58 +2972,74 @@ export const GettingStarted = () => {
                   },
                   {
                     transform: [{ translateY: relationshipRemovalTranslateY }],
-                  }
+                  },
                 ]}
               >
                 {/* Drag Handle */}
-                <View style={{
-                  alignItems: 'center',
-                  paddingVertical: 8,
-                  paddingBottom: 16,
-                }}>
-                  <View style={{
-                    width: 40,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
-                  }} />
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                    }}
+                  />
                 </View>
 
                 <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                  {relationshipRemovalTarget?.relationship_type === 'has_supervisor' 
-                    ? (t('onboarding.relationships.removeSupervisorTitle') || 'Remove Supervisor')
-                    : (t('onboarding.relationships.removeStudentTitle') || 'Remove Student')
-                  }
+                  {relationshipRemovalTarget?.relationship_type === 'has_supervisor'
+                    ? t('onboarding.relationships.removeSupervisorTitle') || 'Remove Supervisor'
+                    : t('onboarding.relationships.removeStudentTitle') || 'Remove Student'}
                 </Text>
-                
+
                 <Text fontSize="$4" color="$color">
                   {relationshipRemovalTarget?.relationship_type === 'has_supervisor'
-                    ? (t('onboarding.relationships.removeSupervisorConfirm') || 'Are you sure you want to remove {name} as your supervisor?').replace('{name}', relationshipRemovalTarget?.name || '')
-                    : (t('onboarding.relationships.removeStudentConfirm') || 'Are you sure you want to remove {name} as your student?').replace('{name}', relationshipRemovalTarget?.name || '')
-                  }
+                    ? (
+                        t('onboarding.relationships.removeSupervisorConfirm') ||
+                        'Are you sure you want to remove {name} as your supervisor?'
+                      ).replace('{name}', relationshipRemovalTarget?.name || '')
+                    : (
+                        t('onboarding.relationships.removeStudentConfirm') ||
+                        'Are you sure you want to remove {name} as your student?'
+                      ).replace('{name}', relationshipRemovalTarget?.name || '')}
                 </Text>
-                
+
                 <YStack gap="$2">
-                  <Text fontSize="$3" color="$gray11">{t('onboarding.relationships.optionalMessage') || 'Optional message:'}</Text>
+                  <Text fontSize="$3" color="$gray11">
+                    {t('onboarding.relationships.optionalMessage') || 'Optional message:'}
+                  </Text>
                   <TextInput
                     value={relationshipRemovalMessage}
                     onChangeText={setRelationshipRemovalMessage}
-                    placeholder={t('onboarding.relationships.messagePlaceholder') || 'Add a message explaining why (optional)...'}
+                    placeholder={
+                      t('onboarding.relationships.messagePlaceholder') ||
+                      'Add a message explaining why (optional)...'
+                    }
                     multiline
                     style={{
                       backgroundColor: '$background',
                       color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
-                      borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                      borderColor:
+                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                       borderWidth: 1,
                       borderRadius: 8,
                       padding: 12,
                       minHeight: 80,
                       textAlignVertical: 'top',
                     }}
-                    placeholderTextColor={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
+                    placeholderTextColor={
+                      colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'
+                    }
                   />
                 </YStack>
-                
+
                 <YStack gap="$2">
                   <Button
                     variant="primary"
@@ -2714,11 +3049,7 @@ export const GettingStarted = () => {
                   >
                     <Text color="white">{t('common.remove') || 'Remove'}</Text>
                   </Button>
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    onPress={closeRelationshipRemovalModal}
-                  >
+                  <Button variant="secondary" size="lg" onPress={closeRelationshipRemovalModal}>
                     {t('common.cancel') || 'Cancel'}
                   </Button>
                 </YStack>
@@ -2748,7 +3079,10 @@ export const GettingStarted = () => {
           setShowLearningPathsSheet(false);
         }}
         onPathSelected={(path) => {
-          console.log('🎯 [GettingStarted] Learning path selected:', path.title[language] || path.title.en);
+          console.log(
+            '🎯 [GettingStarted] Learning path selected:',
+            path.title[language] || path.title.en,
+          );
           setSelectedLearningPath(path);
           setShowLearningPathsSheet(false);
           setShowExerciseListSheet(true);
@@ -2771,9 +3105,9 @@ export const GettingStarted = () => {
           setShowLearningPathsSheet(true);
         }}
         title={
-          selectedLearningPath 
-            ? (selectedLearningPath.title[language] || selectedLearningPath.title.en)
-            : (firstLearningPathTitle || t('exercises.allLearningPaths') || 'All Learning Paths')
+          selectedLearningPath
+            ? selectedLearningPath.title[language] || selectedLearningPath.title.en
+            : firstLearningPathTitle || t('exercises.allLearningPaths') || 'All Learning Paths'
         }
         learningPathId={selectedLearningPath?.id || firstLearningPathId || undefined}
         showAllPaths={!selectedLearningPath && !firstLearningPathId}

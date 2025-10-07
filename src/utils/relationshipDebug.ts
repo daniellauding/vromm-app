@@ -16,7 +16,7 @@ type DebugEvent =
 
 export function relDebug(event: DebugEvent, data?: Record<string, unknown>) {
   const ts = new Date().toISOString();
-  // eslint-disable-next-line no-console
+
   console.log(`REL[${event}] @ ${ts}`, data || {});
 }
 
@@ -37,5 +37,3 @@ export const relLog = {
   publicProfileButtonState: (userId: string, state: string) =>
     relDebug('publicProfile:buttonState', { userId, state }),
 };
-
-

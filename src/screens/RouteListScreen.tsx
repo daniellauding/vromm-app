@@ -18,25 +18,22 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
   const { title, routes: paramRoutes = [], type, activeFilter } = route.params;
   const { user } = useAuth();
   const [routes, setRoutes] = React.useState<Route[]>(paramRoutes);
-  
+
   // Debug logging to see what parameters are received
   console.log('[RouteListScreen] Received params:', {
     title,
     type,
     routesCount: paramRoutes.length,
     activeFilter,
-    allParams: route.params
+    allParams: route.params,
   });
 
   React.useEffect(() => {
     if (!user && paramRoutes.length > 0) return;
-    
+
     if (type === 'driven' && user) {
       const loadDrivenRoutes = async () => {
-        const { data } = await supabase
-          .from('driven_routes')
-          .select('*')
-          .eq('user_id', user.id);
+        const { data } = await supabase.from('driven_routes').select('*').eq('user_id', user.id);
 
         setRoutes((data as unknown as Route[]) || []);
       };
@@ -45,7 +42,8 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
       const loadDraftRoutes = async () => {
         const { data } = await supabase
           .from('routes')
-          .select(`
+          .select(
+            `
             id,
             name,
             description,
@@ -56,7 +54,8 @@ export function RouteListScreen({ route }: RouteListScreenProps) {
             drawing_mode,
             creator_id,
             creator:creator_id(id, full_name)
-          `)
+          `,
+          )
           .eq('creator_id', user.id)
           .eq('is_draft', true)
           .eq('visibility', 'private')

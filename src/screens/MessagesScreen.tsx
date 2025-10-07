@@ -139,7 +139,7 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ onConversationPr
   const getConversationDisplayName = (conversation: Conversation) => {
     const otherParticipant = conversation.participants?.find((p) => p.user_id !== user?.id) as any;
 
-    const prof = otherParticipant ? (otherParticipant.profiles || otherParticipant.profile) : null;
+    const prof = otherParticipant ? otherParticipant.profiles || otherParticipant.profile : null;
 
     if (prof?.full_name?.trim()) {
       return prof.full_name.trim();
@@ -197,7 +197,7 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ onConversationPr
       otherParticipant: otherParticipant
         ? {
             userId: String(otherParticipant.user_id || ''),
-            profile: (otherParticipant.profiles || otherParticipant.profile) || null,
+            profile: otherParticipant.profiles || otherParticipant.profile || null,
             displayName: safeDisplayName,
           }
         : null,
@@ -337,7 +337,11 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ onConversationPr
       )}
 
       {reportConversationId && (
-        <ReportDialog reportableId={reportConversationId} reportableType="conversation" onClose={() => setReportConversationId(null)} />
+        <ReportDialog
+          reportableId={reportConversationId}
+          reportableType="conversation"
+          onClose={() => setReportConversationId(null)}
+        />
       )}
     </YStack>
   );

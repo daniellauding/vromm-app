@@ -102,8 +102,7 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
 
       // Prefix subtype metadata into content so backend can see original type
       const finalContent = (
-        (content?.trim() ? `${content.trim()}` : '') +
-        `\n[type:${reportableType}]`
+        (content?.trim() ? `${content.trim()}` : '') + `\n[type:${reportableType}]`
       ).trim();
 
       // Build structured context for deterministic routing
@@ -112,7 +111,11 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
         const dl = (p: string) => `vromm://${p}`;
         switch (reportableType) {
           case 'conversation':
-            return { ...base, conversation_id: reportableId, deeplink: dl(`conversation/${reportableId}`) };
+            return {
+              ...base,
+              conversation_id: reportableId,
+              deeplink: dl(`conversation/${reportableId}`),
+            };
           case 'user':
             return { ...base, user_id: reportableId, deeplink: dl(`user/${reportableId}`) };
           case 'route':
@@ -120,7 +123,11 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
           case 'event':
             return { ...base, event_id: reportableId, deeplink: dl(`event/${reportableId}`) };
           case 'learning_path':
-            return { ...base, learning_path_id: reportableId, deeplink: dl(`learning-path/${reportableId}`) };
+            return {
+              ...base,
+              learning_path_id: reportableId,
+              deeplink: dl(`learning-path/${reportableId}`),
+            };
           case 'exercise':
             return { ...base, exercise_id: reportableId, deeplink: dl(`exercise/${reportableId}`) };
           case 'route_comment':
@@ -174,7 +181,14 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
   const selectedType = REPORT_TYPES.find((type) => type.value === reportType);
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose} presentationStyle="overFullScreen" statusBarTranslucent>
+    <Modal
+      visible
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+    >
       <YStack flex={1} backgroundColor="rgba(0,0,0,0.5)" justifyContent="center" padding="$4">
         <Card elevate bordered backgroundColor="$background" padding="$4">
           <YStack gap="$4">

@@ -364,9 +364,9 @@ const HamburgerDrawer = ({
       label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee',
       action: () => onOpenBuyCoffeeLocal(),
     },
-    // { 
-    //   icon: 'help-circle', 
-    //   label: 'Start Tour', 
+    // {
+    //   icon: 'help-circle',
+    //   label: 'Start Tour',
     //   action: () => {
     //     console.log('[Drawer] Start Tour tapped');
     //     onClose();
@@ -379,12 +379,12 @@ const HamburgerDrawer = ({
     {
       // icon: 'share',
       label: t('drawer.shareApp') || 'Share App',
-      action: () => onShareApp()
+      action: () => onShareApp(),
     },
-    { 
+    {
       // icon: 'info',
       label: t('drawer.about') || 'About',
-      action: () => onOpenAboutLocal()
+      action: () => onOpenAboutLocal(),
     },
     {
       // icon: 'log-out',
@@ -457,11 +457,7 @@ const HamburgerDrawer = ({
                         justifyContent: 'center',
                       }}
                     >
-                      <Feather
-                        name="user"
-                        size={22}
-                        color={theme.color?.val || '#000000'}
-                      />
+                      <Feather name="user" size={22} color={theme.color?.val || '#000000'} />
                     </View>
                   )}
                   <YStack>
@@ -570,29 +566,33 @@ const HamburgerDrawer = ({
 };
 
 // Custom tab bar button component with color scheme support and HomeScreen tour highlighting
-const CustomTabBarButton = (props: BottomTabBarButtonProps & { isHighlighted?: boolean; tourTargetId?: string }) => {
+const CustomTabBarButton = (
+  props: BottomTabBarButtonProps & { isHighlighted?: boolean; tourTargetId?: string },
+) => {
   const { accessibilityState, children, onPress, style, isHighlighted, tourTargetId } = props;
   const isSelected = accessibilityState?.selected;
-  
-  // Register this button for tour targeting (HomeScreen tours only)  
+
+  // Register this button for tour targeting (HomeScreen tours only)
   const tourRef = tourTargetId ? useTourTarget(tourTargetId) : null;
 
   return (
-    <View style={[
-      style as ViewStyle, 
-      { 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        flex: 1, // ✅ Ensure equal distribution
-      }
-    ]}>
+    <View
+      style={[
+        style as ViewStyle,
+        {
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: 1, // ✅ Ensure equal distribution
+        },
+      ]}
+    >
       <TouchableOpacity
         ref={tourRef}
         onPress={onPress}
         style={[
           {
             display: 'flex',
-            width: '100%',  // ✅ Take full width of container
+            width: '100%', // ✅ Take full width of container
             height: 56,
             alignItems: 'center',
             justifyContent: 'center',
@@ -608,11 +608,13 @@ const CustomTabBarButton = (props: BottomTabBarButtonProps & { isHighlighted?: b
           },
         ]}
       >
-        <View style={{ 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          width: '100%',  // ✅ Center content within button
-        }}>
+        <View
+          style={{
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%', // ✅ Center content within button
+          }}
+        >
           {children}
         </View>
       </TouchableOpacity>
@@ -630,25 +632,39 @@ export function TabNavigator() {
   const { language, setLanguage } = useAppTranslation();
   const { user } = useAuth();
   const createRouteContext = useCreateRoute();
-  const { unreadMessageCount: messagingUnreadMessageCount, unreadNotificationCount: messagingUnreadNotificationCount, refreshCounts } = useMessaging();
+  const {
+    unreadMessageCount: messagingUnreadMessageCount,
+    unreadNotificationCount: messagingUnreadNotificationCount,
+    refreshCounts,
+  } = useMessaging();
   // Tour context RE-ENABLED for HomeScreen tours only
-  const { isActive: tourActive, currentStep, steps, nextStep, prevStep, endTour, startDatabaseTour, resetTour, startCustomTour } = useTour();
+  const {
+    isActive: tourActive,
+    currentStep,
+    steps,
+    nextStep,
+    prevStep,
+    endTour,
+    startDatabaseTour,
+    resetTour,
+    startCustomTour,
+  } = useTour();
   // Screen tours still DISABLED
   // const { triggerScreenTour } = useScreenTours();
-  
+
   // Helper function to check if a tab should be highlighted during tour - RE-ENABLED for HomeScreen
   const isTabHighlighted = (tabTarget: string): boolean => {
     if (!tourActive || typeof currentStep !== 'number' || !steps[currentStep]) return false;
     const step = steps[currentStep];
     return step.targetScreen === tabTarget || step.targetElement === tabTarget;
   };
-  
+
   // Get current step object
   const getCurrentStepObject = () => {
     if (!tourActive || typeof currentStep !== 'number' || !steps[currentStep]) return null;
     return steps[currentStep];
   };
-  
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isBetaInfoOpen, setIsBetaInfoOpen] = useState(false);
   const [showBuyCoffee, setShowBuyCoffee] = useState(false);
@@ -718,10 +734,11 @@ export function TabNavigator() {
       const userRole = userProfile?.role || 'student';
 
       // Start HomeScreen tours if we're on HomeScreen (detect better)
-      const isOnHomeScreen = currentRouteName === 'HomeScreen' || 
-                            (currentRouteName === 'MainTabs' && 
-                             navigationState?.routes?.[navigationState.index]?.name === 'HomeTab');
-      
+      const isOnHomeScreen =
+        currentRouteName === 'HomeScreen' ||
+        (currentRouteName === 'MainTabs' &&
+          navigationState?.routes?.[navigationState.index]?.name === 'HomeTab');
+
       if (isOnHomeScreen || !currentRouteName) {
         await resetTour();
         setTimeout(() => {
@@ -988,20 +1005,23 @@ export function TabNavigator() {
     });
   }, [navigation]);
 
-  const handleNavigateToMap = useCallback((routeId: string) => {
-    console.log('🗺️ TabNavigator handling navigate to map with route:', routeId);
-    
-    // Navigate to MapTab with the route ID
-    (navigation as any).navigate('MainTabs', {
-      screen: 'MapTab',
-      params: {
-        screen: 'MapScreen',
+  const handleNavigateToMap = useCallback(
+    (routeId: string) => {
+      console.log('🗺️ TabNavigator handling navigate to map with route:', routeId);
+
+      // Navigate to MapTab with the route ID
+      (navigation as any).navigate('MainTabs', {
+        screen: 'MapTab',
         params: {
-          selectedRouteId: routeId,
+          screen: 'MapScreen',
+          params: {
+            selectedRouteId: routeId,
+          },
         },
-      },
-    });
-  }, [navigation]);
+      });
+    },
+    [navigation],
+  );
 
   // Log tab navigator mount and set up global navigation handler
   const handleCreateRoute = (routeData?: any) => {
@@ -1139,12 +1159,14 @@ export function TabNavigator() {
 
       // Track navigation flow in Firebase Analytics
       if (currentRouteName && previousRouteName && currentRouteName !== previousRouteName) {
-        AppAnalytics.trackNavigation(previousRouteName, currentRouteName, 'tab_navigation').catch(() => {
-          // Silently fail analytics
-        });
+        AppAnalytics.trackNavigation(previousRouteName, currentRouteName, 'tab_navigation').catch(
+          () => {
+            // Silently fail analytics
+          },
+        );
         logNavigation(previousRouteName, currentRouteName);
       }
-      
+
       previousRouteName = currentRouteName;
 
       // List of screens that should hide the tab bar
@@ -1236,7 +1258,9 @@ export function TabNavigator() {
     },
     tabBarActiveTintColor: theme.primary?.val || '#69e3c4',
     tabBarInactiveTintColor: theme.colorHover?.val || '#6B7280',
-    tabBarButton: (props: BottomTabBarButtonProps) => <CustomTabBarButton {...props} isHighlighted={false} tourTargetId="MenuTab" />,
+    tabBarButton: (props: BottomTabBarButtonProps) => (
+      <CustomTabBarButton {...props} isHighlighted={false} tourTargetId="MenuTab" />
+    ),
   };
 
   // (moved to top-level to avoid recreation on every render)
@@ -1250,9 +1274,11 @@ export function TabNavigator() {
             title: t('navigation.home'),
             tabBarIcon: ({ color, size }) => <HomeIcon color={color} size={size} />,
             tabBarButton: (props: BottomTabBarButtonProps) => (
-              <CustomTabBarButton 
-                {...props} 
-                isHighlighted={isTabHighlighted('HomeTab') || isTabHighlighted('GettingStarted.LicensePlan')}
+              <CustomTabBarButton
+                {...props}
+                isHighlighted={
+                  isTabHighlighted('HomeTab') || isTabHighlighted('GettingStarted.LicensePlan')
+                }
                 tourTargetId="HomeTab"
               />
             ),
@@ -1296,8 +1322,8 @@ export function TabNavigator() {
             title: t('navigation.progress'),
             tabBarIcon: ({ color, size }) => <PractiseIcon color={color} size={size} />,
             tabBarButton: (props: BottomTabBarButtonProps) => (
-              <CustomTabBarButton 
-                {...props} 
+              <CustomTabBarButton
+                {...props}
                 isHighlighted={isTabHighlighted('ProgressTab')}
                 tourTargetId="ProgressTab"
               />
@@ -1369,11 +1395,7 @@ export function TabNavigator() {
                       },
                     ]}
                   >
-                    <Feather
-                      name="plus"
-                      size={24}
-                      color={isHighlighted ? '#000' : '#1A3D3D'}
-                    />
+                    <Feather name="plus" size={24} color={isHighlighted ? '#000' : '#1A3D3D'} />
                   </TouchableOpacity>
                 </View>
               );
@@ -1387,8 +1409,8 @@ export function TabNavigator() {
             tabBarIcon: ({ color, size }) => <MapIcon color={color} size={size} />,
             popToTopOnBlur: true,
             tabBarButton: (props: BottomTabBarButtonProps) => (
-              <CustomTabBarButton 
-                {...props} 
+              <CustomTabBarButton
+                {...props}
                 isHighlighted={isTabHighlighted('MapTab')}
                 tourTargetId="MapTab"
               />
@@ -1430,7 +1452,8 @@ export function TabNavigator() {
                       onShareApp={async () => {
                         try {
                           await Share.share({
-                            message: 'Check out Vromm – smarter driving practice: https://www.vromm.se',
+                            message:
+                              'Check out Vromm – smarter driving practice: https://www.vromm.se',
                             url: 'https://www.vromm.se',
                             title: 'Vromm',
                           });
@@ -1439,7 +1462,7 @@ export function TabNavigator() {
                         }
                       }}
                       onOpenAbout={() => setShowAboutWebView(true)}
-                    />
+                    />,
                   );
                 }}
               />

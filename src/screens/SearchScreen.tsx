@@ -250,10 +250,10 @@ export function SearchScreen() {
     try {
       // Try to get device location permissions first
       const { status } = await Location.requestForegroundPermissionsAsync();
-      
+
       let location;
       let placeName = 'Near Me';
-      
+
       if (status === 'granted') {
         try {
           // Get current device location
@@ -267,7 +267,7 @@ export function SearchScreen() {
           location = {
             coords: {
               latitude: 55.7047,
-              longitude: 13.1910,
+              longitude: 13.191,
             },
           };
           placeName = 'Lund, Sweden';
@@ -277,7 +277,7 @@ export function SearchScreen() {
         location = {
           coords: {
             latitude: 55.7047,
-            longitude: 13.1910,
+            longitude: 13.191,
           },
         };
         placeName = 'Lund, Sweden';
@@ -293,14 +293,13 @@ export function SearchScreen() {
 
       // Navigate to map with location
       handleResultSelect(nearMeResult);
-      
     } catch (error) {
       console.error('Error in handleNearMe:', error);
       // Final fallback - still use Lund
       const fallbackResult: SearchResult = {
         id: 'fallback-location',
         place_name: 'Lund, Sweden',
-        center: [13.1910, 55.7047], // [longitude, latitude]
+        center: [13.191, 55.7047], // [longitude, latitude]
         place_type: ['place'],
       };
       handleResultSelect(fallbackResult);
@@ -308,19 +307,21 @@ export function SearchScreen() {
   };
 
   const handleResultSelect = (result: SearchResult) => {
-    console.log('🔍 [SearchScreen] ==================== SEARCH RESULT SELECTED ====================');
+    console.log(
+      '🔍 [SearchScreen] ==================== SEARCH RESULT SELECTED ====================',
+    );
     console.log('🔍 [SearchScreen] Result:', result);
     console.log('🔍 [SearchScreen] Place name:', result?.place_name);
     console.log('🔍 [SearchScreen] Coordinates:', result?.center);
     console.log('🔍 [SearchScreen] Navigation target: MainTabs -> MapTab');
-    
+
     const navParams = {
       selectedLocation: result,
       fromSearch: true,
-      ts: Date.now()
+      ts: Date.now(),
     };
     console.log('🔍 [SearchScreen] Navigation params:', navParams);
-    
+
     try {
       // @ts-ignore - Navigate to nested screen in stack
       navigation.navigate('MainTabs', {

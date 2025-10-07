@@ -226,10 +226,9 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
           }
           // Track route view
           await AppAnalytics.trackRouteView(routeId);
-          
+
           // RouteDetailScreen tours disabled due to performance issues
           // TODO: Re-enable after fixing tour target registration issues
-          
         } catch (error) {
           console.error('Error loading route data:', error);
           setError(error instanceof Error ? error.message : 'Failed to load route data');
@@ -248,7 +247,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     checkDrivenStatus();
     loadReviews();
   }, [routeId]);
-  
+
   useEffect(() => {
     // Listen for navigation focus events
     const unsubscribe = navigation.addListener('focus', () => {
@@ -577,27 +576,23 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       <AddToPresetSheetModal
         routeId={routeId}
         onRouteAdded={(presetId, presetName) => {
-          Alert.alert(
-            'Added to Preset',
-            `Route has been added to "${presetName}"`,
-            [{ text: 'OK' }]
-          );
+          Alert.alert('Added to Preset', `Route has been added to "${presetName}"`, [
+            { text: 'OK' },
+          ]);
         }}
         onRouteRemoved={(presetId, presetName) => {
-          Alert.alert(
-            'Removed from Preset',
-            `Route has been removed from "${presetName}"`,
-            [{ text: 'OK' }]
-          );
+          Alert.alert('Removed from Preset', `Route has been removed from "${presetName}"`, [
+            { text: 'OK' },
+          ]);
         }}
         onPresetCreated={(preset) => {
           Alert.alert(
             'Preset Created',
             `New preset "${preset.name}" has been created and route added to it`,
-            [{ text: 'OK' }]
+            [{ text: 'OK' }],
           );
         }}
-      />
+      />,
     );
   };
 
@@ -874,56 +869,61 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     }
 
     // Add media attachments (deduplicated) - include videos
-    const uniqueMedia = routeData?.media_attachments?.filter((attachment, index, arr) => 
-      arr.findIndex(a => a.url === attachment.url && a.type === attachment.type) === index
-    ) || [];
-    
+    const uniqueMedia =
+      routeData?.media_attachments?.filter(
+        (attachment, index, arr) =>
+          arr.findIndex((a) => a.url === attachment.url && a.type === attachment.type) === index,
+      ) || [];
+
     console.log('📷 [RouteDetail] Media attachments:', {
       total: routeData?.media_attachments?.length || 0,
       afterDedup: uniqueMedia.length,
-      mediaTypes: uniqueMedia.map(m => ({ type: m.type, url: m.url.substring(0, 50) + '...' }))
+      mediaTypes: uniqueMedia.map((m) => ({ type: m.type, url: m.url.substring(0, 50) + '...' })),
     });
-    
+
     // Validate and filter out invalid URLs
     const validMedia = uniqueMedia.filter((attachment) => {
-      const isValidUrl = attachment.url && (
-        attachment.url.startsWith('http://') || 
-        attachment.url.startsWith('https://') || 
-        attachment.url.startsWith('file://') ||
-        attachment.url.startsWith('data:') ||
-        attachment.url.startsWith('content://')
-      );
-      
+      const isValidUrl =
+        attachment.url &&
+        (attachment.url.startsWith('http://') ||
+          attachment.url.startsWith('https://') ||
+          attachment.url.startsWith('file://') ||
+          attachment.url.startsWith('data:') ||
+          attachment.url.startsWith('content://'));
+
       if (!isValidUrl) {
         console.warn('⚠️ [RouteDetail] Invalid media URL detected (skipping):', {
           type: attachment.type,
           url: attachment.url,
-          description: attachment.description
+          description: attachment.description,
         });
         return false;
       }
-      
+
       return true;
     });
 
     console.log('📷 [RouteDetail] Valid media after URL validation:', {
       beforeValidation: uniqueMedia.length,
       afterValidation: validMedia.length,
-      skipped: uniqueMedia.length - validMedia.length
+      skipped: uniqueMedia.length - validMedia.length,
     });
-    
+
     validMedia.forEach((attachment) => {
-      console.log('📷 [RouteDetail] Adding valid media item:', { type: attachment.type, url: attachment.url });
-      items.push({ 
-        type: attachment.type, 
+      console.log('📷 [RouteDetail] Adding valid media item:', {
+        type: attachment.type,
         url: attachment.url,
-        description: attachment.description 
+      });
+      items.push({
+        type: attachment.type,
+        url: attachment.url,
+        description: attachment.description,
       });
     });
 
     console.log('🎬 [RouteDetail] Final carousel items:', {
       totalItems: items.length,
-      itemTypes: items.map(i => i.type)
+      itemTypes: items.map((i) => i.type),
     });
 
     return items;
@@ -931,7 +931,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
   const renderCarouselItem = ({ item }: { item: any }) => {
     console.log('🎬 [RouteDetail] Rendering carousel item:', { type: item.type, url: item.url });
-    
+
     if (item.type === 'map') {
       console.log('🎨 [RouteDetail] Rendering map carousel item with:', {
         waypointsLength: item.waypoints?.length || 0,
@@ -966,26 +966,30 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     } else if (item.type === 'video') {
       console.log('🎥 [RouteDetail] Rendering video preview:', item.url);
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={{ width: windowWidth, height: HERO_HEIGHT, position: 'relative' }}
           onPress={() => console.log('🎥 Video play requested:', item.url)}
           activeOpacity={0.8}
         >
-          <View style={{ 
-            width: '100%', 
-            height: '100%', 
-            backgroundColor: '#000', 
-            justifyContent: 'center', 
-            alignItems: 'center' 
-          }}>
-            <View style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              borderRadius: 50,
-              width: 100,
-              height: 100,
+          <View
+            style={{
+              width: '100%',
+              height: '100%',
+              backgroundColor: '#000',
               justifyContent: 'center',
-              alignItems: 'center'
-            }}>
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                borderRadius: 50,
+                width: 100,
+                height: 100,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
               <Play size={48} color="#FFF" />
             </View>
             <Text style={{ color: '#FFF', marginTop: 16, fontSize: 16, fontWeight: '600' }}>
@@ -997,8 +1001,8 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     } else if (item.type === 'youtube') {
       console.log('📺 [RouteDetail] Rendering YouTube:', item.url);
       return (
-        <WebView 
-          source={{ uri: item.url }} 
+        <WebView
+          source={{ uri: item.url }}
           style={{ width: windowWidth, height: HERO_HEIGHT }}
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={true}
@@ -1205,8 +1209,6 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     }
   };
 
-
-
   const startRoute = async () => {
     try {
       if (!user || !routeId) {
@@ -1286,7 +1288,6 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     // Give extra bottom space to clear the floating tab bar on iOS
     <Screen edges={[]} padding={false} hideStatusBar bottomInset={80}>
       <YStack f={1}>
-
         {/* Hero Carousel */}
         {getCarouselItems().length > 0 && (
           <View style={{ height: HERO_HEIGHT }}>
@@ -1772,7 +1773,9 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
 
             {/* Comments Section for this Route */}
             <YStack gap="$2">
-              <Text fontSize="$6" fontWeight="600" color="$color">Comments</Text>
+              <Text fontSize="$6" fontWeight="600" color="$color">
+                Comments
+              </Text>
               <CommentsSection targetType="route" targetId={routeId} />
             </YStack>
           </YStack>

@@ -18,9 +18,9 @@ interface EmptyStateProps {
   variant?: 'default' | 'success' | 'warning' | 'info';
 }
 
-export const EmptyState = ({ 
-  title, 
-  message, 
+export const EmptyState = ({
+  title,
+  message,
   icon = 'info',
   actionLabel,
   actionIcon = 'plus',
@@ -28,7 +28,7 @@ export const EmptyState = ({
   secondaryLabel,
   secondaryIcon = 'external-link',
   onSecondaryAction,
-  variant = 'default'
+  variant = 'default',
 }: EmptyStateProps) => {
   const navigation = useNavigation<NavigationProp>();
 
@@ -48,10 +48,10 @@ export const EmptyState = ({
   const { iconColor, borderColor } = getVariantColors();
 
   return (
-    <Card 
-      bordered 
-      elevate 
-      backgroundColor="$backgroundStrong" 
+    <Card
+      bordered
+      elevate
+      backgroundColor="$backgroundStrong"
       padding="$4"
       borderWidth={variant !== 'default' ? 1 : 0}
       borderColor={borderColor}
@@ -64,14 +64,14 @@ export const EmptyState = ({
         <Text size="md" color="$gray11" textAlign="center" lineHeight={20}>
           {message}
         </Text>
-        
+
         {/* Action buttons */}
         {(actionLabel || secondaryLabel) && (
           <YStack gap="$2" marginTop="$2" width="100%">
             {actionLabel && (
-              <Button 
-                variant="primary" 
-                size="md" 
+              <Button
+                variant="primary"
+                size="md"
                 onPress={onAction}
                 iconBefore={<Feather name={actionIcon} size={16} color="white" />}
               >
@@ -79,9 +79,9 @@ export const EmptyState = ({
               </Button>
             )}
             {secondaryLabel && (
-              <Button 
-                variant="secondary" 
-                size="sm" 
+              <Button
+                variant="secondary"
+                size="sm"
                 onPress={onSecondaryAction}
                 iconBefore={<Feather name={secondaryIcon} size={16} />}
               >

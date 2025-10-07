@@ -118,10 +118,10 @@ const ActivityMediaPreview = ({ mediaItems }: { mediaItems: ActivityItem['data']
   );
 };
 
-const ActivityRouteCreated = ({ 
-  activity, 
-  onRoutePress 
-}: { 
+const ActivityRouteCreated = ({
+  activity,
+  onRoutePress,
+}: {
   activity: ActivityItem;
   onRoutePress?: (routeId: string) => void;
 }) => {
@@ -230,10 +230,10 @@ const ActivityExerciseCompleted = ({ activity }: { activity: ActivityItem }) => 
   );
 };
 
-const ActivityUserInfo = ({ 
-  activity, 
-  onUserPress 
-}: { 
+const ActivityUserInfo = ({
+  activity,
+  onUserPress,
+}: {
   activity: ActivityItem;
   onUserPress?: (userId: string) => void;
 }) => {
@@ -336,11 +336,11 @@ const ActivityUserInfo = ({
   );
 };
 
-const ActivityItem = ({ 
-  activity, 
-  onUserPress, 
-  onRoutePress 
-}: { 
+const ActivityItem = ({
+  activity,
+  onUserPress,
+  onRoutePress,
+}: {
   activity: ActivityItem;
   onUserPress?: (userId: string) => void;
   onRoutePress?: (routeId: string) => void;
@@ -536,7 +536,9 @@ const ActivityItem = ({
       {mediaItems.length > 0 && <ActivityMediaPreview mediaItems={mediaItems} />}
 
       {/* Activity content */}
-      {activity.type === 'route_created' && <ActivityRouteCreated activity={activity} onRoutePress={onRoutePress} />}
+      {activity.type === 'route_created' && (
+        <ActivityRouteCreated activity={activity} onRoutePress={onRoutePress} />
+      )}
 
       {activity.type === 'event_created' && <ActivityEventCreated activity={activity} />}
 
@@ -551,7 +553,11 @@ interface CommunityFeedProps {
   onRoutePress?: (routeId: string) => void;
 }
 
-export const CommunityFeed = ({ onOpenFeedSheet, onUserPress, onRoutePress }: CommunityFeedProps = {}) => {
+export const CommunityFeed = ({
+  onOpenFeedSheet,
+  onUserPress,
+  onRoutePress,
+}: CommunityFeedProps = {}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
@@ -685,7 +691,10 @@ export const CommunityFeed = ({ onOpenFeedSheet, onUserPress, onRoutePress }: Co
       onOpenFeedSheet();
     } else {
       console.log('[NAV][HomeSection] CommunityFeed → CommunityFeedScreen');
-      (navigation as any).navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CommunityFeedScreen' } });
+      (navigation as any).navigate('MainTabs', {
+        screen: 'HomeTab',
+        params: { screen: 'CommunityFeedScreen' },
+      });
     }
   }, [navigation, onOpenFeedSheet]);
 
@@ -716,10 +725,10 @@ export const CommunityFeed = ({ onOpenFeedSheet, onUserPress, onRoutePress }: Co
 
       {activities.length === 0 ? (
         <YStack padding="$4">
-          <Card 
-            bordered 
-            elevate 
-            backgroundColor="$backgroundStrong" 
+          <Card
+            bordered
+            elevate
+            backgroundColor="$backgroundStrong"
             padding="$4"
             borderWidth={1}
             borderColor="rgba(0, 230, 195, 0.3)"
@@ -730,22 +739,23 @@ export const CommunityFeed = ({ onOpenFeedSheet, onUserPress, onRoutePress }: Co
                 Welcome to the Community!
               </Text>
               <Text size="md" color="$gray11" textAlign="center" lineHeight={20}>
-                No community activity yet. Create routes, connect with others, and start building the driving practice community!
+                No community activity yet. Create routes, connect with others, and start building
+                the driving practice community!
               </Text>
-              
+
               {/* Action buttons */}
               <YStack gap="$2" marginTop="$2" width="100%">
-                <Button 
-                  variant="primary" 
-                  size="md" 
+                <Button
+                  variant="primary"
+                  size="md"
                   onPress={() => (navigation as any).navigate('CreateRoute')}
                   iconBefore={<Feather name="plus" size={16} color="white" />}
                 >
                   Create Your First Route
                 </Button>
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onPress={() => (navigation as any).navigate('ProfileScreen')}
                   iconBefore={<Feather name="users" size={16} />}
                 >
@@ -762,11 +772,7 @@ export const CommunityFeed = ({ onOpenFeedSheet, onUserPress, onRoutePress }: Co
           data={activities}
           renderItem={({ item }) => (
             <View style={{ width: 260, marginRight: 16 }} key={item.id}>
-              <ActivityItem 
-                activity={item} 
-                onUserPress={onUserPress} 
-                onRoutePress={onRoutePress} 
-              />
+              <ActivityItem activity={item} onUserPress={onUserPress} onRoutePress={onRoutePress} />
             </View>
           )}
           keyExtractor={(item) => item.id}

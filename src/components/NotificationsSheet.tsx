@@ -52,7 +52,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
       });
       setShowBulkActions(false);
       // Force refresh by updating the refresh key
-      setRefreshKey(prev => prev + 1);
+      setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error('Error marking all as read:', error);
       showToast({
@@ -83,7 +83,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
       });
       setShowArchiveConfirm(false);
       // Force refresh by updating the refresh key
-      setRefreshKey(prev => prev + 1);
+      setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error('Error archiving all notifications:', error);
       showToast({
@@ -168,32 +168,32 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                     {showArchived ? 'Archived Notifications' : 'Notifications'}
                   </Text>
                 </XStack>
-                
+
                 <XStack alignItems="center" gap="$3">
                   {/* Archive Toggle */}
                   <TouchableOpacity
                     onPress={() => setShowArchived(!showArchived)}
                     style={{
                       padding: 8,
-                      backgroundColor: showArchived 
-                        ? (colorScheme === 'dark' ? '#00FFBC' : '#00CC99')
-                        : (colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'),
+                      backgroundColor: showArchived
+                        ? colorScheme === 'dark'
+                          ? '#00FFBC'
+                          : '#00CC99'
+                        : colorScheme === 'dark'
+                          ? '#2A2A2A'
+                          : '#F5F5F5',
                       borderRadius: 6,
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 4,
                     }}
                   >
-                    <Feather 
-                      name={showArchived ? "archive-restore" : "archive"} 
-                      size={16} 
-                      color={showArchived ? "#000" : iconColor} 
+                    <Feather
+                      name={showArchived ? 'archive-restore' : 'archive'}
+                      size={16}
+                      color={showArchived ? '#000' : iconColor}
                     />
-                    <Text 
-                      fontSize="$2" 
-                      color={showArchived ? "#000" : iconColor}
-                      fontWeight="500"
-                    >
+                    <Text fontSize="$2" color={showArchived ? '#000' : iconColor} fontWeight="500">
                       {showArchived ? 'Active' : 'Archived'}
                     </Text>
                   </TouchableOpacity>
@@ -212,13 +212,13 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                       }}
                       disabled={isProcessing}
                     >
-                      <Feather 
-                        name="more-horizontal" 
-                        size={16} 
-                        color={isProcessing ? '#666' : iconColor} 
+                      <Feather
+                        name="more-horizontal"
+                        size={16}
+                        color={isProcessing ? '#666' : iconColor}
                       />
-                      <Text 
-                        fontSize="$2" 
+                      <Text
+                        fontSize="$2"
                         color={isProcessing ? '#666' : iconColor}
                         fontWeight="500"
                       >
@@ -226,7 +226,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                       </Text>
                     </TouchableOpacity>
                   )}
-                  
+
                   <TouchableOpacity onPress={onClose}>
                     <Feather name="x" size={24} color={iconColor} />
                   </TouchableOpacity>
@@ -261,7 +261,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                       Mark All as Read
                     </Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity
                     onPress={handleArchiveAll}
                     disabled={isProcessing}
@@ -280,7 +280,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                       Archive All
                     </Text>
                   </TouchableOpacity>
-                  
+
                   {isProcessing && (
                     <XStack alignItems="center" gap="$2" padding="$2">
                       <Spinner size="small" color="#00FFBC" />
@@ -294,7 +294,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
 
               {/* Notifications Content */}
               <YStack flex={1}>
-                <NotificationsScreen 
+                <NotificationsScreen
                   key={`notifications-${refreshKey}-${showArchived}`}
                   showArchived={showArchived}
                   isModal={true}
@@ -312,13 +312,15 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
         animationType="fade"
         onRequestClose={handleArchiveCancel}
       >
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20,
-        }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}
+        >
           <YStack
             backgroundColor={backgroundColor}
             borderRadius="$4"
@@ -330,11 +332,11 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
             <Text fontSize="$5" fontWeight="bold" color="$color" textAlign="center">
               Archive All Notifications?
             </Text>
-            
+
             <Text fontSize="$3" color="$gray11" textAlign="center" lineHeight={20}>
               This will archive all your notifications. You can view archived notifications later.
             </Text>
-            
+
             <XStack gap="$3" justifyContent="center">
               <Button
                 variant="outlined"
@@ -345,7 +347,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
               >
                 <Text color="$color">Cancel</Text>
               </Button>
-              
+
               <Button
                 backgroundColor="#EF4444"
                 color="white"
@@ -360,7 +362,9 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                     <Text color="white">Archiving...</Text>
                   </XStack>
                 ) : (
-                  <Text color="white" fontWeight="600">Archive All</Text>
+                  <Text color="white" fontWeight="600">
+                    Archive All
+                  </Text>
                 )}
               </Button>
             </XStack>

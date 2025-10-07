@@ -71,7 +71,7 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
   const [drivenRoutes, setDrivenRoutes] = React.useState<Route[]>([]);
   const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
   const colorScheme = useColorScheme();
-  
+
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
   React.useEffect(() => {
@@ -80,7 +80,7 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
     const loadDrivenRoutes = async () => {
       console.log('🚗 [DrivenRoutes] Loading driven routes for user:', effectiveUserId);
       console.log('🚗 [DrivenRoutes] Is viewing as student:', isViewingAsStudent);
-      
+
       try {
         const { data: drivenData, error: drivenError } = await supabase
           .from('driven_routes')
@@ -129,9 +129,10 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
   return (
     <YStack gap="$2">
       <SectionHeader
-        title={isViewingAsStudent 
-          ? `${activeStudentName || 'Student'}'s Driven Routes`
-          : t('home.drivenRoutes')
+        title={
+          isViewingAsStudent
+            ? `${activeStudentName || 'Student'}'s Driven Routes`
+            : t('home.drivenRoutes')
         }
         variant="chevron"
         onAction={onNavigateToRouteList}
@@ -223,8 +224,8 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
           }}
         />
       ) : (
-        <EmptyState 
-          title="No Driven Routes" 
+        <EmptyState
+          title="No Driven Routes"
           message="Start driving practice routes to track your progress and see them here"
           icon="map-pin"
           variant="info"
@@ -242,7 +243,7 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
         visible={showRouteListSheet}
         onClose={() => setShowRouteListSheet(false)}
         title={
-          isViewingAsStudent 
+          isViewingAsStudent
             ? `${activeStudentName || 'Student'}'s Driven Routes`
             : t('home.drivenRoutes')
         }

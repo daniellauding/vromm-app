@@ -173,15 +173,17 @@ export function MapPresetSheet({
     setLoading(true);
     try {
       console.log('🔍 [MapPresetSheet] Loading presets for user:', effectiveUserId);
-      
+
       // Get collections where user is creator OR public OR member
       // First get collections where user is the creator
       const { data: ownedData, error: ownedError } = await supabase
         .from('map_presets')
-        .select(`
+        .select(
+          `
           *,
           route_count:map_preset_routes(count)
-        `)
+        `,
+        )
         .eq('creator_id', effectiveUserId)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: false });
@@ -196,10 +198,12 @@ export function MapPresetSheet({
       // Get public collections
       const { data: publicData, error: publicError } = await supabase
         .from('map_presets')
-        .select(`
+        .select(
+          `
           *,
           route_count:map_preset_routes(count)
-        `)
+        `,
+        )
         .eq('visibility', 'public')
         .neq('creator_id', effectiveUserId) // Exclude ones they already own
         .order('created_at', { ascending: false });
@@ -214,13 +218,15 @@ export function MapPresetSheet({
       // Get collections where user is a member (but not creator)
       const { data: memberData, error: memberError } = await supabase
         .from('map_preset_members')
-        .select(`
+        .select(
+          `
           preset_id,
           map_presets!inner(
             *,
             route_count:map_preset_routes(count)
           )
-        `)
+        `,
+        )
         .eq('user_id', effectiveUserId)
         .neq('map_presets.creator_id', effectiveUserId); // Exclude ones they already own
 
@@ -229,17 +235,25 @@ export function MapPresetSheet({
         throw memberError;
       }
 
-      console.log('✅ [MapPresetSheet] Member presets raw data:', memberData?.length || 0, memberData);
+      console.log(
+        '✅ [MapPresetSheet] Member presets raw data:',
+        memberData?.length || 0,
+        memberData,
+      );
 
       // Combine the results
       const ownedPresets = ownedData || [];
       const publicPresets = publicData || [];
-      const memberPresets = memberData?.map(item => item.map_presets).filter(Boolean) || [];
-      
-      console.log('✅ [MapPresetSheet] Processed member presets:', memberPresets.length, memberPresets);
-      
+      const memberPresets = memberData?.map((item) => item.map_presets).filter(Boolean) || [];
+
+      console.log(
+        '✅ [MapPresetSheet] Processed member presets:',
+        memberPresets.length,
+        memberPresets,
+      );
+
       const allPresets = [...ownedPresets, ...publicPresets, ...memberPresets];
-      
+
       // Sort combined results
       const data = allPresets.sort((a, b) => {
         // Default presets first
@@ -253,13 +267,14 @@ export function MapPresetSheet({
         owned: ownedPresets.length,
         public: publicPresets.length,
         member: memberPresets.length,
-        total: data.length
+        total: data.length,
       });
 
-      const transformedPresets = data?.map(preset => ({
-        ...preset,
-        route_count: preset.route_count?.[0]?.count || 0,
-      })) || [];
+      const transformedPresets =
+        data?.map((preset) => ({
+          ...preset,
+          route_count: preset.route_count?.[0]?.count || 0,
+        })) || [];
 
       // Always include a default "All Routes" preset at the top
       const defaultPreset: MapPreset = {
@@ -325,7 +340,7 @@ export function MapPresetSheet({
         if (error) throw error;
 
         onEditPreset?.(data);
-        setPresets(prev => prev.map(p => p.id === data.id ? data : p));
+        setPresets((prev) => prev.map((p) => (p.id === data.id ? data : p)));
       } else {
         // Create new preset
         const { data, error } = await supabase
@@ -340,7 +355,7 @@ export function MapPresetSheet({
         if (error) throw error;
 
         onCreatePreset?.(data);
-        setPresets(prev => [data, ...prev]);
+        setPresets((prev) => [data, ...prev]);
       }
 
       resetForm();
@@ -367,22 +382,19 @@ export function MapPresetSheet({
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('map_presets')
-                .delete()
-                .eq('id', preset.id);
+              const { error } = await supabase.from('map_presets').delete().eq('id', preset.id);
 
               if (error) throw error;
 
               onDeletePreset?.(preset.id);
-              setPresets(prev => prev.filter(p => p.id !== preset.id));
+              setPresets((prev) => prev.filter((p) => p.id !== preset.id));
             } catch (error) {
               console.error('Error deleting preset:', error);
               Alert.alert('Error', 'Failed to delete map preset');
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -505,8 +517,10 @@ export function MapPresetSheet({
                   </SizableText>
                   <Input
                     value={formData.name}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                    placeholder={t('routeCollections.namePlaceholder') || 'Enter collection name...'}
+                    onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
+                    placeholder={
+                      t('routeCollections.namePlaceholder') || 'Enter collection name...'
+                    }
                     backgroundColor="$backgroundHover"
                     borderColor={borderColor}
                     color={textColor}
@@ -520,8 +534,10 @@ export function MapPresetSheet({
                   </SizableText>
                   <Input
                     value={formData.description}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                    placeholder={t('routeCollections.descriptionPlaceholder') || 'Enter description...'}
+                    onChangeText={(text) => setFormData((prev) => ({ ...prev, description: text }))}
+                    placeholder={
+                      t('routeCollections.descriptionPlaceholder') || 'Enter description...'
+                    }
                     backgroundColor="$backgroundHover"
                     borderColor={borderColor}
                     color={textColor}
@@ -537,9 +553,21 @@ export function MapPresetSheet({
                   </SizableText>
                   <View style={styles.visibilitySelector}>
                     {[
-                      { value: 'private', label: t('routeCollections.private') || 'Private', icon: 'lock' },
-                      { value: 'public', label: t('routeCollections.public') || 'Public', icon: 'globe' },
-                      { value: 'shared', label: t('routeCollections.shared') || 'Shared', icon: 'users' },
+                      {
+                        value: 'private',
+                        label: t('routeCollections.private') || 'Private',
+                        icon: 'lock',
+                      },
+                      {
+                        value: 'public',
+                        label: t('routeCollections.public') || 'Public',
+                        icon: 'globe',
+                      },
+                      {
+                        value: 'shared',
+                        label: t('routeCollections.shared') || 'Shared',
+                        icon: 'users',
+                      },
                     ].map((option) => (
                       <TouchableOpacity
                         key={option.value}
@@ -547,10 +575,13 @@ export function MapPresetSheet({
                           styles.visibilityOption,
                           {
                             borderColor,
-                            backgroundColor: formData.visibility === option.value ? '#00E6C3' : 'transparent',
+                            backgroundColor:
+                              formData.visibility === option.value ? '#00E6C3' : 'transparent',
                           },
                         ]}
-                        onPress={() => setFormData(prev => ({ ...prev, visibility: option.value as any }))}
+                        onPress={() =>
+                          setFormData((prev) => ({ ...prev, visibility: option.value as any }))
+                        }
                       >
                         <XStack alignItems="center" gap="$1">
                           <Feather
@@ -588,7 +619,8 @@ export function MapPresetSheet({
                       styles.presetItem,
                       {
                         borderBottomColor: borderColor,
-                        backgroundColor: selectedPresetId === preset.id ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
+                        backgroundColor:
+                          selectedPresetId === preset.id ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
                       },
                     ]}
                     onPress={() => handleSelectPreset(preset)}
@@ -614,8 +646,11 @@ export function MapPresetSheet({
                         )}
                         <Feather
                           name={
-                            preset.visibility === 'public' ? 'globe' :
-                            preset.visibility === 'shared' ? 'users' : 'lock'
+                            preset.visibility === 'public'
+                              ? 'globe'
+                              : preset.visibility === 'shared'
+                                ? 'users'
+                                : 'lock'
                           }
                           size={14}
                           color={textColor}
@@ -649,7 +684,7 @@ export function MapPresetSheet({
                     </View>
                   </TouchableOpacity>
                 ))}
-                
+
                 {/* Show helpful message when only default preset exists */}
                 {presets.length === 1 && (
                   <View style={[styles.presetItem, { borderBottomColor: borderColor }]}>
@@ -657,11 +692,13 @@ export function MapPresetSheet({
                       <XStack alignItems="center" gap="$2" marginBottom="$1">
                         <Feather name="info" size={16} color="#00E6C3" />
                         <Text fontWeight="500" color={textColor}>
-                          {t('routeCollections.createFirstCollection') || 'Create your first custom collection'}
+                          {t('routeCollections.createFirstCollection') ||
+                            'Create your first custom collection'}
                         </Text>
                       </XStack>
                       <Text fontSize="$2" color="$gray10">
-                        {t('routeCollections.createFirstCollectionDescription') || 'Organize your routes by creating custom collections like "Summer Routes" or "City Driving".'}
+                        {t('routeCollections.createFirstCollectionDescription') ||
+                          'Organize your routes by creating custom collections like "Summer Routes" or "City Driving".'}
                       </Text>
                     </View>
                   </View>
@@ -718,12 +755,7 @@ export function MapPresetSheet({
                   <Text color={textColor}>{t('routeCollections.createNew') || 'Create New'}</Text>
                 </Button>
               )}
-              <Button
-                flex={1}
-                backgroundColor="#00E6C3"
-                color="#000000"
-                onPress={onClose}
-              >
+              <Button flex={1} backgroundColor="#00E6C3" color="#000000" onPress={onClose}>
                 <Text color="#000000" fontWeight="700">
                   {t('common.done')}
                 </Text>
@@ -732,7 +764,7 @@ export function MapPresetSheet({
           )}
         </View>
       </Animated.View>
-      
+
       {/* Collection Sharing Modal */}
       {sharingPreset && (
         <CollectionSharingModal

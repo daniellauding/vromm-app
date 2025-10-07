@@ -25,17 +25,17 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
   const navigation = useNavigation<NavigationProp>();
   const [createdRoutes, setCreatedRoutes] = React.useState<Route[]>([]);
   const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
-  
+
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
 
   React.useEffect(() => {
     if (!effectiveUserId) return;
-    
+
     const loadCreatedRoutes = async () => {
       console.log('🗺️ [CreatedRoutes] Loading created routes for user:', effectiveUserId);
       console.log('🗺️ [CreatedRoutes] Is viewing as student:', isViewingAsStudent);
-      
+
       try {
         const { data: createdData, error: createdError } = await supabase
           .from('routes')
@@ -55,7 +55,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
   }, [effectiveUserId]);
 
   const onNavigateToRouteList = React.useCallback(() => {
-    const titleText = isViewingAsStudent 
+    const titleText = isViewingAsStudent
       ? `${activeStudentName || 'Student'}'s Created Routes`
       : t('home.createdRoutes');
     console.log('[SHEET][HomeSection] CreatedRoutes → RouteListSheet with title:', titleText);
@@ -88,19 +88,20 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
     <>
       <YStack space="$4">
         <SectionHeader
-          title={isViewingAsStudent 
-            ? `${activeStudentName || 'Student'}'s Created Routes`
-            : t('home.createdRoutes')
+          title={
+            isViewingAsStudent
+              ? `${activeStudentName || 'Student'}'s Created Routes`
+              : t('home.createdRoutes')
           }
           variant="chevron"
           onAction={onNavigateToRouteList}
           actionLabel={t('common.seeAll')}
         />
-        
+
         {createdRoutes.length === 0 ? (
           <YStack px="$4">
             <EmptyState
-              title={isViewingAsStudent ? "No Routes Created" : "Create Your First Route"}
+              title={isViewingAsStudent ? 'No Routes Created' : 'Create Your First Route'}
               message={
                 isViewingAsStudent
                   ? `${activeStudentName || 'This student'} hasn't created any routes yet`
@@ -108,12 +109,14 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
               }
               icon="map-pin"
               variant="success"
-              actionLabel={isViewingAsStudent ? undefined : "Create Route"}
+              actionLabel={isViewingAsStudent ? undefined : 'Create Route'}
               actionIcon="plus"
               onAction={isViewingAsStudent ? undefined : () => navigation.navigate('CreateRoute')}
-              secondaryLabel={isViewingAsStudent ? undefined : "Get Inspired"}
+              secondaryLabel={isViewingAsStudent ? undefined : 'Get Inspired'}
               secondaryIcon="map"
-              onSecondaryAction={isViewingAsStudent ? undefined : () => navigation.navigate('MapTab')}
+              onSecondaryAction={
+                isViewingAsStudent ? undefined : () => navigation.navigate('MapTab')
+              }
             />
           </YStack>
         ) : (
@@ -135,7 +138,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
         visible={showRouteListSheet}
         onClose={() => setShowRouteListSheet(false)}
         title={
-          isViewingAsStudent 
+          isViewingAsStudent
             ? `${activeStudentName || 'Student'}'s Created Routes`
             : t('home.createdRoutes')
         }

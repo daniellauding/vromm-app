@@ -49,7 +49,7 @@ export function RouteSelector({
     if (visible) {
       loadRoutes();
       // Initialize selected route IDs
-      setSelectedRouteIds(new Set(selectedRoutes.map(r => r.id)));
+      setSelectedRouteIds(new Set(selectedRoutes.map((r) => r.id)));
     }
   }, [visible]);
 
@@ -58,10 +58,11 @@ export function RouteSelector({
     if (!searchQuery.trim()) {
       setFilteredRoutes(routes);
     } else {
-      const filtered = routes.filter(route =>
-        route.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        route.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        route.creator?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      const filtered = routes.filter(
+        (route) =>
+          route.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          route.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          route.creator?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()),
       );
       setFilteredRoutes(filtered);
     }
@@ -79,12 +80,12 @@ export function RouteSelector({
 
   const toggleRouteSelection = (route: any) => {
     const newSelectedIds = new Set(selectedRouteIds);
-    const currentlySelected = selectedRoutes.filter(r => selectedRouteIds.has(r.id));
+    const currentlySelected = selectedRoutes.filter((r) => selectedRouteIds.has(r.id));
 
     if (newSelectedIds.has(route.id)) {
       // Remove from selection
       newSelectedIds.delete(route.id);
-      const newSelectedRoutes = currentlySelected.filter(r => r.id !== route.id);
+      const newSelectedRoutes = currentlySelected.filter((r) => r.id !== route.id);
       onRoutesChange(newSelectedRoutes);
     } else {
       // Add to selection
@@ -97,7 +98,7 @@ export function RouteSelector({
   };
 
   const handleSelectAll = () => {
-    const allRouteIds = new Set(filteredRoutes.map(r => r.id));
+    const allRouteIds = new Set(filteredRoutes.map((r) => r.id));
     setSelectedRouteIds(allRouteIds);
     onRoutesChange(filteredRoutes);
   };
@@ -121,7 +122,7 @@ export function RouteSelector({
       >
         <View style={{ position: 'relative' }}>
           <RouteCard route={route} />
-          
+
           {/* Selection Overlay */}
           <View
             style={{
@@ -134,11 +135,7 @@ export function RouteSelector({
               zIndex: 1,
             }}
           >
-            <Feather 
-              name={isSelected ? 'check' : 'plus'} 
-              size={16} 
-              color="white" 
-            />
+            <Feather name={isSelected ? 'check' : 'plus'} size={16} color="white" />
           </View>
 
           {/* Selection Border */}
@@ -169,12 +166,16 @@ export function RouteSelector({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: colorScheme === 'dark' ? '#0F172A' : '#FFFFFF' }}>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: colorScheme === 'dark' ? '#0F172A' : '#FFFFFF' }}
+      >
         {/* Header */}
         <XStack
           padding={16}
           borderBottomWidth={1}
-          borderBottomColor={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
+          borderBottomColor={
+            colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+          }
           justifyContent="space-between"
           alignItems="center"
         >
@@ -221,14 +222,16 @@ export function RouteSelector({
             <Text fontSize={14} color="$gray11">
               {filteredRoutes.length} route{filteredRoutes.length === 1 ? '' : 's'} available
             </Text>
-            
+
             <XStack gap={12}>
               <TouchableOpacity onPress={handleSelectAll}>
                 <Text fontSize={14} color="$blue10" fontWeight="600">
                   Select All
                 </Text>
               </TouchableOpacity>
-              <Text fontSize={14} color="$gray9">•</Text>
+              <Text fontSize={14} color="$gray9">
+                •
+              </Text>
               <TouchableOpacity onPress={handleClearAll}>
                 <Text fontSize={14} color="$red10" fontWeight="600">
                   Clear
@@ -268,4 +271,4 @@ export function RouteSelector({
       </SafeAreaView>
     </Modal>
   );
-} 
+}

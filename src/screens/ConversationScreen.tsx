@@ -1,13 +1,40 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, TouchableOpacity, Alert, Linking, View, Image } from 'react-native';
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
+  Alert,
+  Linking,
+  View,
+  Image,
+} from 'react-native';
 import { YStack, XStack, Text, Avatar, Input, Button, Spinner } from 'tamagui';
-import { ArrowLeft, Send, Image as ImageIcon, Paperclip, MoreVertical, User, Trash2, MessageCircle, Camera, Video, Flag, X } from '@tamagui/lucide-icons';
+import {
+  ArrowLeft,
+  Send,
+  Image as ImageIcon,
+  Paperclip,
+  MoreVertical,
+  User,
+  Trash2,
+  MessageCircle,
+  Camera,
+  Video,
+  Flag,
+  X,
+} from '@tamagui/lucide-icons';
 import { messageService, Message, Conversation } from '../services/messageService';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
-import { Modal as RNModal, ActivityIndicator, TextInput as RNTextInput, useColorScheme } from 'react-native';
+import {
+  Modal as RNModal,
+  ActivityIndicator,
+  TextInput as RNTextInput,
+  useColorScheme,
+} from 'react-native';
 import { TAB_BAR_TOTAL_HEIGHT } from '../utils/layout';
 import Constants from 'expo-constants';
 import { ReportDialog } from '../components/report/ReportDialog';
@@ -36,7 +63,9 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
   const [gifOpen, setGifOpen] = useState(false);
   const [gifQuery, setGifQuery] = useState('');
   const [gifLoading, setGifLoading] = useState(false);
-  const [gifResults, setGifResults] = useState<Array<{ id: string; url: string; thumb: string }>>([]);
+  const [gifResults, setGifResults] = useState<Array<{ id: string; url: string; thumb: string }>>(
+    [],
+  );
   const [gifError, setGifError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -44,7 +73,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
   const flatListRef = useRef<FlatList>(null);
   const navigation = useNavigation();
   const routeFromHook = useRoute();
-  
+
   // Use route prop if provided, otherwise use hook (for navigation compatibility)
   const finalRoute = route || routeFromHook;
   const { conversationId } = finalRoute.params as RouteParams;
@@ -152,7 +181,8 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
         content: newMessage.trim(),
         created_at: new Date().toISOString(),
         read_by: [],
-        sender: (conversation as any)?.participants?.find((p: any) => p.user_id === currentUserId)?.profile,
+        sender: (conversation as any)?.participants?.find((p: any) => p.user_id === currentUserId)
+          ?.profile,
       };
       setMessages((prev) => [optimistic, ...prev]);
       await messageService.sendMessage(conversationId, newMessage.trim());
@@ -172,12 +202,17 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
   const uploadImageAndSend = async () => {
     try {
       setUploading(true);
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.85,
+      });
       if (res.canceled || !res.assets?.[0]?.uri) return;
       const uri = res.assets[0].uri;
       const file = await fetch(uri).then((r) => r.blob());
       const fileName = `m_${conversationId}_${Date.now()}.jpg`;
-      const { data: upload, error: upErr } = await supabase.storage.from('comment_attachments').upload(fileName, file, { upsert: true, contentType: 'image/jpeg' });
+      const { data: upload, error: upErr } = await supabase.storage
+        .from('comment_attachments')
+        .upload(fileName, file, { upsert: true, contentType: 'image/jpeg' });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('comment_attachments').getPublicUrl(upload.path);
       const url = pub.publicUrl;
@@ -191,7 +226,10 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
         read_by: [],
       };
       setMessages((prev) => [optimistic, ...prev]);
-      await messageService.sendMessage(conversationId, url, 'image', { source: 'storage', path: upload.path });
+      await messageService.sendMessage(conversationId, url, 'image', {
+        source: 'storage',
+        path: upload.path,
+      });
       setTimeout(() => {
         try {
           if ((messages?.length || 0) > 0) {
@@ -215,7 +253,9 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
       const uri = res.assets[0].uri;
       const file = await fetch(uri).then((r) => r.blob());
       const fileName = `m_${conversationId}_${Date.now()}.jpg`;
-      const { data: upload, error: upErr } = await supabase.storage.from('comment_attachments').upload(fileName, file, { upsert: true, contentType: 'image/jpeg' });
+      const { data: upload, error: upErr } = await supabase.storage
+        .from('comment_attachments')
+        .upload(fileName, file, { upsert: true, contentType: 'image/jpeg' });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('comment_attachments').getPublicUrl(upload.path);
       const url = pub.publicUrl;
@@ -228,7 +268,10 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [optimistic, ...prev]);
-      await messageService.sendMessage(conversationId, url, 'image', { source: 'camera', path: upload.path });
+      await messageService.sendMessage(conversationId, url, 'image', {
+        source: 'camera',
+        path: upload.path,
+      });
     } catch (e) {
       console.error('📷 [DM] camera error', e);
       Alert.alert('Error', 'Failed to take photo');
@@ -240,12 +283,17 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
   const pickVideoAndSend = async () => {
     try {
       setUploading(true);
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Videos, quality: 0.8 });
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        quality: 0.8,
+      });
       if (res.canceled || !res.assets?.[0]?.uri) return;
       const uri = res.assets[0].uri;
       const file = await fetch(uri).then((r) => r.blob());
       const fileName = `m_${conversationId}_${Date.now()}.mp4`;
-      const { data: upload, error: upErr } = await supabase.storage.from('comment_attachments').upload(fileName, file, { upsert: true, contentType: 'video/mp4' });
+      const { data: upload, error: upErr } = await supabase.storage
+        .from('comment_attachments')
+        .upload(fileName, file, { upsert: true, contentType: 'video/mp4' });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('comment_attachments').getPublicUrl(upload.path);
       const url = pub.publicUrl;
@@ -258,7 +306,10 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [optimistic, ...prev]);
-      await messageService.sendMessage(conversationId, url, 'file', { kind: 'video', path: upload.path });
+      await messageService.sendMessage(conversationId, url, 'file', {
+        kind: 'video',
+        path: upload.path,
+      });
     } catch (e) {
       console.error('🎥 [DM] pick video error', e);
       Alert.alert('Error', 'Failed to send video');
@@ -271,7 +322,9 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
     try {
       setGifLoading(true);
       setGifError(null);
-      const apiKey = (process as any)?.env?.EXPO_PUBLIC_GIPHY_KEY || (Constants as any)?.expoConfig?.extra?.EXPO_PUBLIC_GIPHY_KEY;
+      const apiKey =
+        (process as any)?.env?.EXPO_PUBLIC_GIPHY_KEY ||
+        (Constants as any)?.expoConfig?.extra?.EXPO_PUBLIC_GIPHY_KEY;
       if (!apiKey) {
         setGifError('Missing EXPO_PUBLIC_GIPHY_KEY');
         setGifResults([]);
@@ -281,7 +334,11 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
       const url = `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${q}&limit=24&rating=g`;
       const res = await fetch(url);
       const json = await res.json();
-      const items = (json.data || []).map((d: any) => ({ id: d.id, url: d.images.original.url, thumb: d.images.preview_gif?.url || d.images.fixed_width_small_still.url }));
+      const items = (json.data || []).map((d: any) => ({
+        id: d.id,
+        url: d.images.original.url,
+        thumb: d.images.preview_gif?.url || d.images.fixed_width_small_still.url,
+      }));
       setGifResults(items);
     } catch (e) {
       setGifError('Failed to load GIFs');
@@ -294,12 +351,18 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
     try {
       setGifLoading(true);
       setGifError(null);
-      const apiKey = (process as any)?.env?.EXPO_PUBLIC_GIPHY_KEY || (Constants as any)?.expoConfig?.extra?.EXPO_PUBLIC_GIPHY_KEY;
+      const apiKey =
+        (process as any)?.env?.EXPO_PUBLIC_GIPHY_KEY ||
+        (Constants as any)?.expoConfig?.extra?.EXPO_PUBLIC_GIPHY_KEY;
       if (!apiKey) return;
       const url = `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=24&rating=g`;
       const res = await fetch(url);
       const json = await res.json();
-      const items = (json.data || []).map((d: any) => ({ id: d.id, url: d.images.original.url, thumb: d.images.preview_gif?.url || d.images.fixed_width_small_still.url }));
+      const items = (json.data || []).map((d: any) => ({
+        id: d.id,
+        url: d.images.original.url,
+        thumb: d.images.preview_gif?.url || d.images.fixed_width_small_still.url,
+      }));
       setGifResults(items);
     } finally {
       setGifLoading(false);
@@ -425,16 +488,26 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
             const url = extractFirstUrl(item.content);
             if (!url) return null;
             if (isImageUrl(url)) {
-              const previewUrl = url.includes('/storage/v1/object/public/') ? `${url}?download=1` : url;
+              const previewUrl = url.includes('/storage/v1/object/public/')
+                ? `${url}?download=1`
+                : url;
               return (
                 <View style={{ marginTop: 8 }}>
-                  <ImageWithFallback source={{ uri: previewUrl }} style={{ width: 220, height: 160, borderRadius: 8 }} resizeMode="cover" />
+                  <ImageWithFallback
+                    source={{ uri: previewUrl }}
+                    style={{ width: 220, height: 160, borderRadius: 8 }}
+                    resizeMode="cover"
+                  />
                 </View>
               );
             }
             return (
               <TouchableOpacity onPress={() => Linking.openURL(url)}>
-                <Text fontSize={12} color={isOwnMessage ? 'rgba(0,0,0,0.8)' : '#60A5FA'} numberOfLines={2}>
+                <Text
+                  fontSize={12}
+                  color={isOwnMessage ? 'rgba(0,0,0,0.8)' : '#60A5FA'}
+                  numberOfLines={2}
+                >
                   {url}
                 </Text>
               </TouchableOpacity>
@@ -445,7 +518,9 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
           {isLastInGroup && (
             <XStack justifyContent="space-between" alignItems="center" gap={8}>
               <Text fontSize={10} color={isOwnMessage ? 'rgba(0, 0, 0, 0.6)' : '$gray11'}>
-                {item.created_at ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true }) : ''}
+                {item.created_at
+                  ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true })
+                  : ''}
               </Text>
 
               {isOwnMessage && (
@@ -584,7 +659,10 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => { setShowDropdown(false); setShowReport(true); }}
+                onPress={() => {
+                  setShowDropdown(false);
+                  setShowReport(true);
+                }}
                 style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 6 }}
               >
                 <MessageCircle size={18} color="#EF4444" />
@@ -668,7 +746,13 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
                 <Video size={20} color={iconColor} />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => { setGifOpen(true); if (gifResults.length === 0) loadTrendingGifs(); }} disabled={uploading}>
+              <TouchableOpacity
+                onPress={() => {
+                  setGifOpen(true);
+                  if (gifResults.length === 0) loadTrendingGifs();
+                }}
+                disabled={uploading}
+              >
                 <MessageCircle size={20} color="#00FFBC" />
               </TouchableOpacity>
             </>
@@ -679,7 +763,11 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
           )}
 
           <TouchableOpacity onPress={() => setShowAllActions((s) => !s)}>
-            {showAllActions ? <X size={18} color={iconColor} /> : <MoreVertical size={18} color={iconColor} />}
+            {showAllActions ? (
+              <X size={18} color={iconColor} />
+            ) : (
+              <MoreVertical size={18} color={iconColor} />
+            )}
           </TouchableOpacity>
 
           <Input
@@ -712,14 +800,20 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
       </KeyboardAvoidingView>
 
       {showReport && (
-        <ReportDialog reportableId={conversationId} reportableType="conversation" onClose={() => setShowReport(false)} />
+        <ReportDialog
+          reportableId={conversationId}
+          reportableType="conversation"
+          onClose={() => setShowReport(false)}
+        />
       )}
 
       {/* GIF Picker Modal */}
       <RNModal visible={gifOpen} animationType="slide" onRequestClose={() => setGifOpen(false)}>
         <YStack flex={1} backgroundColor="$background" padding={16} gap={12}>
           <XStack alignItems="center" justifyContent="space-between">
-            <Text fontSize={18} fontWeight="bold" color="$color">Choose a GIF</Text>
+            <Text fontSize={18} fontWeight="bold" color="$color">
+              Choose a GIF
+            </Text>
             <TouchableOpacity onPress={() => setGifOpen(false)}>
               <Text color="#888">Close</Text>
             </TouchableOpacity>
@@ -737,10 +831,28 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
             onSubmitEditing={searchGifs}
           />
           <XStack gap={8} justifyContent="flex-end">
-            <TouchableOpacity onPress={loadTrendingGifs} style={{ alignSelf: 'flex-end', backgroundColor: '#333', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
+            <TouchableOpacity
+              onPress={loadTrendingGifs}
+              style={{
+                alignSelf: 'flex-end',
+                backgroundColor: '#333',
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 8,
+              }}
+            >
               <Text color="#fff">Trending</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={searchGifs} style={{ alignSelf: 'flex-end', backgroundColor: '#333', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
+            <TouchableOpacity
+              onPress={searchGifs}
+              style={{
+                alignSelf: 'flex-end',
+                backgroundColor: '#333',
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 8,
+              }}
+            >
               <Text color="#fff">Search</Text>
             </TouchableOpacity>
           </XStack>
@@ -753,8 +865,32 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({ route })
               {gifError && <Text color="#EF4444">{gifError}</Text>}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {gifResults.map((g) => (
-                  <TouchableOpacity key={g.id} onPress={async () => { const optimistic: any = { id: `tmp_${Date.now()}`, conversation_id: conversationId, sender_id: currentUserId, content: g.url, message_type: 'image', created_at: new Date().toISOString() }; setMessages((prev) => [optimistic, ...prev]); await messageService.sendMessage(conversationId, g.url, 'image', { source: 'giphy', id: g.id }); setGifOpen(false); setGifResults([]); setGifQuery(''); }} style={{ marginRight: 8, marginBottom: 8 }}>
-                    <Image source={{ uri: g.thumb }} style={{ width: 104, height: 104, borderRadius: 8, backgroundColor: '#111' }} />
+                  <TouchableOpacity
+                    key={g.id}
+                    onPress={async () => {
+                      const optimistic: any = {
+                        id: `tmp_${Date.now()}`,
+                        conversation_id: conversationId,
+                        sender_id: currentUserId,
+                        content: g.url,
+                        message_type: 'image',
+                        created_at: new Date().toISOString(),
+                      };
+                      setMessages((prev) => [optimistic, ...prev]);
+                      await messageService.sendMessage(conversationId, g.url, 'image', {
+                        source: 'giphy',
+                        id: g.id,
+                      });
+                      setGifOpen(false);
+                      setGifResults([]);
+                      setGifQuery('');
+                    }}
+                    style={{ marginRight: 8, marginBottom: 8 }}
+                  >
+                    <Image
+                      source={{ uri: g.thumb }}
+                      style={{ width: 104, height: 104, borderRadius: 8, backgroundColor: '#111' }}
+                    />
                   </TouchableOpacity>
                 ))}
               </View>

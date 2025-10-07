@@ -46,7 +46,7 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
       interval: 1,
       daysOfWeek: [],
       endType: 'never',
-    }
+    },
   );
 
   useEffect(() => {
@@ -64,24 +64,24 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
   const toggleDayOfWeek = (day: number) => {
     const daysOfWeek = recurrence.daysOfWeek || [];
     const newDaysOfWeek = daysOfWeek.includes(day)
-      ? daysOfWeek.filter(d => d !== day)
+      ? daysOfWeek.filter((d) => d !== day)
       : [...daysOfWeek, day].sort();
-    
+
     updateRecurrence({ daysOfWeek: newDaysOfWeek });
   };
 
   const getRecurrenceDescription = () => {
     if (recurrence.pattern === 'none') return 'No repeat';
-    
+
     let description = '';
-    
+
     switch (recurrence.pattern) {
       case 'daily':
         description = recurrence.interval === 1 ? 'Every day' : `Every ${recurrence.interval} days`;
         break;
       case 'weekly':
         if (recurrence.daysOfWeek && recurrence.daysOfWeek.length > 0) {
-          const dayNames = recurrence.daysOfWeek.map(d => DAYS_OF_WEEK[d].short).join(', ');
+          const dayNames = recurrence.daysOfWeek.map((d) => DAYS_OF_WEEK[d].short).join(', ');
           description = `Every week on ${dayNames}`;
         } else {
           description = 'Every week';
@@ -90,7 +90,7 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
       case 'biweekly':
         description = 'Every 2 weeks';
         if (recurrence.daysOfWeek && recurrence.daysOfWeek.length > 0) {
-          const dayNames = recurrence.daysOfWeek.map(d => DAYS_OF_WEEK[d].short).join(', ');
+          const dayNames = recurrence.daysOfWeek.map((d) => DAYS_OF_WEEK[d].short).join(', ');
           description += ` on ${dayNames}`;
         }
         break;
@@ -119,10 +119,14 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
   const getOrdinalSuffix = (day: number) => {
     if (day >= 11 && day <= 13) return 'th';
     switch (day % 10) {
-      case 1: return 'st';
-      case 2: return 'nd';
-      case 3: return 'rd';
-      default: return 'th';
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
     }
   };
 
@@ -133,16 +137,20 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
         <Text fontSize={16} fontWeight="600" color="$color">
           Repeat Pattern
         </Text>
-        
+
         <YStack gap={8}>
           {RECURRENCE_PATTERNS.map((pattern) => (
             <TouchableOpacity
               key={pattern.value}
               onPress={() => updateRecurrence({ pattern: pattern.value as any })}
               style={{
-                backgroundColor: recurrence.pattern === pattern.value ? 'rgba(0, 255, 188, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                backgroundColor:
+                  recurrence.pattern === pattern.value
+                    ? 'rgba(0, 255, 188, 0.1)'
+                    : 'rgba(255, 255, 255, 0.05)',
                 borderWidth: 1,
-                borderColor: recurrence.pattern === pattern.value ? '#00FFBC' : 'rgba(255, 255, 255, 0.2)',
+                borderColor:
+                  recurrence.pattern === pattern.value ? '#00FFBC' : 'rgba(255, 255, 255, 0.2)',
                 borderRadius: 8,
                 padding: 16,
               }}
@@ -184,7 +192,9 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
                     key={day.value}
                     onPress={() => toggleDayOfWeek(day.value)}
                     style={{
-                      backgroundColor: recurrence.daysOfWeek?.includes(day.value) ? '#00FFBC' : 'rgba(255, 255, 255, 0.1)',
+                      backgroundColor: recurrence.daysOfWeek?.includes(day.value)
+                        ? '#00FFBC'
+                        : 'rgba(255, 255, 255, 0.1)',
                       borderRadius: 20,
                       paddingHorizontal: 12,
                       paddingVertical: 8,
@@ -245,7 +255,9 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
                 Custom Interval
               </Text>
               <XStack gap={12} alignItems="center">
-                <Text fontSize={14} color="$color">Every</Text>
+                <Text fontSize={14} color="$color">
+                  Every
+                </Text>
                 <Input
                   value={recurrence.interval?.toString() || '1'}
                   onChangeText={(text) => {
@@ -259,7 +271,9 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
                   width={80}
                   textAlign="center"
                 />
-                <Text fontSize={14} color="$color">weeks</Text>
+                <Text fontSize={14} color="$color">
+                  weeks
+                </Text>
               </XStack>
             </YStack>
           )}
@@ -269,15 +283,19 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
             <Text fontSize={16} fontWeight="600" color="$color">
               End Repeat
             </Text>
-            
+
             <YStack gap={8}>
               {/* Never */}
               <TouchableOpacity
                 onPress={() => updateRecurrence({ endType: 'never' })}
                 style={{
-                  backgroundColor: recurrence.endType === 'never' ? 'rgba(0, 255, 188, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                  backgroundColor:
+                    recurrence.endType === 'never'
+                      ? 'rgba(0, 255, 188, 0.1)'
+                      : 'rgba(255, 255, 255, 0.05)',
                   borderWidth: 1,
-                  borderColor: recurrence.endType === 'never' ? '#00FFBC' : 'rgba(255, 255, 255, 0.2)',
+                  borderColor:
+                    recurrence.endType === 'never' ? '#00FFBC' : 'rgba(255, 255, 255, 0.2)',
                   borderRadius: 8,
                   padding: 12,
                 }}
@@ -291,9 +309,13 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
               <TouchableOpacity
                 onPress={() => updateRecurrence({ endType: 'date' })}
                 style={{
-                  backgroundColor: recurrence.endType === 'date' ? 'rgba(0, 255, 188, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                  backgroundColor:
+                    recurrence.endType === 'date'
+                      ? 'rgba(0, 255, 188, 0.1)'
+                      : 'rgba(255, 255, 255, 0.05)',
                   borderWidth: 1,
-                  borderColor: recurrence.endType === 'date' ? '#00FFBC' : 'rgba(255, 255, 255, 0.2)',
+                  borderColor:
+                    recurrence.endType === 'date' ? '#00FFBC' : 'rgba(255, 255, 255, 0.2)',
                   borderRadius: 8,
                   padding: 12,
                 }}
@@ -302,9 +324,7 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
                   <Text fontSize={14} fontWeight="600" color="$color">
                     On Date
                   </Text>
-                  {recurrence.endType === 'date' && (
-                    <Calendar size={16} color="#00FFBC" />
-                  )}
+                  {recurrence.endType === 'date' && <Calendar size={16} color="#00FFBC" />}
                 </XStack>
                 {recurrence.endType === 'date' && (
                   <Input
@@ -324,9 +344,13 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
               <TouchableOpacity
                 onPress={() => updateRecurrence({ endType: 'count' })}
                 style={{
-                  backgroundColor: recurrence.endType === 'count' ? 'rgba(0, 255, 188, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                  backgroundColor:
+                    recurrence.endType === 'count'
+                      ? 'rgba(0, 255, 188, 0.1)'
+                      : 'rgba(255, 255, 255, 0.05)',
                   borderWidth: 1,
-                  borderColor: recurrence.endType === 'count' ? '#00FFBC' : 'rgba(255, 255, 255, 0.2)',
+                  borderColor:
+                    recurrence.endType === 'count' ? '#00FFBC' : 'rgba(255, 255, 255, 0.2)',
                   borderRadius: 8,
                   padding: 12,
                 }}
@@ -335,9 +359,7 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
                   <Text fontSize={14} fontWeight="600" color="$color">
                     After Occurrences
                   </Text>
-                  {recurrence.endType === 'count' && (
-                    <Clock size={16} color="#00FFBC" />
-                  )}
+                  {recurrence.endType === 'count' && <Clock size={16} color="#00FFBC" />}
                 </XStack>
                 {recurrence.endType === 'count' && (
                   <XStack gap={8} alignItems="center" marginTop={8}>
@@ -356,7 +378,9 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
                       width={80}
                       textAlign="center"
                     />
-                    <Text fontSize={14} color="$color">occurrences</Text>
+                    <Text fontSize={14} color="$color">
+                      occurrences
+                    </Text>
                   </XStack>
                 )}
               </TouchableOpacity>
@@ -382,4 +406,4 @@ export function RecurrencePicker({ value, onChange, eventDate }: RecurrencePicke
       )}
     </YStack>
   );
-} 
+}

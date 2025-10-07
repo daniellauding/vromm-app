@@ -33,7 +33,11 @@ export const CustomWebView: React.FC<CustomWebViewProps> = ({ isVisible, onClose
         onLoadEnd={() => console.log(`[WebView] Loading end: ${title}`)}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent as any;
-          console.error('[WebView] Error loading', { title, url, message: nativeEvent?.description });
+          console.error('[WebView] Error loading', {
+            title,
+            url,
+            message: nativeEvent?.description,
+          });
         }}
       />
     </SafeAreaView>
@@ -73,5 +77,3 @@ const styles = StyleSheet.create({
 });
 
 export default CustomWebView;
-
-

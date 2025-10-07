@@ -63,7 +63,7 @@ export function Map({
   penDrawingCoordinates?: Array<{ latitude: number; longitude: number }>;
 }) {
   return (
-    <View 
+    <View
       style={[
         {
           flex: 1,
@@ -72,7 +72,7 @@ export function Map({
           alignItems: 'center',
           borderRadius: 8,
         },
-        style
+        style,
       ]}
     >
       <Text color="$gray10" fontSize="$4">

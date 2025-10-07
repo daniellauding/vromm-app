@@ -25,10 +25,10 @@ interface SelectButtonProps {
   style?: object;
 }
 
-export function SelectButton({ 
-  onPress, 
-  children, 
-  isSelected = false, 
+export function SelectButton({
+  onPress,
+  children,
+  isSelected = false,
   isActive = false,
   variant = 'select',
   style,
@@ -83,9 +83,7 @@ export function RadioButton({ onPress, title, description, isSelected }: RadioBu
             </Text>
           )}
         </YStack>
-        {isSelected && (
-          <Check size={16} color={focusBorderColor} style={{ marginLeft: 'auto' }} />
-        )}
+        {isSelected && <Check size={16} color={focusBorderColor} style={{ marginLeft: 'auto' }} />}
       </XStack>
     </SelectButton>
   );
@@ -98,7 +96,12 @@ interface DropdownButtonProps {
   isActive?: boolean; // When dropdown is open
 }
 
-export function DropdownButton({ onPress, value, placeholder, isActive = false }: DropdownButtonProps) {
+export function DropdownButton({
+  onPress,
+  value,
+  placeholder,
+  isActive = false,
+}: DropdownButtonProps) {
   const theme = useTheme();
   const textColor = theme.color?.val || '#11181C';
   const focusBorderColor = '#34D399'; // Same as border color

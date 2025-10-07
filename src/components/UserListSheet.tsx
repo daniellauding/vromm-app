@@ -1,5 +1,17 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Modal, Animated, Pressable, Easing, View, Dimensions, ScrollView, TouchableOpacity, RefreshControl, Alert, Image } from 'react-native';
+import {
+  Modal,
+  Animated,
+  Pressable,
+  Easing,
+  View,
+  Dimensions,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  Image,
+} from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -109,21 +121,21 @@ export function UserListSheet({
           .eq('follower_id', user.id);
 
         const followingIds = new Set(followData?.map((f) => f.following_id) || []);
-        
+
         // Check instructor relationships (users that are instructors for current user)
         const { data: instructorData } = await supabase
           .from('student_supervisor_relationships')
           .select('supervisor_id')
           .eq('student_id', user.id);
-        
+
         const instructorIds = new Set(instructorData?.map((r) => r.supervisor_id) || []);
-        
+
         // Check student relationships (users that are students of current user)
         const { data: studentData } = await supabase
           .from('student_supervisor_relationships')
           .select('student_id')
           .eq('supervisor_id', user.id);
-        
+
         const studentIds = new Set(studentData?.map((r) => r.student_id) || []);
 
         usersWithFollowStatus = (data || []).map((userData) => ({
@@ -430,7 +442,7 @@ export function UserListSheet({
                     </Text>
                   </YStack>
                 ) : (
-                  <ScrollView 
+                  <ScrollView
                     showsVerticalScrollIndicator={true}
                     refreshControl={
                       <RefreshControl
@@ -443,9 +455,7 @@ export function UserListSheet({
                     }
                     contentContainerStyle={{ paddingBottom: getTabContentPadding() }}
                   >
-                    <YStack gap="$3">
-                      {users.map(renderUserItem)}
-                    </YStack>
+                    <YStack gap="$3">{users.map(renderUserItem)}</YStack>
                   </ScrollView>
                 )}
               </YStack>

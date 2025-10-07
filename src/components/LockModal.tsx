@@ -26,12 +26,7 @@ interface LockModalProps {
   featureName: string;
 }
 
-export function LockModal({
-  visible,
-  onClose,
-  contentType,
-  featureName,
-}: LockModalProps) {
+export function LockModal({ visible, onClose, contentType, featureName }: LockModalProps) {
   const { language, t } = useTranslation();
   const colorScheme = useColorScheme();
   const [content, setContent] = useState<PromotionalContent | null>(null);
@@ -63,15 +58,27 @@ export function LockModal({
 
       if (data && data.length > 0) {
         const item = data[0];
-        
+
         // Filter for mobile platforms
         if (item.platforms) {
-          const platforms = typeof item.platforms === 'string' ? JSON.parse(item.platforms) : item.platforms;
-          if (Array.isArray(platforms) && (platforms.includes('mobile') || platforms.includes('both'))) {
+          const platforms =
+            typeof item.platforms === 'string' ? JSON.parse(item.platforms) : item.platforms;
+          if (
+            Array.isArray(platforms) &&
+            (platforms.includes('mobile') || platforms.includes('both'))
+          ) {
             const lockContent: PromotionalContent = {
               id: item.id,
-              title: item.title?.[language] || item.title?.en || t('lockModal.defaultTitle') || 'Feature Locked',
-              body: item.body?.[language] || item.body?.en || t('lockModal.defaultBody') || 'This feature is currently locked. Upgrade to access it!',
+              title:
+                item.title?.[language] ||
+                item.title?.en ||
+                t('lockModal.defaultTitle') ||
+                'Feature Locked',
+              body:
+                item.body?.[language] ||
+                item.body?.en ||
+                t('lockModal.defaultBody') ||
+                'This feature is currently locked. Upgrade to access it!',
               image_url: item.image_url,
               youtube_embed: item.youtube_embed,
               iframe_embed: item.iframe_embed,
@@ -212,7 +219,7 @@ export function LockModal({
                       <Text fontSize="$4" fontWeight="600" color="$color" textAlign="center">
                         {content.title}
                       </Text>
-                      
+
                       <Text fontSize="$3" color="$gray11" lineHeight="$1" textAlign="center">
                         {content.body}
                       </Text>
@@ -240,24 +247,12 @@ export function LockModal({
 
                     {/* Action Buttons */}
                     <XStack gap="$3" marginTop="$4">
-                      <Button
-                        flex={1}
-                        variant="outlined"
-                        onPress={handleClose}
-                      >
-                        <Text color="$color">
-                          {t('lockModal.cancel') || 'Cancel'}
-                        </Text>
+                      <Button flex={1} variant="outlined" onPress={handleClose}>
+                        <Text color="$color">{t('lockModal.cancel') || 'Cancel'}</Text>
                       </Button>
-                      
-                      <Button
-                        flex={1}
-                        backgroundColor="$blue9"
-                        onPress={handleUpgrade}
-                      >
-                        <Text color="white">
-                          {t('lockModal.upgrade') || 'Upgrade Now'}
-                        </Text>
+
+                      <Button flex={1} backgroundColor="$blue9" onPress={handleUpgrade}>
+                        <Text color="white">{t('lockModal.upgrade') || 'Upgrade Now'}</Text>
                       </Button>
                     </XStack>
                   </YStack>
@@ -266,13 +261,8 @@ export function LockModal({
                     <Text color="$gray11" textAlign="center">
                       {t('lockModal.noContent') || 'No promotional content available'}
                     </Text>
-                    <Button
-                      variant="outlined"
-                      onPress={handleClose}
-                    >
-                      <Text color="$color">
-                        {t('lockModal.close') || 'Close'}
-                      </Text>
+                    <Button variant="outlined" onPress={handleClose}>
+                      <Text color="$color">{t('lockModal.close') || 'Close'}</Text>
                     </Button>
                   </YStack>
                 )}

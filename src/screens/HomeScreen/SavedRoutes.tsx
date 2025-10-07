@@ -138,12 +138,18 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
           }
           icon="bookmark"
           variant="info"
-          actionLabel={isViewingAsStudent ? undefined : (t('home.savedRoutes.exploreRoutes') || 'Explore Routes')}
+          actionLabel={
+            isViewingAsStudent ? undefined : t('home.savedRoutes.exploreRoutes') || 'Explore Routes'
+          }
           actionIcon="map"
           onAction={isViewingAsStudent ? undefined : () => navigation.navigate('MapTab')}
-          secondaryLabel={isViewingAsStudent ? undefined : (t('home.savedRoutes.viewCommunity') || 'View Community')}
+          secondaryLabel={
+            isViewingAsStudent ? undefined : t('home.savedRoutes.viewCommunity') || 'View Community'
+          }
           secondaryIcon="users"
-          onSecondaryAction={isViewingAsStudent ? undefined : () => navigation.navigate('CommunityFeedScreen')}
+          onSecondaryAction={
+            isViewingAsStudent ? undefined : () => navigation.navigate('CommunityFeedScreen')
+          }
         />
       </YStack>
     );
@@ -203,14 +209,14 @@ interface SavedRoutesGridProps {
 const SavedRoutesGrid = ({ routes, getImageUrl, onRoutePress }: SavedRoutesGridProps) => {
   const colorScheme = useColorScheme();
   const { width: screenWidth } = Dimensions.get('window');
-  
+
   // Calculate item dimensions for 3x3 grid
   const itemWidth = (screenWidth - 32 - 16) / 3; // 32 for padding, 16 for gaps
   const itemHeight = itemWidth * 1.2; // Slightly taller for text
-  
+
   const renderGridItem = ({ item }: { item: SavedRoute }) => {
     const imageUrl = getImageUrl(item);
-    
+
     return (
       <TouchableOpacity
         onPress={() => onRoutePress?.(item.id)}
@@ -230,13 +236,15 @@ const SavedRoutesGrid = ({ routes, getImageUrl, onRoutePress }: SavedRoutesGridP
         >
           <YStack gap="$2" height="100%">
             {/* Image */}
-            <View style={{ 
-              width: '100%', 
-              height: itemWidth * 0.6, 
-              borderRadius: 8,
-              overflow: 'hidden',
-              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5'
-            }}>
+            <View
+              style={{
+                width: '100%',
+                height: itemWidth * 0.6,
+                borderRadius: 8,
+                overflow: 'hidden',
+                backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5',
+              }}
+            >
               {imageUrl ? (
                 <Image
                   source={{ uri: imageUrl }}
@@ -244,34 +252,28 @@ const SavedRoutesGrid = ({ routes, getImageUrl, onRoutePress }: SavedRoutesGridP
                   resizeMode="cover"
                 />
               ) : (
-                <View style={{ 
-                  width: '100%', 
-                  height: '100%', 
-                  justifyContent: 'center', 
-                  alignItems: 'center',
-                  backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5'
-                }}>
-                  <Text color="$gray10" fontSize="$2">No Image</Text>
+                <View
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5',
+                  }}
+                >
+                  <Text color="$gray10" fontSize="$2">
+                    No Image
+                  </Text>
                 </View>
               )}
             </View>
-            
+
             {/* Route Info */}
             <YStack gap="$1" flex={1}>
-              <Text 
-                fontSize="$3" 
-                fontWeight="600" 
-                color="$color" 
-                numberOfLines={2}
-                lineHeight={16}
-              >
+              <Text fontSize="$3" fontWeight="600" color="$color" numberOfLines={2} lineHeight={16}>
                 {item.name}
               </Text>
-              <Text 
-                fontSize="$2" 
-                color="$gray11" 
-                numberOfLines={1}
-              >
+              <Text fontSize="$2" color="$gray11" numberOfLines={1}>
                 {item.difficulty || item.category || 'Route'}
               </Text>
             </YStack>

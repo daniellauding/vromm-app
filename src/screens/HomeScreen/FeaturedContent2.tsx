@@ -1,5 +1,15 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import { TouchableOpacity, Dimensions, Pressable, Modal as RNModal, TextInput, Alert, View, Animated, PanResponder } from 'react-native';
+import {
+  TouchableOpacity,
+  Dimensions,
+  Pressable,
+  Modal as RNModal,
+  TextInput,
+  Alert,
+  View,
+  Animated,
+  PanResponder,
+} from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -67,7 +77,7 @@ export function FeaturedContent2() {
     isPathUnlocked,
     hasPathPayment,
   } = useUnlock();
-  
+
   // ALL useState CALLS FIRST
   const [featuredPaths, setFeaturedPaths] = useState<FeaturedLearningPath[]>([]);
   const [featuredExercises, setFeaturedExercises] = useState<FeaturedExercise[]>([]);
@@ -87,129 +97,143 @@ export function FeaturedContent2() {
   const scale = useRef(new Animated.Value(1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
 
-  // ALL useMemo/useCallback CALLS 
-  const allFeaturedContent = useMemo(() => [...featuredPaths, ...featuredExercises], [featuredPaths, featuredExercises]);
+  // ALL useMemo/useCallback CALLS
+  const allFeaturedContent = useMemo(
+    () => [...featuredPaths, ...featuredExercises],
+    [featuredPaths, featuredExercises],
+  );
 
   // TINDER-LIKE PAN RESPONDER - Real swipe gestures!
-  const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gestureState) => {
-      // Only respond to horizontal swipes
-      return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
-    },
-    onPanResponderGrant: () => {
-      console.log('🃏 [FeaturedContent2] Swipe started');
-      pan.setOffset({
-        x: (pan.x as any)._value,
-        y: (pan.y as any)._value,
-      });
-    },
-    onPanResponderMove: (_, gestureState) => {
-      // Real-time card following finger
-      pan.setValue({ x: gestureState.dx, y: gestureState.dy * 0.3 });
-      
-      // Rotation based on horizontal movement
-      const rotation = gestureState.dx / screenWidth * 30; // Max 30 degrees
-      rotate.setValue(Math.max(-30, Math.min(30, rotation)));
-      
-      // Scale effect based on distance
-      const distance = Math.abs(gestureState.dx);
-      const scaleValue = Math.max(0.9, 1 - distance / screenWidth * 0.1);
-      scale.setValue(scaleValue);
-    },
-    onPanResponderRelease: (_, gestureState) => {
-      console.log('🃏 [FeaturedContent2] Swipe ended:', {
-        dx: gestureState.dx,
-        vx: gestureState.vx,
-        shouldSwipe: Math.abs(gestureState.dx) > 100 || Math.abs(gestureState.vx) > 0.5
-      });
-      
-      pan.flattenOffset();
-      
-      const swipeThreshold = 100;
-      const velocityThreshold = 0.5;
-      const shouldSwipe = Math.abs(gestureState.dx) > swipeThreshold || Math.abs(gestureState.vx) > velocityThreshold;
-      
-      if (shouldSwipe) {
-        const direction = gestureState.dx > 0 ? 'right' : 'left';
-        console.log('🃏 [FeaturedContent2] Swipe detected:', direction);
-        
-        // Animate card off screen
-        const toValue = direction === 'right' ? screenWidth * 1.5 : -screenWidth * 1.5;
-        Animated.parallel([
-          Animated.timing(pan.x, {
-            toValue,
-            duration: 300,
-            useNativeDriver: false,
-          }),
-          Animated.timing(scale, {
-            toValue: 0.8,
-            duration: 300,
-            useNativeDriver: false,
-          }),
-        ]).start(() => {
-          // Change card after animation
-          const nextIndex = direction === 'right'
-            ? (currentCardIndex - 1 + allFeaturedContent.length) % allFeaturedContent.length
-            : (currentCardIndex + 1) % allFeaturedContent.length;
-          
-          console.log('🃏 [FeaturedContent2] Card changed:', currentCardIndex, '→', nextIndex);
-          setCurrentCardIndex(nextIndex);
-          
-          // Reset animations
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          // Only respond to horizontal swipes
+          return (
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10
+          );
+        },
+        onPanResponderGrant: () => {
+          console.log('🃏 [FeaturedContent2] Swipe started');
+          pan.setOffset({
+            x: (pan.x as any)._value,
+            y: (pan.y as any)._value,
+          });
+        },
+        onPanResponderMove: (_, gestureState) => {
+          // Real-time card following finger
+          pan.setValue({ x: gestureState.dx, y: gestureState.dy * 0.3 });
+
+          // Rotation based on horizontal movement
+          const rotation = (gestureState.dx / screenWidth) * 30; // Max 30 degrees
+          rotate.setValue(Math.max(-30, Math.min(30, rotation)));
+
+          // Scale effect based on distance
+          const distance = Math.abs(gestureState.dx);
+          const scaleValue = Math.max(0.9, 1 - (distance / screenWidth) * 0.1);
+          scale.setValue(scaleValue);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          console.log('🃏 [FeaturedContent2] Swipe ended:', {
+            dx: gestureState.dx,
+            vx: gestureState.vx,
+            shouldSwipe: Math.abs(gestureState.dx) > 100 || Math.abs(gestureState.vx) > 0.5,
+          });
+
+          pan.flattenOffset();
+
+          const swipeThreshold = 100;
+          const velocityThreshold = 0.5;
+          const shouldSwipe =
+            Math.abs(gestureState.dx) > swipeThreshold ||
+            Math.abs(gestureState.vx) > velocityThreshold;
+
+          if (shouldSwipe) {
+            const direction = gestureState.dx > 0 ? 'right' : 'left';
+            console.log('🃏 [FeaturedContent2] Swipe detected:', direction);
+
+            // Animate card off screen
+            const toValue = direction === 'right' ? screenWidth * 1.5 : -screenWidth * 1.5;
+            Animated.parallel([
+              Animated.timing(pan.x, {
+                toValue,
+                duration: 300,
+                useNativeDriver: false,
+              }),
+              Animated.timing(scale, {
+                toValue: 0.8,
+                duration: 300,
+                useNativeDriver: false,
+              }),
+            ]).start(() => {
+              // Change card after animation
+              const nextIndex =
+                direction === 'right'
+                  ? (currentCardIndex - 1 + allFeaturedContent.length) % allFeaturedContent.length
+                  : (currentCardIndex + 1) % allFeaturedContent.length;
+
+              console.log('🃏 [FeaturedContent2] Card changed:', currentCardIndex, '→', nextIndex);
+              setCurrentCardIndex(nextIndex);
+
+              // Reset animations
+              pan.setValue({ x: 0, y: 0 });
+              scale.setValue(1);
+              rotate.setValue(0);
+            });
+          } else {
+            console.log('🃏 [FeaturedContent2] Swipe cancelled, returning to center');
+            // Snap back to center
+            Animated.parallel([
+              Animated.spring(pan, {
+                toValue: { x: 0, y: 0 },
+                useNativeDriver: false,
+              }),
+              Animated.spring(scale, {
+                toValue: 1,
+                useNativeDriver: false,
+              }),
+              Animated.spring(rotate, {
+                toValue: 0,
+                useNativeDriver: false,
+              }),
+            ]).start();
+          }
+        },
+      }),
+    [currentCardIndex, allFeaturedContent.length],
+  );
+
+  // ALL useCallback CALLS
+  const handleCardTap = useCallback(
+    (index: number, item: FeaturedLearningPath | FeaturedExercise) => {
+      try {
+        console.log('🃏 [FeaturedContent2] Card tapped:', {
+          tappedIndex: index,
+          currentIndex: currentCardIndex,
+          isCurrentCard: index === currentCardIndex,
+          itemTitle: item.title[lang] || item.title.en,
+          totalCards: allFeaturedContent.length,
+        });
+
+        if (index === currentCardIndex) {
+          // If tapping the top card, open it with animation
+          console.log('🃏 [FeaturedContent2] Opening current card content');
+          handleCardPress(item);
+        } else {
+          // If tapping a background card, bring it to front
+          console.log('🃏 [FeaturedContent2] Bringing background card to front');
+          setCurrentCardIndex(index);
+          // Reset animations for new card
           pan.setValue({ x: 0, y: 0 });
           scale.setValue(1);
           rotate.setValue(0);
-        });
-      } else {
-        console.log('🃏 [FeaturedContent2] Swipe cancelled, returning to center');
-        // Snap back to center
-        Animated.parallel([
-          Animated.spring(pan, {
-            toValue: { x: 0, y: 0 },
-            useNativeDriver: false,
-          }),
-          Animated.spring(scale, {
-            toValue: 1,
-            useNativeDriver: false,
-          }),
-          Animated.spring(rotate, {
-            toValue: 0,
-            useNativeDriver: false,
-          }),
-        ]).start();
+        }
+      } catch (error) {
+        console.error('🃏 [FeaturedContent2] Card tap error:', error);
       }
     },
-  }), [currentCardIndex, allFeaturedContent.length]);
-  
-  // ALL useCallback CALLS
-  const handleCardTap = useCallback((index: number, item: FeaturedLearningPath | FeaturedExercise) => {
-    try {
-      console.log('🃏 [FeaturedContent2] Card tapped:', {
-        tappedIndex: index,
-        currentIndex: currentCardIndex,
-        isCurrentCard: index === currentCardIndex,
-        itemTitle: item.title[lang] || item.title.en,
-        totalCards: allFeaturedContent.length
-      });
-      
-      if (index === currentCardIndex) {
-        // If tapping the top card, open it with animation
-        console.log('🃏 [FeaturedContent2] Opening current card content');
-        handleCardPress(item);
-      } else {
-        // If tapping a background card, bring it to front
-        console.log('🃏 [FeaturedContent2] Bringing background card to front');
-        setCurrentCardIndex(index);
-        // Reset animations for new card
-        pan.setValue({ x: 0, y: 0 });
-        scale.setValue(1);
-        rotate.setValue(0);
-      }
-    } catch (error) {
-      console.error('🃏 [FeaturedContent2] Card tap error:', error);
-    }
-  }, [currentCardIndex, allFeaturedContent.length, lang]);
-
+    [currentCardIndex, allFeaturedContent.length, lang],
+  );
 
   // ALL useEffect CALLS AT THE END IN CONSISTENT ORDER
   useEffect(() => {
@@ -217,17 +241,17 @@ export function FeaturedContent2() {
       // Silent fail on translation refresh
     });
   }, []);
-  
+
   useEffect(() => {
     console.log('🃏 [FeaturedContent2] Component mounted, loading data for user:', authUser?.id);
     console.log('🃏 [FeaturedContent2] Current state:', {
       currentCardIndex,
       totalContent: allFeaturedContent.length,
-      loadingState: loading
+      loadingState: loading,
     });
-    
+
     fetchFeaturedContent();
-    
+
     if (authUser?.id) {
       loadUserPayments(authUser.id);
       loadUnlockedContent(authUser.id);
@@ -241,7 +265,9 @@ export function FeaturedContent2() {
       totalExercises: featuredExercises.length,
       totalContent: allFeaturedContent.length,
       currentIndex: currentCardIndex,
-      currentItem: allFeaturedContent[currentCardIndex]?.title?.[lang] || allFeaturedContent[currentCardIndex]?.title?.en
+      currentItem:
+        allFeaturedContent[currentCardIndex]?.title?.[lang] ||
+        allFeaturedContent[currentCardIndex]?.title?.en,
     });
   }, [featuredPaths.length, featuredExercises.length, currentCardIndex]);
 
@@ -252,14 +278,13 @@ export function FeaturedContent2() {
       setCurrentCardIndex(0);
       return;
     }
-    
+
     if (currentCardIndex >= allFeaturedContent.length) {
       console.log('🃏 [FeaturedContent2] Index out of bounds, resetting to 0');
       setCurrentCardIndex(0);
       return;
     }
   }, [allFeaturedContent.length, currentCardIndex]);
-
 
   const fetchFeaturedContent = async () => {
     try {
@@ -269,7 +294,9 @@ export function FeaturedContent2() {
       // Fetch featured learning paths
       const { data: pathsData, error: pathsError } = await supabase
         .from('learning_paths')
-        .select('id, title, description, icon, image, is_featured, is_locked, lock_password, paywall_enabled, price_usd, price_sek')
+        .select(
+          'id, title, description, icon, image, is_featured, is_locked, lock_password, paywall_enabled, price_usd, price_sek',
+        )
         .eq('is_featured', true)
         .eq('active', true)
         .order('created_at', { ascending: false })
@@ -298,7 +325,7 @@ export function FeaturedContent2() {
       console.log('🎯 [FeaturedContent2] Final state:', {
         featuredPaths: pathsData?.length || 0,
         featuredExercises: exercisesData?.length || 0,
-        hasContent: (pathsData?.length || 0) > 0 || (exercisesData?.length || 0) > 0
+        hasContent: (pathsData?.length || 0) > 0 || (exercisesData?.length || 0) > 0,
       });
     } catch (error) {
       console.error('Error fetching featured content:', error);
@@ -317,26 +344,30 @@ export function FeaturedContent2() {
     return !hasPathPayment(path.id);
   };
 
-  const checkPathPaywall = async (path: FeaturedLearningPath | FeaturedExercise): Promise<boolean> => {
+  const checkPathPaywall = async (
+    path: FeaturedLearningPath | FeaturedExercise,
+  ): Promise<boolean> => {
     if (!path.paywall_enabled) return true;
-    
+
     if (authUser?.id) {
       await loadUserPayments(authUser.id);
     }
-    
+
     if (hasPathPayment(path.id)) {
       return true;
     }
-    
+
     setPaywallPath(path as FeaturedLearningPath);
     setShowPaywallModal(true);
     return false;
   };
 
-  const checkPathPassword = async (path: FeaturedLearningPath | FeaturedExercise): Promise<boolean> => {
+  const checkPathPassword = async (
+    path: FeaturedLearningPath | FeaturedExercise,
+  ): Promise<boolean> => {
     if (!path.is_locked) return true;
     if (isPathUnlocked(path.id)) return true;
-    
+
     setPasswordPath(path as FeaturedLearningPath);
     setShowPasswordModal(true);
     return false;
@@ -345,7 +376,7 @@ export function FeaturedContent2() {
   // Simple press handler for card tap
   const handleCardPress = async (item: FeaturedLearningPath | FeaturedExercise) => {
     console.log('🃏 [FeaturedContent2] Card pressed, opening content');
-    
+
     // Simple scale animation for press feedback
     Animated.sequence([
       Animated.timing(scale, {
@@ -359,14 +390,14 @@ export function FeaturedContent2() {
         useNativeDriver: false,
       }),
     ]).start();
-    
+
     // Open content directly
     await handleContentPress(item);
   };
 
   const handleContentPress = async (item: FeaturedLearningPath | FeaturedExercise) => {
     console.log('🎯 [FeaturedContent2] Content pressed:', item.title[lang] || item.title.en);
-    
+
     // Check paywall first
     const canAccessPaywall = await checkPathPaywall(item);
     if (!canAccessPaywall) return;
@@ -374,136 +405,130 @@ export function FeaturedContent2() {
     // Check password lock
     const canAccessPassword = await checkPathPassword(item);
     if (!canAccessPassword) return;
-    
+
     // Determine if it's a path or exercise
     const isExercise = 'learning_path_id' in item;
     const pathId = isExercise ? (item as FeaturedExercise).learning_path_id : item.id;
-    
+
     setSelectedPathId(pathId);
     setSelectedTitle(item.title[lang] || item.title.en);
     setShowExerciseSheet(true);
   };
 
-
   // Render single card content (no positioning - that's handled by parent)
   const renderStackedCard = (
-    item: FeaturedLearningPath | FeaturedExercise, 
-    index: number, 
-    stackOffset: number, 
-    stackScale: number, 
-    stackOpacity: number, 
-    isCurrentCard: boolean
+    item: FeaturedLearningPath | FeaturedExercise,
+    index: number,
+    stackOffset: number,
+    stackScale: number,
+    stackOpacity: number,
+    isCurrentCard: boolean,
   ) => {
     const isExercise = 'learning_path_id' in item;
     const isPasswordLocked = isPathPasswordLocked(item);
     const isPaywallLocked = isPathPaywallLocked(item);
-    
+
     return (
       <TouchableOpacity
         onPress={() => handleCardTap(index, item)}
         style={{ flex: 1 }}
         activeOpacity={isCurrentCard ? 0.8 : 0.95}
       >
-          <Card
-            padding="$4"
-            backgroundColor="$backgroundHover"
-            borderRadius="$4"
-            borderWidth={1}
-            borderColor={isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : '$borderColor'}
-            height={CARD_HEIGHT}
-            width="100%"
-            style={{
-              shadowColor: isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : '#000',
-              shadowOpacity: isCurrentCard ? 0.25 : 0.15, // Increased shadow visibility
-              shadowRadius: isCurrentCard ? 16 : 8, // Larger shadow radius
-              shadowOffset: { width: 0, height: isCurrentCard ? 8 : 4 }, // Larger shadow offset
-              elevation: isCurrentCard ? 12 : 6, // Android shadow elevation
-            }}
-          >
-            <YStack gap="$2" position="relative" height="100%" justifyContent="space-between">
-              {/* Lock/Payment indicator badges */}
-              {(isPasswordLocked || isPaywallLocked) && (
-                <XStack
-                  position="absolute"
-                  top={0}
-                  right={0}
-                  zIndex={10}
-                  gap="$1"
-                >
-                  {isPasswordLocked && (
-                    <YStack
-                      backgroundColor="#FF9500"
-                      borderRadius="$2"
-                      padding="$1"
-                      minWidth={20}
-                      alignItems="center"
-                    >
-                      <MaterialIcons name="lock" size={10} color="white" />
-                    </YStack>
-                  )}
-                  {isPaywallLocked && (
-                    <YStack
-                      backgroundColor="#00E6C3"
-                      borderRadius="$2"
-                      padding="$1"
-                      minWidth={20}
-                      alignItems="center"
-                    >
-                      <Feather name="credit-card" size={8} color="black" />
-                    </YStack>
-                  )}
-                </XStack>
-              )}
-              
-              <YStack gap="$2">
-                <XStack alignItems="center" gap="$2">
-                  {item.icon && (
-                    <Feather 
-                      name={item.icon as keyof typeof Feather.glyphMap} 
-                      size={20} 
-                      color={isExercise ? "#4B6BFF" : "#00FFBC"} 
-                    />
-                  )}
-                  <Text fontSize="$3" fontWeight="600" color={isExercise ? "#4B6BFF" : "#00FFBC"}>
-                    {isExercise ? (t('home.exercise') || 'Exercise') : (t('home.learningPath') || 'Learning Path')}
-                  </Text>
-                </XStack>
-                
-                <Text fontSize="$5" fontWeight="bold" color="$color" numberOfLines={2}>
-                  {item.title?.[lang] || item.title?.en || 'Untitled'}
-                </Text>
-                
-                {item.description?.[lang] && (
-                  <Text fontSize="$3" color="$gray11" numberOfLines={2}>
-                    {item.description[lang]}
-                  </Text>
+        <Card
+          padding="$4"
+          backgroundColor="$backgroundHover"
+          borderRadius="$4"
+          borderWidth={1}
+          borderColor={isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : '$borderColor'}
+          height={CARD_HEIGHT}
+          width="100%"
+          style={{
+            shadowColor: isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : '#000',
+            shadowOpacity: isCurrentCard ? 0.25 : 0.15, // Increased shadow visibility
+            shadowRadius: isCurrentCard ? 16 : 8, // Larger shadow radius
+            shadowOffset: { width: 0, height: isCurrentCard ? 8 : 4 }, // Larger shadow offset
+            elevation: isCurrentCard ? 12 : 6, // Android shadow elevation
+          }}
+        >
+          <YStack gap="$2" position="relative" height="100%" justifyContent="space-between">
+            {/* Lock/Payment indicator badges */}
+            {(isPasswordLocked || isPaywallLocked) && (
+              <XStack position="absolute" top={0} right={0} zIndex={10} gap="$1">
+                {isPasswordLocked && (
+                  <YStack
+                    backgroundColor="#FF9500"
+                    borderRadius="$2"
+                    padding="$1"
+                    minWidth={20}
+                    alignItems="center"
+                  >
+                    <MaterialIcons name="lock" size={10} color="white" />
+                  </YStack>
                 )}
-              </YStack>
-              
-              <XStack alignItems="center" gap="$2" marginTop="auto">
-                <Feather name={isExercise ? "play-circle" : "book-open"} size={16} color="$gray11" />
-                <Text fontSize="$2" color="$gray11" numberOfLines={1}>
-                  {isExercise 
-                    ? (t('home.startExercise') || 'Start Exercise') 
-                    : (t('home.startLearning') || 'Start Learning')
-                  }
-                </Text>
-                <Feather name="arrow-right" size={12} color="$gray11" />
+                {isPaywallLocked && (
+                  <YStack
+                    backgroundColor="#00E6C3"
+                    borderRadius="$2"
+                    padding="$1"
+                    minWidth={20}
+                    alignItems="center"
+                  >
+                    <Feather name="credit-card" size={8} color="black" />
+                  </YStack>
+                )}
               </XStack>
+            )}
+
+            <YStack gap="$2">
+              <XStack alignItems="center" gap="$2">
+                {item.icon && (
+                  <Feather
+                    name={item.icon as keyof typeof Feather.glyphMap}
+                    size={20}
+                    color={isExercise ? '#4B6BFF' : '#00FFBC'}
+                  />
+                )}
+                <Text fontSize="$3" fontWeight="600" color={isExercise ? '#4B6BFF' : '#00FFBC'}>
+                  {isExercise
+                    ? t('home.exercise') || 'Exercise'
+                    : t('home.learningPath') || 'Learning Path'}
+                </Text>
+              </XStack>
+
+              <Text fontSize="$5" fontWeight="bold" color="$color" numberOfLines={2}>
+                {item.title?.[lang] || item.title?.en || 'Untitled'}
+              </Text>
+
+              {item.description?.[lang] && (
+                <Text fontSize="$3" color="$gray11" numberOfLines={2}>
+                  {item.description[lang]}
+                </Text>
+              )}
             </YStack>
-          </Card>
-        </TouchableOpacity>
+
+            <XStack alignItems="center" gap="$2" marginTop="auto">
+              <Feather name={isExercise ? 'play-circle' : 'book-open'} size={16} color="$gray11" />
+              <Text fontSize="$2" color="$gray11" numberOfLines={1}>
+                {isExercise
+                  ? t('home.startExercise') || 'Start Exercise'
+                  : t('home.startLearning') || 'Start Learning'}
+              </Text>
+              <Feather name="arrow-right" size={12} color="$gray11" />
+            </XStack>
+          </YStack>
+        </Card>
+      </TouchableOpacity>
     );
   };
 
   if (loading) {
     return (
       <YStack marginBottom="$4">
-        <SectionHeader 
+        <SectionHeader
           title={(() => {
             const translated = t('home.featuredContent');
             return translated === 'home.featuredContent' ? 'Featured Learning Cards' : translated;
-          })()} 
+          })()}
         />
         <YStack alignItems="center" justifyContent="center" padding="$4">
           <Text color="$gray11">{t('common.loading') || 'Loading...'}</Text>
@@ -517,11 +542,11 @@ export function FeaturedContent2() {
   if (!hasContent) {
     return (
       <YStack marginBottom="$4">
-        <SectionHeader 
+        <SectionHeader
           title={(() => {
             const translated = t('home.featuredContent');
             return translated === 'home.featuredContent' ? 'Featured Learning Cards' : translated;
-          })()} 
+          })()}
         />
         <YStack alignItems="center" justifyContent="center" padding="$4" gap="$2">
           <Feather name="star" size={48} color="#666" />
@@ -537,13 +562,13 @@ export function FeaturedContent2() {
 
   return (
     <YStack marginBottom="$6">
-      <SectionHeader 
+      <SectionHeader
         title={(() => {
           const translated = t('home.featuredContent');
           return translated === 'home.featuredContent' ? 'Featured Learning Cards' : translated;
-        })()} 
+        })()}
       />
-      
+
       <View style={{ paddingHorizontal: CARD_MARGIN, height: CARD_HEIGHT + 60 }}>
         {/* TINDER-LIKE Card Stack with REAL SWIPE GESTURES */}
         <View style={{ position: 'relative', height: CARD_HEIGHT, width: '100%' }}>
@@ -551,26 +576,23 @@ export function FeaturedContent2() {
           {allFeaturedContent.map((item, index) => {
             const isCurrent = index === currentCardIndex;
             if (isCurrent) return null; // Skip current card, render it separately with gestures
-            
+
             const distanceFromCurrent = Math.abs(index - currentCardIndex);
-            
+
             // Stack positioning - cards behind are offset down and scaled down
             const stackOffset = Math.min(distanceFromCurrent * 12, 36);
             const stackScale = 1 - Math.min(distanceFromCurrent * 0.08, 0.2);
             const stackOpacity = Math.max(0.7, 1 - distanceFromCurrent * 0.15);
             const zIndex = allFeaturedContent.length * 10 - distanceFromCurrent;
-            
+
             return (
               <View
                 key={`background-card-${item.id}-${index}`}
                 style={{
                   position: 'absolute',
-                  width: screenWidth - (CARD_MARGIN * 2),
+                  width: screenWidth - CARD_MARGIN * 2,
                   height: CARD_HEIGHT,
-                  transform: [
-                    { translateY: stackOffset },
-                    { scale: stackScale }
-                  ],
+                  transform: [{ translateY: stackOffset }, { scale: stackScale }],
                   opacity: stackOpacity,
                   zIndex,
                 }}
@@ -586,29 +608,37 @@ export function FeaturedContent2() {
               key={`current-card-${allFeaturedContent[currentCardIndex].id}-${currentCardIndex}`}
               style={{
                 position: 'absolute',
-                width: screenWidth - (CARD_MARGIN * 2),
+                width: screenWidth - CARD_MARGIN * 2,
                 height: CARD_HEIGHT,
                 transform: [
                   { translateX: pan.x },
                   { translateY: pan.y },
                   { scale: scale },
-                  { rotate: rotate.interpolate({
-                    inputRange: [-30, 30],
-                    outputRange: ['-30deg', '30deg'],
-                    extrapolate: 'clamp'
-                  })},
+                  {
+                    rotate: rotate.interpolate({
+                      inputRange: [-30, 30],
+                      outputRange: ['-30deg', '30deg'],
+                      extrapolate: 'clamp',
+                    }),
+                  },
                 ],
                 zIndex: 2000,
               }}
               {...panResponder.panHandlers} // REAL SWIPE GESTURES!
             >
-              {renderStackedCard(allFeaturedContent[currentCardIndex], currentCardIndex, 0, 1, 1, true)}
+              {renderStackedCard(
+                allFeaturedContent[currentCardIndex],
+                currentCardIndex,
+                0,
+                1,
+                1,
+                true,
+              )}
             </Animated.View>
           )}
         </View>
-        
       </View>
-      
+
       {/* Exercise List Sheet Modal */}
       <ExerciseListSheet
         visible={showExerciseSheet}
@@ -685,10 +715,15 @@ export function FeaturedContent2() {
                   </YStack>
 
                   {/* Pricing */}
-                  <YStack gap={8} padding={16} backgroundColor="rgba(0, 230, 195, 0.1)" borderRadius={12}>
+                  <YStack
+                    gap={8}
+                    padding={16}
+                    backgroundColor="rgba(0, 230, 195, 0.1)"
+                    borderRadius={12}
+                  >
                     <XStack alignItems="center" justifyContent="center" gap={8}>
                       <Text fontSize={28} fontWeight="bold" color="#00E6C3">
-                        ${Math.max(paywallPath.price_usd || 1.00, 1.00)}
+                        ${Math.max(paywallPath.price_usd || 1.0, 1.0)}
                       </Text>
                       <Text fontSize={14} color="$gray11">
                         {t('progressScreen.paywall.oneTime') || 'one-time unlock'}
@@ -708,9 +743,7 @@ export function FeaturedContent2() {
                         alignItems: 'center',
                       }}
                     >
-                      <Text color="$color">
-                        {t('common.cancel') || 'Maybe Later'}
-                      </Text>
+                      <Text color="$color">{t('common.cancel') || 'Maybe Later'}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => {
@@ -718,7 +751,7 @@ export function FeaturedContent2() {
                         showToast({
                           title: 'Payment',
                           message: 'Payment system will be integrated soon',
-                          type: 'info'
+                          type: 'info',
                         });
                         setShowPaywallModal(false);
                       }}
@@ -733,7 +766,8 @@ export function FeaturedContent2() {
                       <XStack alignItems="center" gap={6}>
                         <Feather name="credit-card" size={16} color="black" />
                         <Text color="black" fontWeight="bold">
-                          {t('progressScreen.paywall.unlock') || `Unlock for $${Math.max(paywallPath.price_usd || 1.00, 1.00)}`}
+                          {t('progressScreen.paywall.unlock') ||
+                            `Unlock for $${Math.max(paywallPath.price_usd || 1.0, 1.0)}`}
                         </Text>
                       </XStack>
                     </TouchableOpacity>
@@ -848,25 +882,28 @@ export function FeaturedContent2() {
                     <TouchableOpacity
                       onPress={async () => {
                         if (!passwordPath?.lock_password) return;
-                        
+
                         if (pathPasswordInput === passwordPath.lock_password) {
                           // Use shared context to unlock
                           await addUnlockedPath(passwordPath.id);
                           setPathPasswordInput('');
                           setShowPasswordModal(false);
-                          
+
                           showToast({
                             title: 'Unlocked!',
                             message: 'Learning path has been unlocked',
-                            type: 'success'
+                            type: 'success',
                           });
-                          
+
                           // Now open the exercise sheet
                           setSelectedPathId(passwordPath.id);
                           setSelectedTitle(passwordPath.title[lang] || passwordPath.title.en);
                           setShowExerciseSheet(true);
                         } else {
-                          Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
+                          Alert.alert(
+                            'Incorrect Password',
+                            'The password you entered is incorrect.',
+                          );
                         }
                       }}
                       style={{
@@ -877,7 +914,9 @@ export function FeaturedContent2() {
                         alignItems: 'center',
                       }}
                     >
-                      <Text color="black" fontWeight="bold">Unlock</Text>
+                      <Text color="black" fontWeight="bold">
+                        Unlock
+                      </Text>
                     </TouchableOpacity>
                   </XStack>
                 </>

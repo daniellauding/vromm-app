@@ -125,152 +125,171 @@ const styles = StyleSheet.create({
 
 import React from 'react';
 
-export const RoutesDrawer = React.forwardRef<View, {
-  selectedRoute: Route | null;
-  filteredRoutes: Route[];
-  loadRoutes: () => void;
-  onClearFilters?: () => void;
-  hasActiveFilters?: boolean;
-  onExpandSearch?: () => void;
-  onRoutePress?: (routeId: string) => void;
-}>(({ selectedRoute, filteredRoutes, onClearFilters, hasActiveFilters = false, onExpandSearch, onRoutePress }, ref) => {
-  const { t } = useTranslation();
-  const scrollOffset = useRef(0);
-  const colorScheme = useColorScheme();
-  const theme = useTheme();
-  const { height: screenHeight } = Dimensions.get('window');
-  const snapPoints = useMemo(
-    () => ({
-      expanded: screenHeight * 0.2, // Fully expanded
-      mid: screenHeight * 0.4, // Show 60% of the screen
-      collapsed: screenHeight - BOTTOM_NAV_HEIGHT - 80, // Show more of the handle + title above nav bar
-    }),
-    [screenHeight],
-  );
-
-  const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.collapsed);
-  const translateY = useSharedValue(snapPoints.collapsed);
-  const currentState = useSharedValue(snapPoints.collapsed);
-
-  const snapTo = useCallback(
-    (point: number) => {
-      currentState.value = point;
-      setCurrentSnapPoint(point);
+export const RoutesDrawer = React.forwardRef<
+  View,
+  {
+    selectedRoute: Route | null;
+    filteredRoutes: Route[];
+    loadRoutes: () => void;
+    onClearFilters?: () => void;
+    hasActiveFilters?: boolean;
+    onExpandSearch?: () => void;
+    onRoutePress?: (routeId: string) => void;
+  }
+>(
+  (
+    {
+      selectedRoute,
+      filteredRoutes,
+      onClearFilters,
+      hasActiveFilters = false,
+      onExpandSearch,
+      onRoutePress,
     },
-    [currentState],
-  );
-  // --- New Gesture API ---
-  const panGesture = Gesture.Pan()
-    .onBegin(() => {
-      // No need for isDragging ref, just start gesture
-    })
-    .onUpdate((event) => {
-      try {
-        const { translationY } = event;
-        const newPosition = currentState.value + translationY;
-        const maxsnapToTop = snapPoints.expanded;
-        const maxBottom = snapPoints.collapsed;
-        const boundedPosition = Math.min(Math.max(newPosition, maxsnapToTop), maxBottom);
-        translateY.value = boundedPosition;
-      } catch (error) {
-        console.log('panGesture error', error);
-      }
-    })
-    .onEnd((event) => {
-      const { translationY, velocityY } = event;
-      const currentPosition = currentState.value + translationY;
-      let targetSnapPoint;
-      if (velocityY < -500) {
-        targetSnapPoint = snapPoints.expanded;
-      } else if (velocityY > 500) {
-        targetSnapPoint = snapPoints.collapsed;
-      } else {
-        const positions = [snapPoints.expanded, snapPoints.mid, snapPoints.collapsed];
-        targetSnapPoint = positions.reduce((prev, curr) =>
-          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
-        );
-      }
-      const boundedTarget = Math.min(
-        Math.max(targetSnapPoint, snapPoints.expanded),
-        snapPoints.collapsed,
-      );
+    ref,
+  ) => {
+    const { t } = useTranslation();
+    const scrollOffset = useRef(0);
+    const colorScheme = useColorScheme();
+    const theme = useTheme();
+    const { height: screenHeight } = Dimensions.get('window');
+    const snapPoints = useMemo(
+      () => ({
+        expanded: screenHeight * 0.2, // Fully expanded
+        mid: screenHeight * 0.4, // Show 60% of the screen
+        collapsed: screenHeight - BOTTOM_NAV_HEIGHT - 80, // Show more of the handle + title above nav bar
+      }),
+      [screenHeight],
+    );
 
-      translateY.value = withSpring(boundedTarget, {
-        damping: 20,
-        mass: 1,
-        stiffness: 100,
-        overshootClamping: true,
-        restDisplacementThreshold: 0.01,
-        restSpeedThreshold: 0.01,
+    const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.collapsed);
+    const translateY = useSharedValue(snapPoints.collapsed);
+    const currentState = useSharedValue(snapPoints.collapsed);
+
+    const snapTo = useCallback(
+      (point: number) => {
+        currentState.value = point;
+        setCurrentSnapPoint(point);
+      },
+      [currentState],
+    );
+    // --- New Gesture API ---
+    const panGesture = Gesture.Pan()
+      .onBegin(() => {
+        // No need for isDragging ref, just start gesture
+      })
+      .onUpdate((event) => {
+        try {
+          const { translationY } = event;
+          const newPosition = currentState.value + translationY;
+          const maxsnapToTop = snapPoints.expanded;
+          const maxBottom = snapPoints.collapsed;
+          const boundedPosition = Math.min(Math.max(newPosition, maxsnapToTop), maxBottom);
+          translateY.value = boundedPosition;
+        } catch (error) {
+          console.log('panGesture error', error);
+        }
+      })
+      .onEnd((event) => {
+        const { translationY, velocityY } = event;
+        const currentPosition = currentState.value + translationY;
+        let targetSnapPoint;
+        if (velocityY < -500) {
+          targetSnapPoint = snapPoints.expanded;
+        } else if (velocityY > 500) {
+          targetSnapPoint = snapPoints.collapsed;
+        } else {
+          const positions = [snapPoints.expanded, snapPoints.mid, snapPoints.collapsed];
+          targetSnapPoint = positions.reduce((prev, curr) =>
+            Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+          );
+        }
+        const boundedTarget = Math.min(
+          Math.max(targetSnapPoint, snapPoints.expanded),
+          snapPoints.collapsed,
+        );
+
+        translateY.value = withSpring(boundedTarget, {
+          damping: 20,
+          mass: 1,
+          stiffness: 100,
+          overshootClamping: true,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        });
+
+        // lastGesture.current = boundedTarget;
+        currentState.value = boundedTarget;
       });
 
-      // lastGesture.current = boundedTarget;
-      currentState.value = boundedTarget;
-    });
+    const handleScroll = useCallback(
+      (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const { contentOffset } = event.nativeEvent;
+        scrollOffset.current = contentOffset.y;
 
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset } = event.nativeEvent;
-      scrollOffset.current = contentOffset.y;
+        // If user is scrolling and sheet is not expanded, expand it
+        if (contentOffset.y > 0 && currentSnapPoint === snapPoints.collapsed) {
+          snapTo(snapPoints.mid);
+        }
 
-      // If user is scrolling and sheet is not expanded, expand it
-      if (contentOffset.y > 0 && currentSnapPoint === snapPoints.collapsed) {
-        snapTo(snapPoints.mid);
-      }
+        // If user scrolls to top and sheet is expanded, collapse it
+        if (contentOffset.y === 0 && currentSnapPoint !== snapPoints.collapsed) {
+          snapTo(snapPoints.collapsed);
+        }
+      },
+      [currentSnapPoint, snapPoints, snapTo],
+    );
 
-      // If user scrolls to top and sheet is expanded, collapse it
-      if (contentOffset.y === 0 && currentSnapPoint !== snapPoints.collapsed) {
-        snapTo(snapPoints.collapsed);
-      }
-    },
-    [currentSnapPoint, snapPoints, snapTo],
-  );
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ translateY: translateY.value }],
+    }));
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+    if (selectedRoute) {
+      return null;
+    }
 
-  if (selectedRoute) {
-    return null;
-  }
-
-  return (
-    <GestureDetector gesture={panGesture}>
-      <Animated.View
-        ref={ref}
-        style={[
-          styles.bottomSheet,
-          {
-            height: screenHeight,
-            backgroundColor: theme.background?.val || '#FFFFFF',
-          },
-          animatedStyle,
-        ]}
-      >
-        <View style={styles.handleContainer}>
-          <View style={[styles.handle, { backgroundColor: theme.gray8?.val || '#E5E5E5' }]} />
-          <XStack alignItems="center" gap="$2">
-            <Feather name="map" size={16} color={theme.color?.val || '#000000'} />
-            <Text fontSize="$4" fontWeight="600" color={theme.color?.val || '#000000'}>
-              {filteredRoutes.length}{' '}
-              {filteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
-            </Text>
-          </XStack>
-        </View>
-        <View style={styles.routeListContainer}>
-          {filteredRoutes.length > 0 ? (
-            <RouteList routes={filteredRoutes} onScroll={handleScroll} onRoutePress={onRoutePress} />
-          ) : (
-            <EmptyFilterState 
-              hasActiveFilters={hasActiveFilters}
-              onClearFilters={onClearFilters}
-              onExpandSearch={onExpandSearch}
-            />
-          )}
-        </View>
-      </Animated.View>
-    </GestureDetector>
-  );
-});
+    return (
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          ref={ref}
+          style={[
+            styles.bottomSheet,
+            {
+              height: screenHeight,
+              backgroundColor: theme.background?.val || '#FFFFFF',
+            },
+            animatedStyle,
+          ]}
+        >
+          <View style={styles.handleContainer}>
+            <View style={[styles.handle, { backgroundColor: theme.gray8?.val || '#E5E5E5' }]} />
+            <XStack alignItems="center" gap="$2">
+              <Feather name="map" size={16} color={theme.color?.val || '#000000'} />
+              <Text fontSize="$4" fontWeight="600" color={theme.color?.val || '#000000'}>
+                {filteredRoutes.length}{' '}
+                {filteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
+              </Text>
+            </XStack>
+          </View>
+          <View style={styles.routeListContainer}>
+            {filteredRoutes.length > 0 ? (
+              <RouteList
+                routes={filteredRoutes}
+                onScroll={handleScroll}
+                onRoutePress={onRoutePress}
+              />
+            ) : (
+              <EmptyFilterState
+                hasActiveFilters={hasActiveFilters}
+                onClearFilters={onClearFilters}
+                onExpandSearch={onExpandSearch}
+              />
+            )}
+          </View>
+        </Animated.View>
+      </GestureDetector>
+    );
+  },
+);
 
 RoutesDrawer.displayName = 'RoutesDrawer';

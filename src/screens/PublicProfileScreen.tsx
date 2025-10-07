@@ -74,7 +74,6 @@ export function PublicProfileScreen() {
   });
   const [showAdminControls, setShowAdminControls] = useState(false);
 
-
   // Follow/Unfollow system state
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
@@ -88,15 +87,17 @@ export function PublicProfileScreen() {
   const [schools, setSchools] = useState<
     Array<{ school_id: string; school_name: string; school_location: string }>
   >([]);
-  
+
   // Instructor/Student relationship states
   const [isInstructor, setIsInstructor] = useState(false);
   const [isStudent, setIsStudent] = useState(false);
   const [relationshipLoading, setRelationshipLoading] = useState(false);
-  
+
   // Pending invitation states
   const [hasPendingInvitation, setHasPendingInvitation] = useState(false);
-  const [pendingInvitationType, setPendingInvitationType] = useState<'sent' | 'received' | null>(null);
+  const [pendingInvitationType, setPendingInvitationType] = useState<'sent' | 'received' | null>(
+    null,
+  );
 
   // Relationship reviews state
   const [relationshipReviews, setRelationshipReviews] = useState<any[]>([]);
@@ -403,8 +404,6 @@ export function PublicProfileScreen() {
     navigation.push('ProfileScreen');
   };
 
-
-
   const handleViewAllRoutes = () => {
     navigation.navigate('RouteList', {
       title: t('profile.routesCreated') || 'Created Routes',
@@ -561,7 +560,7 @@ export function PublicProfileScreen() {
   // Check if current user has instructor/student relationship with this profile
   const checkRelationshipStatus = async () => {
     if (!user?.id || !userId) return;
-    
+
     try {
       // Check if this profile is supervising the current user
       const { data: instructorData } = await supabase
@@ -570,9 +569,9 @@ export function PublicProfileScreen() {
         .eq('student_id', user.id)
         .eq('supervisor_id', userId)
         .single();
-      
+
       setIsInstructor(!!instructorData);
-      
+
       // Check if current user is supervising this profile
       const { data: studentData } = await supabase
         .from('student_supervisor_relationships')
@@ -580,7 +579,7 @@ export function PublicProfileScreen() {
         .eq('supervisor_id', user.id)
         .eq('student_id', userId)
         .single();
-      
+
       setIsStudent(!!studentData);
     } catch (error) {
       console.log('No existing relationship');
@@ -589,10 +588,10 @@ export function PublicProfileScreen() {
 
   // Enhanced pending invitation check with custom messages
   const [pendingInvitationData, setPendingInvitationData] = useState<any>(null);
-  
+
   const checkPendingInvitations = async () => {
     if (!user?.id || !userId || !profile?.email || !user.email) return;
-    
+
     try {
       // Check if current user sent invitation to this profile
       const { data: sentInvitations } = await supabase
@@ -601,7 +600,7 @@ export function PublicProfileScreen() {
         .eq('invited_by', user.id)
         .eq('email', profile.email.toLowerCase())
         .eq('status', 'pending');
-      
+
       // Check if this profile sent invitation to current user
       const { data: receivedInvitations } = await supabase
         .from('pending_invitations')
@@ -609,7 +608,7 @@ export function PublicProfileScreen() {
         .eq('invited_by', userId)
         .eq('email', user.email.toLowerCase())
         .eq('status', 'pending');
-      
+
       if (sentInvitations && sentInvitations.length > 0) {
         setHasPendingInvitation(true);
         setPendingInvitationType('sent');
@@ -621,7 +620,10 @@ export function PublicProfileScreen() {
         setHasPendingInvitation(true);
         setPendingInvitationType('received');
         setPendingInvitationData(receivedInvitations[0]);
-        console.log('📥 Found received invitation from this user with data:', receivedInvitations[0]);
+        console.log(
+          '📥 Found received invitation from this user with data:',
+          receivedInvitations[0],
+        );
         relLog.incomingLoaded(1);
         relLog.publicProfileButtonState(String(userId), 'pending-received');
       } else {
@@ -635,33 +637,33 @@ export function PublicProfileScreen() {
       console.error('Error checking pending invitations:', error);
     }
   };
-  
+
   // Handle set/unset as instructor
   const handleInstructorToggle = async () => {
     if (!user?.id || !userId || relationshipLoading) return;
-    
+
     console.log('🎓 INSTRUCTOR TOGGLE - Starting');
     console.log('🎓 Current user ID:', user.id);
     console.log('🎓 Target user ID:', userId);
     console.log('🎓 Current isInstructor state:', isInstructor);
     console.log('🎓 Action:', isInstructor ? 'UNSET as instructor' : 'SET as instructor');
-    
+
     try {
       setRelationshipLoading(true);
-      
+
       if (isInstructor) {
         // Remove instructor relationship
         console.log('🎓 REMOVING instructor relationship...');
         console.log('🎓 DELETE WHERE student_id =', user.id, 'AND supervisor_id =', userId);
-        
+
         const { error } = await supabase
           .from('student_supervisor_relationships')
           .delete()
           .eq('student_id', user.id)
           .eq('supervisor_id', userId);
-        
+
         if (error) throw error;
-        
+
         console.log('✅ INSTRUCTOR REMOVED successfully');
         setIsInstructor(false);
         Alert.alert('Success', 'Removed as your instructor');
@@ -710,7 +712,7 @@ export function PublicProfileScreen() {
         // Refresh pending immediately for UI
         checkPendingInvitations();
       }
-      
+
       // Reload relationships
       loadUserRelationships();
     } catch (error) {
@@ -721,33 +723,33 @@ export function PublicProfileScreen() {
       console.log('🎓 INSTRUCTOR TOGGLE - Complete');
     }
   };
-  
+
   // Handle set/unset as student
   const handleStudentToggle = async () => {
     if (!user?.id || !userId || relationshipLoading) return;
-    
+
     console.log('👨‍🎓 STUDENT TOGGLE - Starting');
     console.log('👨‍🎓 Current user ID:', user.id);
     console.log('👨‍🎓 Target user ID:', userId);
     console.log('👨‍🎓 Current isStudent state:', isStudent);
     console.log('👨‍🎓 Action:', isStudent ? 'UNSET as student' : 'SET as student');
-    
+
     try {
       setRelationshipLoading(true);
-      
+
       if (isStudent) {
         // Remove student relationship with notification
         console.log('👨‍🎓 REMOVING student relationship...');
-        
+
         const success = await removeSupervisorRelationship(
           userId, // studentId
           user.id, // supervisorId
           undefined, // no message for now
-          user.id // removedByUserId
+          user.id, // removedByUserId
         );
-        
+
         if (!success) throw new Error('Failed to remove relationship');
-        
+
         console.log('✅ STUDENT REMOVED successfully');
         setIsStudent(false);
         Alert.alert('Success', 'Removed as your student');
@@ -792,7 +794,10 @@ export function PublicProfileScreen() {
         console.log('✅ STUDENT INVITATION SENT');
         relLog.inviteSuccess(result.invitationId);
         // Do not set isStudent yet; wait for acceptance
-        Alert.alert('Invitation Sent', 'An invitation has been sent to add this user as your student.');
+        Alert.alert(
+          'Invitation Sent',
+          'An invitation has been sent to add this user as your student.',
+        );
         // Refresh pending immediately for UI
         checkPendingInvitations();
       }
@@ -811,22 +816,26 @@ export function PublicProfileScreen() {
 
     const channel = supabase
       .channel(`public_profile_pending_${user.id}_${userId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'pending_invitations',
-        filter: `or(and(invited_by.eq.${user.id},email.eq.${(profile?.email || '').toLowerCase()}),and(invited_by.eq.${userId},email.eq.${user.email.toLowerCase()}))`,
-      }, () => {
-        // Refresh the pending status for this profile pair
-        checkPendingInvitations();
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pending_invitations',
+          filter: `or(and(invited_by.eq.${user.id},email.eq.${(profile?.email || '').toLowerCase()}),and(invited_by.eq.${userId},email.eq.${user.email.toLowerCase()}))`,
+        },
+        () => {
+          // Refresh the pending status for this profile pair
+          checkPendingInvitations();
+        },
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [user?.id, user?.email, userId, profile?.email]);
-  
+
   const handleFollow = async () => {
     try {
       if (!user?.id || !userId || followLoading) return;
@@ -986,7 +995,9 @@ export function PublicProfileScreen() {
             {showAdminControls && (
               <Button
                 onPress={handleAdminDeleteUser}
-                icon={(props: any) => <Feather name="trash-2" size={props.size || 20} color="red" />}
+                icon={(props: any) => (
+                  <Feather name="trash-2" size={props.size || 20} color="red" />
+                )}
                 variant="secondary"
                 marginRight="$2"
               >
@@ -1036,76 +1047,76 @@ export function PublicProfileScreen() {
                 {currentUserProfile && !hasPendingInvitation && (
                   <>
                     {/* Show Set as Student button for instructor/admin/school users viewing student profiles */}
-                    {['instructor', 'admin', 'school'].includes(currentUserProfile.role) && 
-                     profile?.role === 'student' && (
-                      <Button
-                        onPress={handleStudentToggle}
-                        disabled={relationshipLoading}
-                        variant={isStudent ? 'secondary' : 'primary'}
-                        backgroundColor={isStudent ? '$orange5' : '$green10'}
-                        size="sm"
-                        flexShrink={1}
-                      >
-                        <XStack gap="$1" alignItems="center">
-                          {relationshipLoading ? (
-                            <Text color={isStudent ? '$orange11' : 'white'} fontSize="$3">
-                              ...
-                            </Text>
-                          ) : (
-                            <>
-                              <Feather
-                                name={isStudent ? 'user-x' : 'user-check'}
-                                size={14}
-                                color={isStudent ? '#F97316' : 'white'}
-                              />
-                              <Text
-                                color={isStudent ? '$orange11' : 'white'}
-                                fontSize="$2"
-                                fontWeight="500"
-                              >
-                                {isStudent ? 'Remove Student' : 'Add as Student'}
+                    {['instructor', 'admin', 'school'].includes(currentUserProfile.role) &&
+                      profile?.role === 'student' && (
+                        <Button
+                          onPress={handleStudentToggle}
+                          disabled={relationshipLoading}
+                          variant={isStudent ? 'secondary' : 'primary'}
+                          backgroundColor={isStudent ? '$orange5' : '$green10'}
+                          size="sm"
+                          flexShrink={1}
+                        >
+                          <XStack gap="$1" alignItems="center">
+                            {relationshipLoading ? (
+                              <Text color={isStudent ? '$orange11' : 'white'} fontSize="$3">
+                                ...
                               </Text>
-                            </>
-                          )}
-                        </XStack>
-                      </Button>
-                    )}
-                    
+                            ) : (
+                              <>
+                                <Feather
+                                  name={isStudent ? 'user-x' : 'user-check'}
+                                  size={14}
+                                  color={isStudent ? '#F97316' : 'white'}
+                                />
+                                <Text
+                                  color={isStudent ? '$orange11' : 'white'}
+                                  fontSize="$2"
+                                  fontWeight="500"
+                                >
+                                  {isStudent ? 'Remove Student' : 'Add as Student'}
+                                </Text>
+                              </>
+                            )}
+                          </XStack>
+                        </Button>
+                      )}
+
                     {/* Show Set as Instructor button for student users viewing instructor profiles */}
-                    {currentUserProfile.role === 'student' && 
-                     ['instructor', 'admin', 'school'].includes(profile?.role || '') && (
-                      <Button
-                        onPress={handleInstructorToggle}
-                        disabled={relationshipLoading}
-                        variant={isInstructor ? 'secondary' : 'primary'}
-                        backgroundColor={isInstructor ? '$purple5' : '$blue10'}
-                        size="sm"
-                        flexShrink={1}
-                      >
-                        <XStack gap="$1" alignItems="center">
-                          {relationshipLoading ? (
-                            <Text color={isInstructor ? '$purple11' : 'white'} fontSize="$3">
-                              ...
-                            </Text>
-                          ) : (
-                            <>
-                              <Feather
-                                name={isInstructor ? 'user-x' : 'user-check'}
-                                size={14}
-                                color={isInstructor ? '#A855F7' : 'white'}
-                              />
-                              <Text
-                                color={isInstructor ? '$purple11' : 'white'}
-                                fontSize="$2"
-                                fontWeight="500"
-                              >
-                                {isInstructor ? 'Remove Instructor' : 'Add as Instructor'}
+                    {currentUserProfile.role === 'student' &&
+                      ['instructor', 'admin', 'school'].includes(profile?.role || '') && (
+                        <Button
+                          onPress={handleInstructorToggle}
+                          disabled={relationshipLoading}
+                          variant={isInstructor ? 'secondary' : 'primary'}
+                          backgroundColor={isInstructor ? '$purple5' : '$blue10'}
+                          size="sm"
+                          flexShrink={1}
+                        >
+                          <XStack gap="$1" alignItems="center">
+                            {relationshipLoading ? (
+                              <Text color={isInstructor ? '$purple11' : 'white'} fontSize="$3">
+                                ...
                               </Text>
-                            </>
-                          )}
-                        </XStack>
-                      </Button>
-                    )}
+                            ) : (
+                              <>
+                                <Feather
+                                  name={isInstructor ? 'user-x' : 'user-check'}
+                                  size={14}
+                                  color={isInstructor ? '#A855F7' : 'white'}
+                                />
+                                <Text
+                                  color={isInstructor ? '$purple11' : 'white'}
+                                  fontSize="$2"
+                                  fontWeight="500"
+                                >
+                                  {isInstructor ? 'Remove Instructor' : 'Add as Instructor'}
+                                </Text>
+                              </>
+                            )}
+                          </XStack>
+                        </Button>
+                      )}
                   </>
                 )}
 
@@ -1175,13 +1186,17 @@ export function PublicProfileScreen() {
 
           {profile.is_trusted && (
             <Card padding="$1" marginTop="$1" backgroundColor="$green5" borderRadius="$3">
-              <Text color="$green11" fontSize="$2">{t('profile.verifiedBadge') || 'Verified'}</Text>
+              <Text color="$green11" fontSize="$2">
+                {t('profile.verifiedBadge') || 'Verified'}
+              </Text>
             </Card>
           )}
 
           {!profile.is_trusted && (
             <Card padding="$1" marginTop="$1" backgroundColor="$red5" borderRadius="$3">
-              <Text color="$red11" fontSize="$2">{t('profile.notVerifiedBadge') || 'Not verified yet'}</Text>
+              <Text color="$red11" fontSize="$2">
+                {t('profile.notVerifiedBadge') || 'Not verified yet'}
+              </Text>
             </Card>
           )}
 
@@ -1434,17 +1449,17 @@ export function PublicProfileScreen() {
               </XStack>
 
               <Text color="$blue12" fontSize="$4">
-                {pendingInvitationType === 'sent' 
+                {pendingInvitationType === 'sent'
                   ? `You sent an invitation to ${profile.full_name}`
                   : `${profile.full_name} sent you an invitation`}
               </Text>
 
               {/* Show custom message if available */}
               {pendingInvitationData.metadata?.customMessage && (
-                <YStack 
-                  backgroundColor="rgba(59, 130, 246, 0.1)" 
-                  padding={12} 
-                  borderRadius={8} 
+                <YStack
+                  backgroundColor="rgba(59, 130, 246, 0.1)"
+                  padding={12}
+                  borderRadius={8}
                   borderLeftWidth={4}
                   borderLeftColor="#3B82F6"
                 >
@@ -1470,9 +1485,14 @@ export function PublicProfileScreen() {
                       backgroundColor="$green9"
                       onPress={async () => {
                         try {
-                          const { acceptInvitationById } = await import('../services/invitationService');
-                          const success = await acceptInvitationById(pendingInvitationData.id, user?.id || '');
-                          
+                          const { acceptInvitationById } = await import(
+                            '../services/invitationService'
+                          );
+                          const success = await acceptInvitationById(
+                            pendingInvitationData.id,
+                            user?.id || '',
+                          );
+
                           if (success) {
                             Alert.alert('Success', 'Invitation accepted! Relationship created.');
                             // Refresh data
@@ -1502,9 +1522,9 @@ export function PublicProfileScreen() {
                             .from('pending_invitations')
                             .delete()
                             .eq('id', pendingInvitationData.id);
-                          
+
                           if (error) throw error;
-                          
+
                           Alert.alert('Success', 'Invitation declined');
                           checkPendingInvitations();
                         } catch (error) {
@@ -1532,9 +1552,9 @@ export function PublicProfileScreen() {
                           .from('pending_invitations')
                           .delete()
                           .eq('id', pendingInvitationData.id);
-                        
+
                         if (error) throw error;
-                        
+
                         Alert.alert('Success', 'Invitation cancelled');
                         checkPendingInvitations();
                       } catch (error) {
@@ -1721,8 +1741,6 @@ export function PublicProfileScreen() {
           onClose={() => setShowReportDialog(false)}
         />
       )}
-
-
     </Screen>
   );
 }

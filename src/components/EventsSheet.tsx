@@ -139,9 +139,11 @@ export function EventsSheet({ visible, onClose }: EventsSheetProps) {
                   </TouchableOpacity>
                 )}
                 <Text fontSize="$6" fontWeight="bold" color="$color" flex={1}>
-                  {currentView === 'list' ? 'Events' : 
-                   currentView === 'detail' ? 'Event Details' : 
-                   'Create Event'}
+                  {currentView === 'list'
+                    ? 'Events'
+                    : currentView === 'detail'
+                      ? 'Event Details'
+                      : 'Create Event'}
                 </Text>
                 {currentView === 'list' && (
                   <TouchableOpacity onPress={handleCreateEvent} style={{ marginRight: 12 }}>
@@ -155,9 +157,7 @@ export function EventsSheet({ visible, onClose }: EventsSheetProps) {
 
               {/* Dynamic Content Based on View */}
               <YStack flex={1}>
-                {currentView === 'list' && (
-                  <EventsScreenWrapper onEventPress={handleEventPress} />
-                )}
+                {currentView === 'list' && <EventsScreenWrapper onEventPress={handleEventPress} />}
                 {currentView === 'detail' && selectedEventId && (
                   <EventDetailScreenWrapper eventId={selectedEventId} />
                 )}
@@ -175,11 +175,7 @@ export function EventsSheet({ visible, onClose }: EventsSheetProps) {
 
 // Wrapper components to handle navigation properly
 const EventsScreenWrapper = ({ onEventPress }: { onEventPress: (id: string) => void }) => {
-  return (
-    <EventsScreen 
-      onEventPress={onEventPress}
-    />
-  );
+  return <EventsScreen onEventPress={onEventPress} />;
 };
 
 const EventDetailScreenWrapper = ({ eventId }: { eventId: string }) => {
@@ -190,15 +186,9 @@ const EventDetailScreenWrapper = ({ eventId }: { eventId: string }) => {
     name: 'EventDetail',
   };
 
-  return (
-    <EventDetailScreen route={mockRoute as any} />
-  );
+  return <EventDetailScreen route={mockRoute as any} />;
 };
 
 const CreateEventScreenWrapper = ({ onEventCreated }: { onEventCreated: () => void }) => {
-  return (
-    <CreateEventScreen 
-      onEventCreated={onEventCreated}
-    />
-  );
+  return <CreateEventScreen onEventCreated={onEventCreated} />;
 };

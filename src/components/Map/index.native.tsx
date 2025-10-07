@@ -1,5 +1,12 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { View, TouchableOpacity, StyleProp, ViewStyle, Text as RNText, useColorScheme } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  StyleProp,
+  ViewStyle,
+  Text as RNText,
+  useColorScheme,
+} from 'react-native';
 import MapView, { Marker, Region } from '../MapView';
 import { StyleSheet } from 'react-native';
 import { Text, Circle } from 'tamagui';
@@ -30,19 +37,21 @@ type ClusterMarkerProps = {
 function ClusterMarker({ count, onPress }: ClusterMarkerProps) {
   return (
     <TouchableOpacity onPress={onPress}>
-      <View style={{
-        width: 40,
-        height: 40,
-        backgroundColor: PIN_COLORS.PRIMARY,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5,
-      }}>
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          backgroundColor: PIN_COLORS.PRIMARY,
+          borderRadius: 20,
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+          elevation: 5,
+        }}
+      >
         <Text color="#333333" fontWeight="bold" fontSize={14}>
           {count}
         </Text>
@@ -120,12 +129,12 @@ const WaypointMarker = React.memo(
         return PIN_COLORS.PRIMARY; // Brand color for middle waypoints
       }
       if (drawingMode === 'pen') return '#FF6B35'; // Orange for pen points
-      
+
       // Check if this waypoint is in filtered results
       if (cluster.properties.isFiltered !== undefined) {
         return cluster.properties.isFiltered ? PIN_COLORS.PRIMARY : PIN_COLORS.SECONDARY; // Brand color for filtered, secondary for unfiltered
       }
-      
+
       return selectedPin === cluster.properties.id ? PIN_COLORS.PRIMARY : PIN_COLORS.SECONDARY;
     };
 
@@ -139,34 +148,40 @@ const WaypointMarker = React.memo(
     // Create circular marker like cluster (no triangle)
     const createCircularMarker = () => {
       const isSelected = selectedPin === cluster.properties.id;
-      
+
       return (
-        <View style={{
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          {/* Circular marker like cluster */}
-          <View style={{
-            width: 32,
-            height: 32,
-            backgroundColor: getMarkerColor(),
-            borderRadius: 16,
-            borderWidth: isSelected ? 5 : 0,
-            borderColor: isSelected ? PIN_COLORS.PRIMARY : 'transparent',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.3,
-            shadowRadius: 4,
-            elevation: 5,
+        <View
+          style={{
             alignItems: 'center',
             justifyContent: 'center',
-          }}>
-            <View style={{
-              width: 8,
-              height: 8,
-              backgroundColor: '#333333', // Darker text color
-              borderRadius: 4,
-            }} />
+          }}
+        >
+          {/* Circular marker like cluster */}
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              backgroundColor: getMarkerColor(),
+              borderRadius: 16,
+              borderWidth: isSelected ? 5 : 0,
+              borderColor: isSelected ? PIN_COLORS.PRIMARY : 'transparent',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 5,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                backgroundColor: '#333333', // Darker text color
+                borderRadius: 4,
+              }}
+            />
           </View>
         </View>
       );
@@ -174,51 +189,59 @@ const WaypointMarker = React.memo(
 
     // Option 2: Create custom pin-shaped marker
     const createCustomPin = () => (
-      <View style={{
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        {/* Pin shape */}
-        <View style={{
-          width: 32,
-          height: 32,
-          backgroundColor: getMarkerColor(),
-          borderRadius: 16,
-          borderWidth: 3,
-          borderColor: 'white',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.4,
-          shadowRadius: 4,
-          elevation: 5,
+      <View
+        style={{
           alignItems: 'center',
           justifyContent: 'center',
-        }}>
+        }}
+      >
+        {/* Pin shape */}
+        <View
+          style={{
+            width: 32,
+            height: 32,
+            backgroundColor: getMarkerColor(),
+            borderRadius: 16,
+            borderWidth: 3,
+            borderColor: 'white',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.4,
+            shadowRadius: 4,
+            elevation: 5,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {/* Optional: Add number or icon inside pin */}
           {drawingMode === 'waypoint' && (
-            <RNText style={{ 
-              color: 'white', 
-              fontSize: 12, 
-              fontWeight: 'bold' 
-            }}>
+            <RNText
+              style={{
+                color: 'white',
+                fontSize: 12,
+                fontWeight: 'bold',
+              }}
+            >
               {(waypointIndex || 0) + 1}
             </RNText>
           )}
         </View>
         {/* Pin bottom point */}
-        <View style={{
-          width: 0,
-          height: 0,
-          borderLeftWidth: 8,
-          borderRightWidth: 8,
-          borderTopWidth: 12,
-          borderStyle: 'solid',
-          backgroundColor: 'transparent',
-          borderLeftColor: 'transparent',
-          borderRightColor: 'transparent',
-          borderTopColor: getMarkerColor(),
-          marginTop: -3,
-        }} />
+        <View
+          style={{
+            width: 0,
+            height: 0,
+            borderLeftWidth: 8,
+            borderRightWidth: 8,
+            borderTopWidth: 12,
+            borderStyle: 'solid',
+            backgroundColor: 'transparent',
+            borderLeftColor: 'transparent',
+            borderRightColor: 'transparent',
+            borderTopColor: getMarkerColor(),
+            marginTop: -3,
+          }}
+        />
       </View>
     );
 
@@ -321,9 +344,9 @@ export function Map({
     )[]
   >([]);
   const supercluster = useRef<Supercluster | null>(
-    new Supercluster({ minZoom: 0, maxZoom: 15, radius: 30 })
+    new Supercluster({ minZoom: 0, maxZoom: 15, radius: 30 }),
   );
-  
+
   // Forward the ref
   React.useImperativeHandle(ref, () => mapRef.current!, []);
 

@@ -47,48 +47,34 @@ interface EmptyFilterStateProps {
   hasActiveFilters?: boolean;
 }
 
-export function EmptyFilterState({ 
-  onExpandSearch, 
-  onClearFilters, 
-  hasActiveFilters = false 
+export function EmptyFilterState({
+  onExpandSearch,
+  onClearFilters,
+  hasActiveFilters = false,
 }: EmptyFilterStateProps) {
   const { t } = useTranslation();
 
   return (
-    <YStack 
-      alignItems="center" 
-      justifyContent="center" 
-      padding="$6" 
+    <YStack
+      alignItems="center"
+      justifyContent="center"
+      padding="$6"
       gap="$4"
       flex={1}
       minHeight={200}
     >
-      <Feather 
-        name="map-pin" 
-        size={48} 
-        color={DARK_THEME.iconColor} 
-      />
-      
+      <Feather name="map-pin" size={48} color={DARK_THEME.iconColor} />
+
       <YStack alignItems="center" gap="$2">
-        <Text 
-          fontSize="$5" 
-          fontWeight="600" 
-          color={DARK_THEME.text}
-          textAlign="center"
-        >
+        <Text fontSize="$5" fontWeight="600" color={DARK_THEME.text} textAlign="center">
           {t('explore.noRoutesFound') || 'No routes found'}
         </Text>
-        
-        <Text 
-          fontSize="$3" 
-          color={DARK_THEME.secondaryText}
-          textAlign="center"
-          lineHeight="$1"
-        >
-          {hasActiveFilters 
-            ? (t('explore.noRoutesWithFilters') || 'Try adjusting your filters or expanding your search area')
-            : (t('explore.noRoutesInArea') || 'No routes available in this area')
-          }
+
+        <Text fontSize="$3" color={DARK_THEME.secondaryText} textAlign="center" lineHeight="$1">
+          {hasActiveFilters
+            ? t('explore.noRoutesWithFilters') ||
+              'Try adjusting your filters or expanding your search area'
+            : t('explore.noRoutesInArea') || 'No routes available in this area'}
         </Text>
       </YStack>
 
@@ -103,7 +89,7 @@ export function EmptyFilterState({
             </Text>
           </TouchableOpacity>
         )}
-        
+
         {onExpandSearch && (
           <TouchableOpacity
             style={[styles.filterChip, styles.secondaryChip]}

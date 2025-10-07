@@ -33,18 +33,23 @@ export function IconButton({
   const colorScheme = useColorScheme();
   const iconSize = size === 'sm' ? 20 : size === 'lg' ? 28 : 24;
   const containerSize = size === 'sm' ? 40 : size === 'lg' ? 56 : 48;
-  
+
   // Dynamic colors based on theme and selection state
-  const iconColor = selected ? '#00E6C3' : (colorScheme === 'dark' ? '#CCCCCC' : '#666666');
+  const iconColor = selected ? '#00E6C3' : colorScheme === 'dark' ? '#CCCCCC' : '#666666';
   const iconBorderColor = selected ? '#00E6C3' : 'transparent';
-  const textColor = selected 
-    ? (colorScheme === 'dark' ? '#FFFFFF' : '#000000') 
-    : (colorScheme === 'dark' ? '#CCCCCC' : '#000000');
-  
+  const textColor = selected
+    ? colorScheme === 'dark'
+      ? '#FFFFFF'
+      : '#000000'
+    : colorScheme === 'dark'
+      ? '#CCCCCC'
+      : '#000000';
+
   // Default background colors based on theme
-  const defaultBackgroundColor = backgroundColor || (colorScheme === 'dark' ? '#2A2A2A' : '#F6F6F6');
+  const defaultBackgroundColor =
+    backgroundColor || (colorScheme === 'dark' ? '#2A2A2A' : '#F6F6F6');
   const defaultBorderColor = borderColor || (colorScheme === 'dark' ? '#404040' : '#F6F6F6');
-  
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -72,9 +77,11 @@ export function IconButton({
             width: containerSize,
             height: containerSize,
             borderRadius: containerSize / 2,
-            backgroundColor: selected 
-              ? 'rgba(0, 230, 195, 0.1)' 
-              : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'),
+            backgroundColor: selected
+              ? 'rgba(0, 230, 195, 0.1)'
+              : colorScheme === 'dark'
+                ? 'rgba(255, 255, 255, 0.05)'
+                : 'rgba(0, 0, 0, 0.05)',
             alignItems: 'center',
             justifyContent: 'center',
             borderColor: iconBorderColor,
@@ -99,24 +106,13 @@ export function IconButton({
                 borderColor: colorScheme === 'dark' ? '#1C1C1C' : '#FFFFFF',
               }}
             >
-              <Text
-                fontSize={10}
-                fontWeight="bold"
-                color="#000000"
-                textAlign="center"
-              >
+              <Text fontSize={10} fontWeight="bold" color="#000000" textAlign="center">
                 {badge}
               </Text>
             </View>
           )}
         </View>
-        <Text 
-          fontSize={12} 
-          fontWeight="600" 
-          color={textColor} 
-          textAlign="center"
-          numberOfLines={2}
-        >
+        <Text fontSize={12} fontWeight="600" color={textColor} textAlign="center" numberOfLines={2}>
           {label}
         </Text>
       </YStack>

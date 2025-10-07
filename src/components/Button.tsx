@@ -316,11 +316,8 @@ export const Button = forwardRef<React.ElementRef<typeof ButtonFrame>, ButtonPro
         {...props}
       >
         {/* 🎨 Render icon if provided */}
-        {Icon && (
-          typeof Icon === 'function' 
-            ? <Icon size={iconSize} color={getIconColor()} />
-            : Icon
-        )}
+        {Icon &&
+          (typeof Icon === 'function' ? <Icon size={iconSize} color={getIconColor()} /> : Icon)}
 
         {/* 🎨 Render text if children provided */}
         {children && (

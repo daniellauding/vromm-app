@@ -45,13 +45,13 @@ type RelationshipReviewSectionProps = {
   onReviewAdded: () => void;
 };
 
-export function RelationshipReviewSection({ 
-  profileUserId, 
-  profileUserRole, 
+export function RelationshipReviewSection({
+  profileUserId,
+  profileUserRole,
   profileUserName,
   canReview,
-  reviews, 
-  onReviewAdded 
+  reviews,
+  onReviewAdded,
 }: RelationshipReviewSectionProps) {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -100,17 +100,23 @@ export function RelationshipReviewSection({
 
       try {
         // Check if profile user has reviewed current user
-        const profileUserReviewedMe = reviews.some(review => 
-          review.reviewer_id === profileUserId && 
-          ((review.review_type === 'supervisor_reviews_student' && review.student_id === user.id) ||
-           (review.review_type === 'student_reviews_supervisor' && review.supervisor_id === user.id))
+        const profileUserReviewedMe = reviews.some(
+          (review) =>
+            review.reviewer_id === profileUserId &&
+            ((review.review_type === 'supervisor_reviews_student' &&
+              review.student_id === user.id) ||
+              (review.review_type === 'student_reviews_supervisor' &&
+                review.supervisor_id === user.id)),
         );
 
         // Check if current user has already reviewed profile user back
-        const iHaveReviewedThem = reviews.some(review => 
-          review.reviewer_id === user.id && 
-          ((review.review_type === 'supervisor_reviews_student' && review.student_id === profileUserId) ||
-           (review.review_type === 'student_reviews_supervisor' && review.supervisor_id === profileUserId))
+        const iHaveReviewedThem = reviews.some(
+          (review) =>
+            review.reviewer_id === user.id &&
+            ((review.review_type === 'supervisor_reviews_student' &&
+              review.student_id === profileUserId) ||
+              (review.review_type === 'student_reviews_supervisor' &&
+                review.supervisor_id === profileUserId)),
         );
 
         // Can review back if they reviewed me but I haven't reviewed them back
@@ -222,10 +228,9 @@ export function RelationshipReviewSection({
       );
 
       // Determine review type and relationship IDs
-      const reviewType = profileUserRole === 'student' 
-        ? 'supervisor_reviews_student' 
-        : 'student_reviews_supervisor';
-      
+      const reviewType =
+        profileUserRole === 'student' ? 'supervisor_reviews_student' : 'student_reviews_supervisor';
+
       const studentId = profileUserRole === 'student' ? profileUserId : user.id;
       const supervisorId = profileUserRole === 'student' ? user.id : profileUserId;
 
@@ -240,18 +245,16 @@ export function RelationshipReviewSection({
         is_anonymous: newReview.isAnonymous,
       };
 
-      const { error: reviewError } = await supabase
-        .from('relationship_reviews')
-        .insert(reviewData);
+      const { error: reviewError } = await supabase.from('relationship_reviews').insert(reviewData);
 
       if (reviewError) throw reviewError;
 
       // Create notification for the reviewed user
       try {
-        const notificationMessage = newReview.isAnonymous 
+        const notificationMessage = newReview.isAnonymous
           ? `Someone left you a ${newReview.rating}-star review`
           : `${user.profile?.full_name || user.email || 'Someone'} left you a ${newReview.rating}-star review`;
-        
+
         await supabase.from('notifications').insert({
           user_id: profileUserId,
           actor_id: newReview.isAnonymous ? null : user.id,
@@ -262,7 +265,7 @@ export function RelationshipReviewSection({
             notification_subtype: 'relationship_review',
             review_type: reviewType,
             reviewer_id: user.id,
-            reviewer_name: newReview.isAnonymous ? 'Anonymous' : (user.email || 'Unknown'),
+            reviewer_name: newReview.isAnonymous ? 'Anonymous' : user.email || 'Unknown',
             rating: newReview.rating,
             reviewed_user_id: profileUserId,
             reviewed_user_name: profileUserName,
@@ -299,33 +302,32 @@ export function RelationshipReviewSection({
   const handleReportReview = async (reviewId: string) => {
     if (!user) return;
 
-    Alert.alert(
-      'Report Review',
-      'Report this review as inappropriate or spam?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Report',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase.rpc('report_review', {
-                review_id: reviewId,
-                reporter_id: user.id
-              });
+    Alert.alert('Report Review', 'Report this review as inappropriate or spam?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Report',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { error } = await supabase.rpc('report_review', {
+              review_id: reviewId,
+              reporter_id: user.id,
+            });
 
-              if (error) throw error;
-              
-              onReviewAdded(); // Refresh reviews
-              Alert.alert('Success', 'Review reported. Thank you for helping keep our community safe.');
-            } catch (err) {
-              console.error('Error reporting review:', err);
-              Alert.alert('Error', 'Failed to report review');
-            }
-          },
+            if (error) throw error;
+
+            onReviewAdded(); // Refresh reviews
+            Alert.alert(
+              'Success',
+              'Review reported. Thank you for helping keep our community safe.',
+            );
+          } catch (err) {
+            console.error('Error reporting review:', err);
+            Alert.alert('Error', 'Failed to report review');
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   // Admin delete review function
@@ -380,18 +382,35 @@ export function RelationshipReviewSection({
 
   const getRatingBadge = (averageRating: number, reviewCount: number) => {
     if (reviewCount === 0) return null;
-    
-    const badgeColor = averageRating >= 4.5 ? '$green10' : 
-                      averageRating >= 4.0 ? '$blue10' : 
-                      averageRating >= 3.0 ? '$orange10' : '$red10';
-    
-    const badgeText = averageRating >= 4.5 ? 'Excellent' : 
-                     averageRating >= 4.0 ? 'Very Good' : 
-                     averageRating >= 3.0 ? 'Good' : 'Needs Improvement';
+
+    const badgeColor =
+      averageRating >= 4.5
+        ? '$green10'
+        : averageRating >= 4.0
+          ? '$blue10'
+          : averageRating >= 3.0
+            ? '$orange10'
+            : '$red10';
+
+    const badgeText =
+      averageRating >= 4.5
+        ? 'Excellent'
+        : averageRating >= 4.0
+          ? 'Very Good'
+          : averageRating >= 3.0
+            ? 'Good'
+            : 'Needs Improvement';
 
     return (
       <XStack space="$2" alignItems="center">
-        <XStack space="$1" alignItems="center" backgroundColor={badgeColor} paddingHorizontal="$2" paddingVertical="$1" borderRadius="$2">
+        <XStack
+          space="$1"
+          alignItems="center"
+          backgroundColor={badgeColor}
+          paddingHorizontal="$2"
+          paddingVertical="$1"
+          borderRadius="$2"
+        >
           <Feather name="star" size={14} color="white" />
           <Text size="sm" color="white" weight="medium">
             {averageRating.toFixed(1)}
@@ -405,9 +424,10 @@ export function RelationshipReviewSection({
   };
 
   // Calculate average rating for display
-  const averageRating = reviews.length > 0 
-    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
-    : 0;
+  const averageRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+      : 0;
 
   return (
     <Card bordered elevate size="$4" padding="$4">
@@ -558,8 +578,10 @@ export function RelationshipReviewSection({
                   size="$3"
                   variant="outlined"
                   backgroundColor={newReview.isAnonymous ? '$blue10' : undefined}
-                  onPress={() => setNewReview((prev) => ({ ...prev, isAnonymous: !prev.isAnonymous }))}
-                  icon={<Feather name={newReview.isAnonymous ? "check" : "square"} size={16} />}
+                  onPress={() =>
+                    setNewReview((prev) => ({ ...prev, isAnonymous: !prev.isAnonymous }))
+                  }
+                  icon={<Feather name={newReview.isAnonymous ? 'check' : 'square'} size={16} />}
                 />
                 <Text size="sm" color="$color">
                   Submit anonymously
@@ -601,7 +623,8 @@ export function RelationshipReviewSection({
                             {getReviewerDisplayName(review)}
                           </Text>
                           <Text size="sm" color="$gray11">
-                            {format(new Date(review.created_at), 'MMM d, yyyy')} • {getReviewTypeLabel(review.review_type)}
+                            {format(new Date(review.created_at), 'MMM d, yyyy')} •{' '}
+                            {getReviewTypeLabel(review.review_type)}
                           </Text>
                         </YStack>
                       </XStack>
@@ -618,7 +641,7 @@ export function RelationshipReviewSection({
                             <Feather name="flag" size={16} color="white" />
                           </Button>
                         )}
-                        
+
                         {/* Admin delete button */}
                         {isAdmin && (
                           <Button
@@ -649,9 +672,7 @@ export function RelationshipReviewSection({
                     </XStack>
 
                     {/* Review Content */}
-                    {review.content && (
-                      <Text color="$color">{review.content}</Text>
-                    )}
+                    {review.content && <Text color="$color">{review.content}</Text>}
                   </YStack>
                 </Card>
               ))

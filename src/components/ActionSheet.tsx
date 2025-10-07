@@ -69,7 +69,14 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizard, onCreateEvent, onNavigateToMap }: ActionSheetProps) {
+export function ActionSheet({
+  isVisible,
+  onClose,
+  onCreateRoute,
+  onMaximizeWizard,
+  onCreateEvent,
+  onNavigateToMap,
+}: ActionSheetProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const colorScheme = useColorScheme();
@@ -167,7 +174,7 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
           console.log('🎭 ✅ Route updated with ID:', routeId);
         }}
         onNavigateToMap={onNavigateToMap}
-      />
+      />,
     );
     console.log('🎭 ✅ CreateRouteSheet shown');
   };
@@ -180,20 +187,22 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
 
     onClose();
     console.log('🧙‍♂️ ActionSheet closed, showing RouteWizardSheet...');
-    
+
     // Import and show RouteWizardSheet dynamically
-    import('./RouteWizardSheet').then(({ RouteWizardSheet }) => {
-      console.log('🧙‍♂️ RouteWizardSheet imported successfully');
-      console.log('🧙‍♂️ onCreateRoute:', typeof onCreateRoute);
-      console.log('🧙‍♂️ onMaximizeWizard:', typeof onMaximizeWizard);
-      
-      showModal(<RouteWizardSheet onCreateRoute={onCreateRoute} onMaximize={onMaximizeWizard} />);
-      console.log('🧙‍♂️ ✅ RouteWizardSheet modal shown');
-    }).catch(error => {
-      console.error('🧙‍♂️ ❌ Failed to import RouteWizardSheet:', error);
-      Alert.alert('Error', 'Failed to load route wizard. Please try again.');
-    });
-    
+    import('./RouteWizardSheet')
+      .then(({ RouteWizardSheet }) => {
+        console.log('🧙‍♂️ RouteWizardSheet imported successfully');
+        console.log('🧙‍♂️ onCreateRoute:', typeof onCreateRoute);
+        console.log('🧙‍♂️ onMaximizeWizard:', typeof onMaximizeWizard);
+
+        showModal(<RouteWizardSheet onCreateRoute={onCreateRoute} onMaximize={onMaximizeWizard} />);
+        console.log('🧙‍♂️ ✅ RouteWizardSheet modal shown');
+      })
+      .catch((error) => {
+        console.error('🧙‍♂️ ❌ Failed to import RouteWizardSheet:', error);
+        Alert.alert('Error', 'Failed to load route wizard. Please try again.');
+      });
+
     console.log('🧙‍♂️ ✅ Dynamic import initiated');
   };
 
@@ -302,7 +311,8 @@ export function ActionSheet({ isVisible, onClose, onCreateRoute, onMaximizeWizar
                   {t('map.recordDriving') || 'Record Driving'}
                 </Text>
                 <Text fontSize={14} color={colorScheme === 'dark' ? '#999' : '#666'}>
-                  {t('map.recordDrivingDescription') || 'Record your driving session with GPS tracking'}
+                  {t('map.recordDrivingDescription') ||
+                    'Record your driving session with GPS tracking'}
                 </Text>
               </YStack>
             </XStack>
@@ -355,5 +365,14 @@ export function ActionSheetModal({
 }) {
   const { hideModal } = useModal();
 
-  return <ActionSheet isVisible={true} onClose={hideModal} onCreateRoute={onCreateRoute} onMaximizeWizard={onMaximizeWizard} onCreateEvent={onCreateEvent} onNavigateToMap={onNavigateToMap} />;
+  return (
+    <ActionSheet
+      isVisible={true}
+      onClose={hideModal}
+      onCreateRoute={onCreateRoute}
+      onMaximizeWizard={onMaximizeWizard}
+      onCreateEvent={onCreateEvent}
+      onNavigateToMap={onNavigateToMap}
+    />
+  );
 }

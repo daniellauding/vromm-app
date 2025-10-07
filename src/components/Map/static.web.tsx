@@ -38,7 +38,7 @@ export function StaticMap({
   showStartEndMarkers?: boolean;
 }) {
   return (
-    <View 
+    <View
       style={[
         {
           flex: 1,
@@ -47,7 +47,7 @@ export function StaticMap({
           alignItems: 'center',
           borderRadius: 8,
         },
-        style
+        style,
       ]}
     >
       <Text color="$gray10" fontSize="$3">

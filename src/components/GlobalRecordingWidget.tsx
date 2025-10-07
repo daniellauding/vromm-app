@@ -1,16 +1,36 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { View, TouchableOpacity, StyleSheet, Text, Dimensions, Modal, Alert, Pressable } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  Text,
+  Dimensions,
+  Modal,
+  Alert,
+  Pressable,
+} from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRecording } from '../contexts/RecordingContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { YStack, XStack, Button } from 'tamagui';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export const GlobalRecordingWidget = React.memo(() => {
-  const { recordingState, resumeRecording, pauseRecording, stopRecording, maximizeRecording, cancelRecording } = useRecording();
+  const {
+    recordingState,
+    resumeRecording,
+    pauseRecording,
+    stopRecording,
+    maximizeRecording,
+    cancelRecording,
+  } = useRecording();
   const { t } = useTranslation();
 
   // Confirmation modal state
@@ -35,21 +55,21 @@ export const GlobalRecordingWidget = React.memo(() => {
     .onUpdate((event) => {
       const { translationX, translationY } = event;
       console.log('🎯 GlobalRecordingWidget: Dragging', { translationX, translationY });
-      
+
       // Calculate new position
       const newX = startX.current + translationX;
       const newY = startY.current + translationY;
-      
+
       // Widget dimensions
       const widgetWidth = 160;
       const widgetHeight = 120;
-      
+
       // Screen bounds - keep widget fully visible
       const minX = 0;
       const maxX = screenWidth - widgetWidth;
       const minY = 60; // Status bar height
       const maxY = screenHeight - widgetHeight - 100; // Bottom safe area
-      
+
       // Constrain to screen bounds
       translateX.value = Math.max(minX, Math.min(newX, maxX));
       translateY.value = Math.max(minY, Math.min(newY, maxY));
@@ -57,32 +77,32 @@ export const GlobalRecordingWidget = React.memo(() => {
     .onEnd((event) => {
       console.log('🎯 GlobalRecordingWidget: Drag ended');
       isDragging.current = false;
-      
+
       // Widget dimensions
       const widgetWidth = 160;
       const widgetHeight = 120;
-      
+
       // Final bounds check
       const minX = 0;
       const maxX = screenWidth - widgetWidth;
       const minY = 60;
       const maxY = screenHeight - widgetHeight - 100;
-      
+
       const finalX = Math.max(minX, Math.min(translateX.value, maxX));
       const finalY = Math.max(minY, Math.min(translateY.value, maxY));
-      
+
       console.log('🎯 GlobalRecordingWidget: Final position', { finalX, finalY });
-      
+
       // Smooth animation to final position
-      translateX.value = withSpring(finalX, { 
-        damping: 20, 
+      translateX.value = withSpring(finalX, {
+        damping: 20,
         stiffness: 200,
-        mass: 1
+        mass: 1,
       });
-      translateY.value = withSpring(finalY, { 
-        damping: 20, 
+      translateY.value = withSpring(finalY, {
+        damping: 20,
         stiffness: 200,
-        mass: 1
+        mass: 1,
       });
     })
     .shouldCancelWhenOutside(false)
@@ -91,10 +111,7 @@ export const GlobalRecordingWidget = React.memo(() => {
   // Animated style for the widget
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [
-        { translateX: translateX.value },
-        { translateY: translateY.value },
-      ],
+      transform: [{ translateX: translateX.value }, { translateY: translateY.value }],
     };
   });
 
@@ -122,17 +139,16 @@ export const GlobalRecordingWidget = React.memo(() => {
     setShowQuitConfirmation(false);
   };
 
-
   // Memoize the shouldShow calculation to prevent unnecessary re-renders
   const shouldShow = useMemo(() => {
     return recordingState.isMinimized && recordingState.isRecording;
   }, [recordingState.isMinimized, recordingState.isRecording]);
-  
+
   // Debug logging - only log when state actually changes
   console.log('🎯 GlobalRecordingWidget: Render check', {
     isMinimized: recordingState.isMinimized,
     isRecording: recordingState.isRecording,
-    shouldShow
+    shouldShow,
   });
 
   // Only show when recording is active and minimized
@@ -144,7 +160,7 @@ export const GlobalRecordingWidget = React.memo(() => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    
+
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
@@ -165,11 +181,13 @@ export const GlobalRecordingWidget = React.memo(() => {
           <View style={styles.floatingWidgetContent}>
             {/* Header with drag area */}
             <View style={styles.floatingWidgetHeader}>
-              <Pressable
-                style={styles.floatingWidgetDragArea}
-                onPress={maximizeRecording}
-              >
-                <View style={[styles.recordingDot, recordingState.isPaused ? styles.pausedDot : styles.activeDot]} />
+              <Pressable style={styles.floatingWidgetDragArea} onPress={maximizeRecording}>
+                <View
+                  style={[
+                    styles.recordingDot,
+                    recordingState.isPaused ? styles.pausedDot : styles.activeDot,
+                  ]}
+                />
                 <Text style={styles.floatingWidgetTitle}>
                   {recordingState.isPaused ? 'PAUSED' : 'RECORDING'}
                 </Text>
@@ -184,10 +202,7 @@ export const GlobalRecordingWidget = React.memo(() => {
             </View>
 
             {/* Stats section - also draggable */}
-            <Pressable
-              style={styles.floatingWidgetStats}
-              onPress={maximizeRecording}
-            >
+            <Pressable style={styles.floatingWidgetStats} onPress={maximizeRecording}>
               <Text style={styles.floatingWidgetStat}>
                 {formatTime(recordingState.totalElapsedTime)}
               </Text>
@@ -248,9 +263,10 @@ export const GlobalRecordingWidget = React.memo(() => {
               <Text style={styles.modalTitle}>
                 {t('recording.quitConfirmation') || 'Quit Recording?'}
               </Text>
-              
+
               <Text style={styles.modalMessage}>
-                {t('recording.quitMessage') || 'Are you sure you want to quit recording? You can go back to the recording interface or stop recording completely.'}
+                {t('recording.quitMessage') ||
+                  'Are you sure you want to quit recording? You can go back to the recording interface or stop recording completely.'}
               </Text>
 
               <XStack space={12} justifyContent="center">
@@ -291,9 +307,7 @@ export const GlobalRecordingWidget = React.memo(() => {
                 onPress={handleCancelQuit}
                 size="$3"
               >
-                <Text color="white">
-                  {t('common.cancel') || 'Cancel'}
-                </Text>
+                <Text color="white">{t('common.cancel') || 'Cancel'}</Text>
               </Button>
             </YStack>
           </View>

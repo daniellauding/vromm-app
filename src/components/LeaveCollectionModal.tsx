@@ -12,7 +12,12 @@ import { Text, XStack, YStack, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 
 const { height } = Dimensions.get('window');
 
@@ -39,12 +44,12 @@ export function LeaveCollectionModal({
 
   // Snap points for resizing
   const snapPoints = {
-    large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
-    medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)  
-    small: height * 0.7,   // Top at 70% of screen (show 30% - small)
-    dismissed: height,     // Completely off-screen
+    large: height * 0.1, // Top at 10% of screen (show 90% - largest)
+    medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+    small: height * 0.7, // Top at 70% of screen (show 30% - small)
+    dismissed: height, // Completely off-screen
   };
-  
+
   const currentState = useSharedValue(snapPoints.large);
   const translateY = useSharedValue(snapPoints.large);
   const isDragging = React.useRef(false);
@@ -58,12 +63,12 @@ export function LeaveCollectionModal({
       try {
         const { translationY } = event;
         const newPosition = currentState.value + translationY;
-        
+
         // Constrain to snap points range
         const minPosition = snapPoints.large;
         const maxPosition = snapPoints.small + 100;
         const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
-        
+
         translateY.value = boundedPosition;
       } catch (error) {
         console.log('panGesture error', error);
@@ -72,15 +77,15 @@ export function LeaveCollectionModal({
     .onEnd((event) => {
       const { translationY, velocityY } = event;
       isDragging.current = false;
-      
+
       const currentPosition = currentState.value + translationY;
-      
+
       // Dismiss if dragged down past the small snap point with reasonable velocity
       if (currentPosition > snapPoints.small + 30 && velocityY > 200) {
         runOnJS(onCancel)();
         return;
       }
-      
+
       // Determine target snap point based on position and velocity
       let targetSnapPoint;
       if (velocityY < -500) {
@@ -93,12 +98,9 @@ export function LeaveCollectionModal({
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
       }
-      
-      const boundedTarget = Math.min(
-        Math.max(targetSnapPoint, snapPoints.large),
-        snapPoints.small,
-      );
-      
+
+      const boundedTarget = Math.min(Math.max(targetSnapPoint, snapPoints.large), snapPoints.small);
+
       translateY.value = withSpring(boundedTarget, {
         damping: 20,
         mass: 1,
@@ -107,7 +109,7 @@ export function LeaveCollectionModal({
         restDisplacementThreshold: 0.01,
         restSpeedThreshold: 0.01,
       });
-      
+
       currentState.value = boundedTarget;
     });
 
@@ -154,22 +156,24 @@ export function LeaveCollectionModal({
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} onPress={handleCancel} />
         <GestureDetector gesture={panGesture}>
-          <ReanimatedAnimated.View 
+          <ReanimatedAnimated.View
             style={[
               styles.modal,
               {
                 backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#fff',
               },
-              animatedGestureStyle
+              animatedGestureStyle,
             ]}
           >
             <YStack padding="$4" gap="$4" flex={1}>
               {/* Drag Handle */}
               <View style={styles.dragHandle}>
-                <View style={[
-                  styles.handle,
-                  { backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC' }
-                ]} />
+                <View
+                  style={[
+                    styles.handle,
+                    { backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC' },
+                  ]}
+                />
               </View>
 
               {/* Header */}
@@ -181,11 +185,15 @@ export function LeaveCollectionModal({
                   onPress={handleCancel}
                   style={[
                     styles.closeButton,
-                    { backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5' }
+                    { backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5' },
                   ]}
                   activeOpacity={0.7}
                 >
-                  <Feather name="x" size={20} color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'} />
+                  <Feather
+                    name="x"
+                    size={20}
+                    color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
+                  />
                 </TouchableOpacity>
               </XStack>
 
@@ -197,7 +205,7 @@ export function LeaveCollectionModal({
                     {collectionName}
                   </Text>
                 </XStack>
-                
+
                 <XStack gap="$4" alignItems="center">
                   <Text fontSize="$3" color="$gray11">
                     {t('routeCollections.routeCount') || 'Routes'}: {routeCount}
@@ -209,7 +217,14 @@ export function LeaveCollectionModal({
               </YStack>
 
               {/* Warning Message */}
-              <YStack gap="$2" padding="$3" backgroundColor="rgba(239, 68, 68, 0.1)" borderRadius="$3" borderWidth={1} borderColor="rgba(239, 68, 68, 0.3)">
+              <YStack
+                gap="$2"
+                padding="$3"
+                backgroundColor="rgba(239, 68, 68, 0.1)"
+                borderRadius="$3"
+                borderWidth={1}
+                borderColor="rgba(239, 68, 68, 0.3)"
+              >
                 <XStack alignItems="center" gap="$2">
                   <Feather name="alert-triangle" size={16} color="#EF4444" />
                   <Text fontSize="$4" fontWeight="600" color="#EF4444">
@@ -217,7 +232,8 @@ export function LeaveCollectionModal({
                   </Text>
                 </XStack>
                 <Text fontSize="$3" color="$gray11">
-                  {t('routeCollections.leaveWarning') || 'You will no longer have access to this collection and its routes. This action cannot be undone.'}
+                  {t('routeCollections.leaveWarning') ||
+                    'You will no longer have access to this collection and its routes. This action cannot be undone.'}
                 </Text>
               </YStack>
 
@@ -227,12 +243,16 @@ export function LeaveCollectionModal({
                   {t('routeCollections.optionalMessage') || 'Optional Message'}
                 </Text>
                 <Text fontSize="$3" color="$gray11">
-                  {t('routeCollections.leaveMessageDescription') || 'Leave a message for the collection owner (optional):'}
+                  {t('routeCollections.leaveMessageDescription') ||
+                    'Leave a message for the collection owner (optional):'}
                 </Text>
                 <TextInput
                   value={customMessage}
                   onChangeText={setCustomMessage}
-                  placeholder={t('routeCollections.leaveMessagePlaceholder') || 'Why are you leaving? Any feedback for the owner?'}
+                  placeholder={
+                    t('routeCollections.leaveMessagePlaceholder') ||
+                    'Why are you leaving? Any feedback for the owner?'
+                  }
                   multiline
                   numberOfLines={3}
                   style={[
@@ -240,21 +260,19 @@ export function LeaveCollectionModal({
                     {
                       backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#fff',
                       color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
-                      borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                    }
+                      borderColor:
+                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                    },
                   ]}
-                  placeholderTextColor={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
+                  placeholderTextColor={
+                    colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'
+                  }
                 />
               </YStack>
 
               {/* Action Buttons */}
               <YStack gap="$3" marginTop="$2">
-                <Button
-                  backgroundColor="#EF4444"
-                  color="white"
-                  size="$5"
-                  onPress={handleConfirm}
-                >
+                <Button backgroundColor="#EF4444" color="white" size="$5" onPress={handleConfirm}>
                   <XStack gap="$2" alignItems="center">
                     <Feather name="log-out" size={16} color="white" />
                     <Text color="white" fontWeight="600">
@@ -262,12 +280,8 @@ export function LeaveCollectionModal({
                     </Text>
                   </XStack>
                 </Button>
-                
-                <Button
-                  variant="secondary"
-                  size="$4"
-                  onPress={handleCancel}
-                >
+
+                <Button variant="secondary" size="$4" onPress={handleCancel}>
                   <Text color="$color" fontWeight="500">
                     {t('common.cancel') || 'Cancel'}
                   </Text>

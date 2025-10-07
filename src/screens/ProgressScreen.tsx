@@ -299,10 +299,10 @@ export function ProgressScreen() {
   // Screen tours integration DISABLED
   // const { triggerScreenTour } = useScreenTours();
   // const tourContext = useTour();
-  
+
   // Use activeUserId from navigation if provided, otherwise check StudentSwitchContext, then fall back to authUser
   const effectiveUserId = activeUserId || getEffectiveUserId();
-  
+
   // Load shared unlock data when user changes
   useEffect(() => {
     if (effectiveUserId) {
@@ -311,10 +311,12 @@ export function ProgressScreen() {
       console.log('🔓 [ProgressScreen] Loading shared unlock data for user:', effectiveUserId);
     }
   }, [effectiveUserId, loadUserPayments, loadUnlockedContent]);
-  
+
   // Debug logging for user switching
   useEffect(() => {
-    console.log('🔍 [ProgressScreen] ==================== USER SWITCHING DEBUG ====================');
+    console.log(
+      '🔍 [ProgressScreen] ==================== USER SWITCHING DEBUG ====================',
+    );
     console.log('🔍 [ProgressScreen] User ID Debug:', {
       activeUserId: activeUserId,
       authUserId: authUser?.id,
@@ -324,7 +326,7 @@ export function ProgressScreen() {
       isViewingStudentFromContext: !!activeStudentId,
       routeParams: route.params,
       authUserName: authUser?.email,
-      profileRole: profile?.role
+      profileRole: profile?.role,
     });
     console.log('🔍 [ProgressScreen] ============================================================');
   }, [activeUserId, authUser?.id, activeStudentId, effectiveUserId]);
@@ -351,10 +353,10 @@ export function ProgressScreen() {
     hasPathPayment,
     hasExercisePayment,
   } = useUnlock();
-  
+
   // Debug logging for ProgressScreen
   // User and profile tracking without excessive logging
-  
+
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [completionsLoading, setCompletionsLoading] = useState(false);
@@ -435,16 +437,18 @@ export function ProgressScreen() {
   const [quizHistory, setQuizHistory] = useState<QuizAttempt[]>([]);
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
   const [hasQuizQuestions, setHasQuizQuestions] = useState<{ [exerciseId: string]: boolean }>({});
-  const [lastAuditByExercise, setLastAuditByExercise] = useState<Record<string, { action: string; actor_name: string | null; created_at: string }>>({});
+  const [lastAuditByExercise, setLastAuditByExercise] = useState<
+    Record<string, { action: string; actor_name: string | null; created_at: string }>
+  >({});
 
   // Paywall modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallPath, setPaywallPath] = useState<LearningPath | null>(null);
-  
+
   // Password modal state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordPath, setPasswordPath] = useState<LearningPath | null>(null);
-  
+
   // Exercise password modal state
   const [showExercisePasswordModal, setShowExercisePasswordModal] = useState(false);
   const [passwordExercise, setPasswordExercise] = useState<PathExercise | null>(null);
@@ -454,12 +458,12 @@ export function ProgressScreen() {
 
   // Celebration modal state - now using global context (removed local state)
 
-    // Load categories from Supabase - RESTORED with proper error handling
+  // Load categories from Supabase - RESTORED with proper error handling
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         console.log('🔍 Fetching categories from database...');
-        
+
         const { data, error } = await supabase
           .from('learning_path_categories')
           .select('category, value, label, is_default, created_at, order_index')
@@ -491,17 +495,17 @@ export function ProgressScreen() {
 
         // Process categories from database first (with deduplication)
         const processedItems = new Map<string, CategoryOption>();
-        
+
         data?.forEach((item) => {
           const category = item.category as CategoryType;
           const uniqueKey = `${category}-${item.value}`;
-          
+
           // Skip if we already processed this exact category-value combination
           if (processedItems.has(uniqueKey)) {
             console.log(`🔄 [ProgressScreen] Skipping duplicate: ${uniqueKey}`);
             return;
           }
-          
+
           // Add to processed items (with proper typing)
           const categoryOption: CategoryOption = {
             id: (item as any).id || `generated-${category}-${item.value}`,
@@ -512,12 +516,12 @@ export function ProgressScreen() {
             is_default: item.is_default || false,
           };
           processedItems.set(uniqueKey, categoryOption);
-          
+
           // Track if this category has an "all" option
           if (item.value.toLowerCase() === 'all') {
             categoriesWithAll.add(category);
           }
-          
+
           if (groupedCategories[category]) {
             groupedCategories[category].push(categoryOption);
           }
@@ -547,7 +551,7 @@ export function ProgressScreen() {
 
         // Try to load saved filter preferences first
         const savedFilters = await loadFilterPreferences();
-        
+
         if (savedFilters) {
           // Use saved preferences
           setCategoryFilters(savedFilters);
@@ -556,41 +560,51 @@ export function ProgressScreen() {
             effectiveUserId,
             isViewingStudent: activeUserId && activeUserId !== authUser?.id,
             studentProfile: studentProfile ? 'loaded' : 'not loaded',
-            hasSavedFilters: true
+            hasSavedFilters: true,
           });
-          console.log('✅ [ProgressScreen] Using saved filter preferences for user:', effectiveUserId, savedFilters);
+          console.log(
+            '✅ [ProgressScreen] Using saved filter preferences for user:',
+            effectiveUserId,
+            savedFilters,
+          );
         } else {
           // Set defaults based on most recent is_default=true values from database (like OnboardingInteractive)
           const defaultVehicle = data
-            .filter(item => item.category === 'vehicle_type' && item.is_default)
+            .filter((item) => item.category === 'vehicle_type' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultTransmission = data
-            .filter(item => item.category === 'transmission_type' && item.is_default)
+            .filter((item) => item.category === 'transmission_type' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultLicense = data
-            .filter(item => item.category === 'license_type' && item.is_default)
+            .filter((item) => item.category === 'license_type' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultExperience = data
-            .filter(item => item.category === 'experience_level' && item.is_default)
+            .filter((item) => item.category === 'experience_level' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultPurpose = data
-            .filter(item => item.category === 'purpose' && item.is_default)
+            .filter((item) => item.category === 'purpose' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultUserProfile = data
-            .filter(item => item.category === 'user_profile' && item.is_default)
+            .filter((item) => item.category === 'user_profile' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultPlatform = data
-            .filter(item => item.category === 'platform' && item.is_default)
+            .filter((item) => item.category === 'platform' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultType = data
-            .filter(item => item.category === 'type' && item.is_default)
+            .filter((item) => item.category === 'type' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
 
           const defaultFilters: Record<CategoryType, string> = {
             vehicle_type: getProfilePreference('vehicle_type', defaultVehicle?.value || 'all'),
-            transmission_type: getProfilePreference('transmission_type', defaultTransmission?.value || 'all'),
+            transmission_type: getProfilePreference(
+              'transmission_type',
+              defaultTransmission?.value || 'all',
+            ),
             license_type: getProfilePreference('license_type', defaultLicense?.value || 'all'),
-            experience_level: getProfilePreference('experience_level', defaultExperience?.value || 'all'),
+            experience_level: getProfilePreference(
+              'experience_level',
+              defaultExperience?.value || 'all',
+            ),
             purpose: getProfilePreference('purpose', defaultPurpose?.value || 'all'),
             user_profile: getProfilePreference('user_profile', defaultUserProfile?.value || 'all'),
             platform: defaultPlatform?.value || 'all',
@@ -599,11 +613,10 @@ export function ProgressScreen() {
 
           setCategoryFilters(defaultFilters);
           console.log('✅ Set default category filters from database defaults:', defaultFilters);
-          
+
           // Save defaults for next time
           saveFilterPreferences(defaultFilters);
         }
-
       } catch (err) {
         console.error('💥 Exception fetching categories:', err);
         setDefaultFilters();
@@ -623,7 +636,7 @@ export function ProgressScreen() {
         platform: 'all',
         type: 'all',
       });
-      
+
       // Set empty category options as fallback
       setCategoryOptions({
         vehicle_type: [],
@@ -646,21 +659,23 @@ export function ProgressScreen() {
       // Check if we're viewing a student (either from navigation params or StudentSwitchContext)
       const isViewingStudent = (activeUserId && activeUserId !== authUser?.id) || !!activeStudentId;
       const targetUserId = activeUserId || activeStudentId;
-      
+
       if (!isViewingStudent || !targetUserId || targetUserId === authUser?.id) {
         setStudentProfile(null);
         return;
       }
-      
+
       try {
-        console.log('🎯 [ProgressScreen] ==================== LOADING STUDENT PROFILE ====================');
+        console.log(
+          '🎯 [ProgressScreen] ==================== LOADING STUDENT PROFILE ====================',
+        );
         console.log('🎯 [ProgressScreen] Loading student profile for user:', targetUserId);
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', targetUserId)
           .single();
-          
+
         if (!error && data) {
           setStudentProfile(data);
           console.log('✅ [ProgressScreen] Loaded student profile:', {
@@ -672,7 +687,7 @@ export function ProgressScreen() {
             vehicleType: data.vehicle_type,
             transmissionType: data.transmission_type,
             licenseType: data.license_type,
-            licensePlanData: data.license_plan_data
+            licensePlanData: data.license_plan_data,
           });
         } else {
           setStudentProfile(null);
@@ -683,17 +698,17 @@ export function ProgressScreen() {
         setStudentProfile(null);
       }
     };
-    
+
     loadStudentProfile();
   }, [effectiveUserId, activeUserId, activeStudentId, authUser?.id]);
 
   // Filter drawer state
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
-  
+
   // Animation refs for drawer (similar to TabNavigator)
   const drawerTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const drawerOpacity = useRef(new Animated.Value(0)).current;
-  
+
   // Modal state for category filter selection (legacy - kept for compatibility)
   const [activeFilterType, setActiveFilterType] = useState<CategoryType | null>(null);
 
@@ -713,21 +728,33 @@ export function ProgressScreen() {
   const getProfilePreference = (key: string, defaultValue: string): string => {
     const activeProfile = activeUserId && activeUserId !== authUser?.id ? studentProfile : profile;
     if (!activeProfile) return defaultValue;
-    
+
     try {
       // Check if profile has license_plan_data from onboarding
       const licenseData = (activeProfile as any)?.license_plan_data;
       if (licenseData && typeof licenseData === 'object') {
-        let value = licenseData[key];
-        console.log(`🔍 [ProgressScreen] Reading profile preference ${key}:`, value, 'from user:', effectiveUserId, 'isStudent:', activeUserId && activeUserId !== authUser?.id);
-        
+        const value = licenseData[key];
+        console.log(
+          `🔍 [ProgressScreen] Reading profile preference ${key}:`,
+          value,
+          'from user:',
+          effectiveUserId,
+          'isStudent:',
+          activeUserId && activeUserId !== authUser?.id,
+        );
+
         // Keep onboarding values as they are - they now match database values
         return value || defaultValue;
       }
-      
+
       // Fallback to direct profile properties - no mapping needed
       const value = (activeProfile as any)[key];
-      console.log(`🔍 [ProgressScreen] Reading profile preference ${key}:`, value, 'from direct profile for user:', effectiveUserId);
+      console.log(
+        `🔍 [ProgressScreen] Reading profile preference ${key}:`,
+        value,
+        'from direct profile for user:',
+        effectiveUserId,
+      );
       return value || defaultValue;
     } catch (error) {
       console.log('Error getting profile preference:', error);
@@ -803,11 +830,13 @@ export function ProgressScreen() {
     const newFilters = { ...categoryFilters, [filterType]: value };
     setCategoryFilters(newFilters);
     setActiveFilterType(null);
-    
+
     // Debug: Log current paths and how many match this filter
     const currentPathsForDebug = paths.length;
-    console.log(`🔍 [ProgressScreen] Total paths: ${currentPathsForDebug}, new filter will be: ${filterType}=${value}`);
-    
+    console.log(
+      `🔍 [ProgressScreen] Total paths: ${currentPathsForDebug}, new filter will be: ${filterType}=${value}`,
+    );
+
     // Don't close drawer automatically - let user save when done
   };
 
@@ -1280,15 +1309,18 @@ export function ProgressScreen() {
   };
 
   // Toggle completion for an exercise with all its repeats
-  const toggleCompletionWithRepeats = async (exerciseId: string, includeAllRepeats: boolean = false) => {
+  const toggleCompletionWithRepeats = async (
+    exerciseId: string,
+    includeAllRepeats: boolean = false,
+  ) => {
     if (!effectiveUserId) return;
-    
+
     // Find the exercise details
     const exercise = exercises.find((ex) => ex.id === exerciseId);
     if (!exercise) return;
-    
+
     const isDone = completedIds.includes(exerciseId);
-    
+
     console.log('🎯 [ProgressScreen] Toggle Completion With Repeats:', {
       exerciseId,
       exerciseTitle: exercise?.title,
@@ -1300,15 +1332,15 @@ export function ProgressScreen() {
 
     // Toggle main exercise
     await toggleCompletion(exerciseId);
-    
+
     // If includeAllRepeats and exercise has repeats, toggle all virtual repeats
     if (includeAllRepeats && exercise.repeat_count && exercise.repeat_count > 1) {
       const shouldMarkDone = !isDone; // If main was not done, we're marking everything as done
-      
+
       for (let i = 2; i <= exercise.repeat_count; i++) {
         const virtualId = `${exerciseId}-virtual-${i}`;
         const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
-        
+
         // Only toggle if virtual repeat state doesn't match desired state
         if (shouldMarkDone && !isVirtualDone) {
           await toggleVirtualRepeatCompletion(virtualId);
@@ -1322,7 +1354,7 @@ export function ProgressScreen() {
   // Toggle completion for an exercise
   const toggleCompletion = async (exerciseId: string) => {
     if (!effectiveUserId) return;
-    
+
     // Only allow completion toggling if user is viewing their own data or is a supervisor
     if (activeUserId && user?.id !== effectiveUserId) {
       // This is a supervisor viewing student data - they can toggle completions
@@ -1414,27 +1446,31 @@ export function ProgressScreen() {
   };
 
   // Celebration detection function
-  const checkForCelebration = async (pathId: string, learningPath: LearningPath | undefined, currentCompletedIds?: string[]) => {
+  const checkForCelebration = async (
+    pathId: string,
+    learningPath: LearningPath | undefined,
+    currentCompletedIds?: string[],
+  ) => {
     if (!learningPath || !effectiveUserId) return;
 
     try {
       // Get all exercises for this learning path
-      const pathExercises = exercises.filter(ex => ex.learning_path_id === pathId);
+      const pathExercises = exercises.filter((ex) => ex.learning_path_id === pathId);
       const totalExercises = pathExercises.length;
-      
+
       if (totalExercises === 0) return;
 
       // Count completed exercises for this path (use provided IDs or current state)
       const idsToCheck = currentCompletedIds || completedIds;
-      const completedExercises = pathExercises.filter(ex => idsToCheck.includes(ex.id)).length;
+      const completedExercises = pathExercises.filter((ex) => idsToCheck.includes(ex.id)).length;
       const completionPercentage = Math.round((completedExercises / totalExercises) * 100);
 
       // Trigger celebration for significant milestones
-      const shouldCelebrate = 
+      const shouldCelebrate =
         completionPercentage === 100 || // Path completed
         completionPercentage === 75 || // 75% milestone
         completionPercentage === 50 || // 50% milestone
-        completionPercentage === 25;   // 25% milestone
+        completionPercentage === 25; // 25% milestone
 
       if (shouldCelebrate) {
         console.log('🎉 [ProgressScreen] Triggering celebration:', {
@@ -1948,11 +1984,14 @@ export function ProgressScreen() {
   // Dedicated function to fetch completions
   const fetchCompletions = async () => {
     if (!effectiveUserId) return;
-    
+
     try {
       setCompletionsLoading(true);
       console.log('🔍 [ProgressScreen] Fetching exercise completions for user:', effectiveUserId);
-      console.log('🔍 [ProgressScreen] Is viewing student:', activeUserId && activeUserId !== authUser?.id);
+      console.log(
+        '🔍 [ProgressScreen] Is viewing student:',
+        activeUserId && activeUserId !== authUser?.id,
+      );
 
       // Fetch regular exercise completions
       const { data: regularData, error: regularError } = await supabase
@@ -1972,7 +2011,12 @@ export function ProgressScreen() {
       } else {
         const completions = regularData?.map((c: { exercise_id: string }) => c.exercise_id) || [];
         setCompletedIds(completions);
-        console.log('✅ [ProgressScreen] Loaded completions for user:', effectiveUserId, 'count:', completions.length);
+        console.log(
+          '✅ [ProgressScreen] Loaded completions for user:',
+          effectiveUserId,
+          'count:',
+          completions.length,
+        );
       }
 
       if (virtualError) {
@@ -1980,10 +2024,11 @@ export function ProgressScreen() {
         setVirtualRepeatCompletions([]);
       } else {
         // Convert virtual completions back to virtualId format: "exerciseId-virtual-2"
-        const virtualCompletions = virtualData?.map(
-          (c: { exercise_id: string; repeat_number: number }) =>
-            `${c.exercise_id}-virtual-${c.repeat_number}`,
-        ) || [];
+        const virtualCompletions =
+          virtualData?.map(
+            (c: { exercise_id: string; repeat_number: number }) =>
+              `${c.exercise_id}-virtual-${c.repeat_number}`,
+          ) || [];
         setVirtualRepeatCompletions(virtualCompletions);
       }
 
@@ -2007,7 +2052,7 @@ export function ProgressScreen() {
 
     // RESTORED: Real-time subscription for completions
     console.log('✅ Setting up real-time subscriptions');
-    
+
     // Set up real-time subscription for completions
     if (effectiveUserId) {
       console.log('ProgressScreen: Setting up real-time subscription', effectiveUserId);
@@ -2057,8 +2102,21 @@ export function ProgressScreen() {
   }, [effectiveUserId]);
 
   // History (audit) list support
-  const [auditEntries, setAuditEntries] = useState<Array<{ exercise_id: string; repeat_number: number | null; action: string; actor_name: string | null; created_at: string }>>([]);
-  const [exerciseInfoById, setExerciseInfoById] = useState<Record<string, { title: { en: string; sv: string }; repeat_count?: number; learning_path_id: string }>>({});
+  const [auditEntries, setAuditEntries] = useState<
+    Array<{
+      exercise_id: string;
+      repeat_number: number | null;
+      action: string;
+      actor_name: string | null;
+      created_at: string;
+    }>
+  >([]);
+  const [exerciseInfoById, setExerciseInfoById] = useState<
+    Record<
+      string,
+      { title: { en: string; sv: string }; repeat_count?: number; learning_path_id: string }
+    >
+  >({});
 
   const loadAudit = async () => {
     if (!effectiveUserId) return;
@@ -2078,7 +2136,10 @@ export function ProgressScreen() {
             .from('learning_path_exercises')
             .select('id, title, repeat_count, learning_path_id')
             .in('id', ids);
-          const map: Record<string, { title: { en: string; sv: string }; repeat_count?: number; learning_path_id: string }> = {};
+          const map: Record<
+            string,
+            { title: { en: string; sv: string }; repeat_count?: number; learning_path_id: string }
+          > = {};
           (exData || []).forEach((row: any) => {
             map[row.id] = {
               title: row.title || { en: 'Untitled', sv: 'Namnlös' },
@@ -2131,54 +2192,57 @@ export function ProgressScreen() {
 
   // Filter paths based on selected categories with robust data value matching
   const filteredPaths = useMemo(() => {
-    console.log(`🔍 [ProgressScreen] Filtering ${paths.length} paths with filters:`, categoryFilters);
-    
+    console.log(
+      `🔍 [ProgressScreen] Filtering ${paths.length} paths with filters:`,
+      categoryFilters,
+    );
+
     const filtered = paths.filter((path) => {
       // Handle variations in data values and allow null values
       const matchesVehicleType =
         categoryFilters.vehicle_type === 'all' ||
         !path.vehicle_type ||
         path.vehicle_type?.toLowerCase() === categoryFilters.vehicle_type?.toLowerCase();
-        
+
       const matchesTransmission =
         categoryFilters.transmission_type === 'all' ||
         !path.transmission_type ||
         path.transmission_type?.toLowerCase() === categoryFilters.transmission_type?.toLowerCase();
-        
+
       const matchesLicense =
         categoryFilters.license_type === 'all' ||
         !path.license_type ||
         path.license_type?.toLowerCase() === categoryFilters.license_type?.toLowerCase();
-        
+
       const matchesExperience =
         categoryFilters.experience_level === 'all' ||
         !path.experience_level ||
         path.experience_level?.toLowerCase() === categoryFilters.experience_level?.toLowerCase();
-        
+
       const matchesPurpose =
         categoryFilters.purpose === 'all' ||
         !path.purpose ||
         path.purpose?.toLowerCase() === categoryFilters.purpose?.toLowerCase();
-        
+
       const matchesUserProfile =
         categoryFilters.user_profile === 'all' ||
         !path.user_profile ||
         path.user_profile?.toLowerCase() === categoryFilters.user_profile?.toLowerCase() ||
         // "All" user profile matches any filter
         path.user_profile === 'All';
-        
+
       const matchesPlatform =
         categoryFilters.platform === 'all' ||
         !path.platform ||
         path.platform === 'both' || // "both" platform matches any filter
         path.platform?.toLowerCase() === categoryFilters.platform?.toLowerCase();
-        
+
       const matchesType =
-        categoryFilters.type === 'all' || 
-        !path.type || 
+        categoryFilters.type === 'all' ||
+        !path.type ||
         path.type?.toLowerCase() === categoryFilters.type?.toLowerCase();
 
-      const matches = (
+      const matches =
         matchesVehicleType &&
         matchesTransmission &&
         matchesLicense &&
@@ -2186,9 +2250,8 @@ export function ProgressScreen() {
         matchesPurpose &&
         matchesUserProfile &&
         matchesPlatform &&
-        matchesType
-      );
-      
+        matchesType;
+
       // Debug individual path filtering
       if (!matches && categoryFilters.license_type !== 'all') {
         console.log(`❌ [ProgressScreen] Path "${path.title?.en || path.id}" filtered out:`, {
@@ -2197,13 +2260,13 @@ export function ProgressScreen() {
           matchesLicense,
           matchesVehicleType,
           matchesTransmission,
-          matchesExperience
+          matchesExperience,
         });
       }
-      
+
       return matches;
     });
-    
+
     console.log(`✅ [ProgressScreen] Filtered from ${paths.length} to ${filtered.length} paths`);
     return filtered;
   }, [paths, categoryFilters]);
@@ -2217,14 +2280,14 @@ export function ProgressScreen() {
     const unsubscribe = navigation.addListener('focus', () => {
       console.log('🔄 [ProgressScreen] Screen focused - refreshing data');
       fetchCompletions();
-      
+
       // ProgressScreen tours DISABLED to prevent console flooding
       // setTimeout(async () => {
       //   if (!tourContext.isActive) {
       //     await triggerScreenTour('ProgressScreen', tourContext, profile?.role);
       //   }
       // }, 1000);
-      
+
       // Also refresh the exercises to get latest state
       if (showDetailView && detailPath) {
         const refreshExercises = async () => {
@@ -2320,7 +2383,7 @@ export function ProgressScreen() {
     try {
       setLoading(true);
       console.log('🔍 Attempting to fetch learning paths...');
-      
+
       // Add timeout and error handling
       const { data, error } = await supabase
         .from('learning_paths')
@@ -2332,10 +2395,10 @@ export function ProgressScreen() {
         console.error('❌ Database error:', error);
         throw error;
       }
-      
+
       console.log('✅ Successfully fetched learning paths:', data?.length || 0);
       setPaths(data || []);
-      
+
       // Set the first path as active by default if no selectedPathId
       if (data && data.length > 0 && !selectedPathId) {
         setActivePath(data[0].id);
@@ -2343,7 +2406,7 @@ export function ProgressScreen() {
     } catch (err) {
       console.error('💥 Critical error fetching learning paths:', err);
       setError('Unable to connect to database. Please check your internet connection.');
-      
+
       // Set empty data to prevent crashes
       setPaths([]);
     } finally {
@@ -2504,7 +2567,7 @@ export function ProgressScreen() {
 
     const completed = ids.filter((id) => completedIds.includes(id)).length;
     const progress = completed / ids.length;
-    
+
     console.log(`📊 [ProgressScreen] Path progress for ${pathId}:`, {
       pathId,
       totalExercises: ids.length,
@@ -2512,9 +2575,9 @@ export function ProgressScreen() {
       progressPercent: Math.round(progress * 100),
       effectiveUserId,
       isViewingStudent: activeUserId && activeUserId !== authUser?.id,
-      completedExerciseIds: ids.filter(id => completedIds.includes(id))
+      completedExerciseIds: ids.filter((id) => completedIds.includes(id)),
     });
-    
+
     return progress;
   };
 
@@ -2593,7 +2656,7 @@ export function ProgressScreen() {
   // Filter drawer component similar to FilterSheet.tsx
   const renderFilterDrawer = () => {
     if (!showFilterDrawer) return null;
-    
+
     return (
       <RNModal
         visible={showFilterDrawer}
@@ -2613,10 +2676,10 @@ export function ProgressScreen() {
             opacity: drawerOpacity,
           }}
         >
-          <TouchableOpacity 
-            style={{ flex: 1 }} 
-            activeOpacity={1} 
-            onPress={() => setShowFilterDrawer(false)} 
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={() => setShowFilterDrawer(false)}
           />
         </Animated.View>
 
@@ -2661,11 +2724,11 @@ export function ProgressScreen() {
               >
                 <Text color="#00E6C3">Reset</Text>
               </TouchableOpacity>
-              
+
               <Text fontWeight="600" fontSize="$5" color="white">
                 Filter Learning Paths
               </Text>
-              
+
               <TouchableOpacity onPress={() => setShowFilterDrawer(false)}>
                 <Feather name="x" size={24} color="white" />
               </TouchableOpacity>
@@ -2684,7 +2747,8 @@ export function ProgressScreen() {
                         key={`vehicle-${option.id}-${optionIndex}`}
                         onPress={() => handleFilterSelect('vehicle_type', option.value)}
                         style={{
-                          backgroundColor: categoryFilters.vehicle_type === option.value ? '#00E6C3' : '#333',
+                          backgroundColor:
+                            categoryFilters.vehicle_type === option.value ? '#00E6C3' : '#333',
                           paddingHorizontal: 12,
                           paddingVertical: 8,
                           borderRadius: 8,
@@ -2704,35 +2768,41 @@ export function ProgressScreen() {
               )}
 
               {/* Transmission Type */}
-              {categoryOptions.transmission_type && categoryOptions.transmission_type.length > 1 && (
-                <YStack marginBottom="$4">
-                  <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
-                    {categoryLabels.transmission_type}
-                  </Text>
-                  <XStack flexWrap="wrap" gap="$2">
-                    {categoryOptions.transmission_type.map((option, optionIndex) => (
-                      <TouchableOpacity
-                        key={`transmission-${option.id}-${optionIndex}`}
-                        onPress={() => handleFilterSelect('transmission_type', option.value)}
-                        style={{
-                          backgroundColor: categoryFilters.transmission_type === option.value ? '#00E6C3' : '#333',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text
-                          fontSize={14}
-                          color={categoryFilters.transmission_type === option.value ? '#000' : '#fff'}
+              {categoryOptions.transmission_type &&
+                categoryOptions.transmission_type.length > 1 && (
+                  <YStack marginBottom="$4">
+                    <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
+                      {categoryLabels.transmission_type}
+                    </Text>
+                    <XStack flexWrap="wrap" gap="$2">
+                      {categoryOptions.transmission_type.map((option, optionIndex) => (
+                        <TouchableOpacity
+                          key={`transmission-${option.id}-${optionIndex}`}
+                          onPress={() => handleFilterSelect('transmission_type', option.value)}
+                          style={{
+                            backgroundColor:
+                              categoryFilters.transmission_type === option.value
+                                ? '#00E6C3'
+                                : '#333',
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            marginBottom: 8,
+                          }}
                         >
-                          {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </XStack>
-                </YStack>
-              )}
+                          <Text
+                            fontSize={14}
+                            color={
+                              categoryFilters.transmission_type === option.value ? '#000' : '#fff'
+                            }
+                          >
+                            {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </XStack>
+                  </YStack>
+                )}
 
               {/* License Type */}
               {categoryOptions.license_type && categoryOptions.license_type.length > 1 && (
@@ -2746,7 +2816,8 @@ export function ProgressScreen() {
                         key={`license-${option.id}-${optionIndex}`}
                         onPress={() => handleFilterSelect('license_type', option.value)}
                         style={{
-                          backgroundColor: categoryFilters.license_type === option.value ? '#00E6C3' : '#333',
+                          backgroundColor:
+                            categoryFilters.license_type === option.value ? '#00E6C3' : '#333',
                           paddingHorizontal: 12,
                           paddingVertical: 8,
                           borderRadius: 8,
@@ -2777,7 +2848,8 @@ export function ProgressScreen() {
                         key={`experience-${option.id}-${optionIndex}`}
                         onPress={() => handleFilterSelect('experience_level', option.value)}
                         style={{
-                          backgroundColor: categoryFilters.experience_level === option.value ? '#00E6C3' : '#333',
+                          backgroundColor:
+                            categoryFilters.experience_level === option.value ? '#00E6C3' : '#333',
                           paddingHorizontal: 12,
                           paddingVertical: 8,
                           borderRadius: 8,
@@ -2786,7 +2858,9 @@ export function ProgressScreen() {
                       >
                         <Text
                           fontSize={14}
-                          color={categoryFilters.experience_level === option.value ? '#000' : '#fff'}
+                          color={
+                            categoryFilters.experience_level === option.value ? '#000' : '#fff'
+                          }
                         >
                           {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
                         </Text>
@@ -2808,7 +2882,8 @@ export function ProgressScreen() {
                         key={`purpose-${option.id}-${optionIndex}`}
                         onPress={() => handleFilterSelect('purpose', option.value)}
                         style={{
-                          backgroundColor: categoryFilters.purpose === option.value ? '#00E6C3' : '#333',
+                          backgroundColor:
+                            categoryFilters.purpose === option.value ? '#00E6C3' : '#333',
                           paddingHorizontal: 12,
                           paddingVertical: 8,
                           borderRadius: 8,
@@ -2827,7 +2902,7 @@ export function ProgressScreen() {
                 </YStack>
               )}
             </ScrollView>
-            
+
             {/* Save Button */}
             <YStack marginTop="$4" paddingTop="$2" borderTopWidth={1} borderTopColor="#333">
               <TouchableOpacity
@@ -3381,7 +3456,9 @@ export function ProgressScreen() {
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: getTabContentPadding() }}>
+          <ScrollView
+            contentContainerStyle={{ padding: 16, paddingBottom: getTabContentPadding() }}
+          >
             {/* Question Content */}
             <YStack
               backgroundColor="rgba(255, 255, 255, 0.1)"
@@ -3710,7 +3787,13 @@ export function ProgressScreen() {
             </Text>
           )}
 
-          <TouchableOpacity onPress={() => { console.log('🧾 [ProgressScreen] open report exercise', selectedExercise.id); setReportExerciseId(selectedExercise.id); }} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
+          <TouchableOpacity
+            onPress={() => {
+              console.log('🧾 [ProgressScreen] open report exercise', selectedExercise.id);
+              setReportExerciseId(selectedExercise.id);
+            }}
+            style={{ alignSelf: 'flex-end', marginBottom: 8 }}
+          >
             <Text color="#EF4444">Report Exercise</Text>
           </TouchableOpacity>
 
@@ -3740,362 +3823,360 @@ export function ProgressScreen() {
           )}
 
           {/* Always show normal exercise content - lock check happens before navigation */}
-              {/* Media Rendering Section - Only show if exercise is accessible */}
-              {renderExerciseMedia(selectedExercise)}
+          {/* Media Rendering Section - Only show if exercise is accessible */}
+          {renderExerciseMedia(selectedExercise)}
 
-              {/* Repetition Progress (if this is a repeated exercise) */}
-              {(selectedExercise.isRepeat ||
-                (selectedExercise.repeat_count && selectedExercise.repeat_count > 1)) && (
-                <YStack
-                  marginTop={16}
-                  marginBottom={8}
-                  backgroundColor="rgba(75, 107, 255, 0.1)"
-                  padding={16}
-                  borderRadius={12}
-                >
-                  <XStack alignItems="center" gap={8} marginBottom={8}>
-                    <Feather name="repeat" size={20} color="#4B6BFF" />
-                    <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
-                      {selectedExercise.isRepeat
-                        ? `Repetition ${selectedExercise.repeatNumber} of ${selectedExercise.repeat_count}`
-                        : `This exercise requires ${selectedExercise.repeat_count} repetitions`}
-                    </Text>
-                  </XStack>
+          {/* Repetition Progress (if this is a repeated exercise) */}
+          {(selectedExercise.isRepeat ||
+            (selectedExercise.repeat_count && selectedExercise.repeat_count > 1)) && (
+            <YStack
+              marginTop={16}
+              marginBottom={8}
+              backgroundColor="rgba(75, 107, 255, 0.1)"
+              padding={16}
+              borderRadius={12}
+            >
+              <XStack alignItems="center" gap={8} marginBottom={8}>
+                <Feather name="repeat" size={20} color="#4B6BFF" />
+                <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
+                  {selectedExercise.isRepeat
+                    ? `Repetition ${selectedExercise.repeatNumber} of ${selectedExercise.repeat_count}`
+                    : `This exercise requires ${selectedExercise.repeat_count} repetitions`}
+                </Text>
+              </XStack>
 
-                  {selectedExercise.isRepeat && (
-                    <Text color="$gray11">
-                      Complete this repetition to continue with your progress.
-                    </Text>
-                  )}
-                </YStack>
+              {selectedExercise.isRepeat && (
+                <Text color="$gray11">
+                  Complete this repetition to continue with your progress.
+                </Text>
               )}
+            </YStack>
+          )}
 
-              {/* List of all repeats if viewing the base exercise */}
-              {!selectedExercise.isRepeat &&
-                selectedExercise.repeat_count &&
-                selectedExercise.repeat_count > 1 && (
-                  <YStack /* ref={repeatSectionRef} */ marginTop={16} marginBottom={16} gap={12}>
-                    <XStack alignItems="center" gap={8} marginBottom={8}>
-                      <Feather name="list" size={20} color="#4B6BFF" />
-                      <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
-                        All Repetitions
+          {/* List of all repeats if viewing the base exercise */}
+          {!selectedExercise.isRepeat &&
+            selectedExercise.repeat_count &&
+            selectedExercise.repeat_count > 1 && (
+              <YStack /* ref={repeatSectionRef} */ marginTop={16} marginBottom={16} gap={12}>
+                <XStack alignItems="center" gap={8} marginBottom={8}>
+                  <Feather name="list" size={20} color="#4B6BFF" />
+                  <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
+                    All Repetitions
+                  </Text>
+                </XStack>
+
+                {/* Progress bar for all repetitions */}
+                <RepeatProgressBar exercise={selectedExercise} />
+
+                {/* Show the original exercise first */}
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#222',
+                    padding: 12,
+                    borderRadius: 8,
+                    borderLeftWidth: 4,
+                    borderLeftColor: completedIds.includes(selectedExercise.id)
+                      ? '#00E6C3'
+                      : '#4B6BFF',
+                  }}
+                  onPress={() => {
+                    // Toggle the main exercise completion
+                    toggleCompletion(selectedExercise.id);
+                  }}
+                >
+                  <XStack justifyContent="space-between" alignItems="center">
+                    <XStack gap={8} alignItems="center" flex={1}>
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          // Toggle main exercise completion
+                          toggleCompletion(selectedExercise.id);
+                        }}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          backgroundColor: completedIds.includes(selectedExercise.id)
+                            ? '#00E6C3'
+                            : '#333',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderWidth: 2,
+                          borderColor: completedIds.includes(selectedExercise.id)
+                            ? '#00E6C3'
+                            : '#888',
+                        }}
+                      >
+                        {completedIds.includes(selectedExercise.id) && (
+                          <Feather name="check" size={16} color="#fff" />
+                        )}
+                      </TouchableOpacity>
+                      <Text
+                        fontSize={16}
+                        color="$color"
+                        fontWeight="600"
+                        numberOfLines={1}
+                        flex={1}
+                      >
+                        {selectedExercise.title?.[lang] || selectedExercise.title?.en || 'Original'}
                       </Text>
                     </XStack>
+                    <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
+                      1/{selectedExercise.repeat_count}
+                    </Text>
+                    {completedIds.includes(selectedExercise.id) && (
+                      <Feather name="check-circle" size={18} color="#00E6C3" />
+                    )}
+                  </XStack>
+                </TouchableOpacity>
 
-                    {/* Progress bar for all repetitions */}
-                    <RepeatProgressBar exercise={selectedExercise} />
+                {/* Find and show all repeats */}
+                {(() => {
+                  // Find all repeats of this exercise
+                  const repeats = exercises
+                    .filter((ex) => ex.isRepeat && ex.originalId === selectedExercise.id)
+                    .sort((a, b) => (a.repeatNumber || 0) - (b.repeatNumber || 0));
 
-                    {/* Show the original exercise first */}
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: '#222',
-                        padding: 12,
-                        borderRadius: 8,
-                        borderLeftWidth: 4,
-                        borderLeftColor: completedIds.includes(selectedExercise.id)
-                          ? '#00E6C3'
-                          : '#4B6BFF',
-                      }}
-                      onPress={() => {
-                        // Toggle the main exercise completion
-                        toggleCompletion(selectedExercise.id);
-                      }}
-                    >
-                      <XStack justifyContent="space-between" alignItems="center">
-                        <XStack gap={8} alignItems="center" flex={1}>
-                          <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              // Toggle main exercise completion
-                              toggleCompletion(selectedExercise.id);
-                            }}
-                            style={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: 12,
-                              backgroundColor: completedIds.includes(selectedExercise.id)
-                                ? '#00E6C3'
-                                : '#333',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              borderWidth: 2,
-                              borderColor: completedIds.includes(selectedExercise.id)
-                                ? '#00E6C3'
-                                : '#888',
-                            }}
-                          >
-                            {completedIds.includes(selectedExercise.id) && (
-                              <Feather name="check" size={16} color="#fff" />
-                            )}
-                          </TouchableOpacity>
-                          <Text
-                            fontSize={16}
-                            color="$color"
-                            fontWeight="600"
-                            numberOfLines={1}
-                            flex={1}
-                          >
-                            {selectedExercise.title?.[lang] ||
-                              selectedExercise.title?.en ||
-                              'Original'}
-                          </Text>
-                        </XStack>
-                        <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
-                          1/{selectedExercise.repeat_count}
-                        </Text>
-                        {completedIds.includes(selectedExercise.id) && (
-                          <Feather name="check-circle" size={18} color="#00E6C3" />
-                        )}
-                      </XStack>
-                    </TouchableOpacity>
+                  // Check if we need to create the repeats (they may not be in the exercises array yet)
+                  if (
+                    repeats.length === 0 &&
+                    selectedExercise.repeat_count &&
+                    selectedExercise.repeat_count > 1
+                  ) {
+                    // Show interactive virtual repeats
+                    return Array.from({ length: selectedExercise.repeat_count - 1 }).map((_, i) => {
+                      const repeatNumber = i + 2; // Start from 2 since 1 is the original
+                      const virtualId = `${selectedExercise.id}-virtual-${repeatNumber}`;
+                      // For virtual repeats, track completion individually
+                      const isDone = virtualRepeatCompletions.includes(virtualId);
 
-                    {/* Find and show all repeats */}
-                    {(() => {
-                      // Find all repeats of this exercise
-                      const repeats = exercises
-                        .filter((ex) => ex.isRepeat && ex.originalId === selectedExercise.id)
-                        .sort((a, b) => (a.repeatNumber || 0) - (b.repeatNumber || 0));
-
-                      // Check if we need to create the repeats (they may not be in the exercises array yet)
-                      if (
-                        repeats.length === 0 &&
-                        selectedExercise.repeat_count &&
-                        selectedExercise.repeat_count > 1
-                      ) {
-                        // Show interactive virtual repeats
-                        return Array.from({ length: selectedExercise.repeat_count - 1 }).map(
-                          (_, i) => {
-                            const repeatNumber = i + 2; // Start from 2 since 1 is the original
-                            const virtualId = `${selectedExercise.id}-virtual-${repeatNumber}`;
-                            // For virtual repeats, track completion individually
-                            const isDone = virtualRepeatCompletions.includes(virtualId);
-
-                            return (
+                      return (
+                        <TouchableOpacity
+                          key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
+                          style={{
+                            backgroundColor: '#222',
+                            padding: 12,
+                            borderRadius: 8,
+                            borderLeftWidth: 4,
+                            borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
+                          }}
+                          onPress={() => {
+                            // For virtual repeats, toggle individual completion
+                            toggleVirtualRepeatCompletion(virtualId);
+                          }}
+                        >
+                          <XStack justifyContent="space-between" alignItems="center">
+                            <XStack gap={8} alignItems="center" flex={1}>
                               <TouchableOpacity
-                                key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
-                                style={{
-                                  backgroundColor: '#222',
-                                  padding: 12,
-                                  borderRadius: 8,
-                                  borderLeftWidth: 4,
-                                  borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
-                                }}
-                                onPress={() => {
-                                  // For virtual repeats, toggle individual completion
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  // Toggle individual virtual repeat completion
                                   toggleVirtualRepeatCompletion(virtualId);
                                 }}
+                                style={{
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: 12,
+                                  backgroundColor: isDone ? '#00E6C3' : '#333',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderWidth: 2,
+                                  borderColor: isDone ? '#00E6C3' : '#888',
+                                }}
                               >
-                                <XStack justifyContent="space-between" alignItems="center">
-                                  <XStack gap={8} alignItems="center" flex={1}>
-                                    <TouchableOpacity
-                                      onPress={(e) => {
-                                        e.stopPropagation();
-                                        // Toggle individual virtual repeat completion
-                                        toggleVirtualRepeatCompletion(virtualId);
-                                      }}
-                                      style={{
-                                        width: 24,
-                                        height: 24,
-                                        borderRadius: 12,
-                                        backgroundColor: isDone ? '#00E6C3' : '#333',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        borderWidth: 2,
-                                        borderColor: isDone ? '#00E6C3' : '#888',
-                                      }}
-                                    >
-                                      {isDone && <Feather name="check" size={16} color="#fff" />}
-                                    </TouchableOpacity>
-                                    <Text
-                                      fontSize={16}
-                                      color="$color"
-                                      fontWeight="600"
-                                      numberOfLines={1}
-                                      flex={1}
-                                    >
-                                      Repetition {repeatNumber}
-                                    </Text>
-                                  </XStack>
-                                  <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
-                                    {repeatNumber}/{selectedExercise.repeat_count}
-                                  </Text>
-                                  {isDone && (
-                                    <Feather name="check-circle" size={18} color="#00E6C3" />
-                                  )}
-                                </XStack>
+                                {isDone && <Feather name="check" size={16} color="#fff" />}
                               </TouchableOpacity>
-                            );
-                          },
-                        );
-                      }
-
-                      return repeats.map((repeat, repeatIndex) => {
-                        const isDone = completedIds.includes(repeat.id);
-                        // Remove locking for repeats - only main exercise can be locked
-
-                        return (
-                          <TouchableOpacity
-                            key={`repeat-${repeat.id}-${repeatIndex}`}
-                            style={{
-                              backgroundColor: '#222',
-                              padding: 12,
-                              borderRadius: 8,
-                              borderLeftWidth: 4,
-                              borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
-                            }}
-                            onPress={() => setSelectedExercise(repeat)}
-                          >
-                            <XStack justifyContent="space-between" alignItems="center">
-                              <XStack gap={8} alignItems="center" flex={1}>
-                                <TouchableOpacity
-                                  onPress={(e) => {
-                                    e.stopPropagation();
-                                    // Repeats can be completed in any order
-                                    toggleCompletion(repeat.id);
-                                  }}
-                                  style={{
-                                    width: 24,
-                                    height: 24,
-                                    borderRadius: 12,
-                                    backgroundColor: isDone ? '#00E6C3' : '#333',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    borderWidth: 2,
-                                    borderColor: isDone ? '#00E6C3' : '#888',
-                                  }}
-                                >
-                                  {isDone && <Feather name="check" size={16} color="#fff" />}
-                                </TouchableOpacity>
-                                <Text
-                                  fontSize={16}
-                                  color="$color"
-                                  fontWeight="600"
-                                  numberOfLines={1}
-                                  flex={1}
-                                >
-                                  {repeat.title?.[lang] ||
-                                    repeat.title?.en ||
-                                    `Repetition ${repeat.repeatNumber}`}
-                                </Text>
-                              </XStack>
-                              <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
-                                {repeat.repeatNumber}/{repeat.repeat_count}
+                              <Text
+                                fontSize={16}
+                                color="$color"
+                                fontWeight="600"
+                                numberOfLines={1}
+                                flex={1}
+                              >
+                                Repetition {repeatNumber}
                               </Text>
-                              {isDone && <Feather name="check-circle" size={18} color="#00E6C3" />}
                             </XStack>
-                          </TouchableOpacity>
-                        );
-                      });
-                    })()}
-                  </YStack>
-                )}
-
-              {/* Toggle done/not done button */}
-              <TouchableOpacity
-                // ref={markCompleteButtonRef} // DISABLED
-                onPress={() => {
-                  // Toggle main exercise
-                  toggleCompletion(selectedExercise.id);
-
-                  // Also toggle all virtual repeats if this exercise has repeats
-                  if (selectedExercise.repeat_count && selectedExercise.repeat_count > 1) {
-                    const shouldMarkDone = !isDone; // If main is becoming done, mark all virtual repeats as done
-
-                    // Generate all virtual repeat IDs
-                    for (let i = 2; i <= selectedExercise.repeat_count; i++) {
-                      const virtualId = `${selectedExercise.id}-virtual-${i}`;
-                      const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
-
-                      // Only toggle if virtual repeat state doesn't match desired state
-                      if (shouldMarkDone && !isVirtualDone) {
-                        toggleVirtualRepeatCompletion(virtualId);
-                      } else if (!shouldMarkDone && isVirtualDone) {
-                        toggleVirtualRepeatCompletion(virtualId);
-                      }
-                    }
+                            <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
+                              {repeatNumber}/{selectedExercise.repeat_count}
+                            </Text>
+                            {isDone && <Feather name="check-circle" size={18} color="#00E6C3" />}
+                          </XStack>
+                        </TouchableOpacity>
+                      );
+                    });
                   }
-                }}
-                style={{
-                  marginTop: 24,
-                  backgroundColor: isDone ? '#00E6C3' : '#222',
-                  padding: 16,
-                  borderRadius: 12,
-                  alignItems: 'center',
-                }}
+
+                  return repeats.map((repeat, repeatIndex) => {
+                    const isDone = completedIds.includes(repeat.id);
+                    // Remove locking for repeats - only main exercise can be locked
+
+                    return (
+                      <TouchableOpacity
+                        key={`repeat-${repeat.id}-${repeatIndex}`}
+                        style={{
+                          backgroundColor: '#222',
+                          padding: 12,
+                          borderRadius: 8,
+                          borderLeftWidth: 4,
+                          borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
+                        }}
+                        onPress={() => setSelectedExercise(repeat)}
+                      >
+                        <XStack justifyContent="space-between" alignItems="center">
+                          <XStack gap={8} alignItems="center" flex={1}>
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                // Repeats can be completed in any order
+                                toggleCompletion(repeat.id);
+                              }}
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: 12,
+                                backgroundColor: isDone ? '#00E6C3' : '#333',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderWidth: 2,
+                                borderColor: isDone ? '#00E6C3' : '#888',
+                              }}
+                            >
+                              {isDone && <Feather name="check" size={16} color="#fff" />}
+                            </TouchableOpacity>
+                            <Text
+                              fontSize={16}
+                              color="$color"
+                              fontWeight="600"
+                              numberOfLines={1}
+                              flex={1}
+                            >
+                              {repeat.title?.[lang] ||
+                                repeat.title?.en ||
+                                `Repetition ${repeat.repeatNumber}`}
+                            </Text>
+                          </XStack>
+                          <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
+                            {repeat.repeatNumber}/{repeat.repeat_count}
+                          </Text>
+                          {isDone && <Feather name="check-circle" size={18} color="#00E6C3" />}
+                        </XStack>
+                      </TouchableOpacity>
+                    );
+                  });
+                })()}
+              </YStack>
+            )}
+
+          {/* Toggle done/not done button */}
+          <TouchableOpacity
+            // ref={markCompleteButtonRef} // DISABLED
+            onPress={() => {
+              // Toggle main exercise
+              toggleCompletion(selectedExercise.id);
+
+              // Also toggle all virtual repeats if this exercise has repeats
+              if (selectedExercise.repeat_count && selectedExercise.repeat_count > 1) {
+                const shouldMarkDone = !isDone; // If main is becoming done, mark all virtual repeats as done
+
+                // Generate all virtual repeat IDs
+                for (let i = 2; i <= selectedExercise.repeat_count; i++) {
+                  const virtualId = `${selectedExercise.id}-virtual-${i}`;
+                  const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
+
+                  // Only toggle if virtual repeat state doesn't match desired state
+                  if (shouldMarkDone && !isVirtualDone) {
+                    toggleVirtualRepeatCompletion(virtualId);
+                  } else if (!shouldMarkDone && isVirtualDone) {
+                    toggleVirtualRepeatCompletion(virtualId);
+                  }
+                }
+              }
+            }}
+            style={{
+              marginTop: 24,
+              backgroundColor: isDone ? '#00E6C3' : '#222',
+              padding: 16,
+              borderRadius: 12,
+              alignItems: 'center',
+            }}
+          >
+            <Text color={isDone ? '$background' : '$color'} fontWeight="bold">
+              {isDone ? 'Mark All as Not Done' : 'Mark All as Done'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Navigation buttons for repeats */}
+          {totalRepeats > 1 && (
+            <XStack marginTop={24} justifyContent="space-between">
+              <Button
+                size="$4"
+                backgroundColor="#333"
+                disabled={!hasPrevRepeat}
+                opacity={hasPrevRepeat ? 1 : 0.5}
+                onPress={goToPrevRepeat}
+                iconAfter={<Feather name="chevron-left" size={18} color="white" />}
+                padding={12}
+                borderRadius={8}
               >
-                <Text color={isDone ? '$background' : '$color'} fontWeight="bold">
-                  {isDone ? 'Mark All as Not Done' : 'Mark All as Done'}
-                </Text>
-              </TouchableOpacity>
+                Previous
+              </Button>
 
-              {/* Navigation buttons for repeats */}
-              {totalRepeats > 1 && (
-                <XStack marginTop={24} justifyContent="space-between">
-                  <Button
-                    size="$4"
-                    backgroundColor="#333"
-                    disabled={!hasPrevRepeat}
-                    opacity={hasPrevRepeat ? 1 : 0.5}
-                    onPress={goToPrevRepeat}
-                    iconAfter={<Feather name="chevron-left" size={18} color="white" />}
-                    padding={12}
-                    borderRadius={8}
-                  >
-                    Previous
-                  </Button>
-
-                  {selectedExercise.isRepeat && (
-                    <Button
-                      size="$4"
-                      backgroundColor="#333"
-                      onPress={goToBaseExercise}
-                      iconAfter={<Feather name="home" size={18} color="white" />}
-                      padding={12}
-                      borderRadius={8}
-                    >
-                      Base
-                    </Button>
-                  )}
-
-                  <Button
-                    size="$4"
-                    backgroundColor="#4B6BFF"
-                    disabled={!hasNextRepeat}
-                    opacity={hasNextRepeat ? 1 : 0.5}
-                    onPress={goToNextRepeat}
-                    iconAfter={<Feather name="chevron-right" size={18} color="white" />}
-                    padding={12}
-                    borderRadius={8}
-                  >
-                    Next
-                  </Button>
-                </XStack>
+              {selectedExercise.isRepeat && (
+                <Button
+                  size="$4"
+                  backgroundColor="#333"
+                  onPress={goToBaseExercise}
+                  iconAfter={<Feather name="home" size={18} color="white" />}
+                  padding={12}
+                  borderRadius={8}
+                >
+                  Base
+                </Button>
               )}
 
-              {/* Additional details section */}
-              <YStack gap={8} marginTop={16}>
-                <Text color="$gray11">ID: {selectedExercise.id}</Text>
-                <Text color="$gray11">Order: {selectedExercise.order_index}</Text>
-                {selectedExercise.isRepeat && selectedExercise.originalId && (
-                  <Text color="$gray11">Original Exercise ID: {selectedExercise.originalId}</Text>
-                )}
-                <Text color="$gray11">Created: {selectedExercise.created_at}</Text>
-                <Text color="$gray11">Updated: {selectedExercise.updated_at}</Text>
-              </YStack>
+              <Button
+                size="$4"
+                backgroundColor="#4B6BFF"
+                disabled={!hasNextRepeat}
+                opacity={hasNextRepeat ? 1 : 0.5}
+                onPress={goToNextRepeat}
+                iconAfter={<Feather name="chevron-right" size={18} color="white" />}
+                padding={12}
+                borderRadius={8}
+              >
+                Next
+              </Button>
+            </XStack>
+          )}
 
-              {/* Comments moved to bottom to be less prominent */}
-              <YStack marginTop={24}>
-                <Text fontSize={18} fontWeight="bold" color="$color" marginBottom={8}>
-                  Comments
-                </Text>
-                <CommentsSection targetType="exercise" targetId={selectedExercise.id} />
-              </YStack>
+          {/* Additional details section */}
+          <YStack gap={8} marginTop={16}>
+            <Text color="$gray11">ID: {selectedExercise.id}</Text>
+            <Text color="$gray11">Order: {selectedExercise.order_index}</Text>
+            {selectedExercise.isRepeat && selectedExercise.originalId && (
+              <Text color="$gray11">Original Exercise ID: {selectedExercise.originalId}</Text>
+            )}
+            <Text color="$gray11">Created: {selectedExercise.created_at}</Text>
+            <Text color="$gray11">Updated: {selectedExercise.updated_at}</Text>
+          </YStack>
+
+          {/* Comments moved to bottom to be less prominent */}
+          <YStack marginTop={24}>
+            <Text fontSize={18} fontWeight="bold" color="$color" marginBottom={8}>
+              Comments
+            </Text>
+            <CommentsSection targetType="exercise" targetId={selectedExercise.id} />
+          </YStack>
         </ScrollView>
         {/* Add Quiz Interface */}
         <QuizInterface />
 
         {reportExerciseId && (
-          <ReportDialog reportableId={reportExerciseId} reportableType="exercise" onClose={() => setReportExerciseId(null)} />
+          <ReportDialog
+            reportableId={reportExerciseId}
+            reportableType="exercise"
+            onClose={() => setReportExerciseId(null)}
+          />
         )}
       </YStack>
     );
@@ -4154,7 +4235,9 @@ export function ProgressScreen() {
 
           {viewingUserName && (
             <YStack marginBottom={12} padding={10} backgroundColor="#162023" borderRadius={12}>
-              <Text color="#00E6C3" fontSize={12}>Viewing as: {viewingUserName}</Text>
+              <Text color="#00E6C3" fontSize={12}>
+                Viewing as: {viewingUserName}
+              </Text>
             </YStack>
           )}
 
@@ -4174,9 +4257,18 @@ export function ProgressScreen() {
                 {detailPath.title[lang]}
               </Text>
               {pathCommentCount > 0 && (
-                <XStack alignItems="center" gap={4} backgroundColor="#1f2937" paddingHorizontal={8} paddingVertical={4} borderRadius={12}>
+                <XStack
+                  alignItems="center"
+                  gap={4}
+                  backgroundColor="#1f2937"
+                  paddingHorizontal={8}
+                  paddingVertical={4}
+                  borderRadius={12}
+                >
                   <Feather name="message-circle" size={14} color="#00E6C3" />
-                  <Text fontSize={12} color="#00E6C3">{pathCommentCount}</Text>
+                  <Text fontSize={12} color="#00E6C3">
+                    {pathCommentCount}
+                  </Text>
                 </XStack>
               )}
             </XStack>
@@ -4193,207 +4285,225 @@ export function ProgressScreen() {
             {detailPath.description[lang]}
           </Text>
 
-          <TouchableOpacity onPress={() => { console.log('🧾 [ProgressScreen] open report path', detailPath.id); setReportPath(true); }} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
+          <TouchableOpacity
+            onPress={() => {
+              console.log('🧾 [ProgressScreen] open report path', detailPath.id);
+              setReportPath(true);
+            }}
+            style={{ alignSelf: 'flex-end', marginBottom: 8 }}
+          >
             <Text color="#EF4444">Report Learning Path</Text>
           </TouchableOpacity>
 
           {/* Always show normal path content - lock check happens before navigation */}
-              {/* Completion progress */}
-              {totalCount > 0 && (
-                <YStack marginTop={8} marginBottom={24}>
-                  <XStack justifyContent="space-between" alignItems="center" marginBottom={8}>
-                    <Text fontSize={18} fontWeight="bold" color="$color">
-                      Progress
-                    </Text>
-                    <Text fontSize={16} color={isFullyComplete ? '#00E6C3' : '$gray11'}>
-                      {completedCount}/{totalCount} ({percentComplete}%)
-                    </Text>
-                  </XStack>
-                  <View
-                    style={{
-                      width: '100%',
-                      height: 8,
-                      backgroundColor: '#333',
-                      borderRadius: 4,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: `${percentComplete}%`,
-                        height: '100%',
-                        backgroundColor: '#00E6C3',
-                        borderRadius: 4,
-                      }}
-                    />
-                  </View>
-                </YStack>
-              )}
-
-              {/* Mark all button */}
-              <TouchableOpacity
-                onPress={() => handleMarkAllExercises(!isFullyComplete)}
-                style={{
-                  marginBottom: 24,
-                  backgroundColor: isFullyComplete ? '#333' : '#00E6C3',
-                  padding: 16,
-                  borderRadius: 12,
-                  alignItems: 'center',
-                }}
-                disabled={totalCount === 0}
-              >
-                <Text color={isFullyComplete ? '$color' : '#000'} fontWeight="bold">
-                  {isFullyComplete ? 'Mark All as Incomplete' : 'Mark All as Complete'}
+          {/* Completion progress */}
+          {totalCount > 0 && (
+            <YStack marginTop={8} marginBottom={24}>
+              <XStack justifyContent="space-between" alignItems="center" marginBottom={8}>
+                <Text fontSize={18} fontWeight="bold" color="$color">
+                  Progress
                 </Text>
-              </TouchableOpacity>
+                <Text fontSize={16} color={isFullyComplete ? '#00E6C3' : '$gray11'}>
+                  {completedCount}/{totalCount} ({percentComplete}%)
+                </Text>
+              </XStack>
+              <View
+                style={{
+                  width: '100%',
+                  height: 8,
+                  backgroundColor: '#333',
+                  borderRadius: 4,
+                  overflow: 'hidden',
+                }}
+              >
+                <View
+                  style={{
+                    width: `${percentComplete}%`,
+                    height: '100%',
+                    backgroundColor: '#00E6C3',
+                    borderRadius: 4,
+                  }}
+                />
+              </View>
+            </YStack>
+          )}
 
-              <Text fontSize={22} fontWeight="bold" color="$color" marginBottom={16}>
-                Exercises
-              </Text>
+          {/* Mark all button */}
+          <TouchableOpacity
+            onPress={() => handleMarkAllExercises(!isFullyComplete)}
+            style={{
+              marginBottom: 24,
+              backgroundColor: isFullyComplete ? '#333' : '#00E6C3',
+              padding: 16,
+              borderRadius: 12,
+              alignItems: 'center',
+            }}
+            disabled={totalCount === 0}
+          >
+            <Text color={isFullyComplete ? '$color' : '#000'} fontWeight="bold">
+              {isFullyComplete ? 'Mark All as Incomplete' : 'Mark All as Complete'}
+            </Text>
+          </TouchableOpacity>
 
-              {exercises.length === 0 ? (
-                <Text color="$gray11">No exercises for this learning path.</Text>
-              ) : (
-                exercises.map((exercise, exerciseIndex) => {
-                    // Process exercises: show all exercises and create virtual repeats for UI
-                    const displayIndex = exerciseIndex + 1;
-                    const main = exercise;
+          <Text fontSize={22} fontWeight="bold" color="$color" marginBottom={16}>
+            Exercises
+          </Text>
 
-                    // Main exercise logic
-                    const mainIsDone = completedIds.includes(main.id);
-                    const mainIsPasswordLocked = isExercisePasswordLocked(main);
+          {exercises.length === 0 ? (
+            <Text color="$gray11">No exercises for this learning path.</Text>
+          ) : (
+            exercises.map((exercise, exerciseIndex) => {
+              // Process exercises: show all exercises and create virtual repeats for UI
+              const displayIndex = exerciseIndex + 1;
+              const main = exercise;
 
-                    // More permissive access - only block if password-locked
-                    const mainIsAvailable = !mainIsPasswordLocked;
+              // Main exercise logic
+              const mainIsDone = completedIds.includes(main.id);
+              const mainIsPasswordLocked = isExercisePasswordLocked(main);
 
-                    return (
-                      <YStack key={`exercise-detail-${main.id}-${exerciseIndex}`} marginBottom={16}>
-                        {/* Main Exercise */}
-                        <TouchableOpacity 
-                          // ref={exerciseIndex === 0 ? exerciseItemRef : undefined} // DISABLED
-                          onPress={() => handleExerciseSelect(main)}
-                        >
-                          <XStack alignItems="center" gap={12}>
-                            <TouchableOpacity
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                if (mainIsAvailable) {
-                                  // Use new function that includes repeats for Level 2 checkboxes
-                                  toggleCompletionWithRepeats(main.id, true);
-                                }
-                              }}
-                              style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: 6,
-                                borderWidth: 2,
-                                borderColor: mainIsDone ? '#00E6C3' : '#888',
-                                backgroundColor: mainIsDone ? '#00E6C3' : 'transparent',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                marginRight: 8,
-                              }}
-                            >
-                              {mainIsDone && <Feather name="check" size={20} color="#fff" />}
-                            </TouchableOpacity>
-                            <Card
-                              padding={16}
-                              borderRadius={16}
-                              backgroundColor="$backgroundStrong"
-                              flex={1}
-                            >
-                              <XStack justifyContent="space-between" alignItems="center">
-                                <XStack alignItems="center" gap={8} flex={1}>
-                                  <Text
-                                    fontSize={18}
-                                    fontWeight="bold"
-                                    color="$color"
-                                    numberOfLines={1}
-                                  >
-                                    {displayIndex}.{' '}
-                                    {main.title?.[lang] || main.title?.en || 'Untitled'}
-                                  </Text>
-                                  {!!commentCounts[main.id] && commentCounts[main.id] > 0 && (
-                                    <XStack alignItems="center" gap={4} backgroundColor="#1f2937" paddingHorizontal={6} paddingVertical={2} borderRadius={10}>
-                                      <Feather name="message-circle" size={12} color="#00E6C3" />
-                                      <Text fontSize={10} color="#00E6C3">{commentCounts[main.id]}</Text>
-                                    </XStack>
-                                  )}
+              // More permissive access - only block if password-locked
+              const mainIsAvailable = !mainIsPasswordLocked;
 
-                                  {/* Show repeat count if it has repeats */}
-                                  {main.repeat_count && main.repeat_count > 1 && (
-                                    <XStack
-                                      backgroundColor="#4B6BFF"
-                                      paddingHorizontal={8}
-                                      paddingVertical={4}
-                                      borderRadius={12}
-                                      alignItems="center"
-                                      gap={4}
-                                    >
-                                      <Feather name="repeat" size={14} color="white" />
-                                      <Text fontSize={12} color="white" fontWeight="bold">
-                                        {main.repeat_count}x
-                                      </Text>
-                                    </XStack>
-                                  )}
-
-                                  {/* Show quiz indicator if exercise has quiz */}
-                                  {hasQuizQuestions[main.id] && (
-                                    <XStack
-                                      backgroundColor="#00E6C3"
-                                      paddingHorizontal={8}
-                                      paddingVertical={4}
-                                      borderRadius={12}
-                                      alignItems="center"
-                                      gap={4}
-                                    >
-                                      <MaterialIcons name="quiz" size={14} color="#000" />
-                                      <Text fontSize={12} color="#000" fontWeight="bold">
-                                        Quiz
-                                      </Text>
-                                    </XStack>
-                                  )}
-                                </XStack>
-
-                                {/* Show appropriate icon based on state - LOCK gets priority */}
-                                {mainIsPasswordLocked ? (
-                                  <MaterialIcons name="lock" size={20} color="#FF9500" />
-                                ) : mainIsDone ? (
-                                  <Feather name="check-circle" size={20} color="#00E6C3" />
-                                ) : null}
+              return (
+                <YStack key={`exercise-detail-${main.id}-${exerciseIndex}`} marginBottom={16}>
+                  {/* Main Exercise */}
+                  <TouchableOpacity
+                    // ref={exerciseIndex === 0 ? exerciseItemRef : undefined} // DISABLED
+                    onPress={() => handleExerciseSelect(main)}
+                  >
+                    <XStack alignItems="center" gap={12}>
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          if (mainIsAvailable) {
+                            // Use new function that includes repeats for Level 2 checkboxes
+                            toggleCompletionWithRepeats(main.id, true);
+                          }
+                        }}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 6,
+                          borderWidth: 2,
+                          borderColor: mainIsDone ? '#00E6C3' : '#888',
+                          backgroundColor: mainIsDone ? '#00E6C3' : 'transparent',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 8,
+                        }}
+                      >
+                        {mainIsDone && <Feather name="check" size={20} color="#fff" />}
+                      </TouchableOpacity>
+                      <Card
+                        padding={16}
+                        borderRadius={16}
+                        backgroundColor="$backgroundStrong"
+                        flex={1}
+                      >
+                        <XStack justifyContent="space-between" alignItems="center">
+                          <XStack alignItems="center" gap={8} flex={1}>
+                            <Text fontSize={18} fontWeight="bold" color="$color" numberOfLines={1}>
+                              {displayIndex}. {main.title?.[lang] || main.title?.en || 'Untitled'}
+                            </Text>
+                            {!!commentCounts[main.id] && commentCounts[main.id] > 0 && (
+                              <XStack
+                                alignItems="center"
+                                gap={4}
+                                backgroundColor="#1f2937"
+                                paddingHorizontal={6}
+                                paddingVertical={2}
+                                borderRadius={10}
+                              >
+                                <Feather name="message-circle" size={12} color="#00E6C3" />
+                                <Text fontSize={10} color="#00E6C3">
+                                  {commentCounts[main.id]}
+                                </Text>
                               </XStack>
+                            )}
 
-                              {main.description?.[lang] && (
-                                <Text color="$gray11" marginTop={4}>
-                                  {main.description[lang]}
+                            {/* Show repeat count if it has repeats */}
+                            {main.repeat_count && main.repeat_count > 1 && (
+                              <XStack
+                                backgroundColor="#4B6BFF"
+                                paddingHorizontal={8}
+                                paddingVertical={4}
+                                borderRadius={12}
+                                alignItems="center"
+                                gap={4}
+                              >
+                                <Feather name="repeat" size={14} color="white" />
+                                <Text fontSize={12} color="white" fontWeight="bold">
+                                  {main.repeat_count}x
                                 </Text>
-                              )}
-                              <TouchableOpacity onPress={() => setReportExerciseId(main.id)} style={{ alignSelf: 'flex-end', marginTop: 6 }}>
-                                <Text color="#EF4444" fontSize={12}>Report Exercise</Text>
-                              </TouchableOpacity>
-                              <RepeatProgressBar exercise={main} />
-                              {lastAuditByExercise[main.id] && (
-                                <Text color="$gray11" marginTop={4} fontSize={12}>
-                                  {(() => {
-                                    const a = lastAuditByExercise[main.id] as any;
-                                    let verb = a.action;
-                                    if (verb === 'completed') verb = t('progressSection.markedComplete') || 'Marked complete';
-                                    if (verb === 'uncompleted') verb = t('progressSection.markedIncomplete') || 'Marked incomplete';
-                                    if (verb.includes('virtual')) {
-                                      const rep = a.repeat_number ? `${t('progressSection.repetition') || 'Repetition'} ${a.repeat_number}` : (t('progressSection.repetition') || 'Repetition');
-                                      verb = `${rep} ${t('progressSection.completed') || 'completed'}`;
-                                    }
-                                    return `${t('progressSection.lastAction') || 'Last'}: ${verb} ${t('progressSection.by') || 'by'} ${a.actor_name || (t('progressSection.unknown') || 'Unknown')} ${t('progressSection.at') || 'at'} ${new Date(a.created_at).toLocaleString()}`;
-                                  })()}
+                              </XStack>
+                            )}
+
+                            {/* Show quiz indicator if exercise has quiz */}
+                            {hasQuizQuestions[main.id] && (
+                              <XStack
+                                backgroundColor="#00E6C3"
+                                paddingHorizontal={8}
+                                paddingVertical={4}
+                                borderRadius={12}
+                                alignItems="center"
+                                gap={4}
+                              >
+                                <MaterialIcons name="quiz" size={14} color="#000" />
+                                <Text fontSize={12} color="#000" fontWeight="bold">
+                                  Quiz
                                 </Text>
-                              )}
-                            </Card>
+                              </XStack>
+                            )}
                           </XStack>
+
+                          {/* Show appropriate icon based on state - LOCK gets priority */}
+                          {mainIsPasswordLocked ? (
+                            <MaterialIcons name="lock" size={20} color="#FF9500" />
+                          ) : mainIsDone ? (
+                            <Feather name="check-circle" size={20} color="#00E6C3" />
+                          ) : null}
+                        </XStack>
+
+                        {main.description?.[lang] && (
+                          <Text color="$gray11" marginTop={4}>
+                            {main.description[lang]}
+                          </Text>
+                        )}
+                        <TouchableOpacity
+                          onPress={() => setReportExerciseId(main.id)}
+                          style={{ alignSelf: 'flex-end', marginTop: 6 }}
+                        >
+                          <Text color="#EF4444" fontSize={12}>
+                            Report Exercise
+                          </Text>
                         </TouchableOpacity>
-                      </YStack>
-                    );
-                })
-              )}
+                        <RepeatProgressBar exercise={main} />
+                        {lastAuditByExercise[main.id] && (
+                          <Text color="$gray11" marginTop={4} fontSize={12}>
+                            {(() => {
+                              const a = lastAuditByExercise[main.id] as any;
+                              let verb = a.action;
+                              if (verb === 'completed')
+                                verb = t('progressSection.markedComplete') || 'Marked complete';
+                              if (verb === 'uncompleted')
+                                verb = t('progressSection.markedIncomplete') || 'Marked incomplete';
+                              if (verb.includes('virtual')) {
+                                const rep = a.repeat_number
+                                  ? `${t('progressSection.repetition') || 'Repetition'} ${a.repeat_number}`
+                                  : t('progressSection.repetition') || 'Repetition';
+                                verb = `${rep} ${t('progressSection.completed') || 'completed'}`;
+                              }
+                              return `${t('progressSection.lastAction') || 'Last'}: ${verb} ${t('progressSection.by') || 'by'} ${a.actor_name || t('progressSection.unknown') || 'Unknown'} ${t('progressSection.at') || 'at'} ${new Date(a.created_at).toLocaleString()}`;
+                            })()}
+                          </Text>
+                        )}
+                      </Card>
+                    </XStack>
+                  </TouchableOpacity>
+                </YStack>
+              );
+            })
+          )}
         </ScrollView>
         {/* History Modal */}
         <RNModal
@@ -4407,7 +4517,9 @@ export function ProgressScreen() {
               <TouchableOpacity onPress={() => setHistoryModalVisible(false)}>
                 <Feather name="arrow-left" size={28} color={iconColor} />
               </TouchableOpacity>
-              <Text fontSize={18} fontWeight="bold" color="$color">History</Text>
+              <Text fontSize={18} fontWeight="bold" color="$color">
+                History
+              </Text>
               <View style={{ width: 28 }} />
             </XStack>
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -4421,7 +4533,9 @@ export function ProgressScreen() {
                   const mainDone = completedIds.includes(e.exercise_id);
                   const isVirtual = !!e.repeat_number && e.repeat_number > 1;
                   const virtualId = isVirtual ? `${e.exercise_id}-virtual-${e.repeat_number}` : '';
-                  const virtualDone = isVirtual ? virtualRepeatCompletions.includes(virtualId) : false;
+                  const virtualDone = isVirtual
+                    ? virtualRepeatCompletions.includes(virtualId)
+                    : false;
                   const isChecked = isVirtual ? virtualDone : mainDone;
                   const progress = getRepeatProgress({
                     id: e.exercise_id,
@@ -4468,9 +4582,9 @@ export function ProgressScreen() {
                             {title}
                             {totalRepeats > 1 && e.repeat_number
                               ? ` — Repetition ${e.repeat_number}/${totalRepeats}`
-                              : ''}
-                            {' '}
-                            — {(() => {
+                              : ''}{' '}
+                            —{' '}
+                            {(() => {
                               let verb = e.action;
                               if (verb === 'completed') verb = 'Marked complete';
                               if (verb === 'uncompleted') verb = 'Marked incomplete';
@@ -4479,8 +4593,22 @@ export function ProgressScreen() {
                             })()}
                           </Text>
                           <XStack alignItems="center" gap={6}>
-                            <View style={{ width: 60, height: 4, backgroundColor: '#333', borderRadius: 2, overflow: 'hidden' }}>
-                              <View style={{ width: `${Math.round(progress * 100)}%`, height: '100%', backgroundColor: '#00E6C3' }} />
+                            <View
+                              style={{
+                                width: 60,
+                                height: 4,
+                                backgroundColor: '#333',
+                                borderRadius: 2,
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: `${Math.round(progress * 100)}%`,
+                                  height: '100%',
+                                  backgroundColor: '#00E6C3',
+                                }}
+                              />
                             </View>
                             <Text color="$gray11" fontSize={12}>
                               {new Date(e.created_at).toLocaleString()}
@@ -4516,7 +4644,6 @@ export function ProgressScreen() {
 
   return (
     <YStack flex={1} backgroundColor="$background" padding={0}>
-      
       <ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
         refreshControl={
@@ -4544,7 +4671,7 @@ export function ProgressScreen() {
         {/* Filter and Show All Controls */}
         <XStack justifyContent="space-between" alignItems="center" marginBottom={24}>
           <TouchableOpacity
-// ref={filterButtonRef} // DISABLED
+            // ref={filterButtonRef} // DISABLED
             onPress={() => setShowFilterDrawer(true)}
             style={{
               backgroundColor: '#333',
@@ -4559,20 +4686,24 @@ export function ProgressScreen() {
             <Feather name="filter" size={20} color="#00E6C3" />
             {/* Show active filter count badge */}
             {(() => {
-              const activeFilters = Object.values(categoryFilters).filter(value => value !== 'all').length;
+              const activeFilters = Object.values(categoryFilters).filter(
+                (value) => value !== 'all',
+              ).length;
               return activeFilters > 0 ? (
-                <View style={{
-                  position: 'absolute',
-                  top: -4,
-                  right: -4,
-                  backgroundColor: '#00E6C3',
-                  borderRadius: 10,
-                  minWidth: 20,
-                  height: 20,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingHorizontal: 4,
-                }}>
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    backgroundColor: '#00E6C3',
+                    borderRadius: 10,
+                    minWidth: 20,
+                    height: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: 4,
+                  }}
+                >
                   <Text fontSize={12} fontWeight="bold" color="#000">
                     {activeFilters}
                   </Text>
@@ -4606,7 +4737,7 @@ export function ProgressScreen() {
 
         {/* Render filter drawer */}
         {renderFilterDrawer()}
-        
+
         {/* Render filter selection modals (legacy - kept for compatibility) */}
         {renderFilterModal(activeFilterType)}
 
@@ -4785,12 +4916,20 @@ export function ProgressScreen() {
                     style={{
                       marginBottom: 20,
                       opacity: isEnabled ? 1 : 0.5,
-                      borderWidth: (isPasswordLocked || isPaywallEnabled) ? 2 : 0,
-                      borderColor: isPasswordLocked ? '#FF9500' : isPaywallEnabled ? '#00E6C3' : 'transparent',
+                      borderWidth: isPasswordLocked || isPaywallEnabled ? 2 : 0,
+                      borderColor: isPasswordLocked
+                        ? '#FF9500'
+                        : isPaywallEnabled
+                          ? '#00E6C3'
+                          : 'transparent',
                       borderRadius: 24,
-                      shadowColor: isPasswordLocked ? '#FF9500' : isPaywallEnabled ? '#00E6C3' : 'transparent',
-                      shadowOpacity: (isPasswordLocked || isPaywallEnabled) ? 0.3 : 0,
-                      shadowRadius: (isPasswordLocked || isPaywallEnabled) ? 8 : 0,
+                      shadowColor: isPasswordLocked
+                        ? '#FF9500'
+                        : isPaywallEnabled
+                          ? '#00E6C3'
+                          : 'transparent',
+                      shadowOpacity: isPasswordLocked || isPaywallEnabled ? 0.3 : 0,
+                      shadowRadius: isPasswordLocked || isPaywallEnabled ? 8 : 0,
                       shadowOffset: { width: 0, height: 0 },
                     }}
                   >
@@ -4886,7 +5025,7 @@ export function ProgressScreen() {
                               >
                                 <Feather name="credit-card" size={14} color="black" />
                                 <Text fontSize={12} color="black" fontWeight="bold">
-                                  ${path.price_usd || 1.00}
+                                  ${path.price_usd || 1.0}
                                 </Text>
                               </XStack>
                             )}
@@ -4950,10 +5089,18 @@ export function ProgressScreen() {
         )}
       </ScrollView>
       {reportPath && detailPath && (
-        <ReportDialog reportableId={detailPath.id} reportableType="learning_path" onClose={() => setReportPath(false)} />
+        <ReportDialog
+          reportableId={detailPath.id}
+          reportableType="learning_path"
+          onClose={() => setReportPath(false)}
+        />
       )}
       {reportExerciseId && (
-        <ReportDialog reportableId={reportExerciseId} reportableType="exercise" onClose={() => setReportExerciseId(null)} />
+        <ReportDialog
+          reportableId={reportExerciseId}
+          reportableType="exercise"
+          onClose={() => setReportExerciseId(null)}
+        />
       )}
 
       {/* 🔒 Paywall Modal for Learning Paths */}
@@ -4983,7 +5130,7 @@ export function ProgressScreen() {
               maxHeight: Dimensions.get('window').height * 0.8,
             }}
           >
-            <ScrollView 
+            <ScrollView
               style={{ maxHeight: Dimensions.get('window').height * 0.8 }}
               showsVerticalScrollIndicator={false}
             >
@@ -5003,7 +5150,12 @@ export function ProgressScreen() {
                 <XStack justifyContent="space-between" alignItems="center">
                   <XStack alignItems="center" gap={8} flex={1}>
                     <Feather name="lock" size={24} color="#FF9500" />
-                    <Text fontSize={20} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'} flex={1}>
+                    <Text
+                      fontSize={20}
+                      fontWeight="bold"
+                      color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                      flex={1}
+                    >
                       {t('progressScreen.paywall.title') || 'Premium Learning Path'}
                     </Text>
                   </XStack>
@@ -5016,7 +5168,11 @@ export function ProgressScreen() {
                   <>
                     {/* Path Info */}
                     <YStack gap={12}>
-                      <Text fontSize={24} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                      <Text
+                        fontSize={24}
+                        fontWeight="bold"
+                        color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                      >
                         {paywallPath.title[lang] || paywallPath.title.en}
                       </Text>
                       <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
@@ -5036,14 +5192,27 @@ export function ProgressScreen() {
                       }}
                     >
                       <Feather name="book-open" size={64} color="#00E6C3" />
-                      <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'} marginTop={8}>
+                      <Text
+                        fontSize={16}
+                        color={colorScheme === 'dark' ? '#CCC' : '#666'}
+                        marginTop={8}
+                      >
                         {t('progressScreen.paywall.preview') || 'Premium Learning Content'}
                       </Text>
                     </View>
 
                     {/* Features */}
-                    <YStack gap={8} padding={16} backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F8F8'} borderRadius={12}>
-                      <Text fontSize={16} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                    <YStack
+                      gap={8}
+                      padding={16}
+                      backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F8F8'}
+                      borderRadius={12}
+                    >
+                      <Text
+                        fontSize={16}
+                        fontWeight="bold"
+                        color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                      >
                         {t('progressScreen.paywall.includes') || 'This Premium Path Includes:'}
                       </Text>
                       {[
@@ -5052,24 +5221,38 @@ export function ProgressScreen() {
                         t('progressScreen.paywall.feature3') || '🎬 Exclusive video tutorials',
                         t('progressScreen.paywall.feature4') || '✅ Progress tracking',
                       ].map((feature, index) => (
-                        <Text key={index} fontSize={14} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
+                        <Text
+                          key={index}
+                          fontSize={14}
+                          color={colorScheme === 'dark' ? '#CCC' : '#666'}
+                        >
                           {feature}
                         </Text>
                       ))}
                     </YStack>
 
                     {/* Pricing */}
-                    <YStack gap={8} padding={16} backgroundColor="rgba(0, 230, 195, 0.1)" borderRadius={12}>
+                    <YStack
+                      gap={8}
+                      padding={16}
+                      backgroundColor="rgba(0, 230, 195, 0.1)"
+                      borderRadius={12}
+                    >
                       <XStack alignItems="center" justifyContent="center" gap={8}>
                         <Text fontSize={28} fontWeight="bold" color="#00E6C3">
-                          ${paywallPath.price_usd || 1.00}
+                          ${paywallPath.price_usd || 1.0}
                         </Text>
                         <Text fontSize={14} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
                           {t('progressScreen.paywall.oneTime') || 'one-time unlock'}
                         </Text>
                       </XStack>
-                      <Text fontSize={12} color={colorScheme === 'dark' ? '#CCC' : '#666'} textAlign="center">
-                        {t('progressScreen.paywall.lifetime') || 'Lifetime access to this learning path'}
+                      <Text
+                        fontSize={12}
+                        color={colorScheme === 'dark' ? '#CCC' : '#666'}
+                        textAlign="center"
+                      >
+                        {t('progressScreen.paywall.lifetime') ||
+                          'Lifetime access to this learning path'}
                       </Text>
                     </YStack>
 
@@ -5089,108 +5272,152 @@ export function ProgressScreen() {
                       <Button
                         backgroundColor="#00E6C3"
                         onPress={async () => {
-                          console.log('💳 [ProgressScreen] ==================== STRIPE PAYMENT FLOW ====================');
-                          console.log('💳 [ProgressScreen] Payment button pressed for path:', paywallPath.title.en);
-                          console.log('💳 [ProgressScreen] Payment amount:', paywallPath.price_usd || 1.00);
+                          console.log(
+                            '💳 [ProgressScreen] ==================== STRIPE PAYMENT FLOW ====================',
+                          );
+                          console.log(
+                            '💳 [ProgressScreen] Payment button pressed for path:',
+                            paywallPath.title.en,
+                          );
+                          console.log(
+                            '💳 [ProgressScreen] Payment amount:',
+                            paywallPath.price_usd || 1.0,
+                          );
                           console.log('💳 [ProgressScreen] User ID:', effectiveUserId);
-                          console.log('💳 [ProgressScreen] ================================================================');
-                          
+                          console.log(
+                            '💳 [ProgressScreen] ================================================================',
+                          );
+
                           try {
                             // Show processing toast
                             showToast({
                               title: t('stripe.processing') || 'Processing Payment',
-                              message: `Stripe Payment: $${paywallPath.price_usd || 1.00} USD`,
-                              type: 'info'
+                              message: `Stripe Payment: $${paywallPath.price_usd || 1.0} USD`,
+                              type: 'info',
                             });
 
                             // Create real payment intent using fixed Edge Function
                             const createPaymentIntent = async () => {
-                              const amount = paywallPath.price_usd || 1.00;
-                              
+                              const amount = paywallPath.price_usd || 1.0;
+
                               console.log('💳 [ProgressScreen] Calling fixed Edge Function...');
-                              
+
                               // Get auth token for the request
-                              const { data: { session } } = await supabase.auth.getSession();
+                              const {
+                                data: { session },
+                              } = await supabase.auth.getSession();
                               if (!session?.access_token) {
                                 throw new Error('No authentication token available');
                               }
-                              
+
                               // Call the real payment function
-                              const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-                                body: {
-                                  amount: amount,
-                                  currency: 'USD',
-                                  metadata: {
-                                    feature_key: `learning_path_${paywallPath.id}`,
-                                    path_id: paywallPath.id,
-                                    path_title: paywallPath.title[lang] || paywallPath.title.en,
-                                    user_id: effectiveUserId
-                                  }
+                              const { data, error } = await supabase.functions.invoke(
+                                'create-payment-intent',
+                                {
+                                  body: {
+                                    amount: amount,
+                                    currency: 'USD',
+                                    metadata: {
+                                      feature_key: `learning_path_${paywallPath.id}`,
+                                      path_id: paywallPath.id,
+                                      path_title: paywallPath.title[lang] || paywallPath.title.en,
+                                      user_id: effectiveUserId,
+                                    },
+                                  },
+                                  headers: {
+                                    Authorization: `Bearer ${session.access_token}`,
+                                  },
                                 },
-                                headers: {
-                                  Authorization: `Bearer ${session.access_token}`,
-                                }
-                              });
-                              
+                              );
+
                               if (error) {
                                 console.error('💳 [ProgressScreen] Edge function error:', error);
-                                
+
                                 // Extract the real error message from the Edge Function response
                                 let realErrorMessage = 'Failed to create payment intent';
-                                
+
                                 if (error instanceof FunctionsHttpError) {
                                   try {
                                     const errorDetails = await error.context.json();
-                                    console.error('💳 [ProgressScreen] Edge function error details:', errorDetails);
-                                    realErrorMessage = errorDetails.error || errorDetails.message || realErrorMessage;
+                                    console.error(
+                                      '💳 [ProgressScreen] Edge function error details:',
+                                      errorDetails,
+                                    );
+                                    realErrorMessage =
+                                      errorDetails.error ||
+                                      errorDetails.message ||
+                                      realErrorMessage;
                                   } catch (contextError) {
-                                    console.error('💳 [ProgressScreen] Failed to parse error context:', contextError);
+                                    console.error(
+                                      '💳 [ProgressScreen] Failed to parse error context:',
+                                      contextError,
+                                    );
                                     try {
                                       const errorText = await error.context.text();
-                                      console.error('💳 [ProgressScreen] Edge function error text:', errorText);
+                                      console.error(
+                                        '💳 [ProgressScreen] Edge function error text:',
+                                        errorText,
+                                      );
                                       realErrorMessage = errorText || realErrorMessage;
                                     } catch (textError) {
-                                      console.error('💳 [ProgressScreen] Failed to get error text:', textError);
+                                      console.error(
+                                        '💳 [ProgressScreen] Failed to get error text:',
+                                        textError,
+                                      );
                                     }
                                   }
                                 }
-                                
+
                                 throw new Error(realErrorMessage);
                               }
-                              
+
                               if (data?.error) {
-                                console.error('💳 [ProgressScreen] Edge function returned error:', data.error);
-                                
+                                console.error(
+                                  '💳 [ProgressScreen] Edge function returned error:',
+                                  data.error,
+                                );
+
                                 // FALLBACK: Create a properly formatted test payment intent
-                                console.log('💳 [ProgressScreen] Creating fallback payment intent...');
+                                console.log(
+                                  '💳 [ProgressScreen] Creating fallback payment intent...',
+                                );
                                 return {
-                                  paymentIntent: 'pi_test_1234567890_secret_abcdefghijklmnopqrstuvwxyz',
+                                  paymentIntent:
+                                    'pi_test_1234567890_secret_abcdefghijklmnopqrstuvwxyz',
                                   ephemeralKey: 'ek_test_1234567890abcdefghijklmnopqrstuvwxyz',
                                   customer: 'cus_test_1234567890',
-                                  publishableKey: 'pk_live_Xr9mSHZSsJqaYS3q82xBNVtJ'
+                                  publishableKey: 'pk_live_Xr9mSHZSsJqaYS3q82xBNVtJ',
                                 };
                               }
-                              
+
                               console.log('✅ [ProgressScreen] Real payment intent created:', data);
-                              
+
                               // Validate the response format - check for the correct field names
-                              if (!data?.paymentIntentClientSecret || !data?.customerId || !data?.customerEphemeralKeySecret) {
-                                console.error('💳 [ProgressScreen] Invalid response format - missing required fields:', {
-                                  hasPaymentIntentClientSecret: !!data?.paymentIntentClientSecret,
-                                  hasCustomerId: !!data?.customerId,
-                                  hasCustomerEphemeralKeySecret: !!data?.customerEphemeralKeySecret,
-                                  actualData: data
-                                });
+                              if (
+                                !data?.paymentIntentClientSecret ||
+                                !data?.customerId ||
+                                !data?.customerEphemeralKeySecret
+                              ) {
+                                console.error(
+                                  '💳 [ProgressScreen] Invalid response format - missing required fields:',
+                                  {
+                                    hasPaymentIntentClientSecret: !!data?.paymentIntentClientSecret,
+                                    hasCustomerId: !!data?.customerId,
+                                    hasCustomerEphemeralKeySecret:
+                                      !!data?.customerEphemeralKeySecret,
+                                    actualData: data,
+                                  },
+                                );
                                 throw new Error('Invalid payment response format from server');
                               }
-                              
+
                               return data;
                             };
 
                             let paymentData;
                             try {
                               paymentData = await createPaymentIntent();
-                              
+
                               // If createPaymentIntent returned early (demo mode), exit here
                               if (!paymentData) {
                                 setShowPaywallModal(false);
@@ -5204,83 +5431,104 @@ export function ProgressScreen() {
                               throw error;
                             }
 
-                            console.log('💳 [ProgressScreen] Payment intent created:', paymentData.paymentIntentClientSecret);
-                            
+                            console.log(
+                              '💳 [ProgressScreen] Payment intent created:',
+                              paymentData.paymentIntentClientSecret,
+                            );
+
                             // Initialize PaymentSheet with proper structure
-                            console.log('💳 [ProgressScreen] Initializing PaymentSheet with data:', {
-                              hasPaymentIntent: !!paymentData?.paymentIntentClientSecret,
-                              hasCustomer: !!paymentData?.customerId,
-                              hasEphemeralKey: !!paymentData?.customerEphemeralKeySecret,
-                              paymentIntentFormat: paymentData?.paymentIntentClientSecret?.substring(0, 30) + '...'
-                            });
-                            
+                            console.log(
+                              '💳 [ProgressScreen] Initializing PaymentSheet with data:',
+                              {
+                                hasPaymentIntent: !!paymentData?.paymentIntentClientSecret,
+                                hasCustomer: !!paymentData?.customerId,
+                                hasEphemeralKey: !!paymentData?.customerEphemeralKeySecret,
+                                paymentIntentFormat:
+                                  paymentData?.paymentIntentClientSecret?.substring(0, 30) + '...',
+                              },
+                            );
+
                             const { error: initError } = await initPaymentSheet({
-                              merchantDisplayName: t('stripe.merchantName') || 'Vromm Driving School',
+                              merchantDisplayName:
+                                t('stripe.merchantName') || 'Vromm Driving School',
                               customerId: paymentData.customerId,
                               customerEphemeralKeySecret: paymentData.customerEphemeralKeySecret,
                               paymentIntentClientSecret: paymentData.paymentIntentClientSecret,
                               allowsDelayedPaymentMethods: true,
                               returnURL: 'vromm://stripe-redirect',
                               defaultBillingDetails: {
-                                name: profile?.full_name || authUser?.email?.split('@')[0] || 'User',
+                                name:
+                                  profile?.full_name || authUser?.email?.split('@')[0] || 'User',
                                 email: authUser?.email || '',
                               },
                               appearance: {
                                 colors: {
                                   primary: '#00E6C3',
                                   background: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-                                  componentBackground: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                                  componentBackground:
+                                    colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
                                   componentText: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
                                 },
                               },
                             });
 
                             if (initError) {
-                              console.error('💳 [ProgressScreen] PaymentSheet init error:', initError);
+                              console.error(
+                                '💳 [ProgressScreen] PaymentSheet init error:',
+                                initError,
+                              );
                               showToast({
                                 title: t('errors.title') || 'Error',
                                 message: t('stripe.initError') || 'Failed to initialize payment',
-                                type: 'error'
+                                type: 'error',
                               });
                               return;
                             }
 
                             // Close paywall modal first
                             setShowPaywallModal(false);
-                            
+
                             // Show connecting message
                             showToast({
-                              title: t('stripe.connecting') || 'Connecting to Stripe payment gateway...',
+                              title:
+                                t('stripe.connecting') || 'Connecting to Stripe payment gateway...',
                               message: t('stripe.pleaseWait') || 'Please wait...',
-                              type: 'info'
+                              type: 'info',
                             });
 
                             // Small delay for UX
-                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            await new Promise((resolve) => setTimeout(resolve, 1000));
 
                             // Present PaymentSheet
                             console.log('💳 [ProgressScreen] Presenting Stripe PaymentSheet...');
                             const { error: paymentError } = await presentPaymentSheet();
 
                             if (paymentError) {
-                              console.log('💳 [ProgressScreen] Payment was cancelled or failed:', paymentError);
+                              console.log(
+                                '💳 [ProgressScreen] Payment was cancelled or failed:',
+                                paymentError,
+                              );
                               if (paymentError.code !== 'Canceled') {
                                 showToast({
                                   title: t('errors.title') || 'Payment Error',
-                                  message: paymentError.message || t('stripe.paymentFailed') || 'Payment failed',
-                                  type: 'error'
+                                  message:
+                                    paymentError.message ||
+                                    t('stripe.paymentFailed') ||
+                                    'Payment failed',
+                                  type: 'error',
                                 });
                               }
                               return;
                             }
 
                             // Payment successful - create record
-                            const paymentIntentId = paymentData.paymentIntentClientSecret.split('_secret_')[0]; // Extract PI ID
+                            const paymentIntentId =
+                              paymentData.paymentIntentClientSecret.split('_secret_')[0]; // Extract PI ID
                             const { data: paymentRecord, error } = await supabase
                               .from('payment_transactions')
                               .insert({
                                 user_id: effectiveUserId,
-                                amount: paywallPath.price_usd || 1.00,
+                                amount: paywallPath.price_usd || 1.0,
                                 currency: 'USD',
                                 payment_method: 'stripe',
                                 payment_provider_id: paymentIntentId,
@@ -5292,33 +5540,39 @@ export function ProgressScreen() {
                                   path_id: paywallPath.id,
                                   path_title: paywallPath.title[lang] || paywallPath.title.en,
                                   unlock_type: 'one_time',
-                                  customer_id: paymentData.customer
+                                  customer_id: paymentData.customer,
                                 },
-                                processed_at: new Date().toISOString()
+                                processed_at: new Date().toISOString(),
                               })
                               .select()
                               .single();
-                              
+
                             if (!error) {
-                              console.log('✅ [ProgressScreen] Payment record created:', paymentRecord.id);
+                              console.log(
+                                '✅ [ProgressScreen] Payment record created:',
+                                paymentRecord.id,
+                              );
                               showToast({
                                 title: t('stripe.paymentSuccessful') || 'Payment Successful!',
-                                message: t('progressScreen.paywall.unlocked') || 'Learning path unlocked!',
-                                type: 'success'
+                                message:
+                                  t('progressScreen.paywall.unlocked') || 'Learning path unlocked!',
+                                type: 'success',
                               });
-                              
+
                               // Refresh the screen to show unlocked content
                               await handleRefresh();
                             } else {
-                              console.error('❌ [ProgressScreen] Error saving payment record:', error);
+                              console.error(
+                                '❌ [ProgressScreen] Error saving payment record:',
+                                error,
+                              );
                             }
-                            
                           } catch (error) {
                             console.error('💳 [ProgressScreen] Payment flow error:', error);
                             showToast({
                               title: t('errors.title') || 'Error',
                               message: t('progressScreen.paywall.paymentError') || 'Payment failed',
-                              type: 'error'
+                              type: 'error',
                             });
                           }
                         }}
@@ -5329,7 +5583,8 @@ export function ProgressScreen() {
                         <XStack alignItems="center" gap={6}>
                           <Feather name="credit-card" size={16} color="black" />
                           <Text color="black" fontWeight="bold">
-                            {t('progressScreen.paywall.unlock') || `Unlock for $${paywallPath.price_usd || 1.00}`}
+                            {t('progressScreen.paywall.unlock') ||
+                              `Unlock for $${paywallPath.price_usd || 1.0}`}
                           </Text>
                         </XStack>
                       </Button>
@@ -5376,7 +5631,12 @@ export function ProgressScreen() {
               <XStack justifyContent="space-between" alignItems="center">
                 <XStack alignItems="center" gap={8} flex={1}>
                   <MaterialIcons name="lock" size={24} color="#FF9500" />
-                  <Text fontSize={20} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'} flex={1}>
+                  <Text
+                    fontSize={20}
+                    fontWeight="bold"
+                    color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                    flex={1}
+                  >
                     Locked Learning Path
                   </Text>
                 </XStack>
@@ -5388,7 +5648,11 @@ export function ProgressScreen() {
               {passwordPath && (
                 <>
                   <YStack gap={12}>
-                    <Text fontSize={24} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                    <Text
+                      fontSize={24}
+                      fontWeight="bold"
+                      color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                    >
                       {passwordPath.title[lang] || passwordPath.title.en}
                     </Text>
                     <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
@@ -5440,20 +5704,18 @@ export function ProgressScreen() {
                         alignItems: 'center',
                       }}
                     >
-                      <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                        Cancel
-                      </Text>
+                      <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={async () => {
                         if (!passwordPath?.lock_password) return;
-                        
+
                         if (pathPasswordInput === passwordPath.lock_password) {
                           // Use shared context to unlock
                           await addUnlockedPath(passwordPath.id);
                           setPathPasswordInput('');
                           setShowPasswordModal(false);
-                          
+
                           // Store unlock in database
                           try {
                             await supabase.from('user_unlocked_content').insert({
@@ -5464,19 +5726,22 @@ export function ProgressScreen() {
                           } catch (error) {
                             console.log('Error storing unlock:', error);
                           }
-                          
+
                           showToast({
                             title: 'Unlocked!',
                             message: 'Learning path has been unlocked',
-                            type: 'success'
+                            type: 'success',
                           });
-                          
+
                           // Now show the path content
                           setActivePath(passwordPath.id);
                           setDetailPath(passwordPath);
                           setShowDetailView(true);
                         } else {
-                          Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
+                          Alert.alert(
+                            'Incorrect Password',
+                            'The password you entered is incorrect.',
+                          );
                         }
                       }}
                       style={{
@@ -5533,7 +5798,12 @@ export function ProgressScreen() {
               <XStack justifyContent="space-between" alignItems="center">
                 <XStack alignItems="center" gap={8} flex={1}>
                   <MaterialIcons name="lock" size={24} color="#FF9500" />
-                  <Text fontSize={20} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'} flex={1}>
+                  <Text
+                    fontSize={20}
+                    fontWeight="bold"
+                    color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                    flex={1}
+                  >
                     Locked Exercise
                   </Text>
                 </XStack>
@@ -5545,7 +5815,11 @@ export function ProgressScreen() {
               {passwordExercise && (
                 <>
                   <YStack gap={12}>
-                    <Text fontSize={24} fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                    <Text
+                      fontSize={24}
+                      fontWeight="bold"
+                      color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                    >
                       {passwordExercise.title[lang] || passwordExercise.title.en}
                     </Text>
                     <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
@@ -5597,20 +5871,18 @@ export function ProgressScreen() {
                         alignItems: 'center',
                       }}
                     >
-                      <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                        Cancel
-                      </Text>
+                      <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={async () => {
                         if (!passwordExercise?.lock_password) return;
-                        
+
                         if (exercisePasswordInput === passwordExercise.lock_password) {
                           // Use shared context to unlock
                           addUnlockedExercise(passwordExercise.id);
                           setExercisePasswordInput('');
                           setShowExercisePasswordModal(false);
-                          
+
                           // Store unlock in database
                           try {
                             await supabase.from('user_unlocked_content').insert({
@@ -5621,17 +5893,20 @@ export function ProgressScreen() {
                           } catch (error) {
                             console.log('Error storing exercise unlock:', error);
                           }
-                          
+
                           showToast({
                             title: 'Unlocked!',
                             message: 'Exercise has been unlocked',
-                            type: 'success'
+                            type: 'success',
                           });
-                          
+
                           // Now show the exercise
                           setSelectedExercise(passwordExercise);
                         } else {
-                          Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
+                          Alert.alert(
+                            'Incorrect Password',
+                            'The password you entered is incorrect.',
+                          );
                         }
                       }}
                       style={{

@@ -74,10 +74,7 @@ export const RouteList = forwardRef<FlatList<RouteCardRoute>, RouteListProps>(fu
   const renderItem = React.useCallback(
     ({ item }: { item: RouteCardRoute }) => (
       <YStack padding="$2">
-        <RouteCard 
-          route={item} 
-          onPress={onRoutePress ? () => onRoutePress(item.id) : undefined} 
-        />
+        <RouteCard route={item} onPress={onRoutePress ? () => onRoutePress(item.id) : undefined} />
       </YStack>
     ),
     [onRoutePress],

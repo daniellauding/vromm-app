@@ -131,12 +131,12 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
-    const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [locationPermission, setLocationPermission] = useState<boolean>(false);
   const [penPath, setPenPath] = useState<{ latitude: number; longitude: number }[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const searchInputRef = useRef<any>(null);
-  
+
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
   const { eventId } = (route.params as { eventId?: string }) || {};
@@ -191,14 +191,16 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
   const loadEvent = async () => {
     try {
       if (!eventId) return;
-      
+
       const event = await db.events.getById(eventId);
-      const parsedEmbeds = event.embeds ? JSON.parse(JSON.stringify(event.embeds)) : { exercises: [], routes: [] };
-      
+      const parsedEmbeds = event.embeds
+        ? JSON.parse(JSON.stringify(event.embeds))
+        : { exercises: [], routes: [] };
+
       // Parse location data (can be simple string or complex JSON)
       let eventLocation = undefined;
       let waypoints: Waypoint[] = [];
-      
+
       if (event.location) {
         try {
           const locationData = JSON.parse(event.location);
@@ -208,19 +210,21 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
           } else if (locationData.coordinates) {
             // Simple coordinate format
             eventLocation = locationData;
-            waypoints = [{
-              latitude: locationData.coordinates.latitude,
-              longitude: locationData.coordinates.longitude,
-              title: 'Event Location',
-              description: locationData.address || 'Event location',
-            }];
+            waypoints = [
+              {
+                latitude: locationData.coordinates.latitude,
+                longitude: locationData.coordinates.longitude,
+                title: 'Event Location',
+                description: locationData.address || 'Event location',
+              },
+            ];
           }
         } catch (e) {
           // Fallback for simple string location
           waypoints = [];
         }
       }
-      
+
       setFormData({
         title: event.title,
         description: event.description || '',
@@ -229,7 +233,9 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
         waypoints,
         visibility: event.visibility,
         eventDate: event.event_date ? event.event_date.split('T')[0] : '',
-        recurrenceRule: event.recurrence_rule ? JSON.parse(JSON.stringify(event.recurrence_rule)) : null,
+        recurrenceRule: event.recurrence_rule
+          ? JSON.parse(JSON.stringify(event.recurrence_rule))
+          : null,
         media: event.media ? JSON.parse(JSON.stringify(event.media)) : [],
         embeds: {
           exercises: parsedEmbeds.exercises || [],
@@ -287,7 +293,7 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
                 fileName: mediaItem.uri.split('/').pop() || 'media',
               },
               'media',
-              `events/${Date.now()}`
+              `events/${Date.now()}`,
             );
 
             if (publicUrl) {
@@ -325,7 +331,7 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
       } else if (formData.location.trim()) {
         locationData = formData.location.trim();
       }
-      
+
       const eventData = {
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
@@ -334,14 +340,17 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
         event_date: formData.eventDate ? new Date(formData.eventDate).toISOString() : undefined,
         repeat: formData.recurrenceRule?.pattern || 'none',
         recurrence_rule: formData.recurrenceRule ? formData.recurrenceRule : undefined,
-        recurrence_end_date: formData.recurrenceRule?.endType === 'date' && formData.recurrenceRule.endDate
-          ? new Date(formData.recurrenceRule.endDate).toISOString()
-          : undefined,
-        recurrence_count: formData.recurrenceRule?.endType === 'count' 
-          ? formData.recurrenceRule.count 
-          : undefined,
+        recurrence_end_date:
+          formData.recurrenceRule?.endType === 'date' && formData.recurrenceRule.endDate
+            ? new Date(formData.recurrenceRule.endDate).toISOString()
+            : undefined,
+        recurrence_count:
+          formData.recurrenceRule?.endType === 'count' ? formData.recurrenceRule.count : undefined,
         media: uploadedMedia.length > 0 ? uploadedMedia : undefined,
-        embeds: formData.embeds.exercises.length > 0 || formData.embeds.routes.length > 0 ? formData.embeds : undefined,
+        embeds:
+          formData.embeds.exercises.length > 0 || formData.embeds.routes.length > 0
+            ? formData.embeds
+            : undefined,
       };
 
       let createdEventId = eventId;
@@ -351,14 +360,10 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
         const newEvent = await db.events.create(eventData);
         createdEventId = newEvent.id;
       }
-      
+
       // Show toast notification instead of alert
-      showEventCreatedToast(
-        createdEventId || eventId || '',
-        formData.title,
-        isEditing
-      );
-      
+      showEventCreatedToast(createdEventId || eventId || '', formData.title, isEditing);
+
       if (onEventCreated) {
         onEventCreated();
       } else {
@@ -387,7 +392,7 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
   const handleRemoveMedia = (index: number) => {
     updateFormData(
       'media',
-      formData.media.filter((_, i) => i !== index)
+      formData.media.filter((_, i) => i !== index),
     );
   };
 
@@ -398,7 +403,7 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
     try {
       const newMediaItems = await mediaUtils.pickMediaFromLibrary(!useCamera);
       if (newMediaItems && newMediaItems.length > 0) {
-        const convertedMedia: CarouselMediaItem[] = newMediaItems.map(item => ({
+        const convertedMedia: CarouselMediaItem[] = newMediaItems.map((item) => ({
           type: item.type,
           uri: item.uri,
         }));
@@ -426,7 +431,7 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
     try {
       const newMedia = await mediaUtils.pickMediaFromLibrary(false); // Single photo selection
       if (newMedia && newMedia.length > 0) {
-        const convertedMedia: CarouselMediaItem[] = newMedia.map(item => ({
+        const convertedMedia: CarouselMediaItem[] = newMedia.map((item) => ({
           type: item.type,
           uri: item.uri,
         }));
@@ -454,7 +459,7 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
     try {
       const newMedia = await mediaUtils.pickVideoFromLibrary(false); // Single video selection
       if (newMedia && newMedia.length > 0) {
-        const convertedMedia: CarouselMediaItem[] = newMedia.map(item => ({
+        const convertedMedia: CarouselMediaItem[] = newMedia.map((item) => ({
           type: item.type,
           uri: item.uri,
         }));
@@ -468,7 +473,7 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
 
   const addYoutubeLink = () => {
     if (!youtubeLink.trim()) return;
-    
+
     const newMedia = mediaUtils.createYoutubeMediaItem(youtubeLink);
     if (!newMedia) {
       Alert.alert('Invalid YouTube URL', 'Please enter a valid YouTube URL');
@@ -499,8 +504,8 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
 
   const handlePenMode = (latitude: number, longitude: number) => {
     const newPoint = { latitude, longitude };
-    setPenPath(prev => [...prev, newPoint]);
-    
+    setPenPath((prev) => [...prev, newPoint]);
+
     // Convert pen path to waypoints for storage
     const newWaypoint: Waypoint = {
       latitude,
@@ -686,17 +691,15 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
     try {
       // Check if permission is already granted
       const { status: currentStatus } = await Location.getForegroundPermissionsAsync();
-      
+
       if (currentStatus !== 'granted') {
         // Request permission only when user explicitly wants it
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert(
-            'Location Permission Required', 
+            'Location Permission Required',
             'Please allow location access to use the "Locate Me" feature. You can also search for locations or tap on the map instead.',
-            [
-              { text: 'OK', style: 'default' }
-            ]
+            [{ text: 'OK', style: 'default' }],
           );
           return;
         }
@@ -709,9 +712,9 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
 
         // Get address for the location
         const address = await Location.reverseGeocodeAsync({ latitude, longitude });
-        const locationName = address[0] ? 
-          [address[0].street, address[0].city, address[0].country].filter(Boolean).join(', ') :
-          `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        const locationName = address[0]
+          ? [address[0].street, address[0].city, address[0].country].filter(Boolean).join(', ')
+          : `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
         // Update map region to user's location
         setMapRegion({
@@ -728,7 +731,10 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
       }
     } catch (error) {
       console.error('Location error:', error);
-      Alert.alert('Error', 'Failed to get current location. You can search for a location or tap on the map instead.');
+      Alert.alert(
+        'Error',
+        'Failed to get current location. You can search for a location or tap on the map instead.',
+      );
     }
   };
 
@@ -742,7 +748,7 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
           text: 'Add',
           onPress: (input) => {
             if (input) {
-              const coords = input.split(',').map(s => parseFloat(s.trim()));
+              const coords = input.split(',').map((s) => parseFloat(s.trim()));
               if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
                 const [latitude, longitude] = coords;
                 handlePinMode(latitude, longitude);
@@ -754,7 +760,7 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
           },
         },
       ],
-      'plain-text'
+      'plain-text',
     );
   };
 
@@ -768,8 +774,6 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
     setIsDrawing(false);
     setSearchQuery('');
   };
-
-
 
   const handleExercisesChange = (exercises: any[]) => {
     setFormData((prev) => ({
@@ -816,10 +820,30 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
   };
 
   const drawingModeOptions = [
-    { value: 'pin' as const, label: 'Single Pin', icon: <MapPin size={16} />, description: 'Drop one location pin' },
-    { value: 'waypoint' as const, label: 'Multiple Points', icon: <Navigation size={16} />, description: 'Add multiple waypoints' },
-    { value: 'pen' as const, label: 'Draw Path', icon: <Edit3 size={16} />, description: 'Draw custom path on map' },
-    { value: 'search' as const, label: 'Search', icon: <Search size={16} />, description: 'Search for locations' },
+    {
+      value: 'pin' as const,
+      label: 'Single Pin',
+      icon: <MapPin size={16} />,
+      description: 'Drop one location pin',
+    },
+    {
+      value: 'waypoint' as const,
+      label: 'Multiple Points',
+      icon: <Navigation size={16} />,
+      description: 'Add multiple waypoints',
+    },
+    {
+      value: 'pen' as const,
+      label: 'Draw Path',
+      icon: <Edit3 size={16} />,
+      description: 'Draw custom path on map',
+    },
+    {
+      value: 'search' as const,
+      label: 'Search',
+      icon: <Search size={16} />,
+      description: 'Search for locations',
+    },
   ];
 
   const visibilityOptions = [
@@ -884,14 +908,17 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
         </Button>
       </XStack>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: getTabContentPadding() }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 16, paddingBottom: getTabContentPadding() }}
+      >
         <YStack gap={24}>
           {/* Enhanced Media Section - Like CreateRouteScreen */}
           <YStack gap={12}>
             <Text fontSize={16} fontWeight="600" color="#FFFFFF">
               Event Media
             </Text>
-            
+
             {/* Media Controls */}
             <YStack gap={8}>
               <Text fontSize={14} fontWeight="600" color="#FFFFFF">
@@ -968,8 +995,8 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
                   <Text fontSize={12} fontWeight="600" color="#FFF">
                     Videos
                   </Text>
-        </TouchableOpacity>
-      </XStack>
+                </TouchableOpacity>
+              </XStack>
 
               {/* YouTube Link Input */}
               <XStack gap={8} alignItems="center">
@@ -1057,23 +1084,23 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
             <Text fontSize={16} fontWeight="600" color="#FFFFFF">
               Event Location
             </Text>
-            
+
             {/* RouteMapEditor Component */}
             <RouteMapEditor
-              waypoints={formData.waypoints.map(wp => ({
+              waypoints={formData.waypoints.map((wp) => ({
                 latitude: wp.latitude,
                 longitude: wp.longitude,
                 title: wp.title,
                 description: wp.description,
               }))}
               onWaypointsChange={(newWaypoints) => {
-                const convertedWaypoints = newWaypoints.map(wp => ({
+                const convertedWaypoints = newWaypoints.map((wp) => ({
                   latitude: wp.latitude,
                   longitude: wp.longitude,
                   title: wp.title,
                   description: wp.description,
                 }));
-                setFormData(prev => ({ ...prev, waypoints: convertedWaypoints }));
+                setFormData((prev) => ({ ...prev, waypoints: convertedWaypoints }));
               }}
               drawingMode={formData.drawingMode}
               onDrawingModeChange={(mode) => updateFormData('drawingMode', mode)}
@@ -1088,285 +1115,297 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
 
             {/* TEMPORARY - keeping existing structure hidden to avoid major edits */}
             <View style={{ display: 'none' }}>
-
-            {/* Drawing Mode Controls */}
-          <YStack gap={8}>
-              <Text fontSize={14} fontWeight="600" color="#FFFFFF">
-                Choose how to set your location
-              </Text>
-              <XStack gap={8} flexWrap="wrap">
-                {drawingModeOptions.map((mode) => (
-                  <TouchableOpacity
-                    key={mode.value}
-                    onPress={() => updateFormData('drawingMode', mode.value)}
-                    style={{
-                      backgroundColor: formData.drawingMode === mode.value ? '#00FFBC' : 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: 8,
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      flex: 1,
-                      minWidth: 120,
-                    }}
-                  >
-                    {React.cloneElement(mode.icon, {
-                      color: formData.drawingMode === mode.value ? '#000' : '#FFF',
-                    })}
-                    <Text
-                      fontSize={12}
-                      fontWeight="600"
-                      color={formData.drawingMode === mode.value ? '#000' : '#FFF'}
-                    >
-                      {mode.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-            </XStack>
-              <Text fontSize={12} color="#9CA3AF">
-                {formData.drawingMode === 'pin' && 'Drop a single location marker'}
-                {formData.drawingMode === 'waypoint' && 'Add multiple waypoints for your event'}
-                {formData.drawingMode === 'pen' && 'Draw a custom path by tapping multiple points'}
-                {formData.drawingMode === 'search' && 'Search for locations by name'}
-              </Text>
-            </YStack>
-
-            {/* Location Search */}
-            <YStack gap={8}>
-              <Text fontSize={14} fontWeight="600" color="#FFFFFF">
-                Search for Location
-              </Text>
-              <XStack gap={8} alignItems="center">
-            <Input
-                  ref={searchInputRef}
-                  value={searchQuery}
-                  onChangeText={handleSearch}
-                  placeholder="Search for location or enter address..."
-                  backgroundColor="#1F2937"
-                  borderColor="rgba(255, 255, 255, 0.2)"
-                  color="#FFFFFF"
-                  placeholderTextColor="#9CA3AF"
-                  flex={1}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TouchableOpacity
-                  onPress={handleLocateMe}
-                  style={{
-                    backgroundColor: '#00FFBC',
-                    borderRadius: 8,
-                    padding: 12,
-                  }}
-                >
-                  <Navigation size={16} color="#000" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleManualCoordinates}
-                  style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    borderRadius: 8,
-                    padding: 12,
-                  }}
-                >
-                  <Edit3 size={16} color="#FFF" />
-                </TouchableOpacity>
-              </XStack>
-
-              {/* Search Results */}
-              {showSearchResults && searchResults.length > 0 && (
-                <YStack
-                  backgroundColor="#1F2937"
-                  borderRadius={8}
-                  borderWidth={1}
-                  borderColor="rgba(255, 255, 255, 0.2)"
-                  maxHeight={200}
-                >
-                  <ScrollView>
-                    {searchResults.map((result, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        onPress={() => handleLocationSelect(result)}
-                        style={{
-                          padding: 12,
-                          borderBottomWidth: index < searchResults.length - 1 ? 1 : 0,
-                          borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-                        }}
-                      >
-                        <Text fontSize={14} fontWeight="600" color="#FFFFFF">
-                          {[result.street, result.city].filter(Boolean).join(', ')}
-                        </Text>
-                        <Text fontSize={12} color="#9CA3AF">
-                          {[result.region, result.country].filter(Boolean).join(', ')}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </YStack>
-              )}
-            </YStack>
-
-            {/* Map Preview - Always Visible Like CreateRouteScreen */}
-          <YStack gap={8}>
-              <XStack justifyContent="space-between" alignItems="center">
+              {/* Drawing Mode Controls */}
+              <YStack gap={8}>
                 <Text fontSize={14} fontWeight="600" color="#FFFFFF">
-                  Map Preview
+                  Choose how to set your location
                 </Text>
-                <XStack gap={8}>
-                  {formData.waypoints.length > 0 && (
-                    <TouchableOpacity onPress={clearWaypoints}>
-                      <XStack gap={4} alignItems="center">
-                        <X size={14} color="#EF4444" />
-                        <Text fontSize={12} color="#EF4444" fontWeight="600">
-                          Clear All
-                        </Text>
-                      </XStack>
+                <XStack gap={8} flexWrap="wrap">
+                  {drawingModeOptions.map((mode) => (
+                    <TouchableOpacity
+                      key={mode.value}
+                      onPress={() => updateFormData('drawingMode', mode.value)}
+                      style={{
+                        backgroundColor:
+                          formData.drawingMode === mode.value
+                            ? '#00FFBC'
+                            : 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: 8,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                        flex: 1,
+                        minWidth: 120,
+                      }}
+                    >
+                      {React.cloneElement(mode.icon, {
+                        color: formData.drawingMode === mode.value ? '#000' : '#FFF',
+                      })}
+                      <Text
+                        fontSize={12}
+                        fontWeight="600"
+                        color={formData.drawingMode === mode.value ? '#000' : '#FFF'}
+                      >
+                        {mode.label}
+                      </Text>
                     </TouchableOpacity>
-                  )}
+                  ))}
                 </XStack>
-              </XStack>
-
-              {/* Interactive Map */}
-              <View style={{ 
-                height: 400, 
-                borderRadius: 12, 
-                overflow: 'hidden',
-                borderWidth: 2,
-                borderColor: '#00FFBC'
-              }}>
-                <MapView
-                  style={{ flex: 1 }}
-                  region={mapRegion}
-                  onPress={handleMapPress}
-                  showsUserLocation={true}
-                  userInterfaceStyle="dark"
-                  moveOnMarkerPress={false}
-                >
-                  {/* Render waypoints as individual markers */}
-                  {formData.waypoints.map((waypoint, index) => {
-                    const isFirst = index === 0;
-                    const isLast = index === formData.waypoints.length - 1 && formData.waypoints.length > 1;
-                    const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
-
-                    return (
-                      <Marker
-                        key={`waypoint-${index}`}
-                        coordinate={{
-                          latitude: waypoint.latitude,
-                          longitude: waypoint.longitude,
-                        }}
-                        title={waypoint.title}
-                        description={waypoint.description}
-                        pinColor={markerColor}
-                      />
-                    );
-                  })}
-
-                  {/* Render connecting lines for waypoints in waypoint mode */}
-                  {formData.drawingMode === 'waypoint' && formData.waypoints.length > 1 && (
-                    <Polyline
-                      coordinates={formData.waypoints.map((wp) => ({
-                        latitude: wp.latitude,
-                        longitude: wp.longitude,
-                      }))}
-                      strokeWidth={3}
-                      strokeColor="#00FFBC"
-                      lineJoin="round"
-                    />
-                  )}
-
-                  {/* Render pen drawing as smooth continuous line */}
-                  {formData.drawingMode === 'pen' && penPath.length > 1 && (
-                    <Polyline
-                      coordinates={penPath}
-                      strokeWidth={5}
-                      strokeColor="#FF6B35"
-                      lineJoin="round"
-                      lineCap="round"
-                      geodesic={false}
-                    />
-                  )}
-                </MapView>
-              </View>
-
-              {/* Map Instructions */}
-              <YStack gap={4} backgroundColor="rgba(0, 255, 188, 0.1)" padding={12} borderRadius={8}>
-                <Text fontSize={12} fontWeight="600" color="#00FFBC">
-                  {formData.drawingMode === 'pin' && 'Tap anywhere on map to set location'}
-                  {formData.drawingMode === 'waypoint' && 'Tap multiple times to add waypoints'}
-                  {formData.drawingMode === 'pen' && 'Tap multiple points to draw a custom path'}
-                  {formData.drawingMode === 'search' && 'Use search above to find locations'}
-                </Text>
-                <Text fontSize={10} color="#9CA3AF">
-                  {formData.waypoints.length} location{formData.waypoints.length === 1 ? '' : 's'} set
+                <Text fontSize={12} color="#9CA3AF">
+                  {formData.drawingMode === 'pin' && 'Drop a single location marker'}
+                  {formData.drawingMode === 'waypoint' && 'Add multiple waypoints for your event'}
+                  {formData.drawingMode === 'pen' &&
+                    'Draw a custom path by tapping multiple points'}
+                  {formData.drawingMode === 'search' && 'Search for locations by name'}
                 </Text>
               </YStack>
 
-              {/* Waypoint List */}
-              {formData.waypoints.length > 0 && (
-                <YStack gap={6}>
-                  <Text fontSize={14} fontWeight="600" color="#FFFFFF">
-                    Event Locations ({formData.waypoints.length})
-                  </Text>
-                  {formData.waypoints.map((waypoint, index) => (
-                    <XStack
-                      key={index}
-              backgroundColor="rgba(255, 255, 255, 0.05)"
-              padding={12}
-                      borderRadius={8}
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <YStack flex={1}>
-                        <Text fontSize={14} fontWeight="600" color="#FFFFFF">
-                          📍 {waypoint.title}
-                        </Text>
-                        <Text fontSize={12} color="#9CA3AF">
-                          {waypoint.latitude.toFixed(6)}, {waypoint.longitude.toFixed(6)}
-                        </Text>
-                        {waypoint.description && (
-                          <Text fontSize={10} color="#6B7280">
-                            {waypoint.description}
-                          </Text>
-                        )}
-          </YStack>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setFormData((prev) => ({
-                            ...prev,
-                            waypoints: prev.waypoints.filter((_, i) => i !== index),
-                          }));
-                        }}
-                        style={{
-                          backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                          borderRadius: 6,
-                          padding: 8,
-                        }}
-                      >
-                        <X size={16} color="#EF4444" />
-                      </TouchableOpacity>
-                    </XStack>
-                  ))}
-                </YStack>
-              )}
+              {/* Location Search */}
+              <YStack gap={8}>
+                <Text fontSize={14} fontWeight="600" color="#FFFFFF">
+                  Search for Location
+                </Text>
+                <XStack gap={8} alignItems="center">
+                  <Input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    onChangeText={handleSearch}
+                    placeholder="Search for location or enter address..."
+                    backgroundColor="#1F2937"
+                    borderColor="rgba(255, 255, 255, 0.2)"
+                    color="#FFFFFF"
+                    placeholderTextColor="#9CA3AF"
+                    flex={1}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <TouchableOpacity
+                    onPress={handleLocateMe}
+                    style={{
+                      backgroundColor: '#00FFBC',
+                      borderRadius: 8,
+                      padding: 12,
+                    }}
+                  >
+                    <Navigation size={16} color="#000" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleManualCoordinates}
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      borderRadius: 8,
+                      padding: 12,
+                    }}
+                  >
+                    <Edit3 size={16} color="#FFF" />
+                  </TouchableOpacity>
+                </XStack>
 
-              {formData.waypoints.length === 0 && (
-                <YStack 
-                  backgroundColor="rgba(107, 114, 128, 0.1)" 
-                  padding={16} 
-                  borderRadius={8} 
-                  alignItems="center"
-                >
-                  <MapPin size={24} color="#6B7280" />
-                  <Text fontSize={14} color="#6B7280" textAlign="center" marginTop={8}>
-                    No location set yet
+                {/* Search Results */}
+                {showSearchResults && searchResults.length > 0 && (
+                  <YStack
+                    backgroundColor="#1F2937"
+                    borderRadius={8}
+                    borderWidth={1}
+                    borderColor="rgba(255, 255, 255, 0.2)"
+                    maxHeight={200}
+                  >
+                    <ScrollView>
+                      {searchResults.map((result, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          onPress={() => handleLocationSelect(result)}
+                          style={{
+                            padding: 12,
+                            borderBottomWidth: index < searchResults.length - 1 ? 1 : 0,
+                            borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+                          }}
+                        >
+                          <Text fontSize={14} fontWeight="600" color="#FFFFFF">
+                            {[result.street, result.city].filter(Boolean).join(', ')}
+                          </Text>
+                          <Text fontSize={12} color="#9CA3AF">
+                            {[result.region, result.country].filter(Boolean).join(', ')}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </YStack>
+                )}
+              </YStack>
+
+              {/* Map Preview - Always Visible Like CreateRouteScreen */}
+              <YStack gap={8}>
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize={14} fontWeight="600" color="#FFFFFF">
+                    Map Preview
                   </Text>
-                  <Text fontSize={12} color="#9CA3AF" textAlign="center" marginTop={4}>
-                    Use search above or tap on the map to set your event location
+                  <XStack gap={8}>
+                    {formData.waypoints.length > 0 && (
+                      <TouchableOpacity onPress={clearWaypoints}>
+                        <XStack gap={4} alignItems="center">
+                          <X size={14} color="#EF4444" />
+                          <Text fontSize={12} color="#EF4444" fontWeight="600">
+                            Clear All
+                          </Text>
+                        </XStack>
+                      </TouchableOpacity>
+                    )}
+                  </XStack>
+                </XStack>
+
+                {/* Interactive Map */}
+                <View
+                  style={{
+                    height: 400,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    borderWidth: 2,
+                    borderColor: '#00FFBC',
+                  }}
+                >
+                  <MapView
+                    style={{ flex: 1 }}
+                    region={mapRegion}
+                    onPress={handleMapPress}
+                    showsUserLocation={true}
+                    userInterfaceStyle="dark"
+                    moveOnMarkerPress={false}
+                  >
+                    {/* Render waypoints as individual markers */}
+                    {formData.waypoints.map((waypoint, index) => {
+                      const isFirst = index === 0;
+                      const isLast =
+                        index === formData.waypoints.length - 1 && formData.waypoints.length > 1;
+                      const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
+
+                      return (
+                        <Marker
+                          key={`waypoint-${index}`}
+                          coordinate={{
+                            latitude: waypoint.latitude,
+                            longitude: waypoint.longitude,
+                          }}
+                          title={waypoint.title}
+                          description={waypoint.description}
+                          pinColor={markerColor}
+                        />
+                      );
+                    })}
+
+                    {/* Render connecting lines for waypoints in waypoint mode */}
+                    {formData.drawingMode === 'waypoint' && formData.waypoints.length > 1 && (
+                      <Polyline
+                        coordinates={formData.waypoints.map((wp) => ({
+                          latitude: wp.latitude,
+                          longitude: wp.longitude,
+                        }))}
+                        strokeWidth={3}
+                        strokeColor="#00FFBC"
+                        lineJoin="round"
+                      />
+                    )}
+
+                    {/* Render pen drawing as smooth continuous line */}
+                    {formData.drawingMode === 'pen' && penPath.length > 1 && (
+                      <Polyline
+                        coordinates={penPath}
+                        strokeWidth={5}
+                        strokeColor="#FF6B35"
+                        lineJoin="round"
+                        lineCap="round"
+                        geodesic={false}
+                      />
+                    )}
+                  </MapView>
+                </View>
+
+                {/* Map Instructions */}
+                <YStack
+                  gap={4}
+                  backgroundColor="rgba(0, 255, 188, 0.1)"
+                  padding={12}
+                  borderRadius={8}
+                >
+                  <Text fontSize={12} fontWeight="600" color="#00FFBC">
+                    {formData.drawingMode === 'pin' && 'Tap anywhere on map to set location'}
+                    {formData.drawingMode === 'waypoint' && 'Tap multiple times to add waypoints'}
+                    {formData.drawingMode === 'pen' && 'Tap multiple points to draw a custom path'}
+                    {formData.drawingMode === 'search' && 'Use search above to find locations'}
+                  </Text>
+                  <Text fontSize={10} color="#9CA3AF">
+                    {formData.waypoints.length} location{formData.waypoints.length === 1 ? '' : 's'}{' '}
+                    set
                   </Text>
                 </YStack>
-              )}
-            </YStack>
+
+                {/* Waypoint List */}
+                {formData.waypoints.length > 0 && (
+                  <YStack gap={6}>
+                    <Text fontSize={14} fontWeight="600" color="#FFFFFF">
+                      Event Locations ({formData.waypoints.length})
+                    </Text>
+                    {formData.waypoints.map((waypoint, index) => (
+                      <XStack
+                        key={index}
+                        backgroundColor="rgba(255, 255, 255, 0.05)"
+                        padding={12}
+                        borderRadius={8}
+                        alignItems="center"
+                        justifyContent="space-between"
+                      >
+                        <YStack flex={1}>
+                          <Text fontSize={14} fontWeight="600" color="#FFFFFF">
+                            📍 {waypoint.title}
+                          </Text>
+                          <Text fontSize={12} color="#9CA3AF">
+                            {waypoint.latitude.toFixed(6)}, {waypoint.longitude.toFixed(6)}
+                          </Text>
+                          {waypoint.description && (
+                            <Text fontSize={10} color="#6B7280">
+                              {waypoint.description}
+                            </Text>
+                          )}
+                        </YStack>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              waypoints: prev.waypoints.filter((_, i) => i !== index),
+                            }));
+                          }}
+                          style={{
+                            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                            borderRadius: 6,
+                            padding: 8,
+                          }}
+                        >
+                          <X size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      </XStack>
+                    ))}
+                  </YStack>
+                )}
+
+                {formData.waypoints.length === 0 && (
+                  <YStack
+                    backgroundColor="rgba(107, 114, 128, 0.1)"
+                    padding={16}
+                    borderRadius={8}
+                    alignItems="center"
+                  >
+                    <MapPin size={24} color="#6B7280" />
+                    <Text fontSize={14} color="#6B7280" textAlign="center" marginTop={8}>
+                      No location set yet
+                    </Text>
+                    <Text fontSize={12} color="#9CA3AF" textAlign="center" marginTop={4}>
+                      Use search above or tap on the map to set your event location
+                    </Text>
+                  </YStack>
+                )}
+              </YStack>
             </View>
           </YStack>
 
@@ -1387,12 +1426,12 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
             </XStack>
 
             {formData.embeds.exercises.length > 0 && (
-          <YStack gap={8}>
+              <YStack gap={8}>
                 {formData.embeds.exercises.map((exercise, index) => (
                   <XStack
                     key={exercise.id}
                     backgroundColor="#1F2937"
-              padding={12}
+                    padding={12}
                     borderRadius={8}
                     alignItems="center"
                     justifyContent="space-between"
@@ -1401,29 +1440,35 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
                       <BookOpen size={20} color="#00FFBC" />
                       <YStack flex={1}>
                         <Text fontSize={14} fontWeight="600" color="#FFFFFF">
-                          {typeof exercise.title === 'string' ? exercise.title : exercise.title?.en || 'Exercise'}
-              </Text>
+                          {typeof exercise.title === 'string'
+                            ? exercise.title
+                            : exercise.title?.en || 'Exercise'}
+                        </Text>
                         {exercise.description && (
                           <Text fontSize={12} color="#9CA3AF" numberOfLines={1}>
-                            {typeof exercise.description === 'string' ? exercise.description : exercise.description?.en || ''}
+                            {typeof exercise.description === 'string'
+                              ? exercise.description
+                              : exercise.description?.en || ''}
                           </Text>
                         )}
                       </YStack>
-            </XStack>
+                    </XStack>
                     <TouchableOpacity onPress={() => removeExercise(exercise.id)}>
                       <X size={18} color="#EF4444" />
                     </TouchableOpacity>
                   </XStack>
                 ))}
                 <Text fontSize={12} color="#9CA3AF">
-                  {formData.embeds.exercises.length} exercise{formData.embeds.exercises.length === 1 ? '' : 's'} selected
+                  {formData.embeds.exercises.length} exercise
+                  {formData.embeds.exercises.length === 1 ? '' : 's'} selected
                 </Text>
               </YStack>
             )}
 
             {formData.embeds.exercises.length === 0 && (
               <Text fontSize={14} color="#6B7280" fontStyle="italic">
-                No exercises attached. Tap "Add Exercises" to include practice exercises for this event.
+                No exercises attached. Tap "Add Exercises" to include practice exercises for this
+                event.
               </Text>
             )}
           </YStack>
@@ -1468,7 +1513,8 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
                   </View>
                 ))}
                 <Text fontSize={12} color="#9CA3AF">
-                  {formData.embeds.routes.length} route{formData.embeds.routes.length === 1 ? '' : 's'} attached
+                  {formData.embeds.routes.length} route
+                  {formData.embeds.routes.length === 1 ? '' : 's'} attached
                 </Text>
               </YStack>
             )}
@@ -1518,10 +1564,10 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
               Visibility
             </Text>
             <YStack gap={8}>
-            {visibilityOptions.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                onPress={() => updateFormData('visibility', option.value)}
+              {visibilityOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  onPress={() => updateFormData('visibility', option.value)}
                   style={{
                     backgroundColor:
                       formData.visibility === option.value ? 'rgba(0, 255, 188, 0.1)' : '#1F2937',
@@ -1533,16 +1579,16 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
                   }}
                 >
                   <XStack gap={12} alignItems="center">
-                  {option.icon}
-                  <YStack flex={1}>
+                    {option.icon}
+                    <YStack flex={1}>
                       <Text fontSize={16} fontWeight="600" color="#FFFFFF">
-                      {option.label}
-                    </Text>
+                        {option.label}
+                      </Text>
                       <Text fontSize={14} color="#9CA3AF">
-                      {option.description}
-                    </Text>
-                  </YStack>
-                  {formData.visibility === option.value && (
+                        {option.description}
+                      </Text>
+                    </YStack>
+                    {formData.visibility === option.value && (
                       <View
                         style={{
                           width: 20,
@@ -1554,14 +1600,14 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({ onEventCre
                         }}
                       >
                         <Text fontSize={12} color="#000000">
-                        ✓
-                      </Text>
+                          ✓
+                        </Text>
                       </View>
-                  )}
-                </XStack>
-              </TouchableOpacity>
-            ))}
-          </YStack>
+                    )}
+                  </XStack>
+                </TouchableOpacity>
+              ))}
+            </YStack>
           </YStack>
 
           {/* Bottom Spacing */}

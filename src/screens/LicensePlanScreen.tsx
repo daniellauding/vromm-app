@@ -20,7 +20,7 @@ export function LicensePlanScreen() {
 
   // Form state
   const [targetDate, setTargetDate] = useState<Date | null>(() => {
-    const planData = (profile?.license_plan_data as any);
+    const planData = profile?.license_plan_data as any;
     if (planData?.target_date) {
       return new Date(planData.target_date);
     }

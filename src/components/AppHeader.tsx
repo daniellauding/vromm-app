@@ -50,13 +50,13 @@ export function AppHeader({
 }: AppHeaderProps) {
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
-  const { getSmartFilters, trackFilterUsage, addUserCollections, getAllFilters } = useSmartFilters();
+  const { getSmartFilters, trackFilterUsage, addUserCollections, getAllFilters } =
+    useSmartFilters();
 
   // Semi-transparent backgrounds for overlay effect
   const buttonBackgroundColor =
     colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : 'rgba(255, 255, 255, 0.85)';
-  const borderColor =
-    colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)';
+  const borderColor = colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)';
 
   // Add user collections to smart filters
   React.useEffect(() => {
@@ -182,24 +182,24 @@ export function AppHeader({
                             'Active:',
                             isActive,
                           );
-                          
+
                           // Track filter usage for smart recommendations
                           trackFilterUsage(filter.id, filter.type);
-                          
+
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           onFilterPress?.(filter);
                         }}
                       >
                         {/* Collection icon for collection filters */}
                         {isCollection && (
-                          <Feather 
-                            name="folder" 
-                            size={12} 
-                            color={colors.text} 
-                            style={{ marginRight: 4 }} 
+                          <Feather
+                            name="folder"
+                            size={12}
+                            color={colors.text}
+                            style={{ marginRight: 4 }}
                           />
                         )}
-                        
+
                         <Text
                           style={{
                             color: colors.text,

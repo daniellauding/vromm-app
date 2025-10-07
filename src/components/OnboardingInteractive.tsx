@@ -16,7 +16,12 @@ import {
   Image,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 import { YStack, XStack, Stack, Image as TamaguiImage, Switch, TextArea } from 'tamagui';
 import { Text } from './Text';
 import { Button } from './Button';
@@ -90,18 +95,20 @@ interface OnboardingInteractiveProps {
 // Map experience levels to valid enum values - keep all database values
 const mapToValidExperienceLevel = (level: string): string => {
   const mapping: Record<string, string> = {
-    'beginner': 'beginner',
-    'intermediate': 'intermediate', 
-    'advanced': 'advanced',
-    'expert': 'advanced', // Map expert to advanced as fallback (since enum only has beginner/intermediate/advanced)
-    'refresher': 'intermediate', // Map refresher to intermediate as fallback (since enum only has beginner/intermediate/advanced)
-    'all': 'beginner', // Default fallback
+    beginner: 'beginner',
+    intermediate: 'intermediate',
+    advanced: 'advanced',
+    expert: 'advanced', // Map expert to advanced as fallback (since enum only has beginner/intermediate/advanced)
+    refresher: 'intermediate', // Map refresher to intermediate as fallback (since enum only has beginner/intermediate/advanced)
+    all: 'beginner', // Default fallback
   };
-  
+
   const normalizedLevel = level.toLowerCase();
   const mappedLevel = mapping[normalizedLevel] || 'beginner';
-  
-  console.log(`🎯 [OnboardingInteractive] Mapping experience level: ${level} → ${mappedLevel} (for enum compatibility)`);
+
+  console.log(
+    `🎯 [OnboardingInteractive] Mapping experience level: ${level} → ${mappedLevel} (for enum compatibility)`,
+  );
   return mappedLevel;
 };
 
@@ -118,7 +125,7 @@ export function OnboardingInteractive({
   const { language, t, setLanguage } = useTranslation();
   const { showToast } = useToast();
   const colorScheme = useColorScheme();
-  
+
   // Theme colors
   const iconColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
@@ -160,34 +167,42 @@ export function OnboardingInteractive({
   const [showTransmissionDrawer, setShowTransmissionDrawer] = useState(false);
   const [showLicenseDrawer, setShowLicenseDrawer] = useState(false);
   const [citySearchResults, setCitySearchResults] = useState<any[]>([]);
-  
+
   // Connection selection state
-  const [selectedConnections, setSelectedConnections] = useState<Array<{ id: string; full_name: string; email: string; role?: string }>>([]);
+  const [selectedConnections, setSelectedConnections] = useState<
+    Array<{ id: string; full_name: string; email: string; role?: string }>
+  >([]);
   const [connectionCustomMessage, setConnectionCustomMessage] = useState('');
-  
+
   // Existing relationships state
-  const [existingRelationships, setExistingRelationships] = useState<Array<{ 
-    id: string; 
-    name: string; 
-    email: string; 
-    role: string; 
-    relationship_type: string;
-    created_at: string;
-  }>>([]);
-  
+  const [existingRelationships, setExistingRelationships] = useState<
+    Array<{
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      relationship_type: string;
+      created_at: string;
+    }>
+  >([]);
+
   // Pending invitations state
-  const [pendingInvitations, setPendingInvitations] = useState<Array<{
-    id: string;
-    email: string;
-    role: string;
-    status: string;
-    created_at: string;
-    metadata: any;
-  }>>([]);
-  
+  const [pendingInvitations, setPendingInvitations] = useState<
+    Array<{
+      id: string;
+      email: string;
+      role: string;
+      status: string;
+      created_at: string;
+      metadata: any;
+    }>
+  >([]);
+
   // Tab state for relationships
-  const [activeRelationshipsTab, setActiveRelationshipsTab] = useState<'pending' | 'existing'>('pending');
-  
+  const [activeRelationshipsTab, setActiveRelationshipsTab] = useState<'pending' | 'existing'>(
+    'pending',
+  );
+
   // Relationship removal modal state
   const [showRelationshipRemovalModal, setShowRelationshipRemovalModal] = useState(false);
   const [relationshipRemovalTarget, setRelationshipRemovalTarget] = useState<{
@@ -198,16 +213,16 @@ export function OnboardingInteractive({
     relationship_type: string;
   } | null>(null);
   const [relationshipRemovalMessage, setRelationshipRemovalMessage] = useState('');
-  
+
   // Experience level state
   const [showExperienceModal, setShowExperienceModal] = useState(false);
   const [selectedExperienceLevel, setSelectedExperienceLevel] = useState<string>('Beginner'); // Use database value format (matches is_default=true)
   const [locationLoading, setLocationLoading] = useState(false);
-  
+
   // Additional license plan modal states
   const [showPreviousExperienceModal, setShowPreviousExperienceModal] = useState(false);
   const [showSpecificGoalsModal, setShowSpecificGoalsModal] = useState(false);
-  
+
   // Language selection modal state
   const [showLanguageModal, setShowLanguageModal] = useState(false);
 
@@ -222,34 +237,36 @@ export function OnboardingInteractive({
   const [showDatePopover, setShowDatePopover] = useState(false);
   const [selectedDateOption, setSelectedDateOption] = useState<string>('6months'); // Track which date option is selected
   const dateButtonRef = useRef<any>(null);
-  
+
   // License plan additional fields (from LicensePlanScreen.tsx)
   const [hasTheory, setHasTheory] = useState<boolean>(() => {
-    const planData = (profile?.license_plan_data as any);
+    const planData = profile?.license_plan_data as any;
     return planData?.has_theory || false;
   });
   const [hasPractice, setHasPractice] = useState<boolean>(() => {
-    const planData = (profile?.license_plan_data as any);
+    const planData = profile?.license_plan_data as any;
     return planData?.has_practice || false;
   });
   const [previousExperience, setPreviousExperience] = useState<string>(() => {
-    const planData = (profile?.license_plan_data as any);
+    const planData = profile?.license_plan_data as any;
     return planData?.previous_experience || '';
   });
   const [specificGoals, setSpecificGoals] = useState<string>(() => {
-    const planData = (profile?.license_plan_data as any);
+    const planData = profile?.license_plan_data as any;
     return planData?.specific_goals || '';
   });
-  
+
   // Dynamic experience levels from database
-  const [experienceLevels, setExperienceLevels] = useState<Array<{ id: string; title: string; description?: string }>>([]);
-  
+  const [experienceLevels, setExperienceLevels] = useState<
+    Array<{ id: string; title: string; description?: string }>
+  >([]);
+
   // Loading spinner animation
   const spinValue = useRef(new Animated.Value(0)).current;
-  
+
   // Animated dots for "Detecting Location..."
   const [dotsCount, setDotsCount] = useState(0);
-  
+
   // Start spinner animation when loading
   useEffect(() => {
     if (locationLoading) {
@@ -259,15 +276,15 @@ export function OnboardingInteractive({
           duration: 1000,
           easing: Easing.linear,
           useNativeDriver: true,
-        })
+        }),
       );
       spin.start();
-      
+
       // Animate dots
       const dotsInterval = setInterval(() => {
-        setDotsCount(prev => (prev + 1) % 4); // 0, 1, 2, 3, then back to 0
+        setDotsCount((prev) => (prev + 1) % 4); // 0, 1, 2, 3, then back to 0
       }, 500);
-      
+
       return () => {
         spin.stop();
         clearInterval(dotsInterval);
@@ -278,7 +295,9 @@ export function OnboardingInteractive({
       setDotsCount(0);
     }
   }, [locationLoading, spinValue]);
-  const [citySearchTimeout, setCitySearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [citySearchTimeout, setCitySearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
 
@@ -295,16 +314,18 @@ export function OnboardingInteractive({
 
   const connectionsSnapPoints = useMemo(() => {
     const points = {
-      large: height * 0.1,   // Top at 10% of screen (show 90% - largest)
-      medium: height * 0.4,  // Top at 40% of screen (show 60% - medium)  
-      small: height * 0.7,   // Top at 70% of screen (show 30% - small)
-      mini: height * 0.85,   // Top at 85% of screen (show 15% - just title)
-      dismissed: height,     // Completely off-screen
+      large: height * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: height * 0.7, // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85, // Top at 85% of screen (show 15% - just title)
+      dismissed: height, // Completely off-screen
     };
     return points;
   }, [height]);
-  
-  const [currentConnectionsSnapPoint, setCurrentConnectionsSnapPoint] = useState(connectionsSnapPoints.large);
+
+  const [currentConnectionsSnapPoint, setCurrentConnectionsSnapPoint] = useState(
+    connectionsSnapPoints.large,
+  );
   const currentConnectionsState = useSharedValue(connectionsSnapPoints.large);
 
   const connectionsAnimatedStyle = useAnimatedStyle(() => {
@@ -320,14 +341,17 @@ export function OnboardingInteractive({
     .onUpdate((event) => {
       try {
         const { translationY } = event;
-        console.log('🎯 [OnboardingInteractive] DRAG HANDLE GESTURE UPDATE - translationY:', translationY);
+        console.log(
+          '🎯 [OnboardingInteractive] DRAG HANDLE GESTURE UPDATE - translationY:',
+          translationY,
+        );
         const newPosition = currentConnectionsState.value + translationY;
-        
+
         // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
         const minPosition = connectionsSnapPoints.large; // Smallest Y (show most - like expanded)
         const maxPosition = connectionsSnapPoints.mini + 100; // Allow dragging past mini for dismissal
         const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
-        
+
         // Set translateY directly like RouteDetailSheet
         connectionsTranslateY.value = boundedPosition;
       } catch (error) {
@@ -336,17 +360,22 @@ export function OnboardingInteractive({
     })
     .onEnd((event) => {
       const { translationY, velocityY } = event;
-      console.log('🎯 [OnboardingInteractive] DRAG HANDLE GESTURE END - translationY:', translationY, 'velocityY:', velocityY);
-      
+      console.log(
+        '🎯 [OnboardingInteractive] DRAG HANDLE GESTURE END - translationY:',
+        translationY,
+        'velocityY:',
+        velocityY,
+      );
+
       const currentPosition = currentConnectionsState.value + translationY;
-      
+
       // Only dismiss if dragged down past the mini snap point with reasonable velocity
       if (currentPosition > connectionsSnapPoints.mini + 30 && velocityY > 200) {
         console.log('🎯 [OnboardingInteractive] DRAG HANDLE - DISMISSING MODAL');
         runOnJS(hideConnectionsModal)();
         return;
       }
-      
+
       // Determine target snap point based on position and velocity
       let targetSnapPoint;
       if (velocityY < -500) {
@@ -359,21 +388,29 @@ export function OnboardingInteractive({
         console.log('🎯 [OnboardingInteractive] DRAG HANDLE - FAST DOWNWARD SWIPE - going to MINI');
       } else {
         // Find closest snap point
-        const positions = [connectionsSnapPoints.large, connectionsSnapPoints.medium, connectionsSnapPoints.small, connectionsSnapPoints.mini];
+        const positions = [
+          connectionsSnapPoints.large,
+          connectionsSnapPoints.medium,
+          connectionsSnapPoints.small,
+          connectionsSnapPoints.mini,
+        ];
         targetSnapPoint = positions.reduce((prev, curr) =>
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
-        console.log('🎯 [OnboardingInteractive] DRAG HANDLE - SNAP TO CLOSEST - targetSnapPoint:', targetSnapPoint);
+        console.log(
+          '🎯 [OnboardingInteractive] DRAG HANDLE - SNAP TO CLOSEST - targetSnapPoint:',
+          targetSnapPoint,
+        );
       }
-      
+
       // Constrain target to valid range
       const boundedTarget = Math.min(
         Math.max(targetSnapPoint, connectionsSnapPoints.large),
         connectionsSnapPoints.mini,
       );
-      
+
       console.log('🎯 [OnboardingInteractive] DRAG HANDLE - ANIMATING TO:', boundedTarget);
-      
+
       // Animate to target position - set translateY directly like RouteDetailSheet
       connectionsTranslateY.value = withSpring(boundedTarget, {
         damping: 20,
@@ -383,7 +420,7 @@ export function OnboardingInteractive({
         restDisplacementThreshold: 0.01,
         restSpeedThreshold: 0.01,
       });
-      
+
       currentConnectionsState.value = boundedTarget;
       runOnJS(setCurrentConnectionsSnapPoint)(boundedTarget);
     });
@@ -393,24 +430,26 @@ export function OnboardingInteractive({
   const transmissionSheetTranslateY = useRef(new Animated.Value(300)).current;
   const licenseBackdropOpacity = useRef(new Animated.Value(0)).current;
   const licenseSheetTranslateY = useRef(new Animated.Value(300)).current;
-  
+
   // Relationship removal modal animation refs
   const relationshipRemovalBackdropOpacity = useRef(new Animated.Value(0)).current;
   const relationshipRemovalSheetTranslateY = useRef(new Animated.Value(300)).current;
-  
+
   // Additional license plan modal animation refs
   const previousExperienceBackdropOpacity = useRef(new Animated.Value(0)).current;
   const previousExperienceSheetTranslateY = useRef(new Animated.Value(300)).current;
   const specificGoalsBackdropOpacity = useRef(new Animated.Value(0)).current;
   const specificGoalsSheetTranslateY = useRef(new Animated.Value(300)).current;
-  
+
   // Language modal animation refs (copied from ProfileScreen.tsx)
   const languageBackdropOpacity = useRef(new Animated.Value(0)).current;
   const languageSheetTranslateY = useRef(new Animated.Value(300)).current;
 
   // Dynamic category options from database
   const [vehicleTypes, setVehicleTypes] = useState<Array<{ id: string; title: string }>>([]);
-  const [transmissionTypes, setTransmissionTypes] = useState<Array<{ id: string; title: string }>>([]);
+  const [transmissionTypes, setTransmissionTypes] = useState<Array<{ id: string; title: string }>>(
+    [],
+  );
   const [licenseTypes, setLicenseTypes] = useState<Array<{ id: string; title: string }>>([]);
 
   // Simplified onboarding steps - clear and focused
@@ -418,7 +457,9 @@ export function OnboardingInteractive({
     {
       id: 'location',
       title: t('onboarding.location.title') || 'Enable Location Access',
-      description: t('onboarding.location.description') || 'Allow location access to find practice routes near you',
+      description:
+        t('onboarding.location.description') ||
+        'Allow location access to find practice routes near you',
       icon: 'map-pin',
       type: 'permission',
       actionButton: t('onboarding.location.enableLocation') || 'Enable Location',
@@ -427,7 +468,9 @@ export function OnboardingInteractive({
     {
       id: 'license_plan',
       title: t('onboarding.licensePlan.title') || 'Your License Journey',
-      description: t('onboarding.licensePlan.description') || 'Tell us about your experience level, driving goals and vehicle preferences',
+      description:
+        t('onboarding.licensePlan.description') ||
+        'Tell us about your experience level, driving goals and vehicle preferences',
       icon: 'clipboard',
       type: 'selection',
       actionButton: t('onboarding.licensePlan.setPreferences') || 'Set My Preferences',
@@ -436,7 +479,8 @@ export function OnboardingInteractive({
     {
       id: 'role',
       title: t('onboarding.role.title') || 'Select Your Role',
-      description: t('onboarding.role.description') || 'Are you learning to drive or teaching others?',
+      description:
+        t('onboarding.role.description') || 'Are you learning to drive or teaching others?',
       icon: 'user',
       type: 'selection',
       actionButton: t('onboarding.role.chooseRole') || 'Choose Role',
@@ -445,7 +489,9 @@ export function OnboardingInteractive({
     {
       id: 'relationships',
       title: t('onboarding.relationships.title') || 'Connect with Others',
-      description: t('onboarding.relationships.description') || 'Connect with instructors or students based on your role',
+      description:
+        t('onboarding.relationships.description') ||
+        'Connect with instructors or students based on your role',
       icon: 'users',
       type: 'action',
       actionButton: t('onboarding.relationships.findConnections') || 'Find Connections',
@@ -454,7 +500,9 @@ export function OnboardingInteractive({
     {
       id: 'complete',
       title: t('onboarding.complete.title') || 'Ready for Your Journey!',
-      description: t('onboarding.complete.description') || 'Ready to become a confident driver! Explore the app, progress in exercises, save and upload routes, and discover a community of drivers like you.',
+      description:
+        t('onboarding.complete.description') ||
+        'Ready to become a confident driver! Explore the app, progress in exercises, save and upload routes, and discover a community of drivers like you.',
       icon: 'check-circle',
       type: 'info',
       actionButton: t('onboarding.complete.startMyJourney') || 'Start My Journey',
@@ -481,7 +529,7 @@ export function OnboardingInteractive({
   // Check completion status on mount and track onboarding start
   useEffect(() => {
     checkStepCompletions();
-    
+
     // Track onboarding start when component mounts (only once)
     if (currentIndex === 0) {
       AppAnalytics.trackOnboardingStart().catch(() => {
@@ -496,7 +544,7 @@ export function OnboardingInteractive({
       try {
         console.log('🔍 Fetching categories from database...');
         console.log('🌍 Current language in OnboardingInteractive:', language);
-        
+
         const { data, error } = await supabase
           .from('learning_path_categories')
           .select('category, value, label, is_default, created_at, order_index')
@@ -516,9 +564,27 @@ export function OnboardingInteractive({
             { id: 'Automatic', title: language === 'sv' ? 'Automat' : 'Automatic' },
           ]);
           setLicenseTypes([
-            { id: 'Standard Driving License (B)', title: language === 'sv' ? 'Standardkörkort (t.ex. klass B i Europa / klass C i USA)' : 'Standard Driving License (e.g. Class B in Europe / Class C in the US)' },
-            { id: 'Motorcycle License (A)', title: language === 'sv' ? 'Motorcykelkörkort (t.ex. klass A)' : 'Motorcycle License (e.g. Class A)' },
-            { id: 'Commercial Driving License', title: language === 'sv' ? 'Yrkeskörkort (CDL / klass C/D etc.)' : 'Commercial Driving License (CDL / Class C/D etc.)' },
+            {
+              id: 'Standard Driving License (B)',
+              title:
+                language === 'sv'
+                  ? 'Standardkörkort (t.ex. klass B i Europa / klass C i USA)'
+                  : 'Standard Driving License (e.g. Class B in Europe / Class C in the US)',
+            },
+            {
+              id: 'Motorcycle License (A)',
+              title:
+                language === 'sv'
+                  ? 'Motorcykelkörkort (t.ex. klass A)'
+                  : 'Motorcycle License (e.g. Class A)',
+            },
+            {
+              id: 'Commercial Driving License',
+              title:
+                language === 'sv'
+                  ? 'Yrkeskörkort (CDL / klass C/D etc.)'
+                  : 'Commercial Driving License (CDL / Class C/D etc.)',
+            },
           ]);
           return;
         }
@@ -527,7 +593,7 @@ export function OnboardingInteractive({
           // Database categories loaded
           console.log('🔍 Database categories loaded:', data.length, 'items');
           console.log('🌍 Language for label selection:', language);
-          
+
           // Group by category and extract titles with proper language support from label field
           const vehicles = data
             .filter((item) => item.category === 'vehicle_type' && item.value !== 'all')
@@ -543,7 +609,7 @@ export function OnboardingInteractive({
                 } else {
                   labelObj = { en: item.value, sv: item.value };
                 }
-                
+
                 // Additional check: if the object doesn't have en/sv keys, try to access them differently
                 if (!labelObj.en && !labelObj.sv && item.label) {
                   console.log(`🔍 Trying alternative access for ${item.value}:`, item.label);
@@ -557,7 +623,7 @@ export function OnboardingInteractive({
                 console.warn(`Failed to parse label for ${item.value}:`, item.label, e);
                 labelObj = { en: item.value, sv: item.value };
               }
-              
+
               console.log(`🚗 Raw label for ${item.value}:`, item.label);
               console.log(`🚗 Parsed labelObj:`, labelObj);
               console.log(`🚗 Available keys:`, Object.keys(labelObj || {}));
@@ -570,7 +636,7 @@ export function OnboardingInteractive({
                 title,
               };
             });
-          
+
           const transmissions = data
             .filter((item) => item.category === 'transmission_type' && item.value !== 'all')
             .map((item) => {
@@ -586,7 +652,7 @@ export function OnboardingInteractive({
               } else {
                 labelObj = item.label as { en?: string; sv?: string };
               }
-              
+
               const title = labelObj?.[language] || labelObj?.en || item.value;
               console.log(`⚙️ Transmission: ${item.value} → ${title} (lang: ${language})`);
               return {
@@ -594,7 +660,7 @@ export function OnboardingInteractive({
                 title,
               };
             });
-          
+
           const licenses = data
             .filter((item) => item.category === 'license_type' && item.value !== 'all')
             .map((item) => {
@@ -608,7 +674,7 @@ export function OnboardingInteractive({
                 } else {
                   labelObj = { en: item.value, sv: item.value };
                 }
-                
+
                 if (!labelObj.en && !labelObj.sv && item.label) {
                   const rawLabel = item.label as any;
                   labelObj = {
@@ -619,7 +685,7 @@ export function OnboardingInteractive({
               } catch (e) {
                 labelObj = { en: item.value, sv: item.value };
               }
-              
+
               const title = labelObj?.[language] || labelObj?.en || item.value;
               console.log(`📄 License: ${item.value} → ${title} (lang: ${language})`);
               return {
@@ -627,7 +693,7 @@ export function OnboardingInteractive({
                 title,
               };
             });
-          
+
           const experiences = data
             .filter((item) => item.category === 'experience_level' && item.value !== 'all')
             .sort((a, b) => a.order_index - b.order_index)
@@ -642,7 +708,7 @@ export function OnboardingInteractive({
                 } else {
                   labelObj = { en: item.value, sv: item.value };
                 }
-                
+
                 if (!labelObj.en && !labelObj.sv && item.label) {
                   const rawLabel = item.label as any;
                   labelObj = {
@@ -653,7 +719,7 @@ export function OnboardingInteractive({
               } catch (e) {
                 labelObj = { en: item.value, sv: item.value };
               }
-              
+
               const title = labelObj?.[language] || labelObj?.en || item.value;
               const description = labelObj?.[language] || labelObj?.en || undefined;
               console.log(`🎓 Experience: ${item.value} → ${title} (lang: ${language})`);
@@ -668,38 +734,38 @@ export function OnboardingInteractive({
           setTransmissionTypes(transmissions);
           setLicenseTypes(licenses);
           setExperienceLevels(experiences);
-          
+
           // Experience levels set from database
-          
+
           // Debug logging to see what we loaded
           // Category options loaded from database
-          
+
           // Set state to match the most recent is_default=true values from database
           const defaultVehicle = data
-            .filter(item => item.category === 'vehicle_type' && item.is_default)
+            .filter((item) => item.category === 'vehicle_type' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultTransmission = data
-            .filter(item => item.category === 'transmission_type' && item.is_default)
+            .filter((item) => item.category === 'transmission_type' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultLicense = data
-            .filter(item => item.category === 'license_type' && item.is_default)
+            .filter((item) => item.category === 'license_type' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           const defaultExperience = data
-            .filter(item => item.category === 'experience_level' && item.is_default)
+            .filter((item) => item.category === 'experience_level' && item.is_default)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-          
+
           if (defaultVehicle && defaultVehicle.value !== vehicleType) {
             setVehicleType(defaultVehicle.value);
           }
-          
+
           if (defaultTransmission && defaultTransmission.value !== transmissionType) {
             setTransmissionType(defaultTransmission.value);
           }
-          
+
           if (defaultLicense && defaultLicense.value !== licenseType) {
             setLicenseType(defaultLicense.value);
           }
-          
+
           if (defaultExperience && defaultExperience.value !== selectedExperienceLevel) {
             setSelectedExperienceLevel(defaultExperience.value);
           }
@@ -723,7 +789,7 @@ export function OnboardingInteractive({
 
   // Load existing relationships and pending invitations when relationships step is active
   useEffect(() => {
-    if (currentIndex === steps.findIndex(s => s.id === 'relationships')) {
+    if (currentIndex === steps.findIndex((s) => s.id === 'relationships')) {
       loadExistingRelationships();
       loadPendingInvitations();
     }
@@ -848,36 +914,36 @@ export function OnboardingInteractive({
     try {
       setLocationLoading(true);
       // Always try to detect location, even if city is already selected (allow override)
-      
+
       // Check current permission status first
       const currentStatus = await Location.getForegroundPermissionsAsync();
-      
+
       if (currentStatus.status !== 'granted') {
-      // Request permission - this shows the native dialog
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
+        // Request permission - this shows the native dialog
+        const { status } = await Location.requestForegroundPermissionsAsync();
+
         if (status !== 'granted') {
-        setLocationStatus('denied');
+          setLocationStatus('denied');
           showToast({
             title: 'Permission Denied',
-            message: 'Location permission is required to detect your location. You can still select a city manually.',
-            type: 'error'
+            message:
+              'Location permission is required to detect your location. You can still select a city manually.',
+            type: 'error',
           });
           return;
         }
       }
-      
+
       setLocationStatus('granted');
       // Always detect and set current location (allow override of manual selection)
       await detectAndSetCurrentLocation();
-      
     } catch (error) {
       console.error('Error requesting location permission:', error);
       setLocationStatus('denied');
       showToast({
         title: 'Location Error',
         message: 'Failed to detect location. You can select a city manually.',
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setLocationLoading(false);
@@ -895,11 +961,11 @@ export function OnboardingInteractive({
         location = {
           coords: {
             latitude: 55.7047,
-            longitude: 13.1910,
+            longitude: 13.191,
           },
         };
       }
-      
+
       // Get address from coordinates
       const [address] = await Location.reverseGeocodeAsync({
         latitude: location.coords.latitude,
@@ -907,8 +973,8 @@ export function OnboardingInteractive({
       });
 
       const cityName = [address.city, address.country].filter(Boolean).join(', ');
-    setSelectedCity(cityName);
-      
+      setSelectedCity(cityName);
+
       // Save to LocationContext
       await setUserLocation({
         name: cityName,
@@ -917,7 +983,7 @@ export function OnboardingInteractive({
         source: 'onboarding',
         timestamp: new Date().toISOString(),
       });
-      
+
       // 🔥 CRITICAL FIX: Also save to profiles table for cross-screen sync
       if (user) {
         try {
@@ -934,7 +1000,7 @@ export function OnboardingInteractive({
               location_lng: location.coords.longitude,
             })
             .eq('id', user.id);
-            
+
           if (error) {
             console.error('Error saving detected location to profile:', error);
           } else {
@@ -944,7 +1010,7 @@ export function OnboardingInteractive({
           console.error('Error saving detected location:', error);
         }
       }
-      
+
       // Location detected and set
     } catch (error) {
       console.error('Error detecting location:', error);
@@ -983,7 +1049,7 @@ export function OnboardingInteractive({
       easing: Easing.in(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
-    setShowCityDrawer(false);
+      setShowCityDrawer(false);
     });
   };
 
@@ -1295,8 +1361,6 @@ export function OnboardingInteractive({
     }
   };
 
-
-
   const handleCitySearch = async (query: string) => {
     setCitySearchQuery(query);
 
@@ -1349,7 +1413,7 @@ export function OnboardingInteractive({
               } catch (err) {
                 return null;
               }
-            })
+            }),
           );
 
           // Filter out null values and duplicates
@@ -1394,7 +1458,7 @@ export function OnboardingInteractive({
         previous_experience: previousExperience,
         specific_goals: specificGoals,
       };
-      
+
       console.log('💾 [OnboardingInteractive] Saving license plan data:', licenseData);
 
       const { error } = await supabase
@@ -1406,7 +1470,9 @@ export function OnboardingInteractive({
           vehicle_type: vehicleType,
           transmission_type: transmissionType,
           license_type: licenseType,
-          experience_level: mapToValidExperienceLevel(selectedExperienceLevel) as Database['public']['Enums']['experience_level'],
+          experience_level: mapToValidExperienceLevel(
+            selectedExperienceLevel,
+          ) as Database['public']['Enums']['experience_level'],
           target_license_date: selectedTargetDate.toISOString(),
         })
         .eq('id', user.id);
@@ -1416,12 +1482,12 @@ export function OnboardingInteractive({
         showToast({
           title: 'Error',
           message: 'Could not save your preferences. Please try again.',
-          type: 'error'
+          type: 'error',
         });
       } else {
         setCompletedSteps((prev) => new Set(prev).add('license_plan'));
         checkStepCompletions();
-        
+
         // 🔥 CRITICAL FIX: Refresh profile data for cross-screen sync
         try {
           await refreshProfile();
@@ -1429,7 +1495,7 @@ export function OnboardingInteractive({
         } catch (error) {
           console.error('Error refreshing profile:', error);
         }
-        
+
         // Auto-advance to next slide after saving
         setTimeout(() => {
           nextSlide();
@@ -1437,16 +1503,18 @@ export function OnboardingInteractive({
       }
     } catch (err) {
       console.error('Error saving license plan:', err);
-              showToast({
-          title: t('common.error') || 'Error',
-          message: t('onboarding.licensePlan.saveError') || 'Could not save your preferences. Please try again.',
-          type: 'error'
-        });
+      showToast({
+        title: t('common.error') || 'Error',
+        message:
+          t('onboarding.licensePlan.saveError') ||
+          'Could not save your preferences. Please try again.',
+        type: 'error',
+      });
     }
   };
 
   const handleRoleSelect = (roleId: string) => {
-      setSelectedRole(roleId);
+    setSelectedRole(roleId);
     // Don't auto-advance - wait for save button
   };
 
@@ -1467,13 +1535,14 @@ export function OnboardingInteractive({
         console.error('Error saving role selection:', error);
         showToast({
           title: t('common.error') || 'Error',
-          message: t('onboarding.role.saveError') || 'Could not update your role. Please try again.',
-          type: 'error'
+          message:
+            t('onboarding.role.saveError') || 'Could not update your role. Please try again.',
+          type: 'error',
         });
       } else {
         setCompletedSteps((prev) => new Set(prev).add('role'));
         checkStepCompletions();
-        
+
         // 🔥 CRITICAL FIX: Refresh profile for cross-screen sync
         try {
           await refreshProfile();
@@ -1481,7 +1550,7 @@ export function OnboardingInteractive({
         } catch (error) {
           console.error('Error refreshing profile after role save:', error);
         }
-        
+
         // Advance to next slide after saving
         nextSlide();
       }
@@ -1490,7 +1559,7 @@ export function OnboardingInteractive({
       showToast({
         title: t('common.error') || 'Error',
         message: t('onboarding.role.saveError') || 'Could not update your role. Please try again.',
-        type: 'error'
+        type: 'error',
       });
     }
   };
@@ -1538,17 +1607,19 @@ export function OnboardingInteractive({
 
     try {
       console.log('🔍 Loading existing relationships for user:', user.id);
-      
+
       // Get relationships where user is either student or supervisor
       const { data: relationships, error } = await supabase
         .from('student_supervisor_relationships')
-        .select(`
+        .select(
+          `
           student_id,
           supervisor_id,
           created_at,
           student:profiles!ssr_student_id_fkey (id, full_name, email, role),
           supervisor:profiles!ssr_supervisor_id_fkey (id, full_name, email, role)
-        `)
+        `,
+        )
         .or(`student_id.eq.${user.id},supervisor_id.eq.${user.id}`);
 
       if (error) {
@@ -1556,19 +1627,20 @@ export function OnboardingInteractive({
         return;
       }
 
-      const transformedRelationships = relationships?.map(rel => {
-        const isUserStudent = rel.student_id === user.id;
-        const otherUser = isUserStudent ? (rel as any).supervisor : (rel as any).student;
-        
-        return {
-          id: otherUser?.id || '',
-          name: otherUser?.full_name || 'Unknown User',
-          email: otherUser?.email || '',
-          role: otherUser?.role || '',
-          relationship_type: isUserStudent ? 'has_supervisor' : 'supervises_student',
-          created_at: rel.created_at,
-        };
-      }) || [];
+      const transformedRelationships =
+        relationships?.map((rel) => {
+          const isUserStudent = rel.student_id === user.id;
+          const otherUser = isUserStudent ? (rel as any).supervisor : (rel as any).student;
+
+          return {
+            id: otherUser?.id || '',
+            name: otherUser?.full_name || 'Unknown User',
+            email: otherUser?.email || '',
+            role: otherUser?.role || '',
+            relationship_type: isUserStudent ? 'has_supervisor' : 'supervises_student',
+            created_at: rel.created_at,
+          };
+        }) || [];
 
       console.log('🔍 Loaded existing relationships:', transformedRelationships);
       setExistingRelationships(transformedRelationships);
@@ -1583,7 +1655,7 @@ export function OnboardingInteractive({
 
     try {
       console.log('📤 Loading pending invitations for user:', user.id);
-      
+
       const { data: invitations, error } = await supabase
         .from('pending_invitations')
         .select('*')
@@ -1609,17 +1681,16 @@ export function OnboardingInteractive({
 
     try {
       console.log('Creating connections for selected users:', selectedConnections);
-      
+
       // Create invitations for each selected connection
       for (const targetUser of selectedConnections) {
         if (!targetUser.email) continue;
-        
+
         // Determine relationship type and target role
-        const relationshipType = selectedRole === 'student' 
-          ? 'student_invites_supervisor' 
-          : 'supervisor_invites_student';
+        const relationshipType =
+          selectedRole === 'student' ? 'student_invites_supervisor' : 'supervisor_invites_student';
         const targetRole = selectedRole === 'student' ? 'instructor' : 'student';
-        
+
         // Check for existing invitation first
         const { data: existingInvitations } = await supabase
           .from('pending_invitations')
@@ -1632,75 +1703,76 @@ export function OnboardingInteractive({
           console.log('Invitation already exists for:', targetUser.email);
           continue; // Skip this user
         }
-        
+
         // Create pending invitation
-        const { error: inviteError } = await supabase
-          .from('pending_invitations')
-          .insert({
-            email: targetUser.email.toLowerCase(),
-            role: targetRole,
-            invited_by: user.id,
-            metadata: {
-              supervisorName: profile?.full_name || user.email,
-              inviterRole: selectedRole,
-              relationshipType,
-              invitedAt: new Date().toISOString(),
-              targetUserId: targetUser.id,
-              targetUserName: targetUser.full_name,
-              customMessage: connectionCustomMessage.trim() || undefined,
-            },
-            status: 'pending',
-          });
-          
+        const { error: inviteError } = await supabase.from('pending_invitations').insert({
+          email: targetUser.email.toLowerCase(),
+          role: targetRole,
+          invited_by: user.id,
+          metadata: {
+            supervisorName: profile?.full_name || user.email,
+            inviterRole: selectedRole,
+            relationshipType,
+            invitedAt: new Date().toISOString(),
+            targetUserId: targetUser.id,
+            targetUserName: targetUser.full_name,
+            customMessage: connectionCustomMessage.trim() || undefined,
+          },
+          status: 'pending',
+        });
+
         if (inviteError && inviteError.code !== '23505') {
           console.error('Error creating invitation:', inviteError);
           continue;
         }
-        
+
         // Create notification for the target user
-        const notificationType = selectedRole === 'student' 
-          ? 'supervisor_invitation' 
-          : 'student_invitation';
-        const baseMessage = selectedRole === 'student' 
-          ? `${profile?.full_name || user.email || 'Someone'} wants you to be their supervisor`
-          : `${profile?.full_name || user.email || 'Someone'} wants you to be their student`;
-        
+        const notificationType =
+          selectedRole === 'student' ? 'supervisor_invitation' : 'student_invitation';
+        const baseMessage =
+          selectedRole === 'student'
+            ? `${profile?.full_name || user.email || 'Someone'} wants you to be their supervisor`
+            : `${profile?.full_name || user.email || 'Someone'} wants you to be their student`;
+
         // Include custom message if provided
-        const fullMessage = connectionCustomMessage.trim() 
+        const fullMessage = connectionCustomMessage.trim()
           ? `${baseMessage}\n\nPersonal message: "${connectionCustomMessage.trim()}"`
           : baseMessage;
-        
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: targetUser.id,
-            actor_id: user.id,
-            type: notificationType as Database['public']['Enums']['notification_type'],
-            title: 'New Supervision Request',
-            message: fullMessage,
-            metadata: {
-              relationship_type: relationshipType,
-              from_user_id: user.id,
-              from_user_name: profile?.full_name || user.email,
-              customMessage: connectionCustomMessage.trim() || undefined,
-            },
-            action_url: 'vromm://notifications',
-            priority: 'high',
-            is_read: false,
-          });
+
+        await supabase.from('notifications').insert({
+          user_id: targetUser.id,
+          actor_id: user.id,
+          type: notificationType as Database['public']['Enums']['notification_type'],
+          title: 'New Supervision Request',
+          message: fullMessage,
+          metadata: {
+            relationship_type: relationshipType,
+            from_user_id: user.id,
+            from_user_name: profile?.full_name || user.email,
+            customMessage: connectionCustomMessage.trim() || undefined,
+          },
+          action_url: 'vromm://notifications',
+          priority: 'high',
+          is_read: false,
+        });
       }
-      
+
       // Complete step (selections cleared by caller)
       setCompletedSteps((prev) => new Set(prev).add('relationships'));
-      
-      console.log('📤 [OnboardingInteractive] Invitations sent to:', selectedConnections.length, 'connections');
-      
+
+      console.log(
+        '📤 [OnboardingInteractive] Invitations sent to:',
+        selectedConnections.length,
+        'connections',
+      );
     } catch (error) {
       console.error('Error creating connections:', error);
       showToast({
         title: t('common.error') || 'Error',
-        message: t('onboarding.connections.inviteError') || 'Some invitations may not have been sent. Please try again.',
-        type: 'error'
+        message:
+          t('onboarding.connections.inviteError') ||
+          'Some invitations may not have been sent. Please try again.',
+        type: 'error',
       });
     }
   };
@@ -1732,17 +1804,15 @@ export function OnboardingInteractive({
           hideConnectionsModal();
         }, 0);
         setCompletedSteps((prev) => new Set(prev).add('relationships'));
-            nextSlide();
+        nextSlide();
         return;
       }
-      
-      const { error } = await supabase
-        .from('student_supervisor_relationships')
-        .insert({
-          student_id: studentId,
-          supervisor_id: supervisorId,
-          status: 'active'
-        });
+
+      const { error } = await supabase.from('student_supervisor_relationships').insert({
+        student_id: studentId,
+        supervisor_id: supervisorId,
+        status: 'active',
+      });
 
       if (error) {
         // Handle duplicate key error gracefully
@@ -1752,7 +1822,7 @@ export function OnboardingInteractive({
             hideConnectionsModal();
           }, 0);
           setCompletedSteps((prev) => new Set(prev).add('relationships'));
-            nextSlide();
+          nextSlide();
           return;
         }
         throw error;
@@ -1763,7 +1833,7 @@ export function OnboardingInteractive({
         hideConnectionsModal();
       }, 0);
       setCompletedSteps((prev) => new Set(prev).add('relationships'));
-    nextSlide();
+      nextSlide();
     } catch (error) {
       console.error('Error creating connection:', error);
       // Silently continue even on error
@@ -1776,14 +1846,52 @@ export function OnboardingInteractive({
 
   const renderLicensePlanStep = (item: OnboardingStep) => {
     // Render license plan step without excessive logging
-    
-    const availableExperienceLevels = experienceLevels.length > 0 ? experienceLevels : [
-      { id: 'beginner', title: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)', description: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)' },
-      { id: 'intermediate', title: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)', description: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)' }, 
-      { id: 'advanced', title: language === 'sv' ? 'Avancerad (behöver förfinas / förberedas inför prov)' : 'Advanced (needs refinement / preparing for test)', description: language === 'sv' ? 'Avancerad (behöver förfinas / förberedas inför prov)' : 'Advanced (needs refinement / preparing for test)' },
-      { id: 'refresher', title: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)', description: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)' },
-      { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert', description: language === 'sv' ? 'Expert' : 'Expert' },
-    ];
+
+    const availableExperienceLevels =
+      experienceLevels.length > 0
+        ? experienceLevels
+        : [
+            {
+              id: 'beginner',
+              title: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)',
+              description:
+                language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)',
+            },
+            {
+              id: 'intermediate',
+              title:
+                language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)',
+              description:
+                language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)',
+            },
+            {
+              id: 'advanced',
+              title:
+                language === 'sv'
+                  ? 'Avancerad (behöver förfinas / förberedas inför prov)'
+                  : 'Advanced (needs refinement / preparing for test)',
+              description:
+                language === 'sv'
+                  ? 'Avancerad (behöver förfinas / förberedas inför prov)'
+                  : 'Advanced (needs refinement / preparing for test)',
+            },
+            {
+              id: 'refresher',
+              title:
+                language === 'sv'
+                  ? 'Repetitionskurs (återvändande förare)'
+                  : 'Refresher (returning drivers)',
+              description:
+                language === 'sv'
+                  ? 'Repetitionskurs (återvändande förare)'
+                  : 'Refresher (returning drivers)',
+            },
+            {
+              id: 'expert',
+              title: language === 'sv' ? 'Expert' : 'Expert',
+              description: language === 'sv' ? 'Expert' : 'Expert',
+            },
+          ];
 
     return (
       <ScrollView
@@ -1797,14 +1905,20 @@ export function OnboardingInteractive({
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300} paddingHorizontal="$4">
+        <YStack
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          minHeight={height - 300}
+          paddingHorizontal="$4"
+        >
           {/* Step Header */}
           <YStack alignItems="center" marginBottom="$6" width="100%">
-            <Text 
-              size="3xl" 
-              fontWeight="800" 
+            <Text
+              size="3xl"
+              fontWeight="800"
               fontStyle="italic"
-              textAlign="center" 
+              textAlign="center"
               fontFamily="$heading"
               color="$color"
             >
@@ -1820,16 +1934,45 @@ export function OnboardingInteractive({
             {/* Experience Level */}
             <DropdownButton
               onPress={() => setShowExperienceModal(true)}
-              value={(experienceLevels.length > 0 ? experienceLevels : [
-                { id: 'beginner', title: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)' },
-                { id: 'intermediate', title: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)' },
-                { id: 'advanced', title: language === 'sv' ? 'Avancerad (behöver förfinas / förberedas inför prov)' : 'Advanced (needs refinement / preparing for test)' },
-                { id: 'refresher', title: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)' },
-                { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert' },
-              ]).find((e) => e.id.toLowerCase() === selectedExperienceLevel.toLowerCase())?.title || (language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')}
+              value={
+                (experienceLevels.length > 0
+                  ? experienceLevels
+                  : [
+                      {
+                        id: 'beginner',
+                        title:
+                          language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)',
+                      },
+                      {
+                        id: 'intermediate',
+                        title:
+                          language === 'sv'
+                            ? 'Medel (viss vägvana)'
+                            : 'Intermediate (some road experience)',
+                      },
+                      {
+                        id: 'advanced',
+                        title:
+                          language === 'sv'
+                            ? 'Avancerad (behöver förfinas / förberedas inför prov)'
+                            : 'Advanced (needs refinement / preparing for test)',
+                      },
+                      {
+                        id: 'refresher',
+                        title:
+                          language === 'sv'
+                            ? 'Repetitionskurs (återvändande förare)'
+                            : 'Refresher (returning drivers)',
+                      },
+                      { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert' },
+                    ]
+                ).find((e) => e.id.toLowerCase() === selectedExperienceLevel.toLowerCase())
+                  ?.title ||
+                (language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')
+              }
               isActive={showExperienceModal}
             />
-            
+
             {/* License Target Date */}
             <DropdownButton
               onPress={() => setShowDateModal(true)}
@@ -1839,19 +1982,28 @@ export function OnboardingInteractive({
 
             <DropdownButton
               onPress={showVehicleModal}
-              value={vehicleTypes.find((v) => v.id === vehicleType)?.title || (language === 'sv' ? 'Bil' : 'Car')}
+              value={
+                vehicleTypes.find((v) => v.id === vehicleType)?.title ||
+                (language === 'sv' ? 'Bil' : 'Car')
+              }
               isActive={showVehicleDrawer}
             />
 
             <DropdownButton
               onPress={showTransmissionModal}
-              value={transmissionTypes.find((t) => t.id === transmissionType)?.title || (language === 'sv' ? 'Manuell' : 'Manual')}
+              value={
+                transmissionTypes.find((t) => t.id === transmissionType)?.title ||
+                (language === 'sv' ? 'Manuell' : 'Manual')
+              }
               isActive={showTransmissionDrawer}
             />
 
             <DropdownButton
               onPress={showLicenseModal}
-              value={licenseTypes.find((l) => l.id === licenseType)?.title || (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')}
+              value={
+                licenseTypes.find((l) => l.id === licenseType)?.title ||
+                (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')
+              }
               isActive={showLicenseDrawer}
             />
 
@@ -1861,9 +2013,9 @@ export function OnboardingInteractive({
                 {t('onboarding.licensePlan.hasTheory') || 'Have you passed the theory test?'}
               </Text>
               <XStack alignItems="center" gap="$2">
-                <Switch 
+                <Switch
                   size="$4"
-                  checked={hasTheory} 
+                  checked={hasTheory}
                   onCheckedChange={async (checked) => {
                     setHasTheory(checked);
                     // 🔥 CRITICAL FIX: Save theory status immediately to profile
@@ -1874,14 +2026,14 @@ export function OnboardingInteractive({
                           ...currentLicenseData,
                           has_theory: checked,
                         };
-                        
+
                         const { error } = await supabase
                           .from('profiles')
                           .update({
                             license_plan_data: updatedLicenseData,
                           })
                           .eq('id', user.id);
-                          
+
                         if (error) {
                           console.error('Error saving theory status:', error);
                         } else {
@@ -1899,7 +2051,7 @@ export function OnboardingInteractive({
                   <Switch.Thumb />
                 </Switch>
                 <Text size="md" color="$color">
-                  {hasTheory ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                  {hasTheory ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
                 </Text>
               </XStack>
             </YStack>
@@ -1910,9 +2062,9 @@ export function OnboardingInteractive({
                 {t('onboarding.licensePlan.hasPractice') || 'Have you passed the practical test?'}
               </Text>
               <XStack alignItems="center" gap="$2">
-                <Switch 
+                <Switch
                   size="$4"
-                  checked={hasPractice} 
+                  checked={hasPractice}
                   onCheckedChange={async (checked) => {
                     setHasPractice(checked);
                     // 🔥 CRITICAL FIX: Save practice status immediately to profile
@@ -1923,14 +2075,14 @@ export function OnboardingInteractive({
                           ...currentLicenseData,
                           has_practice: checked,
                         };
-                        
+
                         const { error } = await supabase
                           .from('profiles')
                           .update({
                             license_plan_data: updatedLicenseData,
                           })
                           .eq('id', user.id);
-                          
+
                         if (error) {
                           console.error('Error saving practice status:', error);
                         } else {
@@ -1948,7 +2100,7 @@ export function OnboardingInteractive({
                   <Switch.Thumb />
                 </Switch>
                 <Text size="md" color="$color">
-                  {hasPractice ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                  {hasPractice ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
                 </Text>
               </XStack>
             </YStack>
@@ -1956,31 +2108,51 @@ export function OnboardingInteractive({
             {/* Previous Experience Dropdown */}
             <DropdownButton
               onPress={showPreviousExperienceSheet}
-              value={previousExperience || (t('onboarding.licensePlan.experiencePlaceholder') || 'Describe your previous driving experience')}
-              placeholder={t('onboarding.licensePlan.previousExperience') || 'Previous driving experience'}
+              value={
+                previousExperience ||
+                t('onboarding.licensePlan.experiencePlaceholder') ||
+                'Describe your previous driving experience'
+              }
+              placeholder={
+                t('onboarding.licensePlan.previousExperience') || 'Previous driving experience'
+              }
               isActive={showPreviousExperienceModal}
             />
 
             {/* Specific Goals Dropdown */}
             <DropdownButton
               onPress={showSpecificGoalsSheet}
-              value={specificGoals || (t('onboarding.licensePlan.goalsPlaceholder') || 'Do you have specific goals with your license?')}
+              value={
+                specificGoals ||
+                t('onboarding.licensePlan.goalsPlaceholder') ||
+                'Do you have specific goals with your license?'
+              }
               placeholder={t('onboarding.licensePlan.specificGoals') || 'Specific goals'}
               isActive={showSpecificGoalsModal}
             />
 
             {/* Save Button */}
-            <Button variant="primary" size="lg" onPress={() => {
-              handleSaveLicensePlan();
-            }} marginTop="$4">
+            <Button
+              variant="primary"
+              size="lg"
+              onPress={() => {
+                handleSaveLicensePlan();
+              }}
+              marginTop="$4"
+            >
               {t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
             </Button>
 
             {/* Skip Button */}
             {item.skipButton && (
-              <Button variant="link" size="md" onPress={() => {
-                handleSkipStep(item);
-              }} marginTop="$2">
+              <Button
+                variant="link"
+                size="md"
+                onPress={() => {
+                  handleSkipStep(item);
+                }}
+                marginTop="$2"
+              >
                 {item.skipButton}
               </Button>
             )}
@@ -2021,14 +2193,20 @@ export function OnboardingInteractive({
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300} paddingHorizontal="$4">
+        <YStack
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          minHeight={height - 300}
+          paddingHorizontal="$4"
+        >
           {/* Step Header */}
           <YStack alignItems="center" marginBottom="$6" width="100%">
-            <Text 
-              size="3xl" 
-              fontWeight="800" 
+            <Text
+              size="3xl"
+              fontWeight="800"
               fontStyle="italic"
-              textAlign="center" 
+              textAlign="center"
               fontFamily="$heading"
               color="$color"
             >
@@ -2054,10 +2232,10 @@ export function OnboardingInteractive({
 
           {/* Save Button */}
           <YStack width="100%" marginTop="$4" gap="$2">
-                              <Button variant="primary" size="lg" onPress={handleSaveRole}>
-                {t('onboarding.role.saveRole') || 'Save Role & Continue'}
+            <Button variant="primary" size="lg" onPress={handleSaveRole}>
+              {t('onboarding.role.saveRole') || 'Save Role & Continue'}
             </Button>
-            
+
             {/* Always show skip button for role selection */}
             <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
               {t('onboarding.skipForNow') || 'Skip for now'}
@@ -2081,8 +2259,14 @@ export function OnboardingInteractive({
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <YStack flex={1} alignItems="center" justifyContent="center" minHeight={height - 300} paddingHorizontal="$4">
-                    {/* Simplified Step Content */}
+        <YStack
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          minHeight={height - 300}
+          paddingHorizontal="$4"
+        >
+          {/* Simplified Step Content */}
           <YStack alignItems="center" gap="$4" width="100%">
             {/* Show Vromm logo on complete step */}
             {item.id === 'complete' && (
@@ -2096,18 +2280,18 @@ export function OnboardingInteractive({
                 resizeMode="contain"
               />
             )}
-            
-            <Text 
-              size="3xl" 
-              fontWeight="800" 
+
+            <Text
+              size="3xl"
+              fontWeight="800"
               fontStyle="italic"
-              textAlign="center" 
+              textAlign="center"
               fontFamily="$heading"
               color="$color"
             >
               {item.title}
             </Text>
-            
+
             <Text size="lg" textAlign="center" color="$color" opacity={0.9}>
               {item.description}
             </Text>
@@ -2127,17 +2311,23 @@ export function OnboardingInteractive({
                     <>
                       <Animated.View
                         style={{
-                          transform: [{
-                            rotate: spinValue.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: ['0deg', '360deg']
-                            })
-                          }]
+                          transform: [
+                            {
+                              rotate: spinValue.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: ['0deg', '360deg'],
+                              }),
+                            },
+                          ],
                         }}
                       >
                         <Feather name="loader" size={16} color="#145251" />
                       </Animated.View>
-{(t('onboarding.location.detectingLocation') || 'Detecting Location').replace('...', '')}{'.'.repeat(dotsCount)}
+                      {(t('onboarding.location.detectingLocation') || 'Detecting Location').replace(
+                        '...',
+                        '',
+                      )}
+                      {'.'.repeat(dotsCount)}
                     </>
                   ) : (
                     t('onboarding.location.detectLocation') || 'Detect My Location'
@@ -2150,10 +2340,10 @@ export function OnboardingInteractive({
                   placeholder={t('onboarding.location.selectCity') || 'Or Select Your City'}
                   isActive={showCityDrawer}
                 />
-                
+
                 {/* Clear location chip */}
                 {selectedCity && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => {
                       setSelectedCity('');
                       setLocationStatus('unknown');
@@ -2161,7 +2351,8 @@ export function OnboardingInteractive({
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
-                      backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                      backgroundColor:
+                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                       borderRadius: 20,
                       paddingHorizontal: 12,
                       paddingVertical: 6,
@@ -2173,17 +2364,21 @@ export function OnboardingInteractive({
                     </Text>
                   </TouchableOpacity>
                 )}
-                
+
                 {/* Save button when city is selected or location is detected */}
                 {selectedCity && (
-                  <Button variant="primary" size="lg" onPress={() => {
-                    setCompletedSteps((prev) => new Set(prev).add('location'));
-                    nextSlide();
-                  }}>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onPress={() => {
+                      setCompletedSteps((prev) => new Set(prev).add('location'));
+                      nextSlide();
+                    }}
+                  >
                     {t('onboarding.location.saveLocation') || 'Save Location & Continue'}
                   </Button>
                 )}
-                
+
                 <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
                   {t('onboarding.skipForNow') || 'Skip for now'}
                 </Button>
@@ -2197,7 +2392,13 @@ export function OnboardingInteractive({
                   <YStack gap="$3" width="100%">
                     {/* Tabbed interface for relationships */}
                     {(existingRelationships.length > 0 || pendingInvitations.length > 0) && (
-                      <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4" maxHeight="300">
+                      <YStack
+                        gap="$3"
+                        padding="$4"
+                        backgroundColor="$backgroundHover"
+                        borderRadius="$4"
+                        maxHeight="300"
+                      >
                         {/* Tab headers */}
                         <XStack gap="$2" marginBottom="$2">
                           <TouchableOpacity
@@ -2206,15 +2407,21 @@ export function OnboardingInteractive({
                               paddingHorizontal: 16,
                               paddingVertical: 8,
                               borderRadius: 8,
-                              backgroundColor: activeRelationshipsTab === 'pending' ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : 'transparent',
+                              backgroundColor:
+                                activeRelationshipsTab === 'pending'
+                                  ? colorScheme === 'dark'
+                                    ? '#333'
+                                    : '#E5E5E5'
+                                  : 'transparent',
                             }}
                           >
-                            <Text 
-                              size="sm" 
-                              fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'} 
+                            <Text
+                              size="sm"
+                              fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'}
                               color={activeRelationshipsTab === 'pending' ? textColor : handleColor}
                             >
-                              {t('onboarding.relationships.pendingTitle') || 'Pending'} ({pendingInvitations.length})
+                              {t('onboarding.relationships.pendingTitle') || 'Pending'} (
+                              {pendingInvitations.length})
                             </Text>
                           </TouchableOpacity>
                           <TouchableOpacity
@@ -2223,15 +2430,23 @@ export function OnboardingInteractive({
                               paddingHorizontal: 16,
                               paddingVertical: 8,
                               borderRadius: 8,
-                              backgroundColor: activeRelationshipsTab === 'existing' ? (colorScheme === 'dark' ? '#333' : '#E5E5E5') : 'transparent',
+                              backgroundColor:
+                                activeRelationshipsTab === 'existing'
+                                  ? colorScheme === 'dark'
+                                    ? '#333'
+                                    : '#E5E5E5'
+                                  : 'transparent',
                             }}
                           >
-                            <Text 
-                              size="sm" 
-                              fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'} 
-                              color={activeRelationshipsTab === 'existing' ? textColor : handleColor}
+                            <Text
+                              size="sm"
+                              fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'}
+                              color={
+                                activeRelationshipsTab === 'existing' ? textColor : handleColor
+                              }
                             >
-                              {t('onboarding.relationships.existingTitle') || 'Existing'} ({existingRelationships.length})
+                              {t('onboarding.relationships.existingTitle') || 'Existing'} (
+                              {existingRelationships.length})
                             </Text>
                           </TouchableOpacity>
                         </XStack>
@@ -2249,7 +2464,8 @@ export function OnboardingInteractive({
                                         {invitation.metadata?.targetUserName || invitation.email}
                                       </Text>
                                       <Text size="sm" color="$gray11">
-                                        {invitation.email} • {invitation.role} • {t('onboarding.relationships.pending') || 'Pending'}
+                                        {invitation.email} • {invitation.role} •{' '}
+                                        {t('onboarding.relationships.pending') || 'Pending'}
                                       </Text>
                                       {invitation.metadata?.customMessage && (
                                         <Text size="sm" color="$gray11" fontStyle="italic">
@@ -2265,7 +2481,7 @@ export function OnboardingInteractive({
                                             .from('pending_invitations')
                                             .delete()
                                             .eq('id', invitation.id);
-                                          
+
                                           if (!error) {
                                             loadPendingInvitations(); // Refresh list
                                           }
@@ -2279,63 +2495,80 @@ export function OnboardingInteractive({
                                   </XStack>
                                 ))
                               ) : (
-                                <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                                  {t('onboarding.relationships.noPending') || 'No pending invitations'}
+                                <Text
+                                  size="sm"
+                                  color="$gray11"
+                                  textAlign="center"
+                                  paddingVertical="$4"
+                                >
+                                  {t('onboarding.relationships.noPending') ||
+                                    'No pending invitations'}
                                 </Text>
                               )
+                            ) : // Existing relationships
+                            existingRelationships.length > 0 ? (
+                              existingRelationships.map((relationship) => (
+                                <XStack key={relationship.id} gap="$2" alignItems="center">
+                                  <YStack flex={1}>
+                                    <RadioButton
+                                      onPress={() => {}} // No action on tap for existing relationships
+                                      title={relationship.name}
+                                      description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? t('onboarding.relationships.yourSupervisor') || 'Your supervisor' : t('onboarding.relationships.studentYouSupervise') || 'Student you supervise'} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
+                                      isSelected={false} // Don't show as selected
+                                    />
+                                  </YStack>
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      setRelationshipRemovalTarget({
+                                        id: relationship.id,
+                                        name: relationship.name,
+                                        email: relationship.email,
+                                        role: relationship.role,
+                                        relationship_type: relationship.relationship_type,
+                                      });
+                                      openRelationshipRemovalModal();
+                                    }}
+                                  >
+                                    <Feather name="trash-2" size={16} color="#EF4444" />
+                                  </TouchableOpacity>
+                                </XStack>
+                              ))
                             ) : (
-                              // Existing relationships
-                              existingRelationships.length > 0 ? (
-                                existingRelationships.map((relationship) => (
-                                  <XStack key={relationship.id} gap="$2" alignItems="center">
-                                    <YStack flex={1}>
-                                      <RadioButton
-                                        onPress={() => {}} // No action on tap for existing relationships
-                                        title={relationship.name}
-                                        description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? (t('onboarding.relationships.yourSupervisor') || 'Your supervisor') : (t('onboarding.relationships.studentYouSupervise') || 'Student you supervise')} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
-                                        isSelected={false} // Don't show as selected
-                                      />
-                                    </YStack>
-                                    <TouchableOpacity
-                                      onPress={() => {
-                                        setRelationshipRemovalTarget({
-                                          id: relationship.id,
-                                          name: relationship.name,
-                                          email: relationship.email,
-                                          role: relationship.role,
-                                          relationship_type: relationship.relationship_type,
-                                        });
-                                        openRelationshipRemovalModal();
-                                      }}
-                                    >
-                                      <Feather name="trash-2" size={16} color="#EF4444" />
-                                    </TouchableOpacity>
-                                  </XStack>
-                                ))
-                              ) : (
-                                <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                                  {t('onboarding.relationships.noExisting') || 'No existing relationships'}
-                                </Text>
-                              )
+                              <Text
+                                size="sm"
+                                color="$gray11"
+                                textAlign="center"
+                                paddingVertical="$4"
+                              >
+                                {t('onboarding.relationships.noExisting') ||
+                                  'No existing relationships'}
+                              </Text>
                             )}
                           </YStack>
                         </ScrollView>
                       </YStack>
                     )}
-                    
+
                     {/* Show selected connections with message */}
                     {selectedConnections.length > 0 && (
-                      <YStack gap="$3" padding="$4" backgroundColor="$backgroundHover" borderRadius="$4">
+                      <YStack
+                        gap="$3"
+                        padding="$4"
+                        backgroundColor="$backgroundHover"
+                        borderRadius="$4"
+                      >
                         <Text size="md" fontWeight="600" color="$color">
-                          {t('onboarding.relationships.newConnectionsTitle') || 'New Connection to Add'} ({selectedConnections.length}):
+                          {t('onboarding.relationships.newConnectionsTitle') ||
+                            'New Connection to Add'}{' '}
+                          ({selectedConnections.length}):
                         </Text>
                         {selectedConnections.map((connection) => (
                           <RadioButton
                             key={connection.id}
                             onPress={() => {
                               // Remove this connection
-                              setSelectedConnections(prev => 
-                                prev.filter(conn => conn.id !== connection.id)
+                              setSelectedConnections((prev) =>
+                                prev.filter((conn) => conn.id !== connection.id),
                               );
                             }}
                             title={connection.full_name || connection.email}
@@ -2343,11 +2576,19 @@ export function OnboardingInteractive({
                             isSelected={true}
                           />
                         ))}
-                        
+
                         {/* Show custom message if provided */}
                         {connectionCustomMessage.trim() && (
-                          <YStack gap="$1" marginTop="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
-                            <Text size="sm" color="$gray11" fontWeight="600">Your message:</Text>
+                          <YStack
+                            gap="$1"
+                            marginTop="$2"
+                            padding="$3"
+                            backgroundColor="$backgroundHover"
+                            borderRadius="$3"
+                          >
+                            <Text size="sm" color="$gray11" fontWeight="600">
+                              Your message:
+                            </Text>
                             <Text size="sm" color="$color" fontStyle="italic">
                               "{connectionCustomMessage.trim()}"
                             </Text>
@@ -2355,26 +2596,36 @@ export function OnboardingInteractive({
                         )}
                       </YStack>
                     )}
-                    
+
                     {/* Action buttons */}
                     {selectedConnections.length > 0 ? (
-                      <Button variant="primary" size="lg" onPress={async () => {
-                        await handleCreateSelectedConnections();
-                        // Clear selections after successful save
-                        setSelectedConnections([]);
-                        setConnectionCustomMessage('');
-                        nextSlide();
-                      }}>
-                        Save {selectedConnections.length > 1 ? 'Connections' : 'Connection'} & Continue
-                  </Button>
+                      <Button
+                        variant="primary"
+                        size="lg"
+                        onPress={async () => {
+                          await handleCreateSelectedConnections();
+                          // Clear selections after successful save
+                          setSelectedConnections([]);
+                          setConnectionCustomMessage('');
+                          nextSlide();
+                        }}
+                      >
+                        Save {selectedConnections.length > 1 ? 'Connections' : 'Connection'} &
+                        Continue
+                      </Button>
                     ) : existingRelationships.length > 0 ? (
                       <YStack gap="$2" width="100%">
-                        <Button variant="primary" size="lg" onPress={() => {
-                          // Skip to next step since user already has relationships
-                          setCompletedSteps((prev) => new Set(prev).add('relationships'));
-                          nextSlide();
-                        }}>
-                          {t('onboarding.relationships.continueExisting') || 'Continue with Existing Relationships'}
+                        <Button
+                          variant="primary"
+                          size="lg"
+                          onPress={() => {
+                            // Skip to next step since user already has relationships
+                            setCompletedSteps((prev) => new Set(prev).add('relationships'));
+                            nextSlide();
+                          }}
+                        >
+                          {t('onboarding.relationships.continueExisting') ||
+                            'Continue with Existing Relationships'}
                         </Button>
                         <Button variant="secondary" size="lg" onPress={showConnectionsModal}>
                           {t('onboarding.relationships.addMore') || 'Add More Connections'}
@@ -2403,7 +2654,7 @@ export function OnboardingInteractive({
                       placeholder={t('onboarding.complete.selectLanguage') || 'Select Language'}
                       isActive={showLanguageModal}
                     />
-                    
+
                     <Button variant="primary" size="lg" onPress={completeOnboarding}>
                       {t('onboarding.complete.startJourney') || 'Start Using Vromm!'}
                     </Button>
@@ -2420,9 +2671,9 @@ export function OnboardingInteractive({
                 {item.skipButton && item.id !== 'relationships' && item.id !== 'complete' && (
                   <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
                     {t('onboarding.skipForNow') || item.skipButton}
-                </Button>
-              )}
-            </YStack>
+                  </Button>
+                )}
+              </YStack>
             )}
           </YStack>
         </YStack>
@@ -2453,1371 +2704,1526 @@ export function OnboardingInteractive({
 
   return (
     <View style={{ flex: 1, height: '100%' }}>
-    <Stack flex={1} bg="$background" height="100%">
+      <Stack flex={1} bg="$background" height="100%">
+        {/* Back Button - Header Style */}
+        {currentIndex > 0 && (
+          <View
+            style={{
+              position: 'absolute',
+              top: insets.top || 40,
+              left: 16,
+              zIndex: 1000,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                scrollTo(currentIndex - 1);
+              }}
+              style={{
+                padding: 12,
+                marginLeft: -8,
+              }}
+            >
+              <Feather name="arrow-left" size={24} color={iconColor} />
+            </TouchableOpacity>
+          </View>
+        )}
 
-
-      {/* Back Button - Header Style */}
-      {currentIndex > 0 && (
-      <View
-        style={{
-          position: 'absolute',
-          top: insets.top || 40,
-          left: 16,
+        {/* Close Button - Header Style */}
+        <View
+          style={{
+            position: 'absolute',
+            top: insets.top || 40,
+            right: 16,
             zIndex: 1000,
           }}
         >
           <TouchableOpacity
             onPress={() => {
-              scrollTo(currentIndex - 1);
+              // Close button should complete onboarding permanently
+              // Users can still access features through GettingStarted.tsx
+              completeOnboarding();
             }}
-          style={{
+            style={{
               padding: 12,
-              marginLeft: -8,
-          }}
-        >
-            <Feather name="arrow-left" size={24} color={iconColor} />
-        </TouchableOpacity>
-      </View>
-      )}
-
-      {/* Close Button - Header Style */}
-      <View
-        style={{
-          position: 'absolute',
-          top: insets.top || 40,
-          right: 16,
-          zIndex: 1000,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => {
-            // Close button should complete onboarding permanently
-            // Users can still access features through GettingStarted.tsx
-            completeOnboarding();
-          }}
-          style={{
-            padding: 12,
-            marginRight: -8,
-          }}
-        >
-          <Feather name="x" size={24} color={iconColor} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Main Content */}
-      <FlatList
-        data={steps}
-        renderItem={renderStep}
-        keyExtractor={(item) => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        pagingEnabled
-        bounces={false}
-        onScroll={(event) => {
-          handleScroll(event);
-        }}
-        onViewableItemsChanged={viewableItemsChanged}
-        viewabilityConfig={viewConfig}
-        ref={slidesRef}
-        initialNumToRender={1}
-        maxToRenderPerBatch={1}
-        windowSize={3}
-        removeClippedSubviews={false}
-        getItemLayout={(data, index) => ({
-          length: width,
-          offset: width * index,
-          index,
-        })}
-        // Scroll events without excessive logging
-        style={{ flex: 1, height: '100%' }}
-        contentContainerStyle={{ height: '100%' }}
-      />
-
-      {/* Dots indicator - similar to SplashScreen */}
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 20,
-          left: 0,
-          right: 0,
-          zIndex: 20,
-        }}
-      >
-        <XStack justifyContent="center" gap="$1" paddingVertical="$2">
-          {steps.map((_, i) => {
-            const isActive = currentIndex === i;
-
-            return (
-              <TouchableOpacity
-                key={`dot-${i}`}
-                onPress={() => scrollTo(i)}
-                style={{
-                  padding: 6,
-                }}
-              >
-                <Animated.View
-                  style={{
-                    width: isActive ? 16 : 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: isActive ? '#00FFBC' : textColor,
-                    marginHorizontal: 2,
-                    opacity: isActive ? 1 : 0.5,
-                    shadowColor: isActive ? '#00FFBC' : 'transparent',
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: isActive ? 0.3 : 0,
-                    shadowRadius: isActive ? 4 : 0,
-                    elevation: isActive ? 3 : 0,
-                  }}
-                />
-              </TouchableOpacity>
-            );
-          })}
-        </XStack>
-      </View>
-
-      {/* City Selection Modal */}
-      <Modal
-        visible={showCityDrawer}
-        transparent
-        animationType="none"
-        onRequestClose={hideCityModal}
-      >
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: cityBackdropOpacity,
-          }}
-        >
-          <Pressable style={{ flex: 1 }} onPress={hideCityModal}>
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                transform: [{ translateY: citySheetTranslateY }],
-              }}
-            >
-          <YStack
-                backgroundColor={backgroundColor}
-            padding="$4"
-                paddingBottom={insets.bottom || 20}
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-                gap="$4"
-
-          >
-            <Text size="xl" weight="bold" color="$color" textAlign="center">
-              {t('onboarding.city.title') || 'Select Your City'}
-            </Text>
-            
-            <FormField
-              placeholder={t('onboarding.city.searchPlaceholder') || "Search cities... (try 'Ystad', 'New York', etc.)"}
-              value={citySearchQuery}
-              onChangeText={handleCitySearch}
-            />
-            
-            <ScrollView style={{ maxHeight: 300 }}>
-              <YStack gap="$1">
-                {citySearchResults.length === 0 && citySearchQuery.length >= 2 && (
-                  <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                    {t('onboarding.city.noCitiesFor') || 'No cities found for'} "{citySearchQuery}"
-                  </Text>
-                )}
-                
-                {citySearchResults.length === 0 && citySearchQuery.length < 2 && (
-                  <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                    {t('onboarding.city.startTyping') || 'Start typing to search for any city worldwide'}
-                  </Text>
-                )}
-                
-                {/* Show selected city first if it exists and matches search or is detected */}
-                {selectedCity && !citySearchResults.some(city => {
-                  const cityName = [city.city, city.country].filter(Boolean).join(', ');
-                  return cityName === selectedCity;
-                }) && (
-                  <TouchableOpacity
-                    key="selected-city"
-                    style={[
-                      styles.sheetOption,
-                      { backgroundColor: selectedBackgroundColor },
-                    ]}
-                  >
-                    <XStack gap={8} padding="$2" alignItems="center">
-                      <Text color={textColor} size="lg">
-                        {selectedCity} (Current)
-                      </Text>
-                      <Check size={16} color={focusBorderColor} style={{ marginLeft: 'auto' }} />
-                    </XStack>
-                  </TouchableOpacity>
-                )}
-                
-                {citySearchResults.map((cityData, index) => {
-                  const cityName = [cityData.city, cityData.country]
-                    .filter(Boolean)
-                    .join(', ');
-                  
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      onPress={() => handleCitySelect(cityData)}
-                      style={[
-                        styles.sheetOption,
-                        selectedCity === cityName && { backgroundColor: selectedBackgroundColor },
-                      ]}
-                    >
-                      <XStack gap={8} padding="$2" alignItems="center">
-                        <Text color={textColor} size="lg">
-                            {cityName}
-                          </Text>
-                        {selectedCity === cityName && (
-                          <Check size={16} color={focusBorderColor} style={{ marginLeft: 'auto' }} />
-                        )}
-                      </XStack>
-                    </TouchableOpacity>
-                  );
-                })}
-              </YStack>
-            </ScrollView>
-          </YStack>
-            </Animated.View>
-          </Pressable>
-        </Animated.View>
-      </Modal>
-
-      {/* Connections Selection Modal */}
-      <Modal
-        visible={showConnectionsDrawer}
-        transparent
-        animationType="none"
-        onRequestClose={() => {
-          console.log('🔒 [OnboardingInteractive] Modal onRequestClose called');
-          // Use setTimeout to avoid useInsertionEffect errors
-          setTimeout(() => {
-            hideConnectionsModal();
-          }, 0);
-        }}
-      >
-        <ReanimatedAnimated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: connectionsBackdropOpacityShared,
-          }}
-        >
-          <Pressable 
-            style={{ flex: 1 }}
-            onPress={() => {
-              console.log('🔒 [OnboardingInteractive] Background pressed');
-              // Use setTimeout to avoid state conflicts
-              setTimeout(() => {
-                hideConnectionsModal();
-              }, 0);
+              marginRight: -8,
             }}
           >
-            <ReanimatedAnimated.View
-              style={[
-                {
+            <Feather name="x" size={24} color={iconColor} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Main Content */}
+        <FlatList
+          data={steps}
+          renderItem={renderStep}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          pagingEnabled
+          bounces={false}
+          onScroll={(event) => {
+            handleScroll(event);
+          }}
+          onViewableItemsChanged={viewableItemsChanged}
+          viewabilityConfig={viewConfig}
+          ref={slidesRef}
+          initialNumToRender={1}
+          maxToRenderPerBatch={1}
+          windowSize={3}
+          removeClippedSubviews={false}
+          getItemLayout={(data, index) => ({
+            length: width,
+            offset: width * index,
+            index,
+          })}
+          // Scroll events without excessive logging
+          style={{ flex: 1, height: '100%' }}
+          contentContainerStyle={{ height: '100%' }}
+        />
+
+        {/* Dots indicator - similar to SplashScreen */}
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 20,
+            left: 0,
+            right: 0,
+            zIndex: 20,
+          }}
+        >
+          <XStack justifyContent="center" gap="$1" paddingVertical="$2">
+            {steps.map((_, i) => {
+              const isActive = currentIndex === i;
+
+              return (
+                <TouchableOpacity
+                  key={`dot-${i}`}
+                  onPress={() => scrollTo(i)}
+                  style={{
+                    padding: 6,
+                  }}
+                >
+                  <Animated.View
+                    style={{
+                      width: isActive ? 16 : 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: isActive ? '#00FFBC' : textColor,
+                      marginHorizontal: 2,
+                      opacity: isActive ? 1 : 0.5,
+                      shadowColor: isActive ? '#00FFBC' : 'transparent',
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: isActive ? 0.3 : 0,
+                      shadowRadius: isActive ? 4 : 0,
+                      elevation: isActive ? 3 : 0,
+                    }}
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </XStack>
+        </View>
+
+        {/* City Selection Modal */}
+        <Modal
+          visible={showCityDrawer}
+          transparent
+          animationType="none"
+          onRequestClose={hideCityModal}
+        >
+          <Animated.View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              opacity: cityBackdropOpacity,
+            }}
+          >
+            <Pressable style={{ flex: 1 }} onPress={hideCityModal}>
+              <Animated.View
+                style={{
                   position: 'absolute',
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  backgroundColor: backgroundColor,
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
-                },
-                connectionsAnimatedStyle
-              ]}
-            >
-          <YStack
-                backgroundColor={backgroundColor}
-            padding="$4"
-                paddingBottom={insets.bottom || 20}
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-                gap="$4"
-                height={height * 0.9}
-                maxHeight={height * 0.9}
+                  transform: [{ translateY: citySheetTranslateY }],
+                }}
               >
-                {/* Drag Handle */}
-                <GestureDetector gesture={connectionsPanGesture}>
-                  <View style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}>
-                    <View style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
-                    }} />
-                  </View>
-                </GestureDetector>
+                <YStack
+                  backgroundColor={backgroundColor}
+                  padding="$4"
+                  paddingBottom={insets.bottom || 20}
+                  borderTopLeftRadius="$4"
+                  borderTopRightRadius="$4"
+                  gap="$4"
+                >
+                  <Text size="xl" weight="bold" color="$color" textAlign="center">
+                    {t('onboarding.city.title') || 'Select Your City'}
+                  </Text>
 
-            <Text size="xl" weight="bold" color="$color" textAlign="center">
-              {selectedRole === 'student' 
-                ? (t('onboarding.connections.findInstructors') || 'Find Instructors')
-                : selectedRole === 'instructor' || selectedRole === 'school' 
-                  ? (t('onboarding.connections.findStudents') || 'Find Students')
-                  : (t('onboarding.connections.findUsers') || 'Find Users')
-              }
-              </Text>
-            
-            <Text size="sm" color="$gray11">
-              {selectedRole === 'student' 
-                ? (t('onboarding.connections.searchInstructors') || 'Search for driving instructors to connect with')
-                : selectedRole === 'instructor' || selectedRole === 'school' 
-                  ? (t('onboarding.connections.searchStudents') || 'Search for students to connect with')
-                  : (t('onboarding.connections.searchUsers') || 'Search for users to connect with')
-              }
-            </Text>
-            
-            {/* Custom message input - using FormField styling */}
-            <YStack gap="$2">
-              <Text size="sm" color="$gray11">{t('onboarding.connections.optionalMessage') || 'Optional message:'}</Text>
-            <TextInput
-                value={connectionCustomMessage}
-                onChangeText={setConnectionCustomMessage}
-                placeholder={t('onboarding.connections.messagePlaceholder') || 'Add a personal message...'}
-                multiline
+                  <FormField
+                    placeholder={
+                      t('onboarding.city.searchPlaceholder') ||
+                      "Search cities... (try 'Ystad', 'New York', etc.)"
+                    }
+                    value={citySearchQuery}
+                    onChangeText={handleCitySearch}
+                  />
+
+                  <ScrollView style={{ maxHeight: 300 }}>
+                    <YStack gap="$1">
+                      {citySearchResults.length === 0 && citySearchQuery.length >= 2 && (
+                        <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                          {t('onboarding.city.noCitiesFor') || 'No cities found for'} "
+                          {citySearchQuery}"
+                        </Text>
+                      )}
+
+                      {citySearchResults.length === 0 && citySearchQuery.length < 2 && (
+                        <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                          {t('onboarding.city.startTyping') ||
+                            'Start typing to search for any city worldwide'}
+                        </Text>
+                      )}
+
+                      {/* Show selected city first if it exists and matches search or is detected */}
+                      {selectedCity &&
+                        !citySearchResults.some((city) => {
+                          const cityName = [city.city, city.country].filter(Boolean).join(', ');
+                          return cityName === selectedCity;
+                        }) && (
+                          <TouchableOpacity
+                            key="selected-city"
+                            style={[
+                              styles.sheetOption,
+                              { backgroundColor: selectedBackgroundColor },
+                            ]}
+                          >
+                            <XStack gap={8} padding="$2" alignItems="center">
+                              <Text color={textColor} size="lg">
+                                {selectedCity} (Current)
+                              </Text>
+                              <Check
+                                size={16}
+                                color={focusBorderColor}
+                                style={{ marginLeft: 'auto' }}
+                              />
+                            </XStack>
+                          </TouchableOpacity>
+                        )}
+
+                      {citySearchResults.map((cityData, index) => {
+                        const cityName = [cityData.city, cityData.country]
+                          .filter(Boolean)
+                          .join(', ');
+
+                        return (
+                          <TouchableOpacity
+                            key={index}
+                            onPress={() => handleCitySelect(cityData)}
+                            style={[
+                              styles.sheetOption,
+                              selectedCity === cityName && {
+                                backgroundColor: selectedBackgroundColor,
+                              },
+                            ]}
+                          >
+                            <XStack gap={8} padding="$2" alignItems="center">
+                              <Text color={textColor} size="lg">
+                                {cityName}
+                              </Text>
+                              {selectedCity === cityName && (
+                                <Check
+                                  size={16}
+                                  color={focusBorderColor}
+                                  style={{ marginLeft: 'auto' }}
+                                />
+                              )}
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </YStack>
+                  </ScrollView>
+                </YStack>
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        </Modal>
+
+        {/* Connections Selection Modal */}
+        <Modal
+          visible={showConnectionsDrawer}
+          transparent
+          animationType="none"
+          onRequestClose={() => {
+            console.log('🔒 [OnboardingInteractive] Modal onRequestClose called');
+            // Use setTimeout to avoid useInsertionEffect errors
+            setTimeout(() => {
+              hideConnectionsModal();
+            }, 0);
+          }}
+        >
+          <ReanimatedAnimated.View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              opacity: connectionsBackdropOpacityShared,
+            }}
+          >
+            <Pressable
+              style={{ flex: 1 }}
+              onPress={() => {
+                console.log('🔒 [OnboardingInteractive] Background pressed');
+                // Use setTimeout to avoid state conflicts
+                setTimeout(() => {
+                  hideConnectionsModal();
+                }, 0);
+              }}
+            >
+              <ReanimatedAnimated.View
                 style={[
                   {
-                    minHeight: 40,
-                    textAlignVertical: 'top',
-                    padding: 8,
-                borderRadius: 8,
-                borderWidth: 1,
-                    fontSize: 14,
-                  },
-                  // Dynamic theming
-                  {
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
                     backgroundColor: backgroundColor,
-                    color: textColor,
-                    borderColor: borderColor,
-                  }
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                  },
+                  connectionsAnimatedStyle,
                 ]}
-                placeholderTextColor={handleColor}
-              />
-            </YStack>
-            
-            <FormField
-              placeholder={t('onboarding.connections.searchPlaceholder') || 'Search by name or email...'}
-              value={connectionSearchQuery}
-              onChangeText={handleSearchUsers}
-            />
-            
-            <ScrollView style={{ flex: 1, maxHeight: 180 }} showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingBottom: 8 }}>
-              <YStack gap="$2">
-                {searchResults.length === 0 && connectionSearchQuery.length >= 2 && (
-                  <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                    {t('onboarding.connections.noUsers') || 'No users found'}
+              >
+                <YStack
+                  backgroundColor={backgroundColor}
+                  padding="$4"
+                  paddingBottom={insets.bottom || 20}
+                  borderTopLeftRadius="$4"
+                  borderTopRightRadius="$4"
+                  gap="$4"
+                  height={height * 0.9}
+                  maxHeight={height * 0.9}
+                >
+                  {/* Drag Handle */}
+                  <GestureDetector gesture={connectionsPanGesture}>
+                    <View
+                      style={{
+                        alignItems: 'center',
+                        paddingVertical: 8,
+                        paddingBottom: 16,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 40,
+                          height: 4,
+                          borderRadius: 2,
+                          backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                        }}
+                      />
+                    </View>
+                  </GestureDetector>
+
+                  <Text size="xl" weight="bold" color="$color" textAlign="center">
+                    {selectedRole === 'student'
+                      ? t('onboarding.connections.findInstructors') || 'Find Instructors'
+                      : selectedRole === 'instructor' || selectedRole === 'school'
+                        ? t('onboarding.connections.findStudents') || 'Find Students'
+                        : t('onboarding.connections.findUsers') || 'Find Users'}
                   </Text>
-                )}
-                
-                {searchResults.length === 0 && connectionSearchQuery.length < 2 && (
-                  <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                    {t('onboarding.connections.startTyping') || 'Start typing to search for users'}
+
+                  <Text size="sm" color="$gray11">
+                    {selectedRole === 'student'
+                      ? t('onboarding.connections.searchInstructors') ||
+                        'Search for driving instructors to connect with'
+                      : selectedRole === 'instructor' || selectedRole === 'school'
+                        ? t('onboarding.connections.searchStudents') ||
+                          'Search for students to connect with'
+                        : t('onboarding.connections.searchUsers') ||
+                          'Search for users to connect with'}
                   </Text>
-                )}
-                
-                {searchResults.map((user) => {
-                  const isSelected = selectedConnections.some(conn => conn.id === user.id);
-                  return (
-                  <TouchableOpacity
-                    key={user.id}
+
+                  {/* Custom message input - using FormField styling */}
+                  <YStack gap="$2">
+                    <Text size="sm" color="$gray11">
+                      {t('onboarding.connections.optionalMessage') || 'Optional message:'}
+                    </Text>
+                    <TextInput
+                      value={connectionCustomMessage}
+                      onChangeText={setConnectionCustomMessage}
+                      placeholder={
+                        t('onboarding.connections.messagePlaceholder') ||
+                        'Add a personal message...'
+                      }
+                      multiline
+                      style={[
+                        {
+                          minHeight: 40,
+                          textAlignVertical: 'top',
+                          padding: 8,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          fontSize: 14,
+                        },
+                        // Dynamic theming
+                        {
+                          backgroundColor: backgroundColor,
+                          color: textColor,
+                          borderColor: borderColor,
+                        },
+                      ]}
+                      placeholderTextColor={handleColor}
+                    />
+                  </YStack>
+
+                  <FormField
+                    placeholder={
+                      t('onboarding.connections.searchPlaceholder') || 'Search by name or email...'
+                    }
+                    value={connectionSearchQuery}
+                    onChangeText={handleSearchUsers}
+                  />
+
+                  <ScrollView
+                    style={{ flex: 1, maxHeight: 180 }}
+                    showsVerticalScrollIndicator={true}
+                    contentContainerStyle={{ paddingBottom: 8 }}
+                  >
+                    <YStack gap="$2">
+                      {searchResults.length === 0 && connectionSearchQuery.length >= 2 && (
+                        <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                          {t('onboarding.connections.noUsers') || 'No users found'}
+                        </Text>
+                      )}
+
+                      {searchResults.length === 0 && connectionSearchQuery.length < 2 && (
+                        <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
+                          {t('onboarding.connections.startTyping') ||
+                            'Start typing to search for users'}
+                        </Text>
+                      )}
+
+                      {searchResults.map((user) => {
+                        const isSelected = selectedConnections.some((conn) => conn.id === user.id);
+                        return (
+                          <TouchableOpacity
+                            key={user.id}
+                            onPress={() => {
+                              if (isSelected) {
+                                // Remove from selection
+                                setSelectedConnections((prev) =>
+                                  prev.filter((conn) => conn.id !== user.id),
+                                );
+                              } else {
+                                // Add to selection
+                                setSelectedConnections((prev) => [...prev, user]);
+                              }
+                            }}
+                            style={[
+                              styles.selectButton,
+                              {
+                                borderWidth: isSelected ? 2 : 1,
+                                borderColor: isSelected ? focusBorderColor : borderColor,
+                                backgroundColor: isSelected ? focusBackgroundColor : 'transparent',
+                                marginVertical: 4,
+                              },
+                            ]}
+                          >
+                            <XStack gap={8} padding="$2" alignItems="center" width="100%">
+                              <YStack flex={1}>
+                                <Text
+                                  color={isSelected ? textColor : '$color'}
+                                  size="md"
+                                  weight="semibold"
+                                >
+                                  {user.full_name || 'Unknown User'}
+                                </Text>
+                                <Text size="sm" color="$gray11">
+                                  {user.email} • {user.role}
+                                </Text>
+                              </YStack>
+                              {isSelected ? (
+                                <Check size={16} color={focusBorderColor} />
+                              ) : (
+                                <Feather name="plus-circle" size={16} color={textColor} />
+                              )}
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </YStack>
+                  </ScrollView>
+
+                  {/* Action buttons - stacked vertically */}
+                  <YStack gap="$2">
+                    {selectedConnections.length > 0 && (
+                      <Button
+                        variant="primary"
+                        size="md"
+                        onPress={() => {
+                          console.log(
+                            '🔒 [OnboardingInteractive] Select connections button pressed',
+                          );
+                          setTimeout(() => {
+                            hideConnectionsModal();
+                          }, 0);
+                          // Selected connections remain in state for the save button
+                        }}
+                      >
+                        Select {selectedConnections.length} Connection
+                        {selectedConnections.length > 1 ? 's' : ''}
+                      </Button>
+                    )}
+                    <Button
+                      variant="tertiary"
+                      size="md"
                       onPress={() => {
-                        if (isSelected) {
-                          // Remove from selection
-                          setSelectedConnections(prev => prev.filter(conn => conn.id !== user.id));
-                        } else {
-                          // Add to selection
-                          setSelectedConnections(prev => [...prev, user]);
-                        }
+                        console.log('🔒 [OnboardingInteractive] Cancel connections button pressed');
+                        setTimeout(() => {
+                          hideConnectionsModal();
+                        }, 0);
+                      }}
+                    >
+                      {t('common.cancel') || 'Cancel'}
+                    </Button>
+                  </YStack>
+                </YStack>
+              </ReanimatedAnimated.View>
+            </Pressable>
+          </ReanimatedAnimated.View>
+        </Modal>
+
+        {/* Vehicle Type Selection Modal */}
+        <Modal
+          visible={showVehicleDrawer}
+          transparent
+          animationType="none"
+          onRequestClose={hideVehicleModal}
+        >
+          <Animated.View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              opacity: vehicleBackdropOpacity,
+            }}
+          >
+            <Pressable style={{ flex: 1 }} onPress={hideVehicleModal}>
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  transform: [{ translateY: vehicleSheetTranslateY }],
+                }}
+              >
+                <YStack
+                  backgroundColor={backgroundColor}
+                  padding="$4"
+                  paddingBottom={insets.bottom || 20}
+                  borderTopLeftRadius="$4"
+                  borderTopRightRadius="$4"
+                  gap="$4"
+                >
+                  <Text size="xl" weight="bold" color="$color" textAlign="center">
+                    {t('onboarding.vehicle.title') || 'Select Vehicle Type'}
+                  </Text>
+
+                  <ScrollView style={{ maxHeight: 300 }}>
+                    <YStack gap="$1">
+                      {vehicleTypes.map((type) => (
+                        <TouchableOpacity
+                          key={type.id}
+                          onPress={async () => {
+                            setVehicleType(type.id);
+                            hideVehicleModal();
+
+                            // 🔥 CRITICAL FIX: Save vehicle type immediately to profile for ProgressScreen sync
+                            if (user) {
+                              try {
+                                const currentLicenseData =
+                                  (profile?.license_plan_data as any) || {};
+                                const updatedLicenseData = {
+                                  ...currentLicenseData,
+                                  vehicle_type: type.id,
+                                };
+
+                                const { error } = await supabase
+                                  .from('profiles')
+                                  .update({
+                                    license_plan_data: updatedLicenseData,
+                                    vehicle_type: type.id, // Also save to individual column
+                                  })
+                                  .eq('id', user.id);
+
+                                if (!error) {
+                                  console.log(
+                                    '✅ Vehicle type saved for ProgressScreen sync:',
+                                    type.id,
+                                  );
+                                  await refreshProfile();
+                                }
+                              } catch (error) {
+                                console.error('Error saving vehicle type:', error);
+                              }
+                            }
+                          }}
+                          style={[
+                            styles.sheetOption,
+                            vehicleType === type.id && { backgroundColor: selectedBackgroundColor },
+                          ]}
+                        >
+                          <XStack gap={8} padding="$2" alignItems="center">
+                            <Text color={textColor} size="lg">
+                              {type.title}
+                            </Text>
+                            {vehicleType === type.id && (
+                              <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
+                            )}
+                          </XStack>
+                        </TouchableOpacity>
+                      ))}
+                    </YStack>
+                  </ScrollView>
+                </YStack>
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        </Modal>
+
+        {/* Transmission Type Selection Modal */}
+        <Modal
+          visible={showTransmissionDrawer}
+          transparent
+          animationType="none"
+          onRequestClose={hideTransmissionModal}
+        >
+          <Animated.View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              opacity: transmissionBackdropOpacity,
+            }}
+          >
+            <Pressable style={{ flex: 1 }} onPress={hideTransmissionModal}>
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  transform: [{ translateY: transmissionSheetTranslateY }],
+                }}
+              >
+                <YStack
+                  backgroundColor={backgroundColor}
+                  padding="$4"
+                  paddingBottom={insets.bottom || 20}
+                  borderTopLeftRadius="$4"
+                  borderTopRightRadius="$4"
+                  gap="$4"
+                >
+                  <Text size="xl" weight="bold" color="$color" textAlign="center">
+                    {t('onboarding.transmission.title') || 'Select Transmission'}
+                  </Text>
+
+                  <ScrollView style={{ maxHeight: 300 }}>
+                    <YStack gap="$1">
+                      {transmissionTypes.map((type) => (
+                        <TouchableOpacity
+                          key={type.id}
+                          onPress={async () => {
+                            setTransmissionType(type.id);
+                            hideTransmissionModal();
+
+                            // 🔥 CRITICAL FIX: Save transmission type immediately to profile for ProgressScreen sync
+                            if (user) {
+                              try {
+                                const currentLicenseData =
+                                  (profile?.license_plan_data as any) || {};
+                                const updatedLicenseData = {
+                                  ...currentLicenseData,
+                                  transmission_type: type.id,
+                                };
+
+                                const { error } = await supabase
+                                  .from('profiles')
+                                  .update({
+                                    license_plan_data: updatedLicenseData,
+                                    transmission_type: type.id, // Also save to individual column
+                                  })
+                                  .eq('id', user.id);
+
+                                if (!error) {
+                                  console.log(
+                                    '✅ Transmission type saved for ProgressScreen sync:',
+                                    type.id,
+                                  );
+                                  await refreshProfile();
+                                }
+                              } catch (error) {
+                                console.error('Error saving transmission type:', error);
+                              }
+                            }
+                          }}
+                          style={[
+                            styles.sheetOption,
+                            transmissionType === type.id && {
+                              backgroundColor: selectedBackgroundColor,
+                            },
+                          ]}
+                        >
+                          <XStack gap={8} padding="$2" alignItems="center">
+                            <Text color={textColor} size="lg">
+                              {type.title}
+                            </Text>
+                            {transmissionType === type.id && (
+                              <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
+                            )}
+                          </XStack>
+                        </TouchableOpacity>
+                      ))}
+                    </YStack>
+                  </ScrollView>
+                </YStack>
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        </Modal>
+
+        {/* Experience Level Selection Modal */}
+        <Modal
+          visible={showExperienceModal}
+          transparent
+          animationType="none"
+          onRequestClose={() => setShowExperienceModal(false)}
+        >
+          <Animated.View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+            }}
+          >
+            <Pressable style={{ flex: 1 }} onPress={() => setShowExperienceModal(false)}>
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                }}
+              >
+                <YStack
+                  backgroundColor={backgroundColor}
+                  padding="$4"
+                  paddingBottom={insets.bottom || 20}
+                  borderTopLeftRadius="$4"
+                  borderTopRightRadius="$4"
+                  gap="$4"
+                >
+                  <Text size="xl" weight="bold" color="$color" textAlign="center">
+                    {t('onboarding.experience.title') || 'Select Experience Level'}
+                  </Text>
+
+                  <ScrollView style={{ maxHeight: 300 }}>
+                    <YStack gap="$1">
+                      {(experienceLevels.length > 0
+                        ? experienceLevels
+                        : [
+                            {
+                              id: 'beginner',
+                              title:
+                                language === 'sv'
+                                  ? 'Nybörjare (aldrig kört)'
+                                  : 'Beginner (never driven)',
+                              description:
+                                language === 'sv'
+                                  ? 'Nybörjare (aldrig kört)'
+                                  : 'Beginner (never driven)',
+                            },
+                            {
+                              id: 'intermediate',
+                              title:
+                                language === 'sv'
+                                  ? 'Medel (viss vägvana)'
+                                  : 'Intermediate (some road experience)',
+                              description:
+                                language === 'sv'
+                                  ? 'Medel (viss vägvana)'
+                                  : 'Intermediate (some road experience)',
+                            },
+                            {
+                              id: 'advanced',
+                              title:
+                                language === 'sv'
+                                  ? 'Avancerad (behöver förfinas / förberedas inför prov)'
+                                  : 'Advanced (needs refinement / preparing for test)',
+                              description:
+                                language === 'sv'
+                                  ? 'Avancerad (behöver förfinas / förberedas inför prov)'
+                                  : 'Advanced (needs refinement / preparing for test)',
+                            },
+                            {
+                              id: 'refresher',
+                              title:
+                                language === 'sv'
+                                  ? 'Repetitionskurs (återvändande förare)'
+                                  : 'Refresher (returning drivers)',
+                              description:
+                                language === 'sv'
+                                  ? 'Repetitionskurs (återvändande förare)'
+                                  : 'Refresher (returning drivers)',
+                            },
+                            {
+                              id: 'expert',
+                              title: language === 'sv' ? 'Expert' : 'Expert',
+                              description: language === 'sv' ? 'Expert' : 'Expert',
+                            },
+                          ]
+                      ).map((level: { id: string; title: string; description?: string }) => (
+                        <TouchableOpacity
+                          key={level.id}
+                          onPress={async () => {
+                            setSelectedExperienceLevel(level.id);
+                            setShowExperienceModal(false);
+
+                            // 🔥 CRITICAL FIX: Save experience level immediately to profile for ProgressScreen sync
+                            if (user) {
+                              try {
+                                const currentLicenseData =
+                                  (profile?.license_plan_data as any) || {};
+                                const updatedLicenseData = {
+                                  ...currentLicenseData,
+                                  experience_level: level.id,
+                                };
+
+                                const { error } = await supabase
+                                  .from('profiles')
+                                  .update({
+                                    license_plan_data: updatedLicenseData,
+                                    experience_level: mapToValidExperienceLevel(
+                                      level.id,
+                                    ) as Database['public']['Enums']['experience_level'],
+                                  })
+                                  .eq('id', user.id);
+
+                                if (!error) {
+                                  console.log(
+                                    '✅ Experience level saved for ProgressScreen sync:',
+                                    level.id,
+                                  );
+                                  await refreshProfile();
+                                }
+                              } catch (error) {
+                                console.error('Error saving experience level:', error);
+                              }
+                            }
+                          }}
+                          style={[
+                            styles.sheetOption,
+                            selectedExperienceLevel === level.id && {
+                              backgroundColor: selectedBackgroundColor,
+                            },
+                          ]}
+                        >
+                          <XStack gap={8} padding="$2" alignItems="center">
+                            <YStack flex={1}>
+                              <Text color={textColor} size="lg">
+                                {level.title}
+                              </Text>
+                              {level.description && (
+                                <Text color={handleColor} size="sm">
+                                  {level.description}
+                                </Text>
+                              )}
+                            </YStack>
+                            {selectedExperienceLevel === level.id && (
+                              <Check
+                                size={16}
+                                color={focusBorderColor}
+                                style={{ marginLeft: 'auto' }}
+                              />
+                            )}
+                          </XStack>
+                        </TouchableOpacity>
+                      ))}
+                    </YStack>
+                  </ScrollView>
+                </YStack>
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        </Modal>
+
+        {/* License Type Selection Modal */}
+        <Modal
+          visible={showLicenseDrawer}
+          transparent
+          animationType="none"
+          onRequestClose={hideLicenseModal}
+        >
+          <Animated.View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              opacity: licenseBackdropOpacity,
+            }}
+          >
+            <Pressable style={{ flex: 1 }} onPress={hideLicenseModal}>
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  transform: [{ translateY: licenseSheetTranslateY }],
+                }}
+              >
+                <YStack
+                  backgroundColor={backgroundColor}
+                  padding="$4"
+                  paddingBottom={insets.bottom || 20}
+                  borderTopLeftRadius="$4"
+                  borderTopRightRadius="$4"
+                  gap="$4"
+                >
+                  <Text size="xl" weight="bold" color="$color" textAlign="center">
+                    {t('onboarding.license.title') || 'Select License Type'}
+                  </Text>
+
+                  <ScrollView style={{ maxHeight: 300 }}>
+                    <YStack gap="$1">
+                      {licenseTypes.map((type) => (
+                        <TouchableOpacity
+                          key={type.id}
+                          onPress={async () => {
+                            setLicenseType(type.id);
+                            hideLicenseModal();
+
+                            // 🔥 CRITICAL FIX: Save license type immediately to profile for ProgressScreen sync
+                            if (user) {
+                              try {
+                                const currentLicenseData =
+                                  (profile?.license_plan_data as any) || {};
+                                const updatedLicenseData = {
+                                  ...currentLicenseData,
+                                  license_type: type.id,
+                                };
+
+                                const { error } = await supabase
+                                  .from('profiles')
+                                  .update({
+                                    license_plan_data: updatedLicenseData,
+                                    license_type: type.id, // Also save to individual column
+                                  })
+                                  .eq('id', user.id);
+
+                                if (!error) {
+                                  console.log(
+                                    '✅ License type saved for ProgressScreen sync:',
+                                    type.id,
+                                  );
+                                  await refreshProfile();
+                                }
+                              } catch (error) {
+                                console.error('Error saving license type:', error);
+                              }
+                            }
+                          }}
+                          style={[
+                            styles.sheetOption,
+                            licenseType === type.id && { backgroundColor: selectedBackgroundColor },
+                          ]}
+                        >
+                          <XStack gap={8} padding="$2" alignItems="center">
+                            <Text color={textColor} size="lg">
+                              {type.title}
+                            </Text>
+                            {licenseType === type.id && (
+                              <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
+                            )}
+                          </XStack>
+                        </TouchableOpacity>
+                      ))}
+                    </YStack>
+                  </ScrollView>
+                </YStack>
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        </Modal>
+
+        {/* Date Selection Modal with Quick Options + Custom Picker */}
+        <Modal
+          visible={showDateModal}
+          transparent
+          animationType="none"
+          onRequestClose={() => setShowDateModal(false)}
+        >
+          <Animated.View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+            }}
+          >
+            <Pressable style={{ flex: 1 }} onPress={() => setShowDateModal(false)}>
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                }}
+              >
+                <YStack
+                  backgroundColor={backgroundColor}
+                  padding="$4"
+                  paddingBottom={insets.bottom || 20}
+                  borderTopLeftRadius="$4"
+                  borderTopRightRadius="$4"
+                  gap="$4"
+                >
+                  <Text size="xl" weight="bold" color="$color" textAlign="center">
+                    {t('onboarding.date.title') || 'When do you want your license?'}
+                  </Text>
+
+                  <YStack gap="$3">
+                    {/* Quick date options */}
+                    {[
+                      {
+                        label: t('onboarding.date.within3months') || 'Within 3 months',
+                        months: 3,
+                        key: '3months',
+                      },
+                      {
+                        label: t('onboarding.date.within6months') || 'Within 6 months',
+                        months: 6,
+                        key: '6months',
+                      },
+                      {
+                        label: t('onboarding.date.within1year') || 'Within 1 year',
+                        months: 12,
+                        key: '1year',
+                      },
+                      {
+                        label: t('onboarding.date.noSpecific') || 'No specific date',
+                        months: 24,
+                        key: 'nodate',
+                      },
+                    ].map((option) => {
+                      const targetDate = new Date();
+                      targetDate.setMonth(targetDate.getMonth() + option.months);
+                      const isSelected = selectedDateOption === option.key;
+
+                      return (
+                        <RadioButton
+                          key={option.label}
+                          onPress={() => {
+                            setSelectedTargetDate(targetDate);
+                            setSelectedDateOption(option.key);
+                            // Don't auto-close - let user press save button
+                          }}
+                          title={option.label}
+                          description={targetDate.toLocaleDateString()}
+                          isSelected={isSelected}
+                        />
+                      );
+                    })}
+
+                    {/* Custom Date Picker with Popover */}
+                    <TouchableOpacity
+                      ref={dateButtonRef}
+                      onPress={() => {
+                        console.log('🗓️ [OnboardingInteractive] Opening date popover');
+                        setSelectedDateOption('custom');
+                        setShowDatePopover(true);
                       }}
                       style={[
                         styles.selectButton,
                         {
-                          borderWidth: isSelected ? 2 : 1,
-                          borderColor: isSelected ? focusBorderColor : borderColor,
-                          backgroundColor: isSelected ? focusBackgroundColor : 'transparent',
+                          borderWidth: selectedDateOption === 'custom' ? 2 : 1,
+                          borderColor:
+                            selectedDateOption === 'custom' ? focusBorderColor : borderColor,
+                          backgroundColor:
+                            selectedDateOption === 'custom' ? focusBackgroundColor : 'transparent',
                           marginVertical: 4,
-                        }
+                        },
                       ]}
                     >
                       <XStack gap={8} padding="$2" alignItems="center" width="100%">
                         <YStack flex={1}>
-                          <Text color={isSelected ? textColor : '$color'} size="md" weight="semibold">
-                          {user.full_name || 'Unknown User'}
-                        </Text>
-                        <Text size="sm" color="$gray11">
-                          {user.email} • {user.role}
-                        </Text>
-                      </YStack>
-                        {isSelected ? (
+                          <Text
+                            color={selectedDateOption === 'custom' ? textColor : '$color'}
+                            size="md"
+                            weight="semibold"
+                          >
+                            {t('onboarding.date.pickSpecific') || 'Pick specific date'}
+                          </Text>
+                          <Text size="sm" color="$gray11">
+                            {selectedTargetDate.toLocaleDateString()}
+                          </Text>
+                        </YStack>
+                        {selectedDateOption === 'custom' ? (
                           <Check size={16} color={focusBorderColor} />
                         ) : (
-                          <Feather name="plus-circle" size={16} color={textColor} />
+                          <Feather name="calendar" size={16} color={textColor} />
                         )}
-                    </XStack>
-                  </TouchableOpacity>
-                  );
-                })}
-              </YStack>
-            </ScrollView>
-                
-                        {/* Action buttons - stacked vertically */}
-            <YStack gap="$2">
-              {selectedConnections.length > 0 && (
-          <Button 
-                  variant="primary"
-                  size="md"
-                  onPress={() => {
-                    console.log('🔒 [OnboardingInteractive] Select connections button pressed');
-                    setTimeout(() => {
-                      hideConnectionsModal();
-                    }, 0);
-                    // Selected connections remain in state for the save button
-                  }}
-                >
-                  Select {selectedConnections.length} Connection{selectedConnections.length > 1 ? 's' : ''}
-                </Button>
-              )}
-              <Button 
-                variant="tertiary"
-                size="md"
-                onPress={() => {
-                  console.log('🔒 [OnboardingInteractive] Cancel connections button pressed');
-                  setTimeout(() => {
-                    hideConnectionsModal();
-                  }, 0);
-                }}
-              >
-                {t('common.cancel') || 'Cancel'}
-          </Button>
-        </YStack>
-          </YStack>
-            </ReanimatedAnimated.View>
-          </Pressable>
-        </ReanimatedAnimated.View>
-      </Modal>
+                      </XStack>
+                    </TouchableOpacity>
 
-      {/* Vehicle Type Selection Modal */}
-      <Modal
-        visible={showVehicleDrawer}
-        transparent
-        animationType="none"
-        onRequestClose={hideVehicleModal}
-      >
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: vehicleBackdropOpacity,
-          }}
-        >
-          <Pressable style={{ flex: 1 }} onPress={hideVehicleModal}>
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                transform: [{ translateY: vehicleSheetTranslateY }],
-              }}
-            >
-          <YStack
-                backgroundColor={backgroundColor}
-            padding="$4"
-                paddingBottom={insets.bottom || 20}
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-                gap="$4"
-          >
-            <Text size="xl" weight="bold" color="$color" textAlign="center">
-              {t('onboarding.vehicle.title') || 'Select Vehicle Type'}
-        </Text>
-            
-            <ScrollView style={{ maxHeight: 300 }}>
-            <YStack gap="$1">
-              {vehicleTypes.map((type) => (
-                <TouchableOpacity
-                  key={type.id}
-                  onPress={async () => {
-                    setVehicleType(type.id);
-                    hideVehicleModal();
-                    
-                    // 🔥 CRITICAL FIX: Save vehicle type immediately to profile for ProgressScreen sync
-                    if (user) {
-                      try {
-                        const currentLicenseData = (profile?.license_plan_data as any) || {};
-                        const updatedLicenseData = {
-                          ...currentLicenseData,
-                          vehicle_type: type.id,
-                        };
-                        
-                        const { error } = await supabase
-                          .from('profiles')
-                          .update({
-                            license_plan_data: updatedLicenseData,
-                            vehicle_type: type.id, // Also save to individual column
-                          })
-                          .eq('id', user.id);
-                          
-                        if (!error) {
-                          console.log('✅ Vehicle type saved for ProgressScreen sync:', type.id);
-                          await refreshProfile();
-                        }
-                      } catch (error) {
-                        console.error('Error saving vehicle type:', error);
-                      }
-                    }
-                  }}
-                  style={[
-                    styles.sheetOption,
-                    vehicleType === type.id && { backgroundColor: selectedBackgroundColor },
-                  ]}
-                >
-                  <XStack gap={8} padding="$2" alignItems="center">
-                    <Text color={textColor} size="lg">
-                      {type.title}
-                    </Text>
-                    {vehicleType === type.id && (
-                      <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
-                    )}
-                  </XStack>
-                </TouchableOpacity>
-              ))}
-      </YStack>
-            </ScrollView>
-          </YStack>
-            </Animated.View>
-          </Pressable>
-        </Animated.View>
-      </Modal>
-
-      {/* Transmission Type Selection Modal */}
-      <Modal
-        visible={showTransmissionDrawer}
-        transparent
-        animationType="none"
-        onRequestClose={hideTransmissionModal}
-      >
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: transmissionBackdropOpacity,
-          }}
-        >
-          <Pressable style={{ flex: 1 }} onPress={hideTransmissionModal}>
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                transform: [{ translateY: transmissionSheetTranslateY }],
-              }}
-            >
-          <YStack
-                backgroundColor={backgroundColor}
-            padding="$4"
-                paddingBottom={insets.bottom || 20}
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-                gap="$4"
-          >
-            <Text size="xl" weight="bold" color="$color" textAlign="center">
-              {t('onboarding.transmission.title') || 'Select Transmission'}
-            </Text>
-            
-            <ScrollView style={{ maxHeight: 300 }}>
-            <YStack gap="$1">
-              {transmissionTypes.map((type) => (
-                <TouchableOpacity
-                  key={type.id}
-                  onPress={async () => {
-                    setTransmissionType(type.id);
-                    hideTransmissionModal();
-                    
-                    // 🔥 CRITICAL FIX: Save transmission type immediately to profile for ProgressScreen sync
-                    if (user) {
-                      try {
-                        const currentLicenseData = (profile?.license_plan_data as any) || {};
-                        const updatedLicenseData = {
-                          ...currentLicenseData,
-                          transmission_type: type.id,
-                        };
-                        
-                        const { error } = await supabase
-                          .from('profiles')
-                          .update({
-                            license_plan_data: updatedLicenseData,
-                            transmission_type: type.id, // Also save to individual column
-                          })
-                          .eq('id', user.id);
-                          
-                        if (!error) {
-                          console.log('✅ Transmission type saved for ProgressScreen sync:', type.id);
-                          await refreshProfile();
-                        }
-                      } catch (error) {
-                        console.error('Error saving transmission type:', error);
-                      }
-                    }
-                  }}
-                  style={[
-                    styles.sheetOption,
-                    transmissionType === type.id && { backgroundColor: selectedBackgroundColor },
-                  ]}
-                >
-                  <XStack gap={8} padding="$2" alignItems="center">
-                    <Text color={textColor} size="lg">
-                      {type.title}
-                    </Text>
-                    {transmissionType === type.id && (
-                      <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
-                    )}
-                  </XStack>
-                </TouchableOpacity>
-              ))}
-            </YStack>
-            </ScrollView>
-          </YStack>
-            </Animated.View>
-          </Pressable>
-        </Animated.View>
-      </Modal>
-
-      {/* Experience Level Selection Modal */}
-      <Modal
-        visible={showExperienceModal}
-        transparent
-        animationType="none"
-        onRequestClose={() => setShowExperienceModal(false)}
-      >
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-          }}
-        >
-          <Pressable style={{ flex: 1 }} onPress={() => setShowExperienceModal(false)}>
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-              }}
-            >
-              <YStack
-                backgroundColor={backgroundColor}
-                padding="$4"
-                paddingBottom={insets.bottom || 20}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                gap="$4"
-              >
-            <Text size="xl" weight="bold" color="$color" textAlign="center">
-              {t('onboarding.experience.title') || 'Select Experience Level'}
-            </Text>
-            
-            <ScrollView style={{ maxHeight: 300 }}>
-              <YStack gap="$1">
-                {(experienceLevels.length > 0 ? experienceLevels : [
-                  { id: 'beginner', title: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)', description: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)' },
-                  { id: 'intermediate', title: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)', description: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)' },
-                  { id: 'advanced', title: language === 'sv' ? 'Avancerad (behöver förfinas / förberedas inför prov)' : 'Advanced (needs refinement / preparing for test)', description: language === 'sv' ? 'Avancerad (behöver förfinas / förberedas inför prov)' : 'Advanced (needs refinement / preparing for test)' },
-                  { id: 'refresher', title: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)', description: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)' },
-                  { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert', description: language === 'sv' ? 'Expert' : 'Expert' },
-                ]).map((level: { id: string; title: string; description?: string }) => (
-                <TouchableOpacity
-                  key={level.id}
-                  onPress={async () => {
-                    setSelectedExperienceLevel(level.id);
-                    setShowExperienceModal(false);
-                    
-                    // 🔥 CRITICAL FIX: Save experience level immediately to profile for ProgressScreen sync
-                    if (user) {
-                      try {
-                        const currentLicenseData = (profile?.license_plan_data as any) || {};
-                        const updatedLicenseData = {
-                          ...currentLicenseData,
-                          experience_level: level.id,
-                        };
-                        
-                        const { error } = await supabase
-                          .from('profiles')
-                          .update({
-                            license_plan_data: updatedLicenseData,
-                            experience_level: mapToValidExperienceLevel(level.id) as Database['public']['Enums']['experience_level'],
-                          })
-                          .eq('id', user.id);
-                          
-                        if (!error) {
-                          console.log('✅ Experience level saved for ProgressScreen sync:', level.id);
-                          await refreshProfile();
-                        }
-                      } catch (error) {
-                        console.error('Error saving experience level:', error);
-                      }
-                    }
-                  }}
-                  style={[
-                    styles.sheetOption,
-                    selectedExperienceLevel === level.id && { backgroundColor: selectedBackgroundColor },
-                  ]}
-                >
-                  <XStack gap={8} padding="$2" alignItems="center">
-                    <YStack flex={1}>
-                      <Text color={textColor} size="lg">
-                        {level.title}
-                      </Text>
-                      {level.description && (
-                        <Text color={handleColor} size="sm">
-                          {level.description}
-                        </Text>
-                      )}
-                    </YStack>
-                    {selectedExperienceLevel === level.id && (
-                      <Check size={16} color={focusBorderColor} style={{ marginLeft: 'auto' }} />
-                    )}
-                  </XStack>
-                </TouchableOpacity>
-                ))}
-              </YStack>
-            </ScrollView>
-              </YStack>
-            </Animated.View>
-          </Pressable>
-        </Animated.View>
-      </Modal>
-
-      {/* License Type Selection Modal */}
-      <Modal
-        visible={showLicenseDrawer}
-        transparent
-        animationType="none"
-        onRequestClose={hideLicenseModal}
-      >
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: licenseBackdropOpacity,
-          }}
-        >
-          <Pressable style={{ flex: 1 }} onPress={hideLicenseModal}>
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                transform: [{ translateY: licenseSheetTranslateY }],
-              }}
-            >
-          <YStack
-                backgroundColor={backgroundColor}
-            padding="$4"
-                paddingBottom={insets.bottom || 20}
-            borderTopLeftRadius="$4"
-            borderTopRightRadius="$4"
-                gap="$4"
-          >
-            <Text size="xl" weight="bold" color="$color" textAlign="center">
-              {t('onboarding.license.title') || 'Select License Type'}
-            </Text>
-            
-            <ScrollView style={{ maxHeight: 300 }}>
-            <YStack gap="$1">
-              {licenseTypes.map((type) => (
-                <TouchableOpacity
-                  key={type.id}
-                  onPress={async () => {
-                    setLicenseType(type.id);
-                    hideLicenseModal();
-                    
-                    // 🔥 CRITICAL FIX: Save license type immediately to profile for ProgressScreen sync
-                    if (user) {
-                      try {
-                        const currentLicenseData = (profile?.license_plan_data as any) || {};
-                        const updatedLicenseData = {
-                          ...currentLicenseData,
-                          license_type: type.id,
-                        };
-                        
-                        const { error } = await supabase
-                          .from('profiles')
-                          .update({
-                            license_plan_data: updatedLicenseData,
-                            license_type: type.id, // Also save to individual column
-                          })
-                          .eq('id', user.id);
-                          
-                        if (!error) {
-                          console.log('✅ License type saved for ProgressScreen sync:', type.id);
-                          await refreshProfile();
-                        }
-                      } catch (error) {
-                        console.error('Error saving license type:', error);
-                      }
-                    }
-                  }}
-                  style={[
-                    styles.sheetOption,
-                    licenseType === type.id && { backgroundColor: selectedBackgroundColor },
-                  ]}
-                >
-                  <XStack gap={8} padding="$2" alignItems="center">
-                    <Text color={textColor} size="lg">
-                      {type.title}
-                    </Text>
-                    {licenseType === type.id && (
-                      <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
-                    )}
-                  </XStack>
-                </TouchableOpacity>
-              ))}
-            </YStack>
-            </ScrollView>
-          </YStack>
-            </Animated.View>
-          </Pressable>
-        </Animated.View>
-      </Modal>
-      
-      {/* Date Selection Modal with Quick Options + Custom Picker */}
-      <Modal
-        visible={showDateModal}
-        transparent
-        animationType="none"
-        onRequestClose={() => setShowDateModal(false)}
-      >
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-          }}
-        >
-          <Pressable style={{ flex: 1 }} onPress={() => setShowDateModal(false)}>
-            <Animated.View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-              }}
-            >
-              <YStack
-                backgroundColor={backgroundColor}
-                padding="$4"
-                paddingBottom={insets.bottom || 20}
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                gap="$4"
-              >
-            <Text size="xl" weight="bold" color="$color" textAlign="center">
-              {t('onboarding.date.title') || 'When do you want your license?'}
-            </Text>
-            
-            <YStack gap="$3">
-              {/* Quick date options */}
-              {[
-                { label: t('onboarding.date.within3months') || 'Within 3 months', months: 3, key: '3months' },
-                { label: t('onboarding.date.within6months') || 'Within 6 months', months: 6, key: '6months' },
-                { label: t('onboarding.date.within1year') || 'Within 1 year', months: 12, key: '1year' },
-                { label: t('onboarding.date.noSpecific') || 'No specific date', months: 24, key: 'nodate' },
-              ].map((option) => {
-                const targetDate = new Date();
-                targetDate.setMonth(targetDate.getMonth() + option.months);
-                const isSelected = selectedDateOption === option.key;
-                
-                return (
-                  <RadioButton
-                    key={option.label}
-                    onPress={() => {
-                      setSelectedTargetDate(targetDate);
-                      setSelectedDateOption(option.key);
-                      // Don't auto-close - let user press save button
-                    }}
-                    title={option.label}
-                    description={targetDate.toLocaleDateString()}
-                    isSelected={isSelected}
-                  />
-                );
-              })}
-              
-              {/* Custom Date Picker with Popover */}
-              <TouchableOpacity
-                ref={dateButtonRef}
-                onPress={() => {
-                  console.log('🗓️ [OnboardingInteractive] Opening date popover');
-                  setSelectedDateOption('custom');
-                  setShowDatePopover(true);
-                }}
-                style={[
-                  styles.selectButton,
-                  {
-                    borderWidth: selectedDateOption === 'custom' ? 2 : 1,
-                    borderColor: selectedDateOption === 'custom' ? focusBorderColor : borderColor,
-                    backgroundColor: selectedDateOption === 'custom' ? focusBackgroundColor : 'transparent',
-                    marginVertical: 4,
-                  }
-                ]}
-              >
-                <XStack gap={8} padding="$2" alignItems="center" width="100%">
-                  <YStack flex={1}>
-                    <Text color={selectedDateOption === 'custom' ? textColor : '$color'} size="md" weight="semibold">
-                      {t('onboarding.date.pickSpecific') || 'Pick specific date'}
-                    </Text>
-                    <Text size="sm" color="$gray11">
-                      {selectedTargetDate.toLocaleDateString()}
-                    </Text>
-                  </YStack>
-                  {selectedDateOption === 'custom' ? (
-                    <Check size={16} color={focusBorderColor} />
-                  ) : (
-                    <Feather name="calendar" size={16} color={textColor} />
-                  )}
-                </XStack>
-              </TouchableOpacity>
-              
-              <Popover
-                isVisible={showDatePopover}
-                onRequestClose={() => {
-                  console.log('🗓️ [OnboardingInteractive] Popover onRequestClose called');
-                  setShowDatePopover(false);
-                  // Complete cleanup to prevent any blocking issues
-                  setTimeout(() => {
-                    console.log('🗓️ [OnboardingInteractive] Complete cleanup after popover close');
-                    setSelectedDateOption('custom');
-                  }, 10);
-                }}
-                from={dateButtonRef}
-                placement={'top' as any}
-                backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
-                popoverStyle={{
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
-                  borderRadius: 12,
-                  padding: 16,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 12,
-                  elevation: 12,
-                  width: 380,
-                  height: 480,
-                  borderWidth: colorScheme === 'dark' ? 1 : 0,
-                  borderColor: colorScheme === 'dark' ? '#333' : 'transparent',
-                }}
-
-              >
-                <YStack alignItems="center" gap="$2" width="100%">
-                  <Text color={textColor} size="lg" weight="semibold" textAlign="center">
-                    {t('onboarding.date.selectTarget') || 'Select Target Date'}
-                  </Text>
-                  
-                  {/* Container for full inline DateTimePicker */}
-                  <View style={{
-                    width: 350,
-                    height: 380,
-                    backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
-                    borderRadius: 8,
-                    overflow: 'visible',
-                  }}>
-                    <DateTimePicker
-                      testID="dateTimePicker"
-                      value={selectedTargetDate}
-                      mode="date"
-                      display="inline"
-                      minimumDate={new Date()}
-                      maximumDate={(() => {
-                        const maxDate = new Date();
-                        maxDate.setFullYear(maxDate.getFullYear() + 3);
-                        return maxDate;
-                      })()}
-                      onChange={(event, selectedDate) => {
-                        console.log('🗓️ [OnboardingInteractive] Date changed:', selectedDate?.toLocaleDateString());
-                        if (selectedDate) {
-                          setSelectedTargetDate(selectedDate);
+                    <Popover
+                      isVisible={showDatePopover}
+                      onRequestClose={() => {
+                        console.log('🗓️ [OnboardingInteractive] Popover onRequestClose called');
+                        setShowDatePopover(false);
+                        // Complete cleanup to prevent any blocking issues
+                        setTimeout(() => {
+                          console.log(
+                            '🗓️ [OnboardingInteractive] Complete cleanup after popover close',
+                          );
                           setSelectedDateOption('custom');
-                          // Don't auto-close - let user press save button
-                          console.log('🗓️ [OnboardingInteractive] Date updated, waiting for save button');
-                        }
+                        }, 10);
                       }}
-                      style={{ 
-                        width: 350, 
-                        height: 380,
+                      from={dateButtonRef}
+                      placement={'top' as any}
+                      backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
+                      popoverStyle={{
                         backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                        borderRadius: 12,
+                        padding: 16,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 12,
+                        elevation: 12,
+                        width: 380,
+                        height: 480,
+                        borderWidth: colorScheme === 'dark' ? 1 : 0,
+                        borderColor: colorScheme === 'dark' ? '#333' : 'transparent',
                       }}
-                      themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
-                      accentColor="#00E6C3"
-                      locale={language === 'sv' ? 'sv-SE' : 'en-US'}
-                    />
-        </View>
-                  
+                    >
+                      <YStack alignItems="center" gap="$2" width="100%">
+                        <Text color={textColor} size="lg" weight="semibold" textAlign="center">
+                          {t('onboarding.date.selectTarget') || 'Select Target Date'}
+                        </Text>
+
+                        {/* Container for full inline DateTimePicker */}
+                        <View
+                          style={{
+                            width: 350,
+                            height: 380,
+                            backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                            borderRadius: 8,
+                            overflow: 'visible',
+                          }}
+                        >
+                          <DateTimePicker
+                            testID="dateTimePicker"
+                            value={selectedTargetDate}
+                            mode="date"
+                            display="inline"
+                            minimumDate={new Date()}
+                            maximumDate={(() => {
+                              const maxDate = new Date();
+                              maxDate.setFullYear(maxDate.getFullYear() + 3);
+                              return maxDate;
+                            })()}
+                            onChange={(event, selectedDate) => {
+                              console.log(
+                                '🗓️ [OnboardingInteractive] Date changed:',
+                                selectedDate?.toLocaleDateString(),
+                              );
+                              if (selectedDate) {
+                                setSelectedTargetDate(selectedDate);
+                                setSelectedDateOption('custom');
+                                // Don't auto-close - let user press save button
+                                console.log(
+                                  '🗓️ [OnboardingInteractive] Date updated, waiting for save button',
+                                );
+                              }
+                            }}
+                            style={{
+                              width: 350,
+                              height: 380,
+                              backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFF',
+                            }}
+                            themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
+                            accentColor="#00E6C3"
+                            locale={language === 'sv' ? 'sv-SE' : 'en-US'}
+                          />
+                        </View>
+                      </YStack>
+                    </Popover>
+
+                    {/* Save button as last option in sheet */}
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      onPress={() => {
+                        console.log(
+                          '🗓️ [OnboardingInteractive] Save date button pressed (last option)',
+                        );
+                        setShowDateModal(false);
+                      }}
+                      marginTop="$4"
+                      width="100%"
+                    >
+                      {t('onboarding.date.saveSelectedDate') || 'Save Selected Date'}
+                    </Button>
+                  </YStack>
                 </YStack>
-              </Popover>
-              
-              {/* Save button as last option in sheet */}
-              <Button 
-                variant="primary" 
-                size="lg" 
-                onPress={() => {
-                  console.log('🗓️ [OnboardingInteractive] Save date button pressed (last option)');
-                  setShowDateModal(false);
-                }}
-                marginTop="$4"
-                width="100%"
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        </Modal>
+      </Stack>
+
+      {/* Relationship Removal Modal */}
+      <Modal
+        visible={showRelationshipRemovalModal}
+        transparent
+        animationType="none"
+        onRequestClose={closeRelationshipRemovalModal}
+      >
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: relationshipRemovalBackdropOpacity,
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={closeRelationshipRemovalModal}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: relationshipRemovalSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+                minHeight="60%"
               >
-                {t('onboarding.date.saveSelectedDate') || 'Save Selected Date'}
-              </Button>
-            </YStack>
+                <Text size="xl" weight="bold" color={textColor} textAlign="center">
+                  {relationshipRemovalTarget?.relationship_type === 'has_supervisor'
+                    ? t('onboarding.relationships.removeSupervisorTitle') || 'Remove Supervisor'
+                    : t('onboarding.relationships.removeStudentTitle') || 'Remove Student'}
+                </Text>
+
+                <Text size="sm" color={textColor}>
+                  {relationshipRemovalTarget?.relationship_type === 'has_supervisor'
+                    ? (
+                        t('onboarding.relationships.removeSupervisorConfirm') ||
+                        'Are you sure you want to remove {name} as your supervisor?'
+                      ).replace('{name}', relationshipRemovalTarget?.name || '')
+                    : (
+                        t('onboarding.relationships.removeStudentConfirm') ||
+                        'Are you sure you want to remove {name} as your student?'
+                      ).replace('{name}', relationshipRemovalTarget?.name || '')}
+                </Text>
+
+                <YStack gap="$2">
+                  <Text size="sm" color={handleColor}>
+                    {t('onboarding.relationships.optionalMessage') || 'Optional message:'}
+                  </Text>
+                  <TextInput
+                    value={relationshipRemovalMessage}
+                    onChangeText={setRelationshipRemovalMessage}
+                    placeholder={
+                      t('onboarding.relationships.messagePlaceholder') ||
+                      'Add a message explaining why (optional)...'
+                    }
+                    multiline
+                    style={{
+                      backgroundColor: backgroundColor,
+                      color: textColor,
+                      borderColor: borderColor,
+                      borderWidth: 1,
+                      borderRadius: 8,
+                      padding: 12,
+                      minHeight: 80,
+                      textAlignVertical: 'top',
+                    }}
+                    placeholderTextColor={handleColor}
+                  />
+                </YStack>
+
+                <YStack gap="$2">
+                  <Button
+                    variant="primary"
+                    backgroundColor="$red9"
+                    size="lg"
+                    onPress={async () => {
+                      if (!relationshipRemovalTarget || !user?.id) return;
+
+                      try {
+                        // Remove the relationship
+                        const { error } = await supabase
+                          .from('student_supervisor_relationships')
+                          .delete()
+                          .or(
+                            relationshipRemovalTarget.relationship_type === 'has_supervisor'
+                              ? `and(student_id.eq.${user.id},supervisor_id.eq.${relationshipRemovalTarget.id})`
+                              : `and(student_id.eq.${relationshipRemovalTarget.id},supervisor_id.eq.${user.id})`,
+                          );
+
+                        if (error) throw error;
+
+                        // TODO: Save removal message if provided
+                        if (relationshipRemovalMessage.trim()) {
+                          console.log('Removal message:', relationshipRemovalMessage.trim());
+                          // Could save to a removal_logs table or as metadata
+                        }
+
+                        showToast({
+                          title: t('common.success') || 'Success',
+                          message:
+                            t('onboarding.relationships.removeSuccess') ||
+                            'Relationship removed successfully',
+                          type: 'success',
+                        });
+                        loadExistingRelationships(); // Refresh the list
+                        closeRelationshipRemovalModal(); // Use animated close
+                      } catch (error) {
+                        console.error('Error removing relationship:', error);
+                        showToast({
+                          title: t('common.error') || 'Error',
+                          message:
+                            t('onboarding.relationships.removeError') ||
+                            'Failed to remove relationship',
+                          type: 'error',
+                        });
+                      }
+                    }}
+                  >
+                    <Text color="white">{t('common.remove') || 'Remove'}</Text>
+                  </Button>
+                  <Button variant="tertiary" size="lg" onPress={closeRelationshipRemovalModal}>
+                    {t('common.cancel') || 'Cancel'}
+                  </Button>
+                </YStack>
               </YStack>
             </Animated.View>
           </Pressable>
         </Animated.View>
       </Modal>
 
-    </Stack>
-    
-    {/* Relationship Removal Modal */}
-    <Modal
-      visible={showRelationshipRemovalModal}
-      transparent
-      animationType="none"
-      onRequestClose={closeRelationshipRemovalModal}
-    >
-      <Animated.View
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          opacity: relationshipRemovalBackdropOpacity,
-        }}
+      {/* Previous Experience Modal */}
+      <Modal
+        visible={showPreviousExperienceModal}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowPreviousExperienceModal(false)}
       >
-        <Pressable style={{ flex: 1 }} onPress={closeRelationshipRemovalModal}>
-          <Animated.View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              transform: [{ translateY: relationshipRemovalSheetTranslateY }],
-            }}
-          >
-            <YStack
-              backgroundColor={backgroundColor}
-              padding="$4"
-              paddingBottom={insets.bottom || 20}
-              borderTopLeftRadius="$4"
-              borderTopRightRadius="$4"
-              gap="$4"
-              minHeight="60%"
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: previousExperienceBackdropOpacity,
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={() => setShowPreviousExperienceModal(false)}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: previousExperienceSheetTranslateY }],
+              }}
             >
-              <Text size="xl" weight="bold" color={textColor} textAlign="center">
-                {relationshipRemovalTarget?.relationship_type === 'has_supervisor' 
-                  ? (t('onboarding.relationships.removeSupervisorTitle') || 'Remove Supervisor')
-                  : (t('onboarding.relationships.removeStudentTitle') || 'Remove Student')
-                }
-              </Text>
-              
-              <Text size="sm" color={textColor}>
-                {relationshipRemovalTarget?.relationship_type === 'has_supervisor'
-                  ? (t('onboarding.relationships.removeSupervisorConfirm') || 'Are you sure you want to remove {name} as your supervisor?').replace('{name}', relationshipRemovalTarget?.name || '')
-                  : (t('onboarding.relationships.removeStudentConfirm') || 'Are you sure you want to remove {name} as your student?').replace('{name}', relationshipRemovalTarget?.name || '')
-                }
-              </Text>
-              
-              <YStack gap="$2">
-                <Text size="sm" color={handleColor}>{t('onboarding.relationships.optionalMessage') || 'Optional message:'}</Text>
-                <TextInput
-                  value={relationshipRemovalMessage}
-                  onChangeText={setRelationshipRemovalMessage}
-                  placeholder={t('onboarding.relationships.messagePlaceholder') || 'Add a message explaining why (optional)...'}
-                  multiline
-                  style={{
-                    backgroundColor: backgroundColor,
-                    color: textColor,
-                    borderColor: borderColor,
-                    borderWidth: 1,
-                    borderRadius: 8,
-                    padding: 12,
-                    minHeight: 80,
-                    textAlignVertical: 'top',
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+                minHeight="60%"
+              >
+                <Text size="xl" weight="bold" color="$color" textAlign="center">
+                  {t('onboarding.licensePlan.previousExperience') || 'Previous driving experience'}
+                </Text>
+
+                <TextArea
+                  placeholder={
+                    t('onboarding.licensePlan.experiencePlaceholder') ||
+                    'Describe your previous driving experience'
+                  }
+                  value={previousExperience}
+                  onChangeText={setPreviousExperience}
+                  minHeight={150}
+                  backgroundColor="$background"
+                  borderColor="$borderColor"
+                  color="$color"
+                  focusStyle={{
+                    borderColor: '$blue8',
                   }}
-                  placeholderTextColor={handleColor}
                 />
-              </YStack>
-              
-              <YStack gap="$2">
-                <Button
-                  variant="primary"
-                  backgroundColor="$red9"
-                  size="lg"
-                  onPress={async () => {
-                    if (!relationshipRemovalTarget || !user?.id) return;
-                    
-                    try {
-                      // Remove the relationship
-                      const { error } = await supabase
-                        .from('student_supervisor_relationships')
-                        .delete()
-                        .or(
-                          relationshipRemovalTarget.relationship_type === 'has_supervisor' 
-                            ? `and(student_id.eq.${user.id},supervisor_id.eq.${relationshipRemovalTarget.id})`
-                            : `and(student_id.eq.${relationshipRemovalTarget.id},supervisor_id.eq.${user.id})`
-                        );
 
-                      if (error) throw error;
-                      
-                      // TODO: Save removal message if provided
-                      if (relationshipRemovalMessage.trim()) {
-                        console.log('Removal message:', relationshipRemovalMessage.trim());
-                        // Could save to a removal_logs table or as metadata
-                      }
-                      
-                      showToast({
-                        title: t('common.success') || 'Success',
-                        message: t('onboarding.relationships.removeSuccess') || 'Relationship removed successfully',
-                        type: 'success'
-                      });
-                      loadExistingRelationships(); // Refresh the list
-                      closeRelationshipRemovalModal(); // Use animated close
-                      
-                    } catch (error) {
-                      console.error('Error removing relationship:', error);
-                      showToast({
-                        title: t('common.error') || 'Error',
-                        message: t('onboarding.relationships.removeError') || 'Failed to remove relationship',
-                        type: 'error'
-                      });
-                    }
-                  }}
-                >
-                  <Text color="white">{t('common.remove') || 'Remove'}</Text>
-                </Button>
-                <Button
-                  variant="tertiary"
-                  size="lg"
-                  onPress={closeRelationshipRemovalModal}
-                >
-                  {t('common.cancel') || 'Cancel'}
-                </Button>
-              </YStack>
-            </YStack>
-          </Animated.View>
-        </Pressable>
-      </Animated.View>
-    </Modal>
-
-    {/* Previous Experience Modal */}
-    <Modal
-      visible={showPreviousExperienceModal}
-      transparent
-      animationType="none"
-      onRequestClose={() => setShowPreviousExperienceModal(false)}
-    >
-      <Animated.View
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          opacity: previousExperienceBackdropOpacity,
-        }}
-      >
-        <Pressable style={{ flex: 1 }} onPress={() => setShowPreviousExperienceModal(false)}>
-          <Animated.View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              transform: [{ translateY: previousExperienceSheetTranslateY }],
-            }}
-          >
-            <YStack
-              backgroundColor={backgroundColor}
-              padding="$4"
-              paddingBottom={insets.bottom || 20}
-              borderTopLeftRadius="$4"
-              borderTopRightRadius="$4"
-              gap="$4"
-              minHeight="60%"
-            >
-              <Text size="xl" weight="bold" color="$color" textAlign="center">
-                {t('onboarding.licensePlan.previousExperience') || 'Previous driving experience'}
-              </Text>
-              
-              <TextArea
-                placeholder={t('onboarding.licensePlan.experiencePlaceholder') || 'Describe your previous driving experience'}
-                value={previousExperience}
-                onChangeText={setPreviousExperience}
-                minHeight={150}
-                backgroundColor="$background"
-                borderColor="$borderColor"
-                color="$color"
-                focusStyle={{
-                  borderColor: '$blue8',
-                }}
-              />
-              
-              <YStack gap="$2">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onPress={() => {
-                    setShowPreviousExperienceModal(false);
-                  }}
-                >
-                  {t('common.save') || 'Save'}
-                </Button>
-                <Button
-                  variant="tertiary"
-                  size="lg"
-                  onPress={() => {
-                    setShowPreviousExperienceModal(false);
-                  }}
-                >
-                  {t('common.cancel') || 'Cancel'}
-                </Button>
-              </YStack>
-            </YStack>
-          </Animated.View>
-        </Pressable>
-      </Animated.View>
-    </Modal>
-
-    {/* Specific Goals Modal */}
-    <Modal
-      visible={showSpecificGoalsModal}
-      transparent
-      animationType="none"
-      onRequestClose={() => setShowSpecificGoalsModal(false)}
-    >
-      <Animated.View
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          opacity: specificGoalsBackdropOpacity,
-        }}
-      >
-        <Pressable style={{ flex: 1 }} onPress={() => setShowSpecificGoalsModal(false)}>
-          <Animated.View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              transform: [{ translateY: specificGoalsSheetTranslateY }],
-            }}
-          >
-            <YStack
-              backgroundColor={backgroundColor}
-              padding="$4"
-              paddingBottom={insets.bottom || 20}
-              borderTopLeftRadius="$4"
-              borderTopRightRadius="$4"
-              gap="$4"
-              minHeight="60%"
-            >
-              <Text size="xl" weight="bold" color="$color" textAlign="center">
-                {t('onboarding.licensePlan.specificGoals') || 'Specific goals'}
-              </Text>
-              
-              <TextArea
-                placeholder={t('onboarding.licensePlan.goalsPlaceholder') || 'Do you have specific goals with your license?'}
-                value={specificGoals}
-                onChangeText={setSpecificGoals}
-                minHeight={150}
-                backgroundColor="$background"
-                borderColor="$borderColor"
-                color="$color"
-                focusStyle={{
-                  borderColor: '$blue8',
-                }}
-              />
-              
-              <YStack gap="$2">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onPress={() => {
-                    setShowSpecificGoalsModal(false);
-                  }}
-                >
-                  {t('common.save') || 'Save'}
-                </Button>
-                <Button
-                  variant="tertiary"
-                  size="lg"
-                  onPress={() => {
-                    setShowSpecificGoalsModal(false);
-                  }}
-                >
-                  {t('common.cancel') || 'Cancel'}
-                </Button>
-              </YStack>
-            </YStack>
-          </Animated.View>
-        </Pressable>
-      </Animated.View>
-    </Modal>
-
-    {/* Language Selection Modal (copied from ProfileScreen.tsx) */}
-    <Modal
-      visible={showLanguageModal}
-      transparent
-      animationType="none"
-      onRequestClose={hideLanguageSheet}
-    >
-      <Animated.View
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          opacity: languageBackdropOpacity,
-        }}
-      >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <Pressable style={{ flex: 1 }} onPress={hideLanguageSheet} />
-          <Animated.View
-            style={{
-              transform: [{ translateY: languageSheetTranslateY }],
-            }}
-          >
-            <YStack
-              backgroundColor={backgroundColor}
-              padding="$4"
-              paddingBottom={insets.bottom || 24}
-              borderTopLeftRadius="$4"
-              borderTopRightRadius="$4"
-              gap="$4"
-            >
-              <Text size="xl" weight="bold" color={textColor} textAlign="center">
-                {t('onboarding.complete.languageTitle') || 'Select Language'}
-              </Text>
-              <YStack gap="$2">
-                {LANGUAGES.map((lang) => (
-                  <RadioButton
-                    key={lang}
-                    onPress={async () => {
-                      await setLanguage(lang);
-                      hideLanguageSheet();
+                <YStack gap="$2">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onPress={() => {
+                      setShowPreviousExperienceModal(false);
                     }}
-                    title={LANGUAGE_LABELS[lang]}
-                    isSelected={language === lang}
-                  />
-                ))}
+                  >
+                    {t('common.save') || 'Save'}
+                  </Button>
+                  <Button
+                    variant="tertiary"
+                    size="lg"
+                    onPress={() => {
+                      setShowPreviousExperienceModal(false);
+                    }}
+                  >
+                    {t('common.cancel') || 'Cancel'}
+                  </Button>
+                </YStack>
               </YStack>
-            </YStack>
-          </Animated.View>
-        </View>
-      </Animated.View>
-    </Modal>
-    
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
+      </Modal>
+
+      {/* Specific Goals Modal */}
+      <Modal
+        visible={showSpecificGoalsModal}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowSpecificGoalsModal(false)}
+      >
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: specificGoalsBackdropOpacity,
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={() => setShowSpecificGoalsModal(false)}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: specificGoalsSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+                minHeight="60%"
+              >
+                <Text size="xl" weight="bold" color="$color" textAlign="center">
+                  {t('onboarding.licensePlan.specificGoals') || 'Specific goals'}
+                </Text>
+
+                <TextArea
+                  placeholder={
+                    t('onboarding.licensePlan.goalsPlaceholder') ||
+                    'Do you have specific goals with your license?'
+                  }
+                  value={specificGoals}
+                  onChangeText={setSpecificGoals}
+                  minHeight={150}
+                  backgroundColor="$background"
+                  borderColor="$borderColor"
+                  color="$color"
+                  focusStyle={{
+                    borderColor: '$blue8',
+                  }}
+                />
+
+                <YStack gap="$2">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onPress={() => {
+                      setShowSpecificGoalsModal(false);
+                    }}
+                  >
+                    {t('common.save') || 'Save'}
+                  </Button>
+                  <Button
+                    variant="tertiary"
+                    size="lg"
+                    onPress={() => {
+                      setShowSpecificGoalsModal(false);
+                    }}
+                  >
+                    {t('common.cancel') || 'Cancel'}
+                  </Button>
+                </YStack>
+              </YStack>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
+      </Modal>
+
+      {/* Language Selection Modal (copied from ProfileScreen.tsx) */}
+      <Modal
+        visible={showLanguageModal}
+        transparent
+        animationType="none"
+        onRequestClose={hideLanguageSheet}
+      >
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: languageBackdropOpacity,
+          }}
+        >
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <Pressable style={{ flex: 1 }} onPress={hideLanguageSheet} />
+            <Animated.View
+              style={{
+                transform: [{ translateY: languageSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 24}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+                <Text size="xl" weight="bold" color={textColor} textAlign="center">
+                  {t('onboarding.complete.languageTitle') || 'Select Language'}
+                </Text>
+                <YStack gap="$2">
+                  {LANGUAGES.map((lang) => (
+                    <RadioButton
+                      key={lang}
+                      onPress={async () => {
+                        await setLanguage(lang);
+                        hideLanguageSheet();
+                      }}
+                      title={LANGUAGE_LABELS[lang]}
+                      isSelected={language === lang}
+                    />
+                  ))}
+                </YStack>
+              </YStack>
+            </Animated.View>
+          </View>
+        </Animated.View>
+      </Modal>
     </View>
   );
 }
@@ -3829,7 +4235,7 @@ export const shouldShowInteractiveOnboarding = async (
 ): Promise<boolean> => {
   try {
     const CURRENT_ONBOARDING_VERSION = 2;
-    
+
     if (!userId) {
       console.log('🎯 [OnboardingInteractive] No user ID - showing onboarding');
       return true;
@@ -3867,7 +4273,9 @@ export const shouldShowInteractiveOnboarding = async (
       return true;
     }
 
-    console.log('🎯 [OnboardingInteractive] User has completed current onboarding version - not showing');
+    console.log(
+      '🎯 [OnboardingInteractive] User has completed current onboarding version - not showing',
+    );
     return false;
   } catch (error) {
     console.error('Error checking interactive onboarding status:', error);
@@ -3882,7 +4290,7 @@ export const completeOnboardingWithVersion = async (
 ): Promise<void> => {
   try {
     const CURRENT_ONBOARDING_VERSION = 2;
-    
+
     if (!userId) {
       console.error('🎯 [OnboardingInteractive] Cannot complete onboarding - no user ID');
       return;
@@ -3898,11 +4306,17 @@ export const completeOnboardingWithVersion = async (
       .eq('id', userId);
 
     if (error) {
-      console.error('🎯 [OnboardingInteractive] Error saving onboarding completion to profile:', error);
+      console.error(
+        '🎯 [OnboardingInteractive] Error saving onboarding completion to profile:',
+        error,
+      );
       // Fallback to AsyncStorage if database fails
       await AsyncStorage.setItem(key, `v${CURRENT_ONBOARDING_VERSION}`);
     } else {
-      console.log('🎯 [OnboardingInteractive] Onboarding completion saved to user profile:', userId);
+      console.log(
+        '🎯 [OnboardingInteractive] Onboarding completion saved to user profile:',
+        userId,
+      );
       // Also save to AsyncStorage for backup
       await AsyncStorage.setItem(key, `v${CURRENT_ONBOARDING_VERSION}`);
     }

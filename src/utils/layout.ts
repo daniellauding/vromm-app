@@ -9,5 +9,3 @@ export const TAB_BAR_TOTAL_HEIGHT = TAB_BAR_HEIGHT + BOTTOM_SAFE_INSET;
 export const TAB_CONTENT_PADDING = TAB_BAR_TOTAL_HEIGHT + 48; // a bit more room to clear floating elements
 
 export const getTabContentPadding = (): number => TAB_CONTENT_PADDING;
-
-

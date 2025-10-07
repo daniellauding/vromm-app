@@ -9,11 +9,16 @@ import { supabase } from '../../lib/supabase';
 
 export const useWaypoints = (routes: Route[], activeRoutes?: Route[]): Waypoint[] => {
   const getAllWaypoints = React.useMemo(() => {
-    console.log('🗺️ useWaypoints: total routes', routes.length, 'active routes', activeRoutes?.length);
-    
+    console.log(
+      '🗺️ useWaypoints: total routes',
+      routes.length,
+      'active routes',
+      activeRoutes?.length,
+    );
+
     // Only show waypoints from filtered/active routes when filters are applied
     const routesToShow = activeRoutes && activeRoutes.length > 0 ? activeRoutes : routes;
-    
+
     const waypoints = routesToShow
       .map((route) => {
         const waypointsData = (route.waypoint_details ||
@@ -27,7 +32,7 @@ export const useWaypoints = (routes: Route[], activeRoutes?: Route[]): Waypoint[
 
         const lat = Number(firstWaypoint.lat);
         const lng = Number(firstWaypoint.lng);
-        
+
         // Validate coordinates before adding waypoint
         if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
           console.warn('🚨 Invalid coordinates for route:', route.name, { lat, lng });
@@ -44,9 +49,14 @@ export const useWaypoints = (routes: Route[], activeRoutes?: Route[]): Waypoint[
         };
       })
       .filter((wp): wp is NonNullable<typeof wp> => wp !== null);
-      
+
     console.log('🗺️ Final waypoints count:', waypoints.length);
-    console.log('🗺️ Sample waypoints:', waypoints.slice(0, 3).map(w => ({ id: w.id, title: w.title, lat: w.latitude, lng: w.longitude })));
+    console.log(
+      '🗺️ Sample waypoints:',
+      waypoints
+        .slice(0, 3)
+        .map((w) => ({ id: w.id, title: w.title, lat: w.latitude, lng: w.longitude })),
+    );
     return waypoints;
   }, [routes, activeRoutes]);
 
@@ -86,8 +96,8 @@ export const useActiveRoutes = (
 
         if (error) throw error;
 
-        const presetRouteIds = data?.map(item => item.route_id) || [];
-        const filteredRoutes = routes.filter(route => presetRouteIds.includes(route.id));
+        const presetRouteIds = data?.map((item) => item.route_id) || [];
+        const filteredRoutes = routes.filter((route) => presetRouteIds.includes(route.id));
         setPresetRoutes(filteredRoutes);
         console.log('🗺️ [useActiveRoutes] Loaded preset routes:', filteredRoutes.length);
       } catch (error) {
@@ -103,12 +113,15 @@ export const useActiveRoutes = (
     console.log('🔍 [useActiveRoutes] Applying filters:', filters);
     console.log('🔍 [useActiveRoutes] Selected preset:', selectedPresetId);
     console.log('🔍 [useActiveRoutes] Total routes available:', routes.length);
-    
+
     // If preset is selected, use preset routes as base
-    let baseRoutes = selectedPresetId ? presetRoutes : routes;
-    
+    const baseRoutes = selectedPresetId ? presetRoutes : routes;
+
     if (!filters || Object.keys(filters).length === 0) {
-      console.log('🔍 [useActiveRoutes] No filters active, showing base routes:', baseRoutes.length);
+      console.log(
+        '🔍 [useActiveRoutes] No filters active, showing base routes:',
+        baseRoutes.length,
+      );
       setActiveRoutes(baseRoutes);
       return;
     }
@@ -165,9 +178,10 @@ export const useActiveRoutes = (
           try {
             const exercises = Array.isArray(route.suggested_exercises)
               ? route.suggested_exercises
-              : typeof route.suggested_exercises === 'string' && route.suggested_exercises.trim() !== ''
-              ? JSON.parse(route.suggested_exercises)
-              : null;
+              : typeof route.suggested_exercises === 'string' &&
+                  route.suggested_exercises.trim() !== ''
+                ? JSON.parse(route.suggested_exercises)
+                : null;
             const hasExercises = Array.isArray(exercises) && exercises.length > 0;
             if (hasExercises) {
               console.log('✅ Route has exercises:', route.name, exercises.length);
@@ -180,7 +194,12 @@ export const useActiveRoutes = (
         }
         return false;
       });
-      console.log('🔍 [useActiveRoutes] Exercise filter:', beforeExerciseFilter, '→', filtered.length);
+      console.log(
+        '🔍 [useActiveRoutes] Exercise filter:',
+        beforeExerciseFilter,
+        '→',
+        filtered.length,
+      );
     }
 
     // Apply has media filter
@@ -192,8 +211,8 @@ export const useActiveRoutes = (
             const media = Array.isArray(route.media_attachments)
               ? route.media_attachments
               : typeof route.media_attachments === 'string'
-              ? JSON.parse(route.media_attachments)
-              : [];
+                ? JSON.parse(route.media_attachments)
+                : [];
             return Array.isArray(media) && media.length > 0;
           } catch (error) {
             console.warn('Error parsing media_attachments:', error);
@@ -224,13 +243,15 @@ export const useActiveRoutes = (
       filtered = filtered.filter((route) => {
         // Check drawing mode for route type
         let matches = false;
-        
+
         if (filters.routeType?.includes('recorded')) {
           // Recorded routes have 'record' drawing mode or contain recording stats in description
-          if (route.drawing_mode === 'record' || 
-              route.description?.includes('Recorded drive') ||
-              route.description?.includes('Distance:') ||
-              route.description?.includes('Duration:')) {
+          if (
+            route.drawing_mode === 'record' ||
+            route.description?.includes('Recorded drive') ||
+            route.description?.includes('Distance:') ||
+            route.description?.includes('Duration:')
+          ) {
             matches = true;
           }
         }
@@ -240,10 +261,15 @@ export const useActiveRoutes = (
         if (filters.routeType?.includes('pen') && route.drawing_mode === 'pen') {
           matches = true;
         }
-        
+
         return matches;
       });
-      console.log('🔍 [useActiveRoutes] Route type filter:', beforeRouteTypeFilter, '→', filtered.length);
+      console.log(
+        '🔍 [useActiveRoutes] Route type filter:',
+        beforeRouteTypeFilter,
+        '→',
+        filtered.length,
+      );
     }
 
     /*
@@ -268,9 +294,14 @@ export const useActiveRoutes = (
       });
     }
     */
-    
+
     console.log('🔍 [useActiveRoutes] Final filtered routes:', filtered.length);
-    console.log('🔍 [useActiveRoutes] Sample filtered routes:', filtered.slice(0, 3).map(r => ({ id: r.id, name: r.name, difficulty: r.difficulty, category: r.category })));
+    console.log(
+      '🔍 [useActiveRoutes] Sample filtered routes:',
+      filtered
+        .slice(0, 3)
+        .map((r) => ({ id: r.id, name: r.name, difficulty: r.difficulty, category: r.category })),
+    );
     setActiveRoutes(filtered);
   }, [filters, routes, selectedPresetId, presetRoutes]);
 
@@ -279,7 +310,7 @@ export const useActiveRoutes = (
 
 export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
   const { t } = useTranslation();
-  
+
   // Extract filters from routes
   return React.useMemo(() => {
     const filterMap: Record<string, FilterCategory> = {};
@@ -289,7 +320,9 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.difficulty) {
         filterMap[`difficulty-${route.difficulty}`] = {
           id: `difficulty-${route.difficulty}`,
-          label: t(`filters.difficulty.${route.difficulty}`) || route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
+          label:
+            t(`filters.difficulty.${route.difficulty}`) ||
+            route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
           value: route.difficulty,
           type: 'difficulty',
         };
@@ -299,7 +332,8 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.spot_type) {
         filterMap[`spot-${route.spot_type}`] = {
           id: `spot-${route.spot_type}`,
-          label: t(`filters.spotType.${route.spot_type}`) || 
+          label:
+            t(`filters.spotType.${route.spot_type}`) ||
             route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
           value: route.spot_type,
           type: 'spot_type',
@@ -310,7 +344,8 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.category) {
         filterMap[`category-${route.category}`] = {
           id: `category-${route.category}`,
-          label: t(`filters.category.${route.category}`) ||
+          label:
+            t(`filters.category.${route.category}`) ||
             route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
           value: route.category,
           type: 'category',
@@ -321,9 +356,10 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.transmission_type) {
         filterMap[`transmission-${route.transmission_type}`] = {
           id: `transmission-${route.transmission_type}`,
-          label: t(`filters.transmissionType.${route.transmission_type}`) ||
+          label:
+            t(`filters.transmissionType.${route.transmission_type}`) ||
             route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() +
-            route.transmission_type.slice(1),
+              route.transmission_type.slice(1),
           value: route.transmission_type,
           type: 'transmission_type',
         };
@@ -333,9 +369,10 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.activity_level) {
         filterMap[`activity-${route.activity_level}`] = {
           id: `activity-${route.activity_level}`,
-          label: t(`filters.activityLevel.${route.activity_level}`) ||
+          label:
+            t(`filters.activityLevel.${route.activity_level}`) ||
             route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() +
-            route.activity_level.slice(1),
+              route.activity_level.slice(1),
           value: route.activity_level,
           type: 'activity_level',
         };
@@ -345,9 +382,10 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.best_season) {
         filterMap[`season-${route.best_season}`] = {
           id: `season-${route.best_season}`,
-          label: t(`filters.bestSeason.${route.best_season}`) ||
+          label:
+            t(`filters.bestSeason.${route.best_season}`) ||
             route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() +
-            route.best_season.slice(1),
+              route.best_season.slice(1),
           value: route.best_season,
           type: 'best_season',
         };
@@ -358,7 +396,9 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
         route.vehicle_types.forEach((type) => {
           filterMap[`vehicle-${type}`] = {
             id: `vehicle-${type}`,
-            label: t(`filters.vehicleTypes.${type}`) || type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
+            label:
+              t(`filters.vehicleTypes.${type}`) ||
+              type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
             value: type,
             type: 'vehicle_types',
           };

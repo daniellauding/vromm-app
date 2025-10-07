@@ -26,7 +26,12 @@ interface RelationshipManagementModalProps {
   onClose: () => void;
   userRole: 'student' | 'supervisor' | 'teacher' | 'school' | 'admin' | 'instructor';
   // Student viewing functionality
-  supervisedStudents?: Array<{ id: string; full_name: string; email: string; relationship_created?: string }>;
+  supervisedStudents?: Array<{
+    id: string;
+    full_name: string;
+    email: string;
+    relationship_created?: string;
+  }>;
   onStudentSelect?: (studentId: string | null, studentName?: string) => void;
   // Supervisor selection functionality
   availableSupervisors?: Array<{ id: string; full_name: string; email: string }>;
@@ -55,12 +60,12 @@ export function RelationshipManagementModal({
   const { profile, user } = useAuth();
   const { activeStudentId } = useStudentSwitch();
   const { showToast } = useToast();
-  
+
   // Modal tabs/modes - default to 'manage' for instructors
   const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'invite' | 'pending'>(
     ['instructor', 'school', 'admin'].includes(userRole) ? 'manage' : 'view',
   );
-  
+
   // Invitation states
   const [inviteMode, setInviteMode] = useState<'search' | 'new'>('search');
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,28 +75,36 @@ export function RelationshipManagementModal({
   const [newUserEmails, setNewUserEmails] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [pendingInvitations, setPendingInvitations] = useState<
-    Array<{ id: string; email: string; role: string; status: string; created_at: string; metadata?: any }>
+    Array<{
+      id: string;
+      email: string;
+      role: string;
+      status: string;
+      created_at: string;
+      metadata?: any;
+    }>
   >([]);
   const [incomingInvitations, setIncomingInvitations] = useState<
     Array<{ id: string; email: string; role: string; status: string; created_at: string }>
   >([]);
   const [currentSupervisors, setCurrentSupervisors] = useState<
-    Array<{ 
-      supervisor_id: string; 
-      created_at: string; 
+    Array<{
+      supervisor_id: string;
+      created_at: string;
       profiles: { id: string; full_name: string; email: string; role: string } | null;
     }>
   >([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Local state for supervisor selection
-  const [localSelectedSupervisorIds, setLocalSelectedSupervisorIds] = useState<string[]>(
-    selectedSupervisorIds,
-  );
-  
+  const [localSelectedSupervisorIds, setLocalSelectedSupervisorIds] =
+    useState<string[]>(selectedSupervisorIds);
+
   // Beta testing progress for students
-  const [studentProgress, setStudentProgress] = useState<Record<string, { completed: number; total: number; percentage: number }>>({});
-  
+  const [studentProgress, setStudentProgress] = useState<
+    Record<string, { completed: number; total: number; percentage: number }>
+  >({});
+
   // Removal review modal state
   const [showRemovalReviewModal, setShowRemovalReviewModal] = useState(false);
   const [removalTarget, setRemovalTarget] = useState<{
@@ -118,21 +131,21 @@ export function RelationshipManagementModal({
     }
     if (visible) {
       console.log('🔄 Modal opened, loading data for tab:', activeTab, 'userRole:', userRole);
-      
+
       // Always load pending invitations (sent by user) for all roles
       console.log('📋 Loading pending invitations (sent by user)...');
       loadPendingInvitations();
-      
+
       // Always load incoming invitations (received by user) for all roles
       console.log('📥 Loading incoming invitations (received by user)...');
       loadIncomingInvitations();
-      
+
       // Load student progress for instructors/supervisors
       if (supervisedStudents.length > 0) {
         console.log('📊 Loading student progress...');
         loadStudentProgress();
       }
-      
+
       // Load role-specific data
       if (activeTab === 'manage' && userRole === 'student' && profile?.id) {
         console.log('👨‍🎓 Loading current supervisors for student...');
@@ -148,36 +161,51 @@ export function RelationshipManagementModal({
     console.log('🔔 Setting up real-time subscription for pending invitations');
     const subscription = supabase
       .channel('pending_invitations_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'pending_invitations',
-        filter: `invited_by=eq.${profile.id}`,
-      }, (payload) => {
-        console.log('🔄 Pending invitation changed:', payload);
-        // Refresh pending invitations when they change
-        loadPendingInvitations();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'pending_invitations',
-        filter: `email=eq.${(user?.email || '').toLowerCase()}`,
-      }, (payload) => {
-        console.log('🔄 Incoming invitation changed:', payload);
-        // Refresh incoming invitations when they change
-        loadIncomingInvitations();
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pending_invitations',
+          filter: `invited_by=eq.${profile.id}`,
+        },
+        (payload) => {
+          console.log('🔄 Pending invitation changed:', payload);
+          // Refresh pending invitations when they change
+          loadPendingInvitations();
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pending_invitations',
+          filter: `email=eq.${(user?.email || '').toLowerCase()}`,
+        },
+        (payload) => {
+          console.log('🔄 Incoming invitation changed:', payload);
+          // Refresh incoming invitations when they change
+          loadIncomingInvitations();
+        },
+      )
       // Realtime: when relationships change, ask parent to refresh lists so instructor sees new students instantly
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'student_supervisor_relationships',
-        filter: `supervisor_id=eq.${profile.id}`,
-      }, (payload) => {
-        console.log('🧩 Relationship row changed for supervisor, requesting refresh:', payload?.eventType);
-        onRefresh?.();
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'student_supervisor_relationships',
+          filter: `supervisor_id=eq.${profile.id}`,
+        },
+        (payload) => {
+          console.log(
+            '🧩 Relationship row changed for supervisor, requesting refresh:',
+            payload?.eventType,
+          );
+          onRefresh?.();
+        },
+      )
       .subscribe();
 
     return () => {
@@ -191,23 +219,23 @@ export function RelationshipManagementModal({
       console.log('❌ No profile ID for loading pending invitations');
       return;
     }
-    
+
     console.log('📤 Loading pending invitations for user:', profile.id);
     try {
       const invitations = await getPendingInvitationsV2(profile.id);
       console.log('📤 Loaded pending invitations:', invitations);
       console.log('📤 Setting pending invitations state with', invitations.length, 'items');
-      
+
       // Filter out old accepted invitations (older than 24 hours) and clean them up
       const now = new Date();
       const filteredInvitations = [];
       const toCleanup = [];
-      
+
       for (const invitation of invitations) {
         if (invitation.status === 'accepted') {
           const acceptedAt = new Date(invitation.accepted_at || invitation.updated_at);
           const hoursOld = (now.getTime() - acceptedAt.getTime()) / (1000 * 60 * 60);
-          
+
           if (hoursOld > 24) {
             toCleanup.push(invitation.id);
           } else {
@@ -217,16 +245,13 @@ export function RelationshipManagementModal({
           filteredInvitations.push(invitation);
         }
       }
-      
+
       // Clean up old accepted invitations
       if (toCleanup.length > 0) {
         console.log('🧹 Cleaning up', toCleanup.length, 'old accepted invitations');
-        await supabase
-          .from('pending_invitations')
-          .delete()
-          .in('id', toCleanup);
+        await supabase.from('pending_invitations').delete().in('id', toCleanup);
       }
-      
+
       console.log('📤 Setting pending invitations state:', filteredInvitations);
       setPendingInvitations(filteredInvitations);
     } catch (error) {
@@ -239,13 +264,14 @@ export function RelationshipManagementModal({
       console.log('❌ No user email for loading incoming invitations');
       return;
     }
-    
+
     console.log('📥 Loading incoming invitations for email:', user.email);
     try {
       // Use direct query instead of service function for more control
       const { data: invitations, error } = await supabase
         .from('pending_invitations')
-        .select(`
+        .select(
+          `
           id, 
           email, 
           role, 
@@ -258,7 +284,8 @@ export function RelationshipManagementModal({
             email,
             role
           )
-        `)
+        `,
+        )
         .eq('email', user.email.toLowerCase())
         .in('status', ['pending', 'accepted']) // Show both pending and recently accepted
         .order('created_at', { ascending: false });
@@ -269,7 +296,7 @@ export function RelationshipManagementModal({
       }
 
       console.log('📥 Raw incoming invitations:', invitations);
-      
+
       // Filter out invitations where relationship already exists (unless recently accepted)
       const filteredInvitations: Array<{
         id: string;
@@ -287,7 +314,7 @@ export function RelationshipManagementModal({
           const acceptedTime = new Date(inv.created_at).getTime();
           const now = Date.now();
           const hoursOld = (now - acceptedTime) / (1000 * 60 * 60);
-          
+
           if (hoursOld <= 24) {
             filteredInvitations.push(inv);
           }
@@ -296,7 +323,9 @@ export function RelationshipManagementModal({
           const { data: existingRelationship } = await supabase
             .from('student_supervisor_relationships')
             .select('id')
-            .or(`and(student_id.eq.${user.id},supervisor_id.eq.${inv.invited_by}),and(student_id.eq.${inv.invited_by},supervisor_id.eq.${user.id})`)
+            .or(
+              `and(student_id.eq.${user.id},supervisor_id.eq.${inv.invited_by}),and(student_id.eq.${inv.invited_by},supervisor_id.eq.${user.id})`,
+            )
             .limit(1);
 
           if (!existingRelationship || existingRelationship.length === 0) {
@@ -307,7 +336,7 @@ export function RelationshipManagementModal({
 
       console.log('📥 Setting incoming invitations state:', filteredInvitations);
       setIncomingInvitations(filteredInvitations);
-      
+
       // Force a re-render by updating a dummy state if we have invitations but they're not showing
       if (filteredInvitations.length > 0) {
         console.log('📥 Force updating state to ensure render...');
@@ -324,7 +353,7 @@ export function RelationshipManagementModal({
       console.log('❌ No profile ID for loading current supervisors');
       return;
     }
-    
+
     console.log('👨‍🏫 Loading current supervisors for student:', profile.id);
     try {
       const supervisors = await getStudentSupervisors(profile.id);
@@ -337,11 +366,11 @@ export function RelationshipManagementModal({
 
   const handleRemoveSupervisor = async (supervisorId: string) => {
     if (!profile?.id) return;
-    
+
     // Find the supervisor details
-    const supervisor = currentSupervisors.find(s => s.supervisor_id === supervisorId);
+    const supervisor = currentSupervisors.find((s) => s.supervisor_id === supervisorId);
     if (!supervisor) return;
-    
+
     setRemovalTarget({
       id: supervisorId,
       name: supervisor.profiles?.full_name || 'Unknown Supervisor',
@@ -360,14 +389,14 @@ export function RelationshipManagementModal({
         profile.id, // studentId
         removalTarget.id, // supervisorId
         'Review submitted', // removalMessage
-        profile.id // removedByUserId
+        profile.id, // removedByUserId
       );
-      
+
       if (success) {
         showToast({
           title: 'Success',
           message: 'Supervisor removed successfully and review submitted',
-          type: 'success'
+          type: 'success',
         });
         loadCurrentSupervisors();
         onRefresh?.();
@@ -375,7 +404,7 @@ export function RelationshipManagementModal({
         showToast({
           title: 'Error',
           message: 'Failed to remove supervisor',
-          type: 'error'
+          type: 'error',
         });
       }
     } catch (error) {
@@ -383,7 +412,7 @@ export function RelationshipManagementModal({
       showToast({
         title: 'Error',
         message: 'Failed to remove supervisor',
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setRemovalTarget(null);
@@ -393,7 +422,7 @@ export function RelationshipManagementModal({
 
   const handleRemoveStudent = async (studentId: string) => {
     if (!profile?.id) return;
-    
+
     // Show input dialog for removal message
     Alert.prompt(
       'Remove Student',
@@ -406,38 +435,38 @@ export function RelationshipManagementModal({
           onPress: async (message) => {
             try {
               const success = await removeSupervisorRelationship(
-                studentId, 
-                profile.id, 
+                studentId,
+                profile.id,
                 message?.trim() || undefined,
-                profile.id
+                profile.id,
               );
               if (success) {
                 showToast({
                   title: 'Success',
                   message: 'Student removed successfully',
-                  type: 'success'
+                  type: 'success',
                 });
                 onRefresh?.();
               } else {
                 showToast({
                   title: 'Error',
                   message: 'Failed to remove student',
-                  type: 'error'
+                  type: 'error',
                 });
               }
             } catch (error) {
               showToast({
                 title: 'Error',
                 message: 'Failed to remove student',
-                type: 'error'
+                type: 'error',
               });
             }
-          }
-        }
+          },
+        },
       ],
       'plain-text',
       '',
-      'default'
+      'default',
     );
   };
 
@@ -453,23 +482,23 @@ export function RelationshipManagementModal({
     try {
       setLoading(true);
       console.log('⏳ Starting search...');
-      
+
       // Search for existing users based on role (only use valid database enum values)
       const targetRole = userRole === 'student' ? ['instructor', 'admin', 'school'] : ['student'];
       console.log('🎯 Searching for users with query:', query);
       console.log('🎭 Target roles:', targetRole);
       console.log('👤 Current user role:', userRole);
-      
+
       // First, let's see what roles exist for this query
       const { data: allMatchingUsers, error: allError } = await supabase
         .from('profiles')
         .select('id, full_name, email, role')
         .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
         .limit(10);
-        
+
       console.log('🔍 All users matching query (before role filter):', allMatchingUsers);
       console.log('❌ All users error:', allError);
-      
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, role')
@@ -483,22 +512,33 @@ export function RelationshipManagementModal({
 
       if (!error && data) {
         // Filter out users without emails and log the issue
-        const usersWithEmails = data.filter(user => {
+        const usersWithEmails = data.filter((user) => {
           if (!user.email) {
-            console.warn('User found without email:', { id: user.id, name: user.full_name, role: user.role });
+            console.warn('User found without email:', {
+              id: user.id,
+              name: user.full_name,
+              role: user.role,
+            });
             return false;
           }
           return true;
         });
-        
+
         console.log('📋 Setting search results to:', usersWithEmails);
         setSearchResults(usersWithEmails);
-        usersWithEmails.forEach(user => {
-          console.log('👤 Found user:', { id: user.id, name: user.full_name, email: user.email, role: user.role });
+        usersWithEmails.forEach((user) => {
+          console.log('👤 Found user:', {
+            id: user.id,
+            name: user.full_name,
+            email: user.email,
+            role: user.role,
+          });
         });
-        
+
         if (data.length > usersWithEmails.length) {
-          console.warn(`Filtered out ${data.length - usersWithEmails.length} users without email addresses`);
+          console.warn(
+            `Filtered out ${data.length - usersWithEmails.length} users without email addresses`,
+          );
         }
       }
     } catch (error) {
@@ -513,14 +553,14 @@ export function RelationshipManagementModal({
 
     const emails = newUserEmails
       .split(/[,;\n]/)
-      .map(email => email.trim())
-      .filter(email => email.includes('@'));
+      .map((email) => email.trim())
+      .filter((email) => email.includes('@'));
 
     if (emails.length === 0) {
       showToast({
         title: 'Error',
         message: 'Please enter valid email addresses',
-        type: 'error'
+        type: 'error',
       });
       return;
     }
@@ -528,16 +568,16 @@ export function RelationshipManagementModal({
     try {
       setLoading(true);
       const targetRole = userRole === 'student' ? 'supervisor' : 'student';
-      
+
       // Create invitations with custom message
-      const invitationsWithMessage = emails.map(email => ({ 
-        email, 
-        customMessage: customMessage.trim() || undefined 
+      const invitationsWithMessage = emails.map((email) => ({
+        email,
+        customMessage: customMessage.trim() || undefined,
       }));
-      
+
       // For now, call the existing function - we'll need to update it to handle custom messages
       await onInviteUsers(emails, targetRole);
-      
+
       setNewUserEmails('');
       setCustomMessage(''); // Clear custom message
       setActiveTab('pending');
@@ -547,7 +587,7 @@ export function RelationshipManagementModal({
       showToast({
         title: 'Error',
         message: `Failed to send invitations: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setLoading(false);
@@ -568,7 +608,7 @@ export function RelationshipManagementModal({
       currentUserId: user?.id,
       currentUserEmail: user?.email,
     });
-    
+
     if (!user?.id || !targetUser.id || !targetUser.email) {
       console.error('❌ Missing required data:', {
         userId: user?.id,
@@ -577,11 +617,11 @@ export function RelationshipManagementModal({
       });
       return;
     }
-    
+
     try {
       setLoading(true);
       console.log('📝 Creating pending invitation...');
-      
+
       // Check for ANY existing invitation from this user to this email (regardless of status)
       const { data: existingInvitations } = await supabase
         .from('pending_invitations')
@@ -591,39 +631,38 @@ export function RelationshipManagementModal({
         .in('status', ['pending', 'accepted']);
 
       if (existingInvitations && existingInvitations.length > 0) {
-        const pendingInvitation = existingInvitations.find(inv => inv.status === 'pending');
-        const acceptedInvitation = existingInvitations.find(inv => inv.status === 'accepted');
-        
+        const pendingInvitation = existingInvitations.find((inv) => inv.status === 'pending');
+        const acceptedInvitation = existingInvitations.find((inv) => inv.status === 'accepted');
+
         if (pendingInvitation) {
           const invitationAge = Date.now() - new Date(pendingInvitation.created_at).getTime();
           const hoursOld = invitationAge / (1000 * 60 * 60);
-          
+
           console.log('ℹ️ Pending invitation already exists (', hoursOld.toFixed(1), 'hours old)');
           showToast({
             title: 'Invitation Already Sent',
             message: `You already sent an invitation to ${targetUser.full_name || targetUser.email} ${hoursOld < 1 ? 'less than an hour' : Math.round(hoursOld) + ' hours'} ago. Please wait for them to respond.`,
-            type: 'info'
+            type: 'info',
           });
           return;
         }
-        
+
         if (acceptedInvitation) {
           console.log('ℹ️ Invitation already accepted - relationship should exist');
           showToast({
             title: 'Invitation Already Accepted',
             message: `${targetUser.full_name || targetUser.email} has already accepted your invitation. The relationship should be active.`,
-            type: 'info'
+            type: 'info',
           });
           return;
         }
       }
-      
+
       // Determine relationship type and target role
-      const relationshipType = userRole === 'student' 
-        ? 'student_invites_supervisor' 
-        : 'supervisor_invites_student';
+      const relationshipType =
+        userRole === 'student' ? 'student_invites_supervisor' : 'supervisor_invites_student';
       const targetRole = userRole === 'student' ? 'instructor' : 'student';
-      
+
       // Create pending invitation that requires acceptance
       const { data: invitationData, error: inviteError } = await supabase
         .from('pending_invitations')
@@ -644,19 +683,19 @@ export function RelationshipManagementModal({
         })
         .select()
         .single();
-        
+
       console.log('📤 Invitation creation result:', {
         data: invitationData,
         error: inviteError,
       });
-        
+
       if (inviteError) {
         if (inviteError.code === '23505') {
           console.log('ℹ️ Invitation already exists (duplicate key)');
           showToast({
             title: 'Info',
             message: 'An invitation has already been sent to this user.',
-            type: 'info'
+            type: 'info',
           });
           return;
         } else {
@@ -664,24 +703,24 @@ export function RelationshipManagementModal({
           throw new Error('Failed to create invitation');
         }
       }
-      
+
       // CRITICAL: Ensure invitation was created successfully before proceeding
       if (!invitationData || !invitationData.id) {
         console.error('❌ Invitation creation failed - no data returned');
         throw new Error('Failed to create invitation - no data returned');
       }
-      
+
       console.log('✅ Invitation created successfully with ID:', invitationData.id);
-      
+
       // Create in-app notification for the target user about the invitation
       console.log('📢 Creating invitation notification for target user...');
-      const notificationType = userRole === 'student' 
-        ? 'supervisor_invitation' 
-        : 'student_invitation';
-      const message = userRole === 'student' 
-        ? `${profile?.full_name || user.email || 'Someone'} wants you to be their supervisor`
-        : `${profile?.full_name || user.email || 'Someone'} wants you to be their student`;
-      
+      const notificationType =
+        userRole === 'student' ? 'supervisor_invitation' : 'student_invitation';
+      const message =
+        userRole === 'student'
+          ? `${profile?.full_name || user.email || 'Someone'} wants you to be their supervisor`
+          : `${profile?.full_name || user.email || 'Someone'} wants you to be their student`;
+
       console.log('📧 Invitation notification details:', {
         user_id: targetUser.id,
         actor_id: user.id,
@@ -689,7 +728,7 @@ export function RelationshipManagementModal({
         title: 'New Invitation',
         message,
       });
-      
+
       const { data: notificationData, error: notificationError } = await supabase
         .from('notifications')
         .insert({
@@ -710,39 +749,38 @@ export function RelationshipManagementModal({
         })
         .select()
         .single();
-        
+
       console.log('📢 Invitation notification creation result:', {
         data: notificationData,
         error: notificationError,
       });
-        
+
       if (notificationError) {
         console.warn('⚠️ Failed to create invitation notification:', notificationError);
         // Don't fail the whole operation for notification errors
       } else {
         console.log('✅ Invitation notification created successfully');
       }
-      
+
       console.log('🎉 Showing success toast...');
       showToast({
         title: 'Invitation Sent! 📤',
         message: `An invitation has been sent to ${targetUser.full_name || 'the user'}. They will need to accept it before the relationship is created.`,
-        type: 'success'
+        type: 'success',
       });
-      
+
       // Clear search and refresh
       console.log('🔄 Clearing search and refreshing data...');
       setSearchQuery('');
       setSearchResults([]);
       setCustomMessage(''); // Clear custom message
       onRefresh?.();
-      
     } catch (error) {
       console.error('❌ Error creating invitation:', error);
       showToast({
         title: 'Error',
         message: `Failed to send invitation: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        type: 'error'
+        type: 'error',
       });
     } finally {
       console.log('🏁 Setting loading to false');
@@ -753,25 +791,22 @@ export function RelationshipManagementModal({
   const handleCancelInvitation = async (invitationId: string) => {
     try {
       await cancelInvitation(invitationId);
-      
+
       // Also remove any related notifications
-      await supabase
-        .from('notifications')
-        .delete()
-        .eq('metadata->invitation_id', invitationId);
-      
+      await supabase.from('notifications').delete().eq('metadata->invitation_id', invitationId);
+
       loadPendingInvitations();
       showToast({
         title: 'Success',
         message: 'Invitation cancelled',
-        type: 'success'
+        type: 'success',
       });
     } catch (error) {
       console.error('Error cancelling invitation:', error);
       showToast({
         title: 'Error',
         message: 'Failed to cancel invitation',
-        type: 'error'
+        type: 'error',
       });
     }
   };
@@ -780,7 +815,7 @@ export function RelationshipManagementModal({
     const newSelection = localSelectedSupervisorIds.includes(supervisorId)
       ? localSelectedSupervisorIds.filter((id) => id !== supervisorId)
       : [...localSelectedSupervisorIds, supervisorId];
-    
+
     setLocalSelectedSupervisorIds(newSelection);
     onSupervisorSelect?.(newSelection);
   };
@@ -791,7 +826,7 @@ export function RelationshipManagementModal({
         // TODO: Pass custom message to onAddSupervisors function
         console.log('📧 Adding supervisors with custom message:', customMessage);
         await onAddSupervisors(localSelectedSupervisorIds);
-        
+
         // Clear custom message after successful addition
         setCustomMessage('');
         onClose();
@@ -803,21 +838,21 @@ export function RelationshipManagementModal({
 
   const renderTabs = () => {
     const tabs = [];
-    
+
     if (userRole === 'student') {
       tabs.push(
         { key: 'view', label: 'Request', icon: 'user-plus' },
         { key: 'manage', label: 'Current', icon: 'users' },
-        { key: 'invite', label: 'Invite New', icon: 'send' }
+        { key: 'invite', label: 'Invite New', icon: 'send' },
       );
     } else if (['instructor', 'school', 'admin', 'supervisor', 'teacher'].includes(userRole)) {
       tabs.push(
         { key: 'manage', label: 'My Students', icon: 'users' },
         { key: 'view', label: 'Select Student', icon: 'eye' },
-        { key: 'invite', label: 'Invite', icon: 'user-plus' }
+        { key: 'invite', label: 'Invite', icon: 'user-plus' },
       );
     }
-    
+
     tabs.push({ key: 'pending', label: 'Pending', icon: 'clock' });
 
     return (
@@ -853,40 +888,46 @@ export function RelationshipManagementModal({
   // Load beta testing progress for students
   const loadStudentProgress = async () => {
     if (supervisedStudents.length === 0) {
-      console.log('🔍 [RelationshipManagementModal] No supervised students, skipping progress load');
+      console.log(
+        '🔍 [RelationshipManagementModal] No supervised students, skipping progress load',
+      );
       return;
     }
-    
+
     try {
-      const studentIds = supervisedStudents.map(s => s.id);
+      const studentIds = supervisedStudents.map((s) => s.id);
       console.log('🔍 [RelationshipManagementModal] Loading progress for students:', studentIds);
-      
+
       const { data: assignments, error } = await supabase
         .from('beta_test_assignments')
         .select('browser_id, is_completed, assignment_id, title')
         .in('browser_id', studentIds);
-      
+
       console.log('🔍 [RelationshipManagementModal] Assignments data:', assignments);
       console.log('🔍 [RelationshipManagementModal] Assignments error:', error);
-      
+
       if (error) {
         console.error('Error loading student progress:', error);
         return;
       }
-      
+
       // Calculate progress for each student
       const progress: Record<string, { completed: number; total: number; percentage: number }> = {};
-      
-      studentIds.forEach(studentId => {
-        const studentAssignments = assignments?.filter(a => a.browser_id === studentId) || [];
-        const completed = studentAssignments.filter(a => a.is_completed).length;
+
+      studentIds.forEach((studentId) => {
+        const studentAssignments = assignments?.filter((a) => a.browser_id === studentId) || [];
+        const completed = studentAssignments.filter((a) => a.is_completed).length;
         const total = studentAssignments.length;
         const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-        
+
         progress[studentId] = { completed, total, percentage };
-        console.log(`🔍 [RelationshipManagementModal] Student ${studentId} progress:`, { completed, total, percentage });
+        console.log(`🔍 [RelationshipManagementModal] Student ${studentId} progress:`, {
+          completed,
+          total,
+          percentage,
+        });
       });
-      
+
       console.log('🔍 [RelationshipManagementModal] Final progress object:', progress);
       setStudentProgress(progress);
     } catch (error) {
@@ -932,7 +973,11 @@ export function RelationshipManagementModal({
                         {supervisor.profiles?.email || 'No email'}
                       </Text>
                       <Text color="$gray11" size="xs">
-                        Supervising since {new Date(supervisor.created_at).toLocaleDateString()} at {new Date(supervisor.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        Supervising since {new Date(supervisor.created_at).toLocaleDateString()} at{' '}
+                        {new Date(supervisor.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </Text>
                     </YStack>
                     <Button
@@ -965,8 +1010,8 @@ export function RelationshipManagementModal({
               </Text>
             </YStack>
           ) : (
-            <ScrollView 
-              style={{ flex: 1 }} 
+            <ScrollView
+              style={{ flex: 1 }}
               showsVerticalScrollIndicator={true}
               contentContainerStyle={{ paddingVertical: 8 }}
             >
@@ -984,23 +1029,38 @@ export function RelationshipManagementModal({
                   >
                     <YStack flex={1}>
                       <XStack alignItems="center" gap="$2">
-                        <Text weight="semibold" size="sm" color="$color">{student.full_name}</Text>
+                        <Text weight="semibold" size="sm" color="$color">
+                          {student.full_name}
+                        </Text>
                         {studentProgress[student.id] && (
-                          <XStack alignItems="center" gap="$1" backgroundColor="$blue3" paddingHorizontal="$2" paddingVertical="$1" borderRadius="$2">
-                            <View style={{
-                              width: 12,
-                              height: 12,
-                              borderRadius: 6,
-                              backgroundColor: studentProgress[student.id].percentage === 100 ? '#10B981' : '#3B82F6',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            }}>
+                          <XStack
+                            alignItems="center"
+                            gap="$1"
+                            backgroundColor="$blue3"
+                            paddingHorizontal="$2"
+                            paddingVertical="$1"
+                            borderRadius="$2"
+                          >
+                            <View
+                              style={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: 6,
+                                backgroundColor:
+                                  studentProgress[student.id].percentage === 100
+                                    ? '#10B981'
+                                    : '#3B82F6',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}
+                            >
                               <Text color="white" fontSize={8} fontWeight="bold">
                                 {studentProgress[student.id].percentage}%
                               </Text>
                             </View>
                             <Text color="$blue11" size="xs" fontWeight="600">
-                              {studentProgress[student.id].completed}/{studentProgress[student.id].total}
+                              {studentProgress[student.id].completed}/
+                              {studentProgress[student.id].total}
                             </Text>
                           </XStack>
                         )}
@@ -1015,10 +1075,17 @@ export function RelationshipManagementModal({
                           </Text>
                         )}
                       </XStack>
-                      <Text color="$gray11" size="xs">{student.email}</Text>
+                      <Text color="$gray11" size="xs">
+                        {student.email}
+                      </Text>
                       {student.relationship_created && (
                         <Text color="$gray11" size="xs">
-                          Student since {new Date(student.relationship_created).toLocaleDateString()} at {new Date(student.relationship_created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          Student since{' '}
+                          {new Date(student.relationship_created).toLocaleDateString()} at{' '}
+                          {new Date(student.relationship_created).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </Text>
                       )}
                     </YStack>
@@ -1033,26 +1100,28 @@ export function RelationshipManagementModal({
                       >
                         View
                       </Button>
-                                <Button
-            size="sm"
-            variant="tertiary"
-            backgroundColor="$red9"
-            onPress={() => {
-              // Find the student details for removal review
-              const studentToRemove = supervisedStudents.find(s => s.id === student.id);
-              if (!studentToRemove) return;
-              
-              setRemovalTarget({
-                id: student.id,
-                name: studentToRemove.full_name,
-                email: studentToRemove.email,
-                role: 'student',
-              });
-              setShowRemovalReviewModal(true);
-            }}
-          >
-                                    <Text color="white">Remove</Text>
-          </Button>
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        backgroundColor="$red9"
+                        onPress={() => {
+                          // Find the student details for removal review
+                          const studentToRemove = supervisedStudents.find(
+                            (s) => s.id === student.id,
+                          );
+                          if (!studentToRemove) return;
+
+                          setRemovalTarget({
+                            id: student.id,
+                            name: studentToRemove.full_name,
+                            email: studentToRemove.email,
+                            role: 'student',
+                          });
+                          setShowRemovalReviewModal(true);
+                        }}
+                      >
+                        <Text color="white">Remove</Text>
+                      </Button>
                     </XStack>
                   </XStack>
                 ))}
@@ -1069,19 +1138,21 @@ export function RelationshipManagementModal({
       // Show supervisors to select
       console.log('Rendering supervisor list for student view:');
       console.log('Available supervisors count:', availableSupervisors.length);
-      availableSupervisors.forEach(supervisor => {
+      availableSupervisors.forEach((supervisor) => {
         console.log('Rendering supervisor:', supervisor);
       });
-      
+
       return (
         <YStack gap="$2" flex={1}>
           <Text size="sm" color="$gray11">
             Select supervisors who can view your progress and help with your learning
           </Text>
-          
+
           {/* Custom message field for Request tab */}
           <YStack gap="$1">
-            <Text size="sm" color="$gray11">Optional personal message:</Text>
+            <Text size="sm" color="$gray11">
+              Optional personal message:
+            </Text>
             <TextInput
               value={customMessage}
               onChangeText={setCustomMessage}
@@ -1099,66 +1170,77 @@ export function RelationshipManagementModal({
               }}
             />
           </YStack>
-          
-          <ScrollView 
-            style={{ 
+
+          <ScrollView
+            style={{
               flex: 1,
               backgroundColor: '#1a1a1a',
               borderRadius: 8,
               borderWidth: 1,
-              borderColor: '#333'
+              borderColor: '#333',
             }}
             contentContainerStyle={{ padding: 8 }}
           >
-              {availableSupervisors.length === 0 ? (
-                <>
-                  {console.log('🚨 No supervisors available to display!')}
-                  <Text color="$gray11" textAlign="center" padding="$4">
-                    No supervisors/schools/teachers/admins available. They may need to be invited first.
-                  </Text>
-                </>
-              ) : (
-                availableSupervisors.map((supervisor) => {
-                  const isSelected = localSelectedSupervisorIds.includes(supervisor.id);
-                  const hasPendingInvite = pendingInvitations.some((inv) => inv.email?.toLowerCase() === (supervisor.email || '').toLowerCase() && inv.status === 'pending');
-                  console.log(`Rendering button for ${supervisor.full_name}, selected: ${isSelected}`);
-                  return (
-                      <Button
-                      key={supervisor.id}
-                      onPress={() => { if (!hasPendingInvite) handleSupervisorToggle(supervisor.id); }}
-                        variant={hasPendingInvite ? 'secondary' : isSelected ? 'primary' : 'tertiary'}
-                      justifyContent="flex-start"
-                      width="100%"
-                      marginBottom="$2"
-                    >
-                      <XStack alignItems="center" gap="$2" flex={1} width="100%">
-                        {hasPendingInvite ? (
-                          <Feather name="clock" size={16} color="#F59E0B" />
-                        ) : (
-                          <Feather 
-                            name={isSelected ? 'check-circle' : 'circle'} 
-                            size={16} 
-                            color={isSelected ? 'white' : '#999'}
-                          />
-                        )}
-                        <YStack flex={1} alignItems="flex-start">
-                          <Text weight="semibold" size="sm" color={isSelected ? 'white' : '$color'}>
-                            {supervisor.full_name || 'Unnamed'}
-                          </Text>
-                          <Text color={isSelected ? '$gray3' : '$gray11'} size="xs">
-                            {supervisor.email || 'No email'}{hasPendingInvite ? ' • Invitation pending' : ''}
-                          </Text>
-                        </YStack>
-                      </XStack>
-                    </Button>
-                  );
-                })
-              )}
+            {availableSupervisors.length === 0 ? (
+              <>
+                {console.log('🚨 No supervisors available to display!')}
+                <Text color="$gray11" textAlign="center" padding="$4">
+                  No supervisors/schools/teachers/admins available. They may need to be invited
+                  first.
+                </Text>
+              </>
+            ) : (
+              availableSupervisors.map((supervisor) => {
+                const isSelected = localSelectedSupervisorIds.includes(supervisor.id);
+                const hasPendingInvite = pendingInvitations.some(
+                  (inv) =>
+                    inv.email?.toLowerCase() === (supervisor.email || '').toLowerCase() &&
+                    inv.status === 'pending',
+                );
+                console.log(
+                  `Rendering button for ${supervisor.full_name}, selected: ${isSelected}`,
+                );
+                return (
+                  <Button
+                    key={supervisor.id}
+                    onPress={() => {
+                      if (!hasPendingInvite) handleSupervisorToggle(supervisor.id);
+                    }}
+                    variant={hasPendingInvite ? 'secondary' : isSelected ? 'primary' : 'tertiary'}
+                    justifyContent="flex-start"
+                    width="100%"
+                    marginBottom="$2"
+                  >
+                    <XStack alignItems="center" gap="$2" flex={1} width="100%">
+                      {hasPendingInvite ? (
+                        <Feather name="clock" size={16} color="#F59E0B" />
+                      ) : (
+                        <Feather
+                          name={isSelected ? 'check-circle' : 'circle'}
+                          size={16}
+                          color={isSelected ? 'white' : '#999'}
+                        />
+                      )}
+                      <YStack flex={1} alignItems="flex-start">
+                        <Text weight="semibold" size="sm" color={isSelected ? 'white' : '$color'}>
+                          {supervisor.full_name || 'Unnamed'}
+                        </Text>
+                        <Text color={isSelected ? '$gray3' : '$gray11'} size="xs">
+                          {supervisor.email || 'No email'}
+                          {hasPendingInvite ? ' • Invitation pending' : ''}
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  </Button>
+                );
+              })
+            )}
           </ScrollView>
 
           {localSelectedSupervisorIds.length > 0 && (
             <Button onPress={handleAddSupervisors} variant="primary">
-              Add {localSelectedSupervisorIds.length} Supervisor{localSelectedSupervisorIds.length > 1 ? 's' : ''}
+              Add {localSelectedSupervisorIds.length} Supervisor
+              {localSelectedSupervisorIds.length > 1 ? 's' : ''}
             </Button>
           )}
         </YStack>
@@ -1168,7 +1250,7 @@ export function RelationshipManagementModal({
       console.log('Rendering student selection for instructor view:');
       console.log('User role:', userRole);
       console.log('Supervised students count:', supervisedStudents.length);
-      
+
       return (
         <YStack gap="$4" flex={1}>
           <Text size="sm" color="$gray11">
@@ -1182,19 +1264,19 @@ export function RelationshipManagementModal({
               </Text>
             </YStack>
           ) : (
-            <ScrollView 
-              style={{ flex: 1 }} 
+            <ScrollView
+              style={{ flex: 1 }}
               showsVerticalScrollIndicator={true}
               contentContainerStyle={{ paddingVertical: 8 }}
             >
               <YStack gap="$3">
                 {/* Option to view own profile */}
-                  <Button
+                <Button
                   onPress={() => {
                     onStudentSelect?.(null);
                     onClose();
                   }}
-                    variant={activeStudentId === null ? 'primary' : 'tertiary'}
+                  variant={activeStudentId === null ? 'primary' : 'tertiary'}
                   backgroundColor={activeStudentId === null ? '$blue9' : '$gray3'}
                   borderWidth={1}
                   borderColor="$gray6"
@@ -1202,9 +1284,17 @@ export function RelationshipManagementModal({
                   padding="$3"
                 >
                   <XStack alignItems="center" gap="$3" flex={1}>
-                    <Feather name="user" size={16} color={activeStudentId === null ? 'white' : '$gray11'} />
+                    <Feather
+                      name="user"
+                      size={16}
+                      color={activeStudentId === null ? 'white' : '$gray11'}
+                    />
                     <YStack alignItems="flex-start" flex={1}>
-                          <Text weight="semibold" size="sm" color={activeStudentId === null ? 'white' : '$color'}>
+                      <Text
+                        weight="semibold"
+                        size="sm"
+                        color={activeStudentId === null ? 'white' : '$color'}
+                      >
                         My Own Profile
                       </Text>
                       <Text color={activeStudentId === null ? '$gray3' : '$gray11'} size="xs">
@@ -1238,21 +1328,38 @@ export function RelationshipManagementModal({
                               {student.full_name}
                             </Text>
                             {studentProgress[student.id] && (
-                              <XStack alignItems="center" gap="$1" backgroundColor={isActive ? 'rgba(255,255,255,0.2)' : '$blue3'} paddingHorizontal="$2" paddingVertical="$1" borderRadius="$2">
-                                <View style={{
-                                  width: 10,
-                                  height: 10,
-                                  borderRadius: 5,
-                                  backgroundColor: studentProgress[student.id].percentage === 100 ? '#10B981' : '#3B82F6',
-                                  justifyContent: 'center',
-                                  alignItems: 'center',
-                                }}>
+                              <XStack
+                                alignItems="center"
+                                gap="$1"
+                                backgroundColor={isActive ? 'rgba(255,255,255,0.2)' : '$blue3'}
+                                paddingHorizontal="$2"
+                                paddingVertical="$1"
+                                borderRadius="$2"
+                              >
+                                <View
+                                  style={{
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: 5,
+                                    backgroundColor:
+                                      studentProgress[student.id].percentage === 100
+                                        ? '#10B981'
+                                        : '#3B82F6',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                  }}
+                                >
                                   <Text color="white" fontSize={6} fontWeight="bold">
                                     {studentProgress[student.id].percentage}%
                                   </Text>
                                 </View>
-                                <Text color={isActive ? 'white' : '$blue11'} size="xs" fontWeight="600">
-                                  {studentProgress[student.id].completed}/{studentProgress[student.id].total}
+                                <Text
+                                  color={isActive ? 'white' : '$blue11'}
+                                  size="xs"
+                                  fontWeight="600"
+                                >
+                                  {studentProgress[student.id].completed}/
+                                  {studentProgress[student.id].total}
                                 </Text>
                               </XStack>
                             )}
@@ -1282,7 +1389,7 @@ export function RelationshipManagementModal({
     return (
       <YStack flex={1} gap="$4">
         <Text size="sm" color="$gray11">
-          {userRole === 'student' 
+          {userRole === 'student'
             ? 'Search existing users or enter email addresses to invite new supervisors'
             : 'Search existing users or enter email addresses to invite new students'}
         </Text>
@@ -1323,7 +1430,7 @@ export function RelationshipManagementModal({
                 borderColor: '#444',
               }}
             />
-            
+
             <TextInput
               value={customMessage}
               onChangeText={setCustomMessage}
@@ -1361,8 +1468,8 @@ export function RelationshipManagementModal({
                 </Text>
               </YStack>
             ) : (
-              <ScrollView 
-                style={{ flex: 1 }} 
+              <ScrollView
+                style={{ flex: 1 }}
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={{ paddingVertical: 8 }}
               >
@@ -1378,21 +1485,24 @@ export function RelationshipManagementModal({
                       padding="$3"
                       onPress={() => {
                         console.log('🔍 Search result button pressed for user:', user);
-                        console.log('📋 Current context:', { userRole, currentUserId: profile?.id });
-                        
+                        console.log('📋 Current context:', {
+                          userRole,
+                          currentUserId: profile?.id,
+                        });
+
                         // Handle sending invitation to existing user
                         console.log('🚨 About to show Alert.alert for user:', user);
-                        
+
                         // Check if there's already a pending invitation
                         const hasPendingInvite = pendingInvitations.some(
-                          (inv) => inv.email?.toLowerCase() === (user.email || '').toLowerCase()
+                          (inv) => inv.email?.toLowerCase() === (user.email || '').toLowerCase(),
                         );
-                        
+
                         if (hasPendingInvite) {
                           showToast({
                             title: 'Invitation Already Pending',
                             message: `There's already a pending invitation to ${user.full_name || user.email}. Please wait for them to respond.`,
-                            type: 'info'
+                            type: 'info',
                           });
                         } else {
                           // Directly send invitation without confirmation dialog
@@ -1402,8 +1512,12 @@ export function RelationshipManagementModal({
                       }}
                     >
                       <YStack alignItems="flex-start" flex={1}>
-                        <Text weight="semibold" size="sm">{user.full_name || 'No name'}</Text>
-                        <Text intent="muted" size="xs">{user.email || 'No email'} • {user.role}</Text>
+                        <Text weight="semibold" size="sm">
+                          {user.full_name || 'No name'}
+                        </Text>
+                        <Text intent="muted" size="xs">
+                          {user.email || 'No email'} • {user.role}
+                        </Text>
                       </YStack>
                     </Button>
                   ))}
@@ -1430,7 +1544,7 @@ export function RelationshipManagementModal({
                 textAlignVertical: 'top',
               }}
             />
-            
+
             <TextInput
               value={customMessage}
               onChangeText={setCustomMessage}
@@ -1450,7 +1564,9 @@ export function RelationshipManagementModal({
             />
 
             <Button onPress={handleInviteNewUsers} variant="primary" disabled={loading}>
-              {loading ? 'Sending...' : `Send Invitation${newUserEmails.split(/[,;\n]/).filter(e => e.trim().includes('@')).length > 1 ? 's' : ''}`}
+              {loading
+                ? 'Sending...'
+                : `Send Invitation${newUserEmails.split(/[,;\n]/).filter((e) => e.trim().includes('@')).length > 1 ? 's' : ''}`}
             </Button>
           </YStack>
         )}
@@ -1461,13 +1577,18 @@ export function RelationshipManagementModal({
   const renderPendingTab = () => {
     console.log('🎭 Rendering Pending tab with data:');
     console.log('📤 Pending invitations (sent):', pendingInvitations.length, pendingInvitations);
-    console.log('📥 Incoming invitations (received):', incomingInvitations.length, incomingInvitations);
-    
+    console.log(
+      '📥 Incoming invitations (received):',
+      incomingInvitations.length,
+      incomingInvitations,
+    );
+
     return (
       <YStack gap="$3">
         <XStack justifyContent="space-between" alignItems="center">
           <Text size="sm" color="$gray11">
-            Manage your pending invitations ({pendingInvitations.length} sent, {incomingInvitations.length} received)
+            Manage your pending invitations ({pendingInvitations.length} sent,{' '}
+            {incomingInvitations.length} received)
           </Text>
           <Button
             size="sm"
@@ -1488,7 +1609,7 @@ export function RelationshipManagementModal({
             Debug: Pending={pendingInvitations.length}, Incoming={incomingInvitations.length}
           </Text>
           <Text color="$gray11" fontSize="$1">
-            Incoming IDs: {incomingInvitations.map(inv => inv.id).join(', ')}
+            Incoming IDs: {incomingInvitations.map((inv) => inv.id).join(', ')}
           </Text>
         </YStack>
 
@@ -1547,7 +1668,9 @@ export function RelationshipManagementModal({
                             onPress={() => handleCancelInvitation(invitation.id)}
                           >
                             <Feather name="x" size={12} color="white" />
-                            <Text color="white" ml="$1" fontSize="$2">Cancel</Text>
+                            <Text color="white" ml="$1" fontSize="$2">
+                              Cancel
+                            </Text>
                           </Button>
                         )}
                         {invitation.status === 'accepted' && (
@@ -1558,7 +1681,9 @@ export function RelationshipManagementModal({
                             onPress={() => handleCancelInvitation(invitation.id)}
                           >
                             <Feather name="trash-2" size={12} />
-                            <Text ml="$1" fontSize="$2">Clear</Text>
+                            <Text ml="$1" fontSize="$2">
+                              Clear
+                            </Text>
                           </Button>
                         )}
                       </XStack>
@@ -1597,177 +1722,211 @@ export function RelationshipManagementModal({
                   {incomingInvitations.map((invitation: any) => {
                     console.log('🎭 Rendering incoming invitation:', invitation.id, invitation);
                     const metadata = invitation.metadata || {};
-                    const inviterName = metadata.supervisorName || metadata.inviterName || invitation.inviter?.full_name || 'Unknown User';
+                    const inviterName =
+                      metadata.supervisorName ||
+                      metadata.inviterName ||
+                      invitation.inviter?.full_name ||
+                      'Unknown User';
                     const relationshipType = metadata.relationshipType || 'unknown';
-                  
-                  return (
-                    <YStack
-                      key={invitation.id}
-                      backgroundColor="$backgroundStrong"
-                      padding="$3"
-                      borderRadius="$2"
-                      gap="$2"
-                      borderWidth={1}
-                      borderColor={invitation.status === 'accepted' ? '$green8' : '$blue8'}
-                    >
-                      <XStack justifyContent="space-between" alignItems="center">
-                        <YStack flex={1}>
-                          <XStack alignItems="center" gap="$2">
-                            <Feather 
-                              name={relationshipType === 'student_invites_supervisor' ? 'user-plus' : 'users'} 
-                              size={14} 
-                              color={invitation.status === 'accepted' ? '#10B981' : '#3B82F6'} 
-                            />
-                            <Text weight="semibold" size="sm">
-                              {inviterName}
+
+                    return (
+                      <YStack
+                        key={invitation.id}
+                        backgroundColor="$backgroundStrong"
+                        padding="$3"
+                        borderRadius="$2"
+                        gap="$2"
+                        borderWidth={1}
+                        borderColor={invitation.status === 'accepted' ? '$green8' : '$blue8'}
+                      >
+                        <XStack justifyContent="space-between" alignItems="center">
+                          <YStack flex={1}>
+                            <XStack alignItems="center" gap="$2">
+                              <Feather
+                                name={
+                                  relationshipType === 'student_invites_supervisor'
+                                    ? 'user-plus'
+                                    : 'users'
+                                }
+                                size={14}
+                                color={invitation.status === 'accepted' ? '#10B981' : '#3B82F6'}
+                              />
+                              <Text weight="semibold" size="sm">
+                                {inviterName}
+                              </Text>
+                              {invitation.status === 'accepted' && (
+                                <Text color="$green11" size="xs" fontWeight="bold">
+                                  ✅
+                                </Text>
+                              )}
+                            </XStack>
+                            <Text color="$gray11" size="xs">
+                              Wants you as their{' '}
+                              {relationshipType === 'student_invites_supervisor'
+                                ? 'supervisor'
+                                : 'student'}
                             </Text>
-                            {invitation.status === 'accepted' && (
-                              <Text color="$green11" size="xs" fontWeight="bold">✅</Text>
+                            {metadata.customMessage && (
+                              <Text color="$blue11" size="xs" fontStyle="italic">
+                                💬 "{metadata.customMessage}"
+                              </Text>
                             )}
-                          </XStack>
-                          <Text color="$gray11" size="xs">
-                            Wants you as their {relationshipType === 'student_invites_supervisor' ? 'supervisor' : 'student'}
-                          </Text>
-                          {metadata.customMessage && (
-                            <Text color="$blue11" size="xs" fontStyle="italic">
-                              💬 "{metadata.customMessage}"
+                            <Text color="$gray11" size="xs">
+                              {invitation.email} •{' '}
+                              {new Date(invitation.created_at).toLocaleDateString()}
                             </Text>
-                          )}
-                          <Text color="$gray11" size="xs">
-                            {invitation.email} • {new Date(invitation.created_at).toLocaleDateString()}
-                          </Text>
-                        </YStack>
-                        <XStack gap="$2">
-                          {invitation.status === 'pending' && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                backgroundColor="$green9"
-                                onPress={async () => {
-                                  console.log('🎯 PENDING TAB - Accepting invitation:', invitation.id);
-                                  
-                                  try {
-                                    const success = await acceptInvitationById(invitation.id, profile!.id);
-                                    console.log('🎯 PENDING TAB - Accept result:', success);
-                                    
-                                    if (success) {
-                                      // Also clean up any related notifications
+                          </YStack>
+                          <XStack gap="$2">
+                            {invitation.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  backgroundColor="$green9"
+                                  onPress={async () => {
+                                    console.log(
+                                      '🎯 PENDING TAB - Accepting invitation:',
+                                      invitation.id,
+                                    );
+
+                                    try {
+                                      const success = await acceptInvitationById(
+                                        invitation.id,
+                                        profile!.id,
+                                      );
+                                      console.log('🎯 PENDING TAB - Accept result:', success);
+
+                                      if (success) {
+                                        // Also clean up any related notifications
+                                        const { error: notificationError } = await supabase
+                                          .from('notifications')
+                                          .delete()
+                                          .eq('metadata->>invitation_id', invitation.id);
+
+                                        if (notificationError) {
+                                          console.warn(
+                                            '⚠️ Could not delete related notification:',
+                                            notificationError,
+                                          );
+                                        } else {
+                                          console.log(
+                                            '🗑️ Related notification deleted after acceptance',
+                                          );
+                                        }
+
+                                        showToast({
+                                          title: 'Success',
+                                          message: 'Invitation accepted! Relationship created.',
+                                          type: 'success',
+                                        });
+
+                                        // Force refresh the UI immediately
+                                        setTimeout(() => {
+                                          loadIncomingInvitations();
+                                          loadPendingInvitations();
+                                          onRefresh?.();
+                                        }, 100);
+                                      } else {
+                                        showToast({
+                                          title: 'Error',
+                                          message: 'Failed to accept invitation - please try again',
+                                          type: 'error',
+                                        });
+                                      }
+                                    } catch (error) {
+                                      console.error('❌ Error accepting invitation:', error);
+                                      showToast({
+                                        title: 'Error',
+                                        message: 'Failed to accept invitation',
+                                        type: 'error',
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <Text color="white">Accept</Text>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  backgroundColor="$red9"
+                                  onPress={async () => {
+                                    console.log(
+                                      '🚫 PENDING TAB - Declining invitation:',
+                                      invitation.id,
+                                    );
+
+                                    try {
+                                      // Delete the invitation instead of updating status to avoid constraint issues
+                                      const { error: inviteError } = await supabase
+                                        .from('pending_invitations')
+                                        .delete()
+                                        .eq('id', invitation.id);
+
+                                      if (inviteError) {
+                                        console.error(
+                                          '❌ Error declining invitation:',
+                                          inviteError,
+                                        );
+                                        showToast({
+                                          title: 'Error',
+                                          message: 'Failed to decline invitation',
+                                          type: 'error',
+                                        });
+                                        return;
+                                      }
+
+                                      // Also delete any related notifications to keep NotificationsScreen in sync
                                       const { error: notificationError } = await supabase
                                         .from('notifications')
                                         .delete()
                                         .eq('metadata->>invitation_id', invitation.id);
-                                      
+
                                       if (notificationError) {
-                                        console.warn('⚠️ Could not delete related notification:', notificationError);
+                                        console.warn(
+                                          '⚠️ Could not delete related notification:',
+                                          notificationError,
+                                        );
+                                        // Don't fail the whole operation for this
                                       } else {
-                                        console.log('🗑️ Related notification deleted after acceptance');
+                                        console.log('🗑️ Related notification deleted successfully');
                                       }
-                                      
+
+                                      console.log('✅ Invitation declined successfully');
                                       showToast({
                                         title: 'Success',
-                                        message: 'Invitation accepted! Relationship created.',
-                                        type: 'success'
+                                        message: 'Invitation declined',
+                                        type: 'success',
                                       });
-                                      
+
                                       // Force refresh the UI immediately
                                       setTimeout(() => {
                                         loadIncomingInvitations();
                                         loadPendingInvitations();
                                         onRefresh?.();
                                       }, 100);
-                                    } else {
-                                      showToast({
-                                        title: 'Error',
-                                        message: 'Failed to accept invitation - please try again',
-                                        type: 'error'
-                                      });
-                                    }
-                                  } catch (error) {
-                                    console.error('❌ Error accepting invitation:', error);
-                                    showToast({
-                                      title: 'Error',
-                                      message: 'Failed to accept invitation',
-                                      type: 'error'
-                                    });
-                                  }
-                                }}
-                              >
-                                <Text color="white">Accept</Text>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                backgroundColor="$red9"
-                                onPress={async () => {
-                                  console.log('🚫 PENDING TAB - Declining invitation:', invitation.id);
-                                  
-                                  try {
-                                    // Delete the invitation instead of updating status to avoid constraint issues
-                                    const { error: inviteError } = await supabase
-                                      .from('pending_invitations')
-                                      .delete()
-                                      .eq('id', invitation.id);
-                                    
-                                    if (inviteError) {
-                                      console.error('❌ Error declining invitation:', inviteError);
+                                    } catch (error) {
+                                      console.error('❌ Error in decline process:', error);
                                       showToast({
                                         title: 'Error',
                                         message: 'Failed to decline invitation',
-                                        type: 'error'
+                                        type: 'error',
                                       });
-                                      return;
                                     }
-                                    
-                                    // Also delete any related notifications to keep NotificationsScreen in sync
-                                    const { error: notificationError } = await supabase
-                                      .from('notifications')
-                                      .delete()
-                                      .eq('metadata->>invitation_id', invitation.id);
-                                    
-                                    if (notificationError) {
-                                      console.warn('⚠️ Could not delete related notification:', notificationError);
-                                      // Don't fail the whole operation for this
-                                    } else {
-                                      console.log('🗑️ Related notification deleted successfully');
-                                    }
-                                    
-                                    console.log('✅ Invitation declined successfully');
-                                    showToast({
-                                      title: 'Success',
-                                      message: 'Invitation declined',
-                                      type: 'success'
-                                    });
-                                    
-                                    // Force refresh the UI immediately
-                                    setTimeout(() => {
-                                      loadIncomingInvitations();
-                                      loadPendingInvitations();
-                                      onRefresh?.();
-                                    }, 100);
-                                  } catch (error) {
-                                    console.error('❌ Error in decline process:', error);
-                                    showToast({
-                                      title: 'Error',
-                                      message: 'Failed to decline invitation',
-                                      type: 'error'
-                                    });
-                                  }
-                                }}
-                              >
-                                <Text color="white">Decline</Text>
-                              </Button>
-                            </>
-                          )}
-                          {invitation.status === 'accepted' && (
-                            <Text color="$green11" size="xs" fontWeight="bold">
-                              Recently Accepted
-                            </Text>
-                          )}
+                                  }}
+                                >
+                                  <Text color="white">Decline</Text>
+                                </Button>
+                              </>
+                            )}
+                            {invitation.status === 'accepted' && (
+                              <Text color="$green11" size="xs" fontWeight="bold">
+                                Recently Accepted
+                              </Text>
+                            )}
+                          </XStack>
                         </XStack>
-                      </XStack>
-                    </YStack>
-                  );
+                      </YStack>
+                    );
                   })}
                 </>
               )}
@@ -1796,15 +1955,8 @@ export function RelationshipManagementModal({
       onRequestClose={onClose}
       presentationStyle="fullScreen"
     >
-      <YStack
-        flex={1}
-        backgroundColor="$background"
-      >
-        <YStack
-          flex={1}
-          padding="$4"
-          gap="$4"
-        >
+      <YStack flex={1} backgroundColor="$background">
+        <YStack flex={1} padding="$4" gap="$4">
           {/* Header */}
           <XStack justifyContent="space-between" alignItems="center">
             <Text size="xl" weight="bold" color="$color">
@@ -1827,11 +1979,7 @@ export function RelationshipManagementModal({
           </YStack>
 
           {/* Footer */}
-          <Button
-            onPress={onClose}
-            variant="tertiary"
-            size="lg"
-          >
+          <Button onPress={onClose} variant="tertiary" size="lg">
             CANCEL
           </Button>
         </YStack>

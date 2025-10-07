@@ -5,7 +5,7 @@ import { Text } from 'tamagui';
 // Web stub for MapView
 const MapView = React.forwardRef((props: any, ref: any) => {
   return (
-    <View 
+    <View
       ref={ref}
       style={[
         {
@@ -14,7 +14,7 @@ const MapView = React.forwardRef((props: any, ref: any) => {
           justifyContent: 'center',
           alignItems: 'center',
         },
-        props.style
+        props.style,
       ]}
     >
       <Text color="$gray10">Map not available on web</Text>

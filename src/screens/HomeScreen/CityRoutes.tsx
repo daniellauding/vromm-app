@@ -95,7 +95,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
   const citySheetTranslateY = React.useRef(new Animated.Value(300)).current;
 
   const userLocation = useUserLocation();
-  
+
   // Refresh translations on mount
   React.useEffect(() => {
     refreshTranslations().catch(() => {
@@ -204,10 +204,13 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
   return (
     <YStack gap="$4">
       <SectionHeader
-        title={selectedCity || (() => {
-          const translated = t('home.cityRoutes.selectCity');
-          return translated === 'home.cityRoutes.selectCity' ? 'Select a city' : translated;
-        })()}
+        title={
+          selectedCity ||
+          (() => {
+            const translated = t('home.cityRoutes.selectCity');
+            return translated === 'home.cityRoutes.selectCity' ? 'Select a city' : translated;
+          })()
+        }
         variant="dropdown"
         onAction={showCityModal}
         actionLabel={selectedCity || 'Select'}
@@ -305,10 +308,12 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
             </Card>
           ))
         ) : (
-          <EmptyState 
+          <EmptyState
             title={(() => {
               const translated = t('home.cityRoutes.noRoutesInCity');
-              return translated === 'home.cityRoutes.noRoutesInCity' ? 'No Routes in This City' : translated;
+              return translated === 'home.cityRoutes.noRoutesInCity'
+                ? 'No Routes in This City'
+                : translated;
             })()}
             message={(() => {
               const translated = t('home.cityRoutes.noRoutesMessage');
@@ -321,7 +326,9 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
             variant="warning"
             actionLabel={(() => {
               const translated = t('home.cityRoutes.createRouteHere');
-              return translated === 'home.cityRoutes.createRouteHere' ? 'Create Route Here' : translated;
+              return translated === 'home.cityRoutes.createRouteHere'
+                ? 'Create Route Here'
+                : translated;
             })()}
             actionIcon="plus"
             onAction={() => navigation.navigate('CreateRoute')}

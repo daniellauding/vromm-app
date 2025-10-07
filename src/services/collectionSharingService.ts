@@ -26,7 +26,10 @@ export interface CollectionShareRequest {
 
 class CollectionSharingService {
   // Create a collection invitation
-  async createCollectionInvitation(request: CollectionShareRequest, inviterUserId: string): Promise<{ success: boolean; error?: string; invitationId?: string }> {
+  async createCollectionInvitation(
+    request: CollectionShareRequest,
+    inviterUserId: string,
+  ): Promise<{ success: boolean; error?: string; invitationId?: string }> {
     try {
       // First, find the user by email
       const { data: userData, error: userError } = await supabase
@@ -61,7 +64,10 @@ class CollectionSharingService {
         .single();
 
       if (existingInvitation) {
-        return { success: false, error: 'User already has a pending invitation to this collection' };
+        return {
+          success: false,
+          error: 'User already has a pending invitation to this collection',
+        };
       }
 
       // Get inviter's name
@@ -76,7 +82,7 @@ class CollectionSharingService {
       // Create the invitation using the correct schema
       // Try with collection_sharing role first, fallback to student if not supported
       let invitation, createError;
-      
+
       try {
         const result = await supabase
           .from('pending_invitations')
@@ -98,13 +104,13 @@ class CollectionSharingService {
           })
           .select()
           .single();
-        
+
         invitation = result.data;
         createError = result.error;
       } catch (error) {
         // If collection_sharing role is not supported, fallback to student role
         console.warn('Collection sharing role not supported, falling back to student role:', error);
-        
+
         const result = await supabase
           .from('pending_invitations')
           .insert({
@@ -125,7 +131,7 @@ class CollectionSharingService {
           })
           .select()
           .single();
-        
+
         invitation = result.data;
         createError = result.error;
       }
@@ -137,7 +143,7 @@ class CollectionSharingService {
         userData.id,
         request.collectionId,
         request.collectionName,
-        inviterUserId
+        inviterUserId,
       );
 
       return { success: true, invitationId: invitation.id };
@@ -148,7 +154,10 @@ class CollectionSharingService {
   }
 
   // Accept a collection invitation
-  async acceptCollectionInvitation(invitationId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  async acceptCollectionInvitation(
+    invitationId: string,
+    userId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       // Get user's email first
       const { data: userData, error: userError } = await supabase
@@ -181,17 +190,16 @@ class CollectionSharingService {
       }
 
       // Add user to the collection
-      const { error: memberError } = await supabase
-        .from('map_preset_members')
-        .insert({
-          preset_id: collectionId,
-          user_id: userId,
-          added_by: invitation.invited_by,
-        });
+      const { error: memberError } = await supabase.from('map_preset_members').insert({
+        preset_id: collectionId,
+        user_id: userId,
+        added_by: invitation.invited_by,
+      });
 
       if (memberError) {
         // If user is already a member, that's okay
-        if (memberError.code !== '23505') { // Unique constraint violation
+        if (memberError.code !== '23505') {
+          // Unique constraint violation
           throw memberError;
         }
       }
@@ -199,9 +207,9 @@ class CollectionSharingService {
       // Update invitation status
       const { error: updateError } = await supabase
         .from('pending_invitations')
-        .update({ 
+        .update({
           status: 'accepted',
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', invitationId);
 
@@ -220,8 +228,10 @@ class CollectionSharingService {
           .from('notifications')
           .delete()
           .eq('metadata->>invitation_id', invitationId)
-          .or(`metadata->>collection_id.eq.${collectionId},metadata->>collection_name.eq.${invitation.metadata?.collectionName}`);
-        
+          .or(
+            `metadata->>collection_id.eq.${collectionId},metadata->>collection_name.eq.${invitation.metadata?.collectionName}`,
+          );
+
         if (notificationError) {
           console.warn('⚠️ Could not delete related notification:', notificationError);
         } else {
@@ -239,7 +249,10 @@ class CollectionSharingService {
   }
 
   // Leave a collection
-  async leaveCollection(collectionId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  async leaveCollection(
+    collectionId: string,
+    userId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       // Remove user from the collection
       const { error: removeError } = await supabase
@@ -250,7 +263,8 @@ class CollectionSharingService {
 
       if (removeError) {
         // If user is not a member, that's okay
-        if (removeError.code === 'PGRST116') { // No rows found
+        if (removeError.code === 'PGRST116') {
+          // No rows found
           return { success: true };
         }
         throw removeError;
@@ -264,7 +278,10 @@ class CollectionSharingService {
   }
 
   // Reject a collection invitation
-  async rejectCollectionInvitation(invitationId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  async rejectCollectionInvitation(
+    invitationId: string,
+    userId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       // Get user's email first
       const { data: userData, error: userError } = await supabase
@@ -279,9 +296,9 @@ class CollectionSharingService {
 
       const { error } = await supabase
         .from('pending_invitations')
-        .update({ 
+        .update({
           status: 'rejected',
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', invitationId)
         .eq('email', userData.email)
@@ -296,7 +313,7 @@ class CollectionSharingService {
           .from('notifications')
           .delete()
           .eq('metadata->>invitation_id', invitationId);
-        
+
         if (notificationError) {
           console.warn('⚠️ Could not delete related notification:', notificationError);
         } else {
@@ -327,14 +344,17 @@ class CollectionSharingService {
         console.error('Error fetching user email:', userError);
         console.log('🔧 [CollectionSharingService] User data:', userData);
         console.log('🔧 [CollectionSharingService] User error:', userError);
-        
+
         // Try to get email from auth user as fallback
         const { data: authUser } = await supabase.auth.getUser();
         if (authUser?.user?.email) {
-          console.log('🔧 [CollectionSharingService] Using auth user email as fallback:', authUser.user.email);
+          console.log(
+            '🔧 [CollectionSharingService] Using auth user email as fallback:',
+            authUser.user.email,
+          );
           // Continue with auth user email
           const userEmail = authUser.user.email;
-          
+
           // Get pending invitations sent to this user's email
           const { data: invitations, error: invitationsError } = await supabase
             .from('collection_invitations')
@@ -349,7 +369,7 @@ class CollectionSharingService {
 
           return invitations || [];
         }
-        
+
         return [];
       }
 
@@ -367,12 +387,12 @@ class CollectionSharingService {
         userId,
         email: userData.email,
         invitationsCount: invitations?.length || 0,
-        invitations: invitations?.map(inv => ({
+        invitations: invitations?.map((inv) => ({
           id: inv.id,
           status: inv.status,
           role: inv.role,
-          metadata: inv.metadata
-        }))
+          metadata: inv.metadata,
+        })),
       });
 
       if (invitationsError) throw invitationsError;
@@ -382,24 +402,25 @@ class CollectionSharingService {
       }
 
       // Filter for collection sharing invitations and extract data from metadata
-      const collectionInvitations = invitations.filter(inv => 
-        inv.role === 'collection_sharing' && 
-        inv.metadata?.collectionName &&
-        inv.status === 'pending' // Double-check status is pending
+      const collectionInvitations = invitations.filter(
+        (inv) =>
+          inv.role === 'collection_sharing' &&
+          inv.metadata?.collectionName &&
+          inv.status === 'pending', // Double-check status is pending
       );
 
       console.log('🔍 [CollectionSharingService] Filtered collection invitations:', {
         totalInvitations: invitations.length,
         collectionInvitations: collectionInvitations.length,
-        filteredInvitations: collectionInvitations.map(inv => ({
+        filteredInvitations: collectionInvitations.map((inv) => ({
           id: inv.id,
           collectionName: inv.metadata?.collectionName,
           status: inv.status,
-          created_at: inv.created_at
-        }))
+          created_at: inv.created_at,
+        })),
       });
 
-      return collectionInvitations.map(inv => ({
+      return collectionInvitations.map((inv) => ({
         id: inv.id,
         collection_id: inv.metadata?.collectionId || '',
         collection_name: inv.metadata?.collectionName || 'Unknown Collection',
@@ -423,20 +444,24 @@ class CollectionSharingService {
     try {
       const { data, error } = await supabase
         .from('map_preset_members')
-        .select(`
+        .select(
+          `
           *,
           collection:map_presets(*)
-        `)
+        `,
+        )
         .eq('user_id', userId)
         .order('added_at', { ascending: false });
 
       if (error) throw error;
 
-      return data?.map(member => ({
-        ...member.collection,
-        member_since: member.added_at,
-        added_by: member.added_by,
-      })) || [];
+      return (
+        data?.map((member) => ({
+          ...member.collection,
+          member_since: member.added_at,
+          added_by: member.added_by,
+        })) || []
+      );
     } catch (error) {
       console.error('Error fetching shared collections:', error);
       return [];

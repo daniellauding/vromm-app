@@ -1,11 +1,11 @@
 /**
  * CENTRAL THEME CONTROL FILE
- * 
+ *
  * This is the single file to control all theme colors for:
  * - System (follows device theme)
  * - Manual Light Mode
  * - Manual Dark Mode
- * 
+ *
  * All components should use these theme tokens instead of hardcoded colors.
  */
 
@@ -124,13 +124,13 @@ export const manualDarkTheme = createTheme({
 
 /**
  * Theme color reference for developers:
- * 
+ *
  * BACKGROUND COLORS:
  * - $background: Main background color
  * - $backgroundHover: Hover state background
  * - $backgroundPress: Press state background
  * - $backgroundFocus: Focus state background
- * 
+ *
  * TEXT COLORS:
  * - $color: Primary text color
  * - $colorHover: Hover state text color
@@ -139,11 +139,11 @@ export const manualDarkTheme = createTheme({
  * - $gray10: Muted text color
  * - $gray11: Very muted text color
  * - $gray12: Primary text color (same as $color)
- * 
+ *
  * BORDER COLORS:
  * - $borderColor: Default border color
  * - $borderColorHover: Hover state border color
- * 
+ *
  * ACCENT COLORS:
  * - $primary: Primary accent color (#21e5c3)
  * - $primaryHover: Primary hover color
@@ -151,20 +151,20 @@ export const manualDarkTheme = createTheme({
  * - $secondary: Secondary accent color
  * - $secondaryHover: Secondary hover color
  * - $secondaryPress: Secondary press color
- * 
+ *
  * STATUS COLORS:
  * - $error: Error color
  * - $success: Success color
  * - $warning: Warning color
- * 
+ *
  * USAGE EXAMPLES:
- * 
+ *
  * // In Tamagui components:
  * <YStack backgroundColor="$background" borderColor="$borderColor">
  *   <Text color="$color">Primary text</Text>
  *   <Text color="$gray11">Muted text</Text>
  * </YStack>
- * 
+ *
  * // In React Native StyleSheet:
  * const styles = StyleSheet.create({
  *   container: {

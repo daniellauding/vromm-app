@@ -44,7 +44,10 @@ function UserItem({
       onUserPress(user.id);
     } else {
       console.log('[NAV][UsersList] → MainTabs > MenuTab > PublicProfile', { userId: user.id });
-      (navigation as any).navigate('MainTabs', { screen: 'MenuTab', params: { screen: 'PublicProfile', params: { userId: user.id } } });
+      (navigation as any).navigate('MainTabs', {
+        screen: 'MenuTab',
+        params: { screen: 'PublicProfile', params: { userId: user.id } },
+      });
     }
   }, [navigation, user.id, onUserPress]);
 

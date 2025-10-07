@@ -28,13 +28,13 @@ export function SelectedRoute({
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const theme = useTheme();
-  
+
   // Animation values for Tinder-like swipe
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const rotate = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
-  
+
   const { width: screenWidth } = Dimensions.get('window');
 
   const onPress = useCallback(() => {
@@ -50,8 +50,8 @@ export function SelectedRoute({
   // Swipe navigation handlers with linear looping through all routes
   const handleSwipeToNext = useCallback(() => {
     if (!selectedRoute || !allRoutes.length || !onRouteChange) return;
-    
-    const currentIndex = allRoutes.findIndex(route => route.id === selectedRoute.id);
+
+    const currentIndex = allRoutes.findIndex((route) => route.id === selectedRoute.id);
     if (currentIndex !== -1) {
       // Linear progression: go to next route, loop to first if at end
       const nextIndex = (currentIndex + 1) % allRoutes.length;
@@ -62,8 +62,8 @@ export function SelectedRoute({
 
   const handleSwipeToPrevious = useCallback(() => {
     if (!selectedRoute || !allRoutes.length || !onRouteChange) return;
-    
-    const currentIndex = allRoutes.findIndex(route => route.id === selectedRoute.id);
+
+    const currentIndex = allRoutes.findIndex((route) => route.id === selectedRoute.id);
     if (currentIndex !== -1) {
       // Linear progression: go to previous route, loop to last if at beginning
       const previousIndex = currentIndex === 0 ? allRoutes.length - 1 : currentIndex - 1;
@@ -77,7 +77,9 @@ export function SelectedRoute({
     PanResponder.create({
       onMoveShouldSetPanResponder: (evt, gestureState) => {
         // Only respond to horizontal swipes
-        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+        return (
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10
+        );
       },
       onPanResponderGrant: () => {
         // Reset any existing animations
@@ -90,35 +92,35 @@ export function SelectedRoute({
       },
       onPanResponderMove: (evt, gestureState) => {
         const { dx, dy } = gestureState;
-        
+
         // Update position
         translateX.setValue(dx);
         translateY.setValue(dy);
-        
+
         // Calculate rotation based on horizontal movement (Tinder-like effect)
-        const rotation = dx / screenWidth * 0.3; // Max rotation of ~17 degrees
+        const rotation = (dx / screenWidth) * 0.3; // Max rotation of ~17 degrees
         rotate.setValue(rotation);
-        
+
         // Fade out slightly as it moves away from center
         const opacityValue = 1 - Math.abs(dx) / (screenWidth * 0.5);
         opacity.setValue(Math.max(0.3, opacityValue));
       },
       onPanResponderRelease: (evt, gestureState) => {
         const { dx, dy, vx } = gestureState;
-        
+
         // Reset offsets
         translateX.flattenOffset();
         translateY.flattenOffset();
         rotate.flattenOffset();
-        
+
         // Determine if swipe is strong enough to trigger navigation
         const swipeThreshold = screenWidth * 0.25; // 25% of screen width
         const velocityThreshold = 0.5;
-        
+
         if (Math.abs(dx) > swipeThreshold || Math.abs(vx) > velocityThreshold) {
           // Animate card off screen
           const exitDirection = dx > 0 ? screenWidth : -screenWidth;
-          
+
           Animated.parallel([
             Animated.timing(translateX, {
               toValue: exitDirection,
@@ -146,7 +148,7 @@ export function SelectedRoute({
             translateY.setValue(0);
             rotate.setValue(0);
             opacity.setValue(1);
-            
+
             // Trigger route change
             if (dx > 0 || vx > 0) {
               // Swipe right - go to previous route
@@ -186,7 +188,7 @@ export function SelectedRoute({
           ]).start();
         }
       },
-    })
+    }),
   ).current;
 
   if (!selectedRoute) return null;
@@ -207,21 +209,23 @@ export function SelectedRoute({
   };
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[
         containerStyle,
         {
           transform: [
             { translateX: translateX },
             { translateY: translateY },
-            { rotate: rotate.interpolate({
-              inputRange: [-1, 1],
-              outputRange: ['-17deg', '17deg'],
-            }) },
+            {
+              rotate: rotate.interpolate({
+                inputRange: [-1, 1],
+                outputRange: ['-17deg', '17deg'],
+              }),
+            },
           ],
           opacity: opacity,
-        }
-      ]} 
+        },
+      ]}
       {...panResponder.panHandlers}
     >
       <RoutePreviewCard route={selectedRoute} showMap={false} onPress={onPress} />

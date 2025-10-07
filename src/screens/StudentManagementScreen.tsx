@@ -48,7 +48,8 @@ export function StudentManagementScreen() {
       // Get all students with their ratings
       const { data: relationships, error } = await supabase
         .from('student_supervisor_relationships')
-        .select(`
+        .select(
+          `
           student_id,
           created_at,
           profiles!fk_student_supervisor_relationships_student_id (
@@ -58,46 +59,49 @@ export function StudentManagementScreen() {
             location,
             avatar_url
           )
-        `)
+        `,
+        )
         .eq('supervisor_id', user.id);
 
       if (error) throw error;
 
       // Get ratings for each student
       const studentsWithRatings = await Promise.all(
-        (relationships || []).map(async (rel: { profiles: any; created_at: string; student_id: string }) => {
-          const student = rel.profiles;
-          if (!student) return null;
+        (relationships || []).map(
+          async (rel: { profiles: any; created_at: string; student_id: string }) => {
+            const student = rel.profiles;
+            if (!student) return null;
 
-          try {
-            const rating = await RelationshipReviewService.getUserRating(student.id, 'student');
+            try {
+              const rating = await RelationshipReviewService.getUserRating(student.id, 'student');
 
-            return {
-              id: student.id,
-              full_name: student.full_name || 'Unknown',
-              email: student.email || '',
-              location: student.location,
-              avatar_url: student.avatar_url,
-              relationship_created: rel.created_at,
-              average_rating: rating.averageRating,
-              review_count: rating.reviewCount,
-              recent_review: '', // Could add recent review content
-              last_activity: rel.created_at, // Could add last login/activity
-            };
-          } catch (error) {
-            console.error('Error getting rating for student:', student.id, error);
-            return {
-              id: student.id,
-              full_name: student.full_name || 'Unknown',
-              email: student.email || '',
-              location: student.location,
-              avatar_url: student.avatar_url,
-              relationship_created: rel.created_at,
-              average_rating: 0,
-              review_count: 0,
-            };
-          }
-        })
+              return {
+                id: student.id,
+                full_name: student.full_name || 'Unknown',
+                email: student.email || '',
+                location: student.location,
+                avatar_url: student.avatar_url,
+                relationship_created: rel.created_at,
+                average_rating: rating.averageRating,
+                review_count: rating.reviewCount,
+                recent_review: '', // Could add recent review content
+                last_activity: rel.created_at, // Could add last login/activity
+              };
+            } catch (error) {
+              console.error('Error getting rating for student:', student.id, error);
+              return {
+                id: student.id,
+                full_name: student.full_name || 'Unknown',
+                email: student.email || '',
+                location: student.location,
+                avatar_url: student.avatar_url,
+                relationship_created: rel.created_at,
+                average_rating: 0,
+                review_count: 0,
+              };
+            }
+          },
+        ),
       );
 
       setStudents(studentsWithRatings.filter(Boolean) as Student[]);
@@ -172,7 +176,7 @@ export function StudentManagementScreen() {
     // Navigate to review modal or screen
     // This could open the RelationshipReviewSection in a modal
     navigation.navigate('PublicProfile', {
-      userId: studentId
+      userId: studentId,
     });
   };
 
@@ -183,7 +187,7 @@ export function StudentManagementScreen() {
     try {
       // Import the invitation service
       const { inviteUsersWithPasswords } = await import('../services/invitationService_v2');
-      
+
       // Create invitation entries
       const invitations = emails.map((email) => ({ email }));
 
@@ -194,19 +198,19 @@ export function StudentManagementScreen() {
         profile.id,
         profile.full_name || profile.email || undefined,
         profile.role as 'instructor' | 'admin' | 'teacher',
-        'supervisor_invites_student'
+        'supervisor_invites_student',
       );
-      
+
       if (result.failed.length > 0) {
         const errors = result.failed.map((f) => `${f.email}: ${f.error}`).join(', ');
         throw new Error(`Failed to send ${result.failed.length} invitation(s): ${errors}`);
       }
-      
+
       Alert.alert(
         'Invitations Sent! 🎉',
-        `${result.successful.length} invitation${result.successful.length > 1 ? 's' : ''} sent successfully! Students can login immediately with auto-generated passwords.`
+        `${result.successful.length} invitation${result.successful.length > 1 ? 's' : ''} sent successfully! Students can login immediately with auto-generated passwords.`,
       );
-      
+
       // Refresh the student list
       loadStudents();
     } catch (error) {
@@ -218,7 +222,7 @@ export function StudentManagementScreen() {
   const filteredStudents = students.filter(
     (student) =>
       student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchQuery.toLowerCase())
+      student.email.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const renderStudentCard = (student: Student) => (
@@ -280,7 +284,9 @@ export function StudentManagementScreen() {
           >
             <XStack alignItems="center" space="$1">
               <Feather name="star" size={14} color="white" />
-              <Text size="sm" color="white">Review</Text>
+              <Text size="sm" color="white">
+                Review
+              </Text>
             </XStack>
           </Button>
 
@@ -292,7 +298,9 @@ export function StudentManagementScreen() {
           >
             <XStack alignItems="center" space="$1">
               <Feather name="user-minus" size={14} color="white" />
-              <Text size="sm" color="white">Remove</Text>
+              <Text size="sm" color="white">
+                Remove
+              </Text>
             </XStack>
           </Button>
         </XStack>
@@ -347,7 +355,9 @@ export function StudentManagementScreen() {
               <YStack alignItems="center">
                 <Text size="xl" weight="bold" color="$orange11">
                   {students.length > 0
-                    ? (students.reduce((sum, s) => sum + s.average_rating, 0) / students.length).toFixed(1)
+                    ? (
+                        students.reduce((sum, s) => sum + s.average_rating, 0) / students.length
+                      ).toFixed(1)
                     : '0.0'}
                 </Text>
                 <Text size="sm" color="$gray11">

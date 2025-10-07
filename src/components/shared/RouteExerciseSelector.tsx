@@ -58,7 +58,7 @@ export function RouteExerciseSelector({
 }: RouteExerciseSelectorProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  
+
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
   const [showAdvancedExerciseCreator, setShowAdvancedExerciseCreator] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
@@ -161,9 +161,7 @@ export function RouteExerciseSelector({
     setEditingExercise(null);
   };
 
-  const containerStyle = compact
-    ? { maxHeight: maxHeight || 400, overflow: 'hidden' }
-    : {};
+  const containerStyle = compact ? { maxHeight: maxHeight || 400, overflow: 'hidden' } : {};
 
   return (
     <YStack gap="$4" style={containerStyle}>
@@ -182,21 +180,20 @@ export function RouteExerciseSelector({
         <Button
           onPress={() => setShowExerciseSelector(true)}
           variant="secondary"
-          size={compact ? "md" : "lg"}
+          size={compact ? 'md' : 'lg'}
           backgroundColor="$green5"
         >
           <XStack gap="$2" alignItems="center">
             <Feather name="book-open" size={compact ? 16 : 18} color="$green11" />
-            <Text color="$green11" fontWeight="500" fontSize={compact ? "$3" : undefined}>
+            <Text color="$green11" fontWeight="500" fontSize={compact ? '$3' : undefined}>
               {compact ? 'Learning Paths' : 'Select from Learning Paths'} (
-              {exercises.filter((ex) => ex.source === 'learning_path').length}{' '}
-              selected)
+              {exercises.filter((ex) => ex.source === 'learning_path').length} selected)
             </Text>
           </XStack>
         </Button>
       </YStack>
 
-      <Separator marginVertical={compact ? "$2" : "$4"} />
+      <Separator marginVertical={compact ? '$2' : '$4'} />
 
       {/* Advanced Custom Exercise Creator */}
       <YStack gap="$3">
@@ -204,8 +201,8 @@ export function RouteExerciseSelector({
           <>
             <Heading size="$4">Create Custom Exercise</Heading>
             <Text size="sm" color="$gray11">
-              Create rich, feature-complete exercises with multimedia support, quizzes,
-              and multilingual content
+              Create rich, feature-complete exercises with multimedia support, quizzes, and
+              multilingual content
             </Text>
           </>
         )}
@@ -213,13 +210,13 @@ export function RouteExerciseSelector({
         <Button
           onPress={() => setShowAdvancedExerciseCreator(true)}
           variant="secondary"
-          size={compact ? "md" : "lg"}
+          size={compact ? 'md' : 'lg'}
           backgroundColor="$blue5"
-          marginTop={compact ? "$1" : "$2"}
+          marginTop={compact ? '$1' : '$2'}
         >
           <XStack gap="$2" alignItems="center">
             <Feather name="plus-circle" size={compact ? 16 : 20} color="$blue11" />
-            <Text color="$blue11" fontWeight="500" fontSize={compact ? "$3" : undefined}>
+            <Text color="$blue11" fontWeight="500" fontSize={compact ? '$3' : undefined}>
               {compact ? 'Custom Exercise' : 'Create Advanced Exercise'}
             </Text>
           </XStack>
@@ -243,35 +240,37 @@ export function RouteExerciseSelector({
         )}
       </YStack>
 
-      <Separator marginVertical={compact ? "$2" : "$4"} />
+      <Separator marginVertical={compact ? '$2' : '$4'} />
 
       {/* Selected Exercises List */}
       {exercises.length > 0 ? (
         <YStack gap="$4">
-          <Text size={compact ? "md" : "lg"} weight="bold">
+          <Text size={compact ? 'md' : 'lg'} weight="bold">
             Selected Exercises ({exercises.length})
           </Text>
-          <YStack gap={compact ? "$2" : "$4"} maxHeight={compact ? 200 : undefined}>
+          <YStack gap={compact ? '$2' : '$4'} maxHeight={compact ? 200 : undefined}>
             {exercises.map((exercise) => (
               <Card
                 key={exercise.id}
                 bordered
-                padding={compact ? "$2" : "$3"}
-                backgroundColor={
-                  exercise.source === 'learning_path' ? '$green1' : '$background'
-                }
-                borderColor={
-                  exercise.source === 'learning_path' ? '$green8' : '$borderColor'
-                }
+                padding={compact ? '$2' : '$3'}
+                backgroundColor={exercise.source === 'learning_path' ? '$green1' : '$background'}
+                borderColor={exercise.source === 'learning_path' ? '$green8' : '$borderColor'}
               >
-                <YStack gap={compact ? "$1" : "$2"}>
+                <YStack gap={compact ? '$1' : '$2'}>
                   <XStack justifyContent="space-between" alignItems="flex-start">
                     <YStack flex={1} gap="$1">
                       <XStack alignItems="center" gap="$2" flexWrap="wrap">
-                        <Text size={compact ? "sm" : "lg"} weight="medium" numberOfLines={compact ? 2 : undefined}>
-                          {typeof exercise.title === 'string' ? exercise.title : exercise.title.en || exercise.title}
+                        <Text
+                          size={compact ? 'sm' : 'lg'}
+                          weight="medium"
+                          numberOfLines={compact ? 2 : undefined}
+                        >
+                          {typeof exercise.title === 'string'
+                            ? exercise.title
+                            : exercise.title.en || exercise.title}
                         </Text>
-                        
+
                         {exercise.source === 'learning_path' && (
                           <View
                             style={{
@@ -286,7 +285,7 @@ export function RouteExerciseSelector({
                             </Text>
                           </View>
                         )}
-                        
+
                         {exercise.has_quiz && (
                           <View
                             style={{
@@ -334,7 +333,9 @@ export function RouteExerciseSelector({
 
                   {!compact && exercise.description && (
                     <Text color="$gray11" numberOfLines={2}>
-                      {typeof exercise.description === 'string' ? exercise.description : exercise.description.en || exercise.description}
+                      {typeof exercise.description === 'string'
+                        ? exercise.description
+                        : exercise.description.en || exercise.description}
                     </Text>
                   )}
 
@@ -374,7 +375,7 @@ export function RouteExerciseSelector({
           </YStack>
         </YStack>
       ) : (
-        <Text color="$gray11" textAlign="center" fontSize={compact ? "$3" : undefined}>
+        <Text color="$gray11" textAlign="center" fontSize={compact ? '$3' : undefined}>
           {getTranslation(t, 'createRoute.noExercises', 'No exercises added yet')}
         </Text>
       )}

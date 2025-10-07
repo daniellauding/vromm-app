@@ -46,7 +46,14 @@ import { Platform, KeyboardAvoidingView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
-import { inviteNewUser, inviteMultipleUsers, inviteUsersWithPasswords, getPendingInvitations, cancelInvitation, resendInvitation } from '../services/invitationService_v2';
+import {
+  inviteNewUser,
+  inviteMultipleUsers,
+  inviteUsersWithPasswords,
+  getPendingInvitations,
+  cancelInvitation,
+  resendInvitation,
+} from '../services/invitationService_v2';
 import * as FileSystem from 'expo-file-system';
 import { RadioButton, DropdownButton } from '../components/SelectButton';
 import { RelationshipManagementModal } from '../components/RelationshipManagementModal';
@@ -242,7 +249,7 @@ export function ProfileScreen() {
   const { setUserLocation } = useLocation();
   const { checkForPromotionalContent } = usePromotionalModal();
   const { showToast } = useToast();
-  
+
   // Lock modal state
   const {
     showModal: showLockModal,
@@ -254,10 +261,10 @@ export function ProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
-  
+
   // Animated dots for "Detecting Location..."
   const [dotsCount, setDotsCount] = useState(0);
-  
+
   // Debug mode state
   const [debugMode, setDebugMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -265,7 +272,7 @@ export function ProfileScreen() {
   const [showExperienceModal, setShowExperienceModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const deleteBackdropOpacity = useRef(new Animated.Value(0)).current;
   const deleteModalScale = useRef(new Animated.Value(0.8)).current;
@@ -275,18 +282,27 @@ export function ProfileScreen() {
   const [optDeleteExercises, setOptDeleteExercises] = useState(false);
   const [optDeleteReviews, setOptDeleteReviews] = useState(false);
   const [optTransferPublic, setOptTransferPublic] = useState(true);
-  
+
   // Location autocomplete state
   const [showLocationDrawer, setShowLocationDrawer] = useState(false);
   const [locationSearchResults, setLocationSearchResults] = useState<any[]>([]);
-  const [locationSearchTimeout, setLocationSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'relationships' | 'billing'>('overview');
-  
+  const [locationSearchTimeout, setLocationSearchTimeout] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'relationships' | 'billing'>(
+    'overview',
+  );
+
   const theme = useTheme();
   const navigation = useNavigation<RootStackNavigationProp>();
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [supervisors, setSupervisors] = useState<
-    Array<{ supervisor_id: string; supervisor_name: string; supervisor_email: string; relationship_created?: string }>
+    Array<{
+      supervisor_id: string;
+      supervisor_name: string;
+      supervisor_email: string;
+      relationship_created?: string;
+    }>
   >([]);
   const [schools, setSchools] = useState<
     Array<{ school_id: string; school_name: string; school_location: string }>
@@ -311,7 +327,7 @@ export function ProfileScreen() {
     Array<{ id: string; full_name: string; email: string }>
   >([]);
   const [showStudentSelector, setShowStudentSelector] = useState(false);
-  
+
   // Use StudentSwitchContext for managing active student
   const { activeStudentId, setActiveStudent, clearActiveStudent } = useStudentSwitch();
 
@@ -365,8 +381,6 @@ export function ProfileScreen() {
   const themeBackdropOpacity = useRef(new Animated.Value(0)).current;
   const themeSheetTranslateY = useRef(new Animated.Value(300)).current;
 
-
-
   // Körkortsplan modal state and animation refs
   const [showKorkortsplanModal, setShowKorkortsplanModal] = useState(false);
   const korkortsplanBackdropOpacity = useRef(new Animated.Value(0)).current;
@@ -407,18 +421,23 @@ export function ProfileScreen() {
   // Add driving stats state
   const [drivingStats, setDrivingStats] = useState<DrivingStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
-  
+
   // Billing state
   const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
   const [billingLoading, setBillingLoading] = useState(false);
-  
+
   // Relationship reviews state
-  const [userRating, setUserRating] = useState({ averageRating: 0, reviewCount: 0, canReview: false, alreadyReviewed: false });
+  const [userRating, setUserRating] = useState({
+    averageRating: 0,
+    reviewCount: 0,
+    canReview: false,
+    alreadyReviewed: false,
+  });
   const [relationshipReviews, setRelationshipReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
-  
+
   // Removal review modal state
   const [showRemovalReviewModal, setShowRemovalReviewModal] = useState(false);
   const [removalTargetSupervisor, setRemovalTargetSupervisor] = useState<{
@@ -440,8 +459,10 @@ export function ProfileScreen() {
     role: profile?.role || ('student' as UserRole),
     experience_level: profile?.experience_level || ('beginner' as ExperienceLevel),
     private_profile: profile?.private_profile || false,
-    location_lat: (profile as any)?.preferred_city_coords?.latitude || profile?.location_lat || null,
-    location_lng: (profile as any)?.preferred_city_coords?.longitude || profile?.location_lng || null,
+    location_lat:
+      (profile as any)?.preferred_city_coords?.latitude || profile?.location_lat || null,
+    location_lng:
+      (profile as any)?.preferred_city_coords?.longitude || profile?.location_lng || null,
     avatar_url: profile?.avatar_url || null,
   });
 
@@ -454,8 +475,10 @@ export function ProfileScreen() {
         role: profile?.role || ('student' as UserRole),
         experience_level: profile?.experience_level || ('beginner' as ExperienceLevel),
         private_profile: profile?.private_profile || false,
-        location_lat: (profile as any)?.preferred_city_coords?.latitude || profile?.location_lat || null,
-        location_lng: (profile as any)?.preferred_city_coords?.longitude || profile?.location_lng || null,
+        location_lat:
+          (profile as any)?.preferred_city_coords?.latitude || profile?.location_lat || null,
+        location_lng:
+          (profile as any)?.preferred_city_coords?.longitude || profile?.location_lng || null,
         avatar_url: profile?.avatar_url || null,
       });
 
@@ -473,13 +496,14 @@ export function ProfileScreen() {
     }
   }, [profile]);
 
-
   const handleSignOut = async () => {
     try {
       setLoading(true);
       await signOut();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('errors.signOutFailed') || 'Failed to sign out');
+      setError(
+        err instanceof Error ? err.message : t('errors.signOutFailed') || 'Failed to sign out',
+      );
     } finally {
       setLoading(false);
     }
@@ -490,7 +514,7 @@ export function ProfileScreen() {
   const handleConfirmDeleteAccount = async () => {
     try {
       if (!user?.id) return;
-      
+
       console.log('🗑️ [DELETE_ACCOUNT] Starting delete process...');
       console.log('🗑️ [DELETE_ACCOUNT] User ID:', user.id);
       console.log('🗑️ [DELETE_ACCOUNT] Options:', {
@@ -500,9 +524,9 @@ export function ProfileScreen() {
         optDeleteExercises,
         optDeleteReviews,
         optTransferPublic,
-        SYSTEM_PROFILE_UUID
+        SYSTEM_PROFILE_UUID,
       });
-      
+
       const { data, error } = await supabase.rpc('process_user_account_deletion', {
         p_user_id: user.id,
         p_delete_private_routes: optDeletePrivate,
@@ -512,34 +536,35 @@ export function ProfileScreen() {
         p_delete_reviews: optDeleteReviews,
         p_transfer_public_to: optTransferPublic ? SYSTEM_PROFILE_UUID : null,
       });
-      
+
       console.log('🗑️ [DELETE_ACCOUNT] RPC Result:', { data, error });
-      
+
       if (error) {
         console.error('🗑️ [DELETE_ACCOUNT] RPC Error:', error);
         throw error;
       }
-      
+
       if (data && !data.success) {
         console.error('🗑️ [DELETE_ACCOUNT] Function returned error:', data);
         throw new Error(data.message || 'Delete account failed');
       }
-      
+
       console.log('🗑️ [DELETE_ACCOUNT] Account deletion successful:', data);
 
       await supabase.auth.signOut();
       showToast({
         title: t('deleteAccount.successTitle') || 'Account deleted',
         message: t('deleteAccount.successMessage') || 'Your account was deleted.',
-        type: 'success'
+        type: 'success',
       });
       hideDeleteSheet();
     } catch (err) {
       console.error('Delete account error:', err);
       showToast({
         title: t('errors.title') || 'Error',
-        message: (err as any)?.message || t('errors.deleteAccountFailed') || 'Failed to delete account',
-        type: 'error'
+        message:
+          (err as any)?.message || t('errors.deleteAccountFailed') || 'Failed to delete account',
+        type: 'error',
       });
     } finally {
       setShowDeleteDialog(false);
@@ -550,20 +575,22 @@ export function ProfileScreen() {
     let dotsInterval: NodeJS.Timeout | null = null;
     try {
       setLocationLoading(true);
-      
+
       // Always try to detect location, even if city is already selected (allow override)
-      
+
       // Start dots animation
       dotsInterval = setInterval(() => {
-        setDotsCount(prev => (prev + 1) % 4); // 0, 1, 2, 3, then back to 0
+        setDotsCount((prev) => (prev + 1) % 4); // 0, 1, 2, 3, then back to 0
       }, 500);
 
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         showToast({
           title: t('errors.permissionDenied') || 'Permission denied',
-          message: t('errors.enableLocationServices') || 'Please enable location services to use this feature',
-          type: 'error'
+          message:
+            t('errors.enableLocationServices') ||
+            'Please enable location services to use this feature',
+          type: 'error',
         });
         setLocationLoading(false);
         return;
@@ -578,7 +605,7 @@ export function ProfileScreen() {
         location = {
           coords: {
             latitude: 55.7047,
-            longitude: 13.1910,
+            longitude: 13.191,
           },
         };
       }
@@ -589,11 +616,14 @@ export function ProfileScreen() {
         longitude: location.coords.longitude,
       });
 
-      const locationString = [address.city, address.country]
-        .filter(Boolean)
-        .join(', ');
+      const locationString = [address.city, address.country].filter(Boolean).join(', ');
 
-      console.log('📍 Location detected:', locationString, 'overriding existing:', formData.location);
+      console.log(
+        '📍 Location detected:',
+        locationString,
+        'overriding existing:',
+        formData.location,
+      );
 
       setFormData((prev) => ({
         ...prev,
@@ -630,14 +660,13 @@ export function ProfileScreen() {
       showToast({
         title: t('common.success') || 'Success',
         message: `Location detected: ${locationString}`,
-        type: 'success'
+        type: 'success',
       });
-
     } catch (err) {
       showToast({
         title: t('errors.title') || 'Error',
         message: t('errors.locationDetectionFailed') || 'Failed to detect location',
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setLocationLoading(false);
@@ -703,7 +732,7 @@ export function ProfileScreen() {
               } catch (err) {
                 return null;
               }
-            })
+            }),
           );
 
           // Filter out null values and duplicates
@@ -740,14 +769,14 @@ export function ProfileScreen() {
     const locationName = [locationData.city, locationData.region, locationData.country]
       .filter(Boolean)
       .join(', ');
-    
+
     setFormData((prev) => ({
       ...prev,
       location: locationName,
       location_lat: locationData.coords?.latitude || null,
       location_lng: locationData.coords?.longitude || null,
     }));
-    
+
     // Save to database profile (both location and preferred_city fields)
     if (user && locationData.coords?.latitude && locationData.coords?.longitude) {
       try {
@@ -761,7 +790,7 @@ export function ProfileScreen() {
         console.error('Error saving selected location:', error);
       }
     }
-    
+
     // Update LocationContext with selected location
     if (locationData.coords?.latitude && locationData.coords?.longitude) {
       await setUserLocation({
@@ -772,7 +801,7 @@ export function ProfileScreen() {
         timestamp: new Date().toISOString(),
       });
     }
-    
+
     hideLocationSheet();
     setLocationSearchResults([]);
   };
@@ -825,14 +854,14 @@ export function ProfileScreen() {
               showToast({
                 title: 'Success',
                 message: t('profile.refreshSuccess'),
-                type: 'success'
+                type: 'success',
               });
             } catch (err) {
               console.error('Error refreshing translations:', err);
               showToast({
                 title: t('common.error'),
                 message: 'Failed to refresh translations',
-                type: 'error'
+                type: 'error',
               });
             } finally {
               setLoading(false);
@@ -860,7 +889,7 @@ export function ProfileScreen() {
           showToast({
             title: 'Permission needed',
             message: 'Camera permission is required to take a photo',
-            type: 'error'
+            type: 'error',
           });
           return;
         }
@@ -876,7 +905,7 @@ export function ProfileScreen() {
           showToast({
             title: 'Permission needed',
             message: 'Media library permission is required',
-            type: 'error'
+            type: 'error',
           });
           return;
         }
@@ -951,7 +980,7 @@ export function ProfileScreen() {
       showToast({
         title: t('errors.title') || 'Error',
         message: errorMessage,
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setAvatarUploading(false);
@@ -966,13 +995,13 @@ export function ProfileScreen() {
       showToast({
         title: 'Success',
         message: 'Avatar removed!',
-        type: 'success'
+        type: 'success',
       });
     } catch (err) {
       showToast({
         title: t('errors.title') || 'Error',
         message: 'Failed to delete avatar',
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setAvatarUploading(false);
@@ -1015,7 +1044,7 @@ export function ProfileScreen() {
     });
   };
 
-  // Location modal show/hide functions  
+  // Location modal show/hide functions
   const showLocationSheet = () => {
     setShowLocationDrawer(true);
     // Fade in the backdrop
@@ -1222,12 +1251,15 @@ export function ProfileScreen() {
   const showThemeSheet = () => {
     console.log('🎨 Opening theme settings modal');
     console.log('🎨 Current theme preference:', profile?.theme_preference || 'system');
-    console.log('🎨 Profile data:', { 
+    console.log('🎨 Profile data:', {
       theme_preference: profile?.theme_preference,
-      hasProfile: !!profile 
+      hasProfile: !!profile,
     });
     console.log('🎨 System color scheme:', systemColorScheme);
-    console.log('🎨 Current effective theme:', profile?.theme_preference === 'system' ? systemColorScheme : profile?.theme_preference);
+    console.log(
+      '🎨 Current effective theme:',
+      profile?.theme_preference === 'system' ? systemColorScheme : profile?.theme_preference,
+    );
     setShowThemeModal(true);
     Animated.timing(themeBackdropOpacity, {
       toValue: 1,
@@ -1256,8 +1288,6 @@ export function ProfileScreen() {
       setShowThemeModal(false);
     });
   };
-
-
 
   // Körkortsplan modal show/hide functions
   const showKorkortsplanSheet = () => {
@@ -1363,7 +1393,7 @@ export function ProfileScreen() {
       showToast({
         title: 'Sparad!',
         message: 'Din körkortsplan har sparats',
-        type: 'success'
+        type: 'success',
       });
 
       // Hide the modal
@@ -1373,7 +1403,7 @@ export function ProfileScreen() {
       showToast({
         title: 'Fel',
         message: 'Kunde inte spara körkortsplanen',
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setLoading(false);
@@ -1389,7 +1419,8 @@ export function ProfileScreen() {
         // Get supervisors using direct query to include relationship dates
         const { data: supervisorsData, error: supervisorsError } = await supabase
           .from('student_supervisor_relationships')
-          .select(`
+          .select(
+            `
             supervisor_id,
             created_at,
             profiles!ssr_supervisor_id_fkey (
@@ -1398,16 +1429,21 @@ export function ProfileScreen() {
               email,
               role
             )
-          `)
+          `,
+          )
           .eq('student_id', userId);
 
         // Transform supervisor data to match expected format
-        const transformedSupervisors = supervisorsData?.map(rel => ({
-          supervisor_id: rel.supervisor_id,
-          supervisor_name: (rel as any).profiles?.full_name || t('profile.unknownSupervisor') || 'Unknown Supervisor',
-          supervisor_email: (rel as any).profiles?.email || '',
-          relationship_created: rel.created_at,
-        })) || [];
+        const transformedSupervisors =
+          supervisorsData?.map((rel) => ({
+            supervisor_id: rel.supervisor_id,
+            supervisor_name:
+              (rel as any).profiles?.full_name ||
+              t('profile.unknownSupervisor') ||
+              'Unknown Supervisor',
+            supervisor_email: (rel as any).profiles?.email || '',
+            relationship_created: rel.created_at,
+          })) || [];
 
         // Get schools using direct table query since the function doesn't exist
         const { data: schoolsData, error: schoolsError } = await supabase
@@ -1471,7 +1507,7 @@ export function ProfileScreen() {
         showToast({
           title: 'Success',
           message: 'You have left your supervisor',
-          type: 'success'
+          type: 'success',
         });
         // Refresh the relationships
         await getUserProfileWithRelationships(profile.id);
@@ -1483,7 +1519,7 @@ export function ProfileScreen() {
       showToast({
         title: t('errors.title') || 'Error',
         message: 'Failed to leave supervisor',
-        type: 'error'
+        type: 'error',
       });
       return false;
     }
@@ -1502,7 +1538,7 @@ export function ProfileScreen() {
         showToast({
           title: 'Success',
           message: 'You have left the school',
-          type: 'success'
+          type: 'success',
         });
         // Refresh the relationships
         await getUserProfileWithRelationships(profile.id);
@@ -1514,7 +1550,7 @@ export function ProfileScreen() {
       showToast({
         title: t('errors.title') || 'Error',
         message: 'Failed to leave school',
-        type: 'error'
+        type: 'error',
       });
       return false;
     }
@@ -1525,7 +1561,7 @@ export function ProfileScreen() {
     try {
       console.log('🔍 Fetching available supervisors...');
       console.log('🔍 Current user profile:', profile);
-      
+
       // Only fetch users with roles that can supervise
       const { data, error } = await supabase
         .from('profiles')
@@ -1540,15 +1576,15 @@ export function ProfileScreen() {
         console.error('🔍 Error fetching supervisors:', error);
         throw error;
       }
-      
+
       console.log(`🔍 Found ${data?.length || 0} potential supervisors`);
       if (data && data.length > 0) {
         data.forEach((supervisor: any) => {
-          console.log('🔍 Supervisor found:', { 
-            id: supervisor.id, 
-            name: supervisor.full_name, 
-            email: supervisor.email, 
-            role: supervisor.role 
+          console.log('🔍 Supervisor found:', {
+            id: supervisor.id,
+            name: supervisor.full_name,
+            email: supervisor.email,
+            role: supervisor.role,
           });
         });
       }
@@ -1558,7 +1594,7 @@ export function ProfileScreen() {
       showToast({
         title: t('errors.title') || 'Error',
         message: 'Failed to load available supervisors',
-        type: 'error'
+        type: 'error',
       });
     }
   }, [profile?.id, logError]);
@@ -1567,7 +1603,7 @@ export function ProfileScreen() {
   const fetchAvailableStudents = useCallback(async () => {
     try {
       console.log('🔍 Fetching available students...');
-      
+
       // Fetch all students
       const { data, error } = await supabase
         .from('profiles')
@@ -1579,7 +1615,7 @@ export function ProfileScreen() {
         console.error('🔍 Error fetching students:', error);
         throw error;
       }
-      
+
       console.log(`🔍 Found ${data?.length || 0} students`);
       setAvailableStudents((data as any) || []);
     } catch (error) {
@@ -1587,7 +1623,7 @@ export function ProfileScreen() {
       showToast({
         title: t('errors.title') || 'Error',
         message: 'Failed to load available students',
-        type: 'error'
+        type: 'error',
       });
     }
   }, [logError]);
@@ -1656,7 +1692,7 @@ export function ProfileScreen() {
       showToast({
         title: t('errors.title') || 'Error',
         message: 'Failed to send invitation. Please try again.',
-        type: 'error'
+        type: 'error',
       });
     }
   };
@@ -1664,12 +1700,12 @@ export function ProfileScreen() {
   // Handle bulk email invitations for new users with custom passwords
   const handleBulkInvite = async () => {
     try {
-      const validEmails = inviteEmails.filter(email => email.includes('@'));
+      const validEmails = inviteEmails.filter((email) => email.includes('@'));
       if (validEmails.length === 0) {
         showToast({
           title: t('profile.invalidEmails') || 'Invalid Emails',
           message: 'Please enter valid email addresses',
-          type: 'error'
+          type: 'error',
         });
         return;
       }
@@ -1677,7 +1713,7 @@ export function ProfileScreen() {
       // Determine role and relationship type based on who's inviting
       let role: UserRole;
       let relationshipType: 'student_invites_supervisor' | 'supervisor_invites_student' | undefined;
-      
+
       if (profile?.role === 'student') {
         // Student can invite supervisors
         role = inviteType === 'supervisor' ? 'instructor' : 'student';
@@ -1693,9 +1729,10 @@ export function ProfileScreen() {
       // Create invitation entries with custom passwords and message
       const invitations = validEmails.map((email, index) => ({
         email,
-        password: invitePasswords[index] && invitePasswords[index].trim() 
-          ? invitePasswords[index].trim() 
-          : undefined, // Use auto-generated password if not provided
+        password:
+          invitePasswords[index] && invitePasswords[index].trim()
+            ? invitePasswords[index].trim()
+            : undefined, // Use auto-generated password if not provided
         customMessage: inviteCustomMessage.trim() || undefined, // Add custom message
       }));
 
@@ -1720,7 +1757,7 @@ export function ProfileScreen() {
       if (result.failed.length > 0) {
         Alert.alert(
           'Some Invitations Failed',
-          `Failed to invite: ${result.failed.map(f => f.email).join(', ')}`,
+          `Failed to invite: ${result.failed.map((f) => f.email).join(', ')}`,
         );
       }
 
@@ -1734,7 +1771,7 @@ export function ProfileScreen() {
       showToast({
         title: t('errors.title') || 'Error',
         message: 'Failed to send invitations. Please try again.',
-        type: 'error'
+        type: 'error',
       });
     }
   };
@@ -1753,13 +1790,13 @@ export function ProfileScreen() {
       showToast({
         title: 'Success',
         message: 'Invitation resent successfully',
-        type: 'success'
+        type: 'success',
       });
     } else {
       showToast({
         title: t('errors.title') || 'Error',
         message: 'Failed to resend invitation',
-        type: 'error'
+        type: 'error',
       });
     }
   };
@@ -1781,13 +1818,13 @@ export function ProfileScreen() {
               showToast({
                 title: 'Success',
                 message: 'Invitation cancelled',
-                type: 'success'
+                type: 'success',
               });
             } else {
               showToast({
                 title: t('errors.title') || 'Error',
                 message: 'Failed to cancel invitation',
-                type: 'error'
+                type: 'error',
               });
             }
           },
@@ -1833,7 +1870,7 @@ export function ProfileScreen() {
 
       const students =
         profiles?.map((profile) => {
-          const relationship = relationships.find(rel => rel.student_id === profile.id);
+          const relationship = relationships.find((rel) => rel.student_id === profile.id);
           return {
             id: profile.id,
             full_name: profile.full_name || t('profile.unknownStudent') || 'Unknown Student',
@@ -1933,7 +1970,10 @@ export function ProfileScreen() {
 
       if (!data || data.length === 0) {
         console.warn('🏫 No schools found in database!');
-        Alert.alert(t('debug.title') || 'Debug Info', t('debug.noSchools') || 'No schools found in database. Check console for details.');
+        Alert.alert(
+          t('debug.title') || 'Debug Info',
+          t('debug.noSchools') || 'No schools found in database. Check console for details.',
+        );
         return;
       }
 
@@ -1959,9 +1999,7 @@ export function ProfileScreen() {
         .in('supervisor_id', supervisorIds);
 
       const existingSupervisorIds = existingRelationships?.map((r) => r.supervisor_id) || [];
-      const newSupervisorIds = supervisorIds.filter(
-        (id) => !existingSupervisorIds.includes(id),
-      );
+      const newSupervisorIds = supervisorIds.filter((id) => !existingSupervisorIds.includes(id));
 
       if (newSupervisorIds.length === 0) {
         Alert.alert('Info', 'All selected supervisors are already assigned to you');
@@ -1972,7 +2010,7 @@ export function ProfileScreen() {
       // Send invitations to each supervisor instead of directly creating relationships
       let successCount = 0;
       let failCount = 0;
-      
+
       for (const supervisorId of newSupervisorIds) {
         try {
           // Get supervisor details
@@ -1981,7 +2019,7 @@ export function ProfileScreen() {
             .select('email, full_name')
             .eq('id', supervisorId)
             .single();
-            
+
           if (!supervisorProfile?.email) {
             failCount++;
             continue;
@@ -2015,7 +2053,10 @@ export function ProfileScreen() {
 
           // CRITICAL: Ensure invitation was created successfully
           if (!invitationData || !invitationData.id) {
-            console.error('❌ Invitation creation failed - no data returned for:', supervisorProfile.email);
+            console.error(
+              '❌ Invitation creation failed - no data returned for:',
+              supervisorProfile.email,
+            );
             failCount++;
             continue;
           }
@@ -2051,7 +2092,7 @@ export function ProfileScreen() {
       if (successCount > 0) {
         Alert.alert(
           'Invitations Sent! 📤',
-          `${successCount} supervision request${successCount !== 1 ? 's' : ''} sent. Supervisors will need to accept before the relationship is created.`
+          `${successCount} supervision request${successCount !== 1 ? 's' : ''} sent. Supervisors will need to accept before the relationship is created.`,
         );
       }
 
@@ -2096,7 +2137,7 @@ export function ProfileScreen() {
       // Send invitations to each supervisor instead of directly creating relationships
       let successCount = 0;
       let failCount = 0;
-      
+
       for (const supervisorId of newSupervisorIds) {
         try {
           // Get supervisor details
@@ -2105,7 +2146,7 @@ export function ProfileScreen() {
             .select('email, full_name')
             .eq('id', supervisorId)
             .single();
-            
+
           if (!supervisorProfile?.email) {
             failCount++;
             continue;
@@ -2139,7 +2180,10 @@ export function ProfileScreen() {
 
           // CRITICAL: Ensure invitation was created successfully
           if (!invitationData || !invitationData.id) {
-            console.error('❌ Invitation creation failed - no data returned for:', supervisorProfile.email);
+            console.error(
+              '❌ Invitation creation failed - no data returned for:',
+              supervisorProfile.email,
+            );
             failCount++;
             continue;
           }
@@ -2175,7 +2219,7 @@ export function ProfileScreen() {
       if (successCount > 0) {
         Alert.alert(
           'Supervision Requests Sent!',
-          `${successCount} request${successCount !== 1 ? 's' : ''} sent. Supervisors will receive notifications and need to accept before becoming your supervisor.`
+          `${successCount} request${successCount !== 1 ? 's' : ''} sent. Supervisors will receive notifications and need to accept before becoming your supervisor.`,
         );
       }
 
@@ -2241,7 +2285,7 @@ export function ProfileScreen() {
       showToast({
         title: t('errors.title') || 'Error',
         message: 'Failed to join school',
-        type: 'error'
+        type: 'error',
       });
     }
   };
@@ -2359,18 +2403,18 @@ export function ProfileScreen() {
   const fetchSubscriptionPlans = useCallback(async () => {
     try {
       setBillingLoading(true);
-      
+
       const { data: plans, error } = await supabase
         .from('subscription_plans')
         .select('*')
         .eq('is_active', true)
         .order('price_amount', { ascending: true });
-        
+
       if (error) {
         console.error('Error fetching subscription plans:', error);
         return;
       }
-      
+
       setSubscriptionPlans(plans || []);
       console.log('✅ Loaded subscription plans:', plans?.length || 0);
     } catch (error) {
@@ -2383,7 +2427,7 @@ export function ProfileScreen() {
   // Fetch payment history for current user
   const fetchPaymentHistory = useCallback(async () => {
     if (!profile?.id) return;
-    
+
     try {
       const { data: payments, error } = await supabase
         .from('payment_transactions')
@@ -2391,12 +2435,12 @@ export function ProfileScreen() {
         .eq('user_id', profile.id)
         .order('created_at', { ascending: false })
         .limit(20);
-        
+
       if (error) {
         console.error('Error fetching payment history:', error);
         return;
       }
-      
+
       setPaymentHistory(payments || []);
       console.log('✅ Loaded payment history:', payments?.length || 0, 'transactions');
     } catch (error) {
@@ -2449,12 +2493,14 @@ export function ProfileScreen() {
       if (invitations && invitations.length > 0) {
         // Check if any of these invitations don't already have relationships
         let hasValidInvitation = false;
-        
+
         for (const inv of invitations) {
           const { data: existingRelationship } = await supabase
             .from('student_supervisor_relationships')
             .select('id')
-            .or(`and(student_id.eq.${user.id},supervisor_id.eq.${inv.invited_by}),and(student_id.eq.${inv.invited_by},supervisor_id.eq.${user.id})`)
+            .or(
+              `and(student_id.eq.${user.id},supervisor_id.eq.${inv.invited_by}),and(student_id.eq.${inv.invited_by},supervisor_id.eq.${user.id})`,
+            )
             .limit(1);
 
           if (!existingRelationship || existingRelationship.length === 0) {
@@ -2464,15 +2510,19 @@ export function ProfileScreen() {
         }
 
         if (hasValidInvitation) {
-          console.log('📱 ProfileScreen: Found valid invitations (global modal should handle this)');
+          console.log(
+            '📱 ProfileScreen: Found valid invitations (global modal should handle this)',
+          );
         }
       }
     } catch (error) {
       console.error('Error checking for pending invitations:', error);
-      
+
       // For testing: If table doesn't exist and user is daniel@lauding.se, show notification anyway
-      if ((error as any).message?.includes('relation "pending_invitations" does not exist') && 
-          user.email === 'daniel@lauding.se') {
+      if (
+        (error as any).message?.includes('relation "pending_invitations" does not exist') &&
+        user.email === 'daniel@lauding.se'
+      ) {
         console.log('🧪 Testing: Table does not exist - global modal should handle this');
       }
     }
@@ -2480,7 +2530,13 @@ export function ProfileScreen() {
 
   // Helper to get current user's role
   // Supports legacy 'teacher' and 'supervisor' roles as well
-  const getUserRole = (): 'student' | 'instructor' | 'school' | 'admin' | 'teacher' | 'supervisor' => {
+  const getUserRole = ():
+    | 'student'
+    | 'instructor'
+    | 'school'
+    | 'admin'
+    | 'teacher'
+    | 'supervisor' => {
     return (profile?.role as any) || 'student';
   };
 
@@ -2489,7 +2545,7 @@ export function ProfileScreen() {
     console.log('🎯 Opening relationship modal');
     console.log('🎯 User role:', getUserRole());
     console.log('🎯 Can supervise students?', canSuperviseStudents());
-    
+
     // Prepare data based on user role
     if (canSuperviseStudents()) {
       console.log('🎯 User can supervise - fetching supervised students');
@@ -2498,10 +2554,10 @@ export function ProfileScreen() {
       console.log('🎯 User is student - fetching available supervisors');
       fetchAvailableSupervisors();
     }
-    
+
     console.log('🎯 Current available supervisors:', availableSupervisors);
     console.log('🎯 Current supervised students:', supervisedStudents);
-    
+
     setShowRelationshipModal(true);
   };
 
@@ -2511,8 +2567,8 @@ export function ProfileScreen() {
       logInfo(`Switched to view student: ${studentName || studentId}`);
       showToast({
         title: 'Student View Active',
-        message: `You are now viewing ${studentName || "this student"}'s progress and data.`,
-        type: 'info'
+        message: `You are now viewing ${studentName || 'this student'}'s progress and data.`,
+        type: 'info',
       });
     } else {
       clearActiveStudent();
@@ -2528,7 +2584,7 @@ export function ProfileScreen() {
       // Determine role and relationship type based on who's inviting
       let targetRole: UserRole = inviteRole as UserRole;
       let relationshipType: 'student_invites_supervisor' | 'supervisor_invites_student' | undefined;
-      
+
       if (profile?.role === 'student' && inviteRole === 'supervisor') {
         // Student inviting supervisors
         targetRole = 'instructor';
@@ -2540,7 +2596,7 @@ export function ProfileScreen() {
       }
 
       // Create invitation entries (no custom passwords for this flow - use auto-generated)
-      const invitations = emails.map(email => ({ 
+      const invitations = emails.map((email) => ({
         email,
         customMessage: inviteCustomMessage.trim() || undefined, // Add custom message
       }));
@@ -2555,12 +2611,12 @@ export function ProfileScreen() {
         relationshipType,
         inviteCustomMessage.trim() || undefined, // Pass global custom message
       );
-      
+
       if (result.failed.length > 0) {
-        const errors = result.failed.map(f => `${f.email}: ${f.error}`).join(', ');
+        const errors = result.failed.map((f) => `${f.email}: ${f.error}`).join(', ');
         throw new Error(`Failed to send ${result.failed.length} invitation(s): ${errors}`);
       }
-      
+
       Alert.alert(
         'Invitations Sent! 🎉',
         `${result.successful.length} invitation${result.successful.length > 1 ? 's' : ''} sent successfully! Users can login immediately with auto-generated passwords.`,
@@ -2581,31 +2637,31 @@ export function ProfileScreen() {
         profile.id, // studentId
         removalTargetSupervisor.id, // supervisorId
         'Review submitted', // removalMessage
-        profile.id // removedByUserId
+        profile.id, // removedByUserId
       );
-      
+
       if (success) {
         showToast({
           title: 'Success',
           message: 'You have removed your supervisor and submitted your review',
-          type: 'success'
+          type: 'success',
         });
         if (profile?.id) {
           await getUserProfileWithRelationships(profile.id);
         }
       } else {
         showToast({
-        title: t('errors.title') || 'Error',
-        message: 'Failed to remove supervisor',
-        type: 'error'
-      });
+          title: t('errors.title') || 'Error',
+          message: 'Failed to remove supervisor',
+          type: 'error',
+        });
       }
     } catch (error) {
       console.error('Error removing supervisor:', error);
       showToast({
         title: t('errors.title') || 'Error',
         message: 'Failed to remove supervisor',
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setRemovalTargetSupervisor(null);
@@ -2626,42 +2682,50 @@ export function ProfileScreen() {
       if (canSuperviseStudents()) {
         fetchSupervisedStudents();
       }
-      
+
       // Check for pending invitations
       checkForPendingInvitations();
-      
+
       // Load pending invitations for display
       fetchPendingInvitations();
 
       // Set up real-time subscription for relationship changes
       const relationshipSubscription = supabase
         .channel('student_supervisor_relationships')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'student_supervisor_relationships',
-          filter: `student_id=eq.${profile.id}`,
-        }, (payload) => {
-          console.log('🔄 Student relationship changed:', payload);
-          // Refresh relationships when they change
-          getUserProfileWithRelationships(profile.id);
-          if (canSuperviseStudents()) {
-            fetchSupervisedStudents();
-          }
-        })
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'student_supervisor_relationships',
-          filter: `supervisor_id=eq.${profile.id}`,
-        }, (payload) => {
-          console.log('🔄 Supervisor relationship changed:', payload);
-          // Refresh relationships when they change
-          getUserProfileWithRelationships(profile.id);
-          if (canSuperviseStudents()) {
-            fetchSupervisedStudents();
-          }
-        })
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'student_supervisor_relationships',
+            filter: `student_id=eq.${profile.id}`,
+          },
+          (payload) => {
+            console.log('🔄 Student relationship changed:', payload);
+            // Refresh relationships when they change
+            getUserProfileWithRelationships(profile.id);
+            if (canSuperviseStudents()) {
+              fetchSupervisedStudents();
+            }
+          },
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'student_supervisor_relationships',
+            filter: `supervisor_id=eq.${profile.id}`,
+          },
+          (payload) => {
+            console.log('🔄 Supervisor relationship changed:', payload);
+            // Refresh relationships when they change
+            getUserProfileWithRelationships(profile.id);
+            if (canSuperviseStudents()) {
+              fetchSupervisedStudents();
+            }
+          },
+        )
         .subscribe();
 
       return () => {
@@ -2711,22 +2775,23 @@ export function ProfileScreen() {
     };
   }, [locationSearchTimeout]);
 
-
   // Load relationship reviews
   const loadRelationshipReviews = useCallback(async () => {
     if (!profile?.id) return;
 
     try {
       setReviewsLoading(true);
-      
+
       // Get user's rating and review data
-      const rating = await RelationshipReviewService.getUserRating(profile.id, profile.role || 'student');
+      const rating = await RelationshipReviewService.getUserRating(
+        profile.id,
+        profile.role || 'student',
+      );
       setUserRating(rating);
-      
+
       // Get all reviews for this user
       const reviews = await RelationshipReviewService.getReviewsForUser(profile.id);
       setRelationshipReviews(reviews);
-      
     } catch (error) {
       logError('Error loading relationship reviews', error as Error);
     } finally {
@@ -2852,19 +2917,19 @@ export function ProfileScreen() {
               <Text size="sm" color="$gray11" textAlign="center" marginTop={8}>
                 {t('profile.avatar.tapToChange') || 'Tap to change avatar'}
               </Text>
-              
+
               {/* Display rating badge if user has reviews */}
               {userRating.reviewCount > 0 && (
                 <YStack alignItems="center" marginTop="$3">
-                  <ProfileRatingBadge 
+                  <ProfileRatingBadge
                     averageRating={userRating.averageRating}
                     reviewCount={userRating.reviewCount}
                     size="md"
                     showPreview={true}
-                    recentReviews={relationshipReviews.slice(0, 2).map(r => ({
+                    recentReviews={relationshipReviews.slice(0, 2).map((r) => ({
                       content: r.content || '',
                       rating: r.rating,
-                      created_at: r.created_at
+                      created_at: r.created_at,
                     }))}
                   />
                 </YStack>
@@ -2875,7 +2940,11 @@ export function ProfileScreen() {
                 <TouchableOpacity
                   onPress={async () => {
                     // Auto-save current changes before switching
-                    if (user && (formData.full_name !== profile?.full_name || formData.location !== profile?.location)) {
+                    if (
+                      user &&
+                      (formData.full_name !== profile?.full_name ||
+                        formData.location !== profile?.location)
+                    ) {
                       try {
                         await updateProfile(formData);
                         console.log('✅ Auto-saved before tab switch');
@@ -2902,11 +2971,15 @@ export function ProfileScreen() {
                     {t('profile.tabs.overview') || 'Översikt'}
                   </Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   onPress={async () => {
                     // Auto-save current changes before switching
-                    if (user && (formData.full_name !== profile?.full_name || formData.location !== profile?.location)) {
+                    if (
+                      user &&
+                      (formData.full_name !== profile?.full_name ||
+                        formData.location !== profile?.location)
+                    ) {
                       try {
                         await updateProfile(formData);
                         console.log('✅ Auto-saved before tab switch');
@@ -2934,11 +3007,15 @@ export function ProfileScreen() {
                     {t('profile.tabs.stats') || 'Stats'}
                   </Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   onPress={async () => {
                     // Auto-save current changes before switching
-                    if (user && (formData.full_name !== profile?.full_name || formData.location !== profile?.location)) {
+                    if (
+                      user &&
+                      (formData.full_name !== profile?.full_name ||
+                        formData.location !== profile?.location)
+                    ) {
                       try {
                         await updateProfile(formData);
                         console.log('✅ Auto-saved before tab switch');
@@ -2980,21 +3057,21 @@ export function ProfileScreen() {
                         alignItems: 'center',
                       }}
                     >
-                      <Text
-                        color="white"
-                        size="xs"
-                        weight="bold"
-                      >
+                      <Text color="white" size="xs" weight="bold">
                         {pendingInvitations.length}
                       </Text>
                     </View>
                   )}
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   onPress={async () => {
                     // Auto-save current changes before switching
-                    if (user && (formData.full_name !== profile?.full_name || formData.location !== profile?.location)) {
+                    if (
+                      user &&
+                      (formData.full_name !== profile?.full_name ||
+                        formData.location !== profile?.location)
+                    ) {
                       try {
                         await updateProfile(formData);
                         console.log('✅ Auto-saved before tab switch');
@@ -3032,226 +3109,221 @@ export function ProfileScreen() {
                   <Text size="lg" weight="medium" mb="$2" color="$color">
                     {t('profile.fullName')}
                   </Text>
-              <FormField
-                value={formData.full_name}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, full_name: text }))}
-                onBlur={async () => {
-                  // Save name when field loses focus
-                  if (user && formData.full_name !== profile?.full_name) {
-                    try {
-                      await updateProfile({ full_name: formData.full_name });
-                      console.log('✅ Name updated:', formData.full_name);
-                    } catch (error) {
-                      console.error('Error saving name:', error);
-                    }
-                  }
-                }}
-                placeholder={t('profile.fullNamePlaceholder')}
-                autoCapitalize="none"
-              />
-            </YStack>
+                  <FormField
+                    value={formData.full_name}
+                    onChangeText={(text) => setFormData((prev) => ({ ...prev, full_name: text }))}
+                    onBlur={async () => {
+                      // Save name when field loses focus
+                      if (user && formData.full_name !== profile?.full_name) {
+                        try {
+                          await updateProfile({ full_name: formData.full_name });
+                          console.log('✅ Name updated:', formData.full_name);
+                        } catch (error) {
+                          console.error('Error saving name:', error);
+                        }
+                      }
+                    }}
+                    placeholder={t('profile.fullNamePlaceholder')}
+                    autoCapitalize="none"
+                  />
+                </YStack>
 
-            <YStack>
-              <Text size="lg" weight="medium" mb="$2" color="$color">
-                {t('profile.location')}
-              </Text>
-              <YStack gap="$2">
+                <YStack>
+                  <Text size="lg" weight="medium" mb="$2" color="$color">
+                    {t('profile.location')}
+                  </Text>
+                  <YStack gap="$2">
+                    <DropdownButton
+                      onPress={() => {
+                        // Search for nearby locations first, then show sheet
+                        if (!formData.location) {
+                          handleLocationSearch('');
+                        }
+                        showLocationSheet();
+                      }}
+                      value={formData.location}
+                      placeholder="Select Your Location"
+                      isActive={showLocationDrawer}
+                    />
+                  </YStack>
+                </YStack>
+
                 <DropdownButton
-                  onPress={() => {
-                    // Search for nearby locations first, then show sheet
-                    if (!formData.location) {
-                      handleLocationSearch('');
-                    }
-                    showLocationSheet();
-                  }}
-                  value={formData.location}
-                  placeholder="Select Your Location"
-                  isActive={showLocationDrawer}
+                  onPress={showRoleSheet}
+                  value={
+                    formData.role === 'student'
+                      ? t('profile.roles.student')
+                      : formData.role === 'instructor'
+                        ? t('profile.roles.instructor')
+                        : t('profile.roles.school')
+                  }
+                  placeholder={t('profile.selectRole') || 'Select Role'}
+                  isActive={showRoleModal}
                 />
-                
-              </YStack>
-            </YStack>
 
-            <DropdownButton
-              onPress={showRoleSheet}
-              value={formData.role === 'student'
-                ? t('profile.roles.student')
-                : formData.role === 'instructor'
-                  ? t('profile.roles.instructor')
-                  : t('profile.roles.school')}
-              placeholder={t('profile.selectRole') || 'Select Role'}
-              isActive={showRoleModal}
-            />
-
-            <DropdownButton
-              onPress={showExperienceSheet}
-              value={formData.experience_level === 'beginner'
-                ? t('profile.experienceLevels.beginner')
-                : formData.experience_level === 'intermediate'
-                  ? t('profile.experienceLevels.intermediate')
-                  : t('profile.experienceLevels.advanced')}
-              placeholder="Select Experience Level"
-              isActive={showExperienceModal}
-            />
-
-            <DropdownButton
-              onPress={showLanguageSheet}
-              value={LANGUAGE_LABELS[language]}
-              placeholder={t('profile.selectLanguage') || 'Select Language'}
-              isActive={showLanguageModal}
-            />
-
-            {/* Private Profile Setting */}
-            <XStack
-              justifyContent="space-between"
-              alignItems="center"
-              backgroundColor={formData.private_profile ? '$blue4' : undefined}
-              padding="$4"
-              borderRadius="$4"
-              pressStyle={{
-                scale: 0.98,
-              }}
-              onPress={async () => {
-                const newValue = !formData.private_profile;
-                setFormData((prev) => ({ ...prev, private_profile: newValue }));
-                // Auto-save private profile setting
-                if (user) {
-                  try {
-                    await updateProfile({ private_profile: newValue });
-                    console.log('✅ Private profile setting updated:', newValue);
-                  } catch (error) {
-                    console.error('Error saving private profile setting:', error);
+                <DropdownButton
+                  onPress={showExperienceSheet}
+                  value={
+                    formData.experience_level === 'beginner'
+                      ? t('profile.experienceLevels.beginner')
+                      : formData.experience_level === 'intermediate'
+                        ? t('profile.experienceLevels.intermediate')
+                        : t('profile.experienceLevels.advanced')
                   }
-                }
-              }}
-            >
-              <Text size="lg" color="$color">
-                {t('profile.privateProfile')}
-              </Text>
-              <Switch
-                size="$6"
-                checked={formData.private_profile}
-                onCheckedChange={async (checked) => {
-                  setFormData((prev) => ({ ...prev, private_profile: checked }));
-                  // Auto-save private profile setting
-                  if (user) {
-                    try {
-                      await updateProfile({ private_profile: checked });
-                      console.log('✅ Private profile setting updated:', checked);
-                    } catch (error) {
-                      console.error('Error saving private profile setting:', error);
-                    }
-                  }
-                }}
-                backgroundColor={formData.private_profile ? '$blue8' : '$gray6'}
-                scale={1.2}
-                margin="$2"
-                pressStyle={{
-                  scale: 0.95,
-                }}
-              >
-                <Switch.Thumb
-                  scale={1.2}
+                  placeholder="Select Experience Level"
+                  isActive={showExperienceModal}
+                />
+
+                <DropdownButton
+                  onPress={showLanguageSheet}
+                  value={LANGUAGE_LABELS[language]}
+                  placeholder={t('profile.selectLanguage') || 'Select Language'}
+                  isActive={showLanguageModal}
+                />
+
+                {/* Private Profile Setting */}
+                <XStack
+                  justifyContent="space-between"
+                  alignItems="center"
+                  backgroundColor={formData.private_profile ? '$blue4' : undefined}
+                  padding="$4"
+                  borderRadius="$4"
                   pressStyle={{
-                    scale: 0.95,
+                    scale: 0.98,
                   }}
-                />
-              </Switch>
-            </XStack>
+                  onPress={async () => {
+                    const newValue = !formData.private_profile;
+                    setFormData((prev) => ({ ...prev, private_profile: newValue }));
+                    // Auto-save private profile setting
+                    if (user) {
+                      try {
+                        await updateProfile({ private_profile: newValue });
+                        console.log('✅ Private profile setting updated:', newValue);
+                      } catch (error) {
+                        console.error('Error saving private profile setting:', error);
+                      }
+                    }
+                  }}
+                >
+                  <Text size="lg" color="$color">
+                    {t('profile.privateProfile')}
+                  </Text>
+                  <Switch
+                    size="$6"
+                    checked={formData.private_profile}
+                    onCheckedChange={async (checked) => {
+                      setFormData((prev) => ({ ...prev, private_profile: checked }));
+                      // Auto-save private profile setting
+                      if (user) {
+                        try {
+                          await updateProfile({ private_profile: checked });
+                          console.log('✅ Private profile setting updated:', checked);
+                        } catch (error) {
+                          console.error('Error saving private profile setting:', error);
+                        }
+                      }
+                    }}
+                    backgroundColor={formData.private_profile ? '$blue8' : '$gray6'}
+                    scale={1.2}
+                    margin="$2"
+                    pressStyle={{
+                      scale: 0.95,
+                    }}
+                  >
+                    <Switch.Thumb
+                      scale={1.2}
+                      pressStyle={{
+                        scale: 0.95,
+                      }}
+                    />
+                  </Switch>
+                </XStack>
 
-            {/* Notification Settings */}
-            <YStack marginVertical="$2">
-              <DropdownButton
-                onPress={showNotificationSheet}
-                value={t('profile.notificationSettings') || 'Notification Settings'}
-                placeholder="Notification Settings"
-              />
-            </YStack>
+                {/* Notification Settings */}
+                <YStack marginVertical="$2">
+                  <DropdownButton
+                    onPress={showNotificationSheet}
+                    value={t('profile.notificationSettings') || 'Notification Settings'}
+                    placeholder="Notification Settings"
+                  />
+                </YStack>
 
-            {/* Theme Settings */}
-            <YStack marginVertical="$2">
-              <DropdownButton
-                onPress={showThemeSheet}
-                value={t('profile.themeSettings') || 'Theme Settings'}
-                placeholder="Theme Settings"
-              />
-            </YStack>
+                {/* Theme Settings */}
+                <YStack marginVertical="$2">
+                  <DropdownButton
+                    onPress={showThemeSheet}
+                    value={t('profile.themeSettings') || 'Theme Settings'}
+                    placeholder="Theme Settings"
+                  />
+                </YStack>
 
-            {/* Developer Tools (Combined Testing & Developer Options) - Only show if developer mode enabled */}
-            {(profile as any)?.developer_mode && (
-              <YStack marginVertical="$2">
-                <DropdownButton
-                  onPress={showDeveloperSheet}
-                  value="Developer Tools"
-                  placeholder="Developer Tools"
-                />
-              </YStack>
-            )}
+                {/* Developer Tools (Combined Testing & Developer Options) - Only show if developer mode enabled */}
+                {(profile as any)?.developer_mode && (
+                  <YStack marginVertical="$2">
+                    <DropdownButton
+                      onPress={showDeveloperSheet}
+                      value="Developer Tools"
+                      placeholder="Developer Tools"
+                    />
+                  </YStack>
+                )}
 
-            {error ? (
-              <Text size="sm" intent="error" textAlign="center">
-                {error}
-              </Text>
-            ) : null}
+                {error ? (
+                  <Text size="sm" intent="error" textAlign="center">
+                    {error}
+                  </Text>
+                ) : null}
 
-            {/* Körkortsplan */}
-            <YStack marginVertical="$2">
-              <DropdownButton
-                onPress={showKorkortsplanSheet}
-                value="Körkortsplan"
-                placeholder="Körkortsplan"
-              />
-            </YStack>
+                {/* Körkortsplan */}
+                <YStack marginVertical="$2">
+                  <DropdownButton
+                    onPress={showKorkortsplanSheet}
+                    value="Körkortsplan"
+                    placeholder="Körkortsplan"
+                  />
+                </YStack>
 
-            {/* Save Button */}
-            <Button
-              onPress={async () => {
-                try {
-                  setLoading(true);
-                  await updateProfile(formData);
-                  console.log('✅ Profile saved successfully');
-                  showToast({
-                    title: t('profile.saved') || 'Saved',
-                    message: t('profile.profileUpdated') || 'Profile updated successfully',
-                    type: 'success'
-                  });
-                } catch (error) {
-                  console.error('Error saving profile:', error);
-                  showToast({
-                    title: t('common.error') || 'Error',
-                    message: t('profile.failedToSave') || 'Failed to save profile',
-                    type: 'error'
-                  });
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              disabled={loading}
-              variant="primary"
-              size="lg"
-              marginTop="$4"
-            >
-              {loading ? (t('common.saving') || 'Saving...') : (t('profile.save') || 'Save Profile')}
-            </Button>
+                {/* Save Button */}
+                <Button
+                  onPress={async () => {
+                    try {
+                      setLoading(true);
+                      await updateProfile(formData);
+                      console.log('✅ Profile saved successfully');
+                      showToast({
+                        title: t('profile.saved') || 'Saved',
+                        message: t('profile.profileUpdated') || 'Profile updated successfully',
+                        type: 'success',
+                      });
+                    } catch (error) {
+                      console.error('Error saving profile:', error);
+                      showToast({
+                        title: t('common.error') || 'Error',
+                        message: t('profile.failedToSave') || 'Failed to save profile',
+                        type: 'error',
+                      });
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  variant="primary"
+                  size="lg"
+                  marginTop="$4"
+                >
+                  {loading
+                    ? t('common.saving') || 'Saving...'
+                    : t('profile.save') || 'Save Profile'}
+                </Button>
               </YStack>
             )}
 
             {/* Account Actions */}
             <YStack gap="$3" marginTop="$4">
-              <Button 
-                onPress={handleSignOut} 
-                disabled={loading} 
-                variant="outlined" 
-                size="lg"
-              >
+              <Button onPress={handleSignOut} disabled={loading} variant="outlined" size="lg">
                 {t('profile.signOut')}
               </Button>
-              <Button
-                onPress={showDeleteSheet}
-                disabled={loading}
-                variant="outlined"
-                size="lg"
-              >
+              <Button onPress={showDeleteSheet} disabled={loading} variant="outlined" size="lg">
                 {t('settings.deleteAccount') || 'Delete Account'}
               </Button>
             </YStack>
@@ -3260,264 +3332,277 @@ export function ProfileScreen() {
             {activeTab === 'relationships' && (
               <YStack gap="$4">
                 {/* Supervised Students Section for Supervisors */}
-            {canSuperviseStudents() && (
-              <Card bordered padding="$4" marginVertical="$2">
-                <YStack gap="$2">
-                  <XStack justifyContent="space-between" alignItems="center">
-                    <Text size="lg" weight="bold" color="$color">
-                      Supervised Students
-                    </Text>
-                    <XStack gap="$2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        backgroundColor="$green9"
-                        onPress={handleOpenRelationshipModal}
-                      >
-                        <Text color="white">
-                          {activeStudentId ? 'Switch Student' : 'Select Student'}
+                {canSuperviseStudents() && (
+                  <Card bordered padding="$4" marginVertical="$2">
+                    <YStack gap="$2">
+                      <XStack justifyContent="space-between" alignItems="center">
+                        <Text size="lg" weight="bold" color="$color">
+                          Supervised Students
                         </Text>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        backgroundColor="$purple9"
-                        onPress={() => navigation.navigate('StudentManagementScreen')}
-                      >
-                        <Text color="white">{t('profile.manageStudents') || 'Manage Students'}</Text>
-                      </Button>
+                        <XStack gap="$2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            backgroundColor="$green9"
+                            onPress={handleOpenRelationshipModal}
+                          >
+                            <Text color="white">
+                              {activeStudentId ? 'Switch Student' : 'Select Student'}
+                            </Text>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            backgroundColor="$purple9"
+                            onPress={() => navigation.navigate('StudentManagementScreen')}
+                          >
+                            <Text color="white">
+                              {t('profile.manageStudents') || 'Manage Students'}
+                            </Text>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            backgroundColor="$blue9"
+                            onPress={() => {
+                              setInviteType('student');
+                              setShowInviteModal(true);
+                            }}
+                          >
+                            <Text color="white">
+                              {t('profile.inviteStudents') || 'Invite Students'}
+                            </Text>
+                          </Button>
+                        </XStack>
+                      </XStack>
+
+                      {activeStudentId ? (
+                        <YStack gap="$1">
+                          <Text color="$green11" size="sm">
+                            Active View: {getActiveUser().full_name}
+                          </Text>
+                          <Text color="$gray11" size="xs">
+                            You can see this student's progress, routes, and exercises
+                          </Text>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            backgroundColor="$gray7"
+                            onPress={() => switchActiveStudent(null)}
+                            marginTop="$1"
+                          >
+                            <Text>
+                              {t('profile.switchBackToMyView') || 'Switch Back to My View'}
+                            </Text>
+                          </Button>
+                        </YStack>
+                      ) : supervisedStudents.length > 0 ? (
+                        <YStack gap="$1">
+                          <Text color="$gray11" size="sm">
+                            Managing {supervisedStudents.length} student
+                            {supervisedStudents.length !== 1 ? 's' : ''} • Currently viewing your
+                            own profile
+                          </Text>
+                          <Text color="$gray11" size="xs">
+                            Select a student above to view their progress and help with their
+                            exercises
+                          </Text>
+                        </YStack>
+                      ) : (
+                        <YStack gap="$1">
+                          <Text color="$gray11" size="sm">
+                            No supervised students yet
+                          </Text>
+                          <Text color="$gray11" size="xs">
+                            Invite students to supervise their learning journey
+                          </Text>
+                        </YStack>
+                      )}
+                    </YStack>
+                  </Card>
+                )}
+
+                {/* Supervisors Section - Show for students and instructors */}
+                {(profile?.role === 'student' || profile?.role === 'instructor') && (
+                  <Card bordered padding="$4" marginVertical="$2">
+                    <YStack gap="$2">
+                      <XStack justifyContent="space-between" alignItems="center">
+                        <Text size="lg" weight="bold" color="$color">
+                          {t('profile.supervisors') || 'Supervisors'}
+                        </Text>
+                        <XStack gap="$2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            backgroundColor="$blue9"
+                            onPress={handleOpenRelationshipModal}
+                            disabled={relationshipsLoading}
+                          >
+                            <Text color="white">
+                              {supervisors.length > 0 ? 'Manage' : 'Request Supervisors'}
+                            </Text>
+                          </Button>
+                          {profile?.role === 'student' && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              backgroundColor="$green9"
+                              onPress={() => {
+                                setInviteType('supervisor');
+                                setShowInviteModal(true);
+                              }}
+                            >
+                              <Text color="white">Invite Supervisors</Text>
+                            </Button>
+                          )}
+                        </XStack>
+                      </XStack>
+
+                      {supervisors.length === 0 ? (
+                        <Text color="$gray11" size="sm">
+                          No supervisors assigned yet. Click "Add Supervisors" to get started.
+                        </Text>
+                      ) : (
+                        supervisors.map((supervisor) => (
+                          <XStack
+                            key={supervisor.supervisor_id}
+                            justifyContent="space-between"
+                            alignItems="center"
+                            backgroundColor="$backgroundHover"
+                            padding="$3"
+                            borderRadius="$3"
+                          >
+                            <YStack flex={1}>
+                              <Text weight="bold" color="$color">
+                                {supervisor.supervisor_name || 'Unknown Supervisor'}
+                              </Text>
+                              {supervisor.supervisor_email && (
+                                <Text color="$gray11" size="sm">
+                                  {supervisor.supervisor_email}
+                                </Text>
+                              )}
+                              {supervisor.relationship_created && (
+                                <Text color="$gray11" size="xs">
+                                  Supervising since{' '}
+                                  {new Date(supervisor.relationship_created).toLocaleDateString()}{' '}
+                                  at{' '}
+                                  {new Date(supervisor.relationship_created).toLocaleTimeString(
+                                    [],
+                                    { hour: '2-digit', minute: '2-digit' },
+                                  )}
+                                </Text>
+                              )}
+                            </YStack>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              backgroundColor="$red9"
+                              onPress={() => {
+                                setRemovalTargetSupervisor({
+                                  id: supervisor.supervisor_id,
+                                  name: supervisor.supervisor_name || 'Unknown Supervisor',
+                                  email: supervisor.supervisor_email || '',
+                                });
+                                setShowRemovalReviewModal(true);
+                              }}
+                              disabled={relationshipsLoading}
+                            >
+                              <Text color="white">{t('common.leave') || 'Leave'}</Text>
+                            </Button>
+                          </XStack>
+                        ))
+                      )}
+                    </YStack>
+                  </Card>
+                )}
+
+                {/* Schools Section - ALWAYS SHOW */}
+                <Card bordered padding="$4" marginVertical="$2">
+                  <YStack gap="$2">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <Text size="lg" weight="bold" color="$color">
+                        {t('profile.schools') || 'Schools'}
+                      </Text>
                       <Button
                         size="sm"
                         variant="secondary"
                         backgroundColor="$blue9"
                         onPress={() => {
-                          setInviteType('student');
-                          setShowInviteModal(true);
+                          fetchAvailableSchools();
+                          setShowSchoolModal(true);
                         }}
+                        disabled={relationshipsLoading}
                       >
-                        <Text color="white">{t('profile.inviteStudents') || 'Invite Students'}</Text>
+                        <Text color="white">
+                          {schools.length > 0 ? 'Change School' : 'Join School'}
+                        </Text>
                       </Button>
                     </XStack>
-                  </XStack>
 
-                  {activeStudentId ? (
-                    <YStack gap="$1">
-                      <Text color="$green11" size="sm">
-                        Active View: {getActiveUser().full_name}
-                      </Text>
-                      <Text color="$gray11" size="xs">
-                        You can see this student's progress, routes, and exercises
-                      </Text>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        backgroundColor="$gray7"
-                        onPress={() => switchActiveStudent(null)}
-                        marginTop="$1"
-                      >
-                        <Text>{t('profile.switchBackToMyView') || 'Switch Back to My View'}</Text>
-                      </Button>
-                    </YStack>
-                  ) : supervisedStudents.length > 0 ? (
-                    <YStack gap="$1">
+                    {schools.length === 0 ? (
                       <Text color="$gray11" size="sm">
-                        Managing {supervisedStudents.length} student
-                        {supervisedStudents.length !== 1 ? 's' : ''} • Currently viewing your own
-                        profile
+                        Not a member of any school yet. Click "Join School" to see all available
+                        schools.
                       </Text>
-                      <Text color="$gray11" size="xs">
-                        Select a student above to view their progress and help with their exercises
-                      </Text>
-                    </YStack>
-                  ) : (
-                    <YStack gap="$1">
-                      <Text color="$gray11" size="sm">
-                        No supervised students yet
-                      </Text>
-                      <Text color="$gray11" size="xs">
-                        Invite students to supervise their learning journey
-                      </Text>
-                    </YStack>
-                  )}
-                </YStack>
-              </Card>
-            )}
-
-            {/* Supervisors Section - Show for students and instructors */}
-            {(profile?.role === 'student' || profile?.role === 'instructor') && (
-            <Card bordered padding="$4" marginVertical="$2">
-              <YStack gap="$2">
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Text size="lg" weight="bold" color="$color">
-                    {t('profile.supervisors') || 'Supervisors'}
-                  </Text>
-                  <XStack gap="$2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      backgroundColor="$blue9"
-                      onPress={handleOpenRelationshipModal}
-                      disabled={relationshipsLoading}
-                    >
-                      <Text color="white">
-                        {supervisors.length > 0 ? 'Manage' : 'Request Supervisors'}
-                      </Text>
-                    </Button>
-                    {profile?.role === 'student' && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      backgroundColor="$green9"
-                      onPress={() => {
-                        setInviteType('supervisor');
-                        setShowInviteModal(true);
-                      }}
-                    >
-                      <Text color="white">Invite Supervisors</Text>
-                    </Button>
+                    ) : (
+                      schools.map((school) => (
+                        <XStack
+                          key={school.school_id}
+                          justifyContent="space-between"
+                          alignItems="center"
+                          backgroundColor="$backgroundHover"
+                          padding="$3"
+                          borderRadius="$3"
+                        >
+                          <YStack flex={1}>
+                            <Text weight="bold" color="$color">
+                              {school.school_name || 'Unknown School'}
+                            </Text>
+                            {school.school_location && (
+                              <Text color="$gray11" size="sm">
+                                {school.school_location}
+                              </Text>
+                            )}
+                          </YStack>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            backgroundColor="$red9"
+                            onPress={() => {
+                              Alert.alert(
+                                'Leave School',
+                                `Are you sure you want to leave ${school.school_name}?`,
+                                [
+                                  { text: 'Cancel', style: 'cancel' },
+                                  {
+                                    text: 'Leave',
+                                    style: 'destructive',
+                                    onPress: () => leaveSchool(school.school_id),
+                                  },
+                                ],
+                              );
+                            }}
+                            disabled={relationshipsLoading}
+                          >
+                            <Text color="white">{t('common.leave') || 'Leave'}</Text>
+                          </Button>
+                        </XStack>
+                      ))
                     )}
-                  </XStack>
-                </XStack>
+                  </YStack>
+                </Card>
 
-                {supervisors.length === 0 ? (
-                  <Text color="$gray11" size="sm">
-                    No supervisors assigned yet. Click "Add Supervisors" to get started.
-                  </Text>
-                ) : (
-                  supervisors.map((supervisor) => (
-                    <XStack
-                      key={supervisor.supervisor_id}
-                      justifyContent="space-between"
-                      alignItems="center"
-                      backgroundColor="$backgroundHover"
-                      padding="$3"
-                      borderRadius="$3"
-                    >
-                      <YStack flex={1}>
-                        <Text weight="bold" color="$color">
-                          {supervisor.supervisor_name || 'Unknown Supervisor'}
-                        </Text>
-                        {supervisor.supervisor_email && (
-                          <Text color="$gray11" size="sm">
-                            {supervisor.supervisor_email}
-                          </Text>
-                        )}
-                        {supervisor.relationship_created && (
-                          <Text color="$gray11" size="xs">
-                            Supervising since {new Date(supervisor.relationship_created).toLocaleDateString()} at {new Date(supervisor.relationship_created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </Text>
-                        )}
-                      </YStack>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        backgroundColor="$red9"
-                        onPress={() => {
-                          setRemovalTargetSupervisor({
-                            id: supervisor.supervisor_id,
-                            name: supervisor.supervisor_name || 'Unknown Supervisor',
-                            email: supervisor.supervisor_email || '',
-                          });
-                          setShowRemovalReviewModal(true);
-                        }}
-                        disabled={relationshipsLoading}
-                      >
-                        <Text color="white">{t('common.leave') || 'Leave'}</Text>
-                      </Button>
-                    </XStack>
-                  ))
+                {/* Relationship Reviews Section */}
+                {profile && (
+                  <RelationshipReviewSection
+                    profileUserId={profile.id}
+                    profileUserRole={profile.role as any}
+                    profileUserName={profile.full_name || profile.email || 'Unknown User'}
+                    canReview={userRating.canReview}
+                    reviews={relationshipReviews}
+                    onReviewAdded={loadRelationshipReviews}
+                  />
                 )}
-              </YStack>
-            </Card>
-            )}
-
-            {/* Schools Section - ALWAYS SHOW */}
-            <Card bordered padding="$4" marginVertical="$2">
-              <YStack gap="$2">
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Text size="lg" weight="bold" color="$color">
-                    {t('profile.schools') || 'Schools'}
-                  </Text>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    backgroundColor="$blue9"
-                    onPress={() => {
-                      fetchAvailableSchools();
-                      setShowSchoolModal(true);
-                    }}
-                    disabled={relationshipsLoading}
-                  >
-                    <Text color="white">
-                      {schools.length > 0 ? 'Change School' : 'Join School'}
-                    </Text>
-                  </Button>
-                </XStack>
-
-                {schools.length === 0 ? (
-                  <Text color="$gray11" size="sm">
-                    Not a member of any school yet. Click "Join School" to see all available
-                    schools.
-                  </Text>
-                ) : (
-                  schools.map((school) => (
-                    <XStack
-                      key={school.school_id}
-                      justifyContent="space-between"
-                      alignItems="center"
-                      backgroundColor="$backgroundHover"
-                      padding="$3"
-                      borderRadius="$3"
-                    >
-                      <YStack flex={1}>
-                        <Text weight="bold" color="$color">
-                          {school.school_name || 'Unknown School'}
-                        </Text>
-                        {school.school_location && (
-                          <Text color="$gray11" size="sm">
-                            {school.school_location}
-                          </Text>
-                        )}
-                      </YStack>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        backgroundColor="$red9"
-                        onPress={() => {
-                          Alert.alert(
-                            'Leave School',
-                            `Are you sure you want to leave ${school.school_name}?`,
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Leave',
-                                style: 'destructive',
-                                onPress: () => leaveSchool(school.school_id),
-                              },
-                            ],
-                          );
-                        }}
-                        disabled={relationshipsLoading}
-                      >
-                        <Text color="white">{t('common.leave') || 'Leave'}</Text>
-                      </Button>
-                    </XStack>
-                  ))
-                )}
-              </YStack>
-            </Card>
-
-            {/* Relationship Reviews Section */}
-            {profile && (
-              <RelationshipReviewSection
-                profileUserId={profile.id}
-                profileUserRole={profile.role as any}
-                profileUserName={profile.full_name || profile.email || 'Unknown User'}
-                canReview={userRating.canReview}
-                reviews={relationshipReviews}
-                onReviewAdded={loadRelationshipReviews}
-              />
-            )}
               </YStack>
             )}
 
@@ -3539,7 +3624,8 @@ export function ProfileScreen() {
                           {t('profile.billing.basicAccess') || 'Basic access to learning paths'}
                         </Text>
                         <Text fontSize="$2" color="$blue11" textAlign="center">
-                          {t('profile.billing.upgradeForMore') || 'Upgrade for unlimited access and premium features'}
+                          {t('profile.billing.upgradeForMore') ||
+                            'Upgrade for unlimited access and premium features'}
                         </Text>
                       </YStack>
                     </Card>
@@ -3584,7 +3670,9 @@ export function ProfileScreen() {
                           onPress={fetchSubscriptionPlans}
                           marginTop="$2"
                         >
-                          <Text color="white">{t('profile.billing.loadPlans') || 'Load Plans'}</Text>
+                          <Text color="white">
+                            {t('profile.billing.loadPlans') || 'Load Plans'}
+                          </Text>
                         </Button>
                       </YStack>
                     ) : (
@@ -3593,19 +3681,47 @@ export function ProfileScreen() {
                           const isCurrent = plan.name === 'Free Plan'; // For now, assume everyone is on free plan
                           const isEnterprise = plan.name === 'Enterprise Plan';
                           const isPro = plan.name === 'Pro Plan';
-                          
+
                           return (
-                            <Card 
-                              key={plan.id} 
-                              padding="$4" 
-                              backgroundColor={isCurrent ? '$green4' : isPro ? '$blue4' : isEnterprise ? '$purple4' : '$backgroundHover'}
+                            <Card
+                              key={plan.id}
+                              padding="$4"
+                              backgroundColor={
+                                isCurrent
+                                  ? '$green4'
+                                  : isPro
+                                    ? '$blue4'
+                                    : isEnterprise
+                                      ? '$purple4'
+                                      : '$backgroundHover'
+                              }
                               borderRadius="$3"
                               borderWidth={isCurrent ? 2 : 1}
-                              borderColor={isCurrent ? '$green8' : isPro ? '$blue8' : isEnterprise ? '$purple8' : '$borderColor'}
+                              borderColor={
+                                isCurrent
+                                  ? '$green8'
+                                  : isPro
+                                    ? '$blue8'
+                                    : isEnterprise
+                                      ? '$purple8'
+                                      : '$borderColor'
+                              }
                             >
                               <YStack gap="$2">
                                 <XStack justifyContent="space-between" alignItems="center">
-                                  <Text fontSize="$5" fontWeight="bold" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$color'}>
+                                  <Text
+                                    fontSize="$5"
+                                    fontWeight="bold"
+                                    color={
+                                      isCurrent
+                                        ? '$green11'
+                                        : isPro
+                                          ? '$blue11'
+                                          : isEnterprise
+                                            ? '$purple11'
+                                            : '$color'
+                                    }
+                                  >
                                     {plan.name}
                                   </Text>
                                   {isCurrent && (
@@ -3624,32 +3740,73 @@ export function ProfileScreen() {
                                     </XStack>
                                   )}
                                 </XStack>
-                                
-                                <Text fontSize="$3" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$gray11'}>
+
+                                <Text
+                                  fontSize="$3"
+                                  color={
+                                    isCurrent
+                                      ? '$green11'
+                                      : isPro
+                                        ? '$blue11'
+                                        : isEnterprise
+                                          ? '$purple11'
+                                          : '$gray11'
+                                  }
+                                >
                                   {plan.description}
                                 </Text>
-                                
-                                <XStack justifyContent="space-between" alignItems="center" marginTop="$2">
+
+                                <XStack
+                                  justifyContent="space-between"
+                                  alignItems="center"
+                                  marginTop="$2"
+                                >
                                   <YStack>
-                                    <Text fontSize="$6" fontWeight="bold" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$color'}>
+                                    <Text
+                                      fontSize="$6"
+                                      fontWeight="bold"
+                                      color={
+                                        isCurrent
+                                          ? '$green11'
+                                          : isPro
+                                            ? '$blue11'
+                                            : isEnterprise
+                                              ? '$purple11'
+                                              : '$color'
+                                      }
+                                    >
                                       ${plan.price_amount.toFixed(2)}
                                     </Text>
-                                    <Text fontSize="$2" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$gray11'}>
+                                    <Text
+                                      fontSize="$2"
+                                      color={
+                                        isCurrent
+                                          ? '$green11'
+                                          : isPro
+                                            ? '$blue11'
+                                            : isEnterprise
+                                              ? '$purple11'
+                                              : '$gray11'
+                                      }
+                                    >
                                       {t('profile.billing.perMonth') || 'per month'}
                                     </Text>
                                   </YStack>
-                                  
+
                                   {!isCurrent && (
                                     <Button
                                       size="sm"
                                       variant="secondary"
-                                      backgroundColor={isPro ? '$blue9' : isEnterprise ? '$purple9' : '$green9'}
+                                      backgroundColor={
+                                        isPro ? '$blue9' : isEnterprise ? '$purple9' : '$green9'
+                                      }
                                       onPress={() => {
                                         // TODO: Implement subscription upgrade
                                         showToast({
-                                          title: t('profile.billing.upgradeTitle') || 'Upgrade Plan',
+                                          title:
+                                            t('profile.billing.upgradeTitle') || 'Upgrade Plan',
                                           message: `${t('profile.billing.upgradeMessage') || 'Upgrade to'} ${plan.name}`,
-                                          type: 'info'
+                                          type: 'info',
                                         });
                                       }}
                                     >
@@ -3659,22 +3816,57 @@ export function ProfileScreen() {
                                     </Button>
                                   )}
                                 </XStack>
-                                
+
                                 {/* Features */}
                                 {plan.features && (
                                   <YStack gap="$1" marginTop="$2">
-                                    <Text fontSize="$3" fontWeight="600" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$color'}>
+                                    <Text
+                                      fontSize="$3"
+                                      fontWeight="600"
+                                      color={
+                                        isCurrent
+                                          ? '$green11'
+                                          : isPro
+                                            ? '$blue11'
+                                            : isEnterprise
+                                              ? '$purple11'
+                                              : '$color'
+                                      }
+                                    >
                                       {t('profile.billing.features') || 'Features:'}
                                     </Text>
                                     {Object.entries(plan.features as any).map(([key, value]) => (
                                       <XStack key={key} alignItems="center" gap="$2">
-                                        <Feather 
-                                          name={value ? "check" : "x"} 
-                                          size={12} 
-                                          color={value ? (isCurrent ? '#10b981' : isPro ? '#3b82f6' : isEnterprise ? '#8b5cf6' : '#10b981') : '#ef4444'} 
+                                        <Feather
+                                          name={value ? 'check' : 'x'}
+                                          size={12}
+                                          color={
+                                            value
+                                              ? isCurrent
+                                                ? '#10b981'
+                                                : isPro
+                                                  ? '#3b82f6'
+                                                  : isEnterprise
+                                                    ? '#8b5cf6'
+                                                    : '#10b981'
+                                              : '#ef4444'
+                                          }
                                         />
-                                        <Text fontSize="$2" color={isCurrent ? '$green11' : isPro ? '$blue11' : isEnterprise ? '$purple11' : '$gray11'}>
-                                          {key.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())}
+                                        <Text
+                                          fontSize="$2"
+                                          color={
+                                            isCurrent
+                                              ? '$green11'
+                                              : isPro
+                                                ? '$blue11'
+                                                : isEnterprise
+                                                  ? '$purple11'
+                                                  : '$gray11'
+                                          }
+                                        >
+                                          {key
+                                            .replace(/_/g, ' ')
+                                            .replace(/^\w/, (c) => c.toUpperCase())}
                                         </Text>
                                       </XStack>
                                     ))}
@@ -3716,25 +3908,31 @@ export function ProfileScreen() {
                           {t('profile.billing.noPayments') || 'No payment history yet'}
                         </Text>
                         <Text color="$gray11" fontSize="$3" textAlign="center">
-                          {t('profile.billing.paymentsWillAppear') || 'Your payments will appear here'}
+                          {t('profile.billing.paymentsWillAppear') ||
+                            'Your payments will appear here'}
                         </Text>
                       </YStack>
                     ) : (
                       <YStack gap="$2">
                         {paymentHistory.map((payment) => (
-                          <Card 
-                            key={payment.id} 
-                            padding="$3" 
-                            backgroundColor="$backgroundHover" 
+                          <Card
+                            key={payment.id}
+                            padding="$3"
+                            backgroundColor="$backgroundHover"
                             borderRadius="$3"
                           >
                             <XStack justifyContent="space-between" alignItems="center">
                               <YStack flex={1}>
                                 <Text fontWeight="bold" color="$color">
-                                  {payment.description || t('profile.billing.unknownPayment') || 'Unknown Payment'}
+                                  {payment.description ||
+                                    t('profile.billing.unknownPayment') ||
+                                    'Unknown Payment'}
                                 </Text>
                                 <Text fontSize="$3" color="$gray11">
-                                  {new Date(payment.created_at).toLocaleDateString(language === 'sv' ? 'sv-SE' : 'en-US')} • {payment.payment_method}
+                                  {new Date(payment.created_at).toLocaleDateString(
+                                    language === 'sv' ? 'sv-SE' : 'en-US',
+                                  )}{' '}
+                                  • {payment.payment_method}
                                 </Text>
                                 <Text fontSize="$2" color="$gray11">
                                   ID: {payment.payment_provider_id || payment.id}
@@ -3745,16 +3943,24 @@ export function ProfileScreen() {
                                   ${payment.amount.toFixed(2)} {payment.currency}
                                 </Text>
                                 <XStack
-                                  backgroundColor={payment.status === 'completed' ? '$green8' : payment.status === 'pending' ? '$orange8' : '$red8'}
+                                  backgroundColor={
+                                    payment.status === 'completed'
+                                      ? '$green8'
+                                      : payment.status === 'pending'
+                                        ? '$orange8'
+                                        : '$red8'
+                                  }
                                   paddingHorizontal={8}
                                   paddingVertical={2}
                                   borderRadius={8}
                                   alignItems="center"
                                 >
                                   <Text fontSize={10} color="white" fontWeight="bold">
-                                    {payment.status === 'completed' ? (t('profile.billing.completed') || 'Completed') :
-                                     payment.status === 'pending' ? (t('profile.billing.pending') || 'Pending') :
-                                     (t('profile.billing.failed') || 'Failed')}
+                                    {payment.status === 'completed'
+                                      ? t('profile.billing.completed') || 'Completed'
+                                      : payment.status === 'pending'
+                                        ? t('profile.billing.pending') || 'Pending'
+                                        : t('profile.billing.failed') || 'Failed'}
                                   </Text>
                                 </XStack>
                               </YStack>
@@ -3772,202 +3978,202 @@ export function ProfileScreen() {
             {activeTab === 'stats' && (
               <YStack gap="$4">
                 {/* Driving Statistics Section */}
-            <Card bordered padding="$4" marginVertical="$2">
-              <YStack gap="$3">
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Text size="lg" weight="bold" color="$color">
-                    {t('profile.stats.title') || 'Driving Statistics'}
-                  </Text>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    backgroundColor="$blue9"
-                    onPress={fetchDrivingStats}
-                    disabled={statsLoading}
-                  >
-                    <Feather
-                      name={statsLoading ? 'loader' : 'refresh-cw'}
-                      size={14}
-                      color="white"
-                    />
-                    <Text color="white" ml="$1">
-                      {statsLoading ? 'Loading...' : 'Refresh'}
-                    </Text>
-                  </Button>
-                </XStack>
-
-                {drivingStats ? (
-                  <YStack gap="$4">
-                    {/* Summary Stats */}
-                    <XStack gap="$2" flexWrap="wrap">
-                      <Card flex={1} padding="$3" backgroundColor="$blue4" borderRadius="$3">
-                        <YStack alignItems="center">
-                          <Text fontSize="$6" fontWeight="bold" color="$blue11">
-                            {drivingStats.totalRoutes}
-                          </Text>
-                          <Text fontSize="$2" color="$blue11" textAlign="center">
-                            {t('profile.stats.totalRoutes') || 'Total Routes'}
-                          </Text>
-                        </YStack>
-                      </Card>
-
-                      <Card flex={1} padding="$3" backgroundColor="$green4" borderRadius="$3">
-                        <YStack alignItems="center">
-                          <Text fontSize="$6" fontWeight="bold" color="$green11">
-                            {drivingStats.totalDistance.toFixed(1)}
-                          </Text>
-                          <Text fontSize="$2" color="$green11" textAlign="center">
-                            km this week
-                          </Text>
-                        </YStack>
-                      </Card>
-
-                      <Card flex={1} padding="$3" backgroundColor="$orange4" borderRadius="$3">
-                        <YStack alignItems="center">
-                          <Text fontSize="$6" fontWeight="bold" color="$orange11">
-                            {Math.round(drivingStats.totalTime / 60)}h
-                          </Text>
-                          <Text fontSize="$2" color="$orange11" textAlign="center">
-                            {Math.round(drivingStats.totalTime % 60)}m total
-                          </Text>
-                        </YStack>
-                      </Card>
+                <Card bordered padding="$4" marginVertical="$2">
+                  <YStack gap="$3">
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <Text size="lg" weight="bold" color="$color">
+                        {t('profile.stats.title') || 'Driving Statistics'}
+                      </Text>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        backgroundColor="$blue9"
+                        onPress={fetchDrivingStats}
+                        disabled={statsLoading}
+                      >
+                        <Feather
+                          name={statsLoading ? 'loader' : 'refresh-cw'}
+                          size={14}
+                          color="white"
+                        />
+                        <Text color="white" ml="$1">
+                          {statsLoading ? 'Loading...' : 'Refresh'}
+                        </Text>
+                      </Button>
                     </XStack>
 
-                    {/* Weekly Distance Chart */}
-                    <YStack gap="$2">
-                      <Text fontSize="$4" fontWeight="600" color="$color">
-                        {t('profile.stats.weeklyDistance') || '📏 Weekly Distance'}
-                      </Text>
-                      <BarChart
-                        data={{
-                          labels: drivingStats.weeklyData.map((day) => day.day),
-                          datasets: [
-                            {
-                              data: drivingStats.weeklyData.map((day) => day.distance),
-                            },
-                          ],
-                        }}
-                        width={Dimensions.get('window').width - 80}
-                        height={120}
-                        yAxisLabel=""
-                        yAxisSuffix="km"
-                        chartConfig={{
-                          backgroundColor: '#1A1A1A',
-                          backgroundGradientFrom: '#1A1A1A',
-                          backgroundGradientTo: '#1A1A1A',
-                          decimalPlaces: 1,
-                          color: (opacity = 1) => `rgba(0, 230, 195, ${opacity})`,
-                          labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                          style: { borderRadius: 8 },
-                          propsForBackgroundLines: {
-                            strokeDasharray: '',
-                            stroke: '#333',
-                            strokeWidth: 1,
-                          },
-                        }}
-                        style={{
-                          marginVertical: 8,
-                          borderRadius: 8,
-                        }}
-                        showValuesOnTopOfBars
-                        fromZero
-                      />
-                      <Text fontSize="$2" color="$gray11" textAlign="center">
-                        Average: {drivingStats.averagePerDay.distance.toFixed(1)}{' '}
-                        {t('profile.stats.kmPerDay') || 'km per day'}
-                      </Text>
-                    </YStack>
+                    {drivingStats ? (
+                      <YStack gap="$4">
+                        {/* Summary Stats */}
+                        <XStack gap="$2" flexWrap="wrap">
+                          <Card flex={1} padding="$3" backgroundColor="$blue4" borderRadius="$3">
+                            <YStack alignItems="center">
+                              <Text fontSize="$6" fontWeight="bold" color="$blue11">
+                                {drivingStats.totalRoutes}
+                              </Text>
+                              <Text fontSize="$2" color="$blue11" textAlign="center">
+                                {t('profile.stats.totalRoutes') || 'Total Routes'}
+                              </Text>
+                            </YStack>
+                          </Card>
 
-                    {/* Weekly Time Chart */}
-                    <YStack gap="$2">
-                      <Text fontSize="$4" fontWeight="600" color="$color">
-                        {t('profile.stats.weeklyTime') || 'Weekly Time'}
-                      </Text>
-                      <BarChart
-                        data={{
-                          labels: drivingStats.weeklyData.map((day) => day.day),
-                          datasets: [
-                            {
-                              data: drivingStats.weeklyData.map((day) => day.time / 60), // Convert to hours
-                            },
-                          ],
-                        }}
-                        width={Dimensions.get('window').width - 80}
-                        height={120}
-                        yAxisLabel=""
-                        yAxisSuffix="h"
-                        chartConfig={{
-                          backgroundColor: '#1A1A1A',
-                          backgroundGradientFrom: '#1A1A1A',
-                          backgroundGradientTo: '#1A1A1A',
-                          decimalPlaces: 1,
-                          color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`, // Orange color
-                          labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                          style: { borderRadius: 8 },
-                          propsForBackgroundLines: {
-                            strokeDasharray: '',
-                            stroke: '#333',
-                            strokeWidth: 1,
-                          },
-                        }}
-                        style={{
-                          marginVertical: 8,
-                          borderRadius: 8,
-                        }}
-                        showValuesOnTopOfBars
-                        fromZero
-                      />
-                      <Text fontSize="$2" color="$gray11" textAlign="center">
-                        Average: {(drivingStats.averagePerDay.time / 60).toFixed(1)}{' '}
-                        {t('profile.stats.hoursPerDay') || 'hours per day'}
-                      </Text>
-                    </YStack>
+                          <Card flex={1} padding="$3" backgroundColor="$green4" borderRadius="$3">
+                            <YStack alignItems="center">
+                              <Text fontSize="$6" fontWeight="bold" color="$green11">
+                                {drivingStats.totalDistance.toFixed(1)}
+                              </Text>
+                              <Text fontSize="$2" color="$green11" textAlign="center">
+                                km this week
+                              </Text>
+                            </YStack>
+                          </Card>
 
-                    {/* Most Active Day */}
-                    <Card padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
-                      <XStack alignItems="center" justifyContent="center" gap="$2">
-                        <Feather name="calendar" size={16} color="#00E6C3" />
-                        <Text color="$color" fontWeight="500">
-                          {t('profile.stats.mostActiveDays') || 'Most Active Day'}:
+                          <Card flex={1} padding="$3" backgroundColor="$orange4" borderRadius="$3">
+                            <YStack alignItems="center">
+                              <Text fontSize="$6" fontWeight="bold" color="$orange11">
+                                {Math.round(drivingStats.totalTime / 60)}h
+                              </Text>
+                              <Text fontSize="$2" color="$orange11" textAlign="center">
+                                {Math.round(drivingStats.totalTime % 60)}m total
+                              </Text>
+                            </YStack>
+                          </Card>
+                        </XStack>
+
+                        {/* Weekly Distance Chart */}
+                        <YStack gap="$2">
+                          <Text fontSize="$4" fontWeight="600" color="$color">
+                            {t('profile.stats.weeklyDistance') || '📏 Weekly Distance'}
+                          </Text>
+                          <BarChart
+                            data={{
+                              labels: drivingStats.weeklyData.map((day) => day.day),
+                              datasets: [
+                                {
+                                  data: drivingStats.weeklyData.map((day) => day.distance),
+                                },
+                              ],
+                            }}
+                            width={Dimensions.get('window').width - 80}
+                            height={120}
+                            yAxisLabel=""
+                            yAxisSuffix="km"
+                            chartConfig={{
+                              backgroundColor: '#1A1A1A',
+                              backgroundGradientFrom: '#1A1A1A',
+                              backgroundGradientTo: '#1A1A1A',
+                              decimalPlaces: 1,
+                              color: (opacity = 1) => `rgba(0, 230, 195, ${opacity})`,
+                              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                              style: { borderRadius: 8 },
+                              propsForBackgroundLines: {
+                                strokeDasharray: '',
+                                stroke: '#333',
+                                strokeWidth: 1,
+                              },
+                            }}
+                            style={{
+                              marginVertical: 8,
+                              borderRadius: 8,
+                            }}
+                            showValuesOnTopOfBars
+                            fromZero
+                          />
+                          <Text fontSize="$2" color="$gray11" textAlign="center">
+                            Average: {drivingStats.averagePerDay.distance.toFixed(1)}{' '}
+                            {t('profile.stats.kmPerDay') || 'km per day'}
+                          </Text>
+                        </YStack>
+
+                        {/* Weekly Time Chart */}
+                        <YStack gap="$2">
+                          <Text fontSize="$4" fontWeight="600" color="$color">
+                            {t('profile.stats.weeklyTime') || 'Weekly Time'}
+                          </Text>
+                          <BarChart
+                            data={{
+                              labels: drivingStats.weeklyData.map((day) => day.day),
+                              datasets: [
+                                {
+                                  data: drivingStats.weeklyData.map((day) => day.time / 60), // Convert to hours
+                                },
+                              ],
+                            }}
+                            width={Dimensions.get('window').width - 80}
+                            height={120}
+                            yAxisLabel=""
+                            yAxisSuffix="h"
+                            chartConfig={{
+                              backgroundColor: '#1A1A1A',
+                              backgroundGradientFrom: '#1A1A1A',
+                              backgroundGradientTo: '#1A1A1A',
+                              decimalPlaces: 1,
+                              color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`, // Orange color
+                              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                              style: { borderRadius: 8 },
+                              propsForBackgroundLines: {
+                                strokeDasharray: '',
+                                stroke: '#333',
+                                strokeWidth: 1,
+                              },
+                            }}
+                            style={{
+                              marginVertical: 8,
+                              borderRadius: 8,
+                            }}
+                            showValuesOnTopOfBars
+                            fromZero
+                          />
+                          <Text fontSize="$2" color="$gray11" textAlign="center">
+                            Average: {(drivingStats.averagePerDay.time / 60).toFixed(1)}{' '}
+                            {t('profile.stats.hoursPerDay') || 'hours per day'}
+                          </Text>
+                        </YStack>
+
+                        {/* Most Active Day */}
+                        <Card padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                          <XStack alignItems="center" justifyContent="center" gap="$2">
+                            <Feather name="calendar" size={16} color="#00E6C3" />
+                            <Text color="$color" fontWeight="500">
+                              {t('profile.stats.mostActiveDays') || 'Most Active Day'}:
+                            </Text>
+                            <Text color="$color" fontWeight="bold">
+                              {drivingStats.mostActiveDay}
+                            </Text>
+                            <Text color="$gray11" fontSize="$3">
+                              (
+                              {drivingStats.weeklyData.find(
+                                (d) => d.day === drivingStats.mostActiveDay,
+                              )?.routes || 0}{' '}
+                              routes)
+                            </Text>
+                          </XStack>
+                        </Card>
+                      </YStack>
+                    ) : (
+                      <YStack alignItems="center" padding="$4" gap="$2">
+                        <Feather name="bar-chart-2" size={48} color="$gray11" />
+                        <Text color="$gray11" textAlign="center">
+                          No driving data available yet
                         </Text>
-                        <Text color="$color" fontWeight="bold">
-                          {drivingStats.mostActiveDay}
+                        <Text color="$gray11" fontSize="$3" textAlign="center">
+                          Start recording routes to see your statistics
                         </Text>
-                        <Text color="$gray11" fontSize="$3">
-                          (
-                          {drivingStats.weeklyData.find((d) => d.day === drivingStats.mostActiveDay)
-                            ?.routes || 0}{' '}
-                          routes)
-                        </Text>
-                      </XStack>
-                    </Card>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          backgroundColor="$blue9"
+                          onPress={fetchDrivingStats}
+                          marginTop="$2"
+                        >
+                          <Text color="white">{t('profile.checkForData') || 'Check for Data'}</Text>
+                        </Button>
+                      </YStack>
+                    )}
                   </YStack>
-                ) : (
-                  <YStack alignItems="center" padding="$4" gap="$2">
-                    <Feather name="bar-chart-2" size={48} color="$gray11" />
-                    <Text color="$gray11" textAlign="center">
-                      No driving data available yet
-                    </Text>
-                    <Text color="$gray11" fontSize="$3" textAlign="center">
-                      Start recording routes to see your statistics
-                    </Text>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      backgroundColor="$blue9"
-                      onPress={fetchDrivingStats}
-                      marginTop="$2"
-                    >
-                      <Text color="white">{t('profile.checkForData') || 'Check for Data'}</Text>
-                    </Button>
-                  </YStack>
-                )}
-              </YStack>
-            </Card>
+                </Card>
               </YStack>
             )}
-
           </YStack>
         </YStack>
       </YStack>
@@ -4018,89 +4224,105 @@ export function ProfileScreen() {
 
                   <YStack gap="$4" marginTop="$4">
                     {/* Delete Options */}
-                    <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                    <YStack
+                      gap="$2"
+                      padding="$3"
+                      backgroundColor="$backgroundHover"
+                      borderRadius="$3"
+                    >
                       <Text size="md" weight="semibold" color="$color">
                         {t('deleteAccount.deleteOptions') || 'What would you like to delete?'}
                       </Text>
-                      
+
                       <XStack ai="center" jc="space-between">
-                        <Text>{t('deleteAccount.deletePrivateRoutes') || 'Delete my private routes'}</Text>
-                        <Switch 
+                        <Text>
+                          {t('deleteAccount.deletePrivateRoutes') || 'Delete my private routes'}
+                        </Text>
+                        <Switch
                           size="$4"
-                          checked={optDeletePrivate} 
+                          checked={optDeletePrivate}
                           onCheckedChange={setOptDeletePrivate}
                           backgroundColor={optDeletePrivate ? '$blue8' : '$gray6'}
                         >
                           <Switch.Thumb />
                         </Switch>
                       </XStack>
-                      
+
                       <XStack ai="center" jc="space-between">
-                        <Text>{t('deleteAccount.deletePublicRoutes') || 'Delete my public routes'}</Text>
-                        <Switch 
+                        <Text>
+                          {t('deleteAccount.deletePublicRoutes') || 'Delete my public routes'}
+                        </Text>
+                        <Switch
                           size="$4"
-                          checked={optDeletePublic} 
+                          checked={optDeletePublic}
                           onCheckedChange={setOptDeletePublic}
                           backgroundColor={optDeletePublic ? '$blue8' : '$gray6'}
                         >
                           <Switch.Thumb />
                         </Switch>
                       </XStack>
-                      
+
                       <XStack ai="center" jc="space-between">
                         <Text>{t('deleteAccount.deleteEvents') || 'Delete my events'}</Text>
-                        <Switch 
+                        <Switch
                           size="$4"
-                          checked={optDeleteEvents} 
+                          checked={optDeleteEvents}
                           onCheckedChange={setOptDeleteEvents}
                           backgroundColor={optDeleteEvents ? '$blue8' : '$gray6'}
                         >
                           <Switch.Thumb />
                         </Switch>
                       </XStack>
-                      
+
                       <XStack ai="center" jc="space-between">
-                        <Text>{t('deleteAccount.deleteExercises') || 'Delete my user exercises'}</Text>
-                        <Switch 
+                        <Text>
+                          {t('deleteAccount.deleteExercises') || 'Delete my user exercises'}
+                        </Text>
+                        <Switch
                           size="$4"
-                          checked={optDeleteExercises} 
+                          checked={optDeleteExercises}
                           onCheckedChange={setOptDeleteExercises}
                           backgroundColor={optDeleteExercises ? '$blue8' : '$gray6'}
                         >
                           <Switch.Thumb />
                         </Switch>
                       </XStack>
-                      
+
                       <XStack ai="center" jc="space-between">
                         <Text>{t('deleteAccount.deleteReviews') || 'Delete my reviews'}</Text>
-                        <Switch 
+                        <Switch
                           size="$4"
-                          checked={optDeleteReviews} 
+                          checked={optDeleteReviews}
                           onCheckedChange={setOptDeleteReviews}
                           backgroundColor={optDeleteReviews ? '$blue8' : '$gray6'}
                         >
                           <Switch.Thumb />
                         </Switch>
                       </XStack>
-                      
                     </YStack>
 
                     {/* Transfer Option */}
-                    <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                    <YStack
+                      gap="$2"
+                      padding="$3"
+                      backgroundColor="$backgroundHover"
+                      borderRadius="$3"
+                    >
                       <Text size="md" weight="semibold" color="$color">
-                        {t('deleteAccount.transferToggle') || 'Transfer public content to system account'}
+                        {t('deleteAccount.transferToggle') ||
+                          'Transfer public content to system account'}
                       </Text>
                       <XStack ai="center" gap="$2">
-                        <Switch 
+                        <Switch
                           size="$4"
-                          checked={optTransferPublic} 
+                          checked={optTransferPublic}
                           onCheckedChange={setOptTransferPublic}
                           backgroundColor={optTransferPublic ? '$blue8' : '$gray6'}
                         >
                           <Switch.Thumb />
                         </Switch>
                         <Text size="md" color="$color">
-                          {optTransferPublic ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                          {optTransferPublic ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
                         </Text>
                       </XStack>
                       <Text color="$gray11" fontSize="$2">
@@ -4111,19 +4333,15 @@ export function ProfileScreen() {
                   </YStack>
 
                   <YStack gap="$2" marginTop="$4">
-                    <Button 
+                    <Button
                       variant="primary"
                       backgroundColor="$red9"
-                      size="lg" 
+                      size="lg"
                       onPress={handleConfirmDeleteAccount}
                     >
                       <Text color="white">{t('deleteAccount.confirm') || 'Delete my account'}</Text>
                     </Button>
-                    <Button
-                      variant="secondary"
-                      size="lg"
-                      onPress={hideDeleteSheet}
-                    >
+                    <Button variant="secondary" size="lg" onPress={hideDeleteSheet}>
                       {t('common.cancel') || 'Cancel'}
                     </Button>
                   </YStack>
@@ -4177,11 +4395,13 @@ export function ProfileScreen() {
                           role_confirmed: true,
                         });
                       }}
-                      title={role === 'student'
-                        ? t('profile.roles.student')
-                        : role === 'instructor'
-                          ? t('profile.roles.instructor')
-                          : t('profile.roles.school')}
+                      title={
+                        role === 'student'
+                          ? t('profile.roles.student')
+                          : role === 'instructor'
+                            ? t('profile.roles.instructor')
+                            : t('profile.roles.school')
+                      }
                       isSelected={formData.role === role}
                     />
                   ))}
@@ -4237,11 +4457,13 @@ export function ProfileScreen() {
                           experience_level: level as ExperienceLevel,
                         });
                       }}
-                      title={level === 'beginner'
-                        ? t('profile.experienceLevels.beginner')
-                        : level === 'intermediate'
-                          ? t('profile.experienceLevels.intermediate')
-                          : t('profile.experienceLevels.advanced')}
+                      title={
+                        level === 'beginner'
+                          ? t('profile.experienceLevels.beginner')
+                          : level === 'intermediate'
+                            ? t('profile.experienceLevels.intermediate')
+                            : t('profile.experienceLevels.advanced')
+                      }
                       isSelected={formData.experience_level === level}
                     />
                   ))}
@@ -4504,7 +4726,7 @@ export function ProfileScreen() {
                 ? 'Search existing users or enter email addresses to invite new supervisors'
                 : 'Search existing users or enter email addresses to invite new students'}
             </Text>
-            
+
             {/* Toggle between search and email invite */}
             <XStack gap="$2" justifyContent="center">
               <Button
@@ -4512,7 +4734,9 @@ export function ProfileScreen() {
                 variant={inviteEmails.length === 0 ? 'primary' : 'secondary'}
                 onPress={() => setInviteEmails([])}
               >
-                <Text color={inviteEmails.length === 0 ? 'white' : '$color'}>{t('profile.searchExisting') || 'Search Existing'}</Text>
+                <Text color={inviteEmails.length === 0 ? 'white' : '$color'}>
+                  {t('profile.searchExisting') || 'Search Existing'}
+                </Text>
               </Button>
               <Button
                 size="sm"
@@ -4523,7 +4747,9 @@ export function ProfileScreen() {
                   setSearchResults([]);
                 }}
               >
-                <Text color={inviteEmails.length > 0 ? 'white' : '$color'}>{t('profile.inviteNew') || 'Invite New'}</Text>
+                <Text color={inviteEmails.length > 0 ? 'white' : '$color'}>
+                  {t('profile.inviteNew') || 'Invite New'}
+                </Text>
               </Button>
               <Button
                 size="sm"
@@ -4533,18 +4759,25 @@ export function ProfileScreen() {
                   setShowPendingInvites(!showPendingInvites);
                 }}
               >
-                <Text color="$color">{t('profile.pending') || 'Pending'} ({pendingInvitations.length})</Text>
+                <Text color="$color">
+                  {t('profile.pending') || 'Pending'} ({pendingInvitations.length})
+                </Text>
               </Button>
             </XStack>
 
             {/* Email invite mode */}
             {inviteEmails.length > 0 ? (
               <YStack gap="$2">
-                <Text size="sm" color="$gray11">{t('profile.enterEmailsInstructions') || 'Enter email addresses and passwords (leave password blank for auto-generated)'}</Text>
-                
+                <Text size="sm" color="$gray11">
+                  {t('profile.enterEmailsInstructions') ||
+                    'Enter email addresses and passwords (leave password blank for auto-generated)'}
+                </Text>
+
                 {/* Custom message field */}
                 <YStack gap="$1">
-                  <Text size="sm" color="$gray11">{t('profile.personalMessage') || 'Optional personal message:'}</Text>
+                  <Text size="sm" color="$gray11">
+                    {t('profile.personalMessage') || 'Optional personal message:'}
+                  </Text>
                   <Input
                     value={inviteCustomMessage}
                     onChangeText={setInviteCustomMessage}
@@ -4611,9 +4844,11 @@ export function ProfileScreen() {
                     variant="primary"
                     backgroundColor="$green9"
                     onPress={() => handleBulkInvite()}
-                    disabled={!inviteEmails.some(e => e.includes('@'))}
+                    disabled={!inviteEmails.some((e) => e.includes('@'))}
                   >
-                    <Text color="white">Send {inviteEmails.filter(e => e.includes('@')).length} Invitation(s)</Text>
+                    <Text color="white">
+                      Send {inviteEmails.filter((e) => e.includes('@')).length} Invitation(s)
+                    </Text>
                   </Button>
                 </XStack>
               </YStack>
@@ -4640,14 +4875,14 @@ export function ProfileScreen() {
               </XStack>
             )}
 
-
             <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={true}>
               <YStack gap="$2">
                 {inviteEmails.length > 0 ? (
                   /* Email invite preview */
                   <Card padding="$4">
                     <Text textAlign="center" color="$gray11" size="sm">
-                      Ready to invite {inviteEmails.filter(e => e.includes('@')).length} new {inviteType}(s)
+                      Ready to invite {inviteEmails.filter((e) => e.includes('@')).length} new{' '}
+                      {inviteType}(s)
                     </Text>
                   </Card>
                 ) : searchLoading ? (
@@ -4812,7 +5047,9 @@ export function ProfileScreen() {
         userRole={getUserRole()}
         supervisedStudents={supervisedStudents}
         onStudentSelect={handleStudentSelection}
-        availableSupervisors={getUserRole() === 'student' ? availableSupervisors : availableStudents}
+        availableSupervisors={
+          getUserRole() === 'student' ? availableSupervisors : availableStudents
+        }
         selectedSupervisorIds={selectedSupervisorIds}
         onSupervisorSelect={setSelectedSupervisorIds}
         onAddSupervisors={addSupervisors}
@@ -4829,8 +5066,6 @@ export function ProfileScreen() {
         }}
       />
 
-
-
       {/* Delete Account Dialog */}
       <Modal
         visible={showDeleteDialog}
@@ -4838,10 +5073,19 @@ export function ProfileScreen() {
         animationType="slide"
         onRequestClose={() => setShowDeleteDialog(false)}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 16 }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
           <Card padding="$4" backgroundColor="$background" borderRadius="$4">
             <YStack gap="$3">
-              <Text fontSize="$6" fontWeight="bold">{t('deleteAccount.title') || 'Delete account'}</Text>
+              <Text fontSize="$6" fontWeight="bold">
+                {t('deleteAccount.title') || 'Delete account'}
+              </Text>
               <Text>
                 {t('deleteAccount.description') ||
                   'Deleting your account will anonymize your profile. Your content remains unless you choose to remove it below.'}
@@ -4869,7 +5113,9 @@ export function ProfileScreen() {
               </XStack>
 
               <XStack ai="center" jc="space-between">
-                <Text>{t('deleteAccount.transferToggle') || 'Transfer public content to system account'}</Text>
+                <Text>
+                  {t('deleteAccount.transferToggle') || 'Transfer public content to system account'}
+                </Text>
                 <Switch checked={optTransferPublic} onCheckedChange={setOptTransferPublic} />
               </XStack>
               <Text color="$gray11">
@@ -4943,25 +5189,23 @@ export function ProfileScreen() {
                 <Text size="xl" weight="bold" color="$color" textAlign="center">
                   {t('profile.location.selectLocation') || 'Select Your Location'}
                 </Text>
-                
+
                 {/* Detect My Location Button - always allow override */}
-                <Button 
-                  variant="secondary" 
-                  size="lg" 
+                <Button
+                  variant="secondary"
+                  size="lg"
                   onPress={detectLocation}
                   disabled={locationLoading}
                   marginBottom="$3"
                 >
-                  {locationLoading ? (
-                    `${(t('profile.location.detectingLocation') || 'Detecting Location').replace('...', '')}${'.'.repeat(dotsCount)}`
-                  ) : (
-                    t('profile.location.detectLocation') || 'Detect My Location'
-                  )}
+                  {locationLoading
+                    ? `${(t('profile.location.detectingLocation') || 'Detecting Location').replace('...', '')}${'.'.repeat(dotsCount)}`
+                    : t('profile.location.detectLocation') || 'Detect My Location'}
                 </Button>
-                
+
                 {/* Clear location chip - Only show if location is set */}
                 {formData.location && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={async () => {
                       try {
                         // Immediately clear form data
@@ -4971,7 +5215,7 @@ export function ProfileScreen() {
                           location_lat: null,
                           location_lng: null,
                         }));
-                        
+
                         // Immediately clear from database profile (all location fields)
                         if (user) {
                           await updateProfile({
@@ -4980,7 +5224,7 @@ export function ProfileScreen() {
                             location_lng: null,
                           });
                         }
-                        
+
                         // Clear from LocationContext
                         await setUserLocation({
                           name: '',
@@ -4989,22 +5233,22 @@ export function ProfileScreen() {
                           source: 'profile',
                           timestamp: new Date().toISOString(),
                         });
-                        
+
                         // Clear search results and close sheet
                         setLocationSearchResults([]);
                         hideLocationSheet();
-                        
+
                         showToast({
                           title: t('common.success') || 'Success',
                           message: t('profile.location.locationCleared') || 'Location cleared',
-                          type: 'success'
+                          type: 'success',
                         });
                       } catch (error) {
                         console.error('Error clearing location:', error);
                         showToast({
                           title: t('common.error') || 'Error',
                           message: 'Failed to clear location',
-                          type: 'error'
+                          type: 'error',
                         });
                       }
                     }}
@@ -5024,13 +5268,16 @@ export function ProfileScreen() {
                     </Text>
                   </TouchableOpacity>
                 )}
-                
+
                 <FormField
-                  placeholder={t('profile.location.searchPlaceholder') || "Search cities... (try 'Stockholm', 'New York', etc.)"}
+                  placeholder={
+                    t('profile.location.searchPlaceholder') ||
+                    "Search cities... (try 'Stockholm', 'New York', etc.)"
+                  }
                   value={formData.location}
                   onChangeText={handleLocationSearch}
                 />
-                
+
                 <ScrollView style={{ maxHeight: 300 }}>
                   <YStack gap="$1">
                     {locationSearchResults.length === 0 && (
@@ -5038,12 +5285,16 @@ export function ProfileScreen() {
                         No locations found. Keep typing to search worldwide.
                       </Text>
                     )}
-                    
+
                     {locationSearchResults.map((locationData, index) => {
-                      const locationName = [locationData.city, locationData.region, locationData.country]
+                      const locationName = [
+                        locationData.city,
+                        locationData.region,
+                        locationData.country,
+                      ]
                         .filter(Boolean)
                         .join(', ');
-                      
+
                       return (
                         <TouchableOpacity
                           key={index}
@@ -5051,27 +5302,32 @@ export function ProfileScreen() {
                           style={[
                             styles.sheetOption,
                             {
-                              backgroundColor: formData.location === locationName ? 'rgba(52, 211, 153, 0.1)' : 'transparent',
+                              backgroundColor:
+                                formData.location === locationName
+                                  ? 'rgba(52, 211, 153, 0.1)'
+                                  : 'transparent',
                               borderWidth: formData.location === locationName ? 1 : 0,
-                              borderColor: formData.location === locationName ? '#34D399' : 'transparent',
-                            }
+                              borderColor:
+                                formData.location === locationName ? '#34D399' : 'transparent',
+                            },
                           ]}
                         >
                           <XStack gap={12} padding="$2" alignItems="center">
-                            <Feather 
-                              name="map-pin" 
-                              size={16} 
-                              color={formData.location === locationName ? '#34D399' : '#666'} 
+                            <Feather
+                              name="map-pin"
+                              size={16}
+                              color={formData.location === locationName ? '#34D399' : '#666'}
                             />
                             <YStack flex={1}>
-                              <Text 
-                                color={formData.location === locationName ? '#34D399' : '$color'} 
+                              <Text
+                                color={formData.location === locationName ? '#34D399' : '$color'}
                                 size="lg"
                               >
                                 {locationName}
                               </Text>
                               <Text size="sm" color="$gray11">
-                                {locationData.coords?.latitude.toFixed(4)}, {locationData.coords?.longitude.toFixed(4)}
+                                {locationData.coords?.latitude.toFixed(4)},{' '}
+                                {locationData.coords?.longitude.toFixed(4)}
                               </Text>
                             </YStack>
                             {formData.location === locationName && (
@@ -5124,7 +5380,7 @@ export function ProfileScreen() {
                 <Text size="xl" weight="bold" color="$color" textAlign="center">
                   Change Avatar
                 </Text>
-                
+
                 <YStack gap="$1">
                   <TouchableOpacity
                     onPress={() => {
@@ -5212,14 +5468,15 @@ export function ProfileScreen() {
                 <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
                   Developer Tools
                 </Text>
-                
+
                 <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true}>
                   <YStack gap="$3">
-                    
                     {/* Onboarding & Tour Reset Section */}
                     <YStack gap="$2">
-                      <Text size="lg" weight="bold" color="$color">Reset Onboarding & Tours</Text>
-                      
+                      <Text size="lg" weight="bold" color="$color">
+                        Reset Onboarding & Tours
+                      </Text>
+
                       <Button
                         onPress={() => {
                           hideDeveloperSheet();
@@ -5236,26 +5493,29 @@ export function ProfileScreen() {
                                   tour_content_hash: null,
                                   license_plan_completed: false,
                                   role_confirmed: false,
-                                  onboarding_completed: false
+                                  onboarding_completed: false,
                                 })
                                 .eq('id', user.id);
-                              
+
                               if (error) throw error;
-                              
+
                               // Also clear AsyncStorage
-                              const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                              const AsyncStorage = (
+                                await import('@react-native-async-storage/async-storage')
+                              ).default;
                               await AsyncStorage.multiRemove([
                                 'interactive_onboarding',
                                 'vromm_onboarding',
-                                'tour_completed'
+                                'tour_completed',
                               ]);
-                              
+
                               showToast({
                                 title: '✅ Reset Complete',
-                                message: 'All onboarding and tour flags have been reset. Showing onboarding now.',
-                                type: 'success'
+                                message:
+                                  'All onboarding and tour flags have been reset. Showing onboarding now.',
+                                type: 'success',
                               });
-                              
+
                               // Show the onboarding modal
                               setShowOnboardingModal(true);
                             } catch (error) {
@@ -5263,7 +5523,7 @@ export function ProfileScreen() {
                               showToast({
                                 title: '❌ Error',
                                 message: 'Failed to reset flags: ' + (error as Error).message,
-                                type: 'error'
+                                type: 'error',
                               });
                             }
                           }, 300);
@@ -5281,8 +5541,9 @@ export function ProfileScreen() {
                             resetTour();
                             showToast({
                               title: 'Success',
-                              message: 'Tour has been reset. Restart the app to see tour badges again.',
-                              type: 'success'
+                              message:
+                                'Tour has been reset. Restart the app to see tour badges again.',
+                              type: 'success',
                             });
                           }, 300);
                         }}
@@ -5306,8 +5567,10 @@ export function ProfileScreen() {
 
                     {/* Progress & Data Reset Section */}
                     <YStack gap="$2">
-                      <Text size="lg" weight="bold" color="$color">Reset User Progress & Data</Text>
-                      
+                      <Text size="lg" weight="bold" color="$color">
+                        Reset User Progress & Data
+                      </Text>
+
                       <Button
                         onPress={() => {
                           hideDeveloperSheet();
@@ -5327,15 +5590,21 @@ export function ProfileScreen() {
                                         .from('learning_path_exercise_completions')
                                         .delete()
                                         .eq('user_id', user.id);
-                                      
+
                                       if (error) throw error;
-                                      Alert.alert('✅ Reset Complete', 'All learning progress has been reset.');
+                                      Alert.alert(
+                                        '✅ Reset Complete',
+                                        'All learning progress has been reset.',
+                                      );
                                     } catch (error) {
-                                      Alert.alert('❌ Error', 'Failed to reset progress: ' + (error as Error).message);
+                                      Alert.alert(
+                                        '❌ Error',
+                                        'Failed to reset progress: ' + (error as Error).message,
+                                      );
                                     }
-                                  }
-                                }
-                              ]
+                                  },
+                                },
+                              ],
                             );
                           }, 300);
                         }}
@@ -5362,18 +5631,27 @@ export function ProfileScreen() {
                                     try {
                                       const promises = [
                                         supabase.from('routes').delete().eq('creator_id', user.id),
-                                        supabase.from('saved_routes').delete().eq('user_id', user.id),
-                                        supabase.from('driven_routes').delete().eq('user_id', user.id)
+                                        supabase
+                                          .from('saved_routes')
+                                          .delete()
+                                          .eq('user_id', user.id),
+                                        supabase
+                                          .from('driven_routes')
+                                          .delete()
+                                          .eq('user_id', user.id),
                                       ];
-                                      
+
                                       await Promise.all(promises);
                                       Alert.alert('Reset Complete', 'All routes have been reset.');
                                     } catch (error) {
-                                      Alert.alert('Error', 'Failed to reset routes: ' + (error as Error).message);
+                                      Alert.alert(
+                                        'Error',
+                                        'Failed to reset routes: ' + (error as Error).message,
+                                      );
                                     }
-                                  }
-                                }
-                              ]
+                                  },
+                                },
+                              ],
                             );
                           }, 300);
                         }}
@@ -5400,17 +5678,27 @@ export function ProfileScreen() {
                                     try {
                                       const promises = [
                                         supabase.from('comments').delete().eq('user_id', user.id),
-                                        supabase.from('relationship_reviews').delete().eq('reviewer_id', user.id)
+                                        supabase
+                                          .from('relationship_reviews')
+                                          .delete()
+                                          .eq('reviewer_id', user.id),
                                       ];
-                                      
+
                                       await Promise.all(promises);
-                                      Alert.alert('Reset Complete', 'All comments and reviews have been reset.');
+                                      Alert.alert(
+                                        'Reset Complete',
+                                        'All comments and reviews have been reset.',
+                                      );
                                     } catch (error) {
-                                      Alert.alert('Error', 'Failed to reset comments/reviews: ' + (error as Error).message);
+                                      Alert.alert(
+                                        'Error',
+                                        'Failed to reset comments/reviews: ' +
+                                          (error as Error).message,
+                                      );
                                     }
-                                  }
-                                }
-                              ]
+                                  },
+                                },
+                              ],
                             );
                           }, 300);
                         }}
@@ -5437,17 +5725,27 @@ export function ProfileScreen() {
                                     try {
                                       const promises = [
                                         supabase.from('events').delete().eq('creator_id', user.id),
-                                        supabase.from('chat_messages').delete().eq('sender_id', user.id)
+                                        supabase
+                                          .from('chat_messages')
+                                          .delete()
+                                          .eq('sender_id', user.id),
                                       ];
-                                      
+
                                       await Promise.all(promises);
-                                      Alert.alert('Reset Complete', 'All events and messages have been reset.');
+                                      Alert.alert(
+                                        'Reset Complete',
+                                        'All events and messages have been reset.',
+                                      );
                                     } catch (error) {
-                                      Alert.alert('Error', 'Failed to reset events/messages: ' + (error as Error).message);
+                                      Alert.alert(
+                                        'Error',
+                                        'Failed to reset events/messages: ' +
+                                          (error as Error).message,
+                                      );
                                     }
-                                  }
-                                }
-                              ]
+                                  },
+                                },
+                              ],
                             );
                           }, 300);
                         }}
@@ -5460,12 +5758,24 @@ export function ProfileScreen() {
 
                     {/* Developer Mode Settings */}
                     <YStack gap="$2">
-                      <Text size="lg" weight="bold" color="$color">Developer Mode Settings</Text>
-                      
-                      <XStack justifyContent="space-between" alignItems="center" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                      <Text size="lg" weight="bold" color="$color">
+                        Developer Mode Settings
+                      </Text>
+
+                      <XStack
+                        justifyContent="space-between"
+                        alignItems="center"
+                        padding="$3"
+                        backgroundColor="$backgroundHover"
+                        borderRadius="$3"
+                      >
                         <YStack flex={1}>
-                          <Text color="$color" fontWeight="500">Developer Mode</Text>
-                          <Text color="$gray11" fontSize="$3">Show developer tools and testing features</Text>
+                          <Text color="$color" fontWeight="500">
+                            Developer Mode
+                          </Text>
+                          <Text color="$gray11" fontSize="$3">
+                            Show developer tools and testing features
+                          </Text>
                         </YStack>
                         <Switch
                           size="$4"
@@ -5478,17 +5788,17 @@ export function ProfileScreen() {
                                 .from('profiles')
                                 .update({ developer_mode: checked })
                                 .eq('id', user.id);
-                              
+
                               if (error) throw error;
-                              
+
                               // Refresh profile to update UI
                               await refreshProfile();
-                              
+
                               Alert.alert(
                                 checked ? 'Developer Mode Enabled' : 'Developer Mode Disabled',
-                                checked 
+                                checked
                                   ? 'Developer tools are now available in your profile'
-                                  : 'Developer tools have been hidden from your profile'
+                                  : 'Developer tools have been hidden from your profile',
                               );
                             } catch (error) {
                               console.error('Error updating developer mode:', error);
@@ -5503,8 +5813,10 @@ export function ProfileScreen() {
 
                     {/* Developer Tools Section */}
                     <YStack gap="$2">
-                      <Text size="lg" weight="bold" color="$color">Developer Tools</Text>
-                      
+                      <Text size="lg" weight="bold" color="$color">
+                        Developer Tools
+                      </Text>
+
                       <Button
                         onPress={() => {
                           hideDeveloperSheet();
@@ -5522,7 +5834,10 @@ export function ProfileScreen() {
                           setTimeout(async () => {
                             console.log('Testing promotional modal...');
                             checkForPromotionalContent();
-                            Alert.alert('Test', 'Promotional modal trigger sent - check console and UI.');
+                            Alert.alert(
+                              'Test',
+                              'Promotional modal trigger sent - check console and UI.',
+                            );
                           }, 300);
                         }}
                         variant="outlined"
@@ -5580,22 +5895,25 @@ export function ProfileScreen() {
                                     pointer-events: none;
                                   }
                                 `;
-                                
+
                                 const existing = document.getElementById('debug-borders');
                                 if (existing) {
                                   existing.remove();
                                   Alert.alert('Debug Mode', 'Element borders disabled');
                                 } else {
                                   document.head.appendChild(style);
-                                  Alert.alert('Debug Mode', 'Element borders enabled - all elements now have red borders');
+                                  Alert.alert(
+                                    'Debug Mode',
+                                    'Element borders enabled - all elements now have red borders',
+                                  );
                                 }
                               } else {
                                 // React Native debug mode - toggle state
                                 setDebugMode(!debugMode);
                                 Alert.alert(
                                   'Debug Mode',
-                                  debugMode 
-                                    ? 'Visual debugging disabled' 
+                                  debugMode
+                                    ? 'Visual debugging disabled'
                                     : 'Visual debugging enabled - components now show borders and dimensions',
                                   [
                                     { text: 'OK' },
@@ -5603,10 +5921,13 @@ export function ProfileScreen() {
                                       text: 'Show Performance',
                                       onPress: () => {
                                         const summary = getPerformanceSummary();
-                                        Alert.alert('Performance Summary', JSON.stringify(summary, null, 2));
-                                      }
-                                    }
-                                  ]
+                                        Alert.alert(
+                                          'Performance Summary',
+                                          JSON.stringify(summary, null, 2),
+                                        );
+                                      },
+                                    },
+                                  ],
                                 );
                               }
                             } catch (error) {
@@ -5619,7 +5940,7 @@ export function ProfileScreen() {
                       >
                         Toggle Debug Mode {debugMode ? '(ON)' : '(OFF)'}
                       </Button>
-                      
+
                       <Button
                         onPress={() => {
                           hideDeveloperSheet();
@@ -5645,38 +5966,62 @@ export function ProfileScreen() {
                                           tour_content_hash: null,
                                           license_plan_completed: false,
                                           role_confirmed: false,
-                                          onboarding_completed: false
+                                          onboarding_completed: false,
                                         })
                                         .eq('id', user.id);
-                                      
+
                                       const promises = [
-                                        supabase.from('learning_path_exercise_completions').delete().eq('user_id', user.id),
+                                        supabase
+                                          .from('learning_path_exercise_completions')
+                                          .delete()
+                                          .eq('user_id', user.id),
                                         supabase.from('routes').delete().eq('creator_id', user.id),
-                                        supabase.from('saved_routes').delete().eq('user_id', user.id),
-                                        supabase.from('driven_routes').delete().eq('user_id', user.id),
+                                        supabase
+                                          .from('saved_routes')
+                                          .delete()
+                                          .eq('user_id', user.id),
+                                        supabase
+                                          .from('driven_routes')
+                                          .delete()
+                                          .eq('user_id', user.id),
                                         supabase.from('comments').delete().eq('user_id', user.id),
-                                        supabase.from('relationship_reviews').delete().eq('reviewer_id', user.id),
+                                        supabase
+                                          .from('relationship_reviews')
+                                          .delete()
+                                          .eq('reviewer_id', user.id),
                                         supabase.from('events').delete().eq('creator_id', user.id),
-                                        supabase.from('chat_messages').delete().eq('sender_id', user.id)
+                                        supabase
+                                          .from('chat_messages')
+                                          .delete()
+                                          .eq('sender_id', user.id),
                                       ];
-                                      
+
                                       await Promise.all(promises);
-                                      
+
                                       // Clear AsyncStorage
-                                      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                                      const AsyncStorage = (
+                                        await import('@react-native-async-storage/async-storage')
+                                      ).default;
                                       await AsyncStorage.multiRemove([
                                         'interactive_onboarding',
                                         'vromm_onboarding',
-                                        'tour_completed'
+                                        'tour_completed',
                                       ]);
-                                      
-                                      Alert.alert('Nuclear Reset Complete', 'Everything has been reset. Restart the app for a fresh start.');
+
+                                      Alert.alert(
+                                        'Nuclear Reset Complete',
+                                        'Everything has been reset. Restart the app for a fresh start.',
+                                      );
                                     } catch (error) {
-                                      Alert.alert('Error', 'Failed to complete nuclear reset: ' + (error as Error).message);
+                                      Alert.alert(
+                                        'Error',
+                                        'Failed to complete nuclear reset: ' +
+                                          (error as Error).message,
+                                      );
                                     }
-                                  }
-                                }
-                              ]
+                                  },
+                                },
+                              ],
                             );
                           }, 300);
                         }}
@@ -5728,7 +6073,7 @@ export function ProfileScreen() {
                 <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
                   Notification Settings
                 </Text>
-                
+
                 <ScrollView style={{ flex: 1 }}>
                   <YStack gap="$4">
                     <XStack justifyContent="space-between" alignItems="center">
@@ -5943,142 +6288,160 @@ export function ProfileScreen() {
                 <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
                   Theme Settings
                 </Text>
-                
+
                 <YStack gap="$4" flex={1}>
-                    {/* System Default - First and Default Option */}
-                    <XStack 
-                      justifyContent="space-between" 
-                      alignItems="center"
-                      backgroundColor={(!profile?.theme_preference || profile?.theme_preference === 'system') ? '$blue4' : undefined}
-                      padding="$3"
-                      borderRadius="$3"
-                    >
-                      <YStack flex={1}>
-                        <Text 
-                          color="$color" 
-                          fontWeight={(!profile?.theme_preference || profile?.theme_preference === 'system') ? '700' : '500'}
-                        >
-                          {t('profile.theme.system') || 'System Default'}
-                        </Text>
-                        <Text color="$gray11" fontSize="$3">
-                          {t('profile.theme.systemDescription') || 'Follow your device\'s theme setting'}
-                        </Text>
-                      </YStack>
-                      <RadioButton
-                        selected={!profile?.theme_preference || profile?.theme_preference === 'system'}
-                        onPress={async () => {
-                          try {
-                            console.log('🎨 Theme switching to: system');
-                            await updateProfile({ theme_preference: 'system' });
-                            console.log('🎨 Theme updated successfully to system');
-                            showToast({
-                              title: 'Theme Updated',
-                              message: 'Theme updated to system default',
-                              type: 'success'
-                            });
-                            hideThemeSheet();
-                          } catch (error) {
-                            console.error('🎨 Theme update failed:', error);
-                            showToast({
-  title: 'Error',
-  message: 'Failed to update theme',
-  type: 'error'
-});
-                          }
-                        }}
-                      />
-                    </XStack>
+                  {/* System Default - First and Default Option */}
+                  <XStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    backgroundColor={
+                      !profile?.theme_preference || profile?.theme_preference === 'system'
+                        ? '$blue4'
+                        : undefined
+                    }
+                    padding="$3"
+                    borderRadius="$3"
+                  >
+                    <YStack flex={1}>
+                      <Text
+                        color="$color"
+                        fontWeight={
+                          !profile?.theme_preference || profile?.theme_preference === 'system'
+                            ? '700'
+                            : '500'
+                        }
+                      >
+                        {t('profile.theme.system') || 'System Default'}
+                      </Text>
+                      <Text color="$gray11" fontSize="$3">
+                        {t('profile.theme.systemDescription') ||
+                          "Follow your device's theme setting"}
+                      </Text>
+                    </YStack>
+                    <RadioButton
+                      selected={
+                        !profile?.theme_preference || profile?.theme_preference === 'system'
+                      }
+                      onPress={async () => {
+                        try {
+                          console.log('🎨 Theme switching to: system');
+                          await updateProfile({ theme_preference: 'system' });
+                          console.log('🎨 Theme updated successfully to system');
+                          showToast({
+                            title: 'Theme Updated',
+                            message: 'Theme updated to system default',
+                            type: 'success',
+                          });
+                          hideThemeSheet();
+                        } catch (error) {
+                          console.error('🎨 Theme update failed:', error);
+                          showToast({
+                            title: 'Error',
+                            message: 'Failed to update theme',
+                            type: 'error',
+                          });
+                        }
+                      }}
+                    />
+                  </XStack>
 
-                    <XStack 
-                      justifyContent="space-between" 
-                      alignItems="center"
-                      backgroundColor={profile?.theme_preference === 'light' ? '$blue4' : undefined}
-                      padding="$3"
-                      borderRadius="$3"
-                    >
-                      <YStack flex={1}>
-                        <Text 
-                          color="$color" 
-                          fontWeight={profile?.theme_preference === 'light' ? '700' : '500'}
-                        >
-                          {t('profile.theme.light') || 'Light Mode'}
-                        </Text>
-                        <Text color="$gray11" fontSize="$3">
-                          {t('profile.theme.lightDescription') || 'Clean, bright interface for daytime use'}
-                        </Text>
-                      </YStack>
-                      <RadioButton
-                        selected={profile?.theme_preference === 'light'}
-                        onPress={async () => {
-                          try {
-                            console.log('🎨 Theme switching to: light');
-                            console.log('🎨 Before update - profile theme:', profile?.theme_preference);
-                            await updateProfile({ theme_preference: 'light' });
-                            console.log('🎨 After update - profile theme:', profile?.theme_preference);
-                            console.log('🎨 Theme updated successfully to light');
-                            console.log('🎨 Current color scheme:', systemColorScheme);
-                            showToast({
-  title: 'Theme Updated',
-  message: 'Theme updated to light mode',
-  type: 'success'
-});
-                            hideThemeSheet();
-                          } catch (error) {
-                            console.error('🎨 Theme update failed:', error);
-                            showToast({
-  title: 'Error',
-  message: 'Failed to update theme',
-  type: 'error'
-});
-                          }
-                        }}
-                      />
-                    </XStack>
+                  <XStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    backgroundColor={profile?.theme_preference === 'light' ? '$blue4' : undefined}
+                    padding="$3"
+                    borderRadius="$3"
+                  >
+                    <YStack flex={1}>
+                      <Text
+                        color="$color"
+                        fontWeight={profile?.theme_preference === 'light' ? '700' : '500'}
+                      >
+                        {t('profile.theme.light') || 'Light Mode'}
+                      </Text>
+                      <Text color="$gray11" fontSize="$3">
+                        {t('profile.theme.lightDescription') ||
+                          'Clean, bright interface for daytime use'}
+                      </Text>
+                    </YStack>
+                    <RadioButton
+                      selected={profile?.theme_preference === 'light'}
+                      onPress={async () => {
+                        try {
+                          console.log('🎨 Theme switching to: light');
+                          console.log(
+                            '🎨 Before update - profile theme:',
+                            profile?.theme_preference,
+                          );
+                          await updateProfile({ theme_preference: 'light' });
+                          console.log(
+                            '🎨 After update - profile theme:',
+                            profile?.theme_preference,
+                          );
+                          console.log('🎨 Theme updated successfully to light');
+                          console.log('🎨 Current color scheme:', systemColorScheme);
+                          showToast({
+                            title: 'Theme Updated',
+                            message: 'Theme updated to light mode',
+                            type: 'success',
+                          });
+                          hideThemeSheet();
+                        } catch (error) {
+                          console.error('🎨 Theme update failed:', error);
+                          showToast({
+                            title: 'Error',
+                            message: 'Failed to update theme',
+                            type: 'error',
+                          });
+                        }
+                      }}
+                    />
+                  </XStack>
 
-                    <XStack 
-                      justifyContent="space-between" 
-                      alignItems="center"
-                      backgroundColor={profile?.theme_preference === 'dark' ? '$blue4' : undefined}
-                      padding="$3"
-                      borderRadius="$3"
-                    >
-                      <YStack flex={1}>
-                        <Text 
-                          color="$color" 
-                          fontWeight={profile?.theme_preference === 'dark' ? '700' : '500'}
-                        >
-                          {t('profile.theme.dark') || 'Dark Mode'}
-                        </Text>
-                        <Text color="$gray11" fontSize="$3">
-                          {t('profile.theme.darkDescription') || 'Easy on the eyes for low-light environments'}
-                        </Text>
-                      </YStack>
-                      <RadioButton
-                        selected={profile?.theme_preference === 'dark'}
-                        onPress={async () => {
-                          try {
-                            console.log('🎨 Theme switching to: dark');
-                            await updateProfile({ theme_preference: 'dark' });
-                            console.log('🎨 Theme updated successfully to dark');
-                            showToast({
-  title: 'Theme Updated',
-  message: 'Theme updated to dark mode',
-  type: 'success'
-});
-                            hideThemeSheet();
-                          } catch (error) {
-                            console.error('🎨 Theme update failed:', error);
-                            showToast({
-  title: 'Error',
-  message: 'Failed to update theme',
-  type: 'error'
-});
-                          }
-                        }}
-                      />
-                    </XStack>
-
-                  </YStack>
+                  <XStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    backgroundColor={profile?.theme_preference === 'dark' ? '$blue4' : undefined}
+                    padding="$3"
+                    borderRadius="$3"
+                  >
+                    <YStack flex={1}>
+                      <Text
+                        color="$color"
+                        fontWeight={profile?.theme_preference === 'dark' ? '700' : '500'}
+                      >
+                        {t('profile.theme.dark') || 'Dark Mode'}
+                      </Text>
+                      <Text color="$gray11" fontSize="$3">
+                        {t('profile.theme.darkDescription') ||
+                          'Easy on the eyes for low-light environments'}
+                      </Text>
+                    </YStack>
+                    <RadioButton
+                      selected={profile?.theme_preference === 'dark'}
+                      onPress={async () => {
+                        try {
+                          console.log('🎨 Theme switching to: dark');
+                          await updateProfile({ theme_preference: 'dark' });
+                          console.log('🎨 Theme updated successfully to dark');
+                          showToast({
+                            title: 'Theme Updated',
+                            message: 'Theme updated to dark mode',
+                            type: 'success',
+                          });
+                          hideThemeSheet();
+                        } catch (error) {
+                          console.error('🎨 Theme update failed:', error);
+                          showToast({
+                            title: 'Error',
+                            message: 'Failed to update theme',
+                            type: 'error',
+                          });
+                        }
+                      }}
+                    />
+                  </XStack>
+                </YStack>
               </YStack>
             </Animated.View>
           </View>
@@ -6119,25 +6482,44 @@ export function ProfileScreen() {
                   </Text>
 
                   <Text color="$gray11" textAlign="center">
-                    {t('onboarding.licensePlan.description') || 'Tell us about your experience level, driving goals and vehicle preferences'}
+                    {t('onboarding.licensePlan.description') ||
+                      'Tell us about your experience level, driving goals and vehicle preferences'}
                   </Text>
 
                   <YStack gap="$4" marginTop="$4">
                     {/* Target License Date with Quick Options */}
                     <YStack gap="$2">
-                      <Text weight="bold" size="lg">{t('onboarding.date.title') || 'When do you want your license?'}</Text>
-                      
+                      <Text weight="bold" size="lg">
+                        {t('onboarding.date.title') || 'When do you want your license?'}
+                      </Text>
+
                       {/* Quick Date Options */}
                       {[
-                        { label: t('onboarding.date.within3months') || 'Within 3 months', months: 3, key: '3months' },
-                        { label: t('onboarding.date.within6months') || 'Within 6 months', months: 6, key: '6months' },
-                        { label: t('onboarding.date.within1year') || 'Within 1 year', months: 12, key: '1year' },
-                        { label: t('onboarding.date.noSpecific') || 'No specific date', months: 24, key: 'nodate' },
+                        {
+                          label: t('onboarding.date.within3months') || 'Within 3 months',
+                          months: 3,
+                          key: '3months',
+                        },
+                        {
+                          label: t('onboarding.date.within6months') || 'Within 6 months',
+                          months: 6,
+                          key: '6months',
+                        },
+                        {
+                          label: t('onboarding.date.within1year') || 'Within 1 year',
+                          months: 12,
+                          key: '1year',
+                        },
+                        {
+                          label: t('onboarding.date.noSpecific') || 'No specific date',
+                          months: 24,
+                          key: 'nodate',
+                        },
                       ].map((option) => {
                         const optionTargetDate = new Date();
                         optionTargetDate.setMonth(optionTargetDate.getMonth() + option.months);
                         const isSelected = selectedDateOption === option.key;
-                        
+
                         return (
                           <RadioButton
                             key={option.label}
@@ -6151,7 +6533,7 @@ export function ProfileScreen() {
                           />
                         );
                       })}
-                      
+
                       {/* Custom Date Picker with Popover - using RadioButton component */}
                       <View ref={dateButtonRef}>
                         <RadioButton
@@ -6161,11 +6543,15 @@ export function ProfileScreen() {
                             setShowDatePopover(true);
                           }}
                           title={t('onboarding.date.pickSpecific') || 'Pick specific date'}
-                          description={targetDate ? targetDate.toLocaleDateString() : new Date().toLocaleDateString()}
+                          description={
+                            targetDate
+                              ? targetDate.toLocaleDateString()
+                              : new Date().toLocaleDateString()
+                          }
                           isSelected={selectedDateOption === 'custom'}
                         />
                       </View>
-                      
+
                       <Popover
                         isVisible={showDatePopover}
                         onRequestClose={() => {
@@ -6199,15 +6585,17 @@ export function ProfileScreen() {
                           <Text color="$color" size="lg" weight="semibold" textAlign="center">
                             {t('onboarding.date.selectTarget') || 'Select Target Date'}
                           </Text>
-                          
+
                           {/* Container for full inline DateTimePicker */}
-                          <View style={{
-                            width: 350,
-                            height: 380,
-                            backgroundColor: '$background',
-                            borderRadius: 8,
-                            overflow: 'visible',
-                          }}>
+                          <View
+                            style={{
+                              width: 350,
+                              height: 380,
+                              backgroundColor: '$background',
+                              borderRadius: 8,
+                              overflow: 'visible',
+                            }}
+                          >
                             <DateTimePicker
                               testID="dateTimePicker"
                               value={targetDate || new Date()}
@@ -6220,16 +6608,21 @@ export function ProfileScreen() {
                                 return maxDate;
                               })()}
                               onChange={(event, selectedDate) => {
-                                console.log('🗓️ [ProfileScreen] Date changed:', selectedDate?.toLocaleDateString());
+                                console.log(
+                                  '🗓️ [ProfileScreen] Date changed:',
+                                  selectedDate?.toLocaleDateString(),
+                                );
                                 if (selectedDate) {
                                   setTargetDate(selectedDate);
                                   setSelectedDateOption('custom');
                                   // Don't auto-close - let user press save button
-                                  console.log('🗓️ [ProfileScreen] Date updated, waiting for save button');
+                                  console.log(
+                                    '🗓️ [ProfileScreen] Date updated, waiting for save button',
+                                  );
                                 }
                               }}
-                              style={{ 
-                                width: 350, 
+                              style={{
+                                width: 350,
                                 height: 380,
                                 backgroundColor: '$background',
                               }}
@@ -6238,56 +6631,73 @@ export function ProfileScreen() {
                               locale={language === 'sv' ? 'sv-SE' : 'en-US'}
                             />
                           </View>
-                          
                         </YStack>
                       </Popover>
                     </YStack>
 
                     {/* Theory Test Toggle */}
-                    <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                    <YStack
+                      gap="$2"
+                      padding="$3"
+                      backgroundColor="$backgroundHover"
+                      borderRadius="$3"
+                    >
                       <Text size="md" weight="semibold" color="$color">
-                        {t('onboarding.licensePlan.hasTheory') || 'Have you passed the theory test?'}
+                        {t('onboarding.licensePlan.hasTheory') ||
+                          'Have you passed the theory test?'}
                       </Text>
                       <XStack alignItems="center" gap="$2">
-                        <Switch 
+                        <Switch
                           size="$4"
-                          checked={hasTheory} 
+                          checked={hasTheory}
                           onCheckedChange={setHasTheory}
                           backgroundColor={hasTheory ? '$blue8' : '$gray6'}
                         >
                           <Switch.Thumb />
                         </Switch>
                         <Text size="md" color="$color">
-                          {hasTheory ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                          {hasTheory ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
                         </Text>
                       </XStack>
                     </YStack>
 
                     {/* Practice Test Toggle */}
-                    <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
+                    <YStack
+                      gap="$2"
+                      padding="$3"
+                      backgroundColor="$backgroundHover"
+                      borderRadius="$3"
+                    >
                       <Text size="md" weight="semibold" color="$color">
-                        {t('onboarding.licensePlan.hasPractice') || 'Have you passed the practical test?'}
+                        {t('onboarding.licensePlan.hasPractice') ||
+                          'Have you passed the practical test?'}
                       </Text>
                       <XStack alignItems="center" gap="$2">
-                        <Switch 
+                        <Switch
                           size="$4"
-                          checked={hasPractice} 
+                          checked={hasPractice}
                           onCheckedChange={setHasPractice}
                           backgroundColor={hasPractice ? '$blue8' : '$gray6'}
                         >
                           <Switch.Thumb />
                         </Switch>
                         <Text size="md" color="$color">
-                          {hasPractice ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}
+                          {hasPractice ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
                         </Text>
                       </XStack>
                     </YStack>
 
                     {/* Previous Experience */}
                     <YStack gap="$2">
-                      <Text weight="bold" size="lg">{t('onboarding.licensePlan.previousExperience') || 'Previous driving experience'}</Text>
+                      <Text weight="bold" size="lg">
+                        {t('onboarding.licensePlan.previousExperience') ||
+                          'Previous driving experience'}
+                      </Text>
                       <TextArea
-                        placeholder={t('onboarding.licensePlan.experiencePlaceholder') || 'Describe your previous driving experience'}
+                        placeholder={
+                          t('onboarding.licensePlan.experiencePlaceholder') ||
+                          'Describe your previous driving experience'
+                        }
                         value={previousExperience}
                         onChangeText={setPreviousExperience}
                         minHeight={100}
@@ -6302,9 +6712,14 @@ export function ProfileScreen() {
 
                     {/* Specific Goals */}
                     <YStack gap="$2">
-                      <Text weight="bold" size="lg">{t('onboarding.licensePlan.specificGoals') || 'Specific goals'}</Text>
+                      <Text weight="bold" size="lg">
+                        {t('onboarding.licensePlan.specificGoals') || 'Specific goals'}
+                      </Text>
                       <TextArea
-                        placeholder={t('onboarding.licensePlan.goalsPlaceholder') || 'Do you have specific goals with your license?'}
+                        placeholder={
+                          t('onboarding.licensePlan.goalsPlaceholder') ||
+                          'Do you have specific goals with your license?'
+                        }
                         value={specificGoals}
                         onChangeText={setSpecificGoals}
                         minHeight={100}
@@ -6318,8 +6733,16 @@ export function ProfileScreen() {
                     </YStack>
                   </YStack>
 
-                  <Button variant="primary" size="lg" onPress={handleLicensePlanSubmit} marginTop="$4" disabled={loading}>
-                    {loading ? (t('common.saving') || 'Saving...') : (t('onboarding.licensePlan.savePreferences') || 'Save My Preferences')}
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onPress={handleLicensePlanSubmit}
+                    marginTop="$4"
+                    disabled={loading}
+                  >
+                    {loading
+                      ? t('common.saving') || 'Saving...'
+                      : t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
                   </Button>
                 </YStack>
               </ScrollView>
@@ -6327,7 +6750,7 @@ export function ProfileScreen() {
           </View>
         </Animated.View>
       </Modal>
-      
+
       {/* Lock Modal */}
       <LockModal
         visible={showLockModal}
@@ -6335,7 +6758,7 @@ export function ProfileScreen() {
         contentType={modalContentType}
         featureName={featureName}
       />
-      
+
       {/* Onboarding Modal */}
       {showOnboardingModal && (
         <OnboardingModalInteractive

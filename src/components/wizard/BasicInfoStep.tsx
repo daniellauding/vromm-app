@@ -16,21 +16,33 @@ interface BasicInfoStepProps {
   onMaximize?: () => void;
 }
 
-export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: BasicInfoStepProps) {
+export function BasicInfoStep({
+  data,
+  onUpdate,
+  onSave,
+  onCancel,
+  onMaximize,
+}: BasicInfoStepProps) {
   const { t } = useTranslation();
-  
+
   // Expandable sections
   const [showMediaSection, setShowMediaSection] = useState(false);
   const [showExerciseSection, setShowExerciseSection] = useState(false);
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
 
-  const handleNameChange = useCallback((name: string) => {
-    onUpdate({ name });
-  }, [onUpdate]);
+  const handleNameChange = useCallback(
+    (name: string) => {
+      onUpdate({ name });
+    },
+    [onUpdate],
+  );
 
-  const handleDescriptionChange = useCallback((description: string) => {
-    onUpdate({ description });
-  }, [onUpdate]);
+  const handleDescriptionChange = useCallback(
+    (description: string) => {
+      onUpdate({ description });
+    },
+    [onUpdate],
+  );
 
   // Quick media handlers
   const handleQuickPhoto = useCallback(async () => {
@@ -38,12 +50,15 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
       const newMedia = await mediaUtils.takePhoto();
       if (newMedia) {
         onUpdate({
-          media: [...data.media, {
-            id: Date.now().toString(),
-            type: newMedia.type,
-            uri: newMedia.uri,
-            description: newMedia.description,
-          }],
+          media: [
+            ...data.media,
+            {
+              id: Date.now().toString(),
+              type: newMedia.type,
+              uri: newMedia.uri,
+              description: newMedia.description,
+            },
+          ],
         });
       }
     } catch (error) {
@@ -51,14 +66,20 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
     }
   }, [data.media, onUpdate]);
 
-  const handleRemoveMedia = useCallback((index: number) => {
-    const newMedia = data.media.filter((_, i) => i !== index);
-    onUpdate({ media: newMedia });
-  }, [data.media, onUpdate]);
+  const handleRemoveMedia = useCallback(
+    (index: number) => {
+      const newMedia = data.media.filter((_, i) => i !== index);
+      onUpdate({ media: newMedia });
+    },
+    [data.media, onUpdate],
+  );
 
-  const handleExercisesChange = useCallback((exercises: RouteExercise[]) => {
-    onUpdate({ exercises });
-  }, [onUpdate]);
+  const handleExercisesChange = useCallback(
+    (exercises: RouteExercise[]) => {
+      onUpdate({ exercises });
+    },
+    [onUpdate],
+  );
 
   return (
     <YStack flex={1} padding="$3" gap="$4">
@@ -105,14 +126,14 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
                 Add Photos {data.media.length > 0 && `(${data.media.length})`}
               </Text>
             </XStack>
-            <Feather 
-              name={showMediaSection ? "chevron-up" : "chevron-down"} 
-              size={16} 
-              color="$gray11" 
+            <Feather
+              name={showMediaSection ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color="$gray11"
             />
           </XStack>
         </TouchableOpacity>
-        
+
         {showMediaSection && (
           <YStack padding="$3" paddingTop={0} gap="$3">
             <XStack gap="$2">
@@ -125,10 +146,12 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
               >
                 <XStack gap="$1" alignItems="center">
                   <Feather name="camera" size={14} color="$green11" />
-                  <Text fontSize="$2" color="$green11">Photo</Text>
+                  <Text fontSize="$2" color="$green11">
+                    Photo
+                  </Text>
                 </XStack>
               </Button>
-              
+
               <Button
                 flex={1}
                 onPress={async () => {
@@ -136,12 +159,15 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
                     const newMedia = await mediaUtils.pickMediaFromLibrary(false);
                     if (newMedia && newMedia.length > 0) {
                       onUpdate({
-                        media: [...data.media, ...newMedia.map(m => ({
-                          id: Date.now().toString() + Math.random(),
-                          type: m.type,
-                          uri: m.uri,
-                          description: m.description,
-                        }))],
+                        media: [
+                          ...data.media,
+                          ...newMedia.map((m) => ({
+                            id: Date.now().toString() + Math.random(),
+                            type: m.type,
+                            uri: m.uri,
+                            description: m.description,
+                          })),
+                        ],
                       });
                     }
                   } catch (error) {
@@ -154,11 +180,13 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
               >
                 <XStack gap="$1" alignItems="center">
                   <Feather name="image" size={14} color="$blue11" />
-                  <Text fontSize="$2" color="$blue11">Gallery</Text>
+                  <Text fontSize="$2" color="$blue11">
+                    Gallery
+                  </Text>
                 </XStack>
               </Button>
             </XStack>
-            
+
             {data.media.length > 0 && (
               <YStack gap="$1">
                 {data.media.map((item, index) => (
@@ -190,14 +218,14 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
                 Add Exercises {data.exercises.length > 0 && `(${data.exercises.length})`}
               </Text>
             </XStack>
-            <Feather 
-              name={showExerciseSection ? "chevron-up" : "chevron-down"} 
-              size={16} 
-              color="$gray11" 
+            <Feather
+              name={showExerciseSection ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color="$gray11"
             />
           </XStack>
         </TouchableOpacity>
-        
+
         {showExerciseSection && (
           <YStack padding="$3" paddingTop={0} gap="$3">
             <Button
@@ -213,7 +241,7 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
                 </Text>
               </XStack>
             </Button>
-            
+
             {data.exercises.length > 0 && (
               <YStack gap="$1">
                 {data.exercises.slice(0, 3).map((exercise) => (
@@ -221,9 +249,9 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
                     <Text size="xs" color="$gray11" flex={1} numberOfLines={1}>
                       📚 {exercise.title}
                     </Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => {
-                        const newExercises = data.exercises.filter(ex => ex.id !== exercise.id);
+                        const newExercises = data.exercises.filter((ex) => ex.id !== exercise.id);
                         onUpdate({ exercises: newExercises });
                       }}
                     >
@@ -245,12 +273,18 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
       {/* Compact Summary */}
       <YStack gap="$2" backgroundColor="$backgroundHover" padding="$2" borderRadius="$2">
         <Text size="xs" color="$gray11">
-          📍 {data.waypoints.length} waypoint{data.waypoints.length !== 1 ? 's' : ''} • 
-          🎨 {data.drawingMode === 'pin' ? 'Pin' : 
-               data.drawingMode === 'waypoint' ? 'Waypoints' :
-               data.drawingMode === 'pen' ? 'Drawn' : 'Recorded'}
-          {data.media.length > 0 && ` • 📷 ${data.media.length} photo${data.media.length !== 1 ? 's' : ''}`}
-          {data.exercises.length > 0 && ` • 📚 ${data.exercises.length} exercise${data.exercises.length !== 1 ? 's' : ''}`}
+          📍 {data.waypoints.length} waypoint{data.waypoints.length !== 1 ? 's' : ''} • 🎨{' '}
+          {data.drawingMode === 'pin'
+            ? 'Pin'
+            : data.drawingMode === 'waypoint'
+              ? 'Waypoints'
+              : data.drawingMode === 'pen'
+                ? 'Drawn'
+                : 'Recorded'}
+          {data.media.length > 0 &&
+            ` • 📷 ${data.media.length} photo${data.media.length !== 1 ? 's' : ''}`}
+          {data.exercises.length > 0 &&
+            ` • 📚 ${data.exercises.length} exercise${data.exercises.length !== 1 ? 's' : ''}`}
         </Text>
       </YStack>
 
@@ -271,7 +305,7 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
               </Text>
             </XStack>
           </Button>
-          
+
           <XStack gap="$2">
             <Button
               flex={1}
@@ -283,10 +317,12 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
             >
               <XStack gap="$1" alignItems="center">
                 <Feather name="save" size={16} color="$gray11" />
-                <Text color="$gray11" fontSize="$3">Save Draft</Text>
+                <Text color="$gray11" fontSize="$3">
+                  Save Draft
+                </Text>
               </XStack>
             </Button>
-            
+
             <Button
               flex={1}
               onPress={onCancel}
@@ -296,12 +332,14 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
             >
               <XStack gap="$1" alignItems="center">
                 <Feather name="x" size={16} color="$red10" />
-                <Text color="$red10" fontSize="$3">Cancel</Text>
+                <Text color="$red10" fontSize="$3">
+                  Cancel
+                </Text>
               </XStack>
             </Button>
           </XStack>
         </YStack>
-        
+
         {/* Advanced editing option */}
         {onMaximize && (
           <Button
@@ -320,7 +358,7 @@ export function BasicInfoStep({ data, onUpdate, onSave, onCancel, onMaximize }: 
             </XStack>
           </Button>
         )}
-        
+
         {/* Hint about advanced editing */}
         <Text size="xs" color="$gray10" textAlign="center">
           💡 Quick save here, or open full editor for exercises, advanced settings & more

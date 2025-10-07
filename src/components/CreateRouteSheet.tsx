@@ -22,7 +22,12 @@ import { Database } from '../lib/database.types';
 // Navigation imports removed for sheet component
 import { Map, Waypoint, Screen, Button, Text, Header, FormField, Chip } from '../components';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -167,15 +172,15 @@ export function CreateRouteSheet({
   // Sheet functionality - matching RouteDetailSheet
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = Dimensions.get('window');
-  
+
   // Snap points for resizing (top Y coordinates like RouteDetailSheet)
   const snapPoints = useMemo(() => {
     const points = {
-      large: screenHeight * 0.1,   // Top at 10% of screen (show 90% - largest)
-      medium: screenHeight * 0.4,  // Top at 40% of screen (show 60% - medium)  
-      small: screenHeight * 0.7,   // Top at 70% of screen (show 30% - small)
-      mini: screenHeight * 0.85,   // Top at 85% of screen (show 15% - just title)
-      dismissed: screenHeight,     // Completely off-screen
+      large: screenHeight * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: screenHeight * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: screenHeight * 0.7, // Top at 70% of screen (show 30% - small)
+      mini: screenHeight * 0.85, // Top at 85% of screen (show 15% - just title)
+      dismissed: screenHeight, // Completely off-screen
     };
     return points;
   }, [screenHeight]);
@@ -226,54 +231,56 @@ export function CreateRouteSheet({
   }, [currentSnapPoint]);
 
   // Snap to size
-  const snapToSize = useCallback((size: 'large' | 'medium' | 'small' | 'mini' | 'dismissed') => {
-    console.log('📏 [CreateRouteSheet] Snapping to size:', size, {
-      targetPoint: snapPoints[size],
-      currentSnapPoint,
-      visible
-    });
-    
-    const targetPoint = snapPoints[size];
-    setCurrentSnapPoint(targetPoint);
-    translateY.value = withSpring(targetPoint, {
-      damping: 20,
-      mass: 1,
-      stiffness: 100,
-      overshootClamping: true,
-      restDisplacementThreshold: 0.01,
-      restSpeedThreshold: 0.01,
-    });
-    
-    if (size === 'dismissed') {
-      console.log('📏 [CreateRouteSheet] Dismissing sheet - calling onClose');
-      runOnJS(handleClose)();
-    }
-  }, [snapPoints, handleClose, currentSnapPoint, visible]);
+  const snapToSize = useCallback(
+    (size: 'large' | 'medium' | 'small' | 'mini' | 'dismissed') => {
+      console.log('📏 [CreateRouteSheet] Snapping to size:', size, {
+        targetPoint: snapPoints[size],
+        currentSnapPoint,
+        visible,
+      });
 
+      const targetPoint = snapPoints[size];
+      setCurrentSnapPoint(targetPoint);
+      translateY.value = withSpring(targetPoint, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+
+      if (size === 'dismissed') {
+        console.log('📏 [CreateRouteSheet] Dismissing sheet - calling onClose');
+        runOnJS(handleClose)();
+      }
+    },
+    [snapPoints, handleClose, currentSnapPoint, visible],
+  );
 
   // Pan gesture handler - matching RouteDetailSheet
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
       const { translationY } = event;
       const newPosition = currentSnapPoint + translationY;
-      
+
       // Constrain to snap points range
       const minPosition = snapPoints.large;
       const maxPosition = snapPoints.mini + 100;
       const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
-      
+
       translateY.value = boundedPosition;
     })
     .onEnd((event) => {
       const { translationY, velocityY } = event;
       const currentPosition = currentSnapPoint + translationY;
-      
+
       // Only dismiss if dragged down past the mini snap point with reasonable velocity
       if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
         runOnJS(snapToSize)('dismissed');
         return;
       }
-      
+
       // Determine target snap point based on position and velocity
       let targetSnapPoint;
       if (velocityY < -500) {
@@ -289,13 +296,10 @@ export function CreateRouteSheet({
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
       }
-      
+
       // Constrain target to valid range
-      const boundedTarget = Math.min(
-        Math.max(targetSnapPoint, snapPoints.large),
-        snapPoints.mini,
-      );
-      
+      const boundedTarget = Math.min(Math.max(targetSnapPoint, snapPoints.large), snapPoints.mini);
+
       // Animate to target position
       translateY.value = withSpring(boundedTarget, {
         damping: 20,
@@ -305,7 +309,7 @@ export function CreateRouteSheet({
         restDisplacementThreshold: 0.01,
         restSpeedThreshold: 0.01,
       });
-      
+
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
@@ -324,11 +328,14 @@ export function CreateRouteSheet({
   const { user } = useAuth();
 
   // Navigation handling for sheet component
-  const handleNavigateToMap = useCallback((routeId: string) => {
-    if (onNavigateToMap) {
-      onNavigateToMap(routeId);
-    }
-  }, [onNavigateToMap]);
+  const handleNavigateToMap = useCallback(
+    (routeId: string) => {
+      if (onNavigateToMap) {
+        onNavigateToMap(routeId);
+      }
+    },
+    [onNavigateToMap],
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
@@ -538,9 +545,9 @@ export function CreateRouteSheet({
       hasUnsavedChanges,
       currentSnapPoint,
       snapPoints,
-      visible
+      visible,
     });
-    
+
     if (hasUnsavedChanges) {
       // Show confirmation dialog if there are unsaved changes
       console.log('🎯 [CreateRouteSheet] Showing exit confirmation due to unsaved changes');
@@ -1555,8 +1562,12 @@ export function CreateRouteSheet({
     // Show success message
     Alert.alert(
       getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected'),
-      getTranslation(t, 'createRoute.routeWillBeSavedTo', 'Route will be saved to "{collectionName}"').replace('{collectionName}', collectionName),
-      [{ text: getTranslation(t, 'common.ok', 'OK') }]
+      getTranslation(
+        t,
+        'createRoute.routeWillBeSavedTo',
+        'Route will be saved to "{collectionName}"',
+      ).replace('{collectionName}', collectionName),
+      [{ text: getTranslation(t, 'common.ok', 'OK') }],
     );
   };
 
@@ -1565,12 +1576,12 @@ export function CreateRouteSheet({
     showToast({
       title: 'Validation Error',
       message: message,
-      type: 'error'
+      type: 'error',
     });
-    
+
     // Switch to the appropriate section
     setActiveSection(section);
-    
+
     // Scroll to top of the content after a short delay to allow section switch
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -1607,7 +1618,7 @@ export function CreateRouteSheet({
         showToast({
           title: 'Finish Your Drawing',
           message: 'Please tap the "Finish" button to complete your pen drawing before saving.',
-          type: 'info'
+          type: 'info',
         });
         setActiveSection('basic');
         setTimeout(() => {
@@ -1843,13 +1854,11 @@ export function CreateRouteSheet({
         // Add route to selected collection if one was selected
         if (selectedCollectionId && route?.id) {
           try {
-            const { error: collectionError } = await supabase
-              .from('map_preset_routes')
-              .insert({
-                preset_id: selectedCollectionId,
-                route_id: route.id,
-                added_at: new Date().toISOString(),
-              });
+            const { error: collectionError } = await supabase.from('map_preset_routes').insert({
+              preset_id: selectedCollectionId,
+              route_id: route.id,
+              added_at: new Date().toISOString(),
+            });
 
             if (collectionError) {
               console.error('Error adding route to collection:', collectionError);
@@ -2279,11 +2288,7 @@ export function CreateRouteSheet({
               animatedBackdropStyle,
             ]}
           >
-            <TouchableOpacity
-              style={{ flex: 1 }}
-              activeOpacity={1}
-              onPress={handleBackdropPress}
-            />
+            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={handleBackdropPress} />
           </ReanimatedAnimated.View>
         )}
 
@@ -2324,1512 +2329,1595 @@ export function CreateRouteSheet({
               />
 
               <ScrollView
-        style={{ flex: 1 }}
-        scrollEnabled={drawingMode !== 'pen'}
-        showsVerticalScrollIndicator={drawingMode !== 'pen'}
-      >
-        {/* Hero Section with MediaCarousel */}
-        <MediaCarousel
-          media={[
-            ...(waypoints.length > 0 || penPath.length > 0
-              ? [
-                  {
-                    type: 'map' as const,
-                    waypoints: waypoints,
-                    region: region,
-                    penDrawingCoordinates: penPath, // Include pen drawing coordinates
-                  },
-                ]
-              : []),
-            ...media.map((m) => ({
-              type: m.type,
-              uri: m.uri,
-              id: m.id,
-            })),
-          ]}
-          onAddMedia={handleAddMedia}
-          onRemoveMedia={handleRemoveMedia}
-          height={HERO_HEIGHT}
-        />
+                style={{ flex: 1 }}
+                scrollEnabled={drawingMode !== 'pen'}
+                showsVerticalScrollIndicator={drawingMode !== 'pen'}
+              >
+                {/* Hero Section with MediaCarousel */}
+                <MediaCarousel
+                  media={[
+                    ...(waypoints.length > 0 || penPath.length > 0
+                      ? [
+                          {
+                            type: 'map' as const,
+                            waypoints: waypoints,
+                            region: region,
+                            penDrawingCoordinates: penPath, // Include pen drawing coordinates
+                          },
+                        ]
+                      : []),
+                    ...media.map((m) => ({
+                      type: m.type,
+                      uri: m.uri,
+                      id: m.id,
+                    })),
+                  ]}
+                  onAddMedia={handleAddMedia}
+                  onRemoveMedia={handleRemoveMedia}
+                  height={HERO_HEIGHT}
+                />
 
-        {/* Existing Content */}
-        <YStack f={1} gap={2}>
-          <Header
-            title={
-              isEditing
-                ? getTranslation(t, 'createRoute.editTitle', 'Edit Route')
-                : getTranslation(t, 'createRoute.createTitle', 'Create Route')
-            }
-            showBack={false}
-          />
-          <XStack padding="$4" gap="$2" flexWrap="wrap">
-            <Chip
-              active={activeSection === 'basic'}
-              onPress={() => setActiveSection('basic')}
-              icon="info"
-            >
-              {getTranslation(t, 'createRoute.routeName', 'Route Name')}
-            </Chip>
-            <Chip
-              active={activeSection === 'exercises'}
-              onPress={() => setActiveSection('exercises')}
-              icon="activity"
-            >
-              {getTranslation(t, 'createRoute.exercises', 'Exercises')}
-            </Chip>
-            <Chip
-              active={activeSection === 'media'}
-              onPress={() => setActiveSection('media')}
-              icon="image"
-            >
-              {getTranslation(t, 'createRoute.media', 'Media')}
-            </Chip>
-            <Chip
-              active={activeSection === 'details'}
-              onPress={() => setActiveSection('details')}
-              icon="settings"
-            >
-              {getTranslation(t, 'common.details', 'Details')}
-            </Chip>
-          </XStack>
+                {/* Existing Content */}
+                <YStack f={1} gap={2}>
+                  <Header
+                    title={
+                      isEditing
+                        ? getTranslation(t, 'createRoute.editTitle', 'Edit Route')
+                        : getTranslation(t, 'createRoute.createTitle', 'Create Route')
+                    }
+                    showBack={false}
+                  />
+                  <XStack padding="$4" gap="$2" flexWrap="wrap">
+                    <Chip
+                      active={activeSection === 'basic'}
+                      onPress={() => setActiveSection('basic')}
+                      icon="info"
+                    >
+                      {getTranslation(t, 'createRoute.routeName', 'Route Name')}
+                    </Chip>
+                    <Chip
+                      active={activeSection === 'exercises'}
+                      onPress={() => setActiveSection('exercises')}
+                      icon="activity"
+                    >
+                      {getTranslation(t, 'createRoute.exercises', 'Exercises')}
+                    </Chip>
+                    <Chip
+                      active={activeSection === 'media'}
+                      onPress={() => setActiveSection('media')}
+                      icon="image"
+                    >
+                      {getTranslation(t, 'createRoute.media', 'Media')}
+                    </Chip>
+                    <Chip
+                      active={activeSection === 'details'}
+                      onPress={() => setActiveSection('details')}
+                      icon="settings"
+                    >
+                      {getTranslation(t, 'common.details', 'Details')}
+                    </Chip>
+                  </XStack>
 
-          {/* Section Content */}
-          <YStack f={1} backgroundColor="$background">
-            <ScrollView
-              ref={scrollViewRef}
-              style={{ flex: 1 }}
-              contentContainerStyle={{ paddingBottom: 100 }}
-              scrollEnabled={drawingMode !== 'pen'}
-              showsVerticalScrollIndicator={drawingMode !== 'pen'}
-            >
-              <YStack padding="$4" gap="$4">
-                {activeSection === 'basic' && (
-                  <YStack gap="$4">
-                    {/* Basic Information */}
-                    <YStack>
-                      <Text size="lg" weight="medium" mb="$2" color="$color">
-                        {getTranslation(t, 'createRoute.routeName', 'Route Name')}
-                      </Text>
-                      <FormField
-                        value={formData.name}
-                        onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
-                        placeholder={getTranslation(
-                          t,
-                          'createRoute.routeNamePlaceholder',
-                          'Enter route name',
-                        )}
-                        accessibilityLabel={getTranslation(
-                          t,
-                          'createRoute.routeName',
-                          'Route Name',
-                        )}
-                        autoCapitalize="none"
-                      />
-                      <TextArea
-                        value={formData.description}
-                        onChangeText={(text) =>
-                          setFormData((prev) => ({ ...prev, description: text }))
-                        }
-                        placeholder={getTranslation(
-                          t,
-                          'createRoute.descriptionPlaceholder',
-                          'Enter description',
-                        )}
-                        accessibilityLabel={getTranslation(
-                          t,
-                          'createRoute.description',
-                          'Description',
-                        )}
-                        numberOfLines={4}
-                        mt="$2"
-                        size="md"
-                        backgroundColor="$backgroundHover"
-                        borderColor="$borderColor"
-                      />
-                    </YStack>
-
-                    {/* Drawing Mode Controls */}
-                    <YStack gap="$4">
-                      <Heading>Drawing Mode</Heading>
-                      <Text size="sm" color="$gray11">
-                        Choose how to create your route
-                      </Text>
-
-                      <XStack gap="$2" flexWrap="wrap">
-                        <Button
-                          variant={drawingMode === 'pin' ? 'secondary' : 'tertiary'}
-                          onPress={() => setDrawingMode('pin')}
-                          size="md"
-                          flex={1}
-                          backgroundColor={drawingMode === 'pin' ? '$blue10' : '$backgroundHover'}
-                        >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather
-                              name="map-pin"
-                              size={16}
-                              color={drawingMode === 'pin' ? 'white' : iconColor}
-                            />
-                            <Text color={drawingMode === 'pin' ? 'white' : '$color'}>Pin</Text>
-                          </XStack>
-                        </Button>
-
-                        <Button
-                          variant={drawingMode === 'waypoint' ? 'secondary' : 'tertiary'}
-                          onPress={() => setDrawingMode('waypoint')}
-                          size="md"
-                          flex={1}
-                          backgroundColor={
-                            drawingMode === 'waypoint' ? '$blue10' : '$backgroundHover'
-                          }
-                        >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather
-                              name="navigation"
-                              size={16}
-                              color={drawingMode === 'waypoint' ? 'white' : iconColor}
-                            />
-                            <Text color={drawingMode === 'waypoint' ? 'white' : '$color'}>
-                              Waypoints
-                            </Text>
-                          </XStack>
-                        </Button>
-
-                        <Button
-                          variant={drawingMode === 'pen' ? 'secondary' : 'tertiary'}
-                          onPress={() => setDrawingMode('pen')}
-                          size="md"
-                          flex={1}
-                          backgroundColor={drawingMode === 'pen' ? '$blue10' : '$backgroundHover'}
-                        >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather
-                              name="edit-3"
-                              size={16}
-                              color={drawingMode === 'pen' ? 'white' : iconColor}
-                            />
-                            <Text color={drawingMode === 'pen' ? 'white' : '$color'}>Draw</Text>
-                          </XStack>
-                        </Button>
-
-                        <Button
-                          variant={drawingMode === 'record' ? 'secondary' : 'tertiary'}
-                          onPress={() => {
-                            setDrawingMode('record');
-                            handleRecordRoute();
-                          }}
-                          size="md"
-                          flex={1}
-                          backgroundColor={
-                            drawingMode === 'record' ? '$blue10' : '$backgroundHover'
-                          }
-                        >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather
-                              name="circle"
-                              size={16}
-                              color={drawingMode === 'record' ? 'white' : iconColor}
-                            />
-                            <Text color={drawingMode === 'record' ? 'white' : '$color'}>
-                              Record
-                            </Text>
-                          </XStack>
-                        </Button>
-                      </XStack>
-
-                      {/* Mode descriptions */}
-                      <Text size="sm" color="$gray10">
-                        {drawingMode === 'pin' && 'Drop a single location marker'}
-                        {drawingMode === 'waypoint' &&
-                          'Create discrete waypoints connected by lines (minimum 2 required)'}
-                        {drawingMode === 'pen' &&
-                          'Freehand drawing: click and drag to draw continuous lines'}
-                        {drawingMode === 'record' && initialWaypoints?.length
-                          ? 'Recorded route loaded • Click Record Again to start new recording'
-                          : 'GPS-based live route recording with real-time stats'}
-                      </Text>
-
-                      {/* Record Again Button when in record mode with existing route */}
-                      {drawingMode === 'record' && initialWaypoints?.length && (
-                        <Button
-                          onPress={handleRecordRoute}
-                          variant="secondary"
-                          backgroundColor="$green10"
-                          size="lg"
-                          marginTop="$2"
-                        >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather name="circle" size={20} color="white" />
-                            <Text color="white" weight="bold">
-                              Record Again
-                            </Text>
-                          </XStack>
-                        </Button>
-                      )}
-                    </YStack>
-
-                    {/* Route Location */}
-                    <YStack gap="$4">
-                      <Heading>
-                        {getTranslation(
-                          t,
-                          'createRoute.locationCoordinates',
-                          'Location Coordinates',
-                        )}
-                      </Heading>
-                      <Text size="sm" color="$gray11">
-                        {t('createRoute.searchLocation')}
-                      </Text>
-
-                      <YStack gap="$2">
-                        <XStack gap="$2">
-                          <FormField
-                            ref={searchInputRef}
-                            flex={1}
-                            value={searchQuery}
-                            onChangeText={handleSearch}
-                            placeholder={t('createRoute.searchLocation')}
-                            autoComplete="street-address"
-                            autoCapitalize="none"
-                            accessibilityLabel={t('createRoute.searchLocation')}
-                            rightElement={
-                              <Button
-                                onPress={handleManualCoordinates}
-                                variant="secondary"
-                                padding="$2"
-                                backgroundColor="transparent"
-                                borderWidth={0}
-                              >
-                                <Feather
-                                  name="map-pin"
-                                  size={18}
-                                  color={colorScheme === 'dark' ? 'white' : 'black'}
-                                />
-                              </Button>
-                            }
-                          />
-                          <Button
-                            onPress={handleLocateMe}
-                            variant="primary"
-                            backgroundColor="$blue10"
-                          >
-                            <Feather name="navigation" size={18} color="white" />
-                          </Button>
-                        </XStack>
-
-                        {showSearchResults && searchResults.length > 0 && (
-                          <Card elevate>
-                            <YStack padding="$2" gap="$1">
-                              {searchResults.map((result, index) => (
-                                <Button
-                                  key={index}
-                                  onPress={() => handleLocationSelect(result)}
-                                  variant="secondary"
-                                  size="md"
-                                  justifyContent="flex-start"
-                                >
-                                  <Text numberOfLines={1} color="$color">
-                                    {[result.street, result.city, result.country]
-                                      .filter(Boolean)
-                                      .join(', ')}
-                                  </Text>
-                                </Button>
-                              ))}
+                  {/* Section Content */}
+                  <YStack f={1} backgroundColor="$background">
+                    <ScrollView
+                      ref={scrollViewRef}
+                      style={{ flex: 1 }}
+                      contentContainerStyle={{ paddingBottom: 100 }}
+                      scrollEnabled={drawingMode !== 'pen'}
+                      showsVerticalScrollIndicator={drawingMode !== 'pen'}
+                    >
+                      <YStack padding="$4" gap="$4">
+                        {activeSection === 'basic' && (
+                          <YStack gap="$4">
+                            {/* Basic Information */}
+                            <YStack>
+                              <Text size="lg" weight="medium" mb="$2" color="$color">
+                                {getTranslation(t, 'createRoute.routeName', 'Route Name')}
+                              </Text>
+                              <FormField
+                                value={formData.name}
+                                onChangeText={(text) =>
+                                  setFormData((prev) => ({ ...prev, name: text }))
+                                }
+                                placeholder={getTranslation(
+                                  t,
+                                  'createRoute.routeNamePlaceholder',
+                                  'Enter route name',
+                                )}
+                                accessibilityLabel={getTranslation(
+                                  t,
+                                  'createRoute.routeName',
+                                  'Route Name',
+                                )}
+                                autoCapitalize="none"
+                              />
+                              <TextArea
+                                value={formData.description}
+                                onChangeText={(text) =>
+                                  setFormData((prev) => ({ ...prev, description: text }))
+                                }
+                                placeholder={getTranslation(
+                                  t,
+                                  'createRoute.descriptionPlaceholder',
+                                  'Enter description',
+                                )}
+                                accessibilityLabel={getTranslation(
+                                  t,
+                                  'createRoute.description',
+                                  'Description',
+                                )}
+                                numberOfLines={4}
+                                mt="$2"
+                                size="md"
+                                backgroundColor="$backgroundHover"
+                                borderColor="$borderColor"
+                              />
                             </YStack>
-                          </Card>
-                        )}
-                      </YStack>
 
-                      <View
-                        ref={containerRef}
-                        style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}
-                        {...(drawingMode === 'pen' ? drawingPanResponder.panHandlers : {})}
-                      >
-                        <MapView
-                          ref={mapRef}
-                          style={{ flex: 1 }}
-                          region={region}
-                          onPress={handleMapPressWrapper}
-                          scrollEnabled={
-                            !(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')
-                          }
-                          zoomEnabled={
-                            !(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')
-                          }
-                          pitchEnabled={!(drawingMode === 'pen' && isDrawing)}
-                          rotateEnabled={!(drawingMode === 'pen' && isDrawing)}
-                          moveOnMarkerPress={false}
-                          showsUserLocation={true}
-                          userInterfaceStyle="dark"
-                          zoomTapEnabled={
-                            !(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')
-                          }
-                          scrollDuringRotateOrZoomEnabled={
-                            !(drawingMode === 'pen' && isDrawing && Platform.OS === 'android')
-                          }
-                        >
-                          {/* Render waypoints as individual markers (not in pen drawing mode) */}
-                          {drawingMode !== 'pen' &&
-                            waypoints.map((waypoint, index) => {
-                              const isFirst = index === 0;
-                              const isLast = index === waypoints.length - 1 && waypoints.length > 1;
-                              const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
+                            {/* Drawing Mode Controls */}
+                            <YStack gap="$4">
+                              <Heading>Drawing Mode</Heading>
+                              <Text size="sm" color="$gray11">
+                                Choose how to create your route
+                              </Text>
 
-                              return (
-                                <Marker
-                                  key={`waypoint-${index}`}
-                                  coordinate={{
-                                    latitude: waypoint.latitude,
-                                    longitude: waypoint.longitude,
+                              <XStack gap="$2" flexWrap="wrap">
+                                <Button
+                                  variant={drawingMode === 'pin' ? 'secondary' : 'tertiary'}
+                                  onPress={() => setDrawingMode('pin')}
+                                  size="md"
+                                  flex={1}
+                                  backgroundColor={
+                                    drawingMode === 'pin' ? '$blue10' : '$backgroundHover'
+                                  }
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather
+                                      name="map-pin"
+                                      size={16}
+                                      color={drawingMode === 'pin' ? 'white' : iconColor}
+                                    />
+                                    <Text color={drawingMode === 'pin' ? 'white' : '$color'}>
+                                      Pin
+                                    </Text>
+                                  </XStack>
+                                </Button>
+
+                                <Button
+                                  variant={drawingMode === 'waypoint' ? 'secondary' : 'tertiary'}
+                                  onPress={() => setDrawingMode('waypoint')}
+                                  size="md"
+                                  flex={1}
+                                  backgroundColor={
+                                    drawingMode === 'waypoint' ? '$blue10' : '$backgroundHover'
+                                  }
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather
+                                      name="navigation"
+                                      size={16}
+                                      color={drawingMode === 'waypoint' ? 'white' : iconColor}
+                                    />
+                                    <Text color={drawingMode === 'waypoint' ? 'white' : '$color'}>
+                                      Waypoints
+                                    </Text>
+                                  </XStack>
+                                </Button>
+
+                                <Button
+                                  variant={drawingMode === 'pen' ? 'secondary' : 'tertiary'}
+                                  onPress={() => setDrawingMode('pen')}
+                                  size="md"
+                                  flex={1}
+                                  backgroundColor={
+                                    drawingMode === 'pen' ? '$blue10' : '$backgroundHover'
+                                  }
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather
+                                      name="edit-3"
+                                      size={16}
+                                      color={drawingMode === 'pen' ? 'white' : iconColor}
+                                    />
+                                    <Text color={drawingMode === 'pen' ? 'white' : '$color'}>
+                                      Draw
+                                    </Text>
+                                  </XStack>
+                                </Button>
+
+                                <Button
+                                  variant={drawingMode === 'record' ? 'secondary' : 'tertiary'}
+                                  onPress={() => {
+                                    setDrawingMode('record');
+                                    handleRecordRoute();
                                   }}
-                                  title={waypoint.title}
-                                  description={waypoint.description}
-                                  pinColor={markerColor}
-                                />
-                              );
-                            })}
+                                  size="md"
+                                  flex={1}
+                                  backgroundColor={
+                                    drawingMode === 'record' ? '$blue10' : '$backgroundHover'
+                                  }
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather
+                                      name="circle"
+                                      size={16}
+                                      color={drawingMode === 'record' ? 'white' : iconColor}
+                                    />
+                                    <Text color={drawingMode === 'record' ? 'white' : '$color'}>
+                                      Record
+                                    </Text>
+                                  </XStack>
+                                </Button>
+                              </XStack>
 
-                          {/* Render pen drawing as smooth continuous line */}
-                          {drawingMode === 'pen' && penPath.length > 0 && (
-                            <>
-                              {/* Show single point as a marker if only one point */}
-                              {penPath.length === 1 && (
-                                <Marker
-                                  coordinate={penPath[0]}
-                                  title="Drawing Start"
-                                  description="Drag to continue drawing"
-                                  pinColor="orange"
-                                />
+                              {/* Mode descriptions */}
+                              <Text size="sm" color="$gray10">
+                                {drawingMode === 'pin' && 'Drop a single location marker'}
+                                {drawingMode === 'waypoint' &&
+                                  'Create discrete waypoints connected by lines (minimum 2 required)'}
+                                {drawingMode === 'pen' &&
+                                  'Freehand drawing: click and drag to draw continuous lines'}
+                                {drawingMode === 'record' && initialWaypoints?.length
+                                  ? 'Recorded route loaded • Click Record Again to start new recording'
+                                  : 'GPS-based live route recording with real-time stats'}
+                              </Text>
+
+                              {/* Record Again Button when in record mode with existing route */}
+                              {drawingMode === 'record' && initialWaypoints?.length && (
+                                <Button
+                                  onPress={handleRecordRoute}
+                                  variant="secondary"
+                                  backgroundColor="$green10"
+                                  size="lg"
+                                  marginTop="$2"
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather name="circle" size={20} color="white" />
+                                    <Text color="white" weight="bold">
+                                      Record Again
+                                    </Text>
+                                  </XStack>
+                                </Button>
                               )}
+                            </YStack>
 
-                              {/* Show continuous line for multiple points */}
-                              {penPath.length > 1 && (
-                                <Polyline
-                                  coordinates={penPath}
-                                  strokeWidth={8}
-                                  strokeColor="#FF6B35"
-                                  lineJoin="round"
-                                  lineCap="round"
-                                  geodesic={false}
-                                />
-                              )}
-                            </>
-                          )}
+                            {/* Route Location */}
+                            <YStack gap="$4">
+                              <Heading>
+                                {getTranslation(
+                                  t,
+                                  'createRoute.locationCoordinates',
+                                  'Location Coordinates',
+                                )}
+                              </Heading>
+                              <Text size="sm" color="$gray11">
+                                {t('createRoute.searchLocation')}
+                              </Text>
 
-                          {/* Orange dots removed - only showing continuous orange lines */}
+                              <YStack gap="$2">
+                                <XStack gap="$2">
+                                  <FormField
+                                    ref={searchInputRef}
+                                    flex={1}
+                                    value={searchQuery}
+                                    onChangeText={handleSearch}
+                                    placeholder={t('createRoute.searchLocation')}
+                                    autoComplete="street-address"
+                                    autoCapitalize="none"
+                                    accessibilityLabel={t('createRoute.searchLocation')}
+                                    rightElement={
+                                      <Button
+                                        onPress={handleManualCoordinates}
+                                        variant="secondary"
+                                        padding="$2"
+                                        backgroundColor="transparent"
+                                        borderWidth={0}
+                                      >
+                                        <Feather
+                                          name="map-pin"
+                                          size={18}
+                                          color={colorScheme === 'dark' ? 'white' : 'black'}
+                                        />
+                                      </Button>
+                                    }
+                                  />
+                                  <Button
+                                    onPress={handleLocateMe}
+                                    variant="primary"
+                                    backgroundColor="$blue10"
+                                  >
+                                    <Feather name="navigation" size={18} color="white" />
+                                  </Button>
+                                </XStack>
 
-                          {/* Render connecting lines for waypoints (not in pen mode) */}
-                          {drawingMode === 'waypoint' && waypoints.length > 1 && (
-                            <Polyline
-                              coordinates={waypoints.map((wp) => ({
-                                latitude: wp.latitude,
-                                longitude: wp.longitude,
-                              }))}
-                              strokeWidth={3}
-                              strokeColor="#1A73E8"
-                              lineJoin="round"
-                            />
-                          )}
+                                {showSearchResults && searchResults.length > 0 && (
+                                  <Card elevate>
+                                    <YStack padding="$2" gap="$1">
+                                      {searchResults.map((result, index) => (
+                                        <Button
+                                          key={index}
+                                          onPress={() => handleLocationSelect(result)}
+                                          variant="secondary"
+                                          size="md"
+                                          justifyContent="flex-start"
+                                        >
+                                          <Text numberOfLines={1} color="$color">
+                                            {[result.street, result.city, result.country]
+                                              .filter(Boolean)
+                                              .join(', ')}
+                                          </Text>
+                                        </Button>
+                                      ))}
+                                    </YStack>
+                                  </Card>
+                                )}
+                              </YStack>
 
-                          {/* Render route path if provided */}
-                          {routePath && routePath.length > 1 && (
-                            <Polyline
-                              coordinates={routePath}
-                              strokeWidth={drawingMode === 'record' ? 5 : 3}
-                              strokeColor={drawingMode === 'record' ? '#22C55E' : '#1A73E8'}
-                              lineJoin="round"
-                              lineCap="round"
-                            />
-                          )}
-                        </MapView>
+                              <View
+                                ref={containerRef}
+                                style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}
+                                {...(drawingMode === 'pen' ? drawingPanResponder.panHandlers : {})}
+                              >
+                                <MapView
+                                  ref={mapRef}
+                                  style={{ flex: 1 }}
+                                  region={region}
+                                  onPress={handleMapPressWrapper}
+                                  scrollEnabled={
+                                    !(
+                                      drawingMode === 'pen' &&
+                                      isDrawing &&
+                                      Platform.OS === 'android'
+                                    )
+                                  }
+                                  zoomEnabled={
+                                    !(
+                                      drawingMode === 'pen' &&
+                                      isDrawing &&
+                                      Platform.OS === 'android'
+                                    )
+                                  }
+                                  pitchEnabled={!(drawingMode === 'pen' && isDrawing)}
+                                  rotateEnabled={!(drawingMode === 'pen' && isDrawing)}
+                                  moveOnMarkerPress={false}
+                                  showsUserLocation={true}
+                                  userInterfaceStyle="dark"
+                                  zoomTapEnabled={
+                                    !(
+                                      drawingMode === 'pen' &&
+                                      isDrawing &&
+                                      Platform.OS === 'android'
+                                    )
+                                  }
+                                  scrollDuringRotateOrZoomEnabled={
+                                    !(
+                                      drawingMode === 'pen' &&
+                                      isDrawing &&
+                                      Platform.OS === 'android'
+                                    )
+                                  }
+                                >
+                                  {/* Render waypoints as individual markers (not in pen drawing mode) */}
+                                  {drawingMode !== 'pen' &&
+                                    waypoints.map((waypoint, index) => {
+                                      const isFirst = index === 0;
+                                      const isLast =
+                                        index === waypoints.length - 1 && waypoints.length > 1;
+                                      const markerColor = isFirst
+                                        ? 'green'
+                                        : isLast
+                                          ? 'red'
+                                          : 'blue';
 
-                        {/* Map Controls - Top Right */}
-                        <XStack position="absolute" top={16} right={16} gap="$2">
-                          <Button
-                            onPress={handleUndo}
-                            disabled={waypoints.length === 0}
-                            variant="secondary"
-                            backgroundColor="rgba(0,0,0,0.7)"
-                            size="sm"
-                          >
-                            <Feather name="corner-up-left" size={16} color="white" />
-                          </Button>
+                                      return (
+                                        <Marker
+                                          key={`waypoint-${index}`}
+                                          coordinate={{
+                                            latitude: waypoint.latitude,
+                                            longitude: waypoint.longitude,
+                                          }}
+                                          title={waypoint.title}
+                                          description={waypoint.description}
+                                          pinColor={markerColor}
+                                        />
+                                      );
+                                    })}
 
-                          <Button
-                            onPress={handleRedo}
-                            disabled={undoneWaypoints.length === 0}
-                            variant="secondary"
-                            backgroundColor="rgba(0,0,0,0.7)"
-                            size="sm"
-                          >
-                            <Feather name="corner-up-right" size={16} color="white" />
-                          </Button>
-                        </XStack>
+                                  {/* Render pen drawing as smooth continuous line */}
+                                  {drawingMode === 'pen' && penPath.length > 0 && (
+                                    <>
+                                      {/* Show single point as a marker if only one point */}
+                                      {penPath.length === 1 && (
+                                        <Marker
+                                          coordinate={penPath[0]}
+                                          title="Drawing Start"
+                                          description="Drag to continue drawing"
+                                          pinColor="orange"
+                                        />
+                                      )}
 
-                        {/* Zoom Controls - Top Left */}
-                        <YStack position="absolute" top={16} left={16} gap="$2">
-                          <Button
-                            onPress={() => {
-                              setRegion((prev) => ({
-                                ...prev,
-                                latitudeDelta: prev.latitudeDelta * 0.5,
-                                longitudeDelta: prev.longitudeDelta * 0.5,
-                              }));
-                            }}
-                            variant="secondary"
-                            backgroundColor="rgba(0,0,0,0.7)"
-                            size="sm"
-                          >
-                            <Feather name="plus" size={16} color="white" />
-                          </Button>
+                                      {/* Show continuous line for multiple points */}
+                                      {penPath.length > 1 && (
+                                        <Polyline
+                                          coordinates={penPath}
+                                          strokeWidth={8}
+                                          strokeColor="#FF6B35"
+                                          lineJoin="round"
+                                          lineCap="round"
+                                          geodesic={false}
+                                        />
+                                      )}
+                                    </>
+                                  )}
 
-                          <Button
-                            onPress={() => {
-                              setRegion((prev) => ({
-                                ...prev,
-                                latitudeDelta: prev.latitudeDelta * 2,
-                                longitudeDelta: prev.longitudeDelta * 2,
-                              }));
-                            }}
-                            variant="secondary"
-                            backgroundColor="rgba(0,0,0,0.7)"
-                            size="sm"
-                          >
-                            <Feather name="minus" size={16} color="white" />
-                          </Button>
-                        </YStack>
+                                  {/* Orange dots removed - only showing continuous orange lines */}
 
-                        <Button
-                          position="absolute"
-                          bottom={16}
-                          left={16}
-                          onPress={handleLocateMe}
-                          variant="primary"
-                          backgroundColor="$blue10"
-                          size="md"
-                          opacity={0.9}
-                          pressStyle={{ opacity: 0.7 }}
-                        >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather name="crosshair" size={20} color="white" />
-                            <Text color="white">Locate Me</Text>
-                          </XStack>
-                        </Button>
+                                  {/* Render connecting lines for waypoints (not in pen mode) */}
+                                  {drawingMode === 'waypoint' && waypoints.length > 1 && (
+                                    <Polyline
+                                      coordinates={waypoints.map((wp) => ({
+                                        latitude: wp.latitude,
+                                        longitude: wp.longitude,
+                                      }))}
+                                      strokeWidth={3}
+                                      strokeColor="#1A73E8"
+                                      lineJoin="round"
+                                    />
+                                  )}
 
-                        {/* Drawing Mode Indicator */}
-                        <View
-                          style={{
-                            position: 'absolute',
-                            top: 16,
-                            left: '50%',
-                            transform: [{ translateX: -50 }],
-                            backgroundColor:
-                              drawingMode === 'pen' ? 'rgba(255,107,53,0.9)' : 'rgba(0,0,0,0.8)',
-                            paddingHorizontal: 12,
-                            paddingVertical: 6,
-                            borderRadius: 16,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 8,
-                          }}
-                        >
-                          <Feather
-                            name={
-                              drawingMode === 'pin'
-                                ? 'map-pin'
-                                : drawingMode === 'waypoint'
-                                  ? 'navigation'
-                                  : drawingMode === 'pen'
-                                    ? 'edit-3'
-                                    : 'circle'
-                            }
-                            size={14}
-                            color="white"
-                          />
-                          <Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>
-                            {drawingMode === 'pin' && 'Tap to drop pin'}
-                            {drawingMode === 'waypoint' && 'Tap to add waypoints'}
-                            {drawingMode === 'pen' &&
-                              (isDrawing
-                                ? `Drawing (${penPath.length} points) • Pinch to zoom • Drag to continue`
-                                : waypoints.length > 0
-                                  ? `Finished (${penPath.length} coordinates) • Ready to save`
-                                  : 'Drag to draw • Two fingers to zoom/pan')}
-                            {drawingMode === 'record' &&
-                              (initialWaypoints?.length
-                                ? `Recorded route (${waypoints.length} waypoints) • Tap Record Again below`
-                                : 'Use Record button below')}
-                          </Text>
-                        </View>
+                                  {/* Render route path if provided */}
+                                  {routePath && routePath.length > 1 && (
+                                    <Polyline
+                                      coordinates={routePath}
+                                      strokeWidth={drawingMode === 'record' ? 5 : 3}
+                                      strokeColor={drawingMode === 'record' ? '#22C55E' : '#1A73E8'}
+                                      lineJoin="round"
+                                      lineCap="round"
+                                    />
+                                  )}
+                                </MapView>
 
-                        {/* Pen Drawing Controls */}
-                        {drawingMode === 'pen' && isDrawing && (
-                          <Button
-                            position="absolute"
-                            bottom={16}
-                            right={16}
-                            onPress={finishPenDrawing}
-                            variant="secondary"
-                            backgroundColor="$green10"
-                            size="md"
-                            opacity={0.9}
-                          >
-                            <XStack gap="$2" alignItems="center">
-                              <Feather name="check" size={20} color="white" />
-                              <Text color="white">Finish</Text>
-                            </XStack>
-                          </Button>
-                        )}
-                      </View>
+                                {/* Map Controls - Top Right */}
+                                <XStack position="absolute" top={16} right={16} gap="$2">
+                                  <Button
+                                    onPress={handleUndo}
+                                    disabled={waypoints.length === 0}
+                                    variant="secondary"
+                                    backgroundColor="rgba(0,0,0,0.7)"
+                                    size="sm"
+                                  >
+                                    <Feather name="corner-up-left" size={16} color="white" />
+                                  </Button>
 
-                      {/* Waypoint Management Controls */}
-                      <XStack gap="$2" flexWrap="wrap">
-                        <Button
-                          onPress={handleUndo}
-                          disabled={waypoints.length === 0}
-                          variant="secondary"
-                          backgroundColor="$orange10"
-                          size="lg"
-                          flex={1}
-                        >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather name="corner-up-left" size={18} color="white" />
-                            <Text color="white">Undo</Text>
-                          </XStack>
-                        </Button>
+                                  <Button
+                                    onPress={handleRedo}
+                                    disabled={undoneWaypoints.length === 0}
+                                    variant="secondary"
+                                    backgroundColor="rgba(0,0,0,0.7)"
+                                    size="sm"
+                                  >
+                                    <Feather name="corner-up-right" size={16} color="white" />
+                                  </Button>
+                                </XStack>
 
-                        <Button
-                          onPress={clearAllWaypoints}
-                          disabled={waypoints.length === 0 && penPath.length === 0}
-                          variant="secondary"
-                          backgroundColor="$red10"
-                          size="lg"
-                          flex={1}
-                        >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather name="trash-2" size={18} color="white" />
-                            <Text color="white">Clear All</Text>
-                          </XStack>
-                        </Button>
-                      </XStack>
+                                {/* Zoom Controls - Top Left */}
+                                <YStack position="absolute" top={16} left={16} gap="$2">
+                                  <Button
+                                    onPress={() => {
+                                      setRegion((prev) => ({
+                                        ...prev,
+                                        latitudeDelta: prev.latitudeDelta * 0.5,
+                                        longitudeDelta: prev.longitudeDelta * 0.5,
+                                      }));
+                                    }}
+                                    variant="secondary"
+                                    backgroundColor="rgba(0,0,0,0.7)"
+                                    size="sm"
+                                  >
+                                    <Feather name="plus" size={16} color="white" />
+                                  </Button>
 
-                      {/* Current waypoint count and mode info */}
-                      <XStack
-                        justifyContent="space-between"
-                        alignItems="center"
-                        paddingHorizontal="$2"
-                      >
-                        <Text size="sm" color="$gray11">
-                          {waypoints.length} waypoint{waypoints.length !== 1 ? 's' : ''} •{' '}
-                          {drawingMode} mode
-                        </Text>
-                        {drawingMode === 'waypoint' && waypoints.length === 1 && (
-                          <Text size="sm" color="$orange10">
-                            Need 1 more waypoint minimum
-                          </Text>
-                        )}
-                        {drawingMode === 'pen' && (
-                          <Text
-                            size="sm"
-                            color={
-                              isDrawing
-                                ? '$orange10'
-                                : waypoints.length > 0
-                                  ? '$green10'
-                                  : '$blue10'
-                            }
-                          >
-                            {isDrawing
-                              ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom`
-                              : waypoints.length > 0
-                                ? `Finished (${penPath.length} coordinates → ${waypoints.length} waypoints)`
-                                : `Drawing mode (${penPath.length} points drawn) • Drag to draw, two fingers to zoom`}
-                          </Text>
-                        )}
-                        {drawingMode === 'record' && initialWaypoints?.length && (
-                          <Text size="sm" color="$green10">
-                            Recorded route loaded • {routePath?.length || 0} GPS points • Click
-                            Record Again to start new recording
-                          </Text>
-                        )}
-                      </XStack>
+                                  <Button
+                                    onPress={() => {
+                                      setRegion((prev) => ({
+                                        ...prev,
+                                        latitudeDelta: prev.latitudeDelta * 2,
+                                        longitudeDelta: prev.longitudeDelta * 2,
+                                      }));
+                                    }}
+                                    variant="secondary"
+                                    backgroundColor="rgba(0,0,0,0.7)"
+                                    size="sm"
+                                  >
+                                    <Feather name="minus" size={16} color="white" />
+                                  </Button>
+                                </YStack>
 
-                      {/* Waypoint Management */}
-                      {waypoints.length > 0 && (
-                        <YStack gap="$3" marginTop="$4">
-                          <Text size="lg" weight="bold">
-                            Waypoints
-                          </Text>
-                          {waypoints.map((waypoint, index) => (
-                            <Card key={index} bordered padding="$3">
+                                <Button
+                                  position="absolute"
+                                  bottom={16}
+                                  left={16}
+                                  onPress={handleLocateMe}
+                                  variant="primary"
+                                  backgroundColor="$blue10"
+                                  size="md"
+                                  opacity={0.9}
+                                  pressStyle={{ opacity: 0.7 }}
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather name="crosshair" size={20} color="white" />
+                                    <Text color="white">Locate Me</Text>
+                                  </XStack>
+                                </Button>
+
+                                {/* Drawing Mode Indicator */}
+                                <View
+                                  style={{
+                                    position: 'absolute',
+                                    top: 16,
+                                    left: '50%',
+                                    transform: [{ translateX: -50 }],
+                                    backgroundColor:
+                                      drawingMode === 'pen'
+                                        ? 'rgba(255,107,53,0.9)'
+                                        : 'rgba(0,0,0,0.8)',
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 6,
+                                    borderRadius: 16,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                  }}
+                                >
+                                  <Feather
+                                    name={
+                                      drawingMode === 'pin'
+                                        ? 'map-pin'
+                                        : drawingMode === 'waypoint'
+                                          ? 'navigation'
+                                          : drawingMode === 'pen'
+                                            ? 'edit-3'
+                                            : 'circle'
+                                    }
+                                    size={14}
+                                    color="white"
+                                  />
+                                  <Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>
+                                    {drawingMode === 'pin' && 'Tap to drop pin'}
+                                    {drawingMode === 'waypoint' && 'Tap to add waypoints'}
+                                    {drawingMode === 'pen' &&
+                                      (isDrawing
+                                        ? `Drawing (${penPath.length} points) • Pinch to zoom • Drag to continue`
+                                        : waypoints.length > 0
+                                          ? `Finished (${penPath.length} coordinates) • Ready to save`
+                                          : 'Drag to draw • Two fingers to zoom/pan')}
+                                    {drawingMode === 'record' &&
+                                      (initialWaypoints?.length
+                                        ? `Recorded route (${waypoints.length} waypoints) • Tap Record Again below`
+                                        : 'Use Record button below')}
+                                  </Text>
+                                </View>
+
+                                {/* Pen Drawing Controls */}
+                                {drawingMode === 'pen' && isDrawing && (
+                                  <Button
+                                    position="absolute"
+                                    bottom={16}
+                                    right={16}
+                                    onPress={finishPenDrawing}
+                                    variant="secondary"
+                                    backgroundColor="$green10"
+                                    size="md"
+                                    opacity={0.9}
+                                  >
+                                    <XStack gap="$2" alignItems="center">
+                                      <Feather name="check" size={20} color="white" />
+                                      <Text color="white">Finish</Text>
+                                    </XStack>
+                                  </Button>
+                                )}
+                              </View>
+
+                              {/* Waypoint Management Controls */}
+                              <XStack gap="$2" flexWrap="wrap">
+                                <Button
+                                  onPress={handleUndo}
+                                  disabled={waypoints.length === 0}
+                                  variant="secondary"
+                                  backgroundColor="$orange10"
+                                  size="lg"
+                                  flex={1}
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather name="corner-up-left" size={18} color="white" />
+                                    <Text color="white">Undo</Text>
+                                  </XStack>
+                                </Button>
+
+                                <Button
+                                  onPress={clearAllWaypoints}
+                                  disabled={waypoints.length === 0 && penPath.length === 0}
+                                  variant="secondary"
+                                  backgroundColor="$red10"
+                                  size="lg"
+                                  flex={1}
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather name="trash-2" size={18} color="white" />
+                                    <Text color="white">Clear All</Text>
+                                  </XStack>
+                                </Button>
+                              </XStack>
+
+                              {/* Current waypoint count and mode info */}
                               <XStack
                                 justifyContent="space-between"
-                                alignItems="flex-start"
-                                gap="$3"
+                                alignItems="center"
+                                paddingHorizontal="$2"
                               >
-                                <YStack flex={1} gap="$2">
-                                  <XStack alignItems="center" gap="$2">
-                                    <View
-                                      style={{
-                                        width: 24,
-                                        height: 24,
-                                        borderRadius: 12,
-                                        backgroundColor:
-                                          index === 0
-                                            ? '#22C55E'
-                                            : index === waypoints.length - 1 && waypoints.length > 1
-                                              ? '#EF4444'
-                                              : '#3B82F6',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                      }}
-                                    >
-                                      <Text size="xs" color="white" weight="bold">
-                                        {index + 1}
-                                      </Text>
-                                    </View>
-                                    <Text size="sm" weight="medium" flex={1} numberOfLines={1}>
-                                      {waypoint.title}
+                                <Text size="sm" color="$gray11">
+                                  {waypoints.length} waypoint{waypoints.length !== 1 ? 's' : ''} •{' '}
+                                  {drawingMode} mode
+                                </Text>
+                                {drawingMode === 'waypoint' && waypoints.length === 1 && (
+                                  <Text size="sm" color="$orange10">
+                                    Need 1 more waypoint minimum
+                                  </Text>
+                                )}
+                                {drawingMode === 'pen' && (
+                                  <Text
+                                    size="sm"
+                                    color={
+                                      isDrawing
+                                        ? '$orange10'
+                                        : waypoints.length > 0
+                                          ? '$green10'
+                                          : '$blue10'
+                                    }
+                                  >
+                                    {isDrawing
+                                      ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom`
+                                      : waypoints.length > 0
+                                        ? `Finished (${penPath.length} coordinates → ${waypoints.length} waypoints)`
+                                        : `Drawing mode (${penPath.length} points drawn) • Drag to draw, two fingers to zoom`}
+                                  </Text>
+                                )}
+                                {drawingMode === 'record' && initialWaypoints?.length && (
+                                  <Text size="sm" color="$green10">
+                                    Recorded route loaded • {routePath?.length || 0} GPS points •
+                                    Click Record Again to start new recording
+                                  </Text>
+                                )}
+                              </XStack>
+
+                              {/* Waypoint Management */}
+                              {waypoints.length > 0 && (
+                                <YStack gap="$3" marginTop="$4">
+                                  <Text size="lg" weight="bold">
+                                    Waypoints
+                                  </Text>
+                                  {waypoints.map((waypoint, index) => (
+                                    <Card key={index} bordered padding="$3">
+                                      <XStack
+                                        justifyContent="space-between"
+                                        alignItems="flex-start"
+                                        gap="$3"
+                                      >
+                                        <YStack flex={1} gap="$2">
+                                          <XStack alignItems="center" gap="$2">
+                                            <View
+                                              style={{
+                                                width: 24,
+                                                height: 24,
+                                                borderRadius: 12,
+                                                backgroundColor:
+                                                  index === 0
+                                                    ? '#22C55E'
+                                                    : index === waypoints.length - 1 &&
+                                                        waypoints.length > 1
+                                                      ? '#EF4444'
+                                                      : '#3B82F6',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                              }}
+                                            >
+                                              <Text size="xs" color="white" weight="bold">
+                                                {index + 1}
+                                              </Text>
+                                            </View>
+                                            <Text
+                                              size="sm"
+                                              weight="medium"
+                                              flex={1}
+                                              numberOfLines={1}
+                                            >
+                                              {waypoint.title}
+                                            </Text>
+                                          </XStack>
+                                          <Text size="xs" color="$gray11">
+                                            Lat: {waypoint.latitude.toFixed(6)}, Lng:{' '}
+                                            {waypoint.longitude.toFixed(6)}
+                                          </Text>
+                                          {waypoint.description && (
+                                            <Text size="xs" color="$gray10">
+                                              {waypoint.description}
+                                            </Text>
+                                          )}
+                                        </YStack>
+                                        <Button
+                                          variant="secondary"
+                                          size="sm"
+                                          onPress={() => {
+                                            const newWaypoints = waypoints.filter(
+                                              (_, i) => i !== index,
+                                            );
+                                            setWaypoints(newWaypoints);
+                                          }}
+                                          backgroundColor="$red5"
+                                        >
+                                          <Feather name="trash-2" size={14} color="$red10" />
+                                        </Button>
+                                      </XStack>
+                                    </Card>
+                                  ))}
+                                </YStack>
+                              )}
+
+                              {/* Drawing Info */}
+                              {drawingMode === 'pen' && penPath.length > 0 && (
+                                <YStack gap="$2" marginTop="$4">
+                                  <Text size="lg" weight="bold">
+                                    Drawing
+                                  </Text>
+                                  <Card bordered padding="$3">
+                                    <YStack gap="$2">
+                                      <XStack justifyContent="space-between" alignItems="center">
+                                        <Text size="sm" color="$gray11">
+                                          {isDrawing
+                                            ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom/pan`
+                                            : waypoints.length > 0
+                                              ? `Drawing finished (${penPath.length} raw coordinates → ${waypoints.length} waypoints)`
+                                              : `Drawing paused (${penPath.length} points) • Drag to continue drawing`}
+                                        </Text>
+                                        <XStack gap="$2">
+                                          {isDrawing && (
+                                            <Button
+                                              variant="secondary"
+                                              size="sm"
+                                              onPress={finishPenDrawing}
+                                              backgroundColor="$green10"
+                                            >
+                                              <XStack gap="$1" alignItems="center">
+                                                <Feather name="check" size={14} color="white" />
+                                                <Text size="sm" color="white">
+                                                  Finish
+                                                </Text>
+                                              </XStack>
+                                            </Button>
+                                          )}
+                                          <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onPress={() => {
+                                              setPenPath([]);
+                                              setIsDrawing(false);
+                                              drawingRef.current = false;
+                                              lastDrawPointRef.current = null;
+                                              // Also clear waypoints if they were generated from pen drawing
+                                              if (
+                                                waypoints.length > 0 &&
+                                                waypoints[0]?.title?.includes('Drawing')
+                                              ) {
+                                                setWaypoints([]);
+                                              }
+                                            }}
+                                            backgroundColor="$red5"
+                                          >
+                                            <Feather name="trash-2" size={14} color="$red10" />
+                                          </Button>
+                                        </XStack>
+                                      </XStack>
+
+                                      {/* Show status when finished */}
+                                      {!isDrawing && waypoints.length > 0 && (
+                                        <YStack gap="$1">
+                                          <Text size="xs" color="$green10">
+                                            ✅ Raw drawing coordinates will be saved to metadata for
+                                            accurate display
+                                          </Text>
+                                          <Text size="xs" color="$gray9">
+                                            Metadata will contain: {penPath.length} coordinate
+                                            points
+                                          </Text>
+                                        </YStack>
+                                      )}
+                                    </YStack>
+                                  </Card>
+                                </YStack>
+                              )}
+                            </YStack>
+                          </YStack>
+                        )}
+
+                        {activeSection === 'exercises' && (
+                          <YStack gap="$4">
+                            <Heading>
+                              {getTranslation(t, 'createRoute.exercises', 'Exercises')}
+                            </Heading>
+                            <Text size="sm" color="$gray11">
+                              Add exercises from learning paths or create custom ones
+                            </Text>
+
+                            {/* Learning Path Exercises Selector */}
+                            <YStack gap="$3">
+                              <Heading size="$4">From Learning Paths</Heading>
+                              <Button
+                                onPress={() => setShowExerciseSelector(true)}
+                                variant="secondary"
+                                size="lg"
+                                backgroundColor="$green5"
+                              >
+                                <XStack gap="$2" alignItems="center">
+                                  <Feather name="book-open" size={18} color="$green11" />
+                                  <Text color="$green11" fontWeight="500">
+                                    Select from Learning Paths (
+                                    {exercises.filter((ex) => ex.source === 'learning_path').length}{' '}
+                                    selected)
+                                  </Text>
+                                </XStack>
+                              </Button>
+                            </YStack>
+
+                            <Separator marginVertical="$4" />
+
+                            {/* Advanced Custom Exercise Creator */}
+                            <YStack gap="$3">
+                              <Heading size="$4">Create Custom Exercise</Heading>
+                              <Text size="sm" color="$gray11">
+                                Create rich, feature-complete exercises with multimedia support,
+                                quizzes, and multilingual content
+                              </Text>
+
+                              <Button
+                                onPress={() => setShowAdvancedExerciseCreator(true)}
+                                variant="secondary"
+                                size="lg"
+                                backgroundColor="$blue5"
+                                marginTop="$2"
+                              >
+                                <XStack gap="$2" alignItems="center">
+                                  <Feather name="plus-circle" size={20} color="$blue11" />
+                                  <Text color="$blue11" fontWeight="500">
+                                    Create Advanced Exercise
+                                  </Text>
+                                </XStack>
+                              </Button>
+
+                              <YStack gap="$2" marginTop="$2">
+                                <Text size="sm" color="$green11" fontWeight="500">
+                                  🎯 Features Available:
+                                </Text>
+                                <Text size="xs" color="$gray11">
+                                  ✅ Photos, Videos & YouTube integration • ✅ Interactive quizzes &
+                                  embeds
+                                </Text>
+                                <Text size="xs" color="$gray11">
+                                  ✅ Public/Private visibility • ✅ Categories & difficulty levels
+                                </Text>
+                                <Text size="xs" color="$gray11">
+                                  ✅ Multilingual support (EN/SV) • ✅ Rich descriptions &
+                                  instructions
+                                </Text>
+                              </YStack>
+                            </YStack>
+
+                            <Separator marginVertical="$4" />
+
+                            {exercises.length > 0 ? (
+                              <YStack gap="$4">
+                                <Text size="lg" weight="bold">
+                                  Selected Exercises ({exercises.length})
+                                </Text>
+                                {exercises.map((exercise) => (
+                                  <Card
+                                    key={exercise.id}
+                                    bordered
+                                    padding="$3"
+                                    backgroundColor={
+                                      exercise.source === 'learning_path'
+                                        ? '$green1'
+                                        : '$background'
+                                    }
+                                    borderColor={
+                                      exercise.source === 'learning_path'
+                                        ? '$green8'
+                                        : '$borderColor'
+                                    }
+                                  >
+                                    <YStack gap="$2">
+                                      <XStack
+                                        justifyContent="space-between"
+                                        alignItems="flex-start"
+                                      >
+                                        <YStack flex={1} gap="$1">
+                                          <XStack alignItems="center" gap="$2">
+                                            <Text size="lg" weight="medium">
+                                              {exercise.title}
+                                            </Text>
+                                            {exercise.source === 'learning_path' && (
+                                              <View
+                                                style={{
+                                                  backgroundColor: '#10B981',
+                                                  paddingHorizontal: 6,
+                                                  paddingVertical: 2,
+                                                  borderRadius: 8,
+                                                }}
+                                              >
+                                                <Text fontSize={10} color="white" fontWeight="500">
+                                                  LEARNING PATH
+                                                </Text>
+                                              </View>
+                                            )}
+                                            {exercise.isRepeat && (
+                                              <View
+                                                style={{
+                                                  backgroundColor: '#F59E0B',
+                                                  paddingHorizontal: 6,
+                                                  paddingVertical: 2,
+                                                  borderRadius: 8,
+                                                }}
+                                              >
+                                                <Text fontSize={10} color="white" fontWeight="500">
+                                                  REPEAT {exercise.repeatNumber || ''}
+                                                </Text>
+                                              </View>
+                                            )}
+                                            {exercise.has_quiz && (
+                                              <View
+                                                style={{
+                                                  backgroundColor: '#3B82F6',
+                                                  paddingHorizontal: 6,
+                                                  paddingVertical: 2,
+                                                  borderRadius: 8,
+                                                }}
+                                              >
+                                                <Text fontSize={10} color="white" fontWeight="500">
+                                                  QUIZ
+                                                </Text>
+                                              </View>
+                                            )}
+                                            {exercise.youtube_url && (
+                                              <View
+                                                style={{
+                                                  backgroundColor: '#EF4444',
+                                                  paddingHorizontal: 6,
+                                                  paddingVertical: 2,
+                                                  borderRadius: 8,
+                                                }}
+                                              >
+                                                <Text fontSize={10} color="white" fontWeight="500">
+                                                  VIDEO
+                                                </Text>
+                                              </View>
+                                            )}
+                                          </XStack>
+
+                                          {exercise.learning_path_title && (
+                                            <Text size="sm" color="$green11">
+                                              From: {exercise.learning_path_title}
+                                            </Text>
+                                          )}
+                                        </YStack>
+
+                                        <XStack gap="$2">
+                                          {exercise.source === 'custom' && (
+                                            <Button
+                                              variant="secondary"
+                                              size="sm"
+                                              onPress={() => handleEditExercise(exercise)}
+                                              backgroundColor="$blue5"
+                                            >
+                                              <Feather name="edit-3" size={16} color="$blue10" />
+                                            </Button>
+                                          )}
+                                          <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onPress={() => handleRemoveExercise(exercise.id)}
+                                            backgroundColor="$red5"
+                                          >
+                                            <Feather name="trash-2" size={16} color="$red10" />
+                                          </Button>
+                                        </XStack>
+                                      </XStack>
+
+                                      {exercise.description && (
+                                        <Text color="$gray11">{exercise.description}</Text>
+                                      )}
+
+                                      <XStack gap="$3" alignItems="center" flexWrap="wrap">
+                                        {exercise.duration && (
+                                          <XStack gap="$1" alignItems="center">
+                                            <Feather name="clock" size={14} color="$gray11" />
+                                            <Text size="sm" color="$gray11">
+                                              {exercise.duration}
+                                            </Text>
+                                          </XStack>
+                                        )}
+
+                                        {exercise.repetitions && (
+                                          <XStack gap="$1" alignItems="center">
+                                            <Feather name="repeat" size={14} color="$gray11" />
+                                            <Text size="sm" color="$gray11">
+                                              {exercise.repetitions}
+                                            </Text>
+                                          </XStack>
+                                        )}
+
+                                        {exercise.source === 'learning_path' && (
+                                          <XStack gap="$1" alignItems="center">
+                                            <Feather name="link" size={14} color="$gray11" />
+                                            <Text size="sm" color="$gray11">
+                                              Linked to Learning Path
+                                            </Text>
+                                          </XStack>
+                                        )}
+                                      </XStack>
+                                    </YStack>
+                                  </Card>
+                                ))}
+                              </YStack>
+                            ) : (
+                              <Text color="$gray11" textAlign="center">
+                                {getTranslation(
+                                  t,
+                                  'createRoute.noExercises',
+                                  'No exercises added yet',
+                                )}
+                              </Text>
+                            )}
+                          </YStack>
+                        )}
+
+                        {activeSection === 'media' && (
+                          <YStack gap="$4">
+                            <Heading>{getTranslation(t, 'createRoute.media', 'Media')}</Heading>
+                            <Text size="sm" color="$gray11">
+                              {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
+                            </Text>
+
+                            <XStack gap="$3" flexWrap="wrap">
+                              <Button
+                                flex={1}
+                                onPress={() => pickMedia(false)}
+                                variant="secondary"
+                                size="md"
+                                marginTop="$2"
+                              >
+                                <XStack gap="$2" alignItems="center">
+                                  <Feather name="plus" size={18} color="$blue10" />
+                                  <Text color="$blue10">
+                                    {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
+                                  </Text>
+                                </XStack>
+                              </Button>
+                              <Button
+                                flex={1}
+                                onPress={takePhoto}
+                                variant="secondary"
+                                size="md"
+                                marginTop="$2"
+                              >
+                                <XStack gap="$2" alignItems="center">
+                                  <Feather name="plus" size={18} color="$blue10" />
+                                  <Text color="$blue10">
+                                    {getTranslation(t, 'createRoute.takePicture', 'Take Picture')}
+                                  </Text>
+                                </XStack>
+                              </Button>
+                              <Button
+                                flex={1}
+                                onPress={uploadPhoto}
+                                variant="secondary"
+                                size="md"
+                                marginTop="$2"
+                              >
+                                <XStack gap="$2" alignItems="center">
+                                  <Feather name="upload" size={18} color="$blue10" />
+                                  <Text color="$blue10">
+                                    {getTranslation(t, 'createRoute.uploadPhoto', 'Upload Photo')}
+                                  </Text>
+                                </XStack>
+                              </Button>
+                              <Button
+                                flex={1}
+                                onPress={recordVideo}
+                                variant="secondary"
+                                size="md"
+                                marginTop="$2"
+                              >
+                                <XStack gap="$2" alignItems="center">
+                                  <Feather name="plus" size={18} color="$blue10" />
+                                  <Text color="$blue10">
+                                    {getTranslation(t, 'createRoute.takeVideo', 'Take Video')}
+                                  </Text>
+                                </XStack>
+                              </Button>
+                              <Button
+                                flex={1}
+                                onPress={uploadVideo}
+                                variant="secondary"
+                                size="md"
+                                marginTop="$2"
+                              >
+                                <XStack gap="$2" alignItems="center">
+                                  <Feather name="upload" size={18} color="$blue10" />
+                                  <Text color="$blue10">
+                                    {getTranslation(t, 'createRoute.uploadVideo', 'Upload Video')}
+                                  </Text>
+                                </XStack>
+                              </Button>
+                            </XStack>
+
+                            {/* YouTube Link */}
+                            <YStack gap="$2">
+                              <Heading marginTop="$4">
+                                {getTranslation(t, 'createRoute.youtubeLink', 'YouTube Link')}
+                              </Heading>
+                              <XStack gap="$2">
+                                <FormField
+                                  flex={1}
+                                  value={youtubeLink}
+                                  onChangeText={setYoutubeLink}
+                                  placeholder={t('createRoute.youtubeLinkPlaceholder')}
+                                  accessibilityLabel={t('createRoute.youtubeLink')}
+                                />
+                                <Button
+                                  onPress={addYoutubeLink}
+                                  disabled={!youtubeLink}
+                                  variant="secondary"
+                                  size="md"
+                                  marginTop="$2"
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather name="plus" size={18} color="$blue10" />
+                                    <Text color="$blue10">
+                                      {getTranslation(
+                                        t,
+                                        'createRoute.addYoutubeLink',
+                                        'Add YouTube Link',
+                                      )}
                                     </Text>
                                   </XStack>
-                                  <Text size="xs" color="$gray11">
-                                    Lat: {waypoint.latitude.toFixed(6)}, Lng:{' '}
-                                    {waypoint.longitude.toFixed(6)}
-                                  </Text>
-                                  {waypoint.description && (
-                                    <Text size="xs" color="$gray10">
-                                      {waypoint.description}
-                                    </Text>
-                                  )}
-                                </YStack>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onPress={() => {
-                                    const newWaypoints = waypoints.filter((_, i) => i !== index);
-                                    setWaypoints(newWaypoints);
-                                  }}
-                                  backgroundColor="$red5"
-                                >
-                                  <Feather name="trash-2" size={14} color="$red10" />
                                 </Button>
                               </XStack>
-                            </Card>
-                          ))}
-                        </YStack>
-                      )}
-
-                      {/* Drawing Info */}
-                      {drawingMode === 'pen' && penPath.length > 0 && (
-                        <YStack gap="$2" marginTop="$4">
-                          <Text size="lg" weight="bold">
-                            Drawing
-                          </Text>
-                          <Card bordered padding="$3">
-                            <YStack gap="$2">
-                              <XStack justifyContent="space-between" alignItems="center">
-                                <Text size="sm" color="$gray11">
-                                  {isDrawing
-                                    ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom/pan`
-                                    : waypoints.length > 0
-                                      ? `Drawing finished (${penPath.length} raw coordinates → ${waypoints.length} waypoints)`
-                                      : `Drawing paused (${penPath.length} points) • Drag to continue drawing`}
-                                </Text>
-                                <XStack gap="$2">
-                                  {isDrawing && (
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      onPress={finishPenDrawing}
-                                      backgroundColor="$green10"
-                                    >
-                                      <XStack gap="$1" alignItems="center">
-                                        <Feather name="check" size={14} color="white" />
-                                        <Text size="sm" color="white">
-                                          Finish
-                                        </Text>
-                                      </XStack>
-                                    </Button>
-                                  )}
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onPress={() => {
-                                      setPenPath([]);
-                                      setIsDrawing(false);
-                                      drawingRef.current = false;
-                                      lastDrawPointRef.current = null;
-                                      // Also clear waypoints if they were generated from pen drawing
-                                      if (
-                                        waypoints.length > 0 &&
-                                        waypoints[0]?.title?.includes('Drawing')
-                                      ) {
-                                        setWaypoints([]);
-                                      }
-                                    }}
-                                    backgroundColor="$red5"
-                                  >
-                                    <Feather name="trash-2" size={14} color="$red10" />
-                                  </Button>
-                                </XStack>
-                              </XStack>
-
-                              {/* Show status when finished */}
-                              {!isDrawing && waypoints.length > 0 && (
-                                <YStack gap="$1">
-                                  <Text size="xs" color="$green10">
-                                    ✅ Raw drawing coordinates will be saved to metadata for
-                                    accurate display
-                                  </Text>
-                                  <Text size="xs" color="$gray9">
-                                    Metadata will contain: {penPath.length} coordinate points
-                                  </Text>
-                                </YStack>
-                              )}
                             </YStack>
-                          </Card>
-                        </YStack>
-                      )}
-                    </YStack>
-                  </YStack>
-                )}
 
-                {activeSection === 'exercises' && (
-                  <YStack gap="$4">
-                    <Heading>{getTranslation(t, 'createRoute.exercises', 'Exercises')}</Heading>
-                    <Text size="sm" color="$gray11">
-                      Add exercises from learning paths or create custom ones
-                    </Text>
+                            {/* Media Preview List */}
+                            {media.length > 0 ? (
+                              <YStack gap="$4">
+                                {media.map((item, index) => (
+                                  <Card key={item.id} bordered padding="$3">
+                                    <XStack gap="$3">
+                                      {item.type === 'image' && (
+                                        <Image
+                                          source={{ uri: item.uri }}
+                                          style={{ width: 80, height: 80, borderRadius: 8 }}
+                                        />
+                                      )}
+                                      {item.type === 'video' && (
+                                        <View
+                                          style={{
+                                            width: 80,
+                                            height: 80,
+                                            borderRadius: 8,
+                                            backgroundColor: '#000',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                          }}
+                                        >
+                                          <Feather name="video" size={24} color="white" />
+                                        </View>
+                                      )}
+                                      {item.type === 'youtube' && (
+                                        <View
+                                          style={{
+                                            width: 80,
+                                            height: 80,
+                                            borderRadius: 8,
+                                            backgroundColor: '#FF0000',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                          }}
+                                        >
+                                          <Feather name="youtube" size={24} color="white" />
+                                        </View>
+                                      )}
+                                      <YStack flex={1} justifyContent="space-between">
+                                        <Text weight="medium">
+                                          {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                                        </Text>
+                                        <Text size="sm" color="$gray11" numberOfLines={2}>
+                                          {item.uri.split('/').pop()}
+                                        </Text>
+                                        <Button
+                                          variant="secondary"
+                                          size="sm"
+                                          onPress={() => handleRemoveMedia(index)}
+                                          backgroundColor="$red5"
+                                        >
+                                          <XStack gap="$1" alignItems="center">
+                                            <Feather name="trash-2" size={14} color="$red10" />
+                                            <Text size="sm" color="$red10">
+                                              {getTranslation(
+                                                t,
+                                                'createRoute.deleteMedia',
+                                                'Delete Media',
+                                              )}
+                                            </Text>
+                                          </XStack>
+                                        </Button>
+                                      </YStack>
+                                    </XStack>
+                                  </Card>
+                                ))}
+                              </YStack>
+                            ) : (
+                              <Text color="$gray11" textAlign="center">
+                                {getTranslation(t, 'createRoute.noMedia', 'No media added yet')}
+                              </Text>
+                            )}
+                          </YStack>
+                        )}
 
-                    {/* Learning Path Exercises Selector */}
-                    <YStack gap="$3">
-                      <Heading size="$4">From Learning Paths</Heading>
-                      <Button
-                        onPress={() => setShowExerciseSelector(true)}
-                        variant="secondary"
-                        size="lg"
-                        backgroundColor="$green5"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="book-open" size={18} color="$green11" />
-                          <Text color="$green11" fontWeight="500">
-                            Select from Learning Paths (
-                            {exercises.filter((ex) => ex.source === 'learning_path').length}{' '}
-                            selected)
-                          </Text>
-                        </XStack>
-                      </Button>
-                    </YStack>
+                        {activeSection === 'details' && (
+                          <YStack gap="$4">
+                            <Text size="lg" weight="medium" color="$color">
+                              {t('common.details')}
+                            </Text>
 
-                    <Separator marginVertical="$4" />
-
-                    {/* Advanced Custom Exercise Creator */}
-                    <YStack gap="$3">
-                      <Heading size="$4">Create Custom Exercise</Heading>
-                      <Text size="sm" color="$gray11">
-                        Create rich, feature-complete exercises with multimedia support, quizzes,
-                        and multilingual content
-                      </Text>
-
-                      <Button
-                        onPress={() => setShowAdvancedExerciseCreator(true)}
-                        variant="secondary"
-                        size="lg"
-                        backgroundColor="$blue5"
-                        marginTop="$2"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="plus-circle" size={20} color="$blue11" />
-                          <Text color="$blue11" fontWeight="500">
-                            Create Advanced Exercise
-                          </Text>
-                        </XStack>
-                      </Button>
-
-                      <YStack gap="$2" marginTop="$2">
-                        <Text size="sm" color="$green11" fontWeight="500">
-                          🎯 Features Available:
-                        </Text>
-                        <Text size="xs" color="$gray11">
-                          ✅ Photos, Videos & YouTube integration • ✅ Interactive quizzes & embeds
-                        </Text>
-                        <Text size="xs" color="$gray11">
-                          ✅ Public/Private visibility • ✅ Categories & difficulty levels
-                        </Text>
-                        <Text size="xs" color="$gray11">
-                          ✅ Multilingual support (EN/SV) • ✅ Rich descriptions & instructions
-                        </Text>
-                      </YStack>
-                    </YStack>
-
-                    <Separator marginVertical="$4" />
-
-                    {exercises.length > 0 ? (
-                      <YStack gap="$4">
-                        <Text size="lg" weight="bold">
-                          Selected Exercises ({exercises.length})
-                        </Text>
-                        {exercises.map((exercise) => (
-                          <Card
-                            key={exercise.id}
-                            bordered
-                            padding="$3"
-                            backgroundColor={
-                              exercise.source === 'learning_path' ? '$green1' : '$background'
-                            }
-                            borderColor={
-                              exercise.source === 'learning_path' ? '$green8' : '$borderColor'
-                            }
-                          >
+                            {/* Difficulty */}
                             <YStack gap="$2">
-                              <XStack justifyContent="space-between" alignItems="flex-start">
-                                <YStack flex={1} gap="$1">
-                                  <XStack alignItems="center" gap="$2">
-                                    <Text size="lg" weight="medium">
-                                      {exercise.title}
-                                    </Text>
-                                    {exercise.source === 'learning_path' && (
-                                      <View
-                                        style={{
-                                          backgroundColor: '#10B981',
-                                          paddingHorizontal: 6,
-                                          paddingVertical: 2,
-                                          borderRadius: 8,
-                                        }}
-                                      >
-                                        <Text fontSize={10} color="white" fontWeight="500">
-                                          LEARNING PATH
-                                        </Text>
-                                      </View>
-                                    )}
-                                    {exercise.isRepeat && (
-                                      <View
-                                        style={{
-                                          backgroundColor: '#F59E0B',
-                                          paddingHorizontal: 6,
-                                          paddingVertical: 2,
-                                          borderRadius: 8,
-                                        }}
-                                      >
-                                        <Text fontSize={10} color="white" fontWeight="500">
-                                          REPEAT {exercise.repeatNumber || ''}
-                                        </Text>
-                                      </View>
-                                    )}
-                                    {exercise.has_quiz && (
-                                      <View
-                                        style={{
-                                          backgroundColor: '#3B82F6',
-                                          paddingHorizontal: 6,
-                                          paddingVertical: 2,
-                                          borderRadius: 8,
-                                        }}
-                                      >
-                                        <Text fontSize={10} color="white" fontWeight="500">
-                                          QUIZ
-                                        </Text>
-                                      </View>
-                                    )}
-                                    {exercise.youtube_url && (
-                                      <View
-                                        style={{
-                                          backgroundColor: '#EF4444',
-                                          paddingHorizontal: 6,
-                                          paddingVertical: 2,
-                                          borderRadius: 8,
-                                        }}
-                                      >
-                                        <Text fontSize={10} color="white" fontWeight="500">
-                                          VIDEO
-                                        </Text>
-                                      </View>
-                                    )}
-                                  </XStack>
-
-                                  {exercise.learning_path_title && (
-                                    <Text size="sm" color="$green11">
-                                      From: {exercise.learning_path_title}
-                                    </Text>
-                                  )}
-                                </YStack>
-
-                                <XStack gap="$2">
-                                  {exercise.source === 'custom' && (
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      onPress={() => handleEditExercise(exercise)}
-                                      backgroundColor="$blue5"
-                                    >
-                                      <Feather name="edit-3" size={16} color="$blue10" />
-                                    </Button>
-                                  )}
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onPress={() => handleRemoveExercise(exercise.id)}
-                                    backgroundColor="$red5"
+                              <Text weight="medium" color="$color">
+                                {getTranslation(t, 'createRoute.difficulty', 'Difficulty')}
+                              </Text>
+                              <XStack gap="$2" flexWrap="wrap">
+                                {['beginner', 'intermediate', 'advanced'].map((level) => (
+                                  <Chip
+                                    key={level}
+                                    active={formData.difficulty === (level as DifficultyLevel)}
+                                    onPress={() =>
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        difficulty: level as DifficultyLevel,
+                                      }))
+                                    }
                                   >
-                                    <Feather name="trash-2" size={16} color="$red10" />
-                                  </Button>
-                                </XStack>
-                              </XStack>
-
-                              {exercise.description && (
-                                <Text color="$gray11">{exercise.description}</Text>
-                              )}
-
-                              <XStack gap="$3" alignItems="center" flexWrap="wrap">
-                                {exercise.duration && (
-                                  <XStack gap="$1" alignItems="center">
-                                    <Feather name="clock" size={14} color="$gray11" />
-                                    <Text size="sm" color="$gray11">
-                                      {exercise.duration}
-                                    </Text>
-                                  </XStack>
-                                )}
-
-                                {exercise.repetitions && (
-                                  <XStack gap="$1" alignItems="center">
-                                    <Feather name="repeat" size={14} color="$gray11" />
-                                    <Text size="sm" color="$gray11">
-                                      {exercise.repetitions}
-                                    </Text>
-                                  </XStack>
-                                )}
-
-                                {exercise.source === 'learning_path' && (
-                                  <XStack gap="$1" alignItems="center">
-                                    <Feather name="link" size={14} color="$gray11" />
-                                    <Text size="sm" color="$gray11">
-                                      Linked to Learning Path
-                                    </Text>
-                                  </XStack>
-                                )}
+                                    {level === 'beginner'
+                                      ? t('profile.experienceLevels.beginner')
+                                      : level === 'intermediate'
+                                        ? t('profile.experienceLevels.intermediate')
+                                        : t('profile.experienceLevels.advanced')}
+                                  </Chip>
+                                ))}
                               </XStack>
                             </YStack>
-                          </Card>
-                        ))}
+
+                            {/* Spot Type */}
+                            <YStack gap="$2">
+                              <Text weight="medium" color="$color">
+                                {t('createRoute.spotType')}
+                              </Text>
+                              <XStack gap="$2" flexWrap="wrap">
+                                {['city', 'highway', 'rural', 'track', 'parking'].map((type) => (
+                                  <Chip
+                                    key={type}
+                                    active={formData.spot_type === (type as SpotType)}
+                                    onPress={() =>
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        spot_type: type as SpotType,
+                                      }))
+                                    }
+                                  >
+                                    {/* Try to use the spot type translation with fallback */}
+                                    {getTranslation(
+                                      t,
+                                      `createRoute.spotTypes.${type}`,
+                                      type.charAt(0).toUpperCase() + type.slice(1),
+                                    )}
+                                  </Chip>
+                                ))}
+                              </XStack>
+                            </YStack>
+
+                            {/* Visibility */}
+                            <YStack gap="$2">
+                              <Text weight="medium" color="$color">
+                                {t('createRoute.visibility')}
+                              </Text>
+                              <XStack gap="$2" flexWrap="wrap">
+                                {['public', 'private'].map((vis) => (
+                                  <Chip
+                                    key={vis}
+                                    active={formData.visibility === (vis as SpotVisibility)}
+                                    onPress={() =>
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        visibility: vis as SpotVisibility,
+                                      }))
+                                    }
+                                  >
+                                    {vis === 'public'
+                                      ? getTranslation(t, 'createRoute.public', 'Public')
+                                      : getTranslation(t, 'createRoute.private', 'Private')}
+                                  </Chip>
+                                ))}
+                              </XStack>
+                            </YStack>
+
+                            {/* Delete Button (only when editing) */}
+                            {isEditing && (
+                              <Button
+                                onPress={handleDelete}
+                                variant="secondary"
+                                backgroundColor="$red5"
+                                marginTop="$4"
+                              >
+                                <XStack gap="$2" alignItems="center">
+                                  <Feather name="trash-2" size={18} color="$red10" />
+                                  <Text color="$red10">
+                                    {getTranslation(t, 'createRoute.deleteRoute', 'Delete Route')}
+                                  </Text>
+                                </XStack>
+                              </Button>
+                            )}
+                          </YStack>
+                        )}
                       </YStack>
-                    ) : (
-                      <Text color="$gray11" textAlign="center">
-                        {getTranslation(t, 'createRoute.noExercises', 'No exercises added yet')}
-                      </Text>
-                    )}
+                    </ScrollView>
                   </YStack>
-                )}
+                </YStack>
+              </ScrollView>
 
-                {activeSection === 'media' && (
-                  <YStack gap="$4">
-                    <Heading>{getTranslation(t, 'createRoute.media', 'Media')}</Heading>
-                    <Text size="sm" color="$gray11">
-                      {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
+              {/* Save Button */}
+              <YStack
+                position="absolute"
+                bottom={0}
+                left={0}
+                right={0}
+                padding="$4"
+                backgroundColor="$background"
+                borderTopWidth={1}
+                borderTopColor="$borderColor"
+                gap="$3"
+              >
+                {/* Collection Selector Button */}
+                <Button
+                  onPress={handleSelectCollection}
+                  backgroundColor="transparent"
+                  borderColor="$borderColor"
+                  borderWidth={1}
+                  size="md"
+                  width="100%"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="map" size={18} color="$color" />
+                    <Text color="$color">
+                      {selectedCollectionId
+                        ? getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected')
+                        : getTranslation(
+                            t,
+                            'createRoute.selectCollection',
+                            'Select Collection (Optional)',
+                          )}
                     </Text>
+                  </XStack>
+                </Button>
 
-                    <XStack gap="$3" flexWrap="wrap">
-                      <Button
-                        flex={1}
-                        onPress={() => pickMedia(false)}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="$blue10" />
-                          <Text color="$blue10">
-                            {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
-                          </Text>
-                        </XStack>
-                      </Button>
-                      <Button
-                        flex={1}
-                        onPress={takePhoto}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="$blue10" />
-                          <Text color="$blue10">
-                            {getTranslation(t, 'createRoute.takePicture', 'Take Picture')}
-                          </Text>
-                        </XStack>
-                      </Button>
-                      <Button
-                        flex={1}
-                        onPress={uploadPhoto}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="upload" size={18} color="$blue10" />
-                          <Text color="$blue10">
-                            {getTranslation(t, 'createRoute.uploadPhoto', 'Upload Photo')}
-                          </Text>
-                        </XStack>
-                      </Button>
-                      <Button
-                        flex={1}
-                        onPress={recordVideo}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="$blue10" />
-                          <Text color="$blue10">
-                            {getTranslation(t, 'createRoute.takeVideo', 'Take Video')}
-                          </Text>
-                        </XStack>
-                      </Button>
-                      <Button
-                        flex={1}
-                        onPress={uploadVideo}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="upload" size={18} color="$blue10" />
-                          <Text color="$blue10">
-                            {getTranslation(t, 'createRoute.uploadVideo', 'Upload Video')}
-                          </Text>
-                        </XStack>
-                      </Button>
-                    </XStack>
+                {/* Create Route Button */}
+                <Button
+                  onPress={handleCreate}
+                  disabled={loading || !formData.name.trim()}
+                  variant="primary"
+                  size="lg"
+                  width="100%"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    {!loading && <Feather name="check" size={20} color="white" />}
+                    <Text color="white">
+                      {loading
+                        ? getTranslation(t, 'createRoute.saving', 'Saving...')
+                        : isEditing
+                          ? getTranslation(t, 'createRoute.save', 'Save')
+                          : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
+                    </Text>
+                  </XStack>
+                </Button>
+              </YStack>
 
-                    {/* YouTube Link */}
-                    <YStack gap="$2">
-                      <Heading marginTop="$4">
-                        {getTranslation(t, 'createRoute.youtubeLink', 'YouTube Link')}
-                      </Heading>
-                      <XStack gap="$2">
-                        <FormField
-                          flex={1}
-                          value={youtubeLink}
-                          onChangeText={setYoutubeLink}
-                          placeholder={t('createRoute.youtubeLinkPlaceholder')}
-                          accessibilityLabel={t('createRoute.youtubeLink')}
-                        />
+              {/* Exercise Selector Modal */}
+              <ExerciseSelector
+                visible={showExerciseSelector}
+                onClose={() => setShowExerciseSelector(false)}
+                selectedExercises={exercises as RouteExercise[]}
+                onExercisesChange={handleExercisesChange}
+              />
+
+              {/* Advanced Exercise Creator Modal */}
+              <AdvancedExerciseCreator
+                visible={showAdvancedExerciseCreator}
+                onClose={() => {
+                  // If we were editing an exercise and user cancels, restore the original exercise
+                  if (editingExercise) {
+                    console.log(
+                      '📝 [CreateRoute] User cancelled edit - restoring original exercise:',
+                      editingExercise.id,
+                    );
+                    setExercises((prev) => [...prev, editingExercise]);
+                  }
+                  setShowAdvancedExerciseCreator(false);
+                  setEditingExercise(null); // Clear editing state
+                }}
+                onExerciseCreated={handleAdvancedExerciseCreated}
+                initialData={editingExercise} // Pass exercise data for editing
+              />
+
+              {/* Exit Confirmation Bottom Sheet */}
+              <Modal
+                visible={showExitConfirmation}
+                transparent
+                animationType="none"
+                onRequestClose={() => setShowExitConfirmation(false)}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    justifyContent: 'flex-end',
+                  }}
+                >
+                  <Animated.View
+                    style={{
+                      backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                      borderTopLeftRadius: 20,
+                      borderTopRightRadius: 20,
+                      paddingHorizontal: 20,
+                      paddingTop: 20,
+                      paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+                      maxHeight: '60%',
+                    }}
+                  >
+                    {/* Handle bar */}
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        backgroundColor: colorScheme === 'dark' ? '#333' : '#DDD',
+                        borderRadius: 2,
+                        alignSelf: 'center',
+                        marginBottom: 20,
+                      }}
+                    />
+
+                    <YStack gap="$4">
+                      <YStack gap="$2">
+                        <Text fontSize="$6" fontWeight="bold" textAlign="center">
+                          {t('createRoute.unsavedChanges') || 'Unsaved Changes'}
+                        </Text>
+                        <Text fontSize="$4" color="$gray11" textAlign="center">
+                          {t('createRoute.unsavedChangesMessage') ||
+                            'You have unsaved changes. What would you like to do?'}
+                        </Text>
+                      </YStack>
+
+                      <YStack gap="$3">
+                        {/* Save as Draft Button */}
                         <Button
-                          onPress={addYoutubeLink}
-                          disabled={!youtubeLink}
+                          onPress={saveAsDraft}
                           variant="secondary"
-                          size="md"
-                          marginTop="$2"
+                          size="lg"
+                          backgroundColor="$blue5"
                         >
                           <XStack gap="$2" alignItems="center">
-                            <Feather name="plus" size={18} color="$blue10" />
-                            <Text color="$blue10">
-                              {getTranslation(t, 'createRoute.addYoutubeLink', 'Add YouTube Link')}
+                            <Feather name="save" size={20} color="$blue11" />
+                            <Text color="$blue11" fontSize="$4" fontWeight="500">
+                              {t('createRoute.saveAsDraft') || 'Save as Draft'}
                             </Text>
                           </XStack>
                         </Button>
-                      </XStack>
-                    </YStack>
 
-                    {/* Media Preview List */}
-                    {media.length > 0 ? (
-                      <YStack gap="$4">
-                        {media.map((item, index) => (
-                          <Card key={item.id} bordered padding="$3">
-                            <XStack gap="$3">
-                              {item.type === 'image' && (
-                                <Image
-                                  source={{ uri: item.uri }}
-                                  style={{ width: 80, height: 80, borderRadius: 8 }}
-                                />
-                              )}
-                              {item.type === 'video' && (
-                                <View
-                                  style={{
-                                    width: 80,
-                                    height: 80,
-                                    borderRadius: 8,
-                                    backgroundColor: '#000',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                  }}
-                                >
-                                  <Feather name="video" size={24} color="white" />
-                                </View>
-                              )}
-                              {item.type === 'youtube' && (
-                                <View
-                                  style={{
-                                    width: 80,
-                                    height: 80,
-                                    borderRadius: 8,
-                                    backgroundColor: '#FF0000',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                  }}
-                                >
-                                  <Feather name="youtube" size={24} color="white" />
-                                </View>
-                              )}
-                              <YStack flex={1} justifyContent="space-between">
-                                <Text weight="medium">
-                                  {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                                </Text>
-                                <Text size="sm" color="$gray11" numberOfLines={2}>
-                                  {item.uri.split('/').pop()}
-                                </Text>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onPress={() => handleRemoveMedia(index)}
-                                  backgroundColor="$red5"
-                                >
-                                  <XStack gap="$1" alignItems="center">
-                                    <Feather name="trash-2" size={14} color="$red10" />
-                                    <Text size="sm" color="$red10">
-                                      {getTranslation(t, 'createRoute.deleteMedia', 'Delete Media')}
-                                    </Text>
-                                  </XStack>
-                                </Button>
-                              </YStack>
-                            </XStack>
-                          </Card>
-                        ))}
+                        {/* Continue Editing Button */}
+                        <Button onPress={handleContinueEditing} variant="primary" size="lg">
+                          <XStack gap="$2" alignItems="center">
+                            <Feather name="edit-3" size={20} color="white" />
+                            <Text color="white" fontSize="$4" fontWeight="500">
+                              {t('createRoute.continueEditing') || 'Continue Editing'}
+                            </Text>
+                          </XStack>
+                        </Button>
+
+                        {/* Exit Without Saving Button */}
+                        <Button
+                          onPress={handleExitWithoutSaving}
+                          variant="secondary"
+                          size="lg"
+                          backgroundColor="$red5"
+                        >
+                          <XStack gap="$2" alignItems="center">
+                            <Feather name="x" size={20} color="#EF4444" />
+                            <Text color="#EF4444" fontSize="$4" fontWeight="500">
+                              {t('createRoute.exitWithoutSaving') || 'Exit Without Saving'}
+                            </Text>
+                          </XStack>
+                        </Button>
                       </YStack>
-                    ) : (
-                      <Text color="$gray11" textAlign="center">
-                        {getTranslation(t, 'createRoute.noMedia', 'No media added yet')}
-                      </Text>
-                    )}
-                  </YStack>
-                )}
-
-                {activeSection === 'details' && (
-                  <YStack gap="$4">
-                    <Text size="lg" weight="medium" color="$color">
-                      {t('common.details')}
-                    </Text>
-
-                    {/* Difficulty */}
-                    <YStack gap="$2">
-                      <Text weight="medium" color="$color">
-                        {getTranslation(t, 'createRoute.difficulty', 'Difficulty')}
-                      </Text>
-                      <XStack gap="$2" flexWrap="wrap">
-                        {['beginner', 'intermediate', 'advanced'].map((level) => (
-                          <Chip
-                            key={level}
-                            active={formData.difficulty === (level as DifficultyLevel)}
-                            onPress={() =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                difficulty: level as DifficultyLevel,
-                              }))
-                            }
-                          >
-                            {level === 'beginner'
-                              ? t('profile.experienceLevels.beginner')
-                              : level === 'intermediate'
-                                ? t('profile.experienceLevels.intermediate')
-                                : t('profile.experienceLevels.advanced')}
-                          </Chip>
-                        ))}
-                      </XStack>
                     </YStack>
+                  </Animated.View>
+                </View>
+              </Modal>
 
-                    {/* Spot Type */}
-                    <YStack gap="$2">
-                      <Text weight="medium" color="$color">
-                        {t('createRoute.spotType')}
-                      </Text>
-                      <XStack gap="$2" flexWrap="wrap">
-                        {['city', 'highway', 'rural', 'track', 'parking'].map((type) => (
-                          <Chip
-                            key={type}
-                            active={formData.spot_type === (type as SpotType)}
-                            onPress={() =>
-                              setFormData((prev) => ({ ...prev, spot_type: type as SpotType }))
-                            }
-                          >
-                            {/* Try to use the spot type translation with fallback */}
-                            {getTranslation(
-                              t,
-                              `createRoute.spotTypes.${type}`,
-                              type.charAt(0).toUpperCase() + type.slice(1),
-                            )}
-                          </Chip>
-                        ))}
-                      </XStack>
-                    </YStack>
+              {/* Collection Selector Sheet */}
+              <AddToPresetSheet
+                isVisible={showCollectionSelector}
+                routeId={isEditing && routeId ? routeId : 'temp-route-id'} // Use actual route ID when editing, temp ID for new routes
+                selectedCollectionId={selectedCollectionId} // Pass the currently selected collection ID
+                onRouteAdded={(presetId, presetName) => {
+                  setSelectedCollectionId(presetId);
+                  setShowCollectionSelector(false);
+                  showToast({
+                    title: getTranslation(
+                      t,
+                      'createRoute.collectionSelected',
+                      'Collection Selected',
+                    ),
+                    message: getTranslation(
+                      t,
+                      'createRoute.routeWillBeSavedTo',
+                      'Route will be saved to "{collectionName}"',
+                    ).replace('{collectionName}', presetName),
+                    type: 'success',
+                  });
+                }}
+                onRouteRemoved={() => {}} // Not applicable for new routes
+                onPresetCreated={(preset) => {
+                  setSelectedCollectionId(preset.id);
+                  setShowCollectionSelector(false);
+                  showToast({
+                    title: getTranslation(t, 'createRoute.collectionCreated', 'Collection Created'),
+                    message: getTranslation(
+                      t,
+                      'createRoute.newCollectionCreated',
+                      'New collection "{collectionName}" has been created',
+                    ).replace('{collectionName}', preset.name),
+                    type: 'success',
+                  });
+                }}
+                onClose={() => setShowCollectionSelector(false)}
+              />
 
-                    {/* Visibility */}
-                    <YStack gap="$2">
-                      <Text weight="medium" color="$color">
-                        {t('createRoute.visibility')}
-                      </Text>
-                      <XStack gap="$2" flexWrap="wrap">
-                        {['public', 'private'].map((vis) => (
-                          <Chip
-                            key={vis}
-                            active={formData.visibility === (vis as SpotVisibility)}
-                            onPress={() =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                visibility: vis as SpotVisibility,
-                              }))
-                            }
-                          >
-                            {vis === 'public'
-                              ? getTranslation(t, 'createRoute.public', 'Public')
-                              : getTranslation(t, 'createRoute.private', 'Private')}
-                          </Chip>
-                        ))}
-                      </XStack>
-                    </YStack>
-
-                    {/* Delete Button (only when editing) */}
-                    {isEditing && (
-                      <Button
-                        onPress={handleDelete}
-                        variant="secondary"
-                        backgroundColor="$red5"
-                        marginTop="$4"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="trash-2" size={18} color="$red10" />
-                          <Text color="$red10">
-                            {getTranslation(t, 'createRoute.deleteRoute', 'Delete Route')}
-                          </Text>
-                        </XStack>
-                      </Button>
-                    )}
-                  </YStack>
-                )}
-              </YStack>
-            </ScrollView>
-          </YStack>
-        </YStack>
-      </ScrollView>
-
-      {/* Save Button */}
-      <YStack
-        position="absolute"
-        bottom={0}
-        left={0}
-        right={0}
-        padding="$4"
-        backgroundColor="$background"
-        borderTopWidth={1}
-        borderTopColor="$borderColor"
-        gap="$3"
-      >
-        {/* Collection Selector Button */}
-        <Button
-          onPress={handleSelectCollection}
-          backgroundColor="transparent"
-          borderColor="$borderColor"
-          borderWidth={1}
-          size="md"
-          width="100%"
-        >
-          <XStack gap="$2" alignItems="center">
-            <Feather name="map" size={18} color="$color" />
-            <Text color="$color">
-              {selectedCollectionId 
-                ? getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected')
-                : getTranslation(t, 'createRoute.selectCollection', 'Select Collection (Optional)')
-              }
-            </Text>
-          </XStack>
-        </Button>
-
-        {/* Create Route Button */}
-        <Button
-          onPress={handleCreate}
-          disabled={loading || !formData.name.trim()}
-          variant="primary"
-          size="lg"
-          width="100%"
-        >
-          <XStack gap="$2" alignItems="center">
-            {!loading && <Feather name="check" size={20} color="white" />}
-            <Text color="white">
-              {loading
-                ? getTranslation(t, 'createRoute.saving', 'Saving...')
-                : isEditing
-                  ? getTranslation(t, 'createRoute.save', 'Save')
-                  : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
-            </Text>
-          </XStack>
-        </Button>
-      </YStack>
-
-      {/* Exercise Selector Modal */}
-      <ExerciseSelector
-        visible={showExerciseSelector}
-        onClose={() => setShowExerciseSelector(false)}
-        selectedExercises={exercises as RouteExercise[]}
-        onExercisesChange={handleExercisesChange}
-      />
-
-      {/* Advanced Exercise Creator Modal */}
-      <AdvancedExerciseCreator
-        visible={showAdvancedExerciseCreator}
-        onClose={() => {
-          // If we were editing an exercise and user cancels, restore the original exercise
-          if (editingExercise) {
-            console.log(
-              '📝 [CreateRoute] User cancelled edit - restoring original exercise:',
-              editingExercise.id,
-            );
-            setExercises((prev) => [...prev, editingExercise]);
-          }
-          setShowAdvancedExerciseCreator(false);
-          setEditingExercise(null); // Clear editing state
-        }}
-        onExerciseCreated={handleAdvancedExerciseCreated}
-        initialData={editingExercise} // Pass exercise data for editing
-      />
-
-      {/* Exit Confirmation Bottom Sheet */}
-      <Modal
-        visible={showExitConfirmation}
-        transparent
-        animationType="none"
-        onRequestClose={() => setShowExitConfirmation(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <Animated.View
-            style={{
-              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              paddingHorizontal: 20,
-              paddingTop: 20,
-              paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-              maxHeight: '60%',
-            }}
-          >
-            {/* Handle bar */}
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                backgroundColor: colorScheme === 'dark' ? '#333' : '#DDD',
-                borderRadius: 2,
-                alignSelf: 'center',
-                marginBottom: 20,
-              }}
-            />
-
-            <YStack gap="$4">
-              <YStack gap="$2">
-                <Text fontSize="$6" fontWeight="bold" textAlign="center">
-                  {t('createRoute.unsavedChanges') || 'Unsaved Changes'}
-                </Text>
-                <Text fontSize="$4" color="$gray11" textAlign="center">
-                  {t('createRoute.unsavedChangesMessage') ||
-                    'You have unsaved changes. What would you like to do?'}
-                </Text>
-              </YStack>
-
-              <YStack gap="$3">
-                {/* Save as Draft Button */}
-                <Button
-                  onPress={saveAsDraft}
-                  variant="secondary"
-                  size="lg"
-                  backgroundColor="$blue5"
-                >
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="save" size={20} color="$blue11" />
-                    <Text color="$blue11" fontSize="$4" fontWeight="500">
-                      {t('createRoute.saveAsDraft') || 'Save as Draft'}
-                    </Text>
-                  </XStack>
-                </Button>
-
-                {/* Continue Editing Button */}
-                <Button onPress={handleContinueEditing} variant="primary" size="lg">
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="edit-3" size={20} color="white" />
-                    <Text color="white" fontSize="$4" fontWeight="500">
-                      {t('createRoute.continueEditing') || 'Continue Editing'}
-                    </Text>
-                  </XStack>
-                </Button>
-
-                {/* Exit Without Saving Button */}
-                <Button
-                  onPress={handleExitWithoutSaving}
-                  variant="secondary"
-                  size="lg"
-                  backgroundColor="$red5"
-                >
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="x" size={20} color="#EF4444" />
-                    <Text color="#EF4444" fontSize="$4" fontWeight="500">
-                      {t('createRoute.exitWithoutSaving') || 'Exit Without Saving'}
-                    </Text>
-                  </XStack>
-                </Button>
-              </YStack>
-            </YStack>
-          </Animated.View>
-        </View>
-      </Modal>
-
-      {/* Collection Selector Sheet */}
-      <AddToPresetSheet
-        isVisible={showCollectionSelector}
-        routeId={isEditing && routeId ? routeId : "temp-route-id"} // Use actual route ID when editing, temp ID for new routes
-        selectedCollectionId={selectedCollectionId} // Pass the currently selected collection ID
-        onRouteAdded={(presetId, presetName) => {
-          setSelectedCollectionId(presetId);
-          setShowCollectionSelector(false);
-          showToast({
-            title: getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected'),
-            message: getTranslation(t, 'createRoute.routeWillBeSavedTo', 'Route will be saved to "{collectionName}"').replace('{collectionName}', presetName),
-            type: 'success'
-          });
-        }}
-        onRouteRemoved={() => {}} // Not applicable for new routes
-        onPresetCreated={(preset) => {
-          setSelectedCollectionId(preset.id);
-          setShowCollectionSelector(false);
-          showToast({
-            title: getTranslation(t, 'createRoute.collectionCreated', 'Collection Created'),
-            message: getTranslation(t, 'createRoute.newCollectionCreated', 'New collection "{collectionName}" has been created').replace('{collectionName}', preset.name),
-            type: 'success'
-          });
-        }}
-        onClose={() => setShowCollectionSelector(false)}
-      />
-
-      {/* Route Detail Sheet - shown after successful route creation */}
-      <RouteDetailSheet
-        visible={showRouteDetailSheet}
-        onClose={() => {
-          setShowRouteDetailSheet(false);
-          setCreatedRouteId(null);
-        }}
-        routeId={createdRouteId || undefined}
-        onStartRoute={(routeId) => {
-          // Handle route start if needed
-          console.log('Route started:', routeId);
-        }}
-        onNavigateToProfile={(userId) => {
-          // Handle profile navigation if needed
-          console.log('Navigate to profile:', userId);
-        }}
-        onReopen={() => {
-          // Handle reopen if needed
-          console.log('Route detail sheet reopened');
-        }}
-      />
+              {/* Route Detail Sheet - shown after successful route creation */}
+              <RouteDetailSheet
+                visible={showRouteDetailSheet}
+                onClose={() => {
+                  setShowRouteDetailSheet(false);
+                  setCreatedRouteId(null);
+                }}
+                routeId={createdRouteId || undefined}
+                onStartRoute={(routeId) => {
+                  // Handle route start if needed
+                  console.log('Route started:', routeId);
+                }}
+                onNavigateToProfile={(userId) => {
+                  // Handle profile navigation if needed
+                  console.log('Navigate to profile:', userId);
+                }}
+                onReopen={() => {
+                  // Handle reopen if needed
+                  console.log('Route detail sheet reopened');
+                }}
+              />
             </Screen>
           </ReanimatedAnimated.View>
         </GestureDetector>

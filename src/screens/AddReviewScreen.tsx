@@ -53,9 +53,9 @@ export function AddReviewScreen({ route }: Props) {
           screen: 'HomeScreen',
           params: {
             reopenRouteDetail: true,
-            routeId: routeId
-          }
-        }
+            routeId: routeId,
+          },
+        },
       });
     } else {
       navigation.goBack();
@@ -254,9 +254,9 @@ export function AddReviewScreen({ route }: Props) {
             screen: 'HomeScreen',
             params: {
               reopenRouteDetail: true,
-              routeId: routeId
-            }
-          }
+              routeId: routeId,
+            },
+          },
         });
       } else {
         navigation.navigate('RouteDetail', { routeId, shouldRefreshReviews: true });

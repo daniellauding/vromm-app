@@ -45,7 +45,7 @@ export function useScreenLogger({
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
         logInfo('App came to foreground', { previousState: appStateRef.current }, screenName);
-        
+
         // Track app foreground in Firebase Analytics
         AppAnalytics.trackAppForeground().catch(() => {
           // Silently fail analytics
@@ -90,7 +90,7 @@ export function useScreenLogger({
       focusTime.current = startTime;
 
       logScreenFocus(screenName);
-      
+
       // Track screen view in Firebase Analytics
       AppAnalytics.trackScreenView(screenName).catch(() => {
         // Silently fail analytics

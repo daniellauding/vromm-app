@@ -21,7 +21,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   const [unreadCount, setUnreadCount] = useState(0);
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
-  
+
   // Dynamic color based on theme if not provided
   const iconColor = color || (colorScheme === 'dark' ? '#FFFFFF' : '#000000');
 

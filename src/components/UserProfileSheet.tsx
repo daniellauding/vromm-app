@@ -1,5 +1,18 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Modal, Animated, Pressable, Easing, View, Dimensions, ScrollView, TouchableOpacity, RefreshControl, Alert, Image, Share } from 'react-native';
+import {
+  Modal,
+  Animated,
+  Pressable,
+  Easing,
+  View,
+  Dimensions,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  Image,
+  Share,
+} from 'react-native';
 import { YStack, XStack, Text, Card, Separator, useTheme } from 'tamagui';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,7 +75,7 @@ export function UserProfileSheet({
   const insets = useSafeAreaInsets();
   const { user, profile: currentUserProfile } = useAuth();
   const { t } = useTranslation();
-  
+
   // 🔧 Make navigation optional (for use in modals outside NavigationContainer)
   let navigation: NavigationProp | null = null;
   try {
@@ -70,7 +83,7 @@ export function UserProfileSheet({
   } catch (e) {
     console.log('🔍 [UserProfileSheet] No navigation context available (modal mode)');
   }
-  
+
   const colorScheme = useColorScheme();
   const theme = useTheme();
   const iconColor = theme.color?.val || '#000000';
@@ -110,15 +123,17 @@ export function UserProfileSheet({
   const [schools, setSchools] = useState<
     Array<{ school_id: string; school_name: string; school_location: string }>
   >([]);
-  
+
   // Instructor/Student relationship states
   const [isInstructor, setIsInstructor] = useState(false);
   const [isStudent, setIsStudent] = useState(false);
   const [relationshipLoading, setRelationshipLoading] = useState(false);
-  
+
   // Pending invitation states
   const [hasPendingInvitation, setHasPendingInvitation] = useState(false);
-  const [pendingInvitationType, setPendingInvitationType] = useState<'sent' | 'received' | null>(null);
+  const [pendingInvitationType, setPendingInvitationType] = useState<'sent' | 'received' | null>(
+    null,
+  );
   const [pendingInvitationData, setPendingInvitationData] = useState<any>(null);
 
   // Relationship reviews state
@@ -398,7 +413,7 @@ export function UserProfileSheet({
 
   const checkRelationshipStatus = async () => {
     if (!user?.id || !userId) return;
-    
+
     try {
       // Check if this profile is supervising the current user
       const { data: instructorData } = await supabase
@@ -407,9 +422,9 @@ export function UserProfileSheet({
         .eq('student_id', user.id)
         .eq('supervisor_id', userId)
         .single();
-      
+
       setIsInstructor(!!instructorData);
-      
+
       // Check if current user is supervising this profile
       const { data: studentData } = await supabase
         .from('student_supervisor_relationships')
@@ -417,7 +432,7 @@ export function UserProfileSheet({
         .eq('supervisor_id', user.id)
         .eq('student_id', userId)
         .single();
-      
+
       setIsStudent(!!studentData);
     } catch (error) {
       console.log('No existing relationship');
@@ -426,7 +441,7 @@ export function UserProfileSheet({
 
   const checkPendingInvitations = async () => {
     if (!user?.id || !userId || !profile?.email || !user.email) return;
-    
+
     try {
       // Check if current user sent invitation to this profile
       const { data: sentInvitations } = await supabase
@@ -435,7 +450,7 @@ export function UserProfileSheet({
         .eq('invited_by', user.id)
         .eq('email', profile.email.toLowerCase())
         .eq('status', 'pending');
-      
+
       // Check if this profile sent invitation to current user
       const { data: receivedInvitations } = await supabase
         .from('pending_invitations')
@@ -443,7 +458,7 @@ export function UserProfileSheet({
         .eq('invited_by', userId)
         .eq('email', user.email.toLowerCase())
         .eq('status', 'pending');
-      
+
       if (sentInvitations && sentInvitations.length > 0) {
         setHasPendingInvitation(true);
         setPendingInvitationType('sent');
@@ -578,7 +593,10 @@ export function UserProfileSheet({
 
     // 🔧 Check if navigation is available
     if (!navigation) {
-      Alert.alert('Navigation not available', 'Please open this profile from the main app to send messages.');
+      Alert.alert(
+        'Navigation not available',
+        'Please open this profile from the main app to send messages.',
+      );
       return;
     }
 
@@ -597,7 +615,7 @@ export function UserProfileSheet({
         const conversation = await messageService.createConversation([profile.id]);
         navigation.navigate('Conversation', { conversationId: conversation.id });
       }
-      
+
       // Close sheet after navigation
       onClose();
     } catch (error) {
@@ -675,18 +693,10 @@ export function UserProfileSheet({
     try {
       await loadProfile();
       if (userId && user?.id && userId !== user.id) {
-        await Promise.all([
-          loadFollowData(),
-          checkRelationshipStatus(),
-          checkPendingInvitations(),
-        ]);
+        await Promise.all([loadFollowData(), checkRelationshipStatus(), checkPendingInvitations()]);
       }
       if (userId) {
-        await Promise.all([
-          loadUserRelationships(),
-          loadRelationshipReviews(),
-          loadUserRating(),
-        ]);
+        await Promise.all([loadUserRelationships(), loadRelationshipReviews(), loadUserRating()]);
       }
     } catch (error) {
       console.error('Error refreshing profile data:', error);
@@ -743,13 +753,10 @@ export function UserProfileSheet({
                 </YStack>
               ) : error || !profile ? (
                 <YStack f={1} jc="center" ai="center" padding="$4">
-                  <Text color="$red10">{error || t('profile.notFound') || 'Profile not found'}</Text>
-                  <Button
-                    onPress={onClose}
-                    marginTop="$4"
-                    variant="primary"
-                    size="$4"
-                  >
+                  <Text color="$red10">
+                    {error || t('profile.notFound') || 'Profile not found'}
+                  </Text>
+                  <Button onPress={onClose} marginTop="$4" variant="primary" size="$4">
                     <Feather name="arrow-left" size={18} color="white" style={{ marginRight: 8 }} />
                     {t('common.goBack') || 'Go Back'}
                   </Button>
@@ -796,13 +803,17 @@ export function UserProfileSheet({
 
                       {profile.is_trusted && (
                         <Card padding="$1" backgroundColor="$green5" borderRadius="$3">
-                          <Text color="$green11" fontSize="$2">{t('profile.verifiedBadge') || 'Verified'}</Text>
+                          <Text color="$green11" fontSize="$2">
+                            {t('profile.verifiedBadge') || 'Verified'}
+                          </Text>
                         </Card>
                       )}
 
                       {!profile.is_trusted && (
                         <Card padding="$1" backgroundColor="$red5" borderRadius="$3">
-                          <Text color="$red11" fontSize="$2">{t('profile.notVerifiedBadge') || 'Not verified yet'}</Text>
+                          <Text color="$red11" fontSize="$2">
+                            {t('profile.notVerifiedBadge') || 'Not verified yet'}
+                          </Text>
                         </Card>
                       )}
 
@@ -869,18 +880,19 @@ export function UserProfileSheet({
                             backgroundColor="$green10"
                             size="sm"
                           >
-                            <Feather name="message-circle" size={14} color="white" style={{ marginRight: 6 }} />
+                            <Feather
+                              name="message-circle"
+                              size={14}
+                              color="white"
+                              style={{ marginRight: 6 }}
+                            />
                             <Text color="white" fontSize="$2" fontWeight="500">
                               {t('profile.message') || 'Message'}
                             </Text>
                           </Button>
 
                           {/* Share Button */}
-                          <Button
-                            onPress={handleShare}
-                            variant="secondary"
-                            size="sm"
-                          />
+                          <Button onPress={handleShare} variant="secondary" size="sm" />
 
                           {/* Report Button */}
                           <Button
@@ -915,11 +927,7 @@ export function UserProfileSheet({
                           </Button>
 
                           {/* Share Button */}
-                          <Button
-                            onPress={handleShare}
-                            variant="secondary"
-                            size="sm"
-                          />
+                          <Button onPress={handleShare} variant="secondary" size="sm" />
                         </XStack>
                       )}
                     </YStack>

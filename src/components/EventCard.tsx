@@ -302,26 +302,32 @@ export function EventCard({ event, onEventPress }: EventCardProps) {
                       drawingMode={carouselItems[0].data.drawingMode}
                     />
                   ) : carouselItems[0].type === 'video' ? (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={{ width: '100%', height: '100%', position: 'relative' }}
-                      onPress={() => console.log('🎥 Video play requested:', carouselItems[0].data.url)}
+                      onPress={() =>
+                        console.log('🎥 Video play requested:', carouselItems[0].data.url)
+                      }
                       activeOpacity={0.8}
                     >
-                      <View style={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        backgroundColor: '#000', 
-                        justifyContent: 'center', 
-                        alignItems: 'center' 
-                      }}>
-                        <View style={{
-                          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                          borderRadius: 50,
-                          width: 80,
-                          height: 80,
+                      <View
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          backgroundColor: '#000',
                           justifyContent: 'center',
-                          alignItems: 'center'
-                        }}>
+                          alignItems: 'center',
+                        }}
+                      >
+                        <View
+                          style={{
+                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                            borderRadius: 50,
+                            width: 80,
+                            height: 80,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
                           <Play size={32} color="#FFF" />
                         </View>
                         <Text style={{ color: '#FFF', marginTop: 8, fontSize: 12 }}>
@@ -360,26 +366,30 @@ export function EventCard({ event, onEventPress }: EventCardProps) {
                           drawingMode={item.data.drawingMode}
                         />
                       ) : item.type === 'video' ? (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={{ width: '100%', height: '100%', position: 'relative' }}
                           onPress={() => console.log('🎥 Video play requested:', item.data.url)}
                           activeOpacity={0.8}
                         >
-                          <View style={{ 
-                            width: '100%', 
-                            height: '100%', 
-                            backgroundColor: '#000', 
-                            justifyContent: 'center', 
-                            alignItems: 'center' 
-                          }}>
-                            <View style={{
-                              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                              borderRadius: 50,
-                              width: 80,
-                              height: 80,
+                          <View
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              backgroundColor: '#000',
                               justifyContent: 'center',
-                              alignItems: 'center'
-                            }}>
+                              alignItems: 'center',
+                            }}
+                          >
+                            <View
+                              style={{
+                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                borderRadius: 50,
+                                width: 80,
+                                height: 80,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}
+                            >
                               <Play size={32} color="#FFF" />
                             </View>
                             <Text style={{ color: '#FFF', marginTop: 8, fontSize: 12 }}>
@@ -481,4 +491,4 @@ export function EventCard({ event, onEventPress }: EventCardProps) {
       </Card>
     </TouchableOpacity>
   );
-} 
+}
