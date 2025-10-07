@@ -129,15 +129,6 @@ async function registerForPushNotificationsAsync(
   // Force refresh translations to ensure they're loaded
   // await refreshTranslations();
 
-  // 🧪 TEST: Show a test toast to verify translations are working (REMOVE THIS AFTER TESTING)
-  if (showToast && __DEV__) {
-    showToast({
-      title: t?.('pushNotifications.title') || 'Push Notifications',
-      message: t?.('pushNotifications.physicalDevice') || 'Test message',
-      type: 'info',
-    });
-  }
-
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('myNotificationChannel', {
       name: 'A channel is needed for the permissions prompt to appear',
