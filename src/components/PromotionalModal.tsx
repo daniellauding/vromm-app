@@ -38,14 +38,7 @@ export function PromotionalModal({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Load promotional content from Supabase
-  useEffect(() => {
-    if (visible) {
-      loadPromotionalContent();
-    }
-  }, [visible, contentType]);
-
-  const loadPromotionalContent = async () => {
+  const loadPromotionalContent = React.useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -88,23 +81,30 @@ export function PromotionalModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [contentType, language]);
 
-  const handleNext = () => {
+  // Load promotional content from Supabase
+  useEffect(() => {
+    if (visible) {
+      loadPromotionalContent();
+    }
+  }, [visible, contentType, loadPromotionalContent]);
+
+  const handleNext = React.useCallback(() => {
     if (currentIndex < content.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
       handleClose();
     }
-  };
+  }, [currentIndex, content.length]);
 
-  const handlePrevious = () => {
+  const handlePrevious = React.useCallback(() => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
     }
-  };
+  }, [currentIndex]);
 
-  const handleClose = async () => {
+  const handleClose = React.useCallback(async () => {
     // Mark this promotional content as seen
     try {
       await AsyncStorage.setItem(`promotional_${contentType}_seen`, 'true');
@@ -114,21 +114,18 @@ export function PromotionalModal({
 
     setCurrentIndex(0);
     onClose();
-  };
+  }, [onClose, contentType]);
 
-  const handleAction = () => {
+  const handleAction = React.useCallback(() => {
     const currentContent = content[currentIndex];
     if (currentContent?.target) {
       // Handle navigation or external links
       if (currentContent.target.startsWith('http')) {
         Linking.openURL(currentContent.target);
-      } else {
-        // Handle internal navigation (could be expanded)
-        console.log('Navigate to:', currentContent.target);
       }
     }
     handleClose();
-  };
+  }, [currentIndex, content, handleClose]);
 
   if (!visible || loading || content.length === 0) {
     return null;
@@ -280,43 +277,27 @@ export function usePromotionalModal() {
   const [showModal, setShowModal] = useState(false);
   const [modalContentType, setModalContentType] = useState('modal');
 
-  const checkForPromotionalContent = async (contentType = 'modal') => {
+  const checkForPromotionalContent = React.useCallback(async (contentType = 'modal') => {
     try {
-      console.log('🎉 [PromotionalModal] Checking for promotional content:', contentType);
-
       // Check if this promotional content has been seen
       const seen = await AsyncStorage.getItem(`promotional_${contentType}_seen`);
-      console.log('🎉 [PromotionalModal] AsyncStorage check:', {
-        key: `promotional_${contentType}_seen`,
-        seen,
-      });
 
       if (seen === 'true') {
-        console.log('🎉 [PromotionalModal] Already seen - not showing');
         return false; // Already seen
       }
 
       // Check if there's active promotional content
-      console.log('🎉 [PromotionalModal] Querying database for content...');
       const { data, error } = await supabase
         .from('content')
         .select('id, platforms')
         .eq('content_type', contentType)
         .eq('active', true);
 
-      console.log('🎉 [PromotionalModal] Database query result:', {
-        error: error?.message,
-        dataLength: data?.length,
-        data: data?.map((d) => ({ id: d.id, platforms: d.platforms })),
-      });
-
       if (error) {
-        console.error('🎉 [PromotionalModal] Database error:', error);
         return false;
       }
 
       if (!data || data.length === 0) {
-        console.log('🎉 [PromotionalModal] No promotional content found');
         return false;
       }
 
@@ -330,25 +311,17 @@ export function usePromotionalModal() {
         );
       });
 
-      console.log('🎉 [PromotionalModal] Mobile content filtered:', {
-        total: data.length,
-        mobile: mobileContent.length,
-      });
-
       if (mobileContent.length === 0) {
-        console.log('🎉 [PromotionalModal] No mobile promotional content found');
         return false;
       }
 
-      console.log('🎉 [PromotionalModal] SHOWING promotional modal');
       setModalContentType(contentType);
       setShowModal(true);
       return true;
     } catch (error) {
-      console.error('🎉 [PromotionalModal] Error checking promotional content:', error);
       return false;
     }
-  };
+  }, []);
 
   return {
     showModal,
