@@ -24,36 +24,42 @@ export const StudentSwitchProvider: React.FC<{ children: ReactNode }> = ({ child
     }
   }, [user]);
 
-  const setActiveStudent = (id: string | null, name: string | null = null) => {
+  const setActiveStudent = React.useCallback((id: string | null, name: string | null = null) => {
     setActiveStudentId(id);
     setActiveStudentName(name);
-  };
+  }, []);
 
-  const clearActiveStudent = () => {
+  const clearActiveStudent = React.useCallback(() => {
     setActiveStudentId(null);
     setActiveStudentName(null);
-  };
+  }, []);
 
-  const getEffectiveUserId = () => {
+  const getEffectiveUserId = React.useCallback(() => {
     return activeStudentId || user?.id || null;
-  };
+  }, [activeStudentId, user]);
 
   const isViewingAsStudent = !!activeStudentId;
 
-  const value: StudentSwitchContextType = {
-    activeStudentId,
-    activeStudentName,
-    setActiveStudent,
-    clearActiveStudent,
-    getEffectiveUserId,
-    isViewingAsStudent,
-  };
-
-  return (
-    <StudentSwitchContext.Provider value={value}>
-      {children}
-    </StudentSwitchContext.Provider>
+  const value: StudentSwitchContextType = React.useMemo(
+    () => ({
+      activeStudentId,
+      activeStudentName,
+      setActiveStudent,
+      clearActiveStudent,
+      getEffectiveUserId,
+      isViewingAsStudent,
+    }),
+    [
+      activeStudentId,
+      activeStudentName,
+      setActiveStudent,
+      clearActiveStudent,
+      getEffectiveUserId,
+      isViewingAsStudent,
+    ],
   );
+
+  return <StudentSwitchContext.Provider value={value}>{children}</StudentSwitchContext.Provider>;
 };
 
 export const useStudentSwitch = () => {

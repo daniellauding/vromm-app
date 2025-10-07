@@ -168,7 +168,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     loadUserLocationFromProfile();
   }, [loadUserLocationFromProfile]);
 
-  const contextValue = React.useMemo(
+  const contextValue: LocationContextType = React.useMemo(
     () => ({
       locationPermission,
       currentLocation,

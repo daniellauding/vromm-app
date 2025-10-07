@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { clearAllTranslationCaches } from '../services/translationService';
-import { LoadingScreen } from '../components/LoadingScreen';
 
 // Import local JSON files as fallback
 import enTranslations from '../translations/en.json';
@@ -67,7 +66,7 @@ const logger = {
 // Helper function to flatten nested JSON objects
 const flattenTranslations = (obj: any, prefix = ''): Record<string, string> => {
   const result: Record<string, string> = {};
-  
+
   for (const key in obj) {
     if (obj.hasOwnProperty(key)) {
       const newKey = prefix ? `${prefix}.${key}` : key;
@@ -78,7 +77,7 @@ const flattenTranslations = (obj: any, prefix = ''): Record<string, string> => {
       }
     }
   }
-  
+
   return result;
 };
 
@@ -137,10 +136,10 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         // Get local translations as fallback
         const localTranslations = getLocalTranslations(lang);
-        
+
         // Merge database translations with local fallbacks
         const mergedTranslations = { ...localTranslations, ...fetchedTranslations };
-        
+
         // Cache the merged translations
         await cacheTranslations(lang, mergedTranslations);
 
@@ -159,10 +158,30 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [lastFetchTime],
   );
 
+  // Clear the cache
+  const clearCache = React.useCallback(async () => {
+    try {
+      // Clearing translation cache without logging
+
+      // Clear both our cache and the translationService cache
+      await clearAllTranslationCaches();
+
+      // Also clear our local cache keys
+      const keys = [
+        `${TRANSLATION_CACHE_KEY}_en`,
+        `${TRANSLATION_CACHE_KEY}_sv`,
+        TRANSLATION_VERSION_KEY,
+      ];
+
+      await AsyncStorage.multiRemove(keys);
+      logger.info('Translation cache cleared');
+    } catch (error) {
+      logger.error('Error clearing cache:', error);
+    }
+  }, []);
+
   // Set up real-time subscription for translation updates
   useEffect(() => {
-    logger.info('Setting up real-time translation updates');
-
     const subscription = supabase
       .channel('translations_changes')
       .on(
@@ -192,7 +211,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [language, fetchAndCacheTranslations]);
+  }, [language, fetchAndCacheTranslations, clearCache]);
 
   // Load the current language from storage
   useEffect(() => {
@@ -254,14 +273,14 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [language, fetchAndCacheTranslations]);
 
   // Set the language
-  const setLanguage = async (lang: Language) => {
+  const setLanguage = React.useCallback(async (lang: Language) => {
     try {
       await AsyncStorage.setItem(CURRENT_LANGUAGE_KEY, lang);
       setLanguageState(lang);
     } catch (error) {
       logger.error('Error setting language:', error);
     }
-  };
+  }, []);
 
   // Get a translation by key
   const t = React.useCallback(
@@ -286,45 +305,22 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Manual refresh of translations without logging
     await clearCache();
     return fetchAndCacheTranslations(language, true);
-  }, [language, fetchAndCacheTranslations]);
+  }, [language, fetchAndCacheTranslations, clearCache]);
 
-  // Clear the cache
-  const clearCache = React.useCallback(async () => {
-    try {
-      // Clearing translation cache without logging
-
-      // Clear both our cache and the translationService cache
-      await clearAllTranslationCaches();
-
-      // Also clear our local cache keys
-      const keys = [
-        `${TRANSLATION_CACHE_KEY}_en`,
-        `${TRANSLATION_CACHE_KEY}_sv`,
-        TRANSLATION_VERSION_KEY,
-      ];
-
-      await AsyncStorage.multiRemove(keys);
-      logger.info('Translation cache cleared');
-    } catch (error) {
-      logger.error('Error clearing cache:', error);
-    }
-  }, []);
-
-  return (
-    <TranslationContext.Provider
-      value={{
-        translations,
-        isLoading,
-        language,
-        setLanguage,
-        t,
-        clearCache,
-        refreshTranslations,
-      }}
-    >
-      {children}
-    </TranslationContext.Provider>
+  const contextValue: TranslationContextType = React.useMemo(
+    () => ({
+      translations,
+      isLoading,
+      language,
+      setLanguage,
+      t,
+      clearCache,
+      refreshTranslations,
+    }),
+    [translations, isLoading, language, setLanguage, t, clearCache, refreshTranslations],
   );
+
+  return <TranslationContext.Provider value={contextValue}>{children}</TranslationContext.Provider>;
 };
 
 // Hook to use the translation context

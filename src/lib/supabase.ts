@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Database } from './database.types';
 
 const supabaseUrl = 'https://wbimxxrbzgynigwolcnk.supabase.co';
 const supabaseAnonKey =
@@ -43,14 +42,16 @@ export const db = {
     getAll: async () => {
       const { data, error } = await supabase
         .from('events')
-        .select(`
+        .select(
+          `
           *,
           creator:profiles!events_created_by_fkey(
             id,
             full_name,
             avatar_url
           )
-        `)
+        `,
+        )
         .eq('visibility', 'public')
         .order('event_date', { ascending: true });
 
@@ -65,23 +66,24 @@ export const db = {
               .select('*', { count: 'exact', head: true })
               .eq('event_id', event.id)
               .eq('status', 'accepted');
-            
+
             return {
               ...event,
-              attendees: [{ count: count || 0 }]
+              attendees: [{ count: count || 0 }],
             };
-          })
+          }),
         );
         return eventsWithCounts;
       }
 
       return data;
     },
-    
+
     getById: async (id: string) => {
       const { data, error } = await supabase
         .from('events')
-        .select(`
+        .select(
+          `
           *,
           creator:profiles!events_created_by_fkey(
             id,
@@ -100,7 +102,8 @@ export const db = {
               avatar_url
             )
           )
-        `)
+        `,
+        )
         .eq('id', id)
         .single();
 
@@ -131,13 +134,16 @@ export const db = {
       return data;
     },
 
-    update: async (id: string, updates: {
-      title?: string;
-      description?: string;
-      location?: string;
-      visibility?: 'public' | 'private' | 'invite-only';
-      event_date?: string;
-    }) => {
+    update: async (
+      id: string,
+      updates: {
+        title?: string;
+        description?: string;
+        location?: string;
+        visibility?: 'public' | 'private' | 'invite-only';
+        event_date?: string;
+      },
+    ) => {
       const { data, error } = await supabase
         .from('events')
         .update(updates)
@@ -150,10 +156,7 @@ export const db = {
     },
 
     delete: async (id: string) => {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('events').delete().eq('id', id);
 
       if (error) throw error;
     },
@@ -173,7 +176,11 @@ export const db = {
       return data;
     },
 
-    updateAttendeeStatus: async (eventId: string, userId: string, status: 'accepted' | 'rejected') => {
+    updateAttendeeStatus: async (
+      eventId: string,
+      userId: string,
+      status: 'accepted' | 'rejected',
+    ) => {
       const { data, error } = await supabase
         .from('event_attendees')
         .update({
