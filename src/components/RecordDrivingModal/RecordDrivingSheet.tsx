@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, TouchableOpacity, Alert, AppState, Dimensions } from 'react-native';
+import { View, TouchableOpacity, AppState, Dimensions } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { Text, YStack, Button, XStack } from 'tamagui';
+import { Text, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useModal } from '../../contexts/ModalContext';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useRecording } from '../../contexts/RecordingContext';
-import * as Location from 'expo-location';
-import MapView, { Polyline, Marker } from '../MapView';
-import { AppAnalytics } from '../../utils/analytics';
 import { hideRecordingBanner, showActiveBanner, showPausedBanner } from '../../utils/notifications';
 import { useUserLocation } from '../../screens/explore/hooks';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -20,50 +17,19 @@ import ReanimatedAnimated, {
 } from 'react-native-reanimated';
 import { DARK_THEME, styles } from './styles';
 import MapPreview from './MapPreview';
+import RecordingStats from './RecordingStats';
+import { RecordedRouteData as RecordedRouteDataType } from './types';
 
 const { height: screenHeight } = Dimensions.get('window');
 
 // Update the RecordedRouteData interface to be exported
-export interface RecordedRouteData {
-  waypoints: Array<{
-    latitude: number;
-    longitude: number;
-    title: string;
-    description: string;
-  }>;
-  name: string;
-  description: string;
-  searchCoordinates: string;
-  routePath: Array<{
-    latitude: number;
-    longitude: number;
-  }>;
-  startPoint?: {
-    latitude: number;
-    longitude: number;
-  };
-  endPoint?: {
-    latitude: number;
-    longitude: number;
-  };
-}
 
+export type RecordedRouteData = RecordedRouteDataType;
 interface RecordDrivingSheetProps {
   isVisible: boolean;
   onClose: () => void;
   onCreateRoute?: (routeData: RecordedRouteData) => void;
 }
-
-// Enhanced sensitivity settings for accurate recording
-const MIN_SPEED_THRESHOLD = 0.5; // 0.5 km/h - minimum speed for waypoint creation
-
-// Update speed display to handle very low speeds better
-const formatSpeed = (speed: number): string => {
-  if (speed < MIN_SPEED_THRESHOLD) {
-    return '0.0';
-  }
-  return speed.toFixed(1);
-};
 
 // Performance-optimized component
 export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) => {
@@ -72,14 +38,11 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const { hideModal, setModalPointerEvents } = useModal();
   const {
     recordingState,
-    startRecording,
     pauseRecording,
     resumeRecording,
     stopRecording,
     minimizeRecording,
-    saveRecording,
     cancelRecording,
-    updateRecordingState,
   } = useRecording();
 
   // Local state for UI only
@@ -186,98 +149,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     }
   }, [recordingState?.waypoints]);
 
-  // Format time display with HH:MM:SS format - memoized
-  const formatTime = useCallback((seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    // Always show at least MM:SS, add hours if recording goes over 1 hour
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    } else {
-      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-  }, []);
-
-  // Start recording - now uses global context
-  const handleStartRecording = useCallback(async () => {
-    try {
-      // Start recording immediately using global context (no delays)
-      await startRecording();
-
-      // Track recording start in Firebase Analytics (non-blocking)
-      AppAnalytics.trackRouteRecordingStart().catch(() => {
-        // Silently fail analytics
-      });
-
-      // Get user's current location to center map (non-blocking)
-      Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      })
-        .then((location) => {
-          if (location) {
-            // Show map and center on user location
-            setShowMap(true);
-          }
-        })
-        .catch((error) => {
-          console.warn('Could not get current location for centering:', error);
-        });
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      updateRecordingState({ debugMessage: 'Failed to start recording' });
-    }
-  }, [startRecording, updateRecordingState]);
-
-  // Timer is now handled by the global recording context
-
-  // Pause/resume recording now use global context
-  const handlePauseRecording = useCallback(() => {
-    pauseRecording();
-  }, [pauseRecording]);
-
-  const handleResumeRecording = useCallback(() => {
-    resumeRecording();
-  }, [resumeRecording]);
-
-  // Stop recording now uses global context
-  const handleStopRecording = useCallback(() => {
-    try {
-      // Track recording end in Firebase Analytics
-      hideRecordingBanner();
-
-      // Stop recording using global context
-      stopRecording();
-    } catch (error) {
-      console.error('Error stopping recording:', error);
-    }
-  }, [stopRecording]);
-
-  // Save recording now uses global context
-  const handleSaveRecording = useCallback(() => {
-    try {
-      // Skip if no waypoints
-      if (!recordingState?.waypoints || recordingState.waypoints.length === 0) {
-        Alert.alert('No data', 'No movement was recorded. Please try again.');
-        return;
-      }
-
-      // Use global context to save recording
-      saveRecording(onCreateRoute);
-
-      // Close the modal after successful callback
-      try {
-        hideModal();
-      } catch (error) {
-        console.error('💾 ❌ Error closing modal:', error);
-      }
-    } catch (error) {
-      console.error('Error saving recording:', error);
-      Alert.alert('Error', 'Failed to save the recording. Please try again.');
-    }
-  }, [recordingState.waypoints, saveRecording, onCreateRoute, hideModal]);
-
   // Cancel recording now uses global context
   const handleCancelRecording = useCallback(() => {
     try {
@@ -346,6 +217,24 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       subscriptionStopRecording?.remove();
     };
   }, [recordingState?.isRecording, stopRecording, pauseRecording, resumeRecording]);
+
+  const recordingRegion = useMemo(() => {
+    if (recordingState?.waypoints?.length > 0) {
+      return {
+        latitude: recordingState.waypoints[recordingState.waypoints.length - 1].latitude,
+        longitude: recordingState.waypoints[recordingState.waypoints.length - 1].longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+    }
+
+    return {
+      latitude: userLocation?.coords?.latitude ?? 0,
+      longitude: userLocation?.coords?.longitude ?? 0,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    };
+  }, [recordingState?.waypoints, userLocation?.coords]);
 
   // Auto-save and app state handling is now done by the global recording context
 
@@ -447,23 +336,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             <MapPreview
               recordingState={recordingState}
               getRoutePath={getRoutePath}
-              region={
-                recordingState.waypoints.length > 0
-                  ? {
-                      latitude:
-                        recordingState.waypoints[recordingState.waypoints.length - 1].latitude,
-                      longitude:
-                        recordingState.waypoints[recordingState.waypoints.length - 1].longitude,
-                      latitudeDelta: 0.01,
-                      longitudeDelta: 0.01,
-                    }
-                  : {
-                      latitude: userLocation?.coords?.latitude ?? 0,
-                      longitude: userLocation?.coords?.longitude ?? 0,
-                      latitudeDelta: 0.01,
-                      longitudeDelta: 0.01,
-                    }
-              }
+              region={recordingRegion}
             />
           )}
 
@@ -498,166 +371,12 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             </View>
           )}
 
-          <YStack padding={16} space={16}>
-            {/* Enhanced Stats display */}
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-                  DURATION
-                </Text>
-                <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
-                  {formatTime(recordingState.totalElapsedTime)}
-                </Text>
-                <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-                  Driving: {formatTime(recordingState.drivingTime)}
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-                  DISTANCE
-                </Text>
-                <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
-                  {recordingState.distance.toFixed(2)} km
-                </Text>
-                <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-                  {recordingState.waypoints.length} waypoints
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-                  SPEED
-                </Text>
-                <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
-                  {formatSpeed(recordingState.currentSpeed)} km/h
-                </Text>
-                <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-                  Max: {formatSpeed(recordingState.maxSpeed)} km/h
-                </Text>
-                <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-                  Avg: {formatSpeed(recordingState.averageSpeed)} km/h
-                </Text>
-              </View>
-            </View>
-
-            {/* Record/Summary view */}
-            {!recordingState.showSummary ? (
-              /* Record button */
-              <View style={styles.recordButtonContainer}>
-                {recordingState.isRecording ? (
-                  <XStack gap={16} justifyContent="center">
-                    {recordingState.isPaused ? (
-                      <TouchableOpacity
-                        style={[styles.controlButton, { backgroundColor: '#1A3D3D' }]}
-                        onPress={handleResumeRecording}
-                      >
-                        <Feather name="play" size={28} color="white" />
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity
-                        style={[styles.controlButton, { backgroundColor: '#3D3D1A' }]}
-                        onPress={handlePauseRecording}
-                      >
-                        <Feather name="pause" size={28} color="white" />
-                      </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity
-                      style={[styles.controlButton, { backgroundColor: 'red' }]}
-                      onPress={handleStopRecording}
-                    >
-                      <Feather name="square" size={28} color="white" />
-                    </TouchableOpacity>
-                  </XStack>
-                ) : (
-                  <TouchableOpacity
-                    style={[styles.recordButton, { backgroundColor: '#1A3D3D' }]}
-                    onPress={handleStartRecording}
-                  >
-                    <Feather name="play" size={32} color="white" />
-                  </TouchableOpacity>
-                )}
-                <Text color={DARK_THEME.text} marginTop={8}>
-                  {recordingState.isRecording
-                    ? recordingState.isPaused
-                      ? 'Recording Paused'
-                      : 'Recording...'
-                    : 'Start Recording'}
-                </Text>
-              </View>
-            ) : (
-              /* Summary view */
-              <YStack space={16}>
-                <Text color={DARK_THEME.text} fontSize={18} fontWeight="600" textAlign="center">
-                  Recording Complete
-                </Text>
-
-                <Text color={DARK_THEME.text} textAlign="center">
-                  {recordingState.waypoints.length > 0
-                    ? `Your route has been recorded successfully with ${recordingState.waypoints.length} waypoints. You can now create a route, continue recording, or start over.`
-                    : 'No movement was recorded. You can try recording again.'}
-                </Text>
-
-                {recordingState.waypoints.length > 0 && (
-                  <Button
-                    backgroundColor="#1A3D3D"
-                    color="white"
-                    onPress={handleSaveRecording}
-                    size="$4"
-                    height={50}
-                    pressStyle={{ opacity: 0.8 }}
-                  >
-                    <XStack gap="$2" alignItems="center">
-                      <Feather name="check" size={24} color="white" />
-                      <Text color="white" fontWeight="600" fontSize={18}>
-                        Create Route
-                      </Text>
-                    </XStack>
-                  </Button>
-                )}
-
-                <XStack gap={12} justifyContent="center">
-                  <Button
-                    backgroundColor="#3D3D1A"
-                    color="white"
-                    onPress={() => {
-                      updateRecordingState({ showSummary: false });
-                      startRecording();
-                    }}
-                    flex={1}
-                  >
-                    <XStack gap="$1" alignItems="center">
-                      <Feather name="play" size={18} color="white" />
-                      <Text color="white">Continue</Text>
-                    </XStack>
-                  </Button>
-
-                  <Button
-                    backgroundColor="#CC4400"
-                    color="white"
-                    onPress={() => {
-                      updateRecordingState({ showSummary: false });
-                      startRecording();
-                    }}
-                    flex={1}
-                  >
-                    <XStack gap="$1" alignItems="center">
-                      <Feather name="refresh-cw" size={18} color="white" />
-                      <Text color="white">Start Over</Text>
-                    </XStack>
-                  </Button>
-                </XStack>
-
-                <Button
-                  backgroundColor="rgba(255,255,255,0.1)"
-                  color="white"
-                  onPress={handleCancelRecording}
-                  marginBottom={8}
-                >
-                  <Text color="white">Dismiss</Text>
-                </Button>
-              </YStack>
-            )}
-          </YStack>
+          <RecordingStats
+            setShowMap={setShowMap}
+            onCreateRoute={onCreateRoute}
+            onClose={onClose}
+            hideModal={hideModal}
+          />
         </ReanimatedAnimated.View>
       </GestureDetector>
     </View>
