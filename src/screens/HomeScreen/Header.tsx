@@ -266,12 +266,15 @@ export const HomeHeader = () => {
     }
     try {
       // Step 1: fetch relationships
+      console.log(profile);
       const { data: rels, error: relErr } = await supabase
         .from('student_supervisor_relationships')
         .select('student_id, created_at')
         .eq('supervisor_id', profile.id)
         .order('created_at', { ascending: false });
       if (relErr) throw relErr;
+
+      console.log(rels);
 
       const studentIds = (rels || []).map((r: any) => r.student_id);
       if (studentIds.length === 0) {
