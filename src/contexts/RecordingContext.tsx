@@ -279,19 +279,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
             }
 
             if (wayPointsRef.current.length > 1) {
-              const distance = wayPointsRef.current.reduce((acc, waypoint, index) => {
-                if (index > 0) {
-                  return (
-                    acc +
-                    calculateDistance(
-                      wayPointsRef.current[index - 1].latitude,
-                      wayPointsRef.current[index - 1].longitude,
-                      waypoint.latitude,
-                      waypoint.longitude,
-                    )
-                  );
-                }
-                return acc;
+              const distance = wayPointsRef.current.reduce((acc, waypoint) => {
+                return acc + (waypoint.distance ?? 0);
               }, 0);
 
               updateRecordingState({ distance: distance });
@@ -301,8 +290,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
           console.error('Error processing location update:', error);
           lastErrorRef.current = 'Location update error';
         }
-
-        console.log(wayPointsRef.current);
       });
 
       await Location.startLocationUpdatesAsync(LOCATION_TRACKING, {
