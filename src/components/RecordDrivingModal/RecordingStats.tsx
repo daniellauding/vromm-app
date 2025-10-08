@@ -6,7 +6,6 @@ import * as Location from 'expo-location';
 import { useRecording } from '@/src/contexts/RecordingContext';
 import { Feather } from '@expo/vector-icons';
 import { AppAnalytics } from '../../utils/analytics';
-import { hideRecordingBanner } from '../../utils/notifications';
 import { RecordedRouteData } from './types';
 const MIN_SPEED_THRESHOLD = 0.5;
 const formatSpeed = (speed: number): string => {
@@ -46,13 +45,11 @@ export default function RecordingStats({
     pauseRecording,
     resumeRecording,
     stopRecording,
-    minimizeRecording,
     saveRecording,
     cancelRecording,
     updateRecordingState,
   } = useRecording();
 
-  // Start recording - now uses global context
   const handleStartRecording = React.useCallback(async () => {
     try {
       // Start recording immediately using global context (no delays)
@@ -80,29 +77,8 @@ export default function RecordingStats({
       console.error('Error starting recording:', error);
       updateRecordingState({ debugMessage: 'Failed to start recording' });
     }
-  }, [startRecording, updateRecordingState]);
+  }, [startRecording, updateRecordingState, setShowMap]);
 
-  const handleResumeRecording = React.useCallback(() => {
-    resumeRecording();
-  }, [resumeRecording]);
-
-  const handlePauseRecording = React.useCallback(() => {
-    pauseRecording();
-  }, [pauseRecording]);
-
-  const handleStopRecording = React.useCallback(() => {
-    try {
-      // Track recording end in Firebase Analytics
-      hideRecordingBanner();
-
-      // Stop recording using global context
-      stopRecording();
-    } catch (error) {
-      console.error('Error stopping recording:', error);
-    }
-  }, [stopRecording]);
-
-  // Save recording now uses global context
   const handleSaveRecording = React.useCallback(() => {
     try {
       // Skip if no waypoints
@@ -126,7 +102,6 @@ export default function RecordingStats({
     }
   }, [recordingState.waypoints, saveRecording, onCreateRoute, hideModal]);
 
-  // Cancel recording now uses global context
   const handleCancelRecording = React.useCallback(() => {
     try {
       // Cancel recording using global context
@@ -192,14 +167,14 @@ export default function RecordingStats({
               {recordingState.isPaused ? (
                 <TouchableOpacity
                   style={[styles.controlButton, { backgroundColor: '#1A3D3D' }]}
-                  onPress={handleResumeRecording}
+                  onPress={resumeRecording}
                 >
                   <Feather name="play" size={28} color="white" />
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
                   style={[styles.controlButton, { backgroundColor: '#3D3D1A' }]}
-                  onPress={handlePauseRecording}
+                  onPress={pauseRecording}
                 >
                   <Feather name="pause" size={28} color="white" />
                 </TouchableOpacity>
@@ -207,7 +182,7 @@ export default function RecordingStats({
 
               <TouchableOpacity
                 style={[styles.controlButton, { backgroundColor: 'red' }]}
-                onPress={handleStopRecording}
+                onPress={stopRecording}
               >
                 <Feather name="square" size={28} color="white" />
               </TouchableOpacity>

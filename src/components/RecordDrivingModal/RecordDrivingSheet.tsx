@@ -111,8 +111,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     })
     .shouldCancelWhenOutside(false);
 
-  // Backdrop tap is now handled by TouchableOpacity for better reliability
-
   // Animated style for the sheet
   const animatedSheetStyle = useAnimatedStyle(() => {
     return {
@@ -252,10 +250,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     return null;
   }
 
-  // When minimized, the sheet should still render but the widget will be shown instead
-  // The widget visibility is handled by GlobalRecordingWidget component
-
-  // Optimize render to be more performant
   return (
     <View style={styles.container}>
       {/* Backdrop - always show when sheet is visible */}

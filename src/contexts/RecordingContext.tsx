@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { AppState } from 'react-native';
+import { hideRecordingBanner } from '../utils/notifications';
 
 // Types
 export interface RecordedWaypoint {
@@ -315,7 +316,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       console.error('Error starting location tracking:', error);
       updateRecordingState({ debugMessage: 'Failed to start tracking' });
     }
-  }, [calculateDistance, recordingState.maxSpeed, recordingState.distance, updateRecordingState]);
+  }, [calculateDistance, recordingState.maxSpeed, updateRecordingState]);
 
   // Start recording
   const startRecording = useCallback(async () => {
@@ -367,6 +368,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   // Resume recording
   const resumeRecording = useCallback(() => {
+    hideRecordingBanner();
+
     if (isPausedRef.current && lastPauseTimeRef.current) {
       const resumeTime = Date.now();
       const pauseDuration = resumeTime - lastPauseTimeRef.current;

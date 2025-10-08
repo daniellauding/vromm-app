@@ -3,31 +3,9 @@ import { Alert } from 'react-native';
 
 import { useModal } from '../../contexts/ModalContext';
 import { RecordDrivingSheet } from './RecordDrivingSheet';
+import { RecordedRouteData as RecordedRouteDataType } from './types';
 
-// Update the RecordedRouteData interface to be exported
-export interface RecordedRouteData {
-  waypoints: Array<{
-    latitude: number;
-    longitude: number;
-    title: string;
-    description: string;
-  }>;
-  name: string;
-  description: string;
-  searchCoordinates: string;
-  routePath: Array<{
-    latitude: number;
-    longitude: number;
-  }>;
-  startPoint?: {
-    latitude: number;
-    longitude: number;
-  };
-  endPoint?: {
-    latitude: number;
-    longitude: number;
-  };
-}
+export type RecordedRouteData = RecordedRouteDataType;
 
 // Modal version for use with modal system that handles navigation properly
 interface RecordDrivingModalProps {
