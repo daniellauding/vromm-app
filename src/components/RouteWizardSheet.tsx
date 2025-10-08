@@ -17,7 +17,7 @@ import { Feather } from '@expo/vector-icons';
 import { useModal } from '../contexts/ModalContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useToast } from '../contexts/ToastContext';
-import { RecordedRouteData } from './RecordDrivingSheet';
+import { RecordedRouteData } from './RecordDrivingModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from '../context/LocationContext';

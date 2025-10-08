@@ -13,7 +13,7 @@ import { useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
-import { RecordDrivingModal, RecordedRouteData } from './RecordDrivingSheet';
+import { RecordDrivingModal, RecordedRouteData } from './RecordDrivingModal';
 import { CreateRouteSheet } from './CreateRouteSheet';
 
 interface ActionSheetProps {

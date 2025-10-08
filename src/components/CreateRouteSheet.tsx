@@ -42,7 +42,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
 import { useToast } from '../contexts/ToastContext';
 import { useCreateRoute } from '../contexts/CreateRouteContext';
-import { RecordDrivingModal } from '../components/RecordDrivingSheet';
+import { RecordDrivingModal } from '../components/RecordDrivingModal';
 import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector';
 import { AdvancedExerciseCreator } from '../components/AdvancedExerciseCreator';
 import * as mediaUtils from '../utils/mediaUtils';

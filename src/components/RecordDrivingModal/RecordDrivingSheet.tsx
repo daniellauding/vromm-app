@@ -1,26 +1,24 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  View,
   StyleSheet,
+  View,
   TouchableOpacity,
-  Platform,
   Alert,
   AppState,
   Dimensions,
+  Platform,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Text, YStack, Button, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
-import { useModal } from '../contexts/ModalContext';
-import { useTranslation } from '../contexts/TranslationContext';
-import { useRecording } from '../contexts/RecordingContext';
+import { useModal } from '../../contexts/ModalContext';
+import { useTranslation } from '../../contexts/TranslationContext';
+import { useRecording } from '../../contexts/RecordingContext';
 import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
-import MapView, { Polyline, Marker } from './MapView';
-import { AppAnalytics } from '../utils/analytics';
-import { hideRecordingBanner, showActiveBanner, showPausedBanner } from '../utils/notifications';
-import { useUserLocation } from '../screens/explore/hooks';
+import MapView, { Polyline, Marker } from '../MapView';
+import { AppAnalytics } from '../../utils/analytics';
+import { hideRecordingBanner, showActiveBanner, showPausedBanner } from '../../utils/notifications';
+import { useUserLocation } from '../../screens/explore/hooks';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
@@ -29,30 +27,7 @@ import ReanimatedAnimated, {
   runOnJS,
 } from 'react-native-reanimated';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
-// Enhanced Haversine formula for accurate distance calculation
-const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-  const R = 6371000; // Earth's radius in meters
-
-  // Convert degrees to radians
-  const lat1Rad = (lat1 * Math.PI) / 180;
-  const lat2Rad = (lat2 * Math.PI) / 180;
-  const deltaLatRad = ((lat2 - lat1) * Math.PI) / 180;
-  const deltaLngRad = ((lng2 - lng1) * Math.PI) / 180;
-
-  // Haversine formula
-  const a =
-    Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
-    Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLngRad / 2) * Math.sin(deltaLngRad / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distanceMeters = R * c;
-  const distanceKm = distanceMeters / 1000;
-
-  // Filter GPS noise - only count movements > 1 meter
-  return distanceMeters > 1 ? distanceKm : 0;
-};
+const { height: screenHeight } = Dimensions.get('window');
 
 // Dark theme constants
 const DARK_THEME = {
@@ -65,14 +40,6 @@ const DARK_THEME = {
   iconColor: 'white',
   cardBackground: '#2D3130',
 };
-
-// Background location task name
-const LOCATION_TRACKING = 'location-tracking';
-
-// Auto-save constants
-const AUTO_SAVE_KEY = '@recording_session_backup';
-const AUTO_SAVE_INTERVAL = 10000; // Save every 10 seconds
-const RECOVERY_CHECK_KEY = '@recording_recovery_check';
 
 // Update the RecordedRouteData interface to be exported
 export interface RecordedRouteData {
@@ -99,14 +66,6 @@ export interface RecordedRouteData {
   };
 }
 
-// Location tracking type
-type RecordedWaypoint = {
-  latitude: number;
-  longitude: number;
-  timestamp: number;
-  speed: number | null;
-  accuracy: number | null;
-};
 interface RecordDrivingSheetProps {
   isVisible: boolean;
   onClose: () => void;
@@ -114,8 +73,6 @@ interface RecordDrivingSheetProps {
 }
 
 // Enhanced sensitivity settings for accurate recording
-const MIN_DISTANCE_FILTER = 5; // 5 meters - filters GPS noise effectively
-const MIN_TIME_FILTER = 1000; // 1 second - balanced update frequency
 const MIN_SPEED_THRESHOLD = 0.5; // 0.5 km/h - minimum speed for waypoint creation
 
 // Update speed display to handle very low speeds better
@@ -159,7 +116,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       minimized: screenHeight * 0.7, // Minimized (show only top 30%)
       dismissed: screenHeight, // Completely hidden
     };
-  }, [screenHeight]);
+  }, []);
 
   // Pan gesture for drag-to-minimize (when recording) or drag-to-close (when not recording)
   const panGesture = Gesture.Pan()
@@ -223,7 +180,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
   const getRoutePath = useCallback(() => {
     try {
       // Safety check for recordingState and waypoints
-      if (!recordingState || !recordingState.waypoints || recordingState.waypoints.length === 0) {
+      if (!recordingState?.waypoints || recordingState.waypoints.length === 0) {
         return [];
       }
 
@@ -261,10 +218,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
   }, []);
-
-  // Auto-save is now handled by the global recording context
-
-  // Location tracking is now handled by the global recording context
 
   // Start recording - now uses global context
   const handleStartRecording = useCallback(async () => {
@@ -342,7 +295,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       console.error('Error saving recording:', error);
       Alert.alert('Error', 'Failed to save the recording. Please try again.');
     }
-  }, [recordingState.waypoints.length, saveRecording, onCreateRoute, hideModal]);
+  }, [recordingState.waypoints, saveRecording, onCreateRoute, hideModal]);
 
   // Cancel recording now uses global context
   const handleCancelRecording = useCallback(() => {
@@ -366,14 +319,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     // Allow touches to pass through when minimized
     setModalPointerEvents('box-none');
   }, [minimizeRecording, setModalPointerEvents]);
-
-  const handleMaximize = useCallback(() => {
-    maximizeRecording();
-    // Block touches when maximized (normal modal behavior)
-    setModalPointerEvents('auto');
-  }, [maximizeRecording, setModalPointerEvents]);
-
-  // Floating widget is now handled by GlobalRecordingWidget component
 
   // Handle modal pointer events when minimized/maximized state changes
   useEffect(() => {
@@ -814,47 +759,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     </>
   );
 });
-
-// Modal version for use with modal system that handles navigation properly
-interface RecordDrivingModalProps {
-  onCreateRoute?: (routeData: RecordedRouteData) => void;
-}
-
-export const RecordDrivingModal = ({ onCreateRoute }: RecordDrivingModalProps = {}) => {
-  const { hideModal } = useModal();
-
-  // Handle route creation by passing data to parent navigation handler
-  const handleCreateRoute = (routeData: RecordedRouteData) => {
-    try {
-      // Validate route data before proceeding
-      if (!routeData) {
-        console.error('RecordDrivingModal: No route data provided');
-        Alert.alert('Error', 'No route data received');
-        return;
-      }
-
-      if (!routeData.waypoints || routeData.waypoints.length === 0) {
-        console.error('RecordDrivingModal: No waypoints in route data');
-        Alert.alert('Error', 'No waypoints found');
-        return;
-      }
-
-      // Call the parent's navigation handler instead of showing another modal
-      if (onCreateRoute) {
-        onCreateRoute(routeData);
-      } else {
-        console.warn('RecordDrivingModal: No onCreateRoute callback provided');
-      }
-    } catch (error) {
-      console.error('RecordDrivingModal: Error in onCreateRoute:', error);
-      Alert.alert('Error', 'Failed to process route data');
-    }
-  };
-
-  return (
-    <RecordDrivingSheet isVisible={true} onClose={hideModal} onCreateRoute={handleCreateRoute} />
-  );
-};
 
 const styles = StyleSheet.create({
   container: {

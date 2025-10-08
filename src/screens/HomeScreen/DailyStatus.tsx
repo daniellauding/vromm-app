@@ -30,7 +30,7 @@ import { LearningPathsSheet } from '../../components/LearningPathsSheet';
 import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 import { RouteListSheet } from '../../components/RouteListSheet';
 import { CreateRouteSheet } from '../../components/CreateRouteSheet';
-import { RecordDrivingSheet } from '../../components/RecordDrivingSheet';
+import { RecordDrivingSheet } from '../../components/RecordDrivingModal';
 import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { ActionSheet } from '../../components/ActionSheet';
 
