@@ -274,14 +274,22 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
             }
 
             if (wayPointsRef.current.length > 1) {
-              const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 2];
-              const segmentDistance = calculateDistance(
-                lastWaypoint.latitude,
-                lastWaypoint.longitude,
-                newWaypoint.latitude,
-                newWaypoint.longitude,
-              );
-              updateRecordingState({ distance: recordingState.distance + segmentDistance });
+              const distance = wayPointsRef.current.reduce((acc, waypoint, index) => {
+                if (index > 0) {
+                  return (
+                    acc +
+                    calculateDistance(
+                      wayPointsRef.current[index - 1].latitude,
+                      wayPointsRef.current[index - 1].longitude,
+                      waypoint.latitude,
+                      waypoint.longitude,
+                    )
+                  );
+                }
+                return acc;
+              }, 0);
+
+              updateRecordingState({ distance: distance });
             }
           }
         } catch (error) {
