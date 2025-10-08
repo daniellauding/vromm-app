@@ -7,7 +7,9 @@ import { useRecording } from '@/src/contexts/RecordingContext';
 import { Feather } from '@expo/vector-icons';
 import { AppAnalytics } from '../../utils/analytics';
 import { RecordedRouteData } from './types';
+
 const MIN_SPEED_THRESHOLD = 0.5;
+
 const formatSpeed = (speed: number): string => {
   if (speed < MIN_SPEED_THRESHOLD) {
     return '0.0';

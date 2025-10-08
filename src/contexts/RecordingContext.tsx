@@ -20,6 +20,7 @@ export interface RecordedWaypoint {
   timestamp: number;
   speed: number | null;
   accuracy: number | null;
+  distance?: number | null;
 }
 
 export interface RecordingState {
@@ -89,6 +90,49 @@ const RECOVERY_CHECK_KEY = '@recording_recovery_check';
 
 const RecordingContext = createContext<RecordingContextType | undefined>(undefined);
 
+const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371000; // Earth's radius in meters
+  const lat1Rad = (lat1 * Math.PI) / 180;
+  const lat2Rad = (lat2 * Math.PI) / 180;
+  const deltaLatRad = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLngRad = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
+    Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLngRad / 2) * Math.sin(deltaLngRad / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distanceMeters = R * c;
+  const distanceKm = distanceMeters / 1000;
+
+  return distanceMeters > 1 ? distanceKm : 0;
+};
+
+const calculateMaxSpeed = (waypoints: RecordedWaypoint[]) => {
+  const speed = waypoints.reduce((acc, waypoint) => {
+    return Math.max(acc, waypoint.speed ?? 0);
+  }, 0);
+
+  return speed;
+};
+
+const calculateWaypointSpeed = (from: RecordedWaypoint, to: RecordedWaypoint) => {
+  if (to.speed) {
+    return to.speed;
+  }
+
+  if (!to.distance) {
+    return 0;
+  }
+
+  const timeDiff = (to.timestamp - from.timestamp) / 1000;
+  if (timeDiff > 0 && to.distance > 0) {
+    return to.distance / 1000 / (timeDiff / 3600);
+  }
+
+  return 0;
+};
+
 export function RecordingProvider({ children }: { children: ReactNode }) {
   const [recordingState, setRecordingState] = useState<RecordingState>(defaultRecordingState);
   const [isRecordingActive, setIsRecordingActive] = useState(false);
@@ -110,31 +154,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const AUTO_SAVE_INTERVAL = 10000; // 10 seconds
   const MIN_DISTANCE_FILTER = 5; // 5 meters
   const MIN_TIME_FILTER = 1000; // 1 second
-
-  // Enhanced Haversine formula for accurate distance calculation
-  const calculateDistance = useCallback(
-    (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-      const R = 6371000; // Earth's radius in meters
-      const lat1Rad = (lat1 * Math.PI) / 180;
-      const lat2Rad = (lat2 * Math.PI) / 180;
-      const deltaLatRad = ((lat2 - lat1) * Math.PI) / 180;
-      const deltaLngRad = ((lng2 - lng1) * Math.PI) / 180;
-
-      const a =
-        Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
-        Math.cos(lat1Rad) *
-          Math.cos(lat2Rad) *
-          Math.sin(deltaLngRad / 2) *
-          Math.sin(deltaLngRad / 2);
-
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distanceMeters = R * c;
-      const distanceKm = distanceMeters / 1000;
-
-      return distanceMeters > 1 ? distanceKm : 0;
-    },
-    [],
-  );
 
   // Auto-save current recording session
   const autoSaveSession = useCallback(async () => {
@@ -214,43 +233,29 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
             accuracy: location.coords.accuracy,
           };
 
-          let distanceFromLast = 0;
-          let shouldAddWaypoint = true;
-
           if (wayPointsRef.current.length > 0) {
-            const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 1];
-            distanceFromLast =
+            newWaypoint.distance =
               calculateDistance(
-                lastWaypoint.latitude,
-                lastWaypoint.longitude,
+                wayPointsRef.current[wayPointsRef.current.length - 1].latitude,
+                wayPointsRef.current[wayPointsRef.current.length - 1].longitude,
                 newWaypoint.latitude,
                 newWaypoint.longitude,
               ) * 1000;
 
-            if (distanceFromLast < MIN_DISTANCE_FILTER) {
-              shouldAddWaypoint = false;
-            }
+            newWaypoint.speed = calculateWaypointSpeed(
+              wayPointsRef.current[wayPointsRef.current.length - 1],
+              newWaypoint,
+            );
           }
 
-          const gpsSpeed =
-            location.coords.speed !== null && location.coords.speed >= 0
-              ? location.coords.speed * 3.6
-              : null;
-
-          let calculatedSpeed = 0;
-          if (wayPointsRef.current.length > 0) {
-            const lastWaypoint = wayPointsRef.current[wayPointsRef.current.length - 1];
-            const timeDiff = (newWaypoint.timestamp - lastWaypoint.timestamp) / 1000;
-            if (timeDiff > 0 && distanceFromLast > 0) {
-              calculatedSpeed = distanceFromLast / 1000 / (timeDiff / 3600);
-            }
-          }
-
-          const finalSpeed = gpsSpeed !== null && gpsSpeed < 200 ? gpsSpeed : calculatedSpeed;
+          const shouldAddWaypoint =
+            wayPointsRef.current.length > 0
+              ? (newWaypoint?.distance ?? 0 > MIN_DISTANCE_FILTER)
+              : true;
 
           updateRecordingState({
-            currentSpeed: Math.max(0, finalSpeed),
-            maxSpeed: Math.max(recordingState.maxSpeed, finalSpeed),
+            currentSpeed: Math.max(0, newWaypoint.speed ?? 0),
+            maxSpeed: calculateMaxSpeed(wayPointsRef.current),
           });
 
           if (
@@ -296,6 +301,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
           console.error('Error processing location update:', error);
           lastErrorRef.current = 'Location update error';
         }
+
+        console.log(wayPointsRef.current);
       });
 
       await Location.startLocationUpdatesAsync(LOCATION_TRACKING, {
@@ -315,7 +322,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       console.error('Error starting location tracking:', error);
       updateRecordingState({ debugMessage: 'Failed to start tracking' });
     }
-  }, [calculateDistance, recordingState.maxSpeed, updateRecordingState]);
+  }, [updateRecordingState]);
 
   // Start recording
   const startRecording = useCallback(async () => {

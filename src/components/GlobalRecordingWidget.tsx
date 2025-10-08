@@ -1,14 +1,5 @@
 import React, { useRef, useState, useMemo } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  Text,
-  Dimensions,
-  Modal,
-  Alert,
-  Pressable,
-} from 'react-native';
+import { View, StyleSheet, Text, Dimensions, Modal, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRecording } from '../contexts/RecordingContext';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -23,14 +14,8 @@ import { YStack, XStack, Button } from 'tamagui';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export const GlobalRecordingWidget = React.memo(() => {
-  const {
-    recordingState,
-    resumeRecording,
-    pauseRecording,
-    stopRecording,
-    maximizeRecording,
-    cancelRecording,
-  } = useRecording();
+  const { recordingState, resumeRecording, pauseRecording, stopRecording, maximizeRecording } =
+    useRecording();
   const { t } = useTranslation();
 
   // Confirmation modal state
@@ -143,13 +128,6 @@ export const GlobalRecordingWidget = React.memo(() => {
   const shouldShow = useMemo(() => {
     return recordingState.isMinimized && recordingState.isRecording;
   }, [recordingState.isMinimized, recordingState.isRecording]);
-
-  // Debug logging - only log when state actually changes
-  console.log('🎯 GlobalRecordingWidget: Render check', {
-    isMinimized: recordingState.isMinimized,
-    isRecording: recordingState.isRecording,
-    shouldShow,
-  });
 
   // Only show when recording is active and minimized
   if (!shouldShow) {
