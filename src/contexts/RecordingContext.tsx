@@ -110,7 +110,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const AUTO_SAVE_INTERVAL = 10000; // 10 seconds
   const MIN_DISTANCE_FILTER = 5; // 5 meters
   const MIN_TIME_FILTER = 1000; // 1 second
-  const MIN_SPEED_THRESHOLD = 0.5; // 0.5 km/h
 
   // Enhanced Haversine formula for accurate distance calculation
   const calculateDistance = useCallback(

@@ -1,19 +1,60 @@
+import React from 'react';
 import { View } from 'react-native';
 import { Text } from 'tamagui';
 import MapView, { Polyline, Marker } from '../MapView';
 import { styles } from './styles';
-import { RecordingState } from '@/src/contexts/RecordingContext';
-import { Region } from '@/src/types/maps';
+import { useRecording } from '@/src/contexts/RecordingContext';
+import { useUserLocation } from '../../screens/explore/hooks';
 
-export default function MapPreview({
-  recordingState,
-  region,
-  getRoutePath,
-}: {
-  recordingState: RecordingState;
-  region: Region;
-  getRoutePath: () => { latitude: number; longitude: number }[];
-}) {
+export default function MapPreview() {
+  const { recordingState } = useRecording();
+  const userLocation = useUserLocation();
+  const region = React.useMemo(() => {
+    if (recordingState?.waypoints?.length > 0) {
+      return {
+        latitude: recordingState.waypoints[recordingState.waypoints.length - 1].latitude,
+        longitude: recordingState.waypoints[recordingState.waypoints.length - 1].longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+    }
+
+    return {
+      latitude: userLocation?.coords?.latitude ?? 0,
+      longitude: userLocation?.coords?.longitude ?? 0,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    };
+  }, [recordingState?.waypoints, userLocation?.coords]);
+
+  const path = React.useMemo(() => {
+    try {
+      // Safety check for recordingState and waypoints
+      if (!recordingState?.waypoints || recordingState.waypoints.length === 0) {
+        return [];
+      }
+
+      // Filter out any invalid coordinates to prevent crashes
+      return recordingState.waypoints
+        .filter(
+          (wp) =>
+            wp &&
+            typeof wp.latitude === 'number' &&
+            typeof wp.longitude === 'number' &&
+            !isNaN(wp.latitude) &&
+            !isNaN(wp.longitude),
+        )
+        .map((wp) => ({
+          latitude: wp.latitude,
+          longitude: wp.longitude,
+        }));
+    } catch (error) {
+      // Log error but don't crash
+      console.error('Error formatting route path:', error);
+      return [];
+    }
+  }, [recordingState?.waypoints]);
+
   return (
     <View style={styles.mapContainer}>
       <MapView
@@ -23,9 +64,9 @@ export default function MapPreview({
         userInterfaceStyle="dark"
       >
         {/* Route Path */}
-        {getRoutePath().length > 1 && (
+        {path.length > 1 && (
           <Polyline
-            coordinates={getRoutePath()}
+            coordinates={path}
             strokeWidth={3}
             strokeColor={recordingState.isPaused ? '#FF9500' : '#69e3c4'}
             lineJoin="round"

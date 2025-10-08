@@ -7,7 +7,6 @@ import { useModal } from '../../contexts/ModalContext';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useRecording } from '../../contexts/RecordingContext';
 import { hideRecordingBanner, showActiveBanner, showPausedBanner } from '../../utils/notifications';
-import { useUserLocation } from '../../screens/explore/hooks';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
@@ -47,7 +46,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
 
   // Local state for UI only
   const [showMap, setShowMap] = useState(false);
-  const userLocation = useUserLocation();
 
   // Drag functionality for minimizing when recording is active
   const translateY = useSharedValue(0);
@@ -118,35 +116,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
     };
   });
 
-  // Format waypoints for map display with safety checks - memoized for performance
-  const getRoutePath = useCallback(() => {
-    try {
-      // Safety check for recordingState and waypoints
-      if (!recordingState?.waypoints || recordingState.waypoints.length === 0) {
-        return [];
-      }
-
-      // Filter out any invalid coordinates to prevent crashes
-      return recordingState.waypoints
-        .filter(
-          (wp) =>
-            wp &&
-            typeof wp.latitude === 'number' &&
-            typeof wp.longitude === 'number' &&
-            !isNaN(wp.latitude) &&
-            !isNaN(wp.longitude),
-        )
-        .map((wp) => ({
-          latitude: wp.latitude,
-          longitude: wp.longitude,
-        }));
-    } catch (error) {
-      // Log error but don't crash
-      console.error('Error formatting route path:', error);
-      return [];
-    }
-  }, [recordingState?.waypoints]);
-
   // Cancel recording now uses global context
   const handleCancelRecording = useCallback(() => {
     try {
@@ -215,24 +184,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
       subscriptionStopRecording?.remove();
     };
   }, [recordingState?.isRecording, stopRecording, pauseRecording, resumeRecording]);
-
-  const recordingRegion = useMemo(() => {
-    if (recordingState?.waypoints?.length > 0) {
-      return {
-        latitude: recordingState.waypoints[recordingState.waypoints.length - 1].latitude,
-        longitude: recordingState.waypoints[recordingState.waypoints.length - 1].longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      };
-    }
-
-    return {
-      latitude: userLocation?.coords?.latitude ?? 0,
-      longitude: userLocation?.coords?.longitude ?? 0,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    };
-  }, [recordingState?.waypoints, userLocation?.coords]);
 
   // Auto-save and app state handling is now done by the global recording context
 
@@ -326,13 +277,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           )}
 
           {/* Enhanced Map Preview with Live Updates */}
-          {showMap && (
-            <MapPreview
-              recordingState={recordingState}
-              getRoutePath={getRoutePath}
-              region={recordingRegion}
-            />
-          )}
+          {showMap && <MapPreview />}
 
           {/* Recording Status Display (always shown when recording) */}
           {recordingState.isRecording && !showMap && (
