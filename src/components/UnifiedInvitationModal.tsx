@@ -59,7 +59,6 @@ export function UnifiedInvitationModal({
 
   const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // 🎨 Profile sheet state
@@ -83,8 +82,6 @@ export function UnifiedInvitationModal({
   const fetchPendingInvitations = React.useCallback(async () => {
     if (!user) return;
 
-    console.log('🔍 [UnifiedInvitationModal] Fetching invitations for user:', user.email);
-    setIsLoading(true);
     try {
       // Fetch relationship invitations from notifications table
       const { data: relationshipInvitations, error: relError } = await supabase
@@ -104,7 +101,6 @@ export function UnifiedInvitationModal({
         .eq('is_read', false)
         .order('created_at', { ascending: false });
 
-      console.log('🔍 [UnifiedInvitationModal] Relationship invitations:', relationshipInvitations);
       if (relError) throw relError;
 
       // Filter out invitations where relationships already exist
@@ -159,7 +155,6 @@ export function UnifiedInvitationModal({
         .eq('invited_user_id', user.id)
         .eq('status', 'pending');
 
-      console.log('🔍 [UnifiedInvitationModal] Collection invitations:', collectionInvitations);
       if (colError) throw colError;
 
       // Fetch collection invitations from notifications table
@@ -179,18 +174,10 @@ export function UnifiedInvitationModal({
         .eq('type', 'collection_invitation')
         .eq('is_read', false);
 
-      console.log('🔍 [UnifiedInvitationModal] Notification invitations:', notificationInvitations);
       if (notifError) throw notifError;
 
       // Combine and format invitations
       const formattedInvitations: PendingInvitation[] = [];
-
-      console.log('🔍 [UnifiedInvitationModal] Total invitations found:', {
-        relationship: relationshipInvitations?.length || 0,
-        filteredRelationship: filteredRelationshipInvitations?.length || 0,
-        collection: collectionInvitations?.length || 0,
-        notifications: notificationInvitations?.length || 0,
-      });
 
       // Add relationship invitations from notifications
       filteredRelationshipInvitations?.forEach((notif) => {
@@ -273,8 +260,6 @@ export function UnifiedInvitationModal({
         message: t('invitations.loadingError') || 'Error loading pending invitations',
         type: 'error',
       });
-    } finally {
-      setIsLoading(false);
     }
   }, [user, showToast, t]);
 
@@ -441,31 +426,18 @@ export function UnifiedInvitationModal({
     try {
       const invitation = invitations[currentIndex];
 
+      console.log('🔄 Decline invitation:', invitation);
       if (invitation.type === 'relationship') {
         // Decline relationship invitation
         // First try to update pending_invitations table
+        console.log(invitation.invitation_id);
         const { error: pendingError } = await supabase
           .from('pending_invitations')
-          .update({ status: 'declined' })
+          .delete()
           .eq('id', invitation.invitation_id);
 
-        // If that fails, handle notification-based invitation
-        if (pendingError) {
-          console.log(
-            '🔍 [UnifiedInvitationModal] Relationship invitation not found in pending_invitations, trying notification-based handling',
-          );
-
-          // Mark notification as read
-          const { error: notifError } = await supabase
-            .from('notifications')
-            .update({
-              is_read: true,
-              read_at: new Date().toISOString(),
-            })
-            .eq('id', invitation.id);
-
-          if (notifError) throw notifError;
-        }
+        console.log(pendingError);
+        await supabase.from('notifications').delete().eq('id', invitation.id);
       } else {
         // Decline collection invitation
         // First try to update collection_invitations table
@@ -521,22 +493,11 @@ export function UnifiedInvitationModal({
     }
   }, [invitations, currentIndex, t, showToast, onClose, onInvitationHandled]);
 
-  const handleDismiss = React.useCallback(() => {
-    // Move to next invitation or close
-    if (currentIndex < invitations.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      onInvitationHandled();
-      onClose();
-    }
-  }, [invitations, currentIndex, onInvitationHandled, onClose]);
-
   if (!visible || invitations.length === 0) {
     return null;
   }
 
   const currentInvitation = invitations[currentIndex];
-  const isLastInvitation = currentIndex === invitations.length - 1;
 
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
@@ -575,22 +536,6 @@ export function UnifiedInvitationModal({
               borderColor={borderColor}
               borderWidth={0}
             >
-              {/* <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{
-                padding: 0,
-                margin: 0,
-                gap: 0,
-                justifyContent: 'center', 
-                alignItems: 'center', 
-              }}
-              style={{
-                padding: 0,
-                margin: 0,
-                maxWidth: '85%',
-                maxHeight:'85%',
-              }}
-            > */}
               <YStack
                 paddingVertical="$4"
                 paddingTop="$0"
@@ -715,15 +660,6 @@ export function UnifiedInvitationModal({
                       }}
                     >
                       <YStack paddingTop={24}>
-                        {/* <XStack justifyContent="space-between" alignItems="center" marginBottom="$2">
-              <Heading size="$5" color={textColor} flex={1} textAlign="center">
-                {(() => {
-                  const translated = t('invitations.newInvitations');
-                  console.log('🔍 [UnifiedInvitationModal] Header translation:', translated);
-                  return translated === 'invitations.newInvitations' ? 'New Invitations' : translated;
-                })()}
-              </Heading>
-                        </XStack> */}
                         <XStack alignItems="center" gap="$2" justifyContent="center">
                           <Heading size="$5" color={textColor} flex={1} textAlign="center">
                             {currentInvitation.title_key
@@ -741,37 +677,9 @@ export function UnifiedInvitationModal({
 
                         {currentInvitation.custom_message && (
                           <YStack padding="$4">
-                            {/* <Text color={textColor} fontWeight="bold" fontSize="$3" marginBottom="$2">
-                    {(() => {
-                      const translated = t('invitations.personalMessage');
-                      console.log('🔍 [UnifiedInvitationModal] PersonalMessage translation:', translated);
-                      return translated === 'invitations.personalMessage' ? 'Personal message:' : translated;
-                    })()}
-                            </Text> */}
                             <Text color={textColor} fontSize="$4" textAlign="center">
                               "{currentInvitation.custom_message}"
                             </Text>
-                            {/* <Text color={textColor} fontSize="$3">
-                            asdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasja
-                            sdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajd
-                            asjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasad
-                            sasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasj
-                            asdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsaj
-                            dasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasa
-                            dsasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdas
-                            adsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdja
-                            sjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjds
-                            ajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjda
-                            sadsasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjd
-                            asadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasd
-                            jasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadj
-                            dsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasj
-                            dasadsasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdas
-                            jdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdha
-                            sdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsa
-                            djdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjdasjdasadsasdhasdjasjasdjsadjdsajdasjda
-                            sjdasads
-                            </Text> */}
                           </YStack>
                         )}
 
@@ -813,14 +721,6 @@ export function UnifiedInvitationModal({
 
               {/* Action Buttons */}
               <XStack justifyContent="space-around" marginTop="$4" gap="$4" paddingHorizontal="$4">
-                {/* <Button 
-                flex={1} 
-                variant="outline" 
-                onPress={handleDismiss}
-                disabled={isProcessing}
-              >
-                {t('invitations.dismiss') || 'Dismiss'}
-              </Button> */}
                 <Button
                   flex={1}
                   variant="secondary"

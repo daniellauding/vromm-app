@@ -522,7 +522,17 @@ function AppContent() {
         (collectionInvitations?.length || 0) +
         (notificationInvitations?.length || 0);
 
+      console.log(
+        relationshipInvitations,
+        notificationRelationshipInvitations,
+        collectionInvitations,
+        notificationInvitations,
+      );
+
+      console.log('Total invitations:', totalInvitations);
+
       if (totalInvitations > 0) {
+        console.log('Set 1');
         setShowGlobalInvitationNotification(true);
       } else if (totalInvitations === 0) {
         // If no invitations, check for promotional content
@@ -607,8 +617,10 @@ function AppContent() {
           try {
             const row = payload?.new;
             if (row?.type === 'supervisor_invitation' || row?.type === 'student_invitation') {
+              console.log('Set 2');
               setShowGlobalInvitationNotification(true);
             } else if (row?.type === 'collection_invitation') {
+              console.log('Set 3');
               setShowGlobalInvitationNotification(true);
             }
           } catch {}
@@ -631,6 +643,7 @@ function AppContent() {
           try {
             const row = payload?.new;
             if (row?.status === 'pending') {
+              console.log('Set 4');
               setTimeout(() => setShowGlobalInvitationNotification(true), 150);
             }
           } catch (e) {
