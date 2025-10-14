@@ -808,10 +808,12 @@ export const GettingStarted = () => {
 
   // Relationship removal modal show/hide functions (updated for snap points)
   const openRelationshipRemovalModal = () => {
+    console.log('🔗 [GettingStarted] Opening relationship removal modal');
     if (showRelationshipRemovalModal) return; // Prevent multiple calls
-
+    console.log('🔗 [GettingStarted] Setting showRelationshipRemovalModal to true');
     setShowRelationshipRemovalModal(true);
     relationshipRemovalIsAnimating.value = false; // Reset animation state
+    console.log('🔗 [GettingStarted] Setting relationshipRemovalIsAnimating to false');
     relationshipRemovalTranslateY.value = withSpring(relationshipRemovalSnapPoints.large, {
       damping: 20,
       mass: 1,
@@ -820,14 +822,16 @@ export const GettingStarted = () => {
       restDisplacementThreshold: 0.01,
       restSpeedThreshold: 0.01,
     });
+    console.log('🔗 [GettingStarted] Setting relationshipRemovalCurrentState to relationshipRemovalSnapPoints.large');
     relationshipRemovalCurrentState.value = relationshipRemovalSnapPoints.large;
     setCurrentRelationshipRemovalSnapPoint(relationshipRemovalSnapPoints.large);
-
+    console.log('🔗 [GettingStarted] Setting currentRelationshipRemovalSnapPoint to relationshipRemovalSnapPoints.large');
     Animated.timing(relationshipRemovalBackdropOpacity, {
       toValue: 1,
       duration: 200,
       useNativeDriver: true,
     }).start();
+    console.log('🔗 [GettingStarted] Starting animation for relationshipRemovalBackdropOpacity');
   };
 
   const closeRelationshipRemovalModal = () => {
@@ -1090,8 +1094,9 @@ export const GettingStarted = () => {
   };
 
   // Handle relationship removal (copied from OnboardingInteractive)
-  const handleRemoveRelationship = async () => {
-    if (!relationshipRemovalTarget || !user?.id) return;
+  const handleRemoveRelationship = async (relationship: any) => {
+    if (!relationship || !user?.id) return;
+    const relationshipRemovalTarget = relationship;
 
     try {
       // Remove the relationship
@@ -2750,7 +2755,13 @@ export const GettingStarted = () => {
                                     role: relationship.role,
                                     relationship_type: relationship.relationship_type,
                                   });
-                                  openRelationshipRemovalModal();
+                                  handleRemoveRelationship({
+                                    id: relationship.id,
+                                    name: relationship.name,
+                                    email: relationship.email,
+                                    role: relationship.role,
+                                    relationship_type: relationship.relationship_type,
+                                  });
                                 }}
                               >
                                 <Feather name="trash-2" size={16} color="#EF4444" />
@@ -2931,137 +2942,6 @@ export const GettingStarted = () => {
             </ReanimatedAnimated.View>
           </View>
         </ReanimatedAnimated.View>
-      </Modal>
-
-      {/* Relationship Removal Modal - with BlurView background */}
-      <Modal
-        visible={showRelationshipRemovalModal}
-        transparent
-        animationType="none"
-        onRequestClose={closeRelationshipRemovalModal}
-      >
-        <BlurView
-          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
-          intensity={10}
-          tint={colorScheme === 'dark' ? 'dark' : 'light'}
-          pointerEvents="none"
-        />
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            opacity: relationshipRemovalBackdropOpacity,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            <Pressable
-              style={{ flex: 1 }}
-              onPress={() => {
-                relationshipRemovalIsAnimating.value = false; // Reset state on backdrop tap
-                closeRelationshipRemovalModal();
-              }}
-            />
-            <GestureDetector gesture={relationshipRemovalPanGesture}>
-              <ReanimatedAnimated.View
-                style={[
-                  {
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: height,
-                    backgroundColor: backgroundColor,
-                    borderTopLeftRadius: 20,
-                    borderTopRightRadius: 20,
-                    padding: 20,
-                  },
-                  {
-                    transform: [{ translateY: relationshipRemovalTranslateY }],
-                  },
-                ]}
-              >
-                {/* Drag Handle */}
-                <View
-                  style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
-                    }}
-                  />
-                </View>
-
-                <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                  {relationshipRemovalTarget?.relationship_type === 'has_supervisor'
-                    ? t('onboarding.relationships.removeSupervisorTitle') || 'Remove Supervisor'
-                    : t('onboarding.relationships.removeStudentTitle') || 'Remove Student'}
-                </Text>
-
-                <Text fontSize="$4" color="$color">
-                  {relationshipRemovalTarget?.relationship_type === 'has_supervisor'
-                    ? (
-                        t('onboarding.relationships.removeSupervisorConfirm') ||
-                        'Are you sure you want to remove {name} as your supervisor?'
-                      ).replace('{name}', relationshipRemovalTarget?.name || '')
-                    : (
-                        t('onboarding.relationships.removeStudentConfirm') ||
-                        'Are you sure you want to remove {name} as your student?'
-                      ).replace('{name}', relationshipRemovalTarget?.name || '')}
-                </Text>
-
-                <YStack gap="$2">
-                  <Text fontSize="$3" color="$gray11">
-                    {t('onboarding.relationships.optionalMessage') || 'Optional message:'}
-                  </Text>
-                  <TextInput
-                    value={relationshipRemovalMessage}
-                    onChangeText={setRelationshipRemovalMessage}
-                    placeholder={
-                      t('onboarding.relationships.messagePlaceholder') ||
-                      'Add a message explaining why (optional)...'
-                    }
-                    multiline
-                    style={{
-                      backgroundColor: '$background',
-                      color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
-                      borderColor:
-                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                      borderWidth: 1,
-                      borderRadius: 8,
-                      padding: 12,
-                      minHeight: 80,
-                      textAlignVertical: 'top',
-                    }}
-                    placeholderTextColor={
-                      colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'
-                    }
-                  />
-                </YStack>
-
-                <YStack gap="$2">
-                  <Button
-                    variant="primary"
-                    backgroundColor="$red9"
-                    size="lg"
-                    onPress={handleRemoveRelationship}
-                  >
-                    <Text color="white">{t('common.remove') || 'Remove'}</Text>
-                  </Button>
-                  <Button variant="secondary" size="lg" onPress={closeRelationshipRemovalModal}>
-                    {t('common.cancel') || 'Cancel'}
-                  </Button>
-                </YStack>
-              </ReanimatedAnimated.View>
-            </GestureDetector>
-          </View>
-        </Animated.View>
       </Modal>
 
       {/* Create Route Sheet Modal */}
