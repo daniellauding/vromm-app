@@ -89,6 +89,7 @@ export function FeaturedContent() {
   // Modal state for ExerciseListSheet
   const [showExerciseSheet, setShowExerciseSheet] = useState(false);
   const [selectedPathId, setSelectedPathId] = useState<string | undefined>();
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | undefined>();
   const [selectedTitle, setSelectedTitle] = useState<string>('');
 
   // Paywall and Password Lock state
@@ -237,6 +238,7 @@ export function FeaturedContent() {
     console.log('🎯 [FeaturedContent] Setting selectedPathId:', path.id);
     console.log('🎯 [FeaturedContent] Setting selectedTitle:', path.title[lang] || path.title.en);
     setSelectedPathId(path.id);
+    setSelectedExerciseId(undefined); // No specific exercise, show path list
     setSelectedTitle(path.title[lang] || path.title.en);
     setShowExerciseSheet(true);
     console.log('🎯 [FeaturedContent] showExerciseSheet set to true');
@@ -261,11 +263,13 @@ export function FeaturedContent() {
     }
 
     console.log('🎯 [FeaturedContent] Setting selectedPathId:', exercise.learning_path_id);
+    console.log('🎯 [FeaturedContent] Setting selectedExerciseId:', exercise.id);
     console.log(
       '🎯 [FeaturedContent] Setting selectedTitle:',
       exercise.title[lang] || exercise.title.en,
     );
     setSelectedPathId(exercise.learning_path_id);
+    setSelectedExerciseId(exercise.id); // Set the specific exercise ID to auto-open it
     setSelectedTitle(exercise.title[lang] || exercise.title.en);
     setShowExerciseSheet(true);
     console.log('🎯 [FeaturedContent] showExerciseSheet set to true');
@@ -584,6 +588,7 @@ export function FeaturedContent() {
       {console.log('🎯 [FeaturedContent] Rendering ExerciseListSheet with:', {
         visible: showExerciseSheet,
         selectedPathId,
+        selectedExerciseId,
         selectedTitle,
       })}
       <ExerciseListSheet
@@ -591,9 +596,11 @@ export function FeaturedContent() {
         onClose={() => {
           console.log('🎯 [FeaturedContent] ExerciseListSheet onClose called');
           setShowExerciseSheet(false);
+          setSelectedExerciseId(undefined); // Clear the selected exercise
         }}
         title={selectedTitle}
         learningPathId={selectedPathId}
+        initialExerciseId={selectedExerciseId}
       />
 
       {/* 🔒 Paywall Modal for Learning Paths */}

@@ -85,6 +85,7 @@ export function FeaturedContent2() {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [showExerciseSheet, setShowExerciseSheet] = useState(false);
   const [selectedPathId, setSelectedPathId] = useState<string | undefined>();
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | undefined>();
   const [selectedTitle, setSelectedTitle] = useState<string>('');
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallPath, setPaywallPath] = useState<FeaturedLearningPath | null>(null);
@@ -409,8 +410,14 @@ export function FeaturedContent2() {
     // Determine if it's a path or exercise
     const isExercise = 'learning_path_id' in item;
     const pathId = isExercise ? (item as FeaturedExercise).learning_path_id : item.id;
+    const exerciseId = isExercise ? item.id : undefined;
 
+    console.log('🎯 [FeaturedContent2] Setting selectedPathId:', pathId);
+    if (exerciseId) {
+      console.log('🎯 [FeaturedContent2] Setting selectedExerciseId:', exerciseId);
+    }
     setSelectedPathId(pathId);
+    setSelectedExerciseId(exerciseId); // Set specific exercise ID if it's an exercise, otherwise undefined
     setSelectedTitle(item.title[lang] || item.title.en);
     setShowExerciseSheet(true);
   };
@@ -645,9 +652,11 @@ export function FeaturedContent2() {
         onClose={() => {
           console.log('🎯 [FeaturedContent2] ExerciseListSheet onClose called');
           setShowExerciseSheet(false);
+          setSelectedExerciseId(undefined); // Clear the selected exercise
         }}
         title={selectedTitle}
         learningPathId={selectedPathId}
+        initialExerciseId={selectedExerciseId}
       />
 
       {/* 🔒 Paywall Modal for Learning Paths (from FeaturedContent.tsx) */}
