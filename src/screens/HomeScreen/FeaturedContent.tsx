@@ -50,6 +50,7 @@ interface FeaturedExercise {
   image?: string;
   learning_path_id: string;
   is_featured: boolean;
+  repeat_count?: number;
   // Access Control & Paywall
   is_locked?: boolean;
   lock_password?: string | null;
@@ -78,6 +79,8 @@ export function FeaturedContent() {
   const [featuredPaths, setFeaturedPaths] = useState<FeaturedLearningPath[]>([]);
   const [featuredExercises, setFeaturedExercises] = useState<FeaturedExercise[]>([]);
   const [loading, setLoading] = useState(true);
+  const [completedExerciseIds, setCompletedExerciseIds] = useState<string[]>([]);
+  const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
 
   // Refresh translations on mount
   useEffect(() => {
@@ -103,6 +106,40 @@ export function FeaturedContent() {
   const backgroundColor = '$background';
   const cardBackgroundColor = '$backgroundHover';
 
+  // Load completion data
+  const loadCompletionData = async () => {
+    if (!authUser?.id) return;
+
+    try {
+      // Fetch regular exercise completions
+      const { data: regularData, error: regularError } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('exercise_id')
+        .eq('user_id', authUser.id);
+
+      // Fetch virtual repeat completions
+      const { data: virtualData, error: virtualError } = await supabase
+        .from('virtual_repeat_completions')
+        .select('exercise_id, repeat_number')
+        .eq('user_id', authUser.id);
+
+      if (!regularError && regularData) {
+        const completions = regularData.map((c: { exercise_id: string }) => c.exercise_id);
+        setCompletedExerciseIds(completions);
+      }
+
+      if (!virtualError && virtualData) {
+        const virtualCompletions = virtualData.map(
+          (c: { exercise_id: string; repeat_number: number }) =>
+            `${c.exercise_id}-virtual-${c.repeat_number}`,
+        );
+        setVirtualRepeatCompletions(virtualCompletions);
+      }
+    } catch (error) {
+      console.error('Error loading completion data:', error);
+    }
+  };
+
   useEffect(() => {
     console.log('🎯 [FeaturedContent] Component mounted, loading data for user:', authUser?.id);
     fetchFeaturedContent();
@@ -112,6 +149,7 @@ export function FeaturedContent() {
       console.log('🎯 [FeaturedContent] Loading user data...');
       loadUserPayments(authUser.id);
       loadUnlockedContent(authUser.id);
+      loadCompletionData();
     } else {
       console.log('🎯 [FeaturedContent] No user ID, skipping data load');
     }
@@ -144,7 +182,9 @@ export function FeaturedContent() {
       // Fetch featured exercises
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('learning_path_exercises')
-        .select('id, title, description, icon, image, learning_path_id, is_featured')
+        .select(
+          'id, title, description, icon, image, learning_path_id, is_featured, repeat_count',
+        )
         .eq('is_featured', true)
         .order('created_at', { ascending: false })
         .limit(5);
@@ -170,6 +210,29 @@ export function FeaturedContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Completion check helper functions
+  const isExerciseCompleted = (exercise: FeaturedExercise): boolean => {
+    // Check if the main exercise is completed
+    const mainCompleted = completedExerciseIds.includes(exercise.id);
+    
+    // If no repeats, just check main completion
+    if (!exercise.repeat_count || exercise.repeat_count <= 1) {
+      return mainCompleted;
+    }
+
+    // If has repeats, check if all repeats are completed
+    if (!mainCompleted) return false;
+    
+    for (let i = 2; i <= exercise.repeat_count; i++) {
+      const virtualId = `${exercise.id}-virtual-${i}`;
+      if (!virtualRepeatCompletions.includes(virtualId)) {
+        return false;
+      }
+    }
+    
+    return true;
   };
 
   // Access control helper functions
@@ -304,39 +367,17 @@ export function FeaturedContent() {
     );
   }
 
-  const hasContent = featuredPaths.length > 0 || featuredExercises.length > 0;
+  // Filter out completed exercises
+  const incompleteFeaturedExercises = featuredExercises.filter(
+    (exercise) => !isExerciseCompleted(exercise),
+  );
+
+  const hasContent =
+    featuredPaths.length > 0 || incompleteFeaturedExercises.length > 0;
 
   if (!hasContent) {
-    console.log('🎯 [FeaturedContent] No featured content found, showing fallback');
-    return (
-      <YStack marginBottom="$4">
-        <SectionHeader
-          title={(() => {
-            const translated = t('home.featuredContent');
-            return translated === 'home.featuredContent' ? 'Featured Learning' : translated;
-          })()}
-        />
-        <YStack alignItems="center" justifyContent="center" padding="$4" gap="$2">
-          <Feather name="star" size={48} color="#666" />
-          <Text color="$gray11" textAlign="center">
-            {(() => {
-              const translated = t('home.noFeaturedContent');
-              return translated === 'home.noFeaturedContent'
-                ? 'No featured content yet'
-                : translated;
-            })()}
-          </Text>
-          <Text fontSize="$2" color="$gray11" textAlign="center">
-            {(() => {
-              const translated = t('home.featuredContentDescription');
-              return translated === 'home.featuredContentDescription'
-                ? 'Featured learning paths and exercises will appear here'
-                : translated;
-            })()}
-          </Text>
-        </YStack>
-      </YStack>
-    );
+    console.log('🎯 [FeaturedContent] No featured content found, hiding section');
+    return null; // Don't render anything if no content
   }
 
   return (
@@ -468,8 +509,8 @@ export function FeaturedContent() {
           );
         })}
 
-        {/* Featured Exercises */}
-        {featuredExercises.map((exercise) => {
+        {/* Featured Exercises (only incomplete ones) */}
+        {incompleteFeaturedExercises.map((exercise) => {
           console.log(
             '🎯 [FeaturedContent] Rendering featured exercise:',
             exercise.title[lang] || exercise.title.en,
