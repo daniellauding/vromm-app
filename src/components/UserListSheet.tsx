@@ -12,7 +12,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { YStack, XStack, Text, Card } from 'tamagui';
+import { YStack, XStack, Text, Card, Input, useTheme } from 'tamagui';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
@@ -66,6 +66,7 @@ export function UserListSheet({
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const theme = useTheme();
 
   // Theme colors - matching OnboardingInteractive exactly
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
@@ -80,8 +81,13 @@ export function UserListSheet({
   const [refreshing, setRefreshing] = useState(false);
   const [followLoading, setFollowLoading] = useState<{ [key: string]: boolean }>({});
   const [relationshipLoading, setRelationshipLoading] = useState<{ [key: string]: boolean }>({});
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeRoleFilter, setActiveRoleFilter] = useState<string>('all');
+  const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch users function (exact copy from UsersScreen)
+  // Fetch users function (enhanced with search and role filtering)
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
@@ -102,9 +108,20 @@ export function UserListSheet({
         .order('created_at', { ascending: false })
         .limit(50);
 
-      // Apply role filter if specified
-      if (filterByRole) {
-        query = query.eq('role', filterByRole);
+      // Apply role filter - use activeRoleFilter state or prop filterByRole
+      const roleFilter = filterByRole || (activeRoleFilter !== 'all' ? activeRoleFilter : null);
+      if (roleFilter && roleFilter !== 'all') {
+        if (roleFilter === 'supervisor') {
+          // Handle supervisor filter - include instructor, admin, and school roles
+          query = query.in('role', ['instructor', 'admin', 'school']);
+        } else {
+          query = query.eq('role', roleFilter);
+        }
+      }
+
+      // Apply search filter if specified
+      if (searchQuery.trim()) {
+        query = query.or(`full_name.ilike.%${searchQuery.trim()}%,email.ilike.%${searchQuery.trim()}%`);
       }
 
       const { data, error } = await query;
@@ -154,7 +171,7 @@ export function UserListSheet({
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.id, filterByRole]);
+  }, [user?.id, filterByRole, activeRoleFilter, searchQuery]);
 
   // Handle functions (exact copy from UsersScreen)
   const handleFollow = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
@@ -253,6 +270,32 @@ export function UserListSheet({
     setRefreshing(true);
     await fetchUsers();
   };
+
+  // Debounced search handler
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Set new timeout for debounced search
+    const timeout = setTimeout(() => {
+      // The search will be triggered by the useEffect dependency on searchQuery
+    }, 300);
+    
+    setSearchTimeout(timeout);
+  };
+
+  // Clean up search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
 
   // Render user item (exact copy from UsersScreen)
   const renderUserItem = (user: User) => {
@@ -427,6 +470,103 @@ export function UserListSheet({
                   <Feather name="x" size={24} color={iconColor} />
                 </TouchableOpacity>
               </XStack>
+
+              {/* Search Input */}
+              <YStack gap="$2">
+                <XStack
+                  backgroundColor="$backgroundHover"
+                  borderRadius="$4"
+                  padding="$3"
+                  alignItems="center"
+                  gap="$2"
+                  borderWidth={1}
+                  borderColor="$borderColor"
+                >
+                  <Feather name="search" size={16} color={iconColor} />
+                  <Input
+                    flex={1}
+                    placeholder={t('userList.searchPlaceholder') || 'Search users by name or email...'}
+                    value={searchQuery}
+                    onChangeText={handleSearchChange}
+                    backgroundColor="transparent"
+                    borderWidth={0}
+                    color="$color"
+                    fontSize="$4"
+                    paddingHorizontal={0}
+                    focusStyle={{
+                      borderWidth: 0,
+                    }}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <Feather name="x" size={16} color={iconColor} />
+                    </TouchableOpacity>
+                  )}
+                </XStack>
+
+                {/* Role Filter Tabs */}
+                <XStack gap="$2" flexWrap="wrap" justifyContent="center">
+                  <TouchableOpacity
+                    onPress={() => setActiveRoleFilter('all')}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor: activeRoleFilter === 'all' ? '#00E6C3' : 'transparent',
+                      borderWidth: 1,
+                      borderColor: activeRoleFilter === 'all' ? '#00E6C3' : '#ccc',
+                    }}
+                  >
+                    <Text
+                      color={activeRoleFilter === 'all' ? 'white' : '$color'}
+                      fontWeight={activeRoleFilter === 'all' ? 'bold' : 'normal'}
+                      fontSize="$3"
+                    >
+                      {t('userList.tabs.all') || 'All Users'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setActiveRoleFilter('student')}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor: activeRoleFilter === 'student' ? '#00E6C3' : 'transparent',
+                      borderWidth: 1,
+                      borderColor: activeRoleFilter === 'student' ? '#00E6C3' : '#ccc',
+                    }}
+                  >
+                    <Text
+                      color={activeRoleFilter === 'student' ? 'white' : '$color'}
+                      fontWeight={activeRoleFilter === 'student' ? 'bold' : 'normal'}
+                      fontSize="$3"
+                    >
+                      {t('userList.tabs.students') || 'Students'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setActiveRoleFilter('supervisor')}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor: activeRoleFilter === 'supervisor' ? '#00E6C3' : 'transparent',
+                      borderWidth: 1,
+                      borderColor: activeRoleFilter === 'supervisor' ? '#00E6C3' : '#ccc',
+                    }}
+                  >
+                    <Text
+                      color={activeRoleFilter === 'supervisor' ? 'white' : '$color'}
+                      fontWeight={activeRoleFilter === 'supervisor' ? 'bold' : 'normal'}
+                      fontSize="$3"
+                    >
+                      {t('userList.tabs.supervisors') || 'Supervisors'}
+                    </Text>
+                  </TouchableOpacity>
+                </XStack>
+              </YStack>
 
               {/* Users List */}
               <YStack flex={1}>

@@ -7,9 +7,9 @@ import {
   Dimensions,
   ScrollView,
   RefreshControl,
-  Alert,
   Image,
   Share,
+  TextInput,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -36,6 +36,7 @@ import { messageService } from '../services/messageService';
 import { RelationshipReviewSection } from './RelationshipReviewSection';
 import { RelationshipReviewService } from '../services/relationshipReviewService';
 import { IconButton } from './IconButton';
+import { useToast } from '../contexts/ToastContext';
 
 const { height } = Dimensions.get('window');
 
@@ -78,10 +79,12 @@ export function UserProfileSheet({
   const insets = useSafeAreaInsets();
   const { user, profile: currentUserProfile } = useAuth();
   const { t } = useTranslation();
+  const { showToast } = useToast();
 
   // 🔧 Make navigation optional (for use in modals outside NavigationContainer)
   let navigation: NavigationProp | null = null;
   try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     navigation = useNavigation<NavigationProp>();
   } catch (error) {
     console.log('🔍 [UserProfileSheet] No navigation context available (modal mode)');
@@ -247,6 +250,128 @@ export function UserProfileSheet({
     null,
   );
   const [pendingInvitationData, setPendingInvitationData] = useState<any>(null);
+  
+  // Cancel pending invitation function
+  const handleCancelPendingInvitation = async () => {
+    if (!pendingInvitationData || !user?.id) return;
+
+    try {
+      console.log('🚫 [UserProfileSheet] Canceling pending invitation:', pendingInvitationData.id);
+
+      // Remove pending invitation
+      const { error } = await supabase
+        .from('pending_invitations')
+        .delete()
+        .eq('id', pendingInvitationData.id);
+
+      if (error) throw error;
+
+      // Remove related notification
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('metadata->>invitation_id', pendingInvitationData.id);
+
+      showToast({
+        title: 'Invitation Canceled',
+        message: `Connection request to ${profile?.full_name || 'this user'} has been canceled.`,
+        type: 'success',
+      });
+
+      // Reset pending state
+      setHasPendingInvitation(false);
+      setPendingInvitationType(null);
+      setPendingInvitationData(null);
+      setShowRelationshipModal(false);
+    } catch (error) {
+      console.error('🚫 [UserProfileSheet] Error canceling invitation:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to cancel invitation',
+        type: 'error',
+      });
+    }
+  };
+
+  // Accept invitation function (copied from UnifiedInvitationModal)
+  const handleAcceptInvitation = async () => {
+    if (!pendingInvitationData || !user?.id) return;
+
+    try {
+      console.log('✅ [UserProfileSheet] Accepting invitation:', pendingInvitationData.id);
+
+      // Use the same universal function as UnifiedInvitationModal
+      const { data, error } = await supabase.rpc('accept_any_invitation_universal', {
+        p_invitation_id: pendingInvitationData.id,
+        p_accepted_by: user.id,
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      showToast({
+        title: 'Invitation Accepted!',
+        message: `You are now connected with ${profile?.full_name || 'this user'}.`,
+        type: 'success',
+      });
+
+      // Reset pending state and refresh relationship status
+      setHasPendingInvitation(false);
+      setPendingInvitationType(null);
+      setPendingInvitationData(null);
+      setShowRelationshipModal(false);
+      
+      // Refresh relationship status to update UI
+      checkRelationshipStatus();
+    } catch (error) {
+      console.error('✅ [UserProfileSheet] Error accepting invitation:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to accept invitation',
+        type: 'error',
+      });
+    }
+  };
+
+  // Decline invitation function (copied from UnifiedInvitationModal)
+  const handleDeclineInvitation = async () => {
+    if (!pendingInvitationData || !user?.id) return;
+
+    try {
+      console.log('❌ [UserProfileSheet] Declining invitation:', pendingInvitationData.id);
+
+      // Remove pending invitation (same as UnifiedInvitationModal)
+      const { error: pendingError } = await supabase
+        .from('pending_invitations')
+        .delete()
+        .eq('id', pendingInvitationData.id);
+
+      // Remove related notification
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('metadata->>invitation_id', pendingInvitationData.id);
+
+      showToast({
+        title: 'Invitation Declined',
+        message: `Connection request from ${profile?.full_name || 'this user'} has been declined.`,
+        type: 'success',
+      });
+
+      // Reset pending state
+      setHasPendingInvitation(false);
+      setPendingInvitationType(null);
+      setPendingInvitationData(null);
+      setShowRelationshipModal(false);
+    } catch (error) {
+      console.error('❌ [UserProfileSheet] Error declining invitation:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to decline invitation',
+        type: 'error',
+      });
+    }
+  };
 
   // Relationship reviews state
   const [relationshipReviews, setRelationshipReviews] = useState<any[]>([]);
@@ -256,6 +381,211 @@ export function UserProfileSheet({
     canReview: false,
     alreadyReviewed: false,
   });
+
+  // Relationship request modal state
+  const [showRelationshipModal, setShowRelationshipModal] = useState(false);
+  const [relationshipCustomMessage, setRelationshipCustomMessage] = useState('');
+
+  // Relationship modal snap points
+  const relationshipSnapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.2, // Top at 20% of screen (show 80% - largest)
+      medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: height * 0.6, // Top at 60% of screen (show 40% - small)
+      tiny: height * 0.8, // Top at 80% of screen (show 20% - just title)
+      dismissed: height, // Completely off-screen
+    };
+    return points;
+  }, [height]);
+
+  const relationshipTranslateY = useSharedValue(height);
+  const [currentRelationshipSnapPoint, setCurrentRelationshipSnapPoint] = useState(relationshipSnapPoints.large);
+  const currentRelationshipState = useSharedValue(relationshipSnapPoints.large);
+
+  // Relationship modal gesture handler
+  const relationshipPanGesture = Gesture.Pan()
+    .onBegin(() => {
+      isDragging.current = true;
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentRelationshipState.value + translationY;
+
+        const minPosition = relationshipSnapPoints.large;
+        const maxPosition = relationshipSnapPoints.tiny + 100;
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+
+        relationshipTranslateY.value = boundedPosition;
+      } catch (error) {
+        console.log('relationshipPanGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      isDragging.current = false;
+
+      const currentPosition = currentRelationshipState.value + translationY;
+
+      if (currentPosition > relationshipSnapPoints.tiny + 30 && velocityY > 200) {
+        runOnJS(() => setShowRelationshipModal(false))();
+        return;
+      }
+
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        targetSnapPoint = relationshipSnapPoints.large;
+      } else if (velocityY > 500) {
+        targetSnapPoint = relationshipSnapPoints.tiny;
+      } else {
+        const positions = [relationshipSnapPoints.large, relationshipSnapPoints.medium, relationshipSnapPoints.small, relationshipSnapPoints.tiny];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+
+      const boundedTarget = Math.min(Math.max(targetSnapPoint, relationshipSnapPoints.large), relationshipSnapPoints.tiny);
+
+      relationshipTranslateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+
+      currentRelationshipState.value = boundedTarget;
+      runOnJS(setCurrentRelationshipSnapPoint)(boundedTarget);
+    });
+
+  const relationshipAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: relationshipTranslateY.value }],
+  }));
+
+  // Connection handling functions (copied from GettingStarted.tsx)
+  const handleCreateConnection = async () => {
+    if (!user?.id || !profile || !currentUserProfile) return;
+
+    try {
+      console.log('🔗 [UserProfileSheet] Creating connection with user:', profile.full_name);
+      
+      // Check if relationship already exists
+      const { data: existingRelationship } = await supabase
+        .from('student_supervisor_relationships')
+        .select('id')
+        .or(
+          `and(student_id.eq.${user.id},supervisor_id.eq.${userId}),and(student_id.eq.${userId},supervisor_id.eq.${user.id})`,
+        )
+        .single();
+
+      if (existingRelationship) {
+        showToast({
+          title: 'Already Connected',
+          message: 'Relationship already exists with this user',
+          type: 'info',
+        });
+        return;
+      }
+
+      // Check if pending invitation already exists
+      const { data: existingInvitation } = await supabase
+        .from('pending_invitations')
+        .select('id')
+        .eq('invited_by', user.id)
+        .eq('email', profile.email!.toLowerCase())
+        .eq('status', 'pending')
+        .single();
+
+      if (existingInvitation) {
+        showToast({
+          title: 'Already Pending',
+          message: 'Invitation already exists for this user',
+          type: 'info',
+        });
+        return;
+      }
+
+      // Determine relationship type and target role
+      const relationshipType = profile.role === 'instructor' 
+        ? 'student_invites_supervisor' 
+        : 'supervisor_invites_student';
+      const targetRole = profile.role === 'instructor' ? 'instructor' : 'student';
+
+      // Create pending invitation (same as GettingStarted.tsx)
+      const { data: invitationData, error: inviteError } = await supabase
+        .from('pending_invitations')
+        .insert({
+          email: profile.email!.toLowerCase(),
+          role: targetRole,
+          invited_by: user.id,
+          metadata: {
+            supervisorName: currentUserProfile.full_name || user.email,
+            inviterRole: currentUserProfile.role,
+            relationshipType,
+            invitedAt: new Date().toISOString(),
+            targetUserId: userId,
+            targetUserName: profile?.full_name || 'Unknown User',
+            customMessage: relationshipCustomMessage.trim() || undefined,
+          },
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (inviteError && inviteError.code !== '23505') {
+        console.error('🔗 [UserProfileSheet] Error creating invitation:', inviteError);
+        throw inviteError;
+      }
+
+      // Create notification (same as GettingStarted.tsx)
+      const notificationType = profile.role === 'instructor' ? 'supervisor_invitation' : 'student_invitation';
+      const baseMessage = profile.role === 'instructor'
+        ? `${currentUserProfile.full_name || user.email} wants you to be their supervisor`
+        : `${currentUserProfile.full_name || user.email} wants you to be their student`;
+
+      const fullMessage = relationshipCustomMessage.trim()
+        ? `${baseMessage}\n\nPersonal message: "${relationshipCustomMessage.trim()}"`
+        : baseMessage;
+
+      await supabase.from('notifications').insert({
+        user_id: userId!,
+        actor_id: user.id,
+        type: notificationType as any,
+        title: 'New Connection Request',
+        message: fullMessage,
+        metadata: {
+          relationship_type: relationshipType,
+          from_user_id: user.id,
+          from_user_name: currentUserProfile.full_name || user.email,
+          customMessage: relationshipCustomMessage.trim() || undefined,
+          invitation_id: invitationData.id,
+        },
+        action_url: 'vromm://notifications',
+        priority: 'high',
+        is_read: false,
+      });
+
+      showToast({
+        title: 'Request Sent!',
+        message: `Connection request sent to ${profile?.full_name || 'the user'}. They will receive a notification.`,
+        type: 'success',
+      });
+
+      // Update pending invitation status
+      setHasPendingInvitation(true);
+      setPendingInvitationType('sent');
+      setShowRelationshipModal(false);
+      setRelationshipCustomMessage('');
+    } catch (error) {
+      console.error('🔗 [UserProfileSheet] Error creating connection:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to send connection request',
+        type: 'error',
+      });
+    }
+  };
 
   // Load profile data (exact copy from PublicProfileScreen)
   const loadProfile = useCallback(async () => {
@@ -694,7 +1024,11 @@ export function UserProfileSheet({
       }
     } catch (error) {
       console.error('Error following/unfollowing user:', error);
-      Alert.alert('Error', 'Failed to update follow status. Please try again.');
+      showToast({
+        title: 'Error',
+        message: 'Failed to update follow status. Please try again.',
+        type: 'error',
+      });
     } finally {
       setFollowLoading(false);
     }
@@ -705,10 +1039,11 @@ export function UserProfileSheet({
 
     // 🔧 Check if navigation is available
     if (!navigation) {
-      Alert.alert(
-        'Navigation not available',
-        'Please open this profile from the main app to send messages.',
-      );
+      showToast({
+        title: 'Navigation not available',
+        message: 'Please open this profile from the main app to send messages.',
+        type: 'error',
+      });
       return;
     }
 
@@ -732,7 +1067,11 @@ export function UserProfileSheet({
       onClose();
     } catch (error) {
       console.error('Error starting conversation:', error);
-      Alert.alert('Error', 'Failed to start conversation. Please try again.');
+      showToast({
+        title: 'Error',
+        message: 'Failed to start conversation. Please try again.',
+        type: 'error',
+      });
     }
   };
 
@@ -750,7 +1089,11 @@ export function UserProfileSheet({
       });
     } catch (error) {
       console.error('Error sharing:', error);
-      Alert.alert('Error', 'Failed to share profile');
+      showToast({
+        title: 'Error',
+        message: 'Failed to share profile',
+        type: 'error',
+      });
     }
   };
 
@@ -799,6 +1142,22 @@ export function UserProfileSheet({
     }
   }, [visible, backdropOpacity, snapPoints.large, currentState]);
 
+  // Animation effects for relationship modal
+  useEffect(() => {
+    if (showRelationshipModal) {
+      relationshipTranslateY.value = withSpring(relationshipSnapPoints.large, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      currentRelationshipState.value = relationshipSnapPoints.large;
+      setCurrentRelationshipSnapPoint(relationshipSnapPoints.large);
+    }
+  }, [showRelationshipModal, relationshipSnapPoints.large, currentRelationshipState]);
+
   // Refresh function
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -833,10 +1192,10 @@ export function UserProfileSheet({
             <ReanimatedAnimated.View
               style={[
                 {
-                  position: 'absolute',
+              position: 'absolute',
                   top: 0,
-                  left: 0,
-                  right: 0,
+              left: 0,
+              right: 0,
                   height: height, // Keep original height
                   backgroundColor: backgroundColor,
                   borderTopLeftRadius: 16,
@@ -864,8 +1223,8 @@ export function UserProfileSheet({
                   />
                 </View>
 
-                {/* Header */}
-                {/* <XStack justifyContent="space-between" alignItems="center">
+              {/* Header */}
+              {/* <XStack justifyContent="space-between" alignItems="center">
                 <Text fontSize="$6" fontWeight="bold" color="$color">
                   {profile?.full_name || t('profile.user') || 'User'}
                 </Text>
@@ -874,135 +1233,135 @@ export function UserProfileSheet({
                 </TouchableOpacity>
               </XStack> */}
 
-                {loading ? (
-                  <YStack f={1} jc="center" ai="center">
-                    <Text>{t('profile.loading') || 'Loading profile data...'}</Text>
-                  </YStack>
-                ) : error || !profile ? (
-                  <YStack f={1} jc="center" ai="center" padding="$4">
-                    <Text color="$red10">
-                      {error || t('profile.notFound') || 'Profile not found'}
-                    </Text>
-                    <Button onPress={onClose} marginTop="$4" variant="primary" size="$4">
+              {loading ? (
+                <YStack f={1} jc="center" ai="center">
+                  <Text>{t('profile.loading') || 'Loading profile data...'}</Text>
+                </YStack>
+              ) : error || !profile ? (
+                <YStack f={1} jc="center" ai="center" padding="$4">
+                  <Text color="$red10">
+                    {error || t('profile.notFound') || 'Profile not found'}
+                  </Text>
+                  <Button onPress={onClose} marginTop="$4" variant="primary" size="$4">
                       <Feather
                         name="arrow-left"
                         size={18}
                         color="white"
                         style={{ marginRight: 8 }}
                       />
-                      {t('common.goBack') || 'Go Back'}
-                    </Button>
-                  </YStack>
-                ) : (
-                  <ScrollView
-                    showsVerticalScrollIndicator={true}
-                    refreshControl={
-                      <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={handleRefresh}
-                        tintColor="#00E6C3"
-                        colors={['#00E6C3']}
-                        progressBackgroundColor="#1a1a1a"
-                      />
-                    }
-                  >
-                    <YStack gap="$4">
-                      {/* Profile header with avatar */}
-                      <YStack alignItems="center" gap="$2">
-                        {profile.avatar_url ? (
-                          <Image
-                            source={{ uri: profile.avatar_url }}
-                            style={{ width: 100, height: 100, borderRadius: 50 }}
-                          />
-                        ) : (
-                          <View
-                            style={{
-                              width: 100,
-                              height: 100,
-                              borderRadius: 50,
-                              backgroundColor: '#444',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <Feather name="user" size={50} color="#ddd" />
-                          </View>
-                        )}
+                    {t('common.goBack') || 'Go Back'}
+                  </Button>
+                </YStack>
+              ) : (
+                <ScrollView
+                  showsVerticalScrollIndicator={true}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={handleRefresh}
+                      tintColor="#00E6C3"
+                      colors={['#00E6C3']}
+                      progressBackgroundColor="#1a1a1a"
+                    />
+                  }
+                >
+                  <YStack gap="$4">
+                    {/* Profile header with avatar */}
+                    <YStack alignItems="center" gap="$2">
+                      {profile.avatar_url ? (
+                        <Image
+                          source={{ uri: profile.avatar_url }}
+                          style={{ width: 100, height: 100, borderRadius: 50 }}
+                        />
+                      ) : (
+                        <View
+                          style={{
+                            width: 100,
+                            height: 100,
+                            borderRadius: 50,
+                            backgroundColor: '#444',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Feather name="user" size={50} color="#ddd" />
+                        </View>
+                      )}
 
-                        <Text fontSize="$5" fontWeight="bold">
-                          {profile.full_name || t('profile.unnamed')}
-                        </Text>
+                      <Text fontSize="$5" fontWeight="bold">
+                        {profile.full_name || t('profile.unnamed')}
+                      </Text>
 
-                        {profile.is_trusted && (
-                          <Card padding="$1" backgroundColor="$green5" borderRadius="$3">
-                            <Text color="$green11" fontSize="$2">
-                              {t('profile.verifiedBadge') || 'Verified'}
-                            </Text>
-                          </Card>
-                        )}
+                      {profile.is_trusted && (
+                        <Card padding="$1" backgroundColor="$green5" borderRadius="$3">
+                          <Text color="$green11" fontSize="$2">
+                            {t('profile.verifiedBadge') || 'Verified'}
+                          </Text>
+                        </Card>
+                      )}
 
-                        {!profile.is_trusted && (
-                          <Card padding="$1" backgroundColor="$red5" borderRadius="$3">
-                            <Text color="$red11" fontSize="$2">
-                              {t('profile.notVerifiedBadge') || 'Not verified yet'}
-                            </Text>
-                          </Card>
-                        )}
+                      {!profile.is_trusted && (
+                        <Card padding="$1" backgroundColor="$red5" borderRadius="$3">
+                          <Text color="$red11" fontSize="$2">
+                            {t('profile.notVerifiedBadge') || 'Not verified yet'}
+                          </Text>
+                        </Card>
+                      )}
 
-                        {profile.location && (
-                          <XStack alignItems="center" gap="$1">
-                            <Feather name="map-pin" size={16} color={iconColor} />
-                            <Text>{profile.location}</Text>
-                          </XStack>
-                        )}
+                      {profile.location && (
+                        <XStack alignItems="center" gap="$1">
+                          <Feather name="map-pin" size={16} color={iconColor} />
+                          <Text>{profile.location}</Text>
+                        </XStack>
+                      )}
 
-                        {profile.role && (
-                          <Card padding="$2" backgroundColor="$blue5" borderRadius="$4">
-                            <Text color="$blue11" fontWeight="500">
-                              {profile.role === 'student'
-                                ? t('profile.roles.student') || 'Student'
-                                : profile.role === 'instructor'
-                                  ? t('profile.roles.instructor') || 'Instructor'
-                                  : t('profile.roles.school') || 'School'}
-                            </Text>
-                          </Card>
-                        )}
+                      {profile.role && (
+                        <Card padding="$2" backgroundColor="$blue5" borderRadius="$4">
+                          <Text color="$blue11" fontWeight="500">
+                            {profile.role === 'student'
+                              ? t('profile.roles.student') || 'Student'
+                              : profile.role === 'instructor'
+                                ? t('profile.roles.instructor') || 'Instructor'
+                                : t('profile.roles.school') || 'School'}
+                          </Text>
+                        </Card>
+                      )}
 
-                        {/* Action buttons for non-current users */}
-                        {!isCurrentUser && (
-                          <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
-                            {/* Follow/Unfollow Button */}
+                      {/* Action buttons for non-current users */}
+                      {!isCurrentUser && (
+                        <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
+                          {/* Follow/Unfollow Button */}
                             {/* <Button
-                              onPress={handleFollow}
-                              disabled={followLoading}
-                              variant={isFollowing ? 'secondary' : 'primary'}
-                              backgroundColor={isFollowing ? '$red5' : '$blue10'}
-                              size="sm"
-                            >
-                              <XStack gap="$1" alignItems="center">
-                                {followLoading ? (
-                                  <Text color={isFollowing ? '$red11' : 'white'} fontSize="$3">
-                                    {t('profile.loading') || '...'}
+                            onPress={handleFollow}
+                            disabled={followLoading}
+                            variant={isFollowing ? 'secondary' : 'primary'}
+                            backgroundColor={isFollowing ? '$red5' : '$blue10'}
+                            size="sm"
+                          >
+                            <XStack gap="$1" alignItems="center">
+                              {followLoading ? (
+                                <Text color={isFollowing ? '$red11' : 'white'} fontSize="$3">
+                                  {t('profile.loading') || '...'}
+                                </Text>
+                              ) : (
+                                <>
+                                  <Feather
+                                    name={isFollowing ? 'user-minus' : 'user-plus'}
+                                    size={14}
+                                    color={isFollowing ? '#EF4444' : 'white'}
+                                  />
+                                  <Text
+                                    color={isFollowing ? '$red11' : 'white'}
+                                    fontSize="$2"
+                                    fontWeight="500"
+                                  >
+                                    {isFollowing
+                                      ? t('profile.unfollow') || 'Unfollow'
+                                      : t('profile.follow') || 'Follow'}
                                   </Text>
-                                ) : (
-                                  <>
-                                    <Feather
-                                      name={isFollowing ? 'user-minus' : 'user-plus'}
-                                      size={14}
-                                      color={isFollowing ? '#EF4444' : 'white'}
-                                    />
-                                    <Text
-                                      color={isFollowing ? '$red11' : 'white'}
-                                      fontSize="$2"
-                                      fontWeight="500"
-                                    >
-                                      {isFollowing
-                                        ? t('profile.unfollow') || 'Unfollow'
-                                        : t('profile.follow') || 'Follow'}
-                                    </Text>
-                                  </>
-                                )}
-                              </XStack>
+                                </>
+                              )}
+                            </XStack>
                             </Button> */}
 
                             <IconButton
@@ -1020,59 +1379,118 @@ export function UserProfileSheet({
                               flex={1}
                             />
 
-                            {/* Message Button */}
-                            {/* <Button
-                              onPress={handleMessage}
-                              variant="primary"
-                              backgroundColor="$green10"
-                              size="sm"
-                            >
-                              <Feather
-                                name="message-circle"
-                                size={14}
-                                color="white"
-                                style={{ marginRight: 6 }}
-                              />
-                              <Text color="white" fontSize="$2" fontWeight="500">
-                                {t('profile.message') || 'Message'}
-                              </Text>
-                            </Button> */}
+                            {/* Relationship Button - Only show for opposite user types */}
+                            {((currentUserProfile?.role === 'student' && profile?.role === 'instructor') ||
+                              (currentUserProfile?.role === 'instructor' && profile?.role === 'student') ||
+                              isInstructor || isStudent || hasPendingInvitation) && (
+                              <IconButton
+                                icon={
+                                  isInstructor || isStudent 
+                                    ? 'users' 
+                                    : hasPendingInvitation 
+                                      ? 'clock' 
+                                      : 'user-check'
+                                }
+                                label={
+                                  isInstructor
+                                    ? t('profile.yourInstructor') || 'Your Instructor'
+                                    : isStudent
+                                      ? t('profile.yourStudent') || 'Your Student'
+                                      : hasPendingInvitation
+                                        ? t('profile.pending') || 'Pending'
+                                        : profile?.role === 'instructor'
+                                          ? t('profile.requestSupervision') || 'Request Supervision'
+                                          : profile?.role === 'student'
+                                            ? t('profile.superviseStudent') || 'Supervise Student'
+                                            : t('profile.connect') || 'Connect'
+                                }
+                              onPress={() => {
+                                if (!profile || !user?.id) return;
 
-                            {/* Share Button */}
-                            {/* <Button onPress={handleShare} variant="secondary" size="sm" /> */}
-
-                            {/* Report Button */}
-
-                            <IconButton
-                              icon="flag"
-                              label={t('profile.report') || 'Report Profile'}
-                              onPress={() => setShowReportDialog(true)}
+                                if (isInstructor || isStudent) {
+                                  // Show existing relationship toast
+                                  showToast({
+                                    title: 'Connected',
+                                    message: isInstructor
+                                      ? `${profile?.full_name || 'This user'} is your instructor`
+                                      : `${profile?.full_name || 'This user'} is your student`,
+                                    type: 'info',
+                                  });
+                                } else {
+                                  // Always open modal (for pending or new requests)
+                                  setShowRelationshipModal(true);
+                                  relationshipTranslateY.value = withSpring(relationshipSnapPoints.large, {
+                                    damping: 20,
+                                    mass: 1,
+                                    stiffness: 100,
+                                    overshootClamping: true,
+                                    restDisplacementThreshold: 0.01,
+                                    restSpeedThreshold: 0.01,
+                                  });
+                                  currentRelationshipState.value = relationshipSnapPoints.large;
+                                  setCurrentRelationshipSnapPoint(relationshipSnapPoints.large);
+                                }
+                              }}
+                              selected={isInstructor || isStudent || hasPendingInvitation}
                               backgroundColor="transparent"
                               borderColor="transparent"
                               flex={1}
                             />
-                          </XStack>
-                        )}
+                            )}
 
-                        {/* Action buttons for current user */}
-                        {isCurrentUser && (
-                          <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
-                            {/* Edit Profile Button */}
+                          {/* Message Button */}
                             {/* <Button
-                              onPress={() => {
-                                onClose();
-                                if (onEditProfile) {
-                                  onEditProfile();
-                                }
-                              }}
-                              icon={<Feather name="edit" size={14} color="white" />}
-                              variant="primary"
-                              backgroundColor="$blue10"
-                              size="sm"
-                            >
-                              <Text color="white" fontSize="$2" fontWeight="500">
-                                {t('profile.edit') || 'Edit Profile'}
-                              </Text>
+                            onPress={handleMessage}
+                            variant="primary"
+                            backgroundColor="$green10"
+                            size="sm"
+                          >
+                            <Feather
+                              name="message-circle"
+                              size={14}
+                              color="white"
+                              style={{ marginRight: 6 }}
+                            />
+                            <Text color="white" fontSize="$2" fontWeight="500">
+                              {t('profile.message') || 'Message'}
+                            </Text>
+                            </Button> */}
+
+                          {/* Share Button */}
+                            {/* <Button onPress={handleShare} variant="secondary" size="sm" /> */}
+
+                          {/* Report Button */}
+
+                            <IconButton
+                              icon="flag"
+                              label={t('profile.report') || 'Report Profile'}
+                            onPress={() => setShowReportDialog(true)}
+                              backgroundColor="transparent"
+                              borderColor="transparent"
+                              flex={1}
+                            />
+                        </XStack>
+                      )}
+
+                      {/* Action buttons for current user */}
+                      {isCurrentUser && (
+                        <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
+                          {/* Edit Profile Button */}
+                            {/* <Button
+                            onPress={() => {
+                              onClose();
+                              if (onEditProfile) {
+                                onEditProfile();
+                              }
+                            }}
+                            icon={<Feather name="edit" size={14} color="white" />}
+                            variant="primary"
+                            backgroundColor="$blue10"
+                            size="sm"
+                          >
+                            <Text color="white" fontSize="$2" fontWeight="500">
+                              {t('profile.edit') || 'Edit Profile'}
+                            </Text>
                             </Button> */}
 
                             <IconButton
@@ -1089,184 +1507,493 @@ export function UserProfileSheet({
                               flex={1}
                             />
 
-                            {/* Share Button */}
+                          {/* Share Button */}
                             {/* <Button onPress={handleShare} variant="secondary" size="sm" /> */}
+                        </XStack>
+                      )}
+                    </YStack>
+
+                    {/* Stats Grid - 2x3 layout with driving stats */}
+                    <Card padding="$4" bordered>
+                      <YStack gap="$4">
+                        {/* First row */}
+                        <XStack justifyContent="space-between">
+                          <YStack alignItems="center" flex={1}>
+                            <Text fontSize="$6" fontWeight="bold">
+                              {profile.routes_created}
+                            </Text>
+                            <Text fontSize="$3" color="$gray11" textAlign="center">
+                              {t('profile.routesCreated') || 'Routes Created'}
+                            </Text>
+                          </YStack>
+
+                          <YStack alignItems="center" flex={1}>
+                            <Text fontSize="$6" fontWeight="bold">
+                              {profile.routes_driven}
+                            </Text>
+                            <Text fontSize="$3" color="$gray11" textAlign="center">
+                              {t('profile.routesDriven') || 'Routes Driven'}
+                            </Text>
+                          </YStack>
+
+                          <YStack alignItems="center" flex={1}>
+                            <Text fontSize="$6" fontWeight="bold">
+                              {profile.routes_saved}
+                            </Text>
+                            <Text fontSize="$3" color="$gray11" textAlign="center">
+                              {t('profile.routesSaved') || 'Routes Saved'}
+                            </Text>
+                          </YStack>
+                        </XStack>
+
+                        {/* Second row */}
+                        <XStack justifyContent="space-around">
+                          <YStack alignItems="center" flex={1}>
+                            <Text fontSize="$6" fontWeight="bold">
+                              {profile.reviews_given}
+                            </Text>
+                            <Text fontSize="$3" color="$gray11" textAlign="center">
+                              {t('profile.reviewsGiven') || 'Reviews Given'}
+                            </Text>
+                          </YStack>
+
+                          <YStack alignItems="center" flex={1}>
+                            <Text fontSize="$6" fontWeight="bold">
+                              {profile.average_rating.toFixed(1)}
+                            </Text>
+                            <Text fontSize="$3" color="$gray11" textAlign="center">
+                              {t('profile.avgRating') || 'Avg Rating'}
+                            </Text>
+                          </YStack>
+
+                          <YStack alignItems="center" flex={1}>
+                            <Text fontSize="$6" fontWeight="bold" color="$green10">
+                              {profile.total_distance_driven.toFixed(1)}
+                            </Text>
+                            <Text fontSize="$3" color="$gray11" textAlign="center">
+                              {t('profile.kmDriven') || 'km Driven'}
+                            </Text>
+                          </YStack>
+                        </XStack>
+
+                        {/* Third row - Follow Stats */}
+                        <XStack justifyContent="space-around">
+                          <YStack alignItems="center" flex={1}>
+                            <Text fontSize="$6" fontWeight="bold" color="$blue10">
+                              {followersCount}
+                            </Text>
+                            <Text fontSize="$3" color="$gray11" textAlign="center">
+                              {t('profile.followers') || 'Followers'}
+                            </Text>
+                          </YStack>
+
+                          <YStack alignItems="center" flex={1}>
+                            <Text fontSize="$6" fontWeight="bold" color="$blue10">
+                              {followingCount}
+                            </Text>
+                            <Text fontSize="$3" color="$gray11" textAlign="center">
+                              {t('profile.following') || 'Following'}
+                            </Text>
+                          </YStack>
+
+                          {/* Empty space for alignment */}
+                          <YStack alignItems="center" flex={1}>
+                            <Text fontSize="$6" fontWeight="bold" opacity={0}>
+                              -
+                            </Text>
+                            <Text fontSize="$3" color="$gray11" textAlign="center" opacity={0}>
+                              -
+                            </Text>
+                          </YStack>
+                        </XStack>
+                      </YStack>
+                    </Card>
+
+                    {/* Recent routes */}
+                    {recentRoutes.length > 0 && (
+                      <Card padding="$4" bordered>
+                        <YStack gap="$3">
+                          <XStack justifyContent="space-between" alignItems="center">
+                            <Text fontSize="$5" fontWeight="bold">
+                              {t('profile.recentRoutes') || 'Recent Routes'}
+                            </Text>
+
+                            <Button size="sm" variant="outlined" onPress={handleViewAllRoutes}>
+                              {t('profile.viewAll') || 'View All'}
+                            </Button>
                           </XStack>
+
+                          {recentRoutes.map((route) => (
+                            <Card
+                              key={route.id}
+                              padding="$3"
+                              bordered
+                              pressStyle={{ scale: 0.98 }}
+                              onPress={() => {
+                                navigation.navigate('RouteDetail', { routeId: route.id });
+                                onClose();
+                              }}
+                            >
+                              <YStack gap="$1">
+                                <Text fontSize="$4" fontWeight="500">
+                                  {route.name}
+                                </Text>
+
+                                <XStack gap="$3">
+                                  <XStack alignItems="center" gap="$1">
+                                    <Feather name="bar-chart" size={14} color={iconColor} />
+                                    <Text fontSize="$3">{route.difficulty}</Text>
+                                  </XStack>
+
+                                  <XStack alignItems="center" gap="$1">
+                                    <Feather name="map-pin" size={14} color={iconColor} />
+                                    <Text fontSize="$3">{route.spot_type}</Text>
+                                  </XStack>
+                                </XStack>
+                              </YStack>
+                            </Card>
+                          ))}
+                        </YStack>
+                      </Card>
+                    )}
+
+                    {/* Relationship Reviews Section */}
+                    {profile && !isCurrentUser && (
+                      <RelationshipReviewSection
+                        profileUserId={profile.id}
+                        profileUserRole={profile.role as any}
+                        profileUserName={profile.full_name || profile.email || 'Unknown User'}
+                        canReview={userRating.canReview}
+                        reviews={relationshipReviews}
+                        onReviewAdded={loadRelationshipReviews}
+                      />
+                    )}
+                  </YStack>
+                </ScrollView>
+              )}
+
+              {/* Report dialog */}
+              {showReportDialog && userId && (
+                <ReportDialog
+                  reportableId={userId}
+                  reportableType="user"
+                  onClose={() => setShowReportDialog(false)}
+                />
+              )}
+            </YStack>
+            </ReanimatedAnimated.View>
+          </GestureDetector>
+        </View>
+      </Animated.View>
+
+      {/* Relationship Request Modal - styled like CollectionSharingModal */}
+      {profile && (
+        <Modal
+          visible={showRelationshipModal}
+          transparent
+          animationType="none"
+          onRequestClose={() => setShowRelationshipModal(false)}
+          statusBarTranslucent
+          presentationStyle="overFullScreen"
+        >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'flex-end',
+            zIndex: 9999,
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={() => setShowRelationshipModal(false)} />
+          <GestureDetector gesture={relationshipPanGesture}>
+            <ReanimatedAnimated.View
+              style={[
+                {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: height,
+                  backgroundColor: backgroundColor,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                },
+                relationshipAnimatedStyle,
+              ]}
+            >
+              <YStack padding="$3" paddingBottom={24} gap="$3" flex={1}>
+                {/* Drag Handle */}
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: theme.gray8?.val || '#CCC',
+                    }}
+                  />
+                </View>
+
+                {/* Header with image */}
+                <YStack alignItems="center" gap="$3" paddingHorizontal="$2">
+                  {/* Role-specific image */}
+                  <View
+                    style={{
+                      width: 120,
+                      height: 80,
+                      backgroundColor: 
+                        hasPendingInvitation 
+                          ? '#F59E0B' // Orange for pending
+                          : profile.role === 'instructor' 
+                            ? '#4F46E5' // Purple for instructor
+                            : '#059669', // Green for student
+                      borderRadius: 12,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Feather
+                      name={
+                        hasPendingInvitation 
+                          ? 'clock' 
+                          : profile.role === 'instructor' 
+                            ? 'user-check' 
+                            : 'users'
+                      }
+                      size={40}
+                      color="white"
+                    />
+                  </View>
+
+                  <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                    {hasPendingInvitation
+                      ? 'Pending Connection'
+                      : profile.role === 'instructor'
+                        ? 'Request Supervision'
+                        : 'Invite as Student'}
+                  </Text>
+
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {hasPendingInvitation
+                      ? `Manage your ${pendingInvitationType === 'sent' ? 'sent' : 'received'} connection request`
+                      : profile.role === 'instructor'
+                        ? `Ask ${profile.full_name || 'this user'} to be your driving instructor`
+                        : `Invite ${profile.full_name || 'this user'} to supervise their driving progress`}
+                  </Text>
+                </YStack>
+
+                {/* Show content only if not in tiny mode */}
+                {currentRelationshipSnapPoint !== relationshipSnapPoints.tiny && (
+                  <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    <YStack gap="$4">
+                      {/* User info card */}
+                      <YStack
+                        gap="$2"
+                        padding="$3"
+                        backgroundColor="$backgroundHover"
+                        borderRadius="$3"
+                      >
+                        <XStack alignItems="center" gap="$2">
+                          <Feather
+                            name="user"
+                            size={16}
+                            color={profile.role === 'instructor' ? '#4F46E5' : '#059669'}
+                          />
+                          <Text fontSize="$4" fontWeight="600" color="$color">
+                            {profile.full_name || 'Unknown User'}
+                          </Text>
+                        </XStack>
+                        <Text fontSize="$3" color="$gray11">
+                          {profile.email || 'No email'} • {profile.role === 'instructor' ? 'Instructor' : 'Student'}
+                        </Text>
+                        {profile.location && (
+                          <Text fontSize="$3" color="$gray11">
+                            📍 {profile.location}
+                          </Text>
                         )}
                       </YStack>
 
-                      {/* Stats Grid - 2x3 layout with driving stats */}
-                      <Card padding="$4" bordered>
-                        <YStack gap="$4">
-                          {/* First row */}
-                          <XStack justifyContent="space-between">
-                            <YStack alignItems="center" flex={1}>
-                              <Text fontSize="$6" fontWeight="bold">
-                                {profile.routes_created}
-                              </Text>
-                              <Text fontSize="$3" color="$gray11" textAlign="center">
-                                {t('profile.routesCreated') || 'Routes Created'}
-                              </Text>
-                            </YStack>
-
-                            <YStack alignItems="center" flex={1}>
-                              <Text fontSize="$6" fontWeight="bold">
-                                {profile.routes_driven}
-                              </Text>
-                              <Text fontSize="$3" color="$gray11" textAlign="center">
-                                {t('profile.routesDriven') || 'Routes Driven'}
-                              </Text>
-                            </YStack>
-
-                            <YStack alignItems="center" flex={1}>
-                              <Text fontSize="$6" fontWeight="bold">
-                                {profile.routes_saved}
-                              </Text>
-                              <Text fontSize="$3" color="$gray11" textAlign="center">
-                                {t('profile.routesSaved') || 'Routes Saved'}
-                              </Text>
-                            </YStack>
+                      {/* Pending Invitation Status */}
+                      {hasPendingInvitation && (
+                        <YStack
+                          gap="$2"
+                          padding="$3"
+                          backgroundColor={pendingInvitationType === 'sent' ? '$orange5' : '$blue5'}
+                          borderRadius="$3"
+                        >
+                          <XStack alignItems="center" gap="$2">
+                            <Feather name="clock" size={16} color={pendingInvitationType === 'sent' ? '#F59E0B' : '#3B82F6'} />
+                            <Text fontSize="$4" fontWeight="600" color="$color">
+                              {pendingInvitationType === 'sent' ? 'Invitation Sent' : 'Invitation Received'}
+                            </Text>
                           </XStack>
+                          <Text fontSize="$3" color="$gray11">
+                            {pendingInvitationType === 'sent' 
+                              ? `You have sent a connection request to ${profile.full_name || 'this user'}`
+                              : `${profile.full_name || 'This user'} has sent you a connection request`}
+                          </Text>
+                          {pendingInvitationType === 'sent' && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onPress={async () => {
+                                try {
+                                  // Cancel pending invitation
+                                  const { error } = await supabase
+                                    .from('pending_invitations')
+                                    .delete()
+                                    .eq('invited_by', user.id)
+                                    .eq('email', profile.email!.toLowerCase())
+                                    .eq('status', 'pending');
 
-                          {/* Second row */}
-                          <XStack justifyContent="space-around">
-                            <YStack alignItems="center" flex={1}>
-                              <Text fontSize="$6" fontWeight="bold">
-                                {profile.reviews_given}
-                              </Text>
-                              <Text fontSize="$3" color="$gray11" textAlign="center">
-                                {t('profile.reviewsGiven') || 'Reviews Given'}
-                              </Text>
-                            </YStack>
+                                  if (error) throw error;
 
-                            <YStack alignItems="center" flex={1}>
-                              <Text fontSize="$6" fontWeight="bold">
-                                {profile.average_rating.toFixed(1)}
-                              </Text>
-                              <Text fontSize="$3" color="$gray11" textAlign="center">
-                                {t('profile.avgRating') || 'Avg Rating'}
-                              </Text>
-                            </YStack>
-
-                            <YStack alignItems="center" flex={1}>
-                              <Text fontSize="$6" fontWeight="bold" color="$green10">
-                                {profile.total_distance_driven.toFixed(1)}
-                              </Text>
-                              <Text fontSize="$3" color="$gray11" textAlign="center">
-                                {t('profile.kmDriven') || 'km Driven'}
-                              </Text>
-                            </YStack>
-                          </XStack>
-
-                          {/* Third row - Follow Stats */}
-                          <XStack justifyContent="space-around">
-                            <YStack alignItems="center" flex={1}>
-                              <Text fontSize="$6" fontWeight="bold" color="$blue10">
-                                {followersCount}
-                              </Text>
-                              <Text fontSize="$3" color="$gray11" textAlign="center">
-                                {t('profile.followers') || 'Followers'}
-                              </Text>
-                            </YStack>
-
-                            <YStack alignItems="center" flex={1}>
-                              <Text fontSize="$6" fontWeight="bold" color="$blue10">
-                                {followingCount}
-                              </Text>
-                              <Text fontSize="$3" color="$gray11" textAlign="center">
-                                {t('profile.following') || 'Following'}
-                              </Text>
-                            </YStack>
-
-                            {/* Empty space for alignment */}
-                            <YStack alignItems="center" flex={1}>
-                              <Text fontSize="$6" fontWeight="bold" opacity={0}>
-                                -
-                              </Text>
-                              <Text fontSize="$3" color="$gray11" textAlign="center" opacity={0}>
-                                -
-                              </Text>
-                            </YStack>
-                          </XStack>
+                                  showToast({
+                                    title: 'Cancelled',
+                                    message: 'Connection request has been cancelled',
+                                    type: 'success',
+                                  });
+                                  setHasPendingInvitation(false);
+                                  setPendingInvitationType(null);
+                                  setPendingInvitationData(null);
+                                  setShowRelationshipModal(false);
+                                } catch (error) {
+                                  console.error('Error cancelling invitation:', error);
+                                  showToast({
+                                    title: 'Error',
+                                    message: 'Failed to cancel invitation',
+                                    type: 'error',
+                                  });
+                                }
+                              }}
+                              backgroundColor="$red5"
+                            >
+                              <XStack gap="$2" alignItems="center">
+                                <Feather name="x" size={14} color="#EF4444" />
+                                <Text color="#EF4444" fontWeight="500">
+                                  Cancel Request
+                                </Text>
+                              </XStack>
+                            </Button>
+                          )}
                         </YStack>
-                      </Card>
+                      )}
 
-                      {/* Recent routes */}
-                      {recentRoutes.length > 0 && (
-                        <Card padding="$4" bordered>
-                          <YStack gap="$3">
-                            <XStack justifyContent="space-between" alignItems="center">
-                              <Text fontSize="$5" fontWeight="bold">
-                                {t('profile.recentRoutes') || 'Recent Routes'}
+                      {/* Custom Message - only show if not pending */}
+                      {!hasPendingInvitation && (
+                        <YStack gap="$2">
+                          <Text fontSize="$4" color="$color" fontWeight="500">
+                            Personal Message (Optional):
+                          </Text>
+                          <TextInput
+                            value={relationshipCustomMessage}
+                            onChangeText={setRelationshipCustomMessage}
+                            placeholder={
+                              profile.role === 'instructor'
+                                ? 'Tell them why you want them as your instructor...'
+                                : 'Tell them why you want to supervise them...'
+                            }
+                            multiline
+                            style={{
+                              backgroundColor: theme.background?.val || '#fff',
+                              color: theme.color?.val || '#11181C',
+                              borderColor: theme.borderColor?.val || 'rgba(0, 0, 0, 0.1)',
+                              borderWidth: 1,
+                              borderRadius: 8,
+                              padding: 12,
+                              minHeight: 80,
+                              textAlignVertical: 'top',
+                            }}
+                            placeholderTextColor={theme.gray10?.val || 'rgba(0, 0, 0, 0.3)'}
+                          />
+                        </YStack>
+                      )}
+
+                      {/* Action Buttons */}
+                      <YStack gap="$2">
+                        {!hasPendingInvitation ? (
+                          <Button
+                            variant="primary"
+                            size="lg"
+                            onPress={handleCreateConnection}
+                            backgroundColor={profile.role === 'instructor' ? '$blue10' : '$green10'}
+                          >
+                            <XStack gap="$2" alignItems="center">
+                              <Feather name="send" size={16} color="white" />
+                              <Text color="white" fontWeight="600">
+                                {profile.role === 'instructor' ? 'Send Supervision Request' : 'Send Student Invitation'}
                               </Text>
-
-                              <Button size="sm" variant="outlined" onPress={handleViewAllRoutes}>
-                                {t('profile.viewAll') || 'View All'}
-                              </Button>
                             </XStack>
-
-                            {recentRoutes.map((route) => (
-                              <Card
-                                key={route.id}
-                                padding="$3"
-                                bordered
-                                pressStyle={{ scale: 0.98 }}
-                                onPress={() => {
-                                  navigation.navigate('RouteDetail', { routeId: route.id });
-                                  onClose();
-                                }}
-                              >
-                                <YStack gap="$1">
-                                  <Text fontSize="$4" fontWeight="500">
-                                    {route.name}
-                                  </Text>
-
-                                  <XStack gap="$3">
-                                    <XStack alignItems="center" gap="$1">
-                                      <Feather name="bar-chart" size={14} color={iconColor} />
-                                      <Text fontSize="$3">{route.difficulty}</Text>
-                                    </XStack>
-
-                                    <XStack alignItems="center" gap="$1">
-                                      <Feather name="map-pin" size={14} color={iconColor} />
-                                      <Text fontSize="$3">{route.spot_type}</Text>
-                                    </XStack>
-                                  </XStack>
-                                </YStack>
-                              </Card>
-                            ))}
-                          </YStack>
-                        </Card>
-                      )}
-
-                      {/* Relationship Reviews Section */}
-                      {profile && !isCurrentUser && (
-                        <RelationshipReviewSection
-                          profileUserId={profile.id}
-                          profileUserRole={profile.role as any}
-                          profileUserName={profile.full_name || profile.email || 'Unknown User'}
-                          canReview={userRating.canReview}
-                          reviews={relationshipReviews}
-                          onReviewAdded={loadRelationshipReviews}
-                        />
-                      )}
+                          </Button>
+                        ) : pendingInvitationType === 'sent' ? (
+                          <Button
+                            variant="secondary"
+                            size="lg"
+                            onPress={handleCancelPendingInvitation}
+                            backgroundColor="$red5"
+                          >
+                            <XStack gap="$2" alignItems="center">
+                              <Feather name="x" size={16} color="#EF4444" />
+                              <Text color="#EF4444" fontWeight="600">
+                                Cancel Request
+                              </Text>
+                            </XStack>
+                          </Button>
+                        ) : (
+                          // Received invitation - show accept/decline buttons (UnifiedInvitationModal style)
+                          <XStack gap="$3" justifyContent="space-around">
+                            <Button
+                              flex={1}
+                              variant="secondary"
+                              size="lg"
+                              onPress={handleDeclineInvitation}
+                            >
+                              <Text color="$color" fontWeight="600">
+                                Decline
+                              </Text>
+                            </Button>
+                            <Button
+                              flex={1}
+                              variant="primary"
+                              size="lg"
+                              onPress={handleAcceptInvitation}
+                            >
+                              <Text color="white" fontWeight="600">
+                                Accept
+                              </Text>
+                            </Button>
+                          </XStack>
+                        )}
+                        <Button 
+                          variant="secondary" 
+                          size="lg" 
+                          onPress={() => {
+                            setShowRelationshipModal(false);
+                            setRelationshipCustomMessage('');
+                          }}
+                        >
+                          Close
+                        </Button>
+                      </YStack>
                     </YStack>
                   </ScrollView>
-                )}
-
-                {/* Report dialog */}
-                {showReportDialog && userId && (
-                  <ReportDialog
-                    reportableId={userId}
-                    reportableType="user"
-                    onClose={() => setShowReportDialog(false)}
-                  />
                 )}
               </YStack>
             </ReanimatedAnimated.View>
           </GestureDetector>
         </View>
-      </Animated.View>
+        </Modal>
+      )}
     </Modal>
   );
 }
