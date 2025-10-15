@@ -1,19 +1,24 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Modal,
   Animated,
   Pressable,
-  Easing,
   View,
   Dimensions,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
   Alert,
   Image,
   Share,
 } from 'react-native';
-import { YStack, XStack, Text, Card, Separator, useTheme } from 'tamagui';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
+import { YStack, XStack, Text, Card, useTheme } from 'tamagui';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
@@ -22,19 +27,17 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { supabase } from '../lib/supabase';
-import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { Database } from '../lib/database.types';
 import { ReportDialog } from './report/ReportDialog';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 import { messageService } from '../services/messageService';
-import { inviteNewUser, removeSupervisorRelationship } from '../services/invitationService';
 import { RelationshipReviewSection } from './RelationshipReviewSection';
 import { RelationshipReviewService } from '../services/relationshipReviewService';
-import { relLog } from '../utils/relationshipDebug';
+import { IconButton } from './IconButton';
 
 const { height } = Dimensions.get('window');
-const windowWidth = Dimensions.get('window').width;
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   routes_created: number;
@@ -80,8 +83,9 @@ export function UserProfileSheet({
   let navigation: NavigationProp | null = null;
   try {
     navigation = useNavigation<NavigationProp>();
-  } catch (e) {
+  } catch (error) {
     console.log('🔍 [UserProfileSheet] No navigation context available (modal mode)');
+    navigation = null;
   }
 
   const colorScheme = useColorScheme();
@@ -94,6 +98,114 @@ export function UserProfileSheet({
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Gesture handling for drag-to-dismiss and snap points (from RouteDetailSheet)
+  const translateY = useSharedValue(height);
+  const isDragging = useRef(false);
+
+  // Snap points for resizing (top Y coordinates like RouteDetailSheet)
+  const snapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: height * 0.7, // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85, // Top at 85% of screen (show 15% - just title)
+      dismissed: height, // Completely off-screen
+    };
+    return points;
+  }, [height]);
+
+  const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
+  const currentState = useSharedValue(snapPoints.large);
+
+  const dismissSheet = useCallback(() => {
+    translateY.value = withSpring(snapPoints.dismissed, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    setTimeout(() => onClose(), 200);
+  }, [onClose, snapPoints.dismissed]);
+
+  const snapTo = useCallback(
+    (point: number) => {
+      currentState.value = point;
+      setCurrentSnapPoint(point);
+    },
+    [currentState],
+  );
+
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      isDragging.current = true;
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentState.value + translationY;
+
+        // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
+        const minPosition = snapPoints.large; // Smallest Y (show most - like expanded)
+        const maxPosition = snapPoints.mini + 100; // Allow dragging past mini for dismissal
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+
+        // Set translateY directly like RouteDetailSheet
+        translateY.value = boundedPosition;
+      } catch (error) {
+        console.log('panGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      isDragging.current = false;
+
+      const currentPosition = currentState.value + translationY;
+
+      // Only dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
+        runOnJS(dismissSheet)();
+        return;
+      }
+
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        // Fast upward swipe - go to larger size (smaller Y)
+        targetSnapPoint = snapPoints.large;
+      } else if (velocityY > 500) {
+        // Fast downward swipe - go to smaller size (larger Y)
+        targetSnapPoint = snapPoints.mini;
+      } else {
+        // Find closest snap point
+        const positions = [snapPoints.large, snapPoints.medium, snapPoints.small, snapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+
+      // Constrain target to valid range
+      const boundedTarget = Math.min(Math.max(targetSnapPoint, snapPoints.large), snapPoints.mini);
+
+      // Animate to target position - set translateY directly like RouteDetailSheet
+      translateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+
+      currentState.value = boundedTarget;
+      runOnJS(setCurrentSnapPoint)(boundedTarget);
+    });
+
+  const animatedGestureStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   // State (exact copy from PublicProfileScreen)
   const [loading, setLoading] = useState(true);
@@ -661,15 +773,21 @@ export function UserProfileSheet({
   // Animation effects
   useEffect(() => {
     if (visible) {
+      // Reset gesture translateY when opening and set to large snap point
+      translateY.value = withSpring(snapPoints.large, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      currentState.value = snapPoints.large;
+      setCurrentSnapPoint(snapPoints.large);
+
       Animated.timing(backdropOpacity, {
         toValue: 1,
         duration: 200,
-        useNativeDriver: true,
-      }).start();
-      Animated.timing(sheetTranslateY, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start();
     } else {
@@ -678,14 +796,8 @@ export function UserProfileSheet({
         duration: 200,
         useNativeDriver: true,
       }).start();
-      Animated.timing(sheetTranslateY, {
-        toValue: 300,
-        duration: 300,
-        easing: Easing.in(Easing.ease),
-        useNativeDriver: true,
-      }).start();
     }
-  }, [visible, backdropOpacity, sheetTranslateY]);
+  }, [visible, backdropOpacity, snapPoints.large, currentState]);
 
   // Refresh function
   const handleRefresh = async () => {
@@ -712,395 +824,447 @@ export function UserProfileSheet({
       <Animated.View
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          opacity: backdropOpacity,
+          backgroundColor: 'transparent',
         }}
       >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1 }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <Animated.View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              transform: [{ translateY: sheetTranslateY }],
-            }}
-          >
-            <YStack
-              backgroundColor={backgroundColor}
-              padding="$4"
-              paddingBottom={insets.bottom || 20}
-              borderTopLeftRadius="$4"
-              borderTopRightRadius="$4"
-              gap="$4"
-              height={height * 0.9}
-              maxHeight={height * 0.9}
+          <GestureDetector gesture={panGesture}>
+            <ReanimatedAnimated.View
+              style={[
+                {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: height, // Keep original height
+                  backgroundColor: backgroundColor,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                },
+                animatedGestureStyle,
+              ]}
             >
-              {/* Header */}
-              <XStack justifyContent="space-between" alignItems="center">
+              <YStack padding="$4" paddingBottom={insets.bottom || 20} gap="$4" flex={1}>
+                {/* Drag Handle */}
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: theme.gray8?.val || '#CCC',
+                    }}
+                  />
+                </View>
+
+                {/* Header */}
+                {/* <XStack justifyContent="space-between" alignItems="center">
                 <Text fontSize="$6" fontWeight="bold" color="$color">
                   {profile?.full_name || t('profile.user') || 'User'}
                 </Text>
                 <TouchableOpacity onPress={onClose}>
                   <Feather name="x" size={24} color={iconColor} />
                 </TouchableOpacity>
-              </XStack>
+              </XStack> */}
 
-              {loading ? (
-                <YStack f={1} jc="center" ai="center">
-                  <Text>{t('profile.loading') || 'Loading profile data...'}</Text>
-                </YStack>
-              ) : error || !profile ? (
-                <YStack f={1} jc="center" ai="center" padding="$4">
-                  <Text color="$red10">
-                    {error || t('profile.notFound') || 'Profile not found'}
-                  </Text>
-                  <Button onPress={onClose} marginTop="$4" variant="primary" size="$4">
-                    <Feather name="arrow-left" size={18} color="white" style={{ marginRight: 8 }} />
-                    {t('common.goBack') || 'Go Back'}
-                  </Button>
-                </YStack>
-              ) : (
-                <ScrollView
-                  showsVerticalScrollIndicator={true}
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={handleRefresh}
-                      tintColor="#00E6C3"
-                      colors={['#00E6C3']}
-                      progressBackgroundColor="#1a1a1a"
-                    />
-                  }
-                >
-                  <YStack gap="$4">
-                    {/* Profile header with avatar */}
-                    <YStack alignItems="center" gap="$2">
-                      {profile.avatar_url ? (
-                        <Image
-                          source={{ uri: profile.avatar_url }}
-                          style={{ width: 100, height: 100, borderRadius: 50 }}
-                        />
-                      ) : (
-                        <View
-                          style={{
-                            width: 100,
-                            height: 100,
-                            borderRadius: 50,
-                            backgroundColor: '#444',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Feather name="user" size={50} color="#ddd" />
-                        </View>
-                      )}
-
-                      <Text fontSize="$5" fontWeight="bold">
-                        {profile.full_name || t('profile.unnamed')}
-                      </Text>
-
-                      {profile.is_trusted && (
-                        <Card padding="$1" backgroundColor="$green5" borderRadius="$3">
-                          <Text color="$green11" fontSize="$2">
-                            {t('profile.verifiedBadge') || 'Verified'}
-                          </Text>
-                        </Card>
-                      )}
-
-                      {!profile.is_trusted && (
-                        <Card padding="$1" backgroundColor="$red5" borderRadius="$3">
-                          <Text color="$red11" fontSize="$2">
-                            {t('profile.notVerifiedBadge') || 'Not verified yet'}
-                          </Text>
-                        </Card>
-                      )}
-
-                      {profile.location && (
-                        <XStack alignItems="center" gap="$1">
-                          <Feather name="map-pin" size={16} color={iconColor} />
-                          <Text>{profile.location}</Text>
-                        </XStack>
-                      )}
-
-                      {profile.role && (
-                        <Card padding="$2" backgroundColor="$blue5" borderRadius="$4">
-                          <Text color="$blue11" fontWeight="500">
-                            {profile.role === 'student'
-                              ? t('profile.roles.student') || 'Student'
-                              : profile.role === 'instructor'
-                                ? t('profile.roles.instructor') || 'Instructor'
-                                : t('profile.roles.school') || 'School'}
-                          </Text>
-                        </Card>
-                      )}
-
-                      {/* Action buttons for non-current users */}
-                      {!isCurrentUser && (
-                        <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
-                          {/* Follow/Unfollow Button */}
-                          <Button
-                            onPress={handleFollow}
-                            disabled={followLoading}
-                            variant={isFollowing ? 'secondary' : 'primary'}
-                            backgroundColor={isFollowing ? '$red5' : '$blue10'}
-                            size="sm"
-                          >
-                            <XStack gap="$1" alignItems="center">
-                              {followLoading ? (
-                                <Text color={isFollowing ? '$red11' : 'white'} fontSize="$3">
-                                  {t('profile.loading') || '...'}
-                                </Text>
-                              ) : (
-                                <>
-                                  <Feather
-                                    name={isFollowing ? 'user-minus' : 'user-plus'}
-                                    size={14}
-                                    color={isFollowing ? '#EF4444' : 'white'}
-                                  />
-                                  <Text
-                                    color={isFollowing ? '$red11' : 'white'}
-                                    fontSize="$2"
-                                    fontWeight="500"
-                                  >
-                                    {isFollowing
-                                      ? t('profile.unfollow') || 'Unfollow'
-                                      : t('profile.follow') || 'Follow'}
-                                  </Text>
-                                </>
-                              )}
-                            </XStack>
-                          </Button>
-
-                          {/* Message Button */}
-                          <Button
-                            onPress={handleMessage}
-                            variant="primary"
-                            backgroundColor="$green10"
-                            size="sm"
-                          >
-                            <Feather
-                              name="message-circle"
-                              size={14}
-                              color="white"
-                              style={{ marginRight: 6 }}
-                            />
-                            <Text color="white" fontSize="$2" fontWeight="500">
-                              {t('profile.message') || 'Message'}
-                            </Text>
-                          </Button>
-
-                          {/* Share Button */}
-                          <Button onPress={handleShare} variant="secondary" size="sm" />
-
-                          {/* Report Button */}
-                          <Button
-                            onPress={() => setShowReportDialog(true)}
-                            variant="secondary"
-                            size="sm"
-                          >
-                            <Feather name="flag" size={14} color={iconColor} />
-                          </Button>
-                        </XStack>
-                      )}
-
-                      {/* Action buttons for current user */}
-                      {isCurrentUser && (
-                        <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
-                          {/* Edit Profile Button */}
-                          <Button
-                            onPress={() => {
-                              onClose();
-                              if (onEditProfile) {
-                                onEditProfile();
-                              }
+                {loading ? (
+                  <YStack f={1} jc="center" ai="center">
+                    <Text>{t('profile.loading') || 'Loading profile data...'}</Text>
+                  </YStack>
+                ) : error || !profile ? (
+                  <YStack f={1} jc="center" ai="center" padding="$4">
+                    <Text color="$red10">
+                      {error || t('profile.notFound') || 'Profile not found'}
+                    </Text>
+                    <Button onPress={onClose} marginTop="$4" variant="primary" size="$4">
+                      <Feather
+                        name="arrow-left"
+                        size={18}
+                        color="white"
+                        style={{ marginRight: 8 }}
+                      />
+                      {t('common.goBack') || 'Go Back'}
+                    </Button>
+                  </YStack>
+                ) : (
+                  <ScrollView
+                    showsVerticalScrollIndicator={true}
+                    refreshControl={
+                      <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor="#00E6C3"
+                        colors={['#00E6C3']}
+                        progressBackgroundColor="#1a1a1a"
+                      />
+                    }
+                  >
+                    <YStack gap="$4">
+                      {/* Profile header with avatar */}
+                      <YStack alignItems="center" gap="$2">
+                        {profile.avatar_url ? (
+                          <Image
+                            source={{ uri: profile.avatar_url }}
+                            style={{ width: 100, height: 100, borderRadius: 50 }}
+                          />
+                        ) : (
+                          <View
+                            style={{
+                              width: 100,
+                              height: 100,
+                              borderRadius: 50,
+                              backgroundColor: '#444',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                             }}
-                            icon={<Feather name="edit" size={14} color="white" />}
-                            variant="primary"
-                            backgroundColor="$blue10"
-                            size="sm"
                           >
-                            <Text color="white" fontSize="$2" fontWeight="500">
-                              {t('profile.edit') || 'Edit Profile'}
-                            </Text>
-                          </Button>
+                            <Feather name="user" size={50} color="#ddd" />
+                          </View>
+                        )}
 
-                          {/* Share Button */}
-                          <Button onPress={handleShare} variant="secondary" size="sm" />
-                        </XStack>
-                      )}
-                    </YStack>
+                        <Text fontSize="$5" fontWeight="bold">
+                          {profile.full_name || t('profile.unnamed')}
+                        </Text>
 
-                    {/* Stats Grid - 2x3 layout with driving stats */}
-                    <Card padding="$4" bordered>
-                      <YStack gap="$4">
-                        {/* First row */}
-                        <XStack justifyContent="space-between">
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold">
-                              {profile.routes_created}
+                        {profile.is_trusted && (
+                          <Card padding="$1" backgroundColor="$green5" borderRadius="$3">
+                            <Text color="$green11" fontSize="$2">
+                              {t('profile.verifiedBadge') || 'Verified'}
                             </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.routesCreated') || 'Routes Created'}
-                            </Text>
-                          </YStack>
+                          </Card>
+                        )}
 
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold">
-                              {profile.routes_driven}
+                        {!profile.is_trusted && (
+                          <Card padding="$1" backgroundColor="$red5" borderRadius="$3">
+                            <Text color="$red11" fontSize="$2">
+                              {t('profile.notVerifiedBadge') || 'Not verified yet'}
                             </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.routesDriven') || 'Routes Driven'}
-                            </Text>
-                          </YStack>
+                          </Card>
+                        )}
 
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold">
-                              {profile.routes_saved}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.routesSaved') || 'Routes Saved'}
-                            </Text>
-                          </YStack>
-                        </XStack>
+                        {profile.location && (
+                          <XStack alignItems="center" gap="$1">
+                            <Feather name="map-pin" size={16} color={iconColor} />
+                            <Text>{profile.location}</Text>
+                          </XStack>
+                        )}
 
-                        {/* Second row */}
-                        <XStack justifyContent="space-around">
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold">
-                              {profile.reviews_given}
+                        {profile.role && (
+                          <Card padding="$2" backgroundColor="$blue5" borderRadius="$4">
+                            <Text color="$blue11" fontWeight="500">
+                              {profile.role === 'student'
+                                ? t('profile.roles.student') || 'Student'
+                                : profile.role === 'instructor'
+                                  ? t('profile.roles.instructor') || 'Instructor'
+                                  : t('profile.roles.school') || 'School'}
                             </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.reviewsGiven') || 'Reviews Given'}
-                            </Text>
-                          </YStack>
+                          </Card>
+                        )}
 
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold">
-                              {profile.average_rating.toFixed(1)}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.avgRating') || 'Avg Rating'}
-                            </Text>
-                          </YStack>
+                        {/* Action buttons for non-current users */}
+                        {!isCurrentUser && (
+                          <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
+                            {/* Follow/Unfollow Button */}
+                            {/* <Button
+                              onPress={handleFollow}
+                              disabled={followLoading}
+                              variant={isFollowing ? 'secondary' : 'primary'}
+                              backgroundColor={isFollowing ? '$red5' : '$blue10'}
+                              size="sm"
+                            >
+                              <XStack gap="$1" alignItems="center">
+                                {followLoading ? (
+                                  <Text color={isFollowing ? '$red11' : 'white'} fontSize="$3">
+                                    {t('profile.loading') || '...'}
+                                  </Text>
+                                ) : (
+                                  <>
+                                    <Feather
+                                      name={isFollowing ? 'user-minus' : 'user-plus'}
+                                      size={14}
+                                      color={isFollowing ? '#EF4444' : 'white'}
+                                    />
+                                    <Text
+                                      color={isFollowing ? '$red11' : 'white'}
+                                      fontSize="$2"
+                                      fontWeight="500"
+                                    >
+                                      {isFollowing
+                                        ? t('profile.unfollow') || 'Unfollow'
+                                        : t('profile.follow') || 'Follow'}
+                                    </Text>
+                                  </>
+                                )}
+                              </XStack>
+                            </Button> */}
 
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold" color="$green10">
-                              {profile.total_distance_driven.toFixed(1)}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.kmDriven') || 'km Driven'}
-                            </Text>
-                          </YStack>
-                        </XStack>
+                            <IconButton
+                              icon={isFollowing ? 'user-minus' : 'user-plus'}
+                              label={
+                                isFollowing
+                                  ? t('profile.unfollow') || 'Unfollow'
+                                  : t('profile.follow') || 'Follow'
+                              }
+                              onPress={handleFollow}
+                              disabled={followLoading}
+                              selected={isFollowing}
+                              backgroundColor="transparent"
+                              borderColor="transparent"
+                              flex={1}
+                            />
 
-                        {/* Third row - Follow Stats */}
-                        <XStack justifyContent="space-around">
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold" color="$blue10">
-                              {followersCount}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.followers') || 'Followers'}
-                            </Text>
-                          </YStack>
+                            {/* Message Button */}
+                            {/* <Button
+                              onPress={handleMessage}
+                              variant="primary"
+                              backgroundColor="$green10"
+                              size="sm"
+                            >
+                              <Feather
+                                name="message-circle"
+                                size={14}
+                                color="white"
+                                style={{ marginRight: 6 }}
+                              />
+                              <Text color="white" fontSize="$2" fontWeight="500">
+                                {t('profile.message') || 'Message'}
+                              </Text>
+                            </Button> */}
 
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold" color="$blue10">
-                              {followingCount}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.following') || 'Following'}
-                            </Text>
-                          </YStack>
+                            {/* Share Button */}
+                            {/* <Button onPress={handleShare} variant="secondary" size="sm" /> */}
 
-                          {/* Empty space for alignment */}
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold" opacity={0}>
-                              -
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center" opacity={0}>
-                              -
-                            </Text>
-                          </YStack>
-                        </XStack>
+                            {/* Report Button */}
+
+                            <IconButton
+                              icon="flag"
+                              label={t('profile.report') || 'Report Profile'}
+                              onPress={() => setShowReportDialog(true)}
+                              backgroundColor="transparent"
+                              borderColor="transparent"
+                              flex={1}
+                            />
+                          </XStack>
+                        )}
+
+                        {/* Action buttons for current user */}
+                        {isCurrentUser && (
+                          <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
+                            {/* Edit Profile Button */}
+                            {/* <Button
+                              onPress={() => {
+                                onClose();
+                                if (onEditProfile) {
+                                  onEditProfile();
+                                }
+                              }}
+                              icon={<Feather name="edit" size={14} color="white" />}
+                              variant="primary"
+                              backgroundColor="$blue10"
+                              size="sm"
+                            >
+                              <Text color="white" fontSize="$2" fontWeight="500">
+                                {t('profile.edit') || 'Edit Profile'}
+                              </Text>
+                            </Button> */}
+
+                            <IconButton
+                              icon="edit"
+                              label={t('profile.edit') || 'Edit Profile'}
+                              onPress={() => {
+                                onClose();
+                                if (onEditProfile) {
+                                  onEditProfile();
+                                }
+                              }}
+                              backgroundColor="transparent"
+                              borderColor="transparent"
+                              flex={1}
+                            />
+
+                            {/* Share Button */}
+                            {/* <Button onPress={handleShare} variant="secondary" size="sm" /> */}
+                          </XStack>
+                        )}
                       </YStack>
-                    </Card>
 
-                    {/* Recent routes */}
-                    {recentRoutes.length > 0 && (
+                      {/* Stats Grid - 2x3 layout with driving stats */}
                       <Card padding="$4" bordered>
-                        <YStack gap="$3">
-                          <XStack justifyContent="space-between" alignItems="center">
-                            <Text fontSize="$5" fontWeight="bold">
-                              {t('profile.recentRoutes') || 'Recent Routes'}
-                            </Text>
+                        <YStack gap="$4">
+                          {/* First row */}
+                          <XStack justifyContent="space-between">
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold">
+                                {profile.routes_created}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.routesCreated') || 'Routes Created'}
+                              </Text>
+                            </YStack>
 
-                            <Button size="sm" variant="outlined" onPress={handleViewAllRoutes}>
-                              {t('profile.viewAll') || 'View All'}
-                            </Button>
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold">
+                                {profile.routes_driven}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.routesDriven') || 'Routes Driven'}
+                              </Text>
+                            </YStack>
+
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold">
+                                {profile.routes_saved}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.routesSaved') || 'Routes Saved'}
+                              </Text>
+                            </YStack>
                           </XStack>
 
-                          {recentRoutes.map((route) => (
-                            <Card
-                              key={route.id}
-                              padding="$3"
-                              bordered
-                              pressStyle={{ scale: 0.98 }}
-                              onPress={() => {
-                                navigation.navigate('RouteDetail', { routeId: route.id });
-                                onClose();
-                              }}
-                            >
-                              <YStack gap="$1">
-                                <Text fontSize="$4" fontWeight="500">
-                                  {route.name}
-                                </Text>
+                          {/* Second row */}
+                          <XStack justifyContent="space-around">
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold">
+                                {profile.reviews_given}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.reviewsGiven') || 'Reviews Given'}
+                              </Text>
+                            </YStack>
 
-                                <XStack gap="$3">
-                                  <XStack alignItems="center" gap="$1">
-                                    <Feather name="bar-chart" size={14} color={iconColor} />
-                                    <Text fontSize="$3">{route.difficulty}</Text>
-                                  </XStack>
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold">
+                                {profile.average_rating.toFixed(1)}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.avgRating') || 'Avg Rating'}
+                              </Text>
+                            </YStack>
 
-                                  <XStack alignItems="center" gap="$1">
-                                    <Feather name="map-pin" size={14} color={iconColor} />
-                                    <Text fontSize="$3">{route.spot_type}</Text>
-                                  </XStack>
-                                </XStack>
-                              </YStack>
-                            </Card>
-                          ))}
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold" color="$green10">
+                                {profile.total_distance_driven.toFixed(1)}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.kmDriven') || 'km Driven'}
+                              </Text>
+                            </YStack>
+                          </XStack>
+
+                          {/* Third row - Follow Stats */}
+                          <XStack justifyContent="space-around">
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold" color="$blue10">
+                                {followersCount}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.followers') || 'Followers'}
+                              </Text>
+                            </YStack>
+
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold" color="$blue10">
+                                {followingCount}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.following') || 'Following'}
+                              </Text>
+                            </YStack>
+
+                            {/* Empty space for alignment */}
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold" opacity={0}>
+                                -
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center" opacity={0}>
+                                -
+                              </Text>
+                            </YStack>
+                          </XStack>
                         </YStack>
                       </Card>
-                    )}
 
-                    {/* Relationship Reviews Section */}
-                    {profile && !isCurrentUser && (
-                      <RelationshipReviewSection
-                        profileUserId={profile.id}
-                        profileUserRole={profile.role as any}
-                        profileUserName={profile.full_name || profile.email || 'Unknown User'}
-                        canReview={userRating.canReview}
-                        reviews={relationshipReviews}
-                        onReviewAdded={loadRelationshipReviews}
-                      />
-                    )}
-                  </YStack>
-                </ScrollView>
-              )}
+                      {/* Recent routes */}
+                      {recentRoutes.length > 0 && (
+                        <Card padding="$4" bordered>
+                          <YStack gap="$3">
+                            <XStack justifyContent="space-between" alignItems="center">
+                              <Text fontSize="$5" fontWeight="bold">
+                                {t('profile.recentRoutes') || 'Recent Routes'}
+                              </Text>
 
-              {/* Report dialog */}
-              {showReportDialog && userId && (
-                <ReportDialog
-                  reportableId={userId}
-                  reportableType="user"
-                  onClose={() => setShowReportDialog(false)}
-                />
-              )}
-            </YStack>
-          </Animated.View>
+                              <Button size="sm" variant="outlined" onPress={handleViewAllRoutes}>
+                                {t('profile.viewAll') || 'View All'}
+                              </Button>
+                            </XStack>
+
+                            {recentRoutes.map((route) => (
+                              <Card
+                                key={route.id}
+                                padding="$3"
+                                bordered
+                                pressStyle={{ scale: 0.98 }}
+                                onPress={() => {
+                                  navigation.navigate('RouteDetail', { routeId: route.id });
+                                  onClose();
+                                }}
+                              >
+                                <YStack gap="$1">
+                                  <Text fontSize="$4" fontWeight="500">
+                                    {route.name}
+                                  </Text>
+
+                                  <XStack gap="$3">
+                                    <XStack alignItems="center" gap="$1">
+                                      <Feather name="bar-chart" size={14} color={iconColor} />
+                                      <Text fontSize="$3">{route.difficulty}</Text>
+                                    </XStack>
+
+                                    <XStack alignItems="center" gap="$1">
+                                      <Feather name="map-pin" size={14} color={iconColor} />
+                                      <Text fontSize="$3">{route.spot_type}</Text>
+                                    </XStack>
+                                  </XStack>
+                                </YStack>
+                              </Card>
+                            ))}
+                          </YStack>
+                        </Card>
+                      )}
+
+                      {/* Relationship Reviews Section */}
+                      {profile && !isCurrentUser && (
+                        <RelationshipReviewSection
+                          profileUserId={profile.id}
+                          profileUserRole={profile.role as any}
+                          profileUserName={profile.full_name || profile.email || 'Unknown User'}
+                          canReview={userRating.canReview}
+                          reviews={relationshipReviews}
+                          onReviewAdded={loadRelationshipReviews}
+                        />
+                      )}
+                    </YStack>
+                  </ScrollView>
+                )}
+
+                {/* Report dialog */}
+                {showReportDialog && userId && (
+                  <ReportDialog
+                    reportableId={userId}
+                    reportableType="user"
+                    onClose={() => setShowReportDialog(false)}
+                  />
+                )}
+              </YStack>
+            </ReanimatedAnimated.View>
+          </GestureDetector>
         </View>
       </Animated.View>
     </Modal>
