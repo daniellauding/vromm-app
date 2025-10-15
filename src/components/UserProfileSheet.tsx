@@ -38,6 +38,14 @@ import { RelationshipReviewService } from '../services/relationshipReviewService
 import { IconButton } from './IconButton';
 import { useToast } from '../contexts/ToastContext';
 
+// 🖼️ Import invitation images (same as UnifiedInvitationModal)
+// Note: These images should be imported as ES6 modules if available
+const INVITATION_IMAGES = {
+  supervisor: null, // require('../../assets/images/invitations/supervisor-invite.png'),
+  student: null, // require('../../assets/images/invitations/student-invite.png'), 
+  collection: null, // require('../../assets/images/invitations/collection-invite.png'),
+};
+
 const { height } = Dimensions.get('window');
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
@@ -250,7 +258,7 @@ export function UserProfileSheet({
     null,
   );
   const [pendingInvitationData, setPendingInvitationData] = useState<any>(null);
-  
+
   // Cancel pending invitation function
   const handleCancelPendingInvitation = async () => {
     if (!pendingInvitationData || !user?.id) return;
@@ -320,9 +328,10 @@ export function UserProfileSheet({
       setPendingInvitationType(null);
       setPendingInvitationData(null);
       setShowRelationshipModal(false);
-      
-      // Refresh relationship status to update UI
-      checkRelationshipStatus();
+
+        // Refresh relationship status to update UI
+        await checkRelationshipStatus();
+        await checkPendingInvitations();
     } catch (error) {
       console.error('✅ [UserProfileSheet] Error accepting invitation:', error);
       showToast({
@@ -399,7 +408,9 @@ export function UserProfileSheet({
   }, [height]);
 
   const relationshipTranslateY = useSharedValue(height);
-  const [currentRelationshipSnapPoint, setCurrentRelationshipSnapPoint] = useState(relationshipSnapPoints.large);
+  const [currentRelationshipSnapPoint, setCurrentRelationshipSnapPoint] = useState(
+    relationshipSnapPoints.large,
+  );
   const currentRelationshipState = useSharedValue(relationshipSnapPoints.large);
 
   // Relationship modal gesture handler
@@ -438,13 +449,21 @@ export function UserProfileSheet({
       } else if (velocityY > 500) {
         targetSnapPoint = relationshipSnapPoints.tiny;
       } else {
-        const positions = [relationshipSnapPoints.large, relationshipSnapPoints.medium, relationshipSnapPoints.small, relationshipSnapPoints.tiny];
+        const positions = [
+          relationshipSnapPoints.large,
+          relationshipSnapPoints.medium,
+          relationshipSnapPoints.small,
+          relationshipSnapPoints.tiny,
+        ];
         targetSnapPoint = positions.reduce((prev, curr) =>
           Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
         );
       }
 
-      const boundedTarget = Math.min(Math.max(targetSnapPoint, relationshipSnapPoints.large), relationshipSnapPoints.tiny);
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, relationshipSnapPoints.large),
+        relationshipSnapPoints.tiny,
+      );
 
       relationshipTranslateY.value = withSpring(boundedTarget, {
         damping: 20,
@@ -469,7 +488,7 @@ export function UserProfileSheet({
 
     try {
       console.log('🔗 [UserProfileSheet] Creating connection with user:', profile.full_name);
-      
+
       // Check if relationship already exists
       const { data: existingRelationship } = await supabase
         .from('student_supervisor_relationships')
@@ -498,18 +517,26 @@ export function UserProfileSheet({
         .single();
 
       if (existingInvitation) {
+        console.log('🔗 [UserProfileSheet] Found existing invitation, setting pending state and showing modal');
+        
+        // Update the pending invitation state immediately
+        setHasPendingInvitation(true);
+        setPendingInvitationType('sent');
+        setPendingInvitationData(existingInvitation);
+        
         showToast({
           title: 'Already Pending',
-          message: 'Invitation already exists for this user',
+          message: 'Invitation already exists for this user - you can manage it in the modal',
           type: 'info',
         });
+        
+        // The modal will be shown by the IconButton onPress handler
         return;
       }
 
       // Determine relationship type and target role
-      const relationshipType = profile.role === 'instructor' 
-        ? 'student_invites_supervisor' 
-        : 'supervisor_invites_student';
+      const relationshipType =
+        profile.role === 'instructor' ? 'student_invites_supervisor' : 'supervisor_invites_student';
       const targetRole = profile.role === 'instructor' ? 'instructor' : 'student';
 
       // Create pending invitation (same as GettingStarted.tsx)
@@ -539,10 +566,12 @@ export function UserProfileSheet({
       }
 
       // Create notification (same as GettingStarted.tsx)
-      const notificationType = profile.role === 'instructor' ? 'supervisor_invitation' : 'student_invitation';
-      const baseMessage = profile.role === 'instructor'
-        ? `${currentUserProfile.full_name || user.email} wants you to be their supervisor`
-        : `${currentUserProfile.full_name || user.email} wants you to be their student`;
+      const notificationType =
+        profile.role === 'instructor' ? 'supervisor_invitation' : 'student_invitation';
+      const baseMessage =
+        profile.role === 'instructor'
+          ? `${currentUserProfile.full_name || user.email} wants you to be their supervisor`
+          : `${currentUserProfile.full_name || user.email} wants you to be their student`;
 
       const fullMessage = relationshipCustomMessage.trim()
         ? `${baseMessage}\n\nPersonal message: "${relationshipCustomMessage.trim()}"`
@@ -575,8 +604,12 @@ export function UserProfileSheet({
       // Update pending invitation status
       setHasPendingInvitation(true);
       setPendingInvitationType('sent');
+      setPendingInvitationData(invitationData); // Set the invitation data
       setShowRelationshipModal(false);
       setRelationshipCustomMessage('');
+      
+      // Refresh pending invitations to ensure UI is up to date
+      await checkPendingInvitations();
     } catch (error) {
       console.error('🔗 [UserProfileSheet] Error creating connection:', error);
       showToast({
@@ -772,7 +805,8 @@ export function UserProfileSheet({
         loadUserRating();
       }
     }
-  }, [visible, userId, user?.id, loadProfile]);
+  // Avoid dependency array issues by defining callback functions at module level
+  }, [visible, userId, user?.id]);
 
   // Check if this is the current user's profile
   useEffect(() => {
@@ -882,40 +916,57 @@ export function UserProfileSheet({
   };
 
   const checkPendingInvitations = async () => {
-    if (!user?.id || !userId || !profile?.email || !user.email) return;
+    if (!user?.id || !userId || !profile?.email || !user.email) {
+      console.log('🔍 [UserProfileSheet] checkPendingInvitations - Missing required data:', {
+        userId: !!user?.id,
+        targetUserId: !!userId,
+        profileEmail: !!profile?.email,
+        userEmail: !!user.email
+      });
+      return;
+    }
 
     try {
+      console.log('🔍 [UserProfileSheet] Checking for pending invitations between:', user.email, 'and', profile.email);
+      
       // Check if current user sent invitation to this profile
-      const { data: sentInvitations } = await supabase
+      const { data: sentInvitations, error: sentError } = await supabase
         .from('pending_invitations')
         .select('id, email, status, metadata, created_at')
         .eq('invited_by', user.id)
         .eq('email', profile.email.toLowerCase())
         .eq('status', 'pending');
 
+      console.log('🔍 [UserProfileSheet] Sent invitations query:', { data: sentInvitations, error: sentError });
+
       // Check if this profile sent invitation to current user
-      const { data: receivedInvitations } = await supabase
+      const { data: receivedInvitations, error: receivedError } = await supabase
         .from('pending_invitations')
         .select('id, email, status, metadata, created_at')
         .eq('invited_by', userId)
         .eq('email', user.email.toLowerCase())
         .eq('status', 'pending');
 
+      console.log('🔍 [UserProfileSheet] Received invitations query:', { data: receivedInvitations, error: receivedError });
+
       if (sentInvitations && sentInvitations.length > 0) {
+        console.log('🔍 [UserProfileSheet] Found SENT invitation:', sentInvitations[0]);
         setHasPendingInvitation(true);
         setPendingInvitationType('sent');
         setPendingInvitationData(sentInvitations[0]);
       } else if (receivedInvitations && receivedInvitations.length > 0) {
+        console.log('🔍 [UserProfileSheet] Found RECEIVED invitation:', receivedInvitations[0]);
         setHasPendingInvitation(true);
         setPendingInvitationType('received');
         setPendingInvitationData(receivedInvitations[0]);
       } else {
+        console.log('🔍 [UserProfileSheet] No pending invitations found');
         setHasPendingInvitation(false);
         setPendingInvitationType(null);
         setPendingInvitationData(null);
       }
     } catch (error) {
-      console.error('Error checking pending invitations:', error);
+      console.error('🔍 [UserProfileSheet] Error checking pending invitations:', error);
     }
   };
 
@@ -1144,7 +1195,9 @@ export function UserProfileSheet({
 
   // Animation effects for relationship modal
   useEffect(() => {
+    console.log('🎯 [UserProfileSheet] showRelationshipModal changed to:', showRelationshipModal);
     if (showRelationshipModal) {
+      console.log('🎯 [UserProfileSheet] Animating relationship modal to large position');
       relationshipTranslateY.value = withSpring(relationshipSnapPoints.large, {
         damping: 20,
         mass: 1,
@@ -1380,15 +1433,19 @@ export function UserProfileSheet({
                             />
 
                             {/* Relationship Button - Only show for opposite user types */}
-                            {((currentUserProfile?.role === 'student' && profile?.role === 'instructor') ||
-                              (currentUserProfile?.role === 'instructor' && profile?.role === 'student') ||
-                              isInstructor || isStudent || hasPendingInvitation) && (
+                            {((currentUserProfile?.role === 'student' &&
+                              profile?.role === 'instructor') ||
+                              (currentUserProfile?.role === 'instructor' &&
+                                profile?.role === 'student') ||
+                              isInstructor ||
+                              isStudent ||
+                              hasPendingInvitation) && (
                               <IconButton
                                 icon={
-                                  isInstructor || isStudent 
-                                    ? 'users' 
-                                    : hasPendingInvitation 
-                                      ? 'clock' 
+                                  isInstructor || isStudent
+                                    ? 'users'
+                                    : hasPendingInvitation
+                                      ? 'clock'
                                       : 'user-check'
                                 }
                                 label={
@@ -1404,38 +1461,60 @@ export function UserProfileSheet({
                                             ? t('profile.superviseStudent') || 'Supervise Student'
                                             : t('profile.connect') || 'Connect'
                                 }
-                              onPress={() => {
-                                if (!profile || !user?.id) return;
+                                onPress={async () => {
+                                  if (!profile || !user?.id) return;
 
-                                if (isInstructor || isStudent) {
-                                  // Show existing relationship toast
-                                  showToast({
-                                    title: 'Connected',
-                                    message: isInstructor
-                                      ? `${profile?.full_name || 'This user'} is your instructor`
-                                      : `${profile?.full_name || 'This user'} is your student`,
-                                    type: 'info',
+                                  console.log('🎯 [UserProfileSheet] IconButton pressed for relationship');
+                                  console.log('🎯 [UserProfileSheet] Current state:', {
+                                    isInstructor,
+                                    isStudent,
+                                    hasPendingInvitation,
+                                    pendingInvitationType,
                                   });
-                                } else {
-                                  // Always open modal (for pending or new requests)
-                                  setShowRelationshipModal(true);
-                                  relationshipTranslateY.value = withSpring(relationshipSnapPoints.large, {
-                                    damping: 20,
-                                    mass: 1,
-                                    stiffness: 100,
-                                    overshootClamping: true,
-                                    restDisplacementThreshold: 0.01,
-                                    restSpeedThreshold: 0.01,
-                                  });
-                                  currentRelationshipState.value = relationshipSnapPoints.large;
-                                  setCurrentRelationshipSnapPoint(relationshipSnapPoints.large);
-                                }
-                              }}
-                              selected={isInstructor || isStudent || hasPendingInvitation}
-                              backgroundColor="transparent"
-                              borderColor="transparent"
-                              flex={1}
-                            />
+
+                                  if (isInstructor || isStudent) {
+                                    // Show existing relationship toast
+                                    console.log('🎯 [UserProfileSheet] Showing existing relationship toast');
+                                    showToast({
+                                      title: 'Connected',
+                                      message: isInstructor
+                                        ? `${profile?.full_name || 'This user'} is your instructor`
+                                        : `${profile?.full_name || 'This user'} is your student`,
+                                      type: 'info',
+                                    });
+                                  } else {
+                                    // First refresh the pending invitation state, then show modal
+                                    console.log('🎯 [UserProfileSheet] Opening relationship modal');
+                                    console.log('🎯 [UserProfileSheet] Checking for pending invitations...');
+                                    
+                                    // Force refresh of pending invitation state
+                                    await checkPendingInvitations();
+                                    
+                                    // Small delay to allow state to update in React
+                                    setTimeout(() => {
+                                      console.log('🎯 [UserProfileSheet] Opening modal with refreshed state');
+                                      setShowRelationshipModal(true);
+                                      relationshipTranslateY.value = withSpring(
+                                        relationshipSnapPoints.large,
+                                        {
+                                          damping: 20,
+                                          mass: 1,
+                                          stiffness: 100,
+                                          overshootClamping: true,
+                                          restDisplacementThreshold: 0.01,
+                                          restSpeedThreshold: 0.01,
+                                        },
+                                      );
+                                      currentRelationshipState.value = relationshipSnapPoints.large;
+                                      setCurrentRelationshipSnapPoint(relationshipSnapPoints.large);
+                                    }, 150);
+                                  }
+                                }}
+                                selected={isInstructor || isStudent || hasPendingInvitation}
+                                backgroundColor="transparent"
+                                borderColor="transparent"
+                                flex={1}
+                              />
                             )}
 
                           {/* Message Button */}
@@ -1630,8 +1709,16 @@ export function UserProfileSheet({
                               bordered
                               pressStyle={{ scale: 0.98 }}
                               onPress={() => {
+                                  if (navigation) {
                                 navigation.navigate('RouteDetail', { routeId: route.id });
                                 onClose();
+                                  } else {
+                                    showToast({
+                                      title: 'Navigation not available',
+                                      message: 'Please open this route from the main app',
+                                      type: 'info',
+                                    });
+                                  }
                               }}
                             >
                               <YStack gap="$1">
@@ -1687,311 +1774,392 @@ export function UserProfileSheet({
       </Animated.View>
 
       {/* Relationship Request Modal - styled like CollectionSharingModal */}
-      {profile && (
+      {(() => {
+        console.log('🎯 [UserProfileSheet] Relationship modal render check:', {
+          profile: !!profile,
+          showRelationshipModal,
+          hasPendingInvitation,
+          pendingInvitationType,
+          pendingInvitationData: !!pendingInvitationData,
+          profileRole: profile?.role,
+          currentUserRole: currentUserProfile?.role,
+          profileEmail: profile?.email,
+          profileName: profile?.full_name
+        });
+        return profile && showRelationshipModal;
+      })() && (
         <Modal
+          key={`relationship-modal-${hasPendingInvitation}-${pendingInvitationType}-${Date.now()}`}
           visible={showRelationshipModal}
           transparent
-          animationType="none"
-          onRequestClose={() => setShowRelationshipModal(false)}
+          animationType="fade"
+          onRequestClose={() => {
+            console.log('🎯 [UserProfileSheet] Modal onRequestClose called');
+            setShowRelationshipModal(false);
+          }}
           statusBarTranslucent
           presentationStyle="overFullScreen"
         >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'flex-end',
-            zIndex: 9999,
-          }}
-        >
-          <Pressable style={{ flex: 1 }} onPress={() => setShowRelationshipModal(false)} />
-          <GestureDetector gesture={relationshipPanGesture}>
-            <ReanimatedAnimated.View
-              style={[
-                {
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: height,
-                  backgroundColor: backgroundColor,
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
-                },
-                relationshipAnimatedStyle,
-              ]}
-            >
-              <YStack padding="$3" paddingBottom={24} gap="$3" flex={1}>
-                {/* Drag Handle */}
-                <View
-                  style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}
-                >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              justifyContent: 'flex-end',
+              zIndex: 999999,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
+          >
+            <Pressable style={{ flex: 1 }} onPress={() => setShowRelationshipModal(false)} />
+            <GestureDetector gesture={relationshipPanGesture}>
+              <ReanimatedAnimated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: height,
+                    backgroundColor: backgroundColor,
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                  },
+                  relationshipAnimatedStyle,
+                ]}
+              >
+                <YStack padding="$3" paddingBottom={24} gap="$3" flex={1}>
+                  {/* Drag Handle */}
                   <View
                     style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: theme.gray8?.val || '#CCC',
-                    }}
-                  />
-                </View>
-
-                {/* Header with image */}
-                <YStack alignItems="center" gap="$3" paddingHorizontal="$2">
-                  {/* Role-specific image */}
-                  <View
-                    style={{
-                      width: 120,
-                      height: 80,
-                      backgroundColor: 
-                        hasPendingInvitation 
-                          ? '#F59E0B' // Orange for pending
-                          : profile.role === 'instructor' 
-                            ? '#4F46E5' // Purple for instructor
-                            : '#059669', // Green for student
-                      borderRadius: 12,
-                      justifyContent: 'center',
                       alignItems: 'center',
+                      paddingVertical: 8,
+                      paddingBottom: 16,
                     }}
                   >
-                    <Feather
-                      name={
-                        hasPendingInvitation 
-                          ? 'clock' 
-                          : profile.role === 'instructor' 
-                            ? 'user-check' 
-                            : 'users'
-                      }
-                      size={40}
-                      color="white"
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: theme.gray8?.val || '#CCC',
+                      }}
                     />
                   </View>
 
-                  <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                    {hasPendingInvitation
-                      ? 'Pending Connection'
-                      : profile.role === 'instructor'
-                        ? 'Request Supervision'
-                        : 'Invite as Student'}
-                  </Text>
-
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {hasPendingInvitation
-                      ? `Manage your ${pendingInvitationType === 'sent' ? 'sent' : 'received'} connection request`
-                      : profile.role === 'instructor'
-                        ? `Ask ${profile.full_name || 'this user'} to be your driving instructor`
-                        : `Invite ${profile.full_name || 'this user'} to supervise their driving progress`}
-                  </Text>
-                </YStack>
-
-                {/* Show content only if not in tiny mode */}
-                {currentRelationshipSnapPoint !== relationshipSnapPoints.tiny && (
-                  <ScrollView
-                    style={{ flex: 1 }}
-                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-                    showsVerticalScrollIndicator={false}
-                  >
-                    <YStack gap="$4">
-                      {/* User info card */}
-                      <YStack
-                        gap="$2"
-                        padding="$3"
-                        backgroundColor="$backgroundHover"
-                        borderRadius="$3"
-                      >
-                        <XStack alignItems="center" gap="$2">
+                  {/* Header with image */}
+                  <YStack alignItems="center" gap="$3" paddingHorizontal="$2">
+                    {/* Role-specific image - using same images as UnifiedInvitationModal */}
+                    <View
+                      style={{
+                        width: '100%',
+                        height: 200,
+                        borderRadius: 12,
+                        overflow: 'hidden',
+                        position: 'relative',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      {INVITATION_IMAGES && INVITATION_IMAGES.supervisor && INVITATION_IMAGES.student ? (
+                        <Image
+                          source={
+                            hasPendingInvitation
+                              ? profile?.role === 'instructor'
+                                ? INVITATION_IMAGES.supervisor
+                                : INVITATION_IMAGES.student
+                              : profile?.role === 'instructor'
+                                ? INVITATION_IMAGES.supervisor
+                                : INVITATION_IMAGES.student
+                          }
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                          }}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        // Fallback colored background if images not available
+                        <View
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: hasPendingInvitation
+                              ? '#F59E0B' // Orange for pending
+                              : profile?.role === 'instructor'
+                                ? '#4F46E5' // Purple for instructor
+                                : '#059669', // Green for student
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
                           <Feather
-                            name="user"
-                            size={16}
-                            color={profile.role === 'instructor' ? '#4F46E5' : '#059669'}
+                            name={
+                              hasPendingInvitation
+                                ? 'clock'
+                                : profile?.role === 'instructor'
+                                  ? 'user-check'
+                                  : 'users'
+                            }
+                            size={40}
+                            color="white"
                           />
-                          <Text fontSize="$4" fontWeight="600" color="$color">
-                            {profile.full_name || 'Unknown User'}
-                          </Text>
-                        </XStack>
-                        <Text fontSize="$3" color="$gray11">
-                          {profile.email || 'No email'} • {profile.role === 'instructor' ? 'Instructor' : 'Student'}
-                        </Text>
-                        {profile.location && (
-                          <Text fontSize="$3" color="$gray11">
-                            📍 {profile.location}
-                          </Text>
-                        )}
-                      </YStack>
+                        </View>
+                      )}
+                    </View>
 
-                      {/* Pending Invitation Status */}
-                      {hasPendingInvitation && (
+                    <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                      {(() => {
+                        console.log('🎯 [UserProfileSheet] Modal title render - state check:', {
+                          hasPendingInvitation,
+                          pendingInvitationType,
+                          profileRole: profile?.role
+                        });
+                        return hasPendingInvitation
+                          ? 'Pending Connection'
+                          : profile?.role === 'instructor'
+                            ? 'Request Supervision'
+                            : 'Invite as Student';
+                      })()}
+                    </Text>
+
+                    <Text fontSize="$3" color="$gray11" textAlign="center">
+                      {hasPendingInvitation
+                        ? `Manage your ${pendingInvitationType === 'sent' ? 'sent' : 'received'} connection request`
+                        : profile?.role === 'instructor'
+                          ? `Ask ${profile?.full_name || 'this user'} to be your driving instructor`
+                          : `Invite ${profile?.full_name || 'this user'} to supervise their driving progress`}
+                    </Text>
+                  </YStack>
+
+                  {/* Show content only if not in tiny mode */}
+                  {currentRelationshipSnapPoint !== relationshipSnapPoints.tiny && (
+                    <ScrollView
+                      style={{ flex: 1 }}
+                      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      <YStack gap="$4">
+                        {/* User info card */}
                         <YStack
                           gap="$2"
                           padding="$3"
-                          backgroundColor={pendingInvitationType === 'sent' ? '$orange5' : '$blue5'}
+                          backgroundColor="$backgroundHover"
                           borderRadius="$3"
                         >
                           <XStack alignItems="center" gap="$2">
-                            <Feather name="clock" size={16} color={pendingInvitationType === 'sent' ? '#F59E0B' : '#3B82F6'} />
+                            <Feather
+                              name="user"
+                              size={16}
+                              color={profile?.role === 'instructor' ? '#4F46E5' : '#059669'}
+                            />
                             <Text fontSize="$4" fontWeight="600" color="$color">
-                              {pendingInvitationType === 'sent' ? 'Invitation Sent' : 'Invitation Received'}
+                              {profile?.full_name || 'Unknown User'}
                             </Text>
                           </XStack>
                           <Text fontSize="$3" color="$gray11">
-                            {pendingInvitationType === 'sent' 
-                              ? `You have sent a connection request to ${profile.full_name || 'this user'}`
-                              : `${profile.full_name || 'This user'} has sent you a connection request`}
+                            {profile?.email || 'No email'} •{' '}
+                            {profile?.role === 'instructor' ? 'Instructor' : 'Student'}
                           </Text>
-                          {pendingInvitationType === 'sent' && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onPress={async () => {
-                                try {
-                                  // Cancel pending invitation
-                                  const { error } = await supabase
-                                    .from('pending_invitations')
-                                    .delete()
-                                    .eq('invited_by', user.id)
-                                    .eq('email', profile.email!.toLowerCase())
-                                    .eq('status', 'pending');
+                          {profile?.location && (
+                            <Text fontSize="$3" color="$gray11">
+                              📍 {profile.location}
+                            </Text>
+                          )}
+                        </YStack>
 
-                                  if (error) throw error;
+                        {/* Pending Invitation Status */}
+                        {(() => {
+                          console.log('🎯 [UserProfileSheet] Pending invitation section render:', {
+                            hasPendingInvitation,
+                            pendingInvitationType,
+                            pendingInvitationData: !!pendingInvitationData
+                          });
+                          return hasPendingInvitation;
+                        })() && (
+                          <YStack
+                            gap="$2"
+                            padding="$3"
+                            backgroundColor={
+                              pendingInvitationType === 'sent' ? '$orange5' : '$blue5'
+                            }
+                            borderRadius="$3"
+                          >
+                            <XStack alignItems="center" gap="$2">
+                              <Feather
+                                name="clock"
+                                size={16}
+                                color={pendingInvitationType === 'sent' ? '#F59E0B' : '#3B82F6'}
+                              />
+                              <Text fontSize="$4" fontWeight="600" color="$color">
+                                {pendingInvitationType === 'sent'
+                                  ? 'Invitation Sent'
+                                  : 'Invitation Received'}
+                              </Text>
+                            </XStack>
+                            <Text fontSize="$3" color="$gray11">
+                              {pendingInvitationType === 'sent'
+                                ? `You have sent a connection request to ${profile?.full_name || 'this user'}`
+                                : `${profile?.full_name || 'This user'} has sent you a connection request`}
+                            </Text>
+                            {pendingInvitationType === 'sent' && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onPress={async () => {
+                                  try {
+                                    // Cancel pending invitation
+                                    const { error } = await supabase
+                                      .from('pending_invitations')
+                                      .delete()
+                                      .eq('invited_by', user?.id)
+                                      .eq('email', profile?.email?.toLowerCase())
+                                      .eq('status', 'pending');
 
-                                  showToast({
-                                    title: 'Cancelled',
-                                    message: 'Connection request has been cancelled',
-                                    type: 'success',
-                                  });
-                                  setHasPendingInvitation(false);
-                                  setPendingInvitationType(null);
-                                  setPendingInvitationData(null);
-                                  setShowRelationshipModal(false);
-                                } catch (error) {
-                                  console.error('Error cancelling invitation:', error);
-                                  showToast({
-                                    title: 'Error',
-                                    message: 'Failed to cancel invitation',
-                                    type: 'error',
-                                  });
-                                }
+                                    if (error) throw error;
+
+                                    showToast({
+                                      title: 'Cancelled',
+                                      message: 'Connection request has been cancelled',
+                                      type: 'success',
+                                    });
+                                    setHasPendingInvitation(false);
+                                    setPendingInvitationType(null);
+                                    setPendingInvitationData(null);
+                                    setShowRelationshipModal(false);
+                                  } catch (error) {
+                                    console.error('Error cancelling invitation:', error);
+                                    showToast({
+                                      title: 'Error',
+                                      message: 'Failed to cancel invitation',
+                                      type: 'error',
+                                    });
+                                  }
+                                }}
+                                backgroundColor="$red5"
+                              >
+                                <XStack gap="$2" alignItems="center">
+                                  <Feather name="x" size={14} color="#EF4444" />
+                                  <Text color="#EF4444" fontWeight="500">
+                                    Cancel Request
+                                  </Text>
+                                </XStack>
+                              </Button>
+                            )}
+                          </YStack>
+                        )}
+
+                        {/* Custom Message - only show if not pending */}
+                        {!hasPendingInvitation && (
+                          <YStack gap="$2">
+                            <Text fontSize="$4" color="$color" fontWeight="500">
+                              Personal Message (Optional):
+                            </Text>
+                            <TextInput
+                              value={relationshipCustomMessage}
+                              onChangeText={setRelationshipCustomMessage}
+                              placeholder={
+                                profile?.role === 'instructor'
+                                  ? 'Tell them why you want them as your instructor...'
+                                  : 'Tell them why you want to supervise them...'
+                              }
+                              multiline
+                              style={{
+                                backgroundColor: theme.background?.val || '#fff',
+                                color: theme.color?.val || '#11181C',
+                                borderColor: theme.borderColor?.val || 'rgba(0, 0, 0, 0.1)',
+                                borderWidth: 1,
+                                borderRadius: 8,
+                                padding: 12,
+                                minHeight: 80,
+                                textAlignVertical: 'top',
                               }}
+                              placeholderTextColor={theme.gray10?.val || 'rgba(0, 0, 0, 0.3)'}
+                            />
+                          </YStack>
+                        )}
+
+                        {/* Action Buttons */}
+                        <YStack gap="$2">
+                          {(() => {
+                            console.log('🎯 [UserProfileSheet] Action buttons render check:', {
+                              hasPendingInvitation,
+                              pendingInvitationType,
+                              willShowSendButton: !hasPendingInvitation,
+                              willShowCancelButton: hasPendingInvitation && pendingInvitationType === 'sent',
+                              willShowAcceptDeclineButtons: hasPendingInvitation && pendingInvitationType === 'received'
+                            });
+                            return !hasPendingInvitation;
+                          })() ? (
+                            <Button
+                              onPress={handleCreateConnection}
+                              backgroundColor={
+                                profile?.role === 'instructor' ? '$blue10' : '$green10'
+                              }
+                            >
+                              <XStack gap="$2" alignItems="center">
+                                <Feather name="send" size={16} color="white" />
+                                <Text color="white" fontWeight="600">
+                                  {profile?.role === 'instructor'
+                                    ? 'Send Supervision Request'
+                                    : 'Send Student Invitation'}
+                                </Text>
+                              </XStack>
+                            </Button>
+                          ) : pendingInvitationType === 'sent' ? (
+                            <Button
+                              onPress={handleCancelPendingInvitation}
                               backgroundColor="$red5"
                             >
                               <XStack gap="$2" alignItems="center">
-                                <Feather name="x" size={14} color="#EF4444" />
-                                <Text color="#EF4444" fontWeight="500">
+                                <Feather name="x" size={16} color="#EF4444" />
+                                <Text color="#EF4444" fontWeight="600">
                                   Cancel Request
                                 </Text>
                               </XStack>
                             </Button>
+                          ) : (
+                            // Received invitation - show accept/decline buttons (UnifiedInvitationModal style)
+                            <XStack gap="$3" justifyContent="space-around">
+                              <Button
+                                flex={1}
+                                onPress={handleDeclineInvitation}
+                                backgroundColor="$gray5"
+                              >
+                                <Text color="$color" fontWeight="600">
+                                  Decline
+                                </Text>
+                              </Button>
+                              <Button
+                                flex={1}
+                                onPress={handleAcceptInvitation}
+                                backgroundColor="$green10"
+                              >
+                                <Text color="white" fontWeight="600">
+                                  Accept
+                                </Text>
+                              </Button>
+                            </XStack>
                           )}
-                        </YStack>
-                      )}
-
-                      {/* Custom Message - only show if not pending */}
-                      {!hasPendingInvitation && (
-                        <YStack gap="$2">
-                          <Text fontSize="$4" color="$color" fontWeight="500">
-                            Personal Message (Optional):
-                          </Text>
-                          <TextInput
-                            value={relationshipCustomMessage}
-                            onChangeText={setRelationshipCustomMessage}
-                            placeholder={
-                              profile.role === 'instructor'
-                                ? 'Tell them why you want them as your instructor...'
-                                : 'Tell them why you want to supervise them...'
-                            }
-                            multiline
-                            style={{
-                              backgroundColor: theme.background?.val || '#fff',
-                              color: theme.color?.val || '#11181C',
-                              borderColor: theme.borderColor?.val || 'rgba(0, 0, 0, 0.1)',
-                              borderWidth: 1,
-                              borderRadius: 8,
-                              padding: 12,
-                              minHeight: 80,
-                              textAlignVertical: 'top',
+                          <Button
+                            onPress={() => {
+                              setShowRelationshipModal(false);
+                              setRelationshipCustomMessage('');
                             }}
-                            placeholderTextColor={theme.gray10?.val || 'rgba(0, 0, 0, 0.3)'}
-                          />
+                            backgroundColor="$gray5"
+                          >
+                            <Text color="$color">Close</Text>
+                          </Button>
                         </YStack>
-                      )}
-
-                      {/* Action Buttons */}
-                      <YStack gap="$2">
-                        {!hasPendingInvitation ? (
-                          <Button
-                            variant="primary"
-                            size="lg"
-                            onPress={handleCreateConnection}
-                            backgroundColor={profile.role === 'instructor' ? '$blue10' : '$green10'}
-                          >
-                            <XStack gap="$2" alignItems="center">
-                              <Feather name="send" size={16} color="white" />
-                              <Text color="white" fontWeight="600">
-                                {profile.role === 'instructor' ? 'Send Supervision Request' : 'Send Student Invitation'}
-                              </Text>
-                            </XStack>
-                          </Button>
-                        ) : pendingInvitationType === 'sent' ? (
-                          <Button
-                            variant="secondary"
-                            size="lg"
-                            onPress={handleCancelPendingInvitation}
-                            backgroundColor="$red5"
-                          >
-                            <XStack gap="$2" alignItems="center">
-                              <Feather name="x" size={16} color="#EF4444" />
-                              <Text color="#EF4444" fontWeight="600">
-                                Cancel Request
-                              </Text>
-                            </XStack>
-                          </Button>
-                        ) : (
-                          // Received invitation - show accept/decline buttons (UnifiedInvitationModal style)
-                          <XStack gap="$3" justifyContent="space-around">
-                            <Button
-                              flex={1}
-                              variant="secondary"
-                              size="lg"
-                              onPress={handleDeclineInvitation}
-                            >
-                              <Text color="$color" fontWeight="600">
-                                Decline
-                              </Text>
-                            </Button>
-                            <Button
-                              flex={1}
-                              variant="primary"
-                              size="lg"
-                              onPress={handleAcceptInvitation}
-                            >
-                              <Text color="white" fontWeight="600">
-                                Accept
-                              </Text>
-                            </Button>
-                          </XStack>
-                        )}
-                        <Button 
-                          variant="secondary" 
-                          size="lg" 
-                          onPress={() => {
-                            setShowRelationshipModal(false);
-                            setRelationshipCustomMessage('');
-                          }}
-                        >
-                          Close
-                        </Button>
                       </YStack>
-                    </YStack>
-                  </ScrollView>
-                )}
-              </YStack>
-            </ReanimatedAnimated.View>
-          </GestureDetector>
-        </View>
+                    </ScrollView>
+                  )}
+                </YStack>
+              </ReanimatedAnimated.View>
+            </GestureDetector>
+          </View>
         </Modal>
       )}
     </Modal>
