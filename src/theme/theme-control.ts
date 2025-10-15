@@ -10,7 +10,7 @@
  */
 
 import { createTheme } from 'tamagui';
-import { tokens, lightColors, darkColors } from './tokens';
+import { lightColors, darkColors } from './tokens';
 
 // System themes (follows device theme automatically)
 export const systemLightTheme = createTheme({
@@ -38,6 +38,11 @@ export const systemLightTheme = createTheme({
   gray10: lightColors.textMuted,
   gray11: lightColors.textMuted,
   gray12: lightColors.text,
+
+  // Switch-specific tokens
+  switchInactive: '#e5e7eb', // Light gray for inactive state
+  switchActive: '#00FFBC', // Brand green for active state
+  switchThumb: '#ffffff', // White thumb
 });
 
 export const systemDarkTheme = createTheme({
@@ -65,6 +70,11 @@ export const systemDarkTheme = createTheme({
   gray10: darkColors.textMuted,
   gray11: darkColors.textMuted,
   gray12: darkColors.text,
+
+  // Switch-specific tokens
+  switchInactive: '#4b5563', // Dark gray for inactive state
+  switchActive: '#00FFBC', // Brand green for active state
+  switchThumb: '#ffffff', // White thumb
 });
 
 // Manual themes (user's explicit choice, ignores system changes)
@@ -93,6 +103,11 @@ export const manualLightTheme = createTheme({
   gray10: lightColors.textMuted,
   gray11: lightColors.textMuted,
   gray12: lightColors.text,
+
+  // Switch-specific tokens
+  switchInactive: '#e5e7eb', // Light gray for inactive state
+  switchActive: '#00FFBC', // Brand green for active state
+  switchThumb: '#ffffff', // White thumb
 });
 
 export const manualDarkTheme = createTheme({
@@ -120,6 +135,11 @@ export const manualDarkTheme = createTheme({
   gray10: darkColors.textMuted,
   gray11: darkColors.textMuted,
   gray12: darkColors.text,
+
+  // Switch-specific tokens
+  switchInactive: '#4b5563', // Dark gray for inactive state
+  switchActive: '#00FFBC', // Brand green for active state
+  switchThumb: '#ffffff', // White thumb
 });
 
 /**

@@ -81,7 +81,7 @@ type ExperienceLevel = Database['public']['Enums']['experience_level'];
 type UserRole = Database['public']['Enums']['user_role'];
 
 const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced'];
-const USER_ROLES: UserRole[] = ['student', 'instructor', 'school'];
+const USER_ROLES: UserRole[] = ['student', 'instructor' /* , 'school' */]; // School hidden for beta
 const LANGUAGES: Language[] = ['en', 'sv'];
 const LANGUAGE_LABELS: Record<Language, string> = {
   en: 'English',
@@ -1566,7 +1566,7 @@ export function ProfileScreen() {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, role')
-        .in('role', ['instructor', 'admin', 'school'])
+        .in('role', ['instructor', 'admin' /* , 'school' */]) // School hidden for beta
         .neq('id', profile?.id) // Exclude current user
         .order('full_name');
 
@@ -1886,9 +1886,10 @@ export function ProfileScreen() {
     }
   }, [profile?.id, logInfo, logError]);
 
-  // Check if current user can supervise students (instructor/school/admin roles have supervision capabilities)
+  // Check if current user can supervise students (instructor/admin roles have supervision capabilities)
+  // Note: 'school' role hidden for beta
   const canSuperviseStudents = () => {
-    const supervisorRoles = ['instructor', 'school', 'admin'];
+    const supervisorRoles = ['instructor', /* 'school', */ 'admin'];
     return profile?.role && supervisorRoles.includes(profile.role);
   };
 
@@ -2456,7 +2457,7 @@ export function ProfileScreen() {
         const promises = [
           getUserProfileWithRelationships(profile.id),
           fetchAvailableSupervisors(),
-          fetchAvailableSchools(),
+          // fetchAvailableSchools(), // Hidden for beta
           fetchDrivingStats(), // Add stats fetch to refresh
           fetchPendingInvitations(), // Add pending invitations to refresh
           loadRelationshipReviews(), // Add relationship reviews to refresh
@@ -2530,6 +2531,7 @@ export function ProfileScreen() {
 
   // Helper to get current user's role
   // Supports legacy 'teacher' and 'supervisor' roles as well
+  // Note: 'school' role hidden for beta but still supported for existing users
   const getUserRole = ():
     | 'student'
     | 'instructor'
@@ -2737,7 +2739,7 @@ export function ProfileScreen() {
     user?.email,
     getUserProfileWithRelationships,
     fetchAvailableSupervisors,
-    fetchAvailableSchools,
+    // fetchAvailableSchools, // Hidden for beta
     fetchSupervisedStudents,
     fetchDrivingStats,
     checkForPendingInvitations,
@@ -2826,7 +2828,7 @@ export function ProfileScreen() {
       />
 
       <YStack f={1} gap={24}>
-        <Header
+        {/* <Header
           title={t('profile.title')}
           showBack
           rightElement={
@@ -2853,6 +2855,7 @@ export function ProfileScreen() {
                 }}
                 variant="secondary"
                 size="sm"
+                display="none"
               >
                 <XStack alignItems="center" gap="$2">
                   <Feather name="eye" size={16} color="$color" />
@@ -2861,7 +2864,7 @@ export function ProfileScreen() {
               </Button>
             </XStack>
           }
-        />
+        /> */}
         <YStack gap={24}>
           <YStack gap={24}>
             <YStack alignItems="center" marginTop={24} marginBottom={8}>
@@ -2936,7 +2939,13 @@ export function ProfileScreen() {
               )}
 
               {/* Tab Navigation */}
-              <XStack justifyContent="center" gap="$2" marginTop="$4" marginBottom="$2">
+              <XStack
+                justifyContent="center"
+                gap="$2"
+                marginTop="$4"
+                marginBottom="$2"
+                display="none"
+              >
                 <TouchableOpacity
                   onPress={async () => {
                     // Auto-save current changes before switching
@@ -3106,7 +3115,7 @@ export function ProfileScreen() {
             {activeTab === 'overview' && (
               <YStack gap="$4">
                 <YStack>
-                  <Text size="lg" weight="medium" mb="$2" color="$color">
+                  <Text size="lg" weight="medium" mb="$2" color="$color" display="none">
                     {t('profile.fullName')}
                   </Text>
                   <FormField
@@ -3129,7 +3138,7 @@ export function ProfileScreen() {
                 </YStack>
 
                 <YStack>
-                  <Text size="lg" weight="medium" mb="$2" color="$color">
+                  <Text size="lg" weight="medium" mb="$2" color="$color" display="none">
                     {t('profile.location')}
                   </Text>
                   <YStack gap="$2">
@@ -3181,66 +3190,8 @@ export function ProfileScreen() {
                   isActive={showLanguageModal}
                 />
 
-                {/* Private Profile Setting */}
-                <XStack
-                  justifyContent="space-between"
-                  alignItems="center"
-                  backgroundColor={formData.private_profile ? '$blue4' : undefined}
-                  padding="$4"
-                  borderRadius="$4"
-                  pressStyle={{
-                    scale: 0.98,
-                  }}
-                  onPress={async () => {
-                    const newValue = !formData.private_profile;
-                    setFormData((prev) => ({ ...prev, private_profile: newValue }));
-                    // Auto-save private profile setting
-                    if (user) {
-                      try {
-                        await updateProfile({ private_profile: newValue });
-                        console.log('✅ Private profile setting updated:', newValue);
-                      } catch (error) {
-                        console.error('Error saving private profile setting:', error);
-                      }
-                    }
-                  }}
-                >
-                  <Text size="lg" color="$color">
-                    {t('profile.privateProfile')}
-                  </Text>
-                  <Switch
-                    size="$6"
-                    checked={formData.private_profile}
-                    onCheckedChange={async (checked) => {
-                      setFormData((prev) => ({ ...prev, private_profile: checked }));
-                      // Auto-save private profile setting
-                      if (user) {
-                        try {
-                          await updateProfile({ private_profile: checked });
-                          console.log('✅ Private profile setting updated:', checked);
-                        } catch (error) {
-                          console.error('Error saving private profile setting:', error);
-                        }
-                      }
-                    }}
-                    backgroundColor={formData.private_profile ? '$blue8' : '$gray6'}
-                    scale={1.2}
-                    margin="$2"
-                    pressStyle={{
-                      scale: 0.95,
-                    }}
-                  >
-                    <Switch.Thumb
-                      scale={1.2}
-                      pressStyle={{
-                        scale: 0.95,
-                      }}
-                    />
-                  </Switch>
-                </XStack>
-
                 {/* Notification Settings */}
-                <YStack marginVertical="$2">
+                <YStack marginVertical="$2" display="none">
                   <DropdownButton
                     onPress={showNotificationSheet}
                     value={t('profile.notificationSettings') || 'Notification Settings'}
@@ -3275,13 +3226,66 @@ export function ProfileScreen() {
                 ) : null}
 
                 {/* Körkortsplan */}
-                <YStack marginVertical="$2">
+                <YStack marginVertical="$2" display="none">
                   <DropdownButton
                     onPress={showKorkortsplanSheet}
                     value="Körkortsplan"
                     placeholder="Körkortsplan"
                   />
                 </YStack>
+
+                {/* Private Profile Setting */}
+                <XStack
+                  justifyContent="space-between"
+                  alignItems="center"
+                  backgroundColor={formData.private_profile ? undefined : undefined}
+                  borderColor={formData.private_profile ? '$borderColor' : '$borderColor'}
+                  borderWidth="1"
+                  padding="$4"
+                  paddingVertical="$3"
+                  display="none"
+                  borderRadius="$1"
+                  pressStyle={{
+                    scale: 0.98,
+                  }}
+                  onPress={async () => {
+                    const newValue = !formData.private_profile;
+                    setFormData((prev) => ({ ...prev, private_profile: newValue }));
+                    // Auto-save private profile setting
+                    if (user) {
+                      try {
+                        await updateProfile({ private_profile: newValue });
+                        console.log('✅ Private profile setting updated:', newValue);
+                      } catch (error) {
+                        console.error('Error saving private profile setting:', error);
+                      }
+                    }
+                  }}
+                >
+                  <Text size="md" color="$color">
+                    {t('profile.privateProfile')}
+                  </Text>
+                  <Switch
+                    size="$8"
+                    checked={formData.private_profile}
+                    onCheckedChange={async (checked) => {
+                      setFormData((prev) => ({ ...prev, private_profile: checked }));
+                      // Auto-save private profile setting
+                      if (user) {
+                        try {
+                          await updateProfile({ private_profile: checked });
+                          console.log('✅ Private profile setting updated:', checked);
+                        } catch (error) {
+                          console.error('Error saving private profile setting:', error);
+                        }
+                      }
+                    }}
+                    backgroundColor={formData.private_profile ? '$switchActive' : '$switchInactive'}
+                    margin="$2"
+                  >
+                    <Switch.Thumb backgroundColor="$switchThumb" />
+                  </Switch>
+                </XStack>
 
                 {/* Save Button */}
                 <Button
@@ -3516,7 +3520,8 @@ export function ProfileScreen() {
                   </Card>
                 )}
 
-                {/* Schools Section - ALWAYS SHOW */}
+                {/* Schools Section - HIDDEN FOR BETA */}
+                {/* 
                 <Card bordered padding="$4" marginVertical="$2">
                   <YStack gap="$2">
                     <XStack justifyContent="space-between" alignItems="center">
@@ -3591,6 +3596,7 @@ export function ProfileScreen() {
                     )}
                   </YStack>
                 </Card>
+                */}
 
                 {/* Relationship Reviews Section */}
                 {profile && (
@@ -4242,9 +4248,9 @@ export function ProfileScreen() {
                           size="$4"
                           checked={optDeletePrivate}
                           onCheckedChange={setOptDeletePrivate}
-                          backgroundColor={optDeletePrivate ? '$blue8' : '$gray6'}
+                          backgroundColor={optDeletePrivate ? '$switchActive' : '$switchInactive'}
                         >
-                          <Switch.Thumb />
+                          <Switch.Thumb backgroundColor="$switchThumb" />
                         </Switch>
                       </XStack>
 
@@ -4256,9 +4262,9 @@ export function ProfileScreen() {
                           size="$4"
                           checked={optDeletePublic}
                           onCheckedChange={setOptDeletePublic}
-                          backgroundColor={optDeletePublic ? '$blue8' : '$gray6'}
+                          backgroundColor={optDeletePublic ? '$switchActive' : '$switchInactive'}
                         >
-                          <Switch.Thumb />
+                          <Switch.Thumb backgroundColor="$switchThumb" />
                         </Switch>
                       </XStack>
 
@@ -4268,9 +4274,9 @@ export function ProfileScreen() {
                           size="$4"
                           checked={optDeleteEvents}
                           onCheckedChange={setOptDeleteEvents}
-                          backgroundColor={optDeleteEvents ? '$blue8' : '$gray6'}
+                          backgroundColor={optDeleteEvents ? '$switchActive' : '$switchInactive'}
                         >
-                          <Switch.Thumb />
+                          <Switch.Thumb backgroundColor="$switchThumb" />
                         </Switch>
                       </XStack>
 
@@ -4282,9 +4288,9 @@ export function ProfileScreen() {
                           size="$4"
                           checked={optDeleteExercises}
                           onCheckedChange={setOptDeleteExercises}
-                          backgroundColor={optDeleteExercises ? '$blue8' : '$gray6'}
+                          backgroundColor={optDeleteExercises ? '$switchActive' : '$switchInactive'}
                         >
-                          <Switch.Thumb />
+                          <Switch.Thumb backgroundColor="$switchThumb" />
                         </Switch>
                       </XStack>
 
@@ -4294,9 +4300,9 @@ export function ProfileScreen() {
                           size="$4"
                           checked={optDeleteReviews}
                           onCheckedChange={setOptDeleteReviews}
-                          backgroundColor={optDeleteReviews ? '$blue8' : '$gray6'}
+                          backgroundColor={optDeleteReviews ? '$switchActive' : '$switchInactive'}
                         >
-                          <Switch.Thumb />
+                          <Switch.Thumb backgroundColor="$switchThumb" />
                         </Switch>
                       </XStack>
                     </YStack>
@@ -4317,9 +4323,9 @@ export function ProfileScreen() {
                           size="$4"
                           checked={optTransferPublic}
                           onCheckedChange={setOptTransferPublic}
-                          backgroundColor={optTransferPublic ? '$blue8' : '$gray6'}
+                          backgroundColor={optTransferPublic ? '$switchActive' : '$switchInactive'}
                         >
-                          <Switch.Thumb />
+                          <Switch.Thumb backgroundColor="$switchThumb" />
                         </Switch>
                         <Text size="md" color="$color">
                           {optTransferPublic ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
@@ -4400,7 +4406,7 @@ export function ProfileScreen() {
                           ? t('profile.roles.student')
                           : role === 'instructor'
                             ? t('profile.roles.instructor')
-                            : t('profile.roles.school')
+                            : 'Unknown Role'
                       }
                       isSelected={formData.role === role}
                     />
@@ -4608,7 +4614,8 @@ export function ProfileScreen() {
         </Pressable>
       </Modal>
 
-      {/* School Selection Modal */}
+      {/* School Selection Modal - HIDDEN FOR BETA */}
+      {/* 
       <Modal
         visible={showSchoolModal}
         transparent
@@ -4694,6 +4701,7 @@ export function ProfileScreen() {
           </YStack>
         </Pressable>
       </Modal>
+      */}
 
       {/* Invitation Modal */}
       <Modal
@@ -5780,7 +5788,9 @@ export function ProfileScreen() {
                         <Switch
                           size="$4"
                           checked={(profile as any)?.developer_mode || false}
-                          backgroundColor={(profile as any)?.developer_mode ? '$blue8' : '$gray6'}
+                          backgroundColor={
+                            (profile as any)?.developer_mode ? '$switchActive' : '$switchInactive'
+                          }
                           onCheckedChange={async (checked) => {
                             try {
                               if (!user?.id) return;
@@ -5806,7 +5816,7 @@ export function ProfileScreen() {
                             }
                           }}
                         >
-                          <Switch.Thumb />
+                          <Switch.Thumb backgroundColor="$switchThumb" />
                         </Switch>
                       </XStack>
                     </YStack>
@@ -6088,7 +6098,7 @@ export function ProfileScreen() {
                       <Switch
                         size="$4"
                         checked={true}
-                        backgroundColor="$blue8"
+                        backgroundColor="$switchActive"
                         onCheckedChange={async (checked) => {
                           if (checked) {
                             await pushNotificationService.registerForPushNotifications();
@@ -6120,7 +6130,7 @@ export function ProfileScreen() {
                       <Switch
                         size="$4"
                         checked={true}
-                        backgroundColor="$blue8"
+                        backgroundColor="$switchActive"
                         onCheckedChange={async (checked) => {
                           if (checked) {
                             await pushNotificationService.updateBadgeCount();
@@ -6147,7 +6157,7 @@ export function ProfileScreen() {
                       <Switch
                         size="$4"
                         checked={soundEnabled}
-                        backgroundColor={soundEnabled ? '$blue8' : '$gray6'}
+                        backgroundColor={soundEnabled ? '$switchActive' : '$switchInactive'}
                         onCheckedChange={async (checked) => {
                           try {
                             const AsyncStorage = (
@@ -6651,9 +6661,9 @@ export function ProfileScreen() {
                           size="$4"
                           checked={hasTheory}
                           onCheckedChange={setHasTheory}
-                          backgroundColor={hasTheory ? '$blue8' : '$gray6'}
+                          backgroundColor={hasTheory ? '$switchActive' : '$switchInactive'}
                         >
-                          <Switch.Thumb />
+                          <Switch.Thumb backgroundColor="$switchThumb" />
                         </Switch>
                         <Text size="md" color="$color">
                           {hasTheory ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
@@ -6677,9 +6687,9 @@ export function ProfileScreen() {
                           size="$4"
                           checked={hasPractice}
                           onCheckedChange={setHasPractice}
-                          backgroundColor={hasPractice ? '$blue8' : '$gray6'}
+                          backgroundColor={hasPractice ? '$switchActive' : '$switchInactive'}
                         >
-                          <Switch.Thumb />
+                          <Switch.Thumb backgroundColor="$switchThumb" />
                         </Switch>
                         <Text size="md" color="$color">
                           {hasPractice ? t('common.yes') || 'Yes' : t('common.no') || 'No'}

@@ -1576,7 +1576,7 @@ export function OnboardingInteractive({
       let targetRole = '';
       if (selectedRole === 'student') {
         targetRole = 'instructor'; // Students search for instructors
-      } else if (selectedRole === 'instructor' || selectedRole === 'school') {
+      } else if (selectedRole === 'instructor' /* || selectedRole === 'school' */) {
         targetRole = 'student'; // Instructors search for students
       }
 
@@ -2179,11 +2179,14 @@ export function OnboardingInteractive({
         title: t('onboarding.role.instructor') || 'Instructor',
         description: t('onboarding.role.instructorDescription') || 'I teach others to drive',
       },
+      // School option hidden for beta
+      /*
       {
         id: 'school',
         title: t('onboarding.role.school') || 'Driving School',
         description: t('onboarding.role.schoolDescription') || 'I represent a driving school',
       },
+      */
     ];
 
     return (
@@ -3033,7 +3036,7 @@ export function OnboardingInteractive({
                   <Text size="xl" weight="bold" color="$color" textAlign="center">
                     {selectedRole === 'student'
                       ? t('onboarding.connections.findInstructors') || 'Find Instructors'
-                      : selectedRole === 'instructor' || selectedRole === 'school'
+                      : selectedRole === 'instructor' /* || selectedRole === 'school' */
                         ? t('onboarding.connections.findStudents') || 'Find Students'
                         : t('onboarding.connections.findUsers') || 'Find Users'}
                   </Text>
@@ -3042,7 +3045,7 @@ export function OnboardingInteractive({
                     {selectedRole === 'student'
                       ? t('onboarding.connections.searchInstructors') ||
                         'Search for driving instructors to connect with'
-                      : selectedRole === 'instructor' || selectedRole === 'school'
+                      : selectedRole === 'instructor' /* || selectedRole === 'school' */
                         ? t('onboarding.connections.searchStudents') ||
                           'Search for students to connect with'
                         : t('onboarding.connections.searchUsers') ||

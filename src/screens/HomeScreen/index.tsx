@@ -667,8 +667,8 @@ export function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
               paddingHorizontal="$4"
               paddingVertical="$3"
               gap="$2"
-              borderBottomWidth={1}
-              borderBottomColor="rgba(255, 255, 255, 0.1)"
+              // borderBottomWidth={1}
+              // borderBottomColor="rgba(255, 255, 255, 0.1)"
             >
               <TouchableOpacity
                 onPress={() => setActiveTab('you')}

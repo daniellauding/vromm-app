@@ -1,6 +1,11 @@
 import { createTamagui } from 'tamagui';
 import { tokens } from './tokens';
-import { manualLightTheme, manualDarkTheme } from './theme-control';
+import {
+  systemLightTheme,
+  systemDarkTheme,
+  manualLightTheme,
+  manualDarkTheme,
+} from './theme-control';
 import { shorthands } from '@tamagui/shorthands';
 import { createMedia } from '@tamagui/react-native-media-driver';
 import { rubikFont } from './fonts';
@@ -156,6 +161,104 @@ export const componentThemes = {
     },
   },
 
+  Switch: {
+    true: {
+      borderRadius: 100,
+      height: 32,
+      width: 52,
+      padding: 2,
+      animation: 'quick',
+    },
+    size: {
+      $2: {
+        height: 20,
+        width: 36,
+        padding: 1,
+      },
+      $3: {
+        height: 24,
+        width: 42,
+        padding: 1.5,
+      },
+      $4: {
+        height: 28,
+        width: 48,
+        padding: 2,
+      },
+      $5: {
+        height: 32,
+        width: 52,
+        padding: 2,
+      },
+      $6: {
+        height: 44,
+        width: 74,
+        padding: 4,
+      },
+      $7: {
+        height: 58,
+        width: 94,
+        padding: 4,
+      },
+      $8: {
+        height: 72,
+        width: 114,
+        padding: 4,
+      },
+      $9: {
+        height: 86,
+        width: 134,
+        padding: 4,
+      },
+    },
+  },
+
+  SwitchThumb: {
+    true: {
+      borderRadius: 100,
+      shadowColor: 'rgba(0, 0, 0, 0.2)',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.5,
+      shadowRadius: 2,
+      elevation: 2,
+      animation: 'quick',
+    },
+    size: {
+      $2: {
+        height: 18,
+        width: 18,
+      },
+      $3: {
+        height: 21,
+        width: 21,
+      },
+      $4: {
+        height: 24,
+        width: 24,
+      },
+      $5: {
+        height: 28,
+        width: 28,
+      },
+      $6: {
+        height: 30,
+        width: 30,
+      },
+      $7: {
+        height: 42,
+        width: 42,
+      },
+      $8: {
+        height: 54,
+        width: 54,
+      },
+      $9: {
+        height: 66,
+        width: 66,
+      },
+    },
+  },
+
   Text: {
     true: {
       color: tokens.color.text,
@@ -221,9 +324,9 @@ export const config = createTamagui({
     body: rubikFont,
   },
   themes: {
-    // Use Tamagui's default themes for system mode (preserves original behavior)
-    ...defaultThemes,
-    // Add our custom themes for manual mode
+    // Use our custom themes for all modes (includes switch tokens)
+    light: systemLightTheme,
+    dark: systemDarkTheme,
     light_manual: manualLightTheme,
     dark_manual: manualDarkTheme,
   },

@@ -894,7 +894,7 @@ export const GettingStarted = () => {
       let targetRole = '';
       if (selectedRole === 'student') {
         targetRole = 'instructor'; // Students search for instructors
-      } else if (selectedRole === 'instructor' || selectedRole === 'school') {
+      } else if (selectedRole === 'instructor' /* || selectedRole === 'school' */) {
         targetRole = 'student'; // Instructors search for students
       }
 
@@ -1806,7 +1806,7 @@ export const GettingStarted = () => {
                   <Text fontSize={10} color="$gray11" marginTop="$1">
                     {typedProfile?.role === 'student'
                       ? t('home.gettingStarted.connectStudent.description') ||
-                        'Connect with driving schools and supervisors'
+                        'Connect with instructors and supervisors'
                       : t('home.gettingStarted.connectInstructor.description') ||
                         'Connect with students to supervise'}
                   </Text>
@@ -2136,9 +2136,9 @@ export const GettingStarted = () => {
                             size="$4"
                             checked={hasPractice}
                             onCheckedChange={setHasPractice}
-                            backgroundColor={hasPractice ? '$blue8' : '$gray6'}
+                            backgroundColor={hasPractice ? '$switchActive' : '$switchInactive'}
                           >
-                            <Switch.Thumb />
+                            <Switch.Thumb backgroundColor="$switchThumb" />
                           </Switch>
                           <Text size="md" color="$color">
                             {hasPractice ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
@@ -2290,12 +2290,15 @@ export const GettingStarted = () => {
                       description:
                         t('onboarding.role.instructorDescription') || 'I teach others to drive',
                     },
+                    // School option hidden for beta
+                    /*
                     {
                       id: 'school',
                       title: t('onboarding.role.school') || 'Driving School',
                       description:
                         t('onboarding.role.schoolDescription') || 'I represent a driving school',
                     },
+                    */
                   ].map((role) => (
                     <RadioButton
                       key={role.id}
@@ -2374,7 +2377,7 @@ export const GettingStarted = () => {
                 <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
                   {selectedRole === 'student'
                     ? 'Find Instructors'
-                    : selectedRole === 'instructor' || selectedRole === 'school'
+                    : selectedRole === 'instructor' /* || selectedRole === 'school' */
                       ? 'Find Students'
                       : 'Find Users'}
                 </Text>
@@ -2382,7 +2385,7 @@ export const GettingStarted = () => {
                 <Text fontSize="$3" color="$gray11" textAlign="center">
                   {selectedRole === 'student'
                     ? 'Search for driving instructors to connect with'
-                    : selectedRole === 'instructor' || selectedRole === 'school'
+                    : selectedRole === 'instructor' /* || selectedRole === 'school' */
                       ? 'Search for students to connect with'
                       : 'Search for users to connect with'}
                 </Text>
