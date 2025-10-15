@@ -100,6 +100,7 @@ interface ExerciseListSheetProps {
   showAllPaths?: boolean;
   initialExerciseId?: string; // New prop to open a specific exercise
   onBackToAllPaths?: () => void; // New prop to go back to learning paths overview
+  onExerciseCompleted?: (exerciseId: string, exerciseTitle: string) => void; // Callback when exercise is completed
 }
 
 // Progress Circle component (exact copy from ProgressScreen)
@@ -154,6 +155,7 @@ export function ExerciseListSheet({
   showAllPaths = false,
   initialExerciseId,
   onBackToAllPaths,
+  onExerciseCompleted,
 }: ExerciseListSheetProps) {
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
@@ -515,6 +517,12 @@ export function ExerciseListSheet({
         await supabase
           .from('learning_path_exercise_completions')
           .insert([{ user_id: effectiveUserId, exercise_id: exerciseId }]);
+
+        // Notify parent component (DailyStatus) about completion
+        if (onExerciseCompleted) {
+          const exerciseTitle = exercise.title?.[lang] || exercise.title?.en || 'Exercise';
+          onExerciseCompleted(exerciseId, exerciseTitle);
+        }
 
         // Check for celebration triggers (include the current exercise in the count)
         if (detailPath) {

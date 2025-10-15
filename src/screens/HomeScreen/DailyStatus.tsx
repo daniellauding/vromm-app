@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   TouchableOpacity,
   Alert,
@@ -9,7 +9,7 @@ import {
   View,
   ScrollView,
 } from 'react-native';
-import { XStack, YStack, Text, Button, Input, useTheme } from 'tamagui';
+import { XStack, YStack, Text, Button, Input } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -29,20 +29,17 @@ import { NavigationProp } from '../../types/navigation';
 import { LearningPathsSheet } from '../../components/LearningPathsSheet';
 import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 import { RouteListSheet } from '../../components/RouteListSheet';
-import { CreateRouteSheet } from '../../components/CreateRouteSheet';
-import { RecordDrivingSheet } from '../../components/RecordDrivingModal';
 import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { ActionSheet } from '../../components/ActionSheet';
 
 interface DailyStatusData {
   id?: string;
-  status: 'drove' | 'didnt_drive';
+  status: 'drove' | 'didnt_drive' | null; // Allow null for no selection
   how_it_went?: string;
   challenges?: string;
   notes?: string;
   driving_time_minutes?: number;
   distance_km?: number;
-  car_type?: string;
   rating?: number; // 1-5 scale
 }
 
@@ -59,9 +56,8 @@ export function DailyStatus({
 }: DailyStatusProps) {
   const { profile } = useAuth();
   const { showToast } = useToast();
-  const { t, language: lang } = useTranslation();
+  const { language: lang } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
-  const theme = useTheme();
   const systemColorScheme = useColorScheme();
   const colorScheme = systemColorScheme || 'light';
   const insets = useSafeAreaInsets();
@@ -75,15 +71,19 @@ export function DailyStatus({
   const [loading, setLoading] = useState(false);
   const [todayStatus, setTodayStatus] = useState<DailyStatusData | null>(null);
   const [formData, setFormData] = useState<DailyStatusData>({
-    status: 'drove',
+    status: null, // No preselection - user must choose
     how_it_went: '',
     challenges: '',
     notes: '',
     driving_time_minutes: 0,
     distance_km: 0,
-    car_type: '',
     rating: 3,
   });
+
+  // Track selected exercises for the day
+  const [selectedExercises, setSelectedExercises] = useState<Array<{ id: string; title: string }>>(
+    [],
+  );
 
   // Date navigation state - use external date if provided
   const [internalSelectedDate, setInternalSelectedDate] = useState(new Date());
@@ -99,12 +99,6 @@ export function DailyStatus({
   // Route integration sheet states
   const [showRouteListSheet, setShowRouteListSheet] = useState(false);
   const [routeCameFromDailyStatus, setRouteCameFromDailyStatus] = useState(false);
-
-  // Create route and record driving sheet states
-  const [showCreateRouteSheet, setShowCreateRouteSheet] = useState(false);
-  const [createRouteCameFromDailyStatus, setCreateRouteCameFromDailyStatus] = useState(false);
-  const [showRecordDrivingSheet, setShowRecordDrivingSheet] = useState(false);
-  const [recordDrivingCameFromDailyStatus, setRecordDrivingCameFromDailyStatus] = useState(false);
 
   // Route detail sheet state
   const [showRouteDetailSheet, setShowRouteDetailSheet] = useState(false);
@@ -128,14 +122,6 @@ export function DailyStatus({
   const sheetTranslateY = useSharedValue(screenHeight);
   const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
 
-  // Tab system for organizing content
-  const [activeTab, setActiveTab] = useState<'basic' | 'details' | 'routes'>('basic');
-
-  // Vehicle types from database (like ProgressScreen)
-  const [vehicleTypes, setVehicleTypes] = useState<
-    Array<{ value: string; label: { en: string; sv: string } }>
-  >([]);
-
   // Update internal date when external date changes
   useEffect(() => {
     if (externalSelectedDate) {
@@ -148,9 +134,13 @@ export function DailyStatus({
 
   // Load status for selected date
   const loadStatusForDate = async (date: Date) => {
-    if (!effectiveUserId) return;
+    if (!effectiveUserId) {
+      console.log('⚠️ [DailyStatus] No user ID, skipping load');
+      return;
+    }
 
     const dateString = date.toISOString().split('T')[0];
+    console.log('📅 [DailyStatus] Loading status for date:', dateString);
 
     try {
       setLoading(true);
@@ -163,14 +153,24 @@ export function DailyStatus({
 
       if (error && error.code !== 'PGRST116') {
         // PGRST116 = no rows returned
-        console.error('Error loading daily status:', error);
+        console.error('❌ [DailyStatus] Error loading daily status:', error);
         return;
       }
 
       if (data) {
+        console.log('✅ [DailyStatus] Status found for', dateString, ':', {
+          status: data.status,
+          how_it_went: data.how_it_went,
+          challenges: data.challenges,
+          notes: data.notes,
+          driving_time_minutes: data.driving_time_minutes,
+          distance_km: data.distance_km,
+          rating: data.rating,
+        });
         setPastStatuses((prev) => ({ ...prev, [dateString]: data }));
         if (dateString === todayString) {
           setTodayStatus(data);
+          console.log('✅ [DailyStatus] Updated todayStatus');
         }
         setFormData({
           status: data.status as 'drove' | 'didnt_drive',
@@ -179,27 +179,29 @@ export function DailyStatus({
           notes: data.notes || '',
           driving_time_minutes: data.driving_time_minutes || 0,
           distance_km: data.distance_km || 0,
-          car_type: data.car_type || '',
           rating: data.rating || 3,
         });
+        console.log('✅ [DailyStatus] Form data populated from DB');
       } else {
+        console.log('📭 [DailyStatus] No status found for', dateString);
         setPastStatuses((prev) => ({ ...prev, [dateString]: null }));
         if (dateString === todayString) {
           setTodayStatus(null);
+          console.log('✅ [DailyStatus] Cleared todayStatus');
         }
         setFormData({
-          status: 'drove',
+          status: null, // No preselection when no data
           how_it_went: '',
           challenges: '',
           notes: '',
           driving_time_minutes: 0,
           distance_km: 0,
-          car_type: '',
           rating: 3,
         });
+        console.log('✅ [DailyStatus] Form data cleared (no status)');
       }
     } catch (error) {
-      console.error('Error loading daily status:', error);
+      console.error('❌ [DailyStatus] Exception loading daily status:', error);
     } finally {
       setLoading(false);
     }
@@ -309,12 +311,130 @@ export function DailyStatus({
     }, 200);
   };
 
+  // Reset daily status for selected date
+  const resetDailyStatus = async () => {
+    if (!effectiveUserId) {
+      console.log('⚠️ [DailyStatus] Reset: No user ID');
+      return;
+    }
+
+    // Don't allow resetting for future dates
+    if (isFuture) {
+      console.log('⚠️ [DailyStatus] Reset: Cannot reset future date');
+      showToast({
+        title: 'Cannot Reset',
+        message: 'Nothing to reset for future dates!',
+        type: 'info',
+      });
+      return;
+    }
+
+    const dateString = selectedDate.toISOString().split('T')[0];
+    const hasExistingStatus = pastStatuses[dateString];
+    console.log(
+      '🔄 [DailyStatus] Reset requested for',
+      dateString,
+      '- Has existing:',
+      !!hasExistingStatus,
+    );
+
+    if (!hasExistingStatus) {
+      // Just clear the form if no saved status
+      console.log('🧹 [DailyStatus] Clearing form (no saved status)');
+      setFormData({
+        status: null, // No preselection
+        how_it_went: '',
+        challenges: '',
+        notes: '',
+        driving_time_minutes: 0,
+        distance_km: 0,
+        rating: 3,
+      });
+      setSelectedExercises([]);
+      showToast({
+        title: 'Form Cleared',
+        message: 'Form has been reset',
+        type: 'info',
+      });
+      return;
+    }
+
+    // Confirm deletion if status exists
+    Alert.alert(
+      'Reset Status',
+      'Are you sure you want to delete this status? This cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => console.log('🚫 [DailyStatus] Reset cancelled by user'),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            console.log('🗑️ [DailyStatus] Deleting status from DB for', dateString);
+            try {
+              setLoading(true);
+              const { error } = await supabase
+                .from('daily_status')
+                .delete()
+                .eq('user_id', effectiveUserId)
+                .eq('date', dateString);
+
+              if (error) {
+                console.error('❌ [DailyStatus] Error deleting daily status:', error);
+                Alert.alert('Error', 'Failed to delete status. Please try again.');
+                return;
+              }
+
+              console.log('✅ [DailyStatus] Status deleted from DB');
+
+              // Clear the form and status
+              setFormData({
+                status: null, // No preselection
+                how_it_went: '',
+                challenges: '',
+                notes: '',
+                driving_time_minutes: 0,
+                distance_km: 0,
+                rating: 3,
+              });
+              setSelectedExercises([]);
+              setPastStatuses((prev) => ({ ...prev, [dateString]: null }));
+              if (isToday) {
+                setTodayStatus(null);
+              }
+
+              console.log('✅ [DailyStatus] Local state cleared');
+
+              showToast({
+                title: 'Status Deleted',
+                message: 'Your status has been reset',
+                type: 'success',
+              });
+            } catch (error) {
+              console.error('❌ [DailyStatus] Exception deleting daily status:', error);
+              Alert.alert('Error', 'Failed to delete status. Please try again.');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // Save daily status
   const saveDailyStatus = async () => {
-    if (!effectiveUserId) return;
+    if (!effectiveUserId) {
+      console.log('⚠️ [DailyStatus] Save: No user ID');
+      return;
+    }
 
     // Don't allow saving for future dates
     if (isFuture) {
+      console.log('⚠️ [DailyStatus] Save: Cannot save future date');
       showToast({
         title: 'Cannot Save',
         message: 'Come back on this day to share your status!',
@@ -323,51 +443,64 @@ export function DailyStatus({
       return;
     }
 
+    // Require status selection
+    if (!formData.status) {
+      console.log('⚠️ [DailyStatus] Save: No status selected');
+      Alert.alert('Status Required', 'Please select whether you drove or not');
+      return;
+    }
+
     try {
       setLoading(true);
       const dateString = selectedDate.toISOString().split('T')[0];
 
+      const dataToSave = {
+        user_id: effectiveUserId,
+        date: dateString,
+        status: formData.status,
+        how_it_went: formData.how_it_went || null,
+        challenges: formData.challenges || null,
+        notes: formData.notes || null,
+        driving_time_minutes: formData.driving_time_minutes || null,
+        distance_km: formData.distance_km || null,
+        rating: formData.rating || null,
+      };
+
+      console.log('💾 [DailyStatus] Saving status for', dateString, ':', dataToSave);
+
       const { data, error } = await supabase
         .from('daily_status')
-        .upsert(
-          {
-            user_id: effectiveUserId,
-            date: dateString,
-            status: formData.status,
-            how_it_went: formData.how_it_went || null,
-            challenges: formData.challenges || null,
-            notes: formData.notes || null,
-            driving_time_minutes: formData.driving_time_minutes || null,
-            distance_km: formData.distance_km || null,
-            car_type: formData.car_type || null,
-            rating: formData.rating || null,
-          },
-          {
-            onConflict: 'user_id,date',
-          },
-        )
+        .upsert(dataToSave, {
+          onConflict: 'user_id,date',
+        })
         .select()
         .single();
 
       if (error) {
-        console.error('Error saving daily status:', error);
+        console.error('❌ [DailyStatus] Error saving daily status:', error);
         Alert.alert('Error', 'Failed to save your status. Please try again.');
         return;
       }
+
+      console.log('✅ [DailyStatus] Status saved to DB:', data);
 
       // Update the status in our state
       setPastStatuses((prev) => ({ ...prev, [dateString]: data }));
       if (isToday) {
         setTodayStatus(data);
+        console.log('✅ [DailyStatus] Updated todayStatus with saved data');
       }
+
+      console.log('✅ [DailyStatus] Closing sheet after successful save');
       setShowSheet(false);
+
       showToast({
         title: 'Success',
         message: 'Your daily status has been saved!',
         type: 'success',
       });
     } catch (error) {
-      console.error('Error saving daily status:', error);
+      console.error('❌ [DailyStatus] Exception saving daily status:', error);
       Alert.alert('Error', 'Failed to save your status. Please try again.');
     } finally {
       setLoading(false);
@@ -376,33 +509,7 @@ export function DailyStatus({
 
   useEffect(() => {
     loadTodayStatus();
-    loadVehicleTypes();
   }, [effectiveUserId]);
-
-  // Load vehicle types from database (like ProgressScreen)
-  const loadVehicleTypes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('learning_path_categories')
-        .select('value, label, order_index')
-        .eq('category', 'vehicle_type')
-        .order('order_index', { ascending: true });
-
-      if (!error && data) {
-        setVehicleTypes(data);
-        console.log('🚗 [DailyStatus] Loaded vehicle types:', data.length);
-      }
-    } catch (error) {
-      console.error('Error loading vehicle types:', error);
-      // Fallback vehicle types
-      setVehicleTypes([
-        { value: 'övningsbil', label: { en: 'Training Car', sv: 'Övningsbil' } },
-        { value: 'privat_bil', label: { en: 'Private Car', sv: 'Privat bil' } },
-        { value: 'förarens_bil', label: { en: 'Instructor Car', sv: 'Förarens bil' } },
-        { value: 'annan', label: { en: 'Other', sv: 'Annan' } },
-      ]);
-    }
-  };
 
   useEffect(() => {
     loadStatusForDate(selectedDate);
@@ -478,6 +585,17 @@ export function DailyStatus({
   // Animation effects - NO BOUNCING, smooth spring animations
   useEffect(() => {
     if (showSheet) {
+      console.log('📱 [DailyStatus] Sheet opened - Current form data:', {
+        status: formData.status,
+        how_it_went: formData.how_it_went,
+        challenges: formData.challenges,
+        notes: formData.notes,
+        driving_time_minutes: formData.driving_time_minutes,
+        distance_km: formData.distance_km,
+        rating: formData.rating,
+        selectedExercises: selectedExercises.length,
+      });
+
       sheetTranslateY.value = withSpring(snapPoints.large, {
         damping: 25,
         stiffness: 300,
@@ -491,6 +609,8 @@ export function DailyStatus({
         useNativeDriver: true,
       }).start();
     } else {
+      console.log('📱 [DailyStatus] Sheet closed');
+
       sheetTranslateY.value = withSpring(snapPoints.dismissed, {
         damping: 25,
         stiffness: 300,
@@ -503,7 +623,7 @@ export function DailyStatus({
         useNativeDriver: true,
       }).start();
     }
-  }, [showSheet, backdropOpacity, snapPoints]);
+  }, [showSheet, backdropOpacity, snapPoints, formData]);
 
   const getStatusIcon = () => {
     if (!todayStatus) return 'help-circle';
@@ -538,8 +658,13 @@ export function DailyStatus({
 
   return (
     <>
-      {/* Daily Status Input-like Box */}
-      <View
+      {/* Daily Status Input-like Box - Fully Clickable */}
+      <TouchableOpacity
+        onPress={() => {
+          console.log('👆 [DailyStatus] Input box clicked - opening sheet');
+          setShowSheet(true);
+        }}
+        disabled={isFuture}
         style={{
           backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8',
           borderRadius: 16,
@@ -549,52 +674,48 @@ export function DailyStatus({
           marginHorizontal: 16,
           borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
         }}
+        activeOpacity={0.7}
       >
         {/* Status Content - Flat Input Style */}
-        <TouchableOpacity onPress={() => setShowSheet(true)} disabled={isFuture}>
-          <XStack alignItems="center" gap="$2">
-            <YStack flex={1}>
-              <Text
-                fontSize="$3"
-                fontWeight="400"
-                color={
-                  getStatusForSelectedDate()
-                    ? colorScheme === 'dark'
-                      ? '#FFF'
-                      : '#000'
-                    : colorScheme === 'dark'
-                      ? '#666'
-                      : '#999'
-                }
-                numberOfLines={1}
-              >
-                {getStatusForSelectedDate()
-                  ? getStatusText()
-                  : 'Did you drive today? Share your thoughts!'}
-              </Text>
+        <XStack alignItems="center" gap="$2">
+          <YStack flex={1}>
+            <Text
+              fontSize="$3"
+              fontWeight="400"
+              color={
+                getStatusForSelectedDate()
+                  ? colorScheme === 'dark'
+                    ? '#FFF'
+                    : '#000'
+                  : colorScheme === 'dark'
+                    ? '#666'
+                    : '#999'
+              }
+              numberOfLines={1}
+            >
+              {getStatusForSelectedDate()
+                ? getStatusText()
+                : 'Did you drive today? Share your thoughts!'}
+            </Text>
 
-              {getStatusForSelectedDate()?.how_it_went && (
-                <Text
-                  fontSize="$2"
-                  color={colorScheme === 'dark' ? '#999' : '#666'}
-                  numberOfLines={1}
-                  marginTop="$0.5"
-                >
-                  {getStatusForSelectedDate()?.how_it_went}
-                </Text>
-              )}
-            </YStack>
-            {/* Only show icon if no status is shared */}
-            {/* {!getStatusForSelectedDate() && ( */}
-            <Feather
-              name="message-circle"
-              size={20}
-              color={colorScheme === 'dark' ? '#666' : '#999'}
-            />
-            {/* )} */}
-          </XStack>
-        </TouchableOpacity>
-      </View>
+            {getStatusForSelectedDate()?.how_it_went && (
+              <Text
+                fontSize="$2"
+                color={colorScheme === 'dark' ? '#999' : '#666'}
+                numberOfLines={1}
+                marginTop="$0.5"
+              >
+                {getStatusForSelectedDate()?.how_it_went}
+              </Text>
+            )}
+          </YStack>
+          <Feather
+            name="message-circle"
+            size={20}
+            color={colorScheme === 'dark' ? '#666' : '#999'}
+          />
+        </XStack>
+      </TouchableOpacity>
 
       {/* Status Sheet */}
       {showSheet && (
@@ -660,67 +781,25 @@ export function DailyStatus({
                         </Text>
                       )}
                     </YStack>
-                    <TouchableOpacity onPress={() => setShowSheet(false)}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        console.log('❌ [DailyStatus] Close button clicked - Current form data:', {
+                          status: formData.status,
+                          how_it_went: formData.how_it_went,
+                          challenges: formData.challenges,
+                          notes: formData.notes,
+                          driving_time_minutes: formData.driving_time_minutes,
+                          distance_km: formData.distance_km,
+                        });
+                        setShowSheet(false);
+                      }}
+                    >
                       <Feather
                         name="x"
                         size={20}
                         color={colorScheme === 'dark' ? '#FFF' : '#666'}
                       />
                     </TouchableOpacity>
-                  </XStack>
-
-                  {/* Tab Navigation */}
-                  <XStack
-                    gap="$2"
-                    padding="$2"
-                    backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
-                    borderRadius="$3"
-                  >
-                    {[
-                      { key: 'basic', label: 'Basic', icon: 'edit-3' },
-                      { key: 'details', label: 'Details', icon: 'bar-chart-2' },
-                      { key: 'routes', label: 'Routes', icon: 'map' },
-                    ].map((tab) => (
-                      <TouchableOpacity
-                        key={tab.key}
-                        onPress={() => setActiveTab(tab.key as any)}
-                        style={{
-                          flex: 1,
-                          padding: 8,
-                          borderRadius: 8,
-                          backgroundColor: activeTab === tab.key ? '#00E6C3' : 'transparent',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <XStack alignItems="center" gap="$1">
-                          <Feather
-                            name={tab.icon as any}
-                            size={16}
-                            color={
-                              activeTab === tab.key
-                                ? '#000'
-                                : colorScheme === 'dark'
-                                  ? '#FFF'
-                                  : '#666'
-                            }
-                          />
-                          <Text
-                            fontSize="$2"
-                            fontWeight={activeTab === tab.key ? 'bold' : 'normal'}
-                            color={
-                              activeTab === tab.key
-                                ? '#000'
-                                : colorScheme === 'dark'
-                                  ? '#FFF'
-                                  : '#666'
-                            }
-                          >
-                            {tab.label}
-                          </Text>
-                        </XStack>
-                      </TouchableOpacity>
-                    ))}
                   </XStack>
 
                   {/* Scrollable Content */}
@@ -730,324 +809,238 @@ export function DailyStatus({
                     contentContainerStyle={{ paddingBottom: 20 }}
                   >
                     <YStack gap="$3">
-                      {/* Basic Tab */}
-                      {activeTab === 'basic' && (
-                        <YStack gap="$3">
-                          {/* Status Selection */}
-                          <YStack gap="$2">
-                            <Text
-                              fontSize="$3"
-                              fontWeight="600"
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                            >
-                              Status
-                            </Text>
+                      {/* Status Selection */}
+                      <YStack gap="$2">
+                        <Text
+                          fontSize="$3"
+                          fontWeight="600"
+                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                        >
+                          Status
+                        </Text>
 
-                            <XStack gap="$2">
-                              <TouchableOpacity
-                                onPress={() =>
-                                  setFormData((prev) => ({ ...prev, status: 'drove' }))
+                        <XStack gap="$2">
+                          <TouchableOpacity
+                            onPress={() => {
+                              const newStatus = formData.status === 'drove' ? null : 'drove';
+                              console.log('✅ [DailyStatus] Status toggled:', newStatus);
+                              setFormData((prev) => ({ ...prev, status: newStatus }));
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: 10,
+                              borderRadius: 6,
+                              backgroundColor:
+                                formData.status === 'drove'
+                                  ? '#4CAF50'
+                                  : colorScheme === 'dark'
+                                    ? '#333'
+                                    : '#E5E5E5',
+                              borderWidth: 1,
+                              borderColor:
+                                formData.status === 'drove'
+                                  ? '#4CAF50'
+                                  : colorScheme === 'dark'
+                                    ? '#555'
+                                    : '#CCC',
+                            }}
+                          >
+                            <XStack alignItems="center" justifyContent="center" gap="$1.5">
+                              <Feather
+                                name="check-circle"
+                                size={14}
+                                color={
+                                  formData.status === 'drove'
+                                    ? '#FFF'
+                                    : colorScheme === 'dark'
+                                      ? '#CCC'
+                                      : '#666'
                                 }
-                                style={{
-                                  flex: 1,
-                                  padding: 10,
-                                  borderRadius: 6,
-                                  backgroundColor:
-                                    formData.status === 'drove'
-                                      ? '#4CAF50'
-                                      : colorScheme === 'dark'
-                                        ? '#333'
-                                        : '#E5E5E5',
-                                  borderWidth: 1,
-                                  borderColor:
-                                    formData.status === 'drove'
-                                      ? '#4CAF50'
-                                      : colorScheme === 'dark'
-                                        ? '#555'
-                                        : '#CCC',
-                                }}
-                              >
-                                <XStack alignItems="center" justifyContent="center" gap="$1.5">
-                                  <Feather
-                                    name="check-circle"
-                                    size={14}
-                                    color={
-                                      formData.status === 'drove'
-                                        ? '#FFF'
-                                        : colorScheme === 'dark'
-                                          ? '#CCC'
-                                          : '#666'
-                                    }
-                                  />
-                                  <Text
-                                    fontSize="$2"
-                                    fontWeight="600"
-                                    color={
-                                      formData.status === 'drove'
-                                        ? '#FFF'
-                                        : colorScheme === 'dark'
-                                          ? '#CCC'
-                                          : '#666'
-                                    }
-                                  >
-                                    Ja, jag körde
-                                  </Text>
-                                </XStack>
-                              </TouchableOpacity>
-
-                              <TouchableOpacity
-                                onPress={() =>
-                                  setFormData((prev) => ({ ...prev, status: 'didnt_drive' }))
+                              />
+                              <Text
+                                fontSize="$2"
+                                fontWeight="600"
+                                color={
+                                  formData.status === 'drove'
+                                    ? '#FFF'
+                                    : colorScheme === 'dark'
+                                      ? '#CCC'
+                                      : '#666'
                                 }
-                                style={{
-                                  flex: 1,
-                                  padding: 10,
-                                  borderRadius: 6,
-                                  backgroundColor:
-                                    formData.status === 'didnt_drive'
-                                      ? '#F44336'
-                                      : colorScheme === 'dark'
-                                        ? '#333'
-                                        : '#E5E5E5',
-                                  borderWidth: 1,
-                                  borderColor:
-                                    formData.status === 'didnt_drive'
-                                      ? '#F44336'
-                                      : colorScheme === 'dark'
-                                        ? '#555'
-                                        : '#CCC',
-                                }}
                               >
-                                <XStack alignItems="center" justifyContent="center" gap="$1.5">
-                                  <Feather
-                                    name="x-circle"
-                                    size={14}
-                                    color={
-                                      formData.status === 'didnt_drive'
-                                        ? '#FFF'
-                                        : colorScheme === 'dark'
-                                          ? '#CCC'
-                                          : '#666'
-                                    }
-                                  />
-                                  <Text
-                                    fontSize="$2"
-                                    fontWeight="600"
-                                    color={
-                                      formData.status === 'didnt_drive'
-                                        ? '#FFF'
-                                        : colorScheme === 'dark'
-                                          ? '#CCC'
-                                          : '#666'
-                                    }
-                                  >
-                                    Nej, körde inte
-                                  </Text>
-                                </XStack>
-                              </TouchableOpacity>
+                                Ja, jag körde
+                              </Text>
                             </XStack>
-                          </YStack>
+                          </TouchableOpacity>
 
-                          {/* How it went */}
-                          <YStack gap="$1.5">
-                            <Text
-                              fontSize="$3"
-                              fontWeight="600"
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                            >
-                              Hur gick det?
-                            </Text>
-                            <Input
-                              placeholder="Berätta hur det gick..."
-                              value={formData.how_it_went}
-                              onChangeText={(text) =>
-                                setFormData((prev) => ({ ...prev, how_it_went: text }))
-                              }
-                              multiline
-                              numberOfLines={2}
-                              backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
-                              borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                              padding="$2"
-                            />
-                          </YStack>
+                          <TouchableOpacity
+                            onPress={() => {
+                              const newStatus =
+                                formData.status === 'didnt_drive' ? null : 'didnt_drive';
+                              console.log('❌ [DailyStatus] Status toggled:', newStatus);
+                              setFormData((prev) => ({ ...prev, status: newStatus }));
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: 10,
+                              borderRadius: 6,
+                              backgroundColor:
+                                formData.status === 'didnt_drive'
+                                  ? '#F44336'
+                                  : colorScheme === 'dark'
+                                    ? '#333'
+                                    : '#E5E5E5',
+                              borderWidth: 1,
+                              borderColor:
+                                formData.status === 'didnt_drive'
+                                  ? '#F44336'
+                                  : colorScheme === 'dark'
+                                    ? '#555'
+                                    : '#CCC',
+                            }}
+                          >
+                            <XStack alignItems="center" justifyContent="center" gap="$1.5">
+                              <Feather
+                                name="x-circle"
+                                size={14}
+                                color={
+                                  formData.status === 'didnt_drive'
+                                    ? '#FFF'
+                                    : colorScheme === 'dark'
+                                      ? '#CCC'
+                                      : '#666'
+                                }
+                              />
+                              <Text
+                                fontSize="$2"
+                                fontWeight="600"
+                                color={
+                                  formData.status === 'didnt_drive'
+                                    ? '#FFF'
+                                    : colorScheme === 'dark'
+                                      ? '#CCC'
+                                      : '#666'
+                                }
+                              >
+                                Nej, körde inte
+                              </Text>
+                            </XStack>
+                          </TouchableOpacity>
+                        </XStack>
+                      </YStack>
 
-                          {/* Challenges */}
-                          <YStack gap="$1.5">
-                            <Text
-                              fontSize="$3"
-                              fontWeight="600"
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                            >
-                              Utmaningar?
-                            </Text>
-                            <Input
-                              placeholder="Vad var utmanande?"
-                              value={formData.challenges}
-                              onChangeText={(text) =>
-                                setFormData((prev) => ({ ...prev, challenges: text }))
-                              }
-                              multiline
-                              numberOfLines={2}
-                              backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
-                              borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                              padding="$2"
-                            />
-                          </YStack>
+                      {/* How it went */}
+                      <YStack gap="$1.5">
+                        <Text
+                          fontSize="$3"
+                          fontWeight="600"
+                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                        >
+                          Hur gick det?
+                        </Text>
+                        <Input
+                          placeholder="Berätta hur det gick..."
+                          value={formData.how_it_went}
+                          onChangeText={(text) =>
+                            setFormData((prev) => ({ ...prev, how_it_went: text }))
+                          }
+                          multiline
+                          numberOfLines={2}
+                          backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
+                          borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                          padding="$2"
+                        />
+                      </YStack>
 
-                          {/* Notes */}
-                          <YStack gap="$1.5">
-                            <Text
-                              fontSize="$3"
-                              fontWeight="600"
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                            >
-                              Anteckningar
-                            </Text>
-                            <Input
-                              placeholder="Ytterligare anteckningar..."
-                              value={formData.notes}
-                              onChangeText={(text) =>
-                                setFormData((prev) => ({ ...prev, notes: text }))
-                              }
-                              multiline
-                              numberOfLines={2}
-                              backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
-                              borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                              padding="$2"
-                            />
-                          </YStack>
+                      {/* Challenges */}
+                      <YStack gap="$1.5">
+                        <Text
+                          fontSize="$3"
+                          fontWeight="600"
+                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                        >
+                          Utmaningar?
+                        </Text>
+                        <Input
+                          placeholder="Vad var utmanande?"
+                          value={formData.challenges}
+                          onChangeText={(text) =>
+                            setFormData((prev) => ({ ...prev, challenges: text }))
+                          }
+                          multiline
+                          numberOfLines={2}
+                          backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
+                          borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                          padding="$2"
+                        />
+                      </YStack>
 
-                          {/* Exercise Learning Button - Show for today and past dates */}
-                          {!isFuture && (
-                            <TouchableOpacity
-                              onPress={() => {
-                                console.log(
-                                  '🎯 [DailyStatus] Opening learning paths from modal - hiding DailyStatus modal',
-                                );
+                      {/* Notes */}
+                      <YStack gap="$1.5">
+                        <Text
+                          fontSize="$3"
+                          fontWeight="600"
+                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                        >
+                          Anteckningar
+                        </Text>
+                        <Input
+                          placeholder="Ytterligare anteckningar..."
+                          value={formData.notes}
+                          onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
+                          multiline
+                          numberOfLines={2}
+                          backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
+                          borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                          padding="$2"
+                        />
+                      </YStack>
 
-                                // Hide DailyStatus modal first
-                                setShowSheet(false);
-
-                                // Set flag to remember we came from DailyStatus
-                                setCameFromDailyStatus(true);
-
-                                // Show learning paths sheet after a brief delay for smooth transition
-                                setTimeout(() => {
-                                  setShowLearningPathsSheet(true);
-                                }, 200);
-                              }}
-                              style={{
-                                backgroundColor: colorScheme === 'dark' ? '#1A4A4A' : '#E6F7FF',
-                                borderRadius: 12,
-                                padding: 12,
-                                marginBottom: 12,
-                                borderWidth: 1,
-                                borderColor: colorScheme === 'dark' ? '#2A6A6A' : '#B3E5FC',
-                              }}
-                            >
-                              <XStack alignItems="center" justifyContent="center" gap="$2">
-                                <Feather name="book-open" size={18} color="#00E6C3" />
-                                <Text
-                                  fontSize="$3"
-                                  fontWeight="500"
-                                  color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                                >
-                                  {isToday
-                                    ? 'Did you do any exercises today?'
-                                    : `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`}
-                                </Text>
-                              </XStack>
-                            </TouchableOpacity>
-                          )}
-                        </YStack>
-                      )}
-
-                      {/* Details Tab */}
-                      {activeTab === 'details' && formData.status === 'drove' && (
+                      {/* Driving Details - Show only if drove */}
+                      {formData.status === 'drove' && (
                         <YStack gap="$3">
-                          {/* Driving Time & Distance */}
-                          <XStack gap="$2">
-                            <YStack gap="$1.5" flex={1}>
-                              <Text
-                                fontSize="$3"
-                                fontWeight="600"
-                                color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                              >
-                                Tid (minuter)
-                              </Text>
-                              <Input
-                                placeholder="0"
-                                value={formData.driving_time_minutes?.toString() || ''}
-                                onChangeText={(text) =>
-                                  setFormData((prev) => ({
-                                    ...prev,
-                                    driving_time_minutes: text ? parseInt(text) || 0 : 0,
-                                  }))
-                                }
-                                keyboardType="number-pad"
-                                backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
-                                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                                color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                              />
-                            </YStack>
-
-                            <YStack gap="$1.5" flex={1}>
-                              <Text
-                                fontSize="$3"
-                                fontWeight="600"
-                                color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                              >
-                                Distans (km)
-                              </Text>
-                              <Input
-                                placeholder="0"
-                                value={formData.distance_km?.toString() || ''}
-                                onChangeText={(text) =>
-                                  setFormData((prev) => ({
-                                    ...prev,
-                                    distance_km: text ? parseFloat(text) || 0 : 0,
-                                  }))
-                                }
-                                keyboardType="decimal-pad"
-                                backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
-                                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                                color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                              />
-                            </YStack>
-                          </XStack>
-
-                          {/* Car Type - Using database values */}
+                          {/* Driving Time - Chip Selector */}
                           <YStack gap="$1.5">
                             <Text
                               fontSize="$3"
                               fontWeight="600"
                               color={colorScheme === 'dark' ? '#FFF' : '#000'}
                             >
-                              Biltyp
+                              Tid (minuter)
                             </Text>
                             <XStack gap="$2" flexWrap="wrap">
-                              {vehicleTypes.map((type) => (
+                              {[10, 15, 20, 30, 45, 60, 90, 120].map((minutes) => (
                                 <TouchableOpacity
-                                  key={type.value}
-                                  onPress={() =>
-                                    setFormData((prev) => ({ ...prev, car_type: type.value }))
-                                  }
+                                  key={minutes}
+                                  onPress={() => {
+                                    const newTime =
+                                      formData.driving_time_minutes === minutes ? 0 : minutes;
+                                    console.log(
+                                      '⏱️ [DailyStatus] Time toggled:',
+                                      newTime,
+                                      'minutes',
+                                    );
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      driving_time_minutes: newTime,
+                                    }));
+                                  }}
                                   style={{
                                     paddingHorizontal: 12,
                                     paddingVertical: 8,
                                     borderRadius: 8,
                                     backgroundColor:
-                                      formData.car_type === type.value
+                                      formData.driving_time_minutes === minutes
                                         ? '#00E6C3'
                                         : colorScheme === 'dark'
                                           ? '#333'
                                           : '#F0F0F0',
                                     borderWidth: 1,
                                     borderColor:
-                                      formData.car_type === type.value
+                                      formData.driving_time_minutes === minutes
                                         ? '#00E6C3'
                                         : colorScheme === 'dark'
                                           ? '#555'
@@ -1057,17 +1050,76 @@ export function DailyStatus({
                                   <Text
                                     fontSize="$2"
                                     color={
-                                      formData.car_type === type.value
+                                      formData.driving_time_minutes === minutes
                                         ? '#000'
                                         : colorScheme === 'dark'
                                           ? '#FFF'
                                           : '#000'
                                     }
                                     fontWeight={
-                                      formData.car_type === type.value ? 'bold' : 'normal'
+                                      formData.driving_time_minutes === minutes ? 'bold' : 'normal'
                                     }
                                   >
-                                    {type.label[lang] || type.label.en}
+                                    {minutes}m
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </XStack>
+                          </YStack>
+
+                          {/* Distance - Chip Selector */}
+                          <YStack gap="$1.5">
+                            <Text
+                              fontSize="$3"
+                              fontWeight="600"
+                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                            >
+                              Distans (km)
+                            </Text>
+                            <XStack gap="$2" flexWrap="wrap">
+                              {[1, 3, 5, 10, 15, 20, 30, 50].map((km) => (
+                                <TouchableOpacity
+                                  key={km}
+                                  onPress={() => {
+                                    const newDistance = formData.distance_km === km ? 0 : km;
+                                    console.log(
+                                      '📏 [DailyStatus] Distance toggled:',
+                                      newDistance,
+                                      'km',
+                                    );
+                                    setFormData((prev) => ({ ...prev, distance_km: newDistance }));
+                                  }}
+                                  style={{
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 8,
+                                    borderRadius: 8,
+                                    backgroundColor:
+                                      formData.distance_km === km
+                                        ? '#00E6C3'
+                                        : colorScheme === 'dark'
+                                          ? '#333'
+                                          : '#F0F0F0',
+                                    borderWidth: 1,
+                                    borderColor:
+                                      formData.distance_km === km
+                                        ? '#00E6C3'
+                                        : colorScheme === 'dark'
+                                          ? '#555'
+                                          : '#DDD',
+                                  }}
+                                >
+                                  <Text
+                                    fontSize="$2"
+                                    color={
+                                      formData.distance_km === km
+                                        ? '#000'
+                                        : colorScheme === 'dark'
+                                          ? '#FFF'
+                                          : '#000'
+                                    }
+                                    fontWeight={formData.distance_km === km ? 'bold' : 'normal'}
+                                  >
+                                    {km}km
                                   </Text>
                                 </TouchableOpacity>
                               ))}
@@ -1115,139 +1167,187 @@ export function DailyStatus({
                         </YStack>
                       )}
 
-                      {/* Routes Tab */}
-                      {activeTab === 'routes' && (
-                        <YStack gap="$3">
-                          {/* Exercise Learning Button - Show for today and past dates */}
-                          {!isFuture && (
-                            <TouchableOpacity
-                              onPress={() => {
-                                console.log(
-                                  '🎯 [DailyStatus] Opening learning paths from modal - hiding DailyStatus modal',
-                                );
-
-                                // Hide DailyStatus modal first
-                                setShowSheet(false);
-
-                                // Set flag to remember we came from DailyStatus
-                                setCameFromDailyStatus(true);
-
-                                // Show learning paths sheet after a brief delay for smooth transition
-                                setTimeout(() => {
-                                  setShowLearningPathsSheet(true);
-                                }, 200);
-                              }}
-                              style={{
-                                backgroundColor: colorScheme === 'dark' ? '#1A4A4A' : '#E6F7FF',
-                                borderRadius: 12,
-                                padding: 12,
-                                marginBottom: 12,
-                                borderWidth: 1,
-                                borderColor: colorScheme === 'dark' ? '#2A6A6A' : '#B3E5FC',
-                              }}
-                            >
-                              <XStack alignItems="center" justifyContent="center" gap="$2">
-                                <Feather name="book-open" size={18} color="#00E6C3" />
-                                <Text
-                                  fontSize="$3"
-                                  fontWeight="500"
-                                  color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                                >
-                                  {isToday
-                                    ? 'Did you do any exercises today?'
-                                    : `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`}
-                                </Text>
-                              </XStack>
-                            </TouchableOpacity>
-                          )}
-
-                          {/* Route Integration Buttons */}
-                          <XStack gap="$2">
-                            {/* Find Routes Button */}
-                            <TouchableOpacity
-                              onPress={handleNavigateToMap}
-                              style={{
-                                flex: 1,
-                                backgroundColor: colorScheme === 'dark' ? '#2A2A4A' : '#F0F4FF',
-                                borderRadius: 12,
-                                padding: 12,
-                                borderWidth: 1,
-                                borderColor: colorScheme === 'dark' ? '#4A4A6A' : '#C4D3FF',
-                              }}
-                            >
-                              <XStack alignItems="center" justifyContent="center" gap="$2">
-                                <Feather name="map-pin" size={18} color="#4A90E2" />
-                                <Text
-                                  fontSize="$3"
-                                  fontWeight="500"
-                                  color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                                  textAlign="center"
-                                >
-                                  Find Routes
-                                </Text>
-                              </XStack>
-                            </TouchableOpacity>
-
-                            {/* My Routes Button */}
-                            <TouchableOpacity
-                              onPress={handleOpenRouteList}
-                              style={{
-                                flex: 1,
-                                backgroundColor: colorScheme === 'dark' ? '#4A2A2A' : '#FFF0F4',
-                                borderRadius: 12,
-                                padding: 12,
-                                borderWidth: 1,
-                                borderColor: colorScheme === 'dark' ? '#6A4A4A' : '#FFD3C4',
-                              }}
-                            >
-                              <XStack alignItems="center" justifyContent="center" gap="$2">
-                                <Feather name="list" size={18} color="#E24A90" />
-                                <Text
-                                  fontSize="$3"
-                                  fontWeight="500"
-                                  color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                                  textAlign="center"
-                                >
-                                  My Routes
-                                </Text>
-                              </XStack>
-                            </TouchableOpacity>
-                          </XStack>
-
-                          {/* Route Actions Button */}
-                          <TouchableOpacity
-                            onPress={handleOpenActionSheet}
-                            style={{
-                              backgroundColor: colorScheme === 'dark' ? '#2A3A2A' : '#F0FFF0',
-                              borderRadius: 12,
-                              padding: 12,
-                              marginBottom: 12,
-                              borderWidth: 1,
-                              borderColor: colorScheme === 'dark' ? '#4A6A4A' : '#C4DFC4',
-                            }}
+                      {/* Selected Exercises List */}
+                      {selectedExercises.length > 0 && (
+                        <YStack gap="$2" marginTop="$2">
+                          <Text
+                            fontSize="$3"
+                            fontWeight="600"
+                            color={colorScheme === 'dark' ? '#FFF' : '#000'}
                           >
-                            <XStack alignItems="center" justifyContent="center" gap="$2">
-                              <Feather name="plus" size={18} color="#10B981" />
+                            Selected Exercises ({selectedExercises.length})
+                          </Text>
+                          {selectedExercises.map((exercise, index) => (
+                            <XStack
+                              key={exercise.id}
+                              alignItems="center"
+                              justifyContent="space-between"
+                              padding="$2"
+                              backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
+                              borderRadius={8}
+                              borderWidth={1}
+                              borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                            >
                               <Text
-                                fontSize="$3"
-                                fontWeight="500"
+                                fontSize="$2"
                                 color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                                flex={1}
                               >
-                                Create or Record Route
+                                {exercise.title}
                               </Text>
+                              <TouchableOpacity
+                                onPress={() => {
+                                  console.log(
+                                    '🗑️ [DailyStatus] Removing exercise:',
+                                    exercise.title,
+                                  );
+                                  setSelectedExercises((prev) =>
+                                    prev.filter((_, i) => i !== index),
+                                  );
+                                }}
+                                style={{ padding: 4 }}
+                              >
+                                <Feather
+                                  name="x"
+                                  size={18}
+                                  color={colorScheme === 'dark' ? '#FF6B6B' : '#D32F2F'}
+                                />
+                              </TouchableOpacity>
                             </XStack>
-                          </TouchableOpacity>
+                          ))}
                         </YStack>
                       )}
+
+                      {/* Exercise Learning Button - Show for today and past dates */}
+                      {!isFuture && (
+                        <TouchableOpacity
+                          onPress={() => {
+                            console.log(
+                              '🎯 [DailyStatus] Opening learning paths from modal - hiding DailyStatus modal',
+                            );
+
+                            // Hide DailyStatus modal first
+                            setShowSheet(false);
+
+                            // Set flag to remember we came from DailyStatus
+                            setCameFromDailyStatus(true);
+
+                            // Show learning paths sheet after a brief delay for smooth transition
+                            setTimeout(() => {
+                              setShowLearningPathsSheet(true);
+                            }, 200);
+                          }}
+                          style={{
+                            backgroundColor: colorScheme === 'dark' ? '#1A4A4A' : '#E6F7FF',
+                            borderRadius: 12,
+                            padding: 12,
+                            marginTop: 8,
+                            marginBottom: 12,
+                            borderWidth: 1,
+                            borderColor: colorScheme === 'dark' ? '#2A6A6A' : '#B3E5FC',
+                          }}
+                        >
+                          <XStack alignItems="center" justifyContent="center" gap="$2">
+                            <Feather name="book-open" size={18} color="#00E6C3" />
+                            <Text
+                              fontSize="$3"
+                              fontWeight="500"
+                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                            >
+                              {isToday
+                                ? 'Did you do any exercises today?'
+                                : `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`}
+                            </Text>
+                          </XStack>
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Route Integration Buttons */}
+                      <XStack gap="$2">
+                        {/* Find Routes Button */}
+                        <TouchableOpacity
+                          onPress={handleNavigateToMap}
+                          style={{
+                            flex: 1,
+                            backgroundColor: colorScheme === 'dark' ? '#2A2A4A' : '#F0F4FF',
+                            borderRadius: 12,
+                            padding: 12,
+                            borderWidth: 1,
+                            borderColor: colorScheme === 'dark' ? '#4A4A6A' : '#C4D3FF',
+                          }}
+                        >
+                          <XStack alignItems="center" justifyContent="center" gap="$2">
+                            <Feather name="map-pin" size={18} color="#4A90E2" />
+                            <Text
+                              fontSize="$3"
+                              fontWeight="500"
+                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                              textAlign="center"
+                            >
+                              Find Routes
+                            </Text>
+                          </XStack>
+                        </TouchableOpacity>
+
+                        {/* My Routes Button */}
+                        <TouchableOpacity
+                          onPress={handleOpenRouteList}
+                          style={{
+                            flex: 1,
+                            backgroundColor: colorScheme === 'dark' ? '#4A2A2A' : '#FFF0F4',
+                            borderRadius: 12,
+                            padding: 12,
+                            borderWidth: 1,
+                            borderColor: colorScheme === 'dark' ? '#6A4A4A' : '#FFD3C4',
+                          }}
+                        >
+                          <XStack alignItems="center" justifyContent="center" gap="$2">
+                            <Feather name="list" size={18} color="#E24A90" />
+                            <Text
+                              fontSize="$3"
+                              fontWeight="500"
+                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                              textAlign="center"
+                            >
+                              My Routes
+                            </Text>
+                          </XStack>
+                        </TouchableOpacity>
+                      </XStack>
+
+                      {/* Route Actions Button */}
+                      <TouchableOpacity
+                        onPress={handleOpenActionSheet}
+                        style={{
+                          backgroundColor: colorScheme === 'dark' ? '#2A3A2A' : '#F0FFF0',
+                          borderRadius: 12,
+                          padding: 12,
+                          marginBottom: 12,
+                          borderWidth: 1,
+                          borderColor: colorScheme === 'dark' ? '#4A6A4A' : '#C4DFC4',
+                        }}
+                      >
+                        <XStack alignItems="center" justifyContent="center" gap="$2">
+                          <Feather name="plus" size={18} color="#10B981" />
+                          <Text
+                            fontSize="$3"
+                            fontWeight="500"
+                            color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                          >
+                            Create or Record Route
+                          </Text>
+                        </XStack>
+                      </TouchableOpacity>
                     </YStack>
                   </ScrollView>
 
-                  {/* Save Button - Fixed at bottom */}
+                  {/* Action Buttons - Fixed at bottom */}
                   <YStack
                     padding="$3"
                     borderTopWidth={1}
                     borderTopColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                     backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
+                    gap="$2"
                   >
                     <Button
                       onPress={saveDailyStatus}
@@ -1262,6 +1362,27 @@ export function DailyStatus({
                     >
                       {loading ? 'Sparar...' : isFuture ? 'Come back on this day' : 'Spara status'}
                     </Button>
+
+                    {/* Reset Button - Only show if not future and not currently saving */}
+                    {!isFuture && !loading && (
+                      <Button
+                        onPress={resetDailyStatus}
+                        backgroundColor={colorScheme === 'dark' ? '#3A1A1A' : '#FFE5E5'}
+                        color={colorScheme === 'dark' ? '#FF6B6B' : '#D32F2F'}
+                        fontWeight="600"
+                        padding="$3"
+                        borderRadius="$3"
+                        borderWidth={1}
+                        borderColor={colorScheme === 'dark' ? '#5A2A2A' : '#FFB3B3'}
+                      >
+                        <Text
+                          color={colorScheme === 'dark' ? '#FF6B6B' : '#D32F2F'}
+                          fontWeight="600"
+                        >
+                          Reset Status
+                        </Text>
+                      </Button>
+                    )}
                   </YStack>
                 </YStack>
               </ReanimatedAnimated.View>
@@ -1333,6 +1454,17 @@ export function DailyStatus({
 
           // Always go back to LearningPathsSheet when coming from DailyStatus
           setShowLearningPathsSheet(true);
+        }}
+        onExerciseCompleted={(exerciseId, exerciseTitle) => {
+          console.log('✅ [DailyStatus] Exercise completed:', exerciseTitle);
+          // Add to selected exercises if not already there
+          setSelectedExercises((prev) => {
+            const exists = prev.find((e) => e.id === exerciseId);
+            if (!exists) {
+              return [...prev, { id: exerciseId, title: exerciseTitle }];
+            }
+            return prev;
+          });
         }}
         title={
           selectedLearningPath
