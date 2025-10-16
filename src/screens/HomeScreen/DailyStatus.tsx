@@ -9,8 +9,11 @@ import {
   View,
   ScrollView,
   Image,
+  StyleSheet,
+  Platform,
 } from 'react-native';
-import { XStack, YStack, Text, Button } from 'tamagui';
+import { XStack, YStack, Text } from 'tamagui';
+import { Button } from '../../components/Button';
 import { Feather } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -26,7 +29,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useNavigation } from '@react-navigation/native';
@@ -38,6 +40,16 @@ import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { ActionSheet } from '../../components/ActionSheet';
 import { IconButton } from '../../components/IconButton';
 import { FormField } from '../../components/FormField';
+
+const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
+
+const styles = StyleSheet.create({
+  footer: {
+    paddingHorizontal: 4,
+    paddingVertical: 16,
+    paddingBottom: 70 + BOTTOM_INSET,
+  },
+});
 
 interface DailyStatusData {
   id?: string;
@@ -69,7 +81,6 @@ export function DailyStatus({
   const navigation = useNavigation<NavigationProp>();
   const systemColorScheme = useColorScheme();
   const colorScheme = systemColorScheme || 'light';
-  const insets = useSafeAreaInsets();
 
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -1232,7 +1243,7 @@ export function DailyStatus({
                   animatedSheetStyle,
                 ]}
               >
-                <YStack padding="$3" paddingBottom={insets.bottom || 16} gap="$3" flex={1}>
+                <YStack padding="$3" gap="$3" flex={1}>
                   {/* Drag Handle */}
                   <View
                     style={{
@@ -1733,7 +1744,22 @@ export function DailyStatus({
 
                       {/* Exercise Learning Button - Show for today and past dates */}
                       {!isFuture && (
-                        <TouchableOpacity
+                        <IconButton
+                          icon="book-open"
+                          label={
+                            isToday
+                              ? t('dailyStatus.didYouDoExercisesToday') ||
+                                'Did you do any exercises today?'
+                              : t('dailyStatus.didYouDoExercisesOnDate')?.replace(
+                                  '{date}',
+                                  selectedDate.toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  }),
+                                ) ||
+                                `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`
+                          }
                           onPress={() => {
                             console.log(
                               '🎯 [DailyStatus] Opening learning paths from modal - hiding DailyStatus modal',
@@ -1750,166 +1776,79 @@ export function DailyStatus({
                               setShowLearningPathsSheet(true);
                             }, 200);
                           }}
-                          style={{
-                            backgroundColor: colorScheme === 'dark' ? '#1A4A4A' : '#E6F7FF',
-                            borderRadius: 12,
-                            padding: 12,
-                            marginTop: 8,
-                            marginBottom: 12,
-                            borderWidth: 1,
-                            borderColor: colorScheme === 'dark' ? '#2A6A6A' : '#B3E5FC',
-                          }}
-                        >
-                          <XStack alignItems="center" justifyContent="center" gap="$2">
-                            <Feather name="book-open" size={18} color="#00E6C3" />
-                            <Text
-                              fontSize="$3"
-                              fontWeight="500"
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                            >
-                              {isToday
-                                ? t('dailyStatus.didYouDoExercisesToday') ||
-                                  'Did you do any exercises today?'
-                                : t('dailyStatus.didYouDoExercisesOnDate')?.replace(
-                                    '{date}',
-                                    selectedDate.toLocaleDateString('en-US', {
-                                      weekday: 'short',
-                                      month: 'short',
-                                      day: 'numeric',
-                                    }),
-                                  ) ||
-                                  `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`}
-                            </Text>
-                          </XStack>
-                        </TouchableOpacity>
+                          backgroundColor="transparent"
+                          borderColor="transparent"
+                        />
                       )}
 
                       {/* Route Integration Buttons */}
                       <XStack gap="$2">
                         {/* Find Routes Button */}
-                        <TouchableOpacity
+                        <IconButton
+                          icon="map-pin"
+                          label={t('dailyStatus.findRoutes') || 'Find Routes'}
                           onPress={handleNavigateToMap}
-                          style={{
-                            flex: 1,
-                            backgroundColor: colorScheme === 'dark' ? '#2A2A4A' : '#F0F4FF',
-                            borderRadius: 12,
-                            padding: 12,
-                            borderWidth: 1,
-                            borderColor: colorScheme === 'dark' ? '#4A4A6A' : '#C4D3FF',
-                          }}
-                        >
-                          <XStack alignItems="center" justifyContent="center" gap="$2">
-                            <Feather name="map-pin" size={18} color="#4A90E2" />
-                            <Text
-                              fontSize="$3"
-                              fontWeight="500"
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                              textAlign="center"
-                            >
-                              {t('dailyStatus.findRoutes') || 'Find Routes'}
-                            </Text>
-                          </XStack>
-                        </TouchableOpacity>
+                          flex={1}
+                          backgroundColor="transparent"
+                          borderColor="transparent"
+                        />
 
                         {/* My Routes Button */}
-                        <TouchableOpacity
+                        <IconButton
+                          icon="list"
+                          label={t('dailyStatus.myRoutes') || 'My Routes'}
                           onPress={handleOpenRouteList}
-                          style={{
-                            flex: 1,
-                            backgroundColor: colorScheme === 'dark' ? '#4A2A2A' : '#FFF0F4',
-                            borderRadius: 12,
-                            padding: 12,
-                            borderWidth: 1,
-                            borderColor: colorScheme === 'dark' ? '#6A4A4A' : '#FFD3C4',
-                          }}
-                        >
-                          <XStack alignItems="center" justifyContent="center" gap="$2">
-                            <Feather name="list" size={18} color="#E24A90" />
-                            <Text
-                              fontSize="$3"
-                              fontWeight="500"
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                              textAlign="center"
-                            >
-                              {t('dailyStatus.myRoutes') || 'My Routes'}
-                            </Text>
-                          </XStack>
-                        </TouchableOpacity>
-                      </XStack>
+                          flex={1}
+                          backgroundColor="transparent"
+                          borderColor="transparent"
+                        />
 
-                      {/* Route Actions Button */}
-                      <TouchableOpacity
-                        onPress={handleOpenActionSheet}
-                        style={{
-                          backgroundColor: colorScheme === 'dark' ? '#2A3A2A' : '#F0FFF0',
-                          borderRadius: 12,
-                          padding: 12,
-                          marginBottom: 12,
-                          borderWidth: 1,
-                          borderColor: colorScheme === 'dark' ? '#4A6A4A' : '#C4DFC4',
-                        }}
-                      >
-                        <XStack alignItems="center" justifyContent="center" gap="$2">
-                          <Feather name="plus" size={18} color="#10B981" />
-                          <Text
-                            fontSize="$3"
-                            fontWeight="500"
-                            color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                          >
-                            {t('dailyStatus.createOrRecordRoute') || 'Create or Record Route'}
-                          </Text>
-                        </XStack>
-                      </TouchableOpacity>
+                        {/* Create or Record Route Button */}
+                        <IconButton
+                          icon="plus"
+                          label={t('dailyStatus.createOrRecordRoute') || 'Create or Record Route'}
+                          onPress={handleOpenActionSheet}
+                          flex={1}
+                          backgroundColor="transparent"
+                          borderColor="transparent"
+                        />
+                      </XStack>
                     </YStack>
                   </ScrollView>
 
                   {/* Action Buttons - Fixed at bottom */}
-                  <YStack
-                    padding="$3"
-                    borderTopWidth={1}
-                    borderTopColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                    backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
-                    gap="$2"
+                  <View
+                    style={[
+                      styles.footer,
+                      {
+                        backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                        borderTopWidth: 0,
+                        borderTopColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                      },
+                    ]}
                   >
-                    <Button
-                      onPress={saveDailyStatus}
-                      disabled={loading}
-                      backgroundColor={
-                        isFuture ? (colorScheme === 'dark' ? '#444' : '#F0F0F0') : '#00E6C3'
-                      }
-                      color={isFuture ? (colorScheme === 'dark' ? '#888' : '#666') : '#000'}
-                      fontWeight="bold"
-                      padding="$3"
-                      borderRadius="$3"
-                    >
-                      {loading
-                        ? t('dailyStatus.saving') || 'Saving...'
-                        : isFuture
-                          ? t('dailyStatus.comeBackOnThisDay') || 'Come back on this day'
-                          : t('dailyStatus.saveStatus') || 'Save Status'}
-                    </Button>
-
-                    {/* Reset Button - Only show if not future and not currently saving */}
-                    {!isFuture && !loading && (
+                    <YStack gap="$2">
                       <Button
-                        onPress={resetDailyStatus}
-                        backgroundColor={colorScheme === 'dark' ? '#3A1A1A' : '#FFE5E5'}
-                        color={colorScheme === 'dark' ? '#FF6B6B' : '#D32F2F'}
-                        fontWeight="600"
-                        padding="$3"
-                        borderRadius="$3"
-                        borderWidth={1}
-                        borderColor={colorScheme === 'dark' ? '#5A2A2A' : '#FFB3B3'}
+                        size="sm"
+                        variant={isFuture ? 'secondary' : 'primary'}
+                        onPress={saveDailyStatus}
+                        disabled={loading || isFuture}
                       >
-                        <Text
-                          color={colorScheme === 'dark' ? '#FF6B6B' : '#D32F2F'}
-                          fontWeight="600"
-                        >
-                          {t('dailyStatus.resetStatus') || 'Reset Status'}
-                        </Text>
+                        {loading
+                          ? t('dailyStatus.saving') || 'Saving...'
+                          : isFuture
+                            ? t('dailyStatus.comeBackOnThisDay') || 'Come back on this day'
+                            : t('dailyStatus.saveStatus') || 'Save Status'}
                       </Button>
-                    )}
-                  </YStack>
+
+                      {/* Reset Button - Only show if not future and not currently saving */}
+                      {!isFuture && !loading && (
+                        <Button size="sm" variant="link" onPress={resetDailyStatus}>
+                          {t('dailyStatus.resetStatus') || 'Reset Status'}
+                        </Button>
+                      )}
+                    </YStack>
+                  </View>
                 </YStack>
               </ReanimatedAnimated.View>
             </GestureDetector>
