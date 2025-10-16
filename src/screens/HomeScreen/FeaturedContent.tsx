@@ -172,10 +172,11 @@ export function FeaturedContent() {
           table: 'learning_path_exercise_completions',
           filter: `user_id=eq.${authUser.id}`,
         },
-        (payload) => {
+        async (payload) => {
           console.log('🔄 [FeaturedContent] Regular completion changed:', payload);
-          loadCompletionData();
-          fetchFeaturedContent(); // Refresh to update filtered content
+          console.log('🔄 [FeaturedContent] Reloading completion data for immediate feedback...');
+          await loadCompletionData();
+          console.log('✅ [FeaturedContent] Completion data reloaded - UI should update now');
         },
       )
       .subscribe();
@@ -191,10 +192,11 @@ export function FeaturedContent() {
           table: 'virtual_repeat_completions',
           filter: `user_id=eq.${authUser.id}`,
         },
-        (payload) => {
+        async (payload) => {
           console.log('🔄 [FeaturedContent] Virtual completion changed:', payload);
-          loadCompletionData();
-          fetchFeaturedContent(); // Refresh to update filtered content
+          console.log('🔄 [FeaturedContent] Reloading completion data for immediate feedback...');
+          await loadCompletionData();
+          console.log('✅ [FeaturedContent] Completion data reloaded - UI should update now');
         },
       )
       .subscribe();

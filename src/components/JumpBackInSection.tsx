@@ -193,9 +193,11 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
           table: 'learning_path_exercise_completions',
           filter: `user_id=eq.${effectiveUserId}`,
         },
-        (payload) => {
+        async (payload) => {
           console.log('🔄 [JumpBackIn] Regular completion changed:', payload);
-          loadRecentExercises(); // Refresh to update filtered content
+          console.log('🔄 [JumpBackIn] Reloading recent exercises for immediate feedback...');
+          await loadRecentExercises();
+          console.log('✅ [JumpBackIn] Recent exercises reloaded - UI should update now');
         },
       )
       .subscribe();
@@ -211,9 +213,11 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
           table: 'virtual_repeat_completions',
           filter: `user_id=eq.${effectiveUserId}`,
         },
-        (payload) => {
+        async (payload) => {
           console.log('🔄 [JumpBackIn] Virtual completion changed:', payload);
-          loadRecentExercises(); // Refresh to update filtered content
+          console.log('🔄 [JumpBackIn] Reloading recent exercises for immediate feedback...');
+          await loadRecentExercises();
+          console.log('✅ [JumpBackIn] Recent exercises reloaded - UI should update now');
         },
       )
       .subscribe();

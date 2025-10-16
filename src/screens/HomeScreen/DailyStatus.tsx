@@ -21,7 +21,6 @@ import ReanimatedAnimated, {
 } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
-import Constants from 'expo-constants';
 import { Video } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
@@ -406,26 +405,14 @@ export function DailyStatus({
               try {
                 console.log('📸 [DailyStatus] Take Photo selected');
 
-                // Check if camera is available (not simulator)
-                const isSimulator = !Constants.isDevice;
-                if (isSimulator) {
-                  showToast({
-                    title: 'Camera Unavailable',
-                    message:
-                      'Camera not available on simulator. Use "Choose from Library" instead.',
-                    type: 'info',
-                  });
-                  return;
-                }
-
-                // Request camera permissions
+                // Request camera permissions - this will fail gracefully if camera is not available
                 const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
                 console.log('📸 [DailyStatus] Camera permission:', permissionResult.status);
 
                 if (permissionResult.status !== 'granted') {
                   showToast({
                     title: 'Permission Required',
-                    message: 'Camera permission is required',
+                    message: 'Camera permission is required to take photos',
                     type: 'error',
                   });
                   return;
@@ -453,11 +440,14 @@ export function DailyStatus({
                     type: 'success',
                   });
                 }
-              } catch (error) {
+              } catch (error: any) {
                 console.error('❌ [DailyStatus] Camera error:', error);
+                const errorMessage = error?.message?.toLowerCase().includes('camera')
+                  ? 'Camera is not available on this device'
+                  : 'Failed to take photo';
                 showToast({
-                  title: 'Error',
-                  message: 'Failed to take photo',
+                  title: 'Camera Error',
+                  message: errorMessage,
                   type: 'error',
                 });
               }
@@ -469,26 +459,14 @@ export function DailyStatus({
               try {
                 console.log('🎥 [DailyStatus] Record Video selected');
 
-                // Check if camera is available (not simulator)
-                const isSimulator = !Constants.isDevice;
-                if (isSimulator) {
-                  showToast({
-                    title: 'Camera Unavailable',
-                    message:
-                      'Camera not available on simulator. Use "Choose from Library" instead.',
-                    type: 'info',
-                  });
-                  return;
-                }
-
-                // Request camera permissions
+                // Request camera permissions - this will fail gracefully if camera is not available
                 const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
                 console.log('🎥 [DailyStatus] Camera permission:', permissionResult.status);
 
                 if (permissionResult.status !== 'granted') {
                   showToast({
                     title: 'Permission Required',
-                    message: 'Camera permission is required',
+                    message: 'Camera permission is required to record videos',
                     type: 'error',
                   });
                   return;
@@ -517,11 +495,14 @@ export function DailyStatus({
                     type: 'success',
                   });
                 }
-              } catch (error) {
+              } catch (error: any) {
                 console.error('❌ [DailyStatus] Video error:', error);
+                const errorMessage = error?.message?.toLowerCase().includes('camera')
+                  ? 'Camera is not available on this device'
+                  : 'Failed to record video';
                 showToast({
-                  title: 'Error',
-                  message: 'Failed to record video',
+                  title: 'Camera Error',
+                  message: errorMessage,
                   type: 'error',
                 });
               }
