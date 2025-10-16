@@ -2089,9 +2089,7 @@ export function ProgressScreen() {
             fetchCompletions();
           },
         )
-        .subscribe((status) => {
-          console.log(`ProgressScreen: Subscription status: ${status}`);
-        });
+        .subscribe();
 
       // Clean up subscription on unmount
       return () => {

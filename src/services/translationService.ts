@@ -24,7 +24,6 @@ let subscriptionActive = false;
  */
 export const setupTranslationSubscription = (): void => {
   if (subscriptionActive) {
-    logInfo('[TRANSLATIONS] Real-time subscription already active');
     return;
   }
 
@@ -38,9 +37,7 @@ export const setupTranslationSubscription = (): void => {
           schema: 'public',
           table: 'translations',
         },
-        (payload) => {
-          logInfo('[TRANSLATIONS] Real-time update received:', payload);
-          console.log('[TRANSLATIONS] Translation changed, refreshing cache');
+        () => {
           // Force refresh translations when any change occurs
           forceRefreshTranslations().catch((err) =>
             logError('[TRANSLATIONS] Error refreshing after real-time update:', err),
@@ -48,11 +45,7 @@ export const setupTranslationSubscription = (): void => {
         },
       )
       .subscribe((status) => {
-        logInfo(`[TRANSLATIONS] Subscription status: ${status}`);
         subscriptionActive = status === 'SUBSCRIBED';
-        console.log(
-          `[TRANSLATIONS] Real-time subscription ${subscriptionActive ? 'active' : 'failed'}`,
-        );
       });
 
     // Cleanup function for when app is unmounted
@@ -60,7 +53,6 @@ export const setupTranslationSubscription = (): void => {
       if (subscription) {
         supabase.removeChannel(subscription);
         subscriptionActive = false;
-        logInfo('[TRANSLATIONS] Removed real-time subscription');
       }
     };
 

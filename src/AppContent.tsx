@@ -924,6 +924,7 @@ function AppContent() {
 
   // Only return null during initial app startup, not during login attempts
   // This prevents navigation stack from being destroyed during authentication
+
   if (authLoading && !initialized) {
     return (
       <LoadingScreen
@@ -937,8 +938,6 @@ function AppContent() {
       />
     );
   }
-
-  console.log('showGlobalInvitationNotification', showGlobalInvitationNotification);
 
   return (
     <>

@@ -204,9 +204,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
           }
         },
       )
-      .subscribe((status) => {
-        logger.info(`Real-time subscription status: ${status}`);
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(subscription);

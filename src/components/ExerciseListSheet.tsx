@@ -874,9 +874,7 @@ export function ExerciseListSheet({
           fetchCompletions();
         },
       )
-      .subscribe((status) => {
-        console.log(`📚 [ExerciseListSheet] Subscription status: ${status}`);
-      });
+      .subscribe();
 
     return () => {
       console.log('📚 [ExerciseListSheet] Cleaning up real-time subscription');

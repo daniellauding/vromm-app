@@ -341,12 +341,7 @@ class NotificationService {
           callback(payload.new as Notification);
         },
       )
-      .subscribe((status) => {
-        console.log('📡 Notification subscription status:', status);
-        if (status === 'CHANNEL_ERROR') {
-          console.error('📡 Notification subscription channel error:', status);
-        }
-      });
+      .subscribe();
   }
 
   // Subscribe to follow updates

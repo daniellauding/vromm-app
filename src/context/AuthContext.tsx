@@ -85,6 +85,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .catch((err) => {
           console.error('❌ [AuthContext] Error fetching user profile:', err);
           // Don't set profile to null on error, keep existing profile if any
+        })
+        .finally(() => {
+          setLoading(false);
+          setInitialized(true);
         });
     }
   }, [user?.id, user?.email]);
@@ -97,14 +101,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           data: { session },
           error,
         } = await supabase.auth.getSession();
+
         if (error) {
           throw error;
         }
 
         setSession(session);
         setUser(session?.user || null);
-        setLoading(false);
-        setInitialized(true);
+
+        if (!session?.user) {
+          setLoading(false);
+          setInitialized(true);
+        }
       } catch (error) {
         console.error('Error checking session:', error);
       }
@@ -164,8 +172,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
-      setInitialized(true);
+
+      if (!session?.user) {
+        setLoading(false);
+        setInitialized(true);
+      }
 
       // Emit a global debug ping to help root navigation decide
       try {

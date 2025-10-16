@@ -13,16 +13,11 @@ import {
 import { BlurView } from 'expo-blur';
 import Svg, { Circle } from 'react-native-svg';
 
-import { Button } from '../../components/Button';
 import { Text } from '../../components/Text';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
-import { Calendar } from '@tamagui/lucide-icons';
 
-// ADD MESSAGING COMPONENTS
-// import { MessageBell } from '../../components/MessageBell';
 import { NotificationBell } from '../../components/NotificationBell';
-// import { EventsBell } from '../../components/EventsBell';
 import { MessagesSheet } from '../../components/MessagesSheet';
 import { NotificationsSheet } from '../../components/NotificationsSheet';
 import { EventsSheet } from '../../components/EventsSheet';
@@ -37,13 +32,43 @@ import { useTourTarget } from '../../components/TourOverlay';
 import { ProfileSheet } from '../../components/ProfileSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// import { useThemeColor } from '../../hooks/useThemeColor';
+
+const ProgressCircle = ({ percent, size = 44, color = '#00E6C3', bg = '#333' }) => {
+  const strokeWidth = 3;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = Math.max(0, Math.min(percent, 1));
+  return (
+    <Svg width={size} height={size} style={{ position: 'absolute' }}>
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={bg}
+        strokeWidth={strokeWidth}
+        fill="none"
+      />
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeDasharray={`${circumference},${circumference}`}
+        strokeDashoffset={circumference * (1 - progress)}
+        strokeLinecap="round"
+        rotation="-90"
+        origin={`${size / 2},${size / 2}`}
+      />
+    </Svg>
+  );
+};
 
 export const HomeHeader = () => {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const { profile, signOut } = useAuth();
-  const navigation = useNavigation<NavigationProp>();
   const { setActiveStudent, activeStudentId } = useStudentSwitch();
   const insets = useSafeAreaInsets();
 
@@ -77,39 +102,6 @@ export const HomeHeader = () => {
   const backgroundColor = colorScheme === 'dark' ? '#151515' : '#fff';
   const textColor = colorScheme === 'dark' ? '#ECEDEE' : '#11181C';
   const borderColor = colorScheme === 'dark' ? '#333' : '#E0E0E0';
-
-  // ProgressCircle component for avatar
-  const ProgressCircle = ({ percent, size = 44, color = '#00E6C3', bg = '#333' }) => {
-    const strokeWidth = 3;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
-    const progress = Math.max(0, Math.min(percent, 1));
-    return (
-      <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={bg}
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={`${circumference},${circumference}`}
-          strokeDashoffset={circumference * (1 - progress)}
-          strokeLinecap="round"
-          rotation="-90"
-          origin={`${size / 2},${size / 2}`}
-        />
-      </Svg>
-    );
-  };
 
   // Load user progress (works for both regular users and instructors simulating students)
   const loadUserProgress = React.useCallback(async () => {

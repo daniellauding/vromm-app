@@ -37,12 +37,13 @@ import { RelationshipReviewSection } from './RelationshipReviewSection';
 import { RelationshipReviewService } from '../services/relationshipReviewService';
 import { IconButton } from './IconButton';
 import { useToast } from '../contexts/ToastContext';
+import VisibilityGuard from '../utils/visibilityGuard';
 
 // 🖼️ Import invitation images (same as UnifiedInvitationModal)
 // Note: These images should be imported as ES6 modules if available
 const INVITATION_IMAGES = {
   supervisor: null, // require('../../assets/images/invitations/supervisor-invite.png'),
-  student: null, // require('../../assets/images/invitations/student-invite.png'), 
+  student: null, // require('../../assets/images/invitations/student-invite.png'),
   collection: null, // require('../../assets/images/invitations/collection-invite.png'),
 };
 
@@ -76,7 +77,7 @@ interface UserProfileSheetProps {
   onEditProfile?: () => void;
 }
 
-export function UserProfileSheet({
+export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
   visible,
   onClose,
   userId,
@@ -329,9 +330,9 @@ export function UserProfileSheet({
       setPendingInvitationData(null);
       setShowRelationshipModal(false);
 
-        // Refresh relationship status to update UI
-        await checkRelationshipStatus();
-        await checkPendingInvitations();
+      // Refresh relationship status to update UI
+      await checkRelationshipStatus();
+      await checkPendingInvitations();
     } catch (error) {
       console.error('✅ [UserProfileSheet] Error accepting invitation:', error);
       showToast({
@@ -517,19 +518,21 @@ export function UserProfileSheet({
         .single();
 
       if (existingInvitation) {
-        console.log('🔗 [UserProfileSheet] Found existing invitation, setting pending state and showing modal');
-        
+        console.log(
+          '🔗 [UserProfileSheet] Found existing invitation, setting pending state and showing modal',
+        );
+
         // Update the pending invitation state immediately
         setHasPendingInvitation(true);
         setPendingInvitationType('sent');
         setPendingInvitationData(existingInvitation);
-        
+
         showToast({
           title: 'Already Pending',
           message: 'Invitation already exists for this user - you can manage it in the modal',
           type: 'info',
         });
-        
+
         // The modal will be shown by the IconButton onPress handler
         return;
       }
@@ -607,7 +610,7 @@ export function UserProfileSheet({
       setPendingInvitationData(invitationData); // Set the invitation data
       setShowRelationshipModal(false);
       setRelationshipCustomMessage('');
-      
+
       // Refresh pending invitations to ensure UI is up to date
       await checkPendingInvitations();
     } catch (error) {
@@ -805,7 +808,7 @@ export function UserProfileSheet({
         loadUserRating();
       }
     }
-  // Avoid dependency array issues by defining callback functions at module level
+    // Avoid dependency array issues by defining callback functions at module level
   }, [visible, userId, user?.id]);
 
   // Check if this is the current user's profile
@@ -921,14 +924,19 @@ export function UserProfileSheet({
         userId: !!user?.id,
         targetUserId: !!userId,
         profileEmail: !!profile?.email,
-        userEmail: !!user.email
+        userEmail: !!user.email,
       });
       return;
     }
 
     try {
-      console.log('🔍 [UserProfileSheet] Checking for pending invitations between:', user.email, 'and', profile.email);
-      
+      console.log(
+        '🔍 [UserProfileSheet] Checking for pending invitations between:',
+        user.email,
+        'and',
+        profile.email,
+      );
+
       // Check if current user sent invitation to this profile
       const { data: sentInvitations, error: sentError } = await supabase
         .from('pending_invitations')
@@ -937,7 +945,10 @@ export function UserProfileSheet({
         .eq('email', profile.email.toLowerCase())
         .eq('status', 'pending');
 
-      console.log('🔍 [UserProfileSheet] Sent invitations query:', { data: sentInvitations, error: sentError });
+      console.log('🔍 [UserProfileSheet] Sent invitations query:', {
+        data: sentInvitations,
+        error: sentError,
+      });
 
       // Check if this profile sent invitation to current user
       const { data: receivedInvitations, error: receivedError } = await supabase
@@ -947,7 +958,10 @@ export function UserProfileSheet({
         .eq('email', user.email.toLowerCase())
         .eq('status', 'pending');
 
-      console.log('🔍 [UserProfileSheet] Received invitations query:', { data: receivedInvitations, error: receivedError });
+      console.log('🔍 [UserProfileSheet] Received invitations query:', {
+        data: receivedInvitations,
+        error: receivedError,
+      });
 
       if (sentInvitations && sentInvitations.length > 0) {
         console.log('🔍 [UserProfileSheet] Found SENT invitation:', sentInvitations[0]);
@@ -1245,10 +1259,10 @@ export function UserProfileSheet({
             <ReanimatedAnimated.View
               style={[
                 {
-              position: 'absolute',
+                  position: 'absolute',
                   top: 0,
-              left: 0,
-              right: 0,
+                  left: 0,
+                  right: 0,
                   height: height, // Keep original height
                   backgroundColor: backgroundColor,
                   borderTopLeftRadius: 16,
@@ -1276,8 +1290,8 @@ export function UserProfileSheet({
                   />
                 </View>
 
-              {/* Header */}
-              {/* <XStack justifyContent="space-between" alignItems="center">
+                {/* Header */}
+                {/* <XStack justifyContent="space-between" alignItems="center">
                 <Text fontSize="$6" fontWeight="bold" color="$color">
                   {profile?.full_name || t('profile.user') || 'User'}
                 </Text>
@@ -1286,104 +1300,104 @@ export function UserProfileSheet({
                 </TouchableOpacity>
               </XStack> */}
 
-              {loading ? (
-                <YStack f={1} jc="center" ai="center">
-                  <Text>{t('profile.loading') || 'Loading profile data...'}</Text>
-                </YStack>
-              ) : error || !profile ? (
-                <YStack f={1} jc="center" ai="center" padding="$4">
-                  <Text color="$red10">
-                    {error || t('profile.notFound') || 'Profile not found'}
-                  </Text>
-                  <Button onPress={onClose} marginTop="$4" variant="primary" size="$4">
+                {loading ? (
+                  <YStack f={1} jc="center" ai="center">
+                    <Text>{t('profile.loading') || 'Loading profile data...'}</Text>
+                  </YStack>
+                ) : error || !profile ? (
+                  <YStack f={1} jc="center" ai="center" padding="$4">
+                    <Text color="$red10">
+                      {error || t('profile.notFound') || 'Profile not found'}
+                    </Text>
+                    <Button onPress={onClose} marginTop="$4" variant="primary" size="$4">
                       <Feather
                         name="arrow-left"
                         size={18}
                         color="white"
                         style={{ marginRight: 8 }}
                       />
-                    {t('common.goBack') || 'Go Back'}
-                  </Button>
-                </YStack>
-              ) : (
-                <ScrollView
-                  showsVerticalScrollIndicator={true}
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={handleRefresh}
-                      tintColor="#00E6C3"
-                      colors={['#00E6C3']}
-                      progressBackgroundColor="#1a1a1a"
-                    />
-                  }
-                >
-                  <YStack gap="$4">
-                    {/* Profile header with avatar */}
-                    <YStack alignItems="center" gap="$2">
-                      {profile.avatar_url ? (
-                        <Image
-                          source={{ uri: profile.avatar_url }}
-                          style={{ width: 100, height: 100, borderRadius: 50 }}
-                        />
-                      ) : (
-                        <View
-                          style={{
-                            width: 100,
-                            height: 100,
-                            borderRadius: 50,
-                            backgroundColor: '#444',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Feather name="user" size={50} color="#ddd" />
-                        </View>
-                      )}
+                      {t('common.goBack') || 'Go Back'}
+                    </Button>
+                  </YStack>
+                ) : (
+                  <ScrollView
+                    showsVerticalScrollIndicator={true}
+                    refreshControl={
+                      <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor="#00E6C3"
+                        colors={['#00E6C3']}
+                        progressBackgroundColor="#1a1a1a"
+                      />
+                    }
+                  >
+                    <YStack gap="$4">
+                      {/* Profile header with avatar */}
+                      <YStack alignItems="center" gap="$2">
+                        {profile.avatar_url ? (
+                          <Image
+                            source={{ uri: profile.avatar_url }}
+                            style={{ width: 100, height: 100, borderRadius: 50 }}
+                          />
+                        ) : (
+                          <View
+                            style={{
+                              width: 100,
+                              height: 100,
+                              borderRadius: 50,
+                              backgroundColor: '#444',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Feather name="user" size={50} color="#ddd" />
+                          </View>
+                        )}
 
-                      <Text fontSize="$5" fontWeight="bold">
-                        {profile.full_name || t('profile.unnamed')}
-                      </Text>
+                        <Text fontSize="$5" fontWeight="bold">
+                          {profile.full_name || t('profile.unnamed')}
+                        </Text>
 
-                      {profile.is_trusted && (
-                        <Card padding="$1" backgroundColor="$green5" borderRadius="$3">
-                          <Text color="$green11" fontSize="$2">
-                            {t('profile.verifiedBadge') || 'Verified'}
-                          </Text>
-                        </Card>
-                      )}
+                        {profile.is_trusted && (
+                          <Card padding="$1" backgroundColor="$green5" borderRadius="$3">
+                            <Text color="$green11" fontSize="$2">
+                              {t('profile.verifiedBadge') || 'Verified'}
+                            </Text>
+                          </Card>
+                        )}
 
-                      {!profile.is_trusted && (
-                        <Card padding="$1" backgroundColor="$red5" borderRadius="$3">
-                          <Text color="$red11" fontSize="$2">
-                            {t('profile.notVerifiedBadge') || 'Not verified yet'}
-                          </Text>
-                        </Card>
-                      )}
+                        {!profile.is_trusted && (
+                          <Card padding="$1" backgroundColor="$red5" borderRadius="$3">
+                            <Text color="$red11" fontSize="$2">
+                              {t('profile.notVerifiedBadge') || 'Not verified yet'}
+                            </Text>
+                          </Card>
+                        )}
 
-                      {profile.location && (
-                        <XStack alignItems="center" gap="$1">
-                          <Feather name="map-pin" size={16} color={iconColor} />
-                          <Text>{profile.location}</Text>
-                        </XStack>
-                      )}
+                        {profile.location && (
+                          <XStack alignItems="center" gap="$1">
+                            <Feather name="map-pin" size={16} color={iconColor} />
+                            <Text>{profile.location}</Text>
+                          </XStack>
+                        )}
 
-                      {profile.role && (
-                        <Card padding="$2" backgroundColor="$blue5" borderRadius="$4">
-                          <Text color="$blue11" fontWeight="500">
-                            {profile.role === 'student'
-                              ? t('profile.roles.student') || 'Student'
-                              : profile.role === 'instructor'
-                                ? t('profile.roles.instructor') || 'Instructor'
-                                : t('profile.roles.school') || 'School'}
-                          </Text>
-                        </Card>
-                      )}
+                        {profile.role && (
+                          <Card padding="$2" backgroundColor="$blue5" borderRadius="$4">
+                            <Text color="$blue11" fontWeight="500">
+                              {profile.role === 'student'
+                                ? t('profile.roles.student') || 'Student'
+                                : profile.role === 'instructor'
+                                  ? t('profile.roles.instructor') || 'Instructor'
+                                  : t('profile.roles.school') || 'School'}
+                            </Text>
+                          </Card>
+                        )}
 
-                      {/* Action buttons for non-current users */}
-                      {!isCurrentUser && (
-                        <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
-                          {/* Follow/Unfollow Button */}
+                        {/* Action buttons for non-current users */}
+                        {!isCurrentUser && (
+                          <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
+                            {/* Follow/Unfollow Button */}
                             {/* <Button
                             onPress={handleFollow}
                             disabled={followLoading}
@@ -1464,7 +1478,9 @@ export function UserProfileSheet({
                                 onPress={async () => {
                                   if (!profile || !user?.id) return;
 
-                                  console.log('🎯 [UserProfileSheet] IconButton pressed for relationship');
+                                  console.log(
+                                    '🎯 [UserProfileSheet] IconButton pressed for relationship',
+                                  );
                                   console.log('🎯 [UserProfileSheet] Current state:', {
                                     isInstructor,
                                     isStudent,
@@ -1474,7 +1490,9 @@ export function UserProfileSheet({
 
                                   if (isInstructor || isStudent) {
                                     // Show existing relationship toast
-                                    console.log('🎯 [UserProfileSheet] Showing existing relationship toast');
+                                    console.log(
+                                      '🎯 [UserProfileSheet] Showing existing relationship toast',
+                                    );
                                     showToast({
                                       title: 'Connected',
                                       message: isInstructor
@@ -1485,14 +1503,18 @@ export function UserProfileSheet({
                                   } else {
                                     // First refresh the pending invitation state, then show modal
                                     console.log('🎯 [UserProfileSheet] Opening relationship modal');
-                                    console.log('🎯 [UserProfileSheet] Checking for pending invitations...');
-                                    
+                                    console.log(
+                                      '🎯 [UserProfileSheet] Checking for pending invitations...',
+                                    );
+
                                     // Force refresh of pending invitation state
                                     await checkPendingInvitations();
-                                    
+
                                     // Small delay to allow state to update in React
                                     setTimeout(() => {
-                                      console.log('🎯 [UserProfileSheet] Opening modal with refreshed state');
+                                      console.log(
+                                        '🎯 [UserProfileSheet] Opening modal with refreshed state',
+                                      );
                                       setShowRelationshipModal(true);
                                       relationshipTranslateY.value = withSpring(
                                         relationshipSnapPoints.large,
@@ -1517,7 +1539,7 @@ export function UserProfileSheet({
                               />
                             )}
 
-                          {/* Message Button */}
+                            {/* Message Button */}
                             {/* <Button
                             onPress={handleMessage}
                             variant="primary"
@@ -1535,26 +1557,26 @@ export function UserProfileSheet({
                             </Text>
                             </Button> */}
 
-                          {/* Share Button */}
+                            {/* Share Button */}
                             {/* <Button onPress={handleShare} variant="secondary" size="sm" /> */}
 
-                          {/* Report Button */}
+                            {/* Report Button */}
 
                             <IconButton
                               icon="flag"
                               label={t('profile.report') || 'Report Profile'}
-                            onPress={() => setShowReportDialog(true)}
+                              onPress={() => setShowReportDialog(true)}
                               backgroundColor="transparent"
                               borderColor="transparent"
                               flex={1}
                             />
-                        </XStack>
-                      )}
+                          </XStack>
+                        )}
 
-                      {/* Action buttons for current user */}
-                      {isCurrentUser && (
-                        <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
-                          {/* Edit Profile Button */}
+                        {/* Action buttons for current user */}
+                        {isCurrentUser && (
+                          <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginTop="$2">
+                            {/* Edit Profile Button */}
                             {/* <Button
                             onPress={() => {
                               onClose();
@@ -1586,132 +1608,132 @@ export function UserProfileSheet({
                               flex={1}
                             />
 
-                          {/* Share Button */}
+                            {/* Share Button */}
                             {/* <Button onPress={handleShare} variant="secondary" size="sm" /> */}
-                        </XStack>
-                      )}
-                    </YStack>
-
-                    {/* Stats Grid - 2x3 layout with driving stats */}
-                    <Card padding="$4" bordered>
-                      <YStack gap="$4">
-                        {/* First row */}
-                        <XStack justifyContent="space-between">
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold">
-                              {profile.routes_created}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.routesCreated') || 'Routes Created'}
-                            </Text>
-                          </YStack>
-
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold">
-                              {profile.routes_driven}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.routesDriven') || 'Routes Driven'}
-                            </Text>
-                          </YStack>
-
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold">
-                              {profile.routes_saved}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.routesSaved') || 'Routes Saved'}
-                            </Text>
-                          </YStack>
-                        </XStack>
-
-                        {/* Second row */}
-                        <XStack justifyContent="space-around">
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold">
-                              {profile.reviews_given}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.reviewsGiven') || 'Reviews Given'}
-                            </Text>
-                          </YStack>
-
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold">
-                              {profile.average_rating.toFixed(1)}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.avgRating') || 'Avg Rating'}
-                            </Text>
-                          </YStack>
-
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold" color="$green10">
-                              {profile.total_distance_driven.toFixed(1)}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.kmDriven') || 'km Driven'}
-                            </Text>
-                          </YStack>
-                        </XStack>
-
-                        {/* Third row - Follow Stats */}
-                        <XStack justifyContent="space-around">
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold" color="$blue10">
-                              {followersCount}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.followers') || 'Followers'}
-                            </Text>
-                          </YStack>
-
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold" color="$blue10">
-                              {followingCount}
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center">
-                              {t('profile.following') || 'Following'}
-                            </Text>
-                          </YStack>
-
-                          {/* Empty space for alignment */}
-                          <YStack alignItems="center" flex={1}>
-                            <Text fontSize="$6" fontWeight="bold" opacity={0}>
-                              -
-                            </Text>
-                            <Text fontSize="$3" color="$gray11" textAlign="center" opacity={0}>
-                              -
-                            </Text>
-                          </YStack>
-                        </XStack>
+                          </XStack>
+                        )}
                       </YStack>
-                    </Card>
 
-                    {/* Recent routes */}
-                    {recentRoutes.length > 0 && (
+                      {/* Stats Grid - 2x3 layout with driving stats */}
                       <Card padding="$4" bordered>
-                        <YStack gap="$3">
-                          <XStack justifyContent="space-between" alignItems="center">
-                            <Text fontSize="$5" fontWeight="bold">
-                              {t('profile.recentRoutes') || 'Recent Routes'}
-                            </Text>
+                        <YStack gap="$4">
+                          {/* First row */}
+                          <XStack justifyContent="space-between">
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold">
+                                {profile.routes_created}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.routesCreated') || 'Routes Created'}
+                              </Text>
+                            </YStack>
 
-                            <Button size="sm" variant="outlined" onPress={handleViewAllRoutes}>
-                              {t('profile.viewAll') || 'View All'}
-                            </Button>
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold">
+                                {profile.routes_driven}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.routesDriven') || 'Routes Driven'}
+                              </Text>
+                            </YStack>
+
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold">
+                                {profile.routes_saved}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.routesSaved') || 'Routes Saved'}
+                              </Text>
+                            </YStack>
                           </XStack>
 
-                          {recentRoutes.map((route) => (
-                            <Card
-                              key={route.id}
-                              padding="$3"
-                              bordered
-                              pressStyle={{ scale: 0.98 }}
-                              onPress={() => {
+                          {/* Second row */}
+                          <XStack justifyContent="space-around">
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold">
+                                {profile.reviews_given}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.reviewsGiven') || 'Reviews Given'}
+                              </Text>
+                            </YStack>
+
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold">
+                                {profile.average_rating.toFixed(1)}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.avgRating') || 'Avg Rating'}
+                              </Text>
+                            </YStack>
+
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold" color="$green10">
+                                {profile.total_distance_driven.toFixed(1)}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.kmDriven') || 'km Driven'}
+                              </Text>
+                            </YStack>
+                          </XStack>
+
+                          {/* Third row - Follow Stats */}
+                          <XStack justifyContent="space-around">
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold" color="$blue10">
+                                {followersCount}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.followers') || 'Followers'}
+                              </Text>
+                            </YStack>
+
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold" color="$blue10">
+                                {followingCount}
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center">
+                                {t('profile.following') || 'Following'}
+                              </Text>
+                            </YStack>
+
+                            {/* Empty space for alignment */}
+                            <YStack alignItems="center" flex={1}>
+                              <Text fontSize="$6" fontWeight="bold" opacity={0}>
+                                -
+                              </Text>
+                              <Text fontSize="$3" color="$gray11" textAlign="center" opacity={0}>
+                                -
+                              </Text>
+                            </YStack>
+                          </XStack>
+                        </YStack>
+                      </Card>
+
+                      {/* Recent routes */}
+                      {recentRoutes.length > 0 && (
+                        <Card padding="$4" bordered>
+                          <YStack gap="$3">
+                            <XStack justifyContent="space-between" alignItems="center">
+                              <Text fontSize="$5" fontWeight="bold">
+                                {t('profile.recentRoutes') || 'Recent Routes'}
+                              </Text>
+
+                              <Button size="sm" variant="outlined" onPress={handleViewAllRoutes}>
+                                {t('profile.viewAll') || 'View All'}
+                              </Button>
+                            </XStack>
+
+                            {recentRoutes.map((route) => (
+                              <Card
+                                key={route.id}
+                                padding="$3"
+                                bordered
+                                pressStyle={{ scale: 0.98 }}
+                                onPress={() => {
                                   if (navigation) {
-                                navigation.navigate('RouteDetail', { routeId: route.id });
-                                onClose();
+                                    navigation.navigate('RouteDetail', { routeId: route.id });
+                                    onClose();
                                   } else {
                                     showToast({
                                       title: 'Navigation not available',
@@ -1719,55 +1741,55 @@ export function UserProfileSheet({
                                       type: 'info',
                                     });
                                   }
-                              }}
-                            >
-                              <YStack gap="$1">
-                                <Text fontSize="$4" fontWeight="500">
-                                  {route.name}
-                                </Text>
+                                }}
+                              >
+                                <YStack gap="$1">
+                                  <Text fontSize="$4" fontWeight="500">
+                                    {route.name}
+                                  </Text>
 
-                                <XStack gap="$3">
-                                  <XStack alignItems="center" gap="$1">
-                                    <Feather name="bar-chart" size={14} color={iconColor} />
-                                    <Text fontSize="$3">{route.difficulty}</Text>
+                                  <XStack gap="$3">
+                                    <XStack alignItems="center" gap="$1">
+                                      <Feather name="bar-chart" size={14} color={iconColor} />
+                                      <Text fontSize="$3">{route.difficulty}</Text>
+                                    </XStack>
+
+                                    <XStack alignItems="center" gap="$1">
+                                      <Feather name="map-pin" size={14} color={iconColor} />
+                                      <Text fontSize="$3">{route.spot_type}</Text>
+                                    </XStack>
                                   </XStack>
+                                </YStack>
+                              </Card>
+                            ))}
+                          </YStack>
+                        </Card>
+                      )}
 
-                                  <XStack alignItems="center" gap="$1">
-                                    <Feather name="map-pin" size={14} color={iconColor} />
-                                    <Text fontSize="$3">{route.spot_type}</Text>
-                                  </XStack>
-                                </XStack>
-                              </YStack>
-                            </Card>
-                          ))}
-                        </YStack>
-                      </Card>
-                    )}
+                      {/* Relationship Reviews Section */}
+                      {profile && !isCurrentUser && (
+                        <RelationshipReviewSection
+                          profileUserId={profile.id}
+                          profileUserRole={profile.role as any}
+                          profileUserName={profile.full_name || profile.email || 'Unknown User'}
+                          canReview={userRating.canReview}
+                          reviews={relationshipReviews}
+                          onReviewAdded={loadRelationshipReviews}
+                        />
+                      )}
+                    </YStack>
+                  </ScrollView>
+                )}
 
-                    {/* Relationship Reviews Section */}
-                    {profile && !isCurrentUser && (
-                      <RelationshipReviewSection
-                        profileUserId={profile.id}
-                        profileUserRole={profile.role as any}
-                        profileUserName={profile.full_name || profile.email || 'Unknown User'}
-                        canReview={userRating.canReview}
-                        reviews={relationshipReviews}
-                        onReviewAdded={loadRelationshipReviews}
-                      />
-                    )}
-                  </YStack>
-                </ScrollView>
-              )}
-
-              {/* Report dialog */}
-              {showReportDialog && userId && (
-                <ReportDialog
-                  reportableId={userId}
-                  reportableType="user"
-                  onClose={() => setShowReportDialog(false)}
-                />
-              )}
-            </YStack>
+                {/* Report dialog */}
+                {showReportDialog && userId && (
+                  <ReportDialog
+                    reportableId={userId}
+                    reportableType="user"
+                    onClose={() => setShowReportDialog(false)}
+                  />
+                )}
+              </YStack>
             </ReanimatedAnimated.View>
           </GestureDetector>
         </View>
@@ -1784,7 +1806,7 @@ export function UserProfileSheet({
           profileRole: profile?.role,
           currentUserRole: currentUserProfile?.role,
           profileEmail: profile?.email,
-          profileName: profile?.full_name
+          profileName: profile?.full_name,
         });
         return profile && showRelationshipModal;
       })() && (
@@ -1863,7 +1885,9 @@ export function UserProfileSheet({
                         alignItems: 'center',
                       }}
                     >
-                      {INVITATION_IMAGES && INVITATION_IMAGES.supervisor && INVITATION_IMAGES.student ? (
+                      {INVITATION_IMAGES &&
+                      INVITATION_IMAGES.supervisor &&
+                      INVITATION_IMAGES.student ? (
                         <Image
                           source={
                             hasPendingInvitation
@@ -1915,7 +1939,7 @@ export function UserProfileSheet({
                         console.log('🎯 [UserProfileSheet] Modal title render - state check:', {
                           hasPendingInvitation,
                           pendingInvitationType,
-                          profileRole: profile?.role
+                          profileRole: profile?.role,
                         });
                         return hasPendingInvitation
                           ? 'Pending Connection'
@@ -1975,7 +1999,7 @@ export function UserProfileSheet({
                           console.log('🎯 [UserProfileSheet] Pending invitation section render:', {
                             hasPendingInvitation,
                             pendingInvitationType,
-                            pendingInvitationData: !!pendingInvitationData
+                            pendingInvitationData: !!pendingInvitationData,
                           });
                           return hasPendingInvitation;
                         })() && (
@@ -2088,8 +2112,10 @@ export function UserProfileSheet({
                               hasPendingInvitation,
                               pendingInvitationType,
                               willShowSendButton: !hasPendingInvitation,
-                              willShowCancelButton: hasPendingInvitation && pendingInvitationType === 'sent',
-                              willShowAcceptDeclineButtons: hasPendingInvitation && pendingInvitationType === 'received'
+                              willShowCancelButton:
+                                hasPendingInvitation && pendingInvitationType === 'sent',
+                              willShowAcceptDeclineButtons:
+                                hasPendingInvitation && pendingInvitationType === 'received',
                             });
                             return !hasPendingInvitation;
                           })() ? (
@@ -2109,10 +2135,7 @@ export function UserProfileSheet({
                               </XStack>
                             </Button>
                           ) : pendingInvitationType === 'sent' ? (
-                            <Button
-                              onPress={handleCancelPendingInvitation}
-                              backgroundColor="$red5"
-                            >
+                            <Button onPress={handleCancelPendingInvitation} backgroundColor="$red5">
                               <XStack gap="$2" alignItems="center">
                                 <Feather name="x" size={16} color="#EF4444" />
                                 <Text color="#EF4444" fontWeight="600">
@@ -2164,4 +2187,4 @@ export function UserProfileSheet({
       )}
     </Modal>
   );
-}
+});
