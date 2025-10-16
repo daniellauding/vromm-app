@@ -346,9 +346,6 @@ export const clearAllTranslationCaches = async (): Promise<void> => {
 
     // Remove all keys
     await AsyncStorage.multiRemove(allKeys);
-
-    logInfo('[TRANSLATIONS] ALL translation caches cleared');
-    console.log('[TRANSLATIONS] Cleared all translation caches:', allKeys);
   } catch (error) {
     logError('Error clearing all translation caches:', error);
   }

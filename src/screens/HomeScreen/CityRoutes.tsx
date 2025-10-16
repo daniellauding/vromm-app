@@ -83,7 +83,7 @@ interface CityRoutesProps {
 }
 
 export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
-  const { t, refreshTranslations } = useTranslation();
+  const { t } = useTranslation();
   const [selectedCity, setSelectedCity] = React.useState<string | null>(null);
   const [cityRoutes, setCityRoutes] = React.useState<{ [key: string]: Route[] }>({});
   const [routes, setRoutes] = React.useState<Route[]>([]);
@@ -95,13 +95,6 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
   const citySheetTranslateY = React.useRef(new Animated.Value(300)).current;
 
   const userLocation = useUserLocation();
-
-  // Refresh translations on mount
-  React.useEffect(() => {
-    refreshTranslations().catch(() => {
-      // Silent fail on translation refresh
-    });
-  }, []);
 
   React.useEffect(() => {
     const fetchCityRoutes = async () => {

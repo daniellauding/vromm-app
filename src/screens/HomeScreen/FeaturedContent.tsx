@@ -61,7 +61,7 @@ interface FeaturedExercise {
 
 export function FeaturedContent() {
   const navigation = useNavigation<NavigationProp>();
-  const { t, language: lang, refreshTranslations } = useTranslation();
+  const { t, language: lang } = useTranslation();
   const colorScheme = useColorScheme();
   const { user: authUser, profile } = useAuth();
   const { showToast } = useToast();
@@ -81,13 +81,6 @@ export function FeaturedContent() {
   const [loading, setLoading] = useState(true);
   const [completedExerciseIds, setCompletedExerciseIds] = useState<string[]>([]);
   const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
-
-  // Refresh translations on mount
-  useEffect(() => {
-    refreshTranslations().catch(() => {
-      // Silent fail on translation refresh
-    });
-  }, []);
 
   // Modal state for ExerciseListSheet
   const [showExerciseSheet, setShowExerciseSheet] = useState(false);

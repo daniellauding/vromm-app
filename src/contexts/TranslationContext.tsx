@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
@@ -91,78 +91,71 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [language, setLanguageState] = useState<Language>('en');
   const [isLoading, setIsLoading] = useState(true);
-  const [lastFetchTime, setLastFetchTime] = useState(0);
+  const lastFetchTime = useRef(0);
 
   // Fetch translations from Supabase and cache them
-  const fetchAndCacheTranslations = useCallback(
-    async (lang: Language, forceFresh = false) => {
-      try {
-        // Check if we should use cache
-        const now = Date.now();
-        if (!forceFresh && now - lastFetchTime < CACHE_MAX_AGE) {
-          logger.debug(`Using recently fetched translations (${now - lastFetchTime}ms old)`);
-          return;
-        }
+  const fetchAndCacheTranslations = useCallback(async (lang: Language, forceFresh = false) => {
+    try {
+      // Check if we should use cache
+      const now = Date.now();
+      if (!forceFresh && now - lastFetchTime.current < CACHE_MAX_AGE) {
+        return;
+      }
 
-        logger.info(`Fetching translations for ${lang}${forceFresh ? ' (forced)' : ''}`);
-        setIsLoading(true);
+      setIsLoading(true);
 
-        const currentPlatform = Platform.OS === 'web' ? 'web' : 'mobile';
+      const currentPlatform = Platform.OS === 'web' ? 'web' : 'mobile';
 
-        const { data, error } = await supabase
-          .from('translations')
-          .select('key, value, platform, updated_at')
-          .eq('language', lang)
-          .or(`platform.is.null,platform.eq.${currentPlatform}`);
+      const { data, error } = await supabase
+        .from('translations')
+        .select('key, value, platform, updated_at')
+        .eq('language', lang)
+        .or(`platform.is.null,platform.eq.${currentPlatform}`);
 
-        if (error) {
-          logger.error('Error fetching translations:', error);
-          // Fall back to local translations on error
-          const localTranslations = getLocalTranslations(lang);
-          setTranslations(localTranslations);
-          setIsLoading(false);
-          return;
-        }
-
-        logger.info(`Received ${data?.length || 0} translations from Supabase`);
-
-        // Convert to record for easy lookup
-        const fetchedTranslations: Record<string, string> = {};
-        data?.forEach((item) => {
-          fetchedTranslations[item.key] = item.value;
-          // Disabled debug logging for individual translations to reduce console spam
-          // logger.debug(`Translation: ${item.key} = ${item.value} (updated ${item.updated_at})`);
-        });
-
-        // Get local translations as fallback
-        const localTranslations = getLocalTranslations(lang);
-
-        // Merge database translations with local fallbacks
-        const mergedTranslations = { ...localTranslations, ...fetchedTranslations };
-
-        // Cache the merged translations
-        await cacheTranslations(lang, mergedTranslations);
-
-        // Update state
-        setTranslations(mergedTranslations);
-        setLastFetchTime(now);
-        setIsLoading(false);
-      } catch (error) {
+      if (error) {
         logger.error('Error fetching translations:', error);
         // Fall back to local translations on error
         const localTranslations = getLocalTranslations(lang);
         setTranslations(localTranslations);
         setIsLoading(false);
+        return;
       }
-    },
-    [lastFetchTime],
-  );
+
+      logger.info(`Received ${data?.length || 0} translations from Supabase`);
+
+      // Convert to record for easy lookup
+      const fetchedTranslations: Record<string, string> = {};
+      data?.forEach((item) => {
+        fetchedTranslations[item.key] = item.value;
+        // Disabled debug logging for individual translations to reduce console spam
+        // logger.debug(`Translation: ${item.key} = ${item.value} (updated ${item.updated_at})`);
+      });
+
+      // Get local translations as fallback
+      const localTranslations = getLocalTranslations(lang);
+
+      // Merge database translations with local fallbacks
+      const mergedTranslations = { ...localTranslations, ...fetchedTranslations };
+
+      // Cache the merged translations
+      await cacheTranslations(lang, mergedTranslations);
+
+      // Update state
+      setTranslations(mergedTranslations);
+      lastFetchTime.current = now;
+      setIsLoading(false);
+    } catch (error) {
+      logger.error('Error fetching translations:', error);
+      // Fall back to local translations on error
+      const localTranslations = getLocalTranslations(lang);
+      setTranslations(localTranslations);
+      setIsLoading(false);
+    }
+  }, []);
 
   // Clear the cache
   const clearCache = React.useCallback(async () => {
     try {
-      // Clearing translation cache without logging
-
       // Clear both our cache and the translationService cache
       await clearAllTranslationCaches();
 
@@ -192,12 +185,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
           table: 'translations',
         },
         (payload) => {
-          logger.info('Translation change detected:', payload);
-
-          // If the change is for our current language, immediately refresh
           if (payload.new && (payload.new as any).language === language) {
-            logger.info('Current language translation changed, refreshing');
-            // Clear cache and force a refresh
             clearCache().then(() => {
               fetchAndCacheTranslations(language, true);
             });

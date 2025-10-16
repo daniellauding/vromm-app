@@ -32,9 +32,8 @@ export function LoginScreen() {
   const [emailError, setEmailError] = useState('');
   const [oauthLoading, setOauthLoading] = useState(false);
   const [showFacebookWarning, setShowFacebookWarning] = useState(false);
-  const { signIn, user } = useAuth();
-  const { t, clearCache } = useTranslation();
-  const { showToast } = useToast();
+  const { signIn } = useAuth();
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
 

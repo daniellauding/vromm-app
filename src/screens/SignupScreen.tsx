@@ -27,17 +27,11 @@ export function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { signUp } = useAuth();
-  const { t, clearCache } = useTranslation();
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const [oauthLoading, setOauthLoading] = useState(false);
   const [showFacebookWarning, setShowFacebookWarning] = useState(false);
-  const { showToast } = useToast();
-
-  useEffect(() => {
-    clearCache();
-    console.log('[SIGNUP] Forcing translation refresh');
-  }, [clearCache]);
 
   const handleSignup = async () => {
     if (!email || !password) {

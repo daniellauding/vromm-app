@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { YStack, XStack, Text, Button, Input } from 'tamagui';
-import { TouchableOpacity, View, Modal, Alert, Dimensions, Animated, Easing } from 'react-native';
+import { YStack, XStack, Text, Input } from 'tamagui';
+import { TouchableOpacity, Modal, Alert, Animated } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
@@ -81,28 +81,43 @@ const DayProgressCircle = ({
   );
 };
 
-export function WeeklyGoal({
+// Get week's dates based on offset (0 = current week, -1 = last week, etc.)
+const getWeekDates = (weekOffset: number) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset to start of day for consistent comparison
+
+  const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // Calculate days to get to Monday
+
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset + weekOffset * 7);
+  monday.setHours(0, 0, 0, 0);
+
+  const weekDates = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    date.setHours(0, 0, 0, 0); // Ensure consistent time for comparison
+    weekDates.push(date);
+  }
+
+  return weekDates;
+};
+
+export const WeeklyGoal = React.memo(function WeeklyGoal({
   activeUserId,
   onDateSelected,
   selectedDate: externalSelectedDate,
 }: WeeklyGoalProps) {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { activeStudentId } = useStudentSwitch();
-  const { t, refreshTranslations, language: lang } = useTranslation();
+  const { t } = useTranslation();
   const { showCelebration } = useCelebration();
   const colorScheme = useColorScheme();
 
   const [weeklyProgress, setWeeklyProgress] = useState<DayProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [weeklyGoal, setWeeklyGoal] = useState(5); // Default goal: 5 exercises per week
-  const [weekTransitionLoading, setWeekTransitionLoading] = useState(false);
-
-  // Refresh translations on mount to ensure latest translations are loaded
-  useEffect(() => {
-    refreshTranslations().catch(() => {
-      // Silent fail on translation refresh
-    });
-  }, []);
 
   // Week navigation state
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0); // 0 = current week, -1 = last week, etc.
@@ -124,49 +139,55 @@ export function WeeklyGoal({
   // Use effective user ID (activeUserId prop, activeStudentId from context, or current user)
   const effectiveUserId = activeUserId || activeStudentId || user?.id || null;
 
-  // Get week's dates based on offset (0 = current week, -1 = last week, etc.)
-  const getWeekDates = (weekOffset: number) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset to start of day for consistent comparison
+  // Celebration detection function
+  const checkForCelebration = React.useCallback(
+    (progressData: DayProgress[]) => {
+      if (!effectiveUserId) return;
 
-    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // Calculate days to get to Monday
+      const completedDays = progressData.filter((day) => day.completed).length;
+      const totalExercises = progressData.reduce((sum, day) => sum + day.exercises, 0);
+      const weeklyProgressPercent = (completedDays / 7) * 100;
 
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + mondayOffset + weekOffset * 7);
-    monday.setHours(0, 0, 0, 0);
+      // Check for different celebration triggers
+      let shouldCelebrate = false;
+      let celebrationTitle = '';
 
-    const weekDates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + i);
-      date.setHours(0, 0, 0, 0); // Ensure consistent time for comparison
-      weekDates.push(date);
-    }
+      if (completedDays === 7) {
+        // Perfect week - all 7 days completed
+        shouldCelebrate = true;
+        celebrationTitle = t('celebration.perfectWeek.title') || 'Perfect Week! 🏆';
+      } else if (completedDays >= 5 && weeklyProgressPercent >= 70) {
+        // Weekly goal achieved (5+ days or 70%+ completion)
+        shouldCelebrate = true;
+        celebrationTitle = t('celebration.weeklyGoal.title') || 'Weekly Goal Achieved! 🎯';
+      } else if (totalExercises >= weeklyGoal * 5) {
+        // High exercise count milestone
+        shouldCelebrate = true;
+        celebrationTitle = t('celebration.exerciseMilestone.title') || 'Exercise Milestone! 💪';
+      }
 
-    console.log('🗓️ [WeeklyGoal] Week dates calculated:', {
-      today: today.toDateString(),
-      currentDay: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][currentDay],
-      weekOffset,
-      mondayOffset,
-      weekDates: weekDates.map((d) => d.toDateString()),
-    });
-
-    return weekDates;
-  };
+      if (shouldCelebrate) {
+        // Use global celebration context
+        showCelebration({
+          learningPathTitle: { en: celebrationTitle, sv: celebrationTitle },
+          completedExercises: completedDays,
+          totalExercises: 7,
+          timeSpent: totalExercises * 5, // Estimate 5 minutes per exercise
+          streakDays: completedDays,
+        });
+      }
+    },
+    [effectiveUserId, showCelebration, weeklyGoal, t],
+  );
 
   // Load weekly progress data
-  const loadWeeklyProgress = async () => {
+  const loadWeeklyProgress = React.useCallback(async () => {
     if (!effectiveUserId) {
       setLoading(false);
       return;
     }
 
     try {
-      // Only show main loading on initial load, not on week transitions
-      if (currentWeekOffset === 0 && weeklyProgress.length === 0) {
-        setLoading(true);
-      }
       const weekDates = getWeekDates(currentWeekOffset);
 
       // Get user's exercise completions for this week
@@ -182,7 +203,6 @@ export function WeeklyGoal({
         .lte('completed_at', endOfWeek.toISOString());
 
       if (error) {
-        console.error('Error loading weekly progress:', error);
         setLoading(false);
         return;
       }
@@ -211,17 +231,7 @@ export function WeeklyGoal({
         };
       });
 
-      console.log('🗓️ [WeeklyGoal] Progress data created:', {
-        todayString: new Date().toDateString(),
-        progressData: progressData.map((d) => ({
-          day: d.day,
-          date: d.date,
-          dateString: new Date(d.date).toDateString(),
-        })),
-      });
-
       setWeeklyProgress(progressData);
-      console.log('🔍 [WeeklyGoal] Loaded weekly progress:', progressData);
 
       // Check for celebration triggers
       checkForCelebration(progressData);
@@ -230,59 +240,15 @@ export function WeeklyGoal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [effectiveUserId, weeklyGoal, currentWeekOffset, checkForCelebration]);
 
   // Load progress when user changes or week changes
   useEffect(() => {
     loadWeeklyProgress();
-  }, [effectiveUserId, weeklyGoal, currentWeekOffset]);
-
-  // Celebration detection function
-  const checkForCelebration = (progressData: DayProgress[]) => {
-    if (!effectiveUserId) return;
-
-    const completedDays = progressData.filter((day) => day.completed).length;
-    const totalExercises = progressData.reduce((sum, day) => sum + day.exercises, 0);
-    const weeklyProgressPercent = (completedDays / 7) * 100;
-
-    // Check for different celebration triggers
-    let shouldCelebrate = false;
-    let celebrationTitle = '';
-
-    if (completedDays === 7) {
-      // Perfect week - all 7 days completed
-      shouldCelebrate = true;
-      celebrationTitle = t('celebration.perfectWeek.title') || 'Perfect Week! 🏆';
-    } else if (completedDays >= 5 && weeklyProgressPercent >= 70) {
-      // Weekly goal achieved (5+ days or 70%+ completion)
-      shouldCelebrate = true;
-      celebrationTitle = t('celebration.weeklyGoal.title') || 'Weekly Goal Achieved! 🎯';
-    } else if (totalExercises >= weeklyGoal * 5) {
-      // High exercise count milestone
-      shouldCelebrate = true;
-      celebrationTitle = t('celebration.exerciseMilestone.title') || 'Exercise Milestone! 💪';
-    }
-
-    if (shouldCelebrate) {
-      console.log('🎉 [WeeklyGoal] Triggering celebration:', {
-        completedDays,
-        totalExercises,
-        weeklyProgressPercent,
-      });
-
-      // Use global celebration context
-      showCelebration({
-        learningPathTitle: { en: celebrationTitle, sv: celebrationTitle },
-        completedExercises: completedDays,
-        totalExercises: 7,
-        timeSpent: totalExercises * 5, // Estimate 5 minutes per exercise
-        streakDays: completedDays,
-      });
-    }
-  };
+  }, [loadWeeklyProgress]);
 
   // Load goal settings from AsyncStorage
-  const loadGoalSettings = async () => {
+  const loadGoalSettings = React.useCallback(async () => {
     if (!effectiveUserId) return;
 
     try {
@@ -293,48 +259,46 @@ export function WeeklyGoal({
         setGoalSettings(parsed);
         setTempGoalSettings(parsed);
         setWeeklyGoal(parsed.dailyGoal);
-        console.log('🔍 [WeeklyGoal] Loaded goal settings:', parsed);
       }
     } catch (error) {
       console.error('Error loading goal settings:', error);
     }
-  };
+  }, [effectiveUserId]);
 
   // Save goal settings to AsyncStorage
-  const saveGoalSettings = async (settings: GoalSettings) => {
-    if (!effectiveUserId) return;
+  const saveGoalSettings = React.useCallback(
+    async (settings: GoalSettings) => {
+      if (!effectiveUserId) return;
 
-    try {
-      const settingsKey = `weekly_goal_settings_${effectiveUserId}`;
-      await AsyncStorage.setItem(settingsKey, JSON.stringify(settings));
-      setGoalSettings(settings);
-      setWeeklyGoal(settings.dailyGoal);
-      console.log('🔍 [WeeklyGoal] Saved goal settings:', settings);
-    } catch (error) {
-      console.error('Error saving goal settings:', error);
-    }
-  };
+      try {
+        const settingsKey = `weekly_goal_settings_${effectiveUserId}`;
+        await AsyncStorage.setItem(settingsKey, JSON.stringify(settings));
+        setGoalSettings(settings);
+        setWeeklyGoal(settings.dailyGoal);
+      } catch (error) {
+        console.error('Error saving goal settings:', error);
+      }
+    },
+    [effectiveUserId],
+  );
 
   // Load settings on mount
   useEffect(() => {
     loadGoalSettings();
-  }, [effectiveUserId]);
-
-  // Note: WeeklyGoal doesn't need real-time subscriptions
-  // It's a personal progress tracking component that only needs to refresh when user interacts with it
+  }, [effectiveUserId, loadGoalSettings]);
 
   // Handle goal settings modal
-  const openGoalModal = () => {
+  const openGoalModal = React.useCallback(() => {
     setTempGoalSettings(goalSettings);
     setShowGoalModal(true);
-  };
+  }, [goalSettings]);
 
-  const closeGoalModal = () => {
+  const closeGoalModal = React.useCallback(() => {
     setShowGoalModal(false);
     setTempGoalSettings(goalSettings);
-  };
+  }, [goalSettings]);
 
-  const saveGoalSettingsAndClose = () => {
+  const saveGoalSettingsAndClose = React.useCallback(() => {
     if (tempGoalSettings.dailyGoal < 1 || tempGoalSettings.dailyGoal > 50) {
       Alert.alert('Invalid Goal', 'Daily goal must be between 1 and 50 exercises.');
       return;
@@ -348,62 +312,14 @@ export function WeeklyGoal({
 
     saveGoalSettings(newSettings);
     setShowGoalModal(false);
-  };
+  }, [tempGoalSettings, saveGoalSettings]);
 
   // Animation ref for smooth transitions
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  // Safe navigation functions that can be called from gesture thread
-  const handlePreviousWeek = () => {
-    console.log('🗓️ [WeeklyGoal] Swipe right - going to previous week');
-    goToPreviousWeek();
-  };
-
-  const handleNextWeek = () => {
-    console.log('🗓️ [WeeklyGoal] Swipe left - going to next week');
-    goToNextWeek();
-  };
-
-  // Swipe gesture for week navigation
-  const swipeGesture = Gesture.Pan()
-    .minDistance(30) // Minimum distance before gesture activates
-    .activeOffsetX([-30, 30]) // Only activate for horizontal swipes
-    .failOffsetY([-30, 30]) // Fail if vertical movement is too much
-    .onEnd((event) => {
-      try {
-        const { translationX, velocityX } = event;
-
-        console.log('🗓️ [WeeklyGoal] Swipe ended:', {
-          translationX,
-          velocityX,
-          absTranslationX: Math.abs(translationX),
-          absVelocityX: Math.abs(velocityX),
-        });
-
-        // Only respond to horizontal swipes with sufficient movement or velocity
-        if (Math.abs(translationX) > 50 || Math.abs(velocityX) > 500) {
-          if (translationX > 0 || velocityX > 0) {
-            // Swipe right - go to previous week
-            console.log('🗓️ [WeeklyGoal] Detected swipe right - calling previous week');
-            runOnJS(handlePreviousWeek)();
-          } else {
-            // Swipe left - go to next week
-            console.log('🗓️ [WeeklyGoal] Detected swipe left - calling next week');
-            runOnJS(handleNextWeek)();
-          }
-        } else {
-          console.log('🗓️ [WeeklyGoal] Swipe not strong enough to trigger navigation');
-        }
-      } catch (error) {
-        console.error('🗓️ [WeeklyGoal] Error in swipe gesture:', error);
-      }
-    });
-
   // Week navigation functions with smooth transitions
-  const goToPreviousWeek = () => {
+  const goToPreviousWeek = React.useCallback(() => {
     try {
-      console.log('🗓️ [WeeklyGoal] goToPreviousWeek called, current offset:', currentWeekOffset);
-      setWeekTransitionLoading(true);
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 200,
@@ -411,28 +327,21 @@ export function WeeklyGoal({
       }).start(() => {
         setCurrentWeekOffset((prev) => {
           const newOffset = prev - 1;
-          console.log('🗓️ [WeeklyGoal] Setting previous week offset:', newOffset);
           return newOffset;
         });
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 200,
           useNativeDriver: true,
-        }).start(() => {
-          setWeekTransitionLoading(false);
-          console.log('🗓️ [WeeklyGoal] Previous week transition completed');
-        });
+        }).start();
       });
     } catch (error) {
       console.error('🗓️ [WeeklyGoal] Error in goToPreviousWeek:', error);
-      setWeekTransitionLoading(false);
     }
-  };
+  }, [fadeAnim, setCurrentWeekOffset]);
 
-  const goToNextWeek = () => {
+  const goToNextWeek = React.useCallback(() => {
     try {
-      console.log('🗓️ [WeeklyGoal] goToNextWeek called, current offset:', currentWeekOffset);
-      setWeekTransitionLoading(true);
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 200,
@@ -440,88 +349,53 @@ export function WeeklyGoal({
       }).start(() => {
         setCurrentWeekOffset((prev) => {
           const newOffset = prev + 1;
-          console.log('🗓️ [WeeklyGoal] Setting next week offset:', newOffset);
           return newOffset;
         });
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 200,
           useNativeDriver: true,
-        }).start(() => {
-          setWeekTransitionLoading(false);
-          console.log('🗓️ [WeeklyGoal] Next week transition completed');
-        });
+        }).start();
       });
     } catch (error) {
       console.error('🗓️ [WeeklyGoal] Error in goToNextWeek:', error);
-      setWeekTransitionLoading(false);
     }
-  };
+  }, [fadeAnim, setCurrentWeekOffset]);
 
-  const goToCurrentWeek = () => {
-    try {
-      console.log('🗓️ [WeeklyGoal] goToCurrentWeek called, current offset:', currentWeekOffset);
-      setWeekTransitionLoading(true);
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setCurrentWeekOffset(0);
-        console.log('🗓️ [WeeklyGoal] Reset to current week (offset: 0)');
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }).start(() => {
-          setWeekTransitionLoading(false);
-          console.log('🗓️ [WeeklyGoal] Current week transition completed');
-        });
-      });
-    } catch (error) {
-      console.error('🗓️ [WeeklyGoal] Error in goToCurrentWeek:', error);
-      setWeekTransitionLoading(false);
-    }
-  };
+  // Swipe gesture for week navigation
+  const swipeGesture = React.useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(30) // Minimum distance before gesture activates
+        .activeOffsetX([-30, 30]) // Only activate for horizontal swipes
+        .failOffsetY([-30, 30]) // Fail if vertical movement is too much
+        .onEnd((event) => {
+          try {
+            const { translationX, velocityX } = event;
 
-  // Get week display info
-  const getWeekDisplayInfo = () => {
-    const weekDates = getWeekDates(currentWeekOffset);
-    const startDate = weekDates[0];
-    const endDate = weekDates[6];
-
-    const isCurrentWeek = currentWeekOffset === 0;
-    const isPastWeek = currentWeekOffset < 0;
-    const isFutureWeek = currentWeekOffset > 0;
-
-    let weekLabel = '';
-    if (isCurrentWeek) {
-      weekLabel = 'This Week';
-    } else if (isPastWeek) {
-      const weeksAgo = Math.abs(currentWeekOffset);
-      weekLabel = weeksAgo === 1 ? 'Last Week' : `${weeksAgo} Weeks Ago`;
-    } else {
-      const weeksAhead = currentWeekOffset;
-      weekLabel = weeksAhead === 1 ? 'Next Week' : `In ${weeksAhead} Weeks`;
-    }
-
-    return {
-      weekLabel,
-      startDate,
-      endDate,
-      isCurrentWeek,
-      isPastWeek,
-      isFutureWeek,
-    };
-  };
+            // Only respond to horizontal swipes with sufficient movement or velocity
+            if (Math.abs(translationX) > 50 || Math.abs(velocityX) > 500) {
+              if (translationX > 0 || velocityX > 0) {
+                // Swipe right - go to previous week
+                runOnJS(goToPreviousWeek)();
+              } else {
+                // Swipe left - go to next week
+                runOnJS(goToNextWeek)();
+              }
+            }
+          } catch (error) {
+            console.error('🗓️ [WeeklyGoal] Error in swipe gesture:', error);
+          }
+        }),
+    [goToPreviousWeek, goToNextWeek],
+  );
 
   // Calculate weekly stats
-  const completedDays = weeklyProgress.filter((day) => day.completed).length;
-  const totalExercises = weeklyProgress.reduce((sum, day) => sum + day.exercises, 0);
+  const completedDays = React.useMemo(
+    () => weeklyProgress.filter((day) => day.completed).length,
+    [weeklyProgress],
+  );
   const weeklyProgressPercent = (completedDays / 7) * 100;
-
-  // Get week display info
-  const weekInfo = getWeekDisplayInfo();
 
   if (loading) {
     return null;
@@ -598,7 +472,7 @@ export function WeeklyGoal({
               gap="$2"
             >
               {weeklyProgress.length > 0
-                ? weeklyProgress.map((day, index) => {
+                ? weeklyProgress.map((day) => {
                     const today = new Date();
                     const todayString = today.toDateString();
                     const isToday = day.date === todayString;
@@ -608,14 +482,6 @@ export function WeeklyGoal({
                     const todayEnd = new Date();
                     todayEnd.setHours(23, 59, 59, 999);
                     const isFuture = dayDate > todayEnd;
-
-                    console.log('🗓️ [WeeklyGoal] Day comparison for', day.day, ':', {
-                      dayDate: day.date,
-                      todayDate: todayString,
-                      isToday,
-                      isFuture,
-                      index,
-                    });
 
                     const isSelected =
                       externalSelectedDate && day.date === externalSelectedDate.toDateString();
@@ -656,22 +522,11 @@ export function WeeklyGoal({
                             const selectedDayDate = new Date(day.date);
                             const today = new Date();
 
-                            console.log('🗓️ [WeeklyGoal] Date pressed:', {
-                              date: selectedDayDate.toDateString(),
-                              isSelected:
-                                externalSelectedDate &&
-                                day.date === externalSelectedDate.toDateString(),
-                              currentSelected: externalSelectedDate?.toDateString(),
-                            });
-
                             // If clicking the same selected date, go back to today
                             if (
                               externalSelectedDate &&
                               day.date === externalSelectedDate.toDateString()
                             ) {
-                              console.log(
-                                '🗓️ [WeeklyGoal] Same date clicked - going back to today',
-                              );
                               if (onDateSelected) {
                                 onDateSelected(today);
                               }
@@ -1032,4 +887,4 @@ export function WeeklyGoal({
       {/* Celebration Modal - now handled globally */}
     </YStack>
   );
-}
+});
