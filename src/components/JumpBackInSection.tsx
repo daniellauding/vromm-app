@@ -176,6 +176,55 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
     loadRecentExercises();
   }, [loadRecentExercises]);
 
+  // Real-time subscription for exercise completions - live updates
+  useEffect(() => {
+    if (!effectiveUserId) return;
+
+    console.log('🔄 [JumpBackIn] Setting up real-time subscription for completions');
+
+    // Subscribe to regular exercise completions
+    const regularChannel = supabase
+      .channel(`jumpback-regular-completions-${effectiveUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'learning_path_exercise_completions',
+          filter: `user_id=eq.${effectiveUserId}`,
+        },
+        (payload) => {
+          console.log('🔄 [JumpBackIn] Regular completion changed:', payload);
+          loadRecentExercises(); // Refresh to update filtered content
+        },
+      )
+      .subscribe();
+
+    // Subscribe to virtual repeat completions
+    const virtualChannel = supabase
+      .channel(`jumpback-virtual-completions-${effectiveUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'virtual_repeat_completions',
+          filter: `user_id=eq.${effectiveUserId}`,
+        },
+        (payload) => {
+          console.log('🔄 [JumpBackIn] Virtual completion changed:', payload);
+          loadRecentExercises(); // Refresh to update filtered content
+        },
+      )
+      .subscribe();
+
+    return () => {
+      console.log('🔄 [JumpBackIn] Cleaning up real-time subscriptions');
+      regularChannel.unsubscribe();
+      virtualChannel.unsubscribe();
+    };
+  }, [effectiveUserId, loadRecentExercises]);
+
   const handleExercisePress = (exercise: RecentExercise) => {
     setSelectedLearningPathId(exercise.learning_path_id);
     setSelectedExerciseId(exercise.id);

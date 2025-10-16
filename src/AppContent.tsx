@@ -116,6 +116,9 @@ import { GlobalRecordingWidget } from './components/GlobalRecordingWidget';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// Track if we've already shown the push notification toast to avoid duplicates
+let hasShownPushNotificationToast = false;
+
 async function registerForPushNotificationsAsync(
   showToast?: (toast: {
     title: string;
@@ -146,7 +149,9 @@ async function registerForPushNotificationsAsync(
       finalStatus = status;
     }
     if (finalStatus !== 'granted') {
-      if (showToast) {
+      // Only show toast once per app session
+      if (showToast && !hasShownPushNotificationToast) {
+        hasShownPushNotificationToast = true;
         showToast({
           title: t?.('pushNotifications.title') || 'Push Notifications',
           message:
@@ -154,7 +159,7 @@ async function registerForPushNotificationsAsync(
             'Failed to get push token for push notification!',
           type: 'error',
         });
-      } else {
+      } else if (!showToast) {
         alert(
           t?.('pushNotifications.failedToken') || 'Failed to get push token for push notification!',
         );
@@ -179,7 +184,9 @@ async function registerForPushNotificationsAsync(
       token = `${e}`;
     }
   } else {
-    if (showToast) {
+    // Only show toast once per app session (for simulator warning)
+    if (showToast && !hasShownPushNotificationToast) {
+      hasShownPushNotificationToast = true;
       showToast({
         title: t?.('pushNotifications.title') || 'Push Notifications',
         message:
@@ -187,7 +194,7 @@ async function registerForPushNotificationsAsync(
           'Must use physical device for Push Notifications',
         type: 'info',
       });
-    } else {
+    } else if (!showToast) {
       alert(
         t?.('pushNotifications.physicalDevice') ||
           'Must use physical device for Push Notifications',

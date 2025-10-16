@@ -64,7 +64,7 @@ export const GettingStarted = () => {
   const { height } = Dimensions.get('window');
 
   // Theme colors
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
+  const backgroundColor = useThemeColor({ light: '#fff', dark: '#151515' }, 'background');
 
   // Register license plan card for tour targeting
   const licensePlanRef = useTourTarget('GettingStarted.LicensePlan');

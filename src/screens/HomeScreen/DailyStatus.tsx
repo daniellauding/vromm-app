@@ -8,6 +8,7 @@ import {
   Modal,
   View,
   ScrollView,
+  Image,
 } from 'react-native';
 import { XStack, YStack, Text, Button, Input } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -18,6 +19,11 @@ import ReanimatedAnimated, {
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import Constants from 'expo-constants';
+import { Video } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -41,6 +47,8 @@ interface DailyStatusData {
   driving_time_minutes?: number;
   distance_km?: number;
   rating?: number; // 1-5 scale
+  media_uri?: string; // Image or video URI
+  media_type?: 'image' | 'video'; // Type of media
 }
 
 interface DailyStatusProps {
@@ -64,6 +72,7 @@ export function DailyStatus({
 
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const gradientRotation = useRef(new Animated.Value(0)).current;
 
   const effectiveUserId = activeUserId || profile?.id;
 
@@ -78,12 +87,23 @@ export function DailyStatus({
     driving_time_minutes: 0,
     distance_km: 0,
     rating: 3,
+    media_uri: undefined,
+    media_type: undefined,
   });
 
-  // Track selected exercises for the day
-  const [selectedExercises, setSelectedExercises] = useState<Array<{ id: string; title: string }>>(
-    [],
-  );
+  // Track selected exercises for the day with more detailed info (including repeat info)
+  const [selectedExercises, setSelectedExercises] = useState<
+    Array<{
+      id: string;
+      title: string;
+      learningPathId?: string;
+      learningPathTitle?: string;
+      repeatNumber?: number;
+    }>
+  >([]);
+
+  // Inline error message for status validation
+  const [statusError, setStatusError] = useState('');
 
   // Date navigation state - use external date if provided
   const [internalSelectedDate, setInternalSelectedDate] = useState(new Date());
@@ -180,6 +200,8 @@ export function DailyStatus({
           driving_time_minutes: data.driving_time_minutes || 0,
           distance_km: data.distance_km || 0,
           rating: data.rating || 3,
+          media_uri: (data as any).media_uri,
+          media_type: (data as any).media_type,
         });
         console.log('✅ [DailyStatus] Form data populated from DB');
       } else {
@@ -197,6 +219,8 @@ export function DailyStatus({
           driving_time_minutes: 0,
           distance_km: 0,
           rating: 3,
+          media_uri: undefined,
+          media_type: undefined,
         });
         console.log('✅ [DailyStatus] Form data cleared (no status)');
       }
@@ -311,6 +335,295 @@ export function DailyStatus({
     }, 200);
   };
 
+  // Simplified media picker - works like CreateRouteSheet
+  const handleAddMedia = async () => {
+    try {
+      console.log('📸 [DailyStatus] Add media button pressed');
+
+      // Show action sheet with options (iOS native action sheet)
+      Alert.alert(
+        'Add Memory',
+        'Choose how to add your photo or video',
+        [
+          {
+            text: 'Choose from Library',
+            onPress: async () => {
+              try {
+                console.log('📚 [DailyStatus] Choose from Library selected');
+
+                // Request permissions
+                const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                console.log('📚 [DailyStatus] Library permission:', permissionResult.status);
+
+                if (permissionResult.status !== 'granted') {
+                  showToast({
+                    title: 'Permission Required',
+                    message: 'Library permission is required to choose media',
+                    type: 'error',
+                  });
+                  return;
+                }
+
+                // Launch picker with both photo and video options
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.All,
+                  allowsEditing: true,
+                  quality: 0.8,
+                  videoMaxDuration: 60,
+                });
+
+                console.log('📚 [DailyStatus] Library result:', result);
+
+                if (!result.canceled && result.assets[0]) {
+                  const asset = result.assets[0];
+                  const mediaType = asset.type === 'video' ? 'video' : 'image';
+
+                  setFormData((prev) => ({
+                    ...prev,
+                    media_uri: asset.uri,
+                    media_type: mediaType,
+                  }));
+
+                  showToast({
+                    title: 'Media Added',
+                    message: `${mediaType === 'video' ? 'Video' : 'Photo'} added to your daily memory`,
+                    type: 'success',
+                  });
+                }
+              } catch (error) {
+                console.error('❌ [DailyStatus] Library error:', error);
+                showToast({
+                  title: 'Error',
+                  message: 'Failed to access library',
+                  type: 'error',
+                });
+              }
+            },
+          },
+          {
+            text: 'Take Photo',
+            onPress: async () => {
+              try {
+                console.log('📸 [DailyStatus] Take Photo selected');
+
+                // Check if camera is available (not simulator)
+                const isSimulator = !Constants.isDevice;
+                if (isSimulator) {
+                  showToast({
+                    title: 'Camera Unavailable',
+                    message:
+                      'Camera not available on simulator. Use "Choose from Library" instead.',
+                    type: 'info',
+                  });
+                  return;
+                }
+
+                // Request camera permissions
+                const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+                console.log('📸 [DailyStatus] Camera permission:', permissionResult.status);
+
+                if (permissionResult.status !== 'granted') {
+                  showToast({
+                    title: 'Permission Required',
+                    message: 'Camera permission is required',
+                    type: 'error',
+                  });
+                  return;
+                }
+
+                // Launch camera
+                const result = await ImagePicker.launchCameraAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  quality: 0.8,
+                });
+
+                console.log('📸 [DailyStatus] Camera result:', result);
+
+                if (!result.canceled && result.assets[0]) {
+                  setFormData((prev) => ({
+                    ...prev,
+                    media_uri: result.assets[0].uri,
+                    media_type: 'image',
+                  }));
+
+                  showToast({
+                    title: 'Photo Added',
+                    message: 'Photo added to your daily memory',
+                    type: 'success',
+                  });
+                }
+              } catch (error) {
+                console.error('❌ [DailyStatus] Camera error:', error);
+                showToast({
+                  title: 'Error',
+                  message: 'Failed to take photo',
+                  type: 'error',
+                });
+              }
+            },
+          },
+          {
+            text: 'Record Video',
+            onPress: async () => {
+              try {
+                console.log('🎥 [DailyStatus] Record Video selected');
+
+                // Check if camera is available (not simulator)
+                const isSimulator = !Constants.isDevice;
+                if (isSimulator) {
+                  showToast({
+                    title: 'Camera Unavailable',
+                    message:
+                      'Camera not available on simulator. Use "Choose from Library" instead.',
+                    type: 'info',
+                  });
+                  return;
+                }
+
+                // Request camera permissions
+                const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+                console.log('🎥 [DailyStatus] Camera permission:', permissionResult.status);
+
+                if (permissionResult.status !== 'granted') {
+                  showToast({
+                    title: 'Permission Required',
+                    message: 'Camera permission is required',
+                    type: 'error',
+                  });
+                  return;
+                }
+
+                // Launch camera for video
+                const result = await ImagePicker.launchCameraAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                  allowsEditing: true,
+                  quality: 0.8,
+                  videoMaxDuration: 60,
+                });
+
+                console.log('🎥 [DailyStatus] Video result:', result);
+
+                if (!result.canceled && result.assets[0]) {
+                  setFormData((prev) => ({
+                    ...prev,
+                    media_uri: result.assets[0].uri,
+                    media_type: 'video',
+                  }));
+
+                  showToast({
+                    title: 'Video Added',
+                    message: 'Video added to your daily memory',
+                    type: 'success',
+                  });
+                }
+              } catch (error) {
+                console.error('❌ [DailyStatus] Video error:', error);
+                showToast({
+                  title: 'Error',
+                  message: 'Failed to record video',
+                  type: 'error',
+                });
+              }
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => console.log('📸 [DailyStatus] Media picker cancelled'),
+          },
+        ],
+        { cancelable: true },
+      );
+    } catch (error) {
+      console.error('❌ [DailyStatus] Error showing media options:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to show media options',
+        type: 'error',
+      });
+    }
+  };
+
+  const handleRemoveMedia = () => {
+    console.log('🗑️ [DailyStatus] Removing media');
+    setFormData((prev) => ({
+      ...prev,
+      media_uri: undefined,
+      media_type: undefined,
+    }));
+    showToast({
+      title: 'Media Removed',
+      message: 'Media removed from your daily memory',
+      type: 'info',
+    });
+  };
+
+  // Upload media to Supabase Storage
+  const uploadMediaToStorage = async (
+    uri: string,
+    type: 'image' | 'video',
+  ): Promise<string | null> => {
+    try {
+      if (!effectiveUserId) return null;
+
+      console.log('📤 [DailyStatus] Uploading media to Supabase Storage:', { uri, type });
+
+      // Generate unique filename
+      const fileExt = type === 'image' ? 'jpg' : 'mp4';
+      const fileName = `${effectiveUserId}/${Date.now()}.${fileExt}`;
+      const filePath = `daily-status/${fileName}`;
+
+      console.log('📤 [DailyStatus] File path:', filePath);
+
+      // Read file as base64 using expo-file-system
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      console.log('📤 [DailyStatus] File size:', base64.length, 'base64 chars');
+
+      // Convert base64 to ArrayBuffer for Supabase
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      console.log('📤 [DailyStatus] Converted to bytes:', bytes.length, 'bytes');
+
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage.from('media').upload(filePath, bytes, {
+        contentType: type === 'image' ? 'image/jpeg' : 'video/mp4',
+        upsert: false,
+      });
+
+      if (error) {
+        console.error('❌ [DailyStatus] Storage upload error:', error);
+        throw error;
+      }
+
+      console.log('✅ [DailyStatus] Upload successful:', data);
+
+      // Get public URL
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('media').getPublicUrl(filePath);
+
+      console.log('✅ [DailyStatus] Public URL:', publicUrl);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('❌ [DailyStatus] Error uploading media:', error);
+      showToast({
+        title: 'Upload Failed',
+        message: 'Failed to upload media. Please try again.',
+        type: 'error',
+      });
+      return null;
+    }
+  };
+
   // Reset daily status for selected date
   const resetDailyStatus = async () => {
     if (!effectiveUserId) {
@@ -349,8 +662,11 @@ export function DailyStatus({
         driving_time_minutes: 0,
         distance_km: 0,
         rating: 3,
+        media_uri: undefined,
+        media_type: undefined,
       });
       setSelectedExercises([]);
+      setStatusError('');
       showToast({
         title: 'Form Cleared',
         message: 'Form has been reset',
@@ -399,8 +715,11 @@ export function DailyStatus({
                 driving_time_minutes: 0,
                 distance_km: 0,
                 rating: 3,
+                media_uri: undefined,
+                media_type: undefined,
               });
               setSelectedExercises([]);
+              setStatusError('');
               setPastStatuses((prev) => ({ ...prev, [dateString]: null }));
               if (isToday) {
                 setTodayStatus(null);
@@ -446,13 +765,38 @@ export function DailyStatus({
     // Require status selection
     if (!formData.status) {
       console.log('⚠️ [DailyStatus] Save: No status selected');
-      Alert.alert('Status Required', 'Please select whether you drove or not');
+      setStatusError('Please select whether you drove or not');
+      showToast({
+        title: 'Status Required',
+        message: 'Please select whether you drove or not before saving',
+        type: 'error',
+      });
       return;
     }
+
+    // Clear status error if validation passes
+    setStatusError('');
 
     try {
       setLoading(true);
       const dateString = selectedDate.toISOString().split('T')[0];
+
+      // Upload media to storage if present
+      let mediaUrl = formData.media_uri;
+      if (formData.media_uri && formData.media_uri.startsWith('file://')) {
+        console.log('📤 [DailyStatus] Uploading local media to storage...');
+        const uploadedUrl = await uploadMediaToStorage(
+          formData.media_uri,
+          formData.media_type || 'image',
+        );
+        if (uploadedUrl) {
+          mediaUrl = uploadedUrl;
+          console.log('✅ [DailyStatus] Media uploaded successfully:', uploadedUrl);
+        } else {
+          console.log('⚠️ [DailyStatus] Media upload failed, continuing without media');
+          mediaUrl = undefined;
+        }
+      }
 
       const dataToSave = {
         user_id: effectiveUserId,
@@ -464,6 +808,8 @@ export function DailyStatus({
         driving_time_minutes: formData.driving_time_minutes || null,
         distance_km: formData.distance_km || null,
         rating: formData.rating || null,
+        media_uri: mediaUrl || null,
+        media_type: mediaUrl ? formData.media_type : null,
       };
 
       console.log('💾 [DailyStatus] Saving status for', dateString, ':', dataToSave);
@@ -491,6 +837,15 @@ export function DailyStatus({
         console.log('✅ [DailyStatus] Updated todayStatus with saved data');
       }
 
+      // Update form data with the uploaded media URL
+      if (mediaUrl && mediaUrl !== formData.media_uri) {
+        setFormData((prev) => ({
+          ...prev,
+          media_uri: mediaUrl,
+        }));
+        console.log('✅ [DailyStatus] Form data updated with uploaded media URL');
+      }
+
       console.log('✅ [DailyStatus] Closing sheet after successful save');
       setShowSheet(false);
 
@@ -510,6 +865,33 @@ export function DailyStatus({
   useEffect(() => {
     loadTodayStatus();
   }, [effectiveUserId]);
+
+  // Animated gradient border when no status - slow and subtle
+  useEffect(() => {
+    const selectedDateString = selectedDate.toISOString().split('T')[0];
+    const hasStatus = pastStatuses[selectedDateString];
+
+    if (!hasStatus && !isFuture) {
+      // Start very slow, subtle rotation animation (15 seconds per rotation)
+      const animation = Animated.loop(
+        Animated.timing(gradientRotation, {
+          toValue: 1,
+          duration: 15000, // 15 seconds - very slow and subtle
+          useNativeDriver: true,
+        }),
+      );
+      animation.start();
+
+      return () => {
+        animation.stop();
+        gradientRotation.setValue(0);
+      };
+    } else {
+      // Stop animation and reset
+      gradientRotation.stopAnimation();
+      gradientRotation.setValue(0);
+    }
+  }, [todayStatus, pastStatuses, selectedDate, gradientRotation, isFuture]);
 
   useEffect(() => {
     loadStatusForDate(selectedDate);
@@ -656,66 +1038,117 @@ export function DailyStatus({
     return pastStatuses[selectedDateString] || null;
   };
 
+  // Interpolate rotation for gradient
+  const spin = gradientRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const hasStatus = getStatusForSelectedDate();
+  const showGradientBorder = !hasStatus && !isFuture;
+
   return (
     <>
-      {/* Daily Status Input-like Box - Fully Clickable */}
-      <TouchableOpacity
-        onPress={() => {
-          console.log('👆 [DailyStatus] Input box clicked - opening sheet');
-          setShowSheet(true);
-        }}
-        disabled={isFuture}
+      {/* Daily Status Input-like Box - Fully Clickable with Animated Gradient Border */}
+      <View
         style={{
-          backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8',
-          borderRadius: 16,
-          padding: 12,
-          marginBottom: 12,
-          borderWidth: 1,
           marginHorizontal: 16,
-          borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+          marginBottom: 12,
+          borderRadius: 16,
+          padding: showGradientBorder ? 2 : 0,
+          backgroundColor: showGradientBorder ? '#0CA27A' : 'transparent', // Solid border color base
+          overflow: 'hidden',
         }}
-        activeOpacity={0.7}
       >
-        {/* Status Content - Flat Input Style */}
-        <XStack alignItems="center" gap="$2">
-          <YStack flex={1}>
-            <Text
-              fontSize="$3"
-              fontWeight="400"
-              color={
-                getStatusForSelectedDate()
-                  ? colorScheme === 'dark'
-                    ? '#FFF'
-                    : '#000'
-                  : colorScheme === 'dark'
-                    ? '#666'
-                    : '#999'
-              }
-              numberOfLines={1}
-            >
-              {getStatusForSelectedDate()
-                ? getStatusText()
-                : 'Did you drive today? Share your thoughts!'}
-            </Text>
-
-            {getStatusForSelectedDate()?.how_it_went && (
+        {showGradientBorder && (
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              borderRadius: 16,
+              opacity: 0.6, // Subtle fade effect on top
+              transform: [{ rotate: spin }],
+            }}
+          >
+            <LinearGradient
+              colors={['#03FFBB', '#0CA27A', '#03FFBB']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{
+                width: '100%',
+                height: '100%',
+              }}
+            />
+          </Animated.View>
+        )}
+        <TouchableOpacity
+          onPress={() => {
+            console.log('👆 [DailyStatus] Input box clicked - opening sheet');
+            setShowSheet(true);
+          }}
+          disabled={isFuture}
+          style={{
+            backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8',
+            borderRadius: 14,
+            padding: 12,
+            borderWidth: showGradientBorder ? 0 : 1,
+            borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+          }}
+          activeOpacity={0.7}
+        >
+          {/* Status Content - Flat Input Style */}
+          <XStack alignItems="center" gap="$2">
+            <YStack flex={1}>
               <Text
-                fontSize="$2"
-                color={colorScheme === 'dark' ? '#999' : '#666'}
+                fontSize="$3"
+                fontWeight="400"
+                color={
+                  getStatusForSelectedDate()
+                    ? colorScheme === 'dark'
+                      ? '#FFF'
+                      : '#000'
+                    : colorScheme === 'dark'
+                      ? '#666'
+                      : '#999'
+                }
                 numberOfLines={1}
-                marginTop="$0.5"
               >
-                {getStatusForSelectedDate()?.how_it_went}
+                {getStatusForSelectedDate()
+                  ? getStatusText()
+                  : 'Did you drive today? Share your thoughts!'}
               </Text>
-            )}
-          </YStack>
-          <Feather
-            name="message-circle"
-            size={20}
-            color={colorScheme === 'dark' ? '#666' : '#999'}
-          />
-        </XStack>
-      </TouchableOpacity>
+
+              {getStatusForSelectedDate()?.how_it_went && (
+                <Text
+                  fontSize="$2"
+                  color={colorScheme === 'dark' ? '#999' : '#666'}
+                  numberOfLines={1}
+                  marginTop="$0.5"
+                >
+                  {getStatusForSelectedDate()?.how_it_went}
+                </Text>
+              )}
+            </YStack>
+            <XStack gap="$2" alignItems="center">
+              {getStatusForSelectedDate()?.media_uri && (
+                <Feather
+                  name="image"
+                  size={20}
+                  color={colorScheme === 'dark' ? '#03FFBB' : '#0CA27A'}
+                />
+              )}
+              <Feather
+                name="message-circle"
+                size={20}
+                color={colorScheme === 'dark' ? '#666' : '#999'}
+              />
+            </XStack>
+          </XStack>
+        </TouchableOpacity>
+      </View>
 
       {/* Status Sheet */}
       {showSheet && (
@@ -825,6 +1258,7 @@ export function DailyStatus({
                               const newStatus = formData.status === 'drove' ? null : 'drove';
                               console.log('✅ [DailyStatus] Status toggled:', newStatus);
                               setFormData((prev) => ({ ...prev, status: newStatus }));
+                              if (newStatus) setStatusError(''); // Clear error when status is selected
                             }}
                             style={{
                               flex: 1,
@@ -879,6 +1313,7 @@ export function DailyStatus({
                                 formData.status === 'didnt_drive' ? null : 'didnt_drive';
                               console.log('❌ [DailyStatus] Status toggled:', newStatus);
                               setFormData((prev) => ({ ...prev, status: newStatus }));
+                              if (newStatus) setStatusError(''); // Clear error when status is selected
                             }}
                             style={{
                               flex: 1,
@@ -927,6 +1362,24 @@ export function DailyStatus({
                             </XStack>
                           </TouchableOpacity>
                         </XStack>
+
+                        {/* Inline error message for status validation */}
+                        {statusError && (
+                          <XStack
+                            alignItems="center"
+                            gap="$2"
+                            padding="$2"
+                            backgroundColor="rgba(244, 67, 54, 0.1)"
+                            borderRadius={8}
+                            borderWidth={1}
+                            borderColor="rgba(244, 67, 54, 0.3)"
+                          >
+                            <Feather name="alert-circle" size={14} color="#F44336" />
+                            <Text fontSize="$2" color="#F44336">
+                              {statusError}
+                            </Text>
+                          </XStack>
+                        )}
                       </YStack>
 
                       {/* How it went */}
@@ -1166,6 +1619,96 @@ export function DailyStatus({
                           </YStack>
                         </YStack>
                       )}
+
+                      {/* Memory (Photo/Video) Section */}
+                      <YStack gap="$2" marginTop="$2">
+                        <Text
+                          fontSize="$3"
+                          fontWeight="600"
+                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                        >
+                          Memory (Photo/Video)
+                        </Text>
+
+                        {formData.media_uri ? (
+                          <YStack gap="$2">
+                            {/* Media Preview */}
+                            <View
+                              style={{
+                                position: 'relative',
+                                borderRadius: 12,
+                                overflow: 'hidden',
+                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA',
+                              }}
+                            >
+                              {formData.media_type === 'image' ? (
+                                <Image
+                                  source={{ uri: formData.media_uri }}
+                                  style={{
+                                    width: '100%',
+                                    height: 200,
+                                    borderRadius: 12,
+                                  }}
+                                  resizeMode="cover"
+                                />
+                              ) : (
+                                <Video
+                                  source={{ uri: formData.media_uri }}
+                                  style={{
+                                    width: '100%',
+                                    height: 200,
+                                    borderRadius: 12,
+                                  }}
+                                  useNativeControls
+                                  resizeMode="cover"
+                                  isLooping
+                                />
+                              )}
+
+                              {/* Remove button overlay */}
+                              <TouchableOpacity
+                                onPress={handleRemoveMedia}
+                                style={{
+                                  position: 'absolute',
+                                  top: 8,
+                                  right: 8,
+                                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                  borderRadius: 20,
+                                  padding: 8,
+                                }}
+                              >
+                                <Feather name="x" size={18} color="#FFF" />
+                              </TouchableOpacity>
+                            </View>
+                          </YStack>
+                        ) : (
+                          <TouchableOpacity
+                            onPress={handleAddMedia}
+                            style={{
+                              padding: 16,
+                              borderRadius: 12,
+                              borderWidth: 2,
+                              borderStyle: 'dashed',
+                              borderColor: colorScheme === 'dark' ? '#444' : '#CCC',
+                              backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Feather
+                              name="camera"
+                              size={32}
+                              color={colorScheme === 'dark' ? '#888' : '#AAA'}
+                            />
+                            <Text
+                              fontSize="$2"
+                              color={colorScheme === 'dark' ? '#CCC' : '#666'}
+                              marginTop="$2"
+                            >
+                              Add Photo or Video
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </YStack>
 
                       {/* Selected Exercises List */}
                       {selectedExercises.length > 0 && (

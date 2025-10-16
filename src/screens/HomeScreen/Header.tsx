@@ -74,7 +74,7 @@ export const HomeHeader = () => {
   const avatarSheetTranslateY = useRef(new Animated.Value(300)).current;
 
   // Theme colors
-  const backgroundColor = colorScheme === 'dark' ? '#1C1C1C' : '#fff';
+  const backgroundColor = colorScheme === 'dark' ? '#151515' : '#fff';
   const textColor = colorScheme === 'dark' ? '#ECEDEE' : '#11181C';
   const borderColor = colorScheme === 'dark' ? '#333' : '#E0E0E0';
 

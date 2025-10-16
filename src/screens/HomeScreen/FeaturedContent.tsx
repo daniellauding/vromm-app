@@ -155,6 +155,57 @@ export function FeaturedContent() {
     }
   }, [authUser?.id]);
 
+  // Real-time subscription for exercise completions - live updates
+  useEffect(() => {
+    if (!authUser?.id) return;
+
+    console.log('🔄 [FeaturedContent] Setting up real-time subscription for completions');
+
+    // Subscribe to regular exercise completions
+    const regularChannel = supabase
+      .channel(`featured-regular-completions-${authUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'learning_path_exercise_completions',
+          filter: `user_id=eq.${authUser.id}`,
+        },
+        (payload) => {
+          console.log('🔄 [FeaturedContent] Regular completion changed:', payload);
+          loadCompletionData();
+          fetchFeaturedContent(); // Refresh to update filtered content
+        },
+      )
+      .subscribe();
+
+    // Subscribe to virtual repeat completions
+    const virtualChannel = supabase
+      .channel(`featured-virtual-completions-${authUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'virtual_repeat_completions',
+          filter: `user_id=eq.${authUser.id}`,
+        },
+        (payload) => {
+          console.log('🔄 [FeaturedContent] Virtual completion changed:', payload);
+          loadCompletionData();
+          fetchFeaturedContent(); // Refresh to update filtered content
+        },
+      )
+      .subscribe();
+
+    return () => {
+      console.log('🔄 [FeaturedContent] Cleaning up real-time subscriptions');
+      regularChannel.unsubscribe();
+      virtualChannel.unsubscribe();
+    };
+  }, [authUser?.id]);
+
   const fetchFeaturedContent = async () => {
     try {
       setLoading(true);

@@ -112,8 +112,8 @@ export function UserListSheet({
       const roleFilter = filterByRole || (activeRoleFilter !== 'all' ? activeRoleFilter : null);
       if (roleFilter && roleFilter !== 'all') {
         if (roleFilter === 'supervisor') {
-          // Handle supervisor filter - include instructor, admin, and school roles
-          query = query.in('role', ['instructor', 'admin', 'school']);
+          // Handle supervisor filter - include instructor and admin roles only
+          query = query.in('role', ['instructor', 'admin']);
         } else {
           query = query.eq('role', roleFilter);
         }
