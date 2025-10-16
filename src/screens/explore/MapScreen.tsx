@@ -1222,7 +1222,7 @@ export function MapScreen({
           <TouchableOpacity
             style={{
               backgroundColor: locationLoading
-                ? 'rgba(245, 245, 245, 0.9)'
+                ? theme.background?.val || '#FFFFFF'
                 : theme.background?.val || '#FFFFFF',
               borderRadius: 25,
               width: 50,

@@ -5,14 +5,35 @@ import { Text } from './Text';
 import { Feather } from '@expo/vector-icons';
 import { Check } from '@tamagui/lucide-icons';
 import { useTheme } from 'tamagui';
+import { sizes } from '../theme/sizes';
+
+export type SelectButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+
+// Get height for each size to match FormField
+const getSizeStyles = (size: SelectButtonSize = 'xl') => {
+  switch (size) {
+    case 'xs':
+      return { height: sizes.button.xs }; // 32px
+    case 'sm':
+      return { height: sizes.button.sm }; // 40px
+    case 'md':
+      return { height: sizes.button.md }; // 48px
+    case 'lg':
+      return { height: sizes.button.lg }; // 56px
+    case 'xl':
+      return { height: sizes.button.xl }; // 64px
+    default:
+      return { height: sizes.button.xl }; // 64px default
+  }
+};
 
 const styles = StyleSheet.create({
   selectButton: {
-    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 4,
     marginVertical: 4,
     borderWidth: 1,
+    justifyContent: 'center',
   },
 });
 
@@ -22,6 +43,7 @@ interface SelectButtonProps {
   isSelected?: boolean;
   isActive?: boolean; // When sheet is open
   variant?: 'select' | 'radio';
+  size?: SelectButtonSize;
   style?: object;
 }
 
@@ -31,6 +53,7 @@ export function SelectButton({
   isSelected = false,
   isActive = false,
   variant = 'select',
+  size = 'xl',
   style,
 }: SelectButtonProps) {
   const theme = useTheme();
@@ -39,12 +62,14 @@ export function SelectButton({
   const focusBackgroundColor = theme.backgroundHover?.val || '#EBEBEB';
 
   const shouldShowFocus = variant === 'radio' ? isSelected : isActive;
+  const sizeStyles = getSizeStyles(size);
 
   return (
     <TouchableOpacity
       onPress={onPress}
       style={[
         styles.selectButton,
+        sizeStyles,
         {
           borderWidth: shouldShowFocus ? 2 : 1,
           borderColor: shouldShowFocus ? focusBorderColor : borderColor,
@@ -63,18 +88,25 @@ interface RadioButtonProps {
   title: string;
   description?: string;
   isSelected: boolean;
+  size?: SelectButtonSize;
 }
 
-export function RadioButton({ onPress, title, description, isSelected }: RadioButtonProps) {
+export function RadioButton({
+  onPress,
+  title,
+  description,
+  isSelected,
+  size = 'xl',
+}: RadioButtonProps) {
   const theme = useTheme();
   const textColor = theme.color?.val || '#11181C';
   const focusBorderColor = '#34D399'; // Same as border color
 
   return (
-    <SelectButton onPress={onPress} isSelected={isSelected} variant="radio">
-      <XStack gap={8} padding="$2" alignItems="center" width="100%">
+    <SelectButton onPress={onPress} isSelected={isSelected} variant="radio" size={size}>
+      <XStack gap={8} alignItems="center" width="100%">
         <YStack flex={1}>
-          <Text color={isSelected ? textColor : '$color'} size="md" weight="600">
+          <Text color={isSelected ? textColor : '$color'} size="sm" weight="semibold">
             {title}
           </Text>
           {description && (
@@ -94,6 +126,7 @@ interface DropdownButtonProps {
   value: string;
   placeholder?: string;
   isActive?: boolean; // When dropdown is open
+  size?: SelectButtonSize;
 }
 
 export function DropdownButton({
@@ -101,15 +134,16 @@ export function DropdownButton({
   value,
   placeholder,
   isActive = false,
+  size = 'xl',
 }: DropdownButtonProps) {
   const theme = useTheme();
   const textColor = theme.color?.val || '#11181C';
   const focusBorderColor = '#34D399'; // Same as border color
 
   return (
-    <SelectButton onPress={onPress} isActive={isActive} variant="select">
-      <XStack gap={8} padding="$2" alignItems="center" justifyContent="space-between" width="100%">
-        <Text color={textColor} size="md">
+    <SelectButton onPress={onPress} isActive={isActive} variant="select" size={size}>
+      <XStack gap={8} alignItems="center" justifyContent="space-between" width="100%">
+        <Text color={textColor} size="sm">
           {value || placeholder || 'Select...'}
         </Text>
         <Feather name="chevron-down" size={16} color={isActive ? focusBorderColor : textColor} />

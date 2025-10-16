@@ -7,12 +7,15 @@ import {
   ScrollView,
   Animated,
   Platform,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Text, XStack, YStack, Slider, Button, SizableText, Input, useTheme } from 'tamagui';
+import { Text, XStack, YStack, Slider, SizableText, Input, useTheme } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
+import { Button } from '../components/Button';
+import { FormField } from '../components/FormField';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useSmartFilters } from '../hooks/useSmartFilters';
 import { useUserCollections } from '../hooks/useUserCollections';
@@ -27,7 +30,6 @@ import ReanimatedAnimated, {
 } from 'react-native-reanimated';
 import { LeaveCollectionModal } from './LeaveCollectionModal';
 import { CollectionSharingModal } from './CollectionSharingModal';
-
 // Route type definition
 type Route = {
   id: string;
@@ -131,7 +133,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 1,
   },
   selectedChip: {
@@ -149,8 +151,8 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 4, // Reduced since sheet now has padding
     paddingVertical: 16,
-    borderTopWidth: 1,
-    paddingBottom: 16 + BOTTOM_INSET, // Extra padding to ensure button is above home indicator
+    // borderTopWidth: 1,
+    paddingBottom: 40 + BOTTOM_INSET, // Extra padding to ensure button is above home indicator
   },
   // Removed old handle styles - now using gesture system
   backdrop: {
@@ -249,6 +251,7 @@ export function FilterSheet({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Collection display state
@@ -706,6 +709,7 @@ export function FilterSheet({
 
   // Handle backdrop press
   const handleBackdropPress = React.useCallback(() => {
+    Keyboard.dismiss();
     onClose();
   }, [onClose]);
 
@@ -754,6 +758,9 @@ export function FilterSheet({
     (result: SearchResult) => {
       console.log('🔍 [FilterSheet] Search result selected:', result);
 
+      // Dismiss keyboard first
+      Keyboard.dismiss();
+
       if (onSearchResultSelect) {
         onSearchResultSelect(result);
       }
@@ -771,6 +778,9 @@ export function FilterSheet({
   const handleCitySelect = React.useCallback(
     (city: string, country: string) => {
       const query = `${city}, ${country}`;
+
+      // Dismiss keyboard first
+      Keyboard.dismiss();
 
       // Clear search query immediately when selecting a city
       setSearchQuery('');
@@ -814,6 +824,9 @@ export function FilterSheet({
   const handleNearMe = React.useCallback(async () => {
     try {
       setIsLocating(true);
+
+      // Dismiss keyboard first
+      Keyboard.dismiss();
 
       // Trigger MapScreen locate animation if callback provided
       if (onNearMePress) {
@@ -1004,42 +1017,87 @@ export function FilterSheet({
             </View>
 
             {/* Header */}
-            <XStack width="100%" paddingHorizontal="$2" justifyContent="center" alignItems="center">
+            {/* <XStack width="100%" paddingHorizontal="$2" justifyContent="center" alignItems="center">
               <Text fontWeight="600" fontSize="$5" color={textColor}>
                 {t('map.filters')}
               </Text>
               <TouchableOpacity onPress={onClose} style={{ position: 'absolute', right: 0 }}>
                 <Feather name="x" size={24} color={textColor} />
               </TouchableOpacity>
-            </XStack>
+            </XStack> */}
 
             {/* Show content only if not in mini mode */}
             {currentSnapPoint !== snapPoints.mini && (
               <View style={{ flex: 1 }}>
-                <ScrollView style={{ flex: 1 }}>
+                <ScrollView
+                  style={{ flex: 1 }}
+                  keyboardShouldPersistTaps="handled"
+                  onScrollBeginDrag={() => Keyboard.dismiss()}
+                >
                   {/* Search Section - MOVED TO TOP */}
-                  <YStack style={styles.filterSection}>
-                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                  <YStack style={styles.filterSection} gap="$4">
+                    {/* <SizableText fontWeight="600" style={styles.sectionTitle}>
                       {t('search.title') || 'Search'}
-                    </SizableText>
+                    </SizableText> */}
 
-                    {/* Search Input */}
-                    <XStack alignItems="center" gap="$2" marginBottom="$3">
-                      <Input
-                        flex={1}
-                        value={searchQuery}
-                        onChangeText={handleSearch}
-                        placeholder={t('search.placeholder') || 'Search for cities, places...'}
-                        backgroundColor="$backgroundHover"
-                        borderColor={borderColor}
-                        color={textColor}
-                        placeholderTextColor="$gray10"
-                      />
-                      {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => setSearchQuery('')}>
-                          <Feather name="x" size={20} color={textColor} />
-                        </TouchableOpacity>
-                      )}
+                    <XStack gap="$2" alignItems="center">
+                      {/* Search Input - Fluid/Flexible */}
+                      <View style={{ flex: 1 }}>
+                        <FormField
+                          variant="search"
+                          rounded="full"
+                          size="md"
+                          value={searchQuery}
+                          onChangeText={handleSearch}
+                          onFocus={() => setIsSearchFocused(true)}
+                          onBlur={() => setIsSearchFocused(false)}
+                          placeholder={t('search.placeholder') || 'Search for cities, places...'}
+                          rightIcon={isSearchFocused || searchQuery.length > 0 ? 'x' : undefined}
+                          onRightIconPress={
+                            isSearchFocused || searchQuery.length > 0
+                              ? () => {
+                                  setSearchQuery('');
+                                  setSearchResults([]);
+                                  Keyboard.dismiss();
+                                  setIsSearchFocused(false);
+                                }
+                              : undefined
+                          }
+                        />
+                      </View>
+
+                      {/* Near Me Button - Icon Only with Fixed Size */}
+                      <TouchableOpacity
+                        onPress={handleNearMe}
+                        style={{
+                          width: 48,
+                          height: 48,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderWidth: 1,
+                          borderColor: borderColor,
+                          borderRadius: 24,
+                          backgroundColor: 'transparent',
+                          opacity: isLocating ? 0.6 : 1,
+                        }}
+                        disabled={isLocating}
+                      >
+                        {isLocating ? (
+                          <Animated.View
+                            style={{
+                              transform: [
+                                {
+                                  rotate: '45deg', // Static rotation for navigation icon during loading
+                                },
+                              ],
+                            }}
+                          >
+                            <Feather name="navigation" size={20} color={textColor} />
+                          </Animated.View>
+                        ) : (
+                          <Feather name="navigation" size={20} color={textColor} />
+                        )}
+                      </TouchableOpacity>
                     </XStack>
 
                     {/* Search Results */}
@@ -1048,26 +1106,37 @@ export function FilterSheet({
                         <Text color={textColor}>{t('search.searching') || 'Searching...'}</Text>
                       </XStack>
                     ) : searchResults.length > 0 ? (
-                      <YStack gap="$1" maxHeight={200}>
+                      <YStack
+                        gap="$1"
+                        maxHeight={340}
+                        marginBottom="$4"
+                        borderTopWidth={1}
+                        borderBottomWidth={1}
+                        borderLeftWidth={1}
+                        borderRightWidth={1}
+                        borderColor={borderColor}
+                        borderRadius="$2"
+                      >
                         <ScrollView>
-                          {searchResults.slice(0, 5).map((result) => {
+                          {searchResults.slice(0, 5).map((result, index, array) => {
                             if (!result || !result.id) {
                               console.warn('⚠️ [FilterSheet] Invalid search result:', result);
                               return null;
                             }
+                            const isLastItem = index === array.length - 1;
                             return (
                               <TouchableOpacity
                                 key={result.id}
                                 onPress={() => handleResultSelect(result)}
                                 style={{
-                                  paddingVertical: 8,
+                                  paddingVertical: 12,
                                   paddingHorizontal: 12,
-                                  borderBottomWidth: 1,
+                                  borderBottomWidth: isLastItem ? 0 : 1,
                                   borderBottomColor: borderColor,
                                 }}
                               >
                                 <XStack alignItems="center" gap="$2">
-                                  <Feather
+                                  {/* <Feather
                                     name={
                                       result.place_type[0] === 'country'
                                         ? 'flag'
@@ -1079,12 +1148,12 @@ export function FilterSheet({
                                     }
                                     size={16}
                                     color={textColor}
-                                  />
+                                  /> */}
                                   <YStack flex={1}>
                                     <Text numberOfLines={1} fontWeight="600" color={textColor}>
                                       {result.place_name.split(',')[0]}
                                     </Text>
-                                    <Text numberOfLines={1} fontSize="$1" color="$gray10">
+                                    <Text numberOfLines={1} fontSize="$3" color="$gray10">
                                       {result.place_name.split(',').slice(1).join(',').trim()}
                                     </Text>
                                   </YStack>
@@ -1096,55 +1165,11 @@ export function FilterSheet({
                       </YStack>
                     ) : searchQuery.length === 0 ? (
                       /* Default content when no search */
-                      <YStack gap="$2">
-                        {/* Near Me Button */}
-                        <TouchableOpacity
-                          onPress={handleNearMe}
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            paddingVertical: 12,
-                            paddingHorizontal: 16,
-                            borderWidth: 1,
-                            borderColor: borderColor,
-                            borderRadius: 8,
-                            backgroundColor: 'transparent',
-                            opacity: isLocating ? 0.6 : 1,
-                          }}
-                          disabled={isLocating}
-                        >
-                          {isLocating ? (
-                            <Animated.View
-                              style={{
-                                marginRight: 12,
-                                transform: [
-                                  {
-                                    rotate: '45deg', // Static rotation for navigation icon during loading
-                                  },
-                                ],
-                              }}
-                            >
-                              <Feather name="navigation" size={20} color={textColor} />
-                            </Animated.View>
-                          ) : (
-                            <Feather
-                              name="navigation"
-                              size={20}
-                              color={textColor}
-                              style={{ marginRight: 12 }}
-                            />
-                          )}
-                          <Text color={textColor} fontWeight="500">
-                            {isLocating
-                              ? t('search.locating') || 'Locating...'
-                              : t('search.nearMe') || 'Near Me'}
-                          </Text>
-                        </TouchableOpacity>
-
+                      <YStack>
                         {/* Popular Swedish Cities - All 10 with wrapping and route counts */}
-                        <Text color="$gray10" fontSize="$2" marginTop="$2" marginBottom="$2">
+                        <SizableText fontWeight="600" style={styles.sectionTitle}>
                           {t('search.popularCities') || 'Popular Cities'}
-                        </Text>
+                        </SizableText>
                         <View style={[styles.filterRow, { flexWrap: 'wrap' }]}>
                           {POPULAR_CITIES.map((city, index) => {
                             const cityCount = getCityRouteCount(city.name);
@@ -1205,6 +1230,9 @@ export function FilterSheet({
                           {
                             borderColor,
                             backgroundColor: !selectedPresetId ? '#00E6C3' : 'transparent',
+                            verticalAlign: 'center',
+                            justifyContent: 'center',
+                            alignItems: 'center',
                           },
                         ]}
                         onPress={() => handlePresetSelect(null)}
@@ -1361,22 +1389,111 @@ export function FilterSheet({
                               });
 
                               return (
+                                // <XStack
+                                //   key={collection.id || `collection-${Math.random()}`}
+                                //   alignItems="center"
+                                //   gap="$1"
+                                // >
+                                //   <TouchableOpacity
+                                //     style={[
+                                //       styles.filterChip,
+                                //       {
+                                //         borderColor,
+                                //         backgroundColor:
+                                //           selectedPresetId === collection.id
+                                //             ? '#00E6C3'
+                                //             : 'transparent',
+                                //       },
+                                //     ]}
+                                //     onPress={() => handlePresetSelect(collection.id)}
+                                //   >
+                                //     <XStack alignItems="center" gap="$1">
+                                //       <Text
+                                //         color={
+                                //           selectedPresetId === collection.id ? '#000000' : textColor
+                                //         }
+                                //         fontWeight={
+                                //           selectedPresetId === collection.id ? '600' : '500'
+                                //         }
+                                //         fontSize={14}
+                                //       >
+                                //         {displayText}
+                                //       </Text>
+                                //       {collection.route_count != null &&
+                                //         collection.route_count > 0 && (
+                                //           <Text
+                                //             color={
+                                //               selectedPresetId === collection.id
+                                //                 ? '#000000'
+                                //                 : textColor
+                                //             }
+                                //             fontSize={12}
+                                //             opacity={0.7}
+                                //           >
+                                //             ({String(collection.route_count || 0)})
+                                //           </Text>
+                                //         )}
+                                //     </XStack>
+                                //   </TouchableOpacity>
+
+                                //   {/* Settings cog for collection info */}
+                                //   <TouchableOpacity
+                                //     onPress={(e) => {
+                                //       e.stopPropagation();
+                                //       handleCollectionSettings(collection);
+                                //     }}
+                                //     style={{
+                                //       padding: 4,
+                                //       backgroundColor: 'rgba(0, 230, 195, 0.1)',
+                                //       borderRadius: 4,
+                                //       marginLeft: 4,
+                                //     }}
+                                //     activeOpacity={0.7}
+                                //   >
+                                //     <Feather name="settings" size={14} color="#00E6C3" />
+                                //   </TouchableOpacity>
+
+                                //   {/* X button for leaving collection */}
+                                //   {canLeave && (
+                                //     <TouchableOpacity
+                                //       onPress={(e) => {
+                                //         e.stopPropagation();
+                                //         handleLeaveCollection(collection);
+                                //       }}
+                                //       style={{
+                                //         padding: 4,
+                                //         backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                //         borderRadius: 4,
+                                //         marginLeft: 4,
+                                //       }}
+                                //       activeOpacity={0.7}
+                                //     >
+                                //       <Feather name="x" size={14} color="#EF4444" />
+                                //     </TouchableOpacity>
+                                //   )}
+                                // </XStack>
                                 <XStack
                                   key={collection.id || `collection-${Math.random()}`}
                                   alignItems="center"
                                   gap="$1"
+                                  style={[
+                                    styles.filterChip,
+                                    {
+                                      borderColor,
+                                      backgroundColor:
+                                        selectedPresetId === collection.id
+                                          ? '#00E6C3'
+                                          : 'transparent',
+                                      paddingVertical: 0,
+                                      height: 36,
+                                    },
+                                  ]}
+                                  pressStyle={{
+                                    backgroundColor: 'rgba(0, 230, 195, 0.1)',
+                                  }}
+                                  activeOpacity={0.7}
                                 >
                                   <TouchableOpacity
-                                    style={[
-                                      styles.filterChip,
-                                      {
-                                        borderColor,
-                                        backgroundColor:
-                                          selectedPresetId === collection.id
-                                            ? '#00E6C3'
-                                            : 'transparent',
-                                      },
-                                    ]}
                                     onPress={() => handlePresetSelect(collection.id)}
                                   >
                                     <XStack alignItems="center" gap="$1">
@@ -1416,13 +1533,18 @@ export function FilterSheet({
                                     }}
                                     style={{
                                       padding: 4,
-                                      backgroundColor: 'rgba(0, 230, 195, 0.1)',
                                       borderRadius: 4,
                                       marginLeft: 4,
                                     }}
                                     activeOpacity={0.7}
                                   >
-                                    <Feather name="settings" size={14} color="#00E6C3" />
+                                    <Feather
+                                      name="settings"
+                                      size={14}
+                                      color={
+                                        selectedPresetId === collection.id ? '#000000' : textColor
+                                      }
+                                    />
                                   </TouchableOpacity>
 
                                   {/* X button for leaving collection */}
@@ -1434,13 +1556,18 @@ export function FilterSheet({
                                       }}
                                       style={{
                                         padding: 4,
-                                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
                                         borderRadius: 4,
-                                        marginLeft: 4,
+                                        marginLeft: 0,
                                       }}
                                       activeOpacity={0.7}
                                     >
-                                      <Feather name="x" size={14} color="#EF4444" />
+                                      <Feather
+                                        name="x"
+                                        size={14}
+                                        color={
+                                          selectedPresetId === collection.id ? '#000000' : textColor
+                                        }
+                                      />
                                     </TouchableOpacity>
                                   )}
                                 </XStack>
@@ -1953,7 +2080,7 @@ export function FilterSheet({
                   </YStack>
 
                   {/* Experience Level */}
-                  <YStack style={styles.filterSection}>
+                  <YStack style={styles.filterSection} display="none">
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
                       {t('filters.experienceLevel')}
                     </SizableText>
@@ -2254,7 +2381,7 @@ export function FilterSheet({
                   </YStack>
 
                   {/* Distance Range - IMPROVED STYLING */}
-                  <YStack style={styles.filterSection}>
+                  <YStack style={styles.filterSection} display="none">
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
                       {t('filters.maxDistance')}
                     </SizableText>
@@ -2320,13 +2447,20 @@ export function FilterSheet({
                   style={[
                     styles.footer,
                     {
-                      borderColor,
                       backgroundColor,
                     },
                   ]}
                 >
                   <YStack gap="$2">
-                    <Button
+                    <Button size="sm" variant="primary" onPress={handleApply}>
+                      {t('filters.seeRoutes')} ({filteredCount})
+                    </Button>
+
+                    <Button size="sm" variant="link" onPress={handleReset}>
+                      {t('common.reset')}
+                    </Button>
+
+                    {/* <Button
                       backgroundColor="#00E6C3"
                       color="#000000"
                       size="$5"
@@ -2335,8 +2469,8 @@ export function FilterSheet({
                       <Text color="#000000" fontWeight="700">
                         {t('filters.seeRoutes')} ({filteredCount})
                       </Text>
-                    </Button>
-                    <Button
+                    </Button> */}
+                    {/* <Button
                       variant="outlined"
                       size="$4"
                       onPress={handleReset}
@@ -2345,7 +2479,7 @@ export function FilterSheet({
                       <Text color={textColor} fontWeight="500">
                         {t('common.reset')}
                       </Text>
-                    </Button>
+                    </Button> */}
                   </YStack>
                 </View>
               </View>

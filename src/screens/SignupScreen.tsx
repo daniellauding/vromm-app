@@ -171,7 +171,7 @@ export function SignupScreen() {
           </Text>
 
           <YStack gap={24}>
-            <YStack gap={8}>
+            <YStack gap={20}>
               <FormField
                 label={t('auth.signUp.emailLabel')}
                 value={email}

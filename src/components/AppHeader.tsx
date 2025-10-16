@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { XStack, Text } from 'tamagui';
+import { XStack, Text, useTheme } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 // import { LinearGradient } from 'expo-linear-gradient';
@@ -52,7 +52,7 @@ export function AppHeader({
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const { getSmartFilters, trackFilterUsage, addUserCollections, getAllFilters } =
     useSmartFilters();
-
+  const theme = useTheme();
   // Semi-transparent backgrounds for overlay effect
   const buttonBackgroundColor =
     colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : 'rgba(255, 255, 255, 0.85)';
@@ -72,8 +72,8 @@ export function AppHeader({
   // Chip colors - improved styling with solid backgrounds
   const chipColors = {
     inactive: {
-      background: colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : '#F5F5F5',
-      border: colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : '#E0E0E0',
+      background: colorScheme === 'dark' ? theme.background?.val : '#F5F5F5',
+      border: colorScheme === 'dark' ? theme.background?.val : '#E0E0E0',
       text: colorScheme === 'dark' ? '#E0E0E0' : '#666666',
     },
     active: {
@@ -98,18 +98,37 @@ export function AppHeader({
             {/* Combined Search + Filter Button */}
             <View style={{ position: 'relative' }}>
               <XStack
-                backgroundColor={buttonBackgroundColor}
-                borderRadius="$4"
-                width="$4"
-                height="$4"
-                alignItems="center"
-                justifyContent="center"
-                borderWidth={1}
-                borderColor={borderColor}
-                onPress={onSearchFilterPress}
-                pressStyle={{ opacity: 0.7 }}
+              // backgroundColor={buttonBackgroundColor}
+              // borderRadius="$4"
+              // width="$4"
+              // height="$4"
+              // alignItems="center"
+              // justifyContent="center"
+              // borderWidth={1}
+              // borderColor={borderColor}
+              // onPress={onSearchFilterPress}
+              // pressStyle={{ opacity: 0.7 }}
               >
-                <Feather name="search" size={16} color={iconColor} />
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: theme.background?.val || '#FFFFFF',
+                    borderRadius: 25,
+                    width: 34,
+                    height: 34,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 4,
+                    elevation: 5,
+                    borderWidth: 1,
+                    borderColor: theme.borderColor?.val || '#E5E5E5',
+                  }}
+                  onPress={onSearchFilterPress}
+                >
+                  <Feather name="search" size={16} color={iconColor} />
+                </TouchableOpacity>
               </XStack>
               {hasActiveFilters && (
                 <View

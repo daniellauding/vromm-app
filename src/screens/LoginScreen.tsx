@@ -276,7 +276,7 @@ export function LoginScreen() {
         <Header title={t('auth.signIn.title')} showBack={true} />
 
         <YStack gap={24} width="100%">
-          <YStack gap={8}>
+          <YStack gap={20}>
             <FormField
               label={t('auth.signIn.emailLabel')}
               value={email}
