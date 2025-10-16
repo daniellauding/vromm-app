@@ -446,11 +446,11 @@ export const darkMapStyle = [
 // Pin color constants
 export const PIN_COLORS = {
   // Primary brand color for selected/active pins
-  PRIMARY: '#21E5C3',
+  PRIMARY: '#27febe',
   // Secondary color for unselected pins
   SECONDARY: '#155250',
   // White text for contrast
   TEXT: '#FFFFFF',
   // Route path color
-  ROUTE_PATH: '#21E5C3',
+  ROUTE_PATH: '#27febe',
 } as const;

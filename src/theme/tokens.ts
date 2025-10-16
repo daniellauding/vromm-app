@@ -44,7 +44,7 @@ const colors = {
 
   // Primary colors
   indigo400: '#818CF8',
-  indigo500: '#21e5c3',
+  indigo500: '#27febe',
   indigo600: '#1BC4A8',
   indigo700: '#16A085',
 
@@ -158,7 +158,7 @@ export const tokens = createTokens({
 
 // Export theme colors for light mode
 export const lightColors = {
-  primary: '#21e5c3',
+  primary: '#27febe',
   primaryHover: '#1BC4A8',
   primaryPress: '#16A085',
   secondary: colors.emerald400,
@@ -184,7 +184,7 @@ export const lightColors = {
 
 // Export theme colors for dark mode
 export const darkColors = {
-  primary: '#21e5c3',
+  primary: '#27febe',
   primaryHover: '#1BC4A8',
   primaryPress: '#16A085',
   secondary: colors.emerald400,

@@ -165,7 +165,7 @@ export const manualDarkTheme = createTheme({
  * - $borderColorHover: Hover state border color
  *
  * ACCENT COLORS:
- * - $primary: Primary accent color (#21e5c3)
+ * - $primary: Primary accent color (#27febe)
  * - $primaryHover: Primary hover color
  * - $primaryPress: Primary press color
  * - $secondary: Secondary accent color

@@ -1229,7 +1229,7 @@ export function FilterSheet({
                           styles.filterChip,
                           {
                             borderColor,
-                            backgroundColor: !selectedPresetId ? '#00E6C3' : 'transparent',
+                            backgroundColor: !selectedPresetId ? '#27febe' : 'transparent',
                             verticalAlign: 'center',
                             justifyContent: 'center',
                             alignItems: 'center',
@@ -1369,7 +1369,7 @@ export function FilterSheet({
                                 textColor:
                                   selectedPresetId === collection.id ? '#000000' : textColor,
                                 backgroundColor:
-                                  selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
+                                  selectedPresetId === collection.id ? '#27febe' : 'transparent',
                               });
 
                               // Debug the actual text content
@@ -1384,7 +1384,7 @@ export function FilterSheet({
                                 textColor:
                                   selectedPresetId === collection.id ? '#000000' : '#FFFFFF',
                                 backgroundColor:
-                                  selectedPresetId === collection.id ? '#00E6C3' : 'transparent',
+                                  selectedPresetId === collection.id ? '#27febe' : 'transparent',
                                 hasLineBreaks: rawText !== displayText,
                               });
 
@@ -1482,7 +1482,7 @@ export function FilterSheet({
                                       borderColor,
                                       backgroundColor:
                                         selectedPresetId === collection.id
-                                          ? '#00E6C3'
+                                          ? '#27febe'
                                           : 'transparent',
                                       paddingVertical: 0,
                                       height: 36,
@@ -1640,7 +1640,7 @@ export function FilterSheet({
                               styles.filterChip,
                               {
                                 borderColor,
-                                backgroundColor: filters.sort === sort ? '#00E6C3' : 'transparent',
+                                backgroundColor: filters.sort === sort ? '#27febe' : 'transparent',
                               },
                             ]}
                             onPress={() =>
@@ -2403,12 +2403,12 @@ export function FilterSheet({
                       }}
                     >
                       <Slider.Track backgroundColor={borderColor} height={6}>
-                        <Slider.TrackActive backgroundColor="#00E6C3" />
+                        <Slider.TrackActive backgroundColor="#00FFBC" />
                       </Slider.Track>
                       <Slider.Thumb
                         circular
                         index={0}
-                        backgroundColor="#00E6C3"
+                        backgroundColor="#00FFBC"
                         borderWidth={2}
                         borderColor="#FFFFFF"
                       >
@@ -2416,7 +2416,7 @@ export function FilterSheet({
                           style={{
                             width: 20,
                             height: 20,
-                            backgroundColor: '#00E6C3',
+                            backgroundColor: '#00FFBC',
                             borderRadius: 10,
                             alignItems: 'center',
                             justifyContent: 'center',
