@@ -64,7 +64,7 @@ interface FeaturedExercise {
 export function FeaturedContent2() {
   // ALL HOOKS MUST BE CALLED IN THE SAME ORDER EVERY TIME
   const navigation = useNavigation<NavigationProp>();
-  const { t, language: lang, refreshTranslations } = useTranslation();
+  const { t, language: lang } = useTranslation();
   const colorScheme = useColorScheme();
   const { user: authUser, profile } = useAuth();
   const { showToast } = useToast();
@@ -264,13 +264,6 @@ export function FeaturedContent2() {
     },
     [currentCardIndex, allFeaturedContent.length, lang],
   );
-
-  // ALL useEffect CALLS AT THE END IN CONSISTENT ORDER
-  useEffect(() => {
-    refreshTranslations().catch(() => {
-      // Silent fail on translation refresh
-    });
-  }, []);
 
   // Load completion data
   const loadCompletionData = async () => {

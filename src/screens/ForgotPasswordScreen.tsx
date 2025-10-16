@@ -15,13 +15,8 @@ export function ForgotPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
-  const { t, clearCache } = useTranslation();
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
-
-  useEffect(() => {
-    clearCache();
-    console.log('[FORGOT_PASSWORD] Forcing translation refresh');
-  }, []);
 
   const handleResetPassword = async () => {
     if (!email) {

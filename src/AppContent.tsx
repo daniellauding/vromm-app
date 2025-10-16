@@ -130,7 +130,6 @@ async function registerForPushNotificationsAsync(
   let token;
 
   // Force refresh translations to ensure they're loaded
-  // await refreshTranslations();
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('myNotificationChannel', {

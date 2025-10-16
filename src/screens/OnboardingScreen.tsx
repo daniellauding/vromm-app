@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
-import { Onboarding, OnboardingSlide, shouldShowOnboarding } from '../components/Onboarding';
+import { Onboarding, OnboardingSlide } from '../components/Onboarding';
 import { fetchOnboardingSlides, shouldShowFirstOnboarding } from '../services/onboardingService';
 import { Stack } from 'tamagui';
-import { useTheme } from 'tamagui';
-import { useTranslation } from '../contexts/TranslationContext';
 import { clearContentCache } from '../services/contentService';
 
 export function OnboardingScreen() {
@@ -14,9 +12,6 @@ export function OnboardingScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
   const navigation = useNavigation<NavigationProp>();
-  const theme = useTheme();
-  const { refreshTranslations, clearCache } = useTranslation();
-
   // Safe navigation function to prevent crashes
   const safeNavigateToMain = () => {
     try {
@@ -35,14 +30,6 @@ export function OnboardingScreen() {
   };
 
   useEffect(() => {
-    // Clear translation cache to ensure we show latest translations
-    clearCache()
-      .then(() => {
-        console.debug('Cleared translation cache for onboarding screen');
-      })
-      .catch((error) => {
-        console.error('Failed to clear translation cache:', error);
-      });
 
     const checkAndLoadOnboarding = async () => {
       try {
@@ -51,16 +38,6 @@ export function OnboardingScreen() {
 
         // Clear content cache to ensure we get fresh data
         await clearContentCache();
-        console.debug('Cleared content cache for onboarding screen');
-
-        // Refresh translations to ensure we have latest text
-        try {
-          await refreshTranslations();
-          console.debug('Refreshed translations for onboarding screen');
-        } catch (translationError) {
-          console.error('Error refreshing translations:', translationError);
-          // Continue anyway, this is not critical
-        }
 
         // Check if onboarding should be shown at all
         let shouldShow = false;
