@@ -225,7 +225,7 @@ function UnauthenticatedAppContent() {
 function AuthenticatedAppContent() {
   const authData = useAuth();
   const { showToast } = useToast();
-  const { t } = useTranslation();
+  const { t, refreshTranslations } = useTranslation();
 
   useEffect(() => {
     if (!authData?.user?.id) {
@@ -259,6 +259,20 @@ function AuthenticatedAppContent() {
       }
     });
   }, [authData?.user?.id, showToast, t]);
+
+  // Refresh translations on mount to ensure we have the latest
+  useEffect(() => {
+    const loadTranslations = async () => {
+      try {
+        console.log('🌍 [AppContent] Refreshing translations on mount');
+        await refreshTranslations();
+        console.log('✅ [AppContent] Translations refreshed successfully');
+      } catch (error) {
+        console.error('❌ [AppContent] Error refreshing translations:', error);
+      }
+    };
+    loadTranslations();
+  }, []);
 
   console.log('🎯 [AuthenticatedAppContent] Rendering');
 

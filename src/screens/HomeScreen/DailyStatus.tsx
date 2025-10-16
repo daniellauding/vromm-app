@@ -10,7 +10,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
-import { XStack, YStack, Text, Button, Input } from 'tamagui';
+import { XStack, YStack, Text, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -36,6 +36,8 @@ import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 import { RouteListSheet } from '../../components/RouteListSheet';
 import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { ActionSheet } from '../../components/ActionSheet';
+import { IconButton } from '../../components/IconButton';
+import { FormField } from '../../components/FormField';
 
 interface DailyStatusData {
   id?: string;
@@ -63,7 +65,7 @@ export function DailyStatus({
 }: DailyStatusProps) {
   const { profile } = useAuth();
   const { showToast } = useToast();
-  const { language: lang } = useTranslation();
+  const { language: lang, t, refreshTranslations } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const systemColorScheme = useColorScheme();
   const colorScheme = systemColorScheme || 'light';
@@ -341,11 +343,11 @@ export function DailyStatus({
 
       // Show action sheet with options (iOS native action sheet)
       Alert.alert(
-        'Add Memory',
-        'Choose how to add your photo or video',
+        t('dailyStatus.addMemory') || 'Add Memory',
+        t('dailyStatus.chooseMediaSource') || 'Choose how to add your photo or video',
         [
           {
-            text: 'Choose from Library',
+            text: t('dailyStatus.chooseFromLibrary') || 'Choose from Library',
             onPress: async () => {
               try {
                 console.log('📚 [DailyStatus] Choose from Library selected');
@@ -356,8 +358,10 @@ export function DailyStatus({
 
                 if (permissionResult.status !== 'granted') {
                   showToast({
-                    title: 'Permission Required',
-                    message: 'Library permission is required to choose media',
+                    title: t('common.permissionRequired') || 'Permission Required',
+                    message:
+                      t('dailyStatus.libraryPermissionRequired') ||
+                      'Library permission is required to choose media',
                     type: 'error',
                   });
                   return;
@@ -384,23 +388,30 @@ export function DailyStatus({
                   }));
 
                   showToast({
-                    title: 'Media Added',
-                    message: `${mediaType === 'video' ? 'Video' : 'Photo'} added to your daily memory`,
+                    title: t('dailyStatus.mediaAdded') || 'Media Added',
+                    message:
+                      t('dailyStatus.mediaAddedMessage')?.replace(
+                        '{mediaType}',
+                        mediaType === 'video'
+                          ? t('dailyStatus.video') || 'Video'
+                          : t('dailyStatus.photo') || 'Photo',
+                      ) ||
+                      `${mediaType === 'video' ? 'Video' : 'Photo'} added to your daily memory`,
                     type: 'success',
                   });
                 }
               } catch (error) {
                 console.error('❌ [DailyStatus] Library error:', error);
                 showToast({
-                  title: 'Error',
-                  message: 'Failed to access library',
+                  title: t('common.error') || 'Error',
+                  message: t('dailyStatus.failedToAccessLibrary') || 'Failed to access library',
                   type: 'error',
                 });
               }
             },
           },
           {
-            text: 'Take Photo',
+            text: t('dailyStatus.takePhoto') || 'Take Photo',
             onPress: async () => {
               try {
                 console.log('📸 [DailyStatus] Take Photo selected');
@@ -411,8 +422,10 @@ export function DailyStatus({
 
                 if (permissionResult.status !== 'granted') {
                   showToast({
-                    title: 'Permission Required',
-                    message: 'Camera permission is required to take photos',
+                    title: t('common.permissionRequired') || 'Permission Required',
+                    message:
+                      t('dailyStatus.cameraPermissionRequiredPhoto') ||
+                      'Camera permission is required to take photos',
                     type: 'error',
                   });
                   return;
@@ -435,18 +448,19 @@ export function DailyStatus({
                   }));
 
                   showToast({
-                    title: 'Photo Added',
-                    message: 'Photo added to your daily memory',
+                    title: t('dailyStatus.photoAdded') || 'Photo Added',
+                    message:
+                      t('dailyStatus.photoAddedMessage') || 'Photo added to your daily memory',
                     type: 'success',
                   });
                 }
               } catch (error: any) {
                 console.error('❌ [DailyStatus] Camera error:', error);
                 const errorMessage = error?.message?.toLowerCase().includes('camera')
-                  ? 'Camera is not available on this device'
-                  : 'Failed to take photo';
+                  ? t('dailyStatus.cameraNotAvailable') || 'Camera is not available on this device'
+                  : t('dailyStatus.failedToTakePhoto') || 'Failed to take photo';
                 showToast({
-                  title: 'Camera Error',
+                  title: t('dailyStatus.cameraError') || 'Camera Error',
                   message: errorMessage,
                   type: 'error',
                 });
@@ -454,7 +468,7 @@ export function DailyStatus({
             },
           },
           {
-            text: 'Record Video',
+            text: t('dailyStatus.recordVideo') || 'Record Video',
             onPress: async () => {
               try {
                 console.log('🎥 [DailyStatus] Record Video selected');
@@ -465,8 +479,10 @@ export function DailyStatus({
 
                 if (permissionResult.status !== 'granted') {
                   showToast({
-                    title: 'Permission Required',
-                    message: 'Camera permission is required to record videos',
+                    title: t('common.permissionRequired') || 'Permission Required',
+                    message:
+                      t('dailyStatus.cameraPermissionRequiredVideo') ||
+                      'Camera permission is required to record videos',
                     type: 'error',
                   });
                   return;
@@ -490,18 +506,19 @@ export function DailyStatus({
                   }));
 
                   showToast({
-                    title: 'Video Added',
-                    message: 'Video added to your daily memory',
+                    title: t('dailyStatus.videoAdded') || 'Video Added',
+                    message:
+                      t('dailyStatus.videoAddedMessage') || 'Video added to your daily memory',
                     type: 'success',
                   });
                 }
               } catch (error: any) {
                 console.error('❌ [DailyStatus] Video error:', error);
                 const errorMessage = error?.message?.toLowerCase().includes('camera')
-                  ? 'Camera is not available on this device'
-                  : 'Failed to record video';
+                  ? t('dailyStatus.cameraNotAvailable') || 'Camera is not available on this device'
+                  : t('dailyStatus.failedToRecordVideo') || 'Failed to record video';
                 showToast({
-                  title: 'Camera Error',
+                  title: t('dailyStatus.cameraError') || 'Camera Error',
                   message: errorMessage,
                   type: 'error',
                 });
@@ -509,7 +526,7 @@ export function DailyStatus({
             },
           },
           {
-            text: 'Cancel',
+            text: t('common.cancel') || 'Cancel',
             style: 'cancel',
             onPress: () => console.log('📸 [DailyStatus] Media picker cancelled'),
           },
@@ -519,8 +536,8 @@ export function DailyStatus({
     } catch (error) {
       console.error('❌ [DailyStatus] Error showing media options:', error);
       showToast({
-        title: 'Error',
-        message: 'Failed to show media options',
+        title: t('common.error') || 'Error',
+        message: t('dailyStatus.failedToShowMediaOptions') || 'Failed to show media options',
         type: 'error',
       });
     }
@@ -534,8 +551,8 @@ export function DailyStatus({
       media_type: undefined,
     }));
     showToast({
-      title: 'Media Removed',
-      message: 'Media removed from your daily memory',
+      title: t('dailyStatus.mediaRemoved') || 'Media Removed',
+      message: t('dailyStatus.mediaRemovedMessage') || 'Media removed from your daily memory',
       type: 'info',
     });
   };
@@ -597,8 +614,9 @@ export function DailyStatus({
     } catch (error) {
       console.error('❌ [DailyStatus] Error uploading media:', error);
       showToast({
-        title: 'Upload Failed',
-        message: 'Failed to upload media. Please try again.',
+        title: t('dailyStatus.uploadFailed') || 'Upload Failed',
+        message:
+          t('dailyStatus.failedToUploadMedia') || 'Failed to upload media. Please try again.',
         type: 'error',
       });
       return null;
@@ -616,8 +634,8 @@ export function DailyStatus({
     if (isFuture) {
       console.log('⚠️ [DailyStatus] Reset: Cannot reset future date');
       showToast({
-        title: 'Cannot Reset',
-        message: 'Nothing to reset for future dates!',
+        title: t('dailyStatus.cannotReset') || 'Cannot Reset',
+        message: t('dailyStatus.nothingToResetFuture') || 'Nothing to reset for future dates!',
         type: 'info',
       });
       return;
@@ -649,8 +667,8 @@ export function DailyStatus({
       setSelectedExercises([]);
       setStatusError('');
       showToast({
-        title: 'Form Cleared',
-        message: 'Form has been reset',
+        title: t('dailyStatus.formCleared') || 'Form Cleared',
+        message: t('dailyStatus.formHasBeenReset') || 'Form has been reset',
         type: 'info',
       });
       return;
@@ -658,16 +676,17 @@ export function DailyStatus({
 
     // Confirm deletion if status exists
     Alert.alert(
-      'Reset Status',
-      'Are you sure you want to delete this status? This cannot be undone.',
+      t('dailyStatus.resetStatus') || 'Reset Status',
+      t('dailyStatus.confirmDeleteStatus') ||
+        'Are you sure you want to delete this status? This cannot be undone.',
       [
         {
-          text: 'Cancel',
+          text: t('common.cancel') || 'Cancel',
           style: 'cancel',
           onPress: () => console.log('🚫 [DailyStatus] Reset cancelled by user'),
         },
         {
-          text: 'Delete',
+          text: t('common.delete') || 'Delete',
           style: 'destructive',
           onPress: async () => {
             console.log('🗑️ [DailyStatus] Deleting status from DB for', dateString);
@@ -681,7 +700,11 @@ export function DailyStatus({
 
               if (error) {
                 console.error('❌ [DailyStatus] Error deleting daily status:', error);
-                Alert.alert('Error', 'Failed to delete status. Please try again.');
+                Alert.alert(
+                  t('common.error') || 'Error',
+                  t('dailyStatus.failedToDeleteStatus') ||
+                    'Failed to delete status. Please try again.',
+                );
                 return;
               }
 
@@ -709,13 +732,17 @@ export function DailyStatus({
               console.log('✅ [DailyStatus] Local state cleared');
 
               showToast({
-                title: 'Status Deleted',
-                message: 'Your status has been reset',
+                title: t('dailyStatus.statusDeleted') || 'Status Deleted',
+                message: t('dailyStatus.yourStatusHasBeenReset') || 'Your status has been reset',
                 type: 'success',
               });
             } catch (error) {
               console.error('❌ [DailyStatus] Exception deleting daily status:', error);
-              Alert.alert('Error', 'Failed to delete status. Please try again.');
+              Alert.alert(
+                t('common.error') || 'Error',
+                t('dailyStatus.failedToDeleteStatus') ||
+                  'Failed to delete status. Please try again.',
+              );
             } finally {
               setLoading(false);
             }
@@ -736,8 +763,9 @@ export function DailyStatus({
     if (isFuture) {
       console.log('⚠️ [DailyStatus] Save: Cannot save future date');
       showToast({
-        title: 'Cannot Save',
-        message: 'Come back on this day to share your status!',
+        title: t('dailyStatus.cannotSave') || 'Cannot Save',
+        message:
+          t('dailyStatus.comeBackOnThisDay') || 'Come back on this day to share your status!',
         type: 'info',
       });
       return;
@@ -746,10 +774,14 @@ export function DailyStatus({
     // Require status selection
     if (!formData.status) {
       console.log('⚠️ [DailyStatus] Save: No status selected');
-      setStatusError('Please select whether you drove or not');
+      setStatusError(
+        t('dailyStatus.pleaseSelectStatus') || 'Please select whether you drove or not',
+      );
       showToast({
-        title: 'Status Required',
-        message: 'Please select whether you drove or not before saving',
+        title: t('dailyStatus.statusRequired') || 'Status Required',
+        message:
+          t('dailyStatus.pleaseSelectStatusBeforeSaving') ||
+          'Please select whether you drove or not before saving',
         type: 'error',
       });
       return;
@@ -805,7 +837,10 @@ export function DailyStatus({
 
       if (error) {
         console.error('❌ [DailyStatus] Error saving daily status:', error);
-        Alert.alert('Error', 'Failed to save your status. Please try again.');
+        Alert.alert(
+          t('common.error') || 'Error',
+          t('dailyStatus.failedToSaveStatus') || 'Failed to save your status. Please try again.',
+        );
         return;
       }
 
@@ -831,13 +866,16 @@ export function DailyStatus({
       setShowSheet(false);
 
       showToast({
-        title: 'Success',
-        message: 'Your daily status has been saved!',
+        title: t('common.success') || 'Success',
+        message: t('dailyStatus.dailyStatusSaved') || 'Your daily status has been saved!',
         type: 'success',
       });
     } catch (error) {
       console.error('❌ [DailyStatus] Exception saving daily status:', error);
-      Alert.alert('Error', 'Failed to save your status. Please try again.');
+      Alert.alert(
+        t('common.error') || 'Error',
+        t('dailyStatus.failedToSaveStatus') || 'Failed to save your status. Please try again.',
+      );
     } finally {
       setLoading(false);
     }
@@ -846,6 +884,20 @@ export function DailyStatus({
   useEffect(() => {
     loadTodayStatus();
   }, [effectiveUserId]);
+
+  // Refresh translations on mount to ensure we have the latest
+  useEffect(() => {
+    const loadTranslations = async () => {
+      try {
+        console.log('🌍 [DailyStatus] Refreshing translations on mount');
+        await refreshTranslations();
+        console.log('✅ [DailyStatus] Translations refreshed successfully');
+      } catch (error) {
+        console.error('❌ [DailyStatus] Error refreshing translations:', error);
+      }
+    };
+    loadTranslations();
+  }, []);
 
   // Animated gradient border when no status - slow and subtle
   useEffect(() => {
@@ -1003,15 +1055,24 @@ export function DailyStatus({
     const status = pastStatuses[selectedDateString];
 
     if (!status) {
-      if (isToday) return 'Har du kört idag?';
-      if (isFuture) return 'Framtida datum';
-      return `Har du kört ${selectedDate.toLocaleDateString('sv-SE')}?`;
+      if (isToday) return t('dailyStatus.didYouDriveToday') || 'Did you drive today?';
+      if (isFuture) return t('dailyStatus.futureDate') || 'Future date';
+      return (
+        t('dailyStatus.didYouDriveOnDate')?.replace(
+          '{date}',
+          selectedDate.toLocaleDateString(lang === 'sv' ? 'sv-SE' : 'en-US'),
+        ) || `Did you drive on ${selectedDate.toLocaleDateString('en-US')}?`
+      );
     }
 
-    const dateText = isToday ? 'idag' : selectedDate.toLocaleDateString('sv-SE');
+    const dateText = isToday
+      ? t('dailyStatus.today') || 'today'
+      : selectedDate.toLocaleDateString(lang === 'sv' ? 'sv-SE' : 'en-US');
     return status.status === 'drove'
-      ? `Ja, jag körde ${dateText}!`
-      : `Nej, jag körde inte ${dateText}`;
+      ? t('dailyStatus.yesDroveOnDate')?.replace('{date}', dateText) ||
+          `Yes, I drove on ${dateText}!`
+      : t('dailyStatus.noDidntDriveOnDate')?.replace('{date}', dateText) ||
+          `No, I didn't drive on ${dateText}`;
   };
 
   const getStatusForSelectedDate = () => {
@@ -1035,7 +1096,7 @@ export function DailyStatus({
         style={{
           marginHorizontal: 16,
           marginBottom: 12,
-          borderRadius: 16,
+          borderRadius: 12,
           padding: showGradientBorder ? 2 : 0,
           backgroundColor: showGradientBorder ? '#0CA27A' : 'transparent', // Solid border color base
           overflow: 'hidden',
@@ -1073,7 +1134,7 @@ export function DailyStatus({
           disabled={isFuture}
           style={{
             backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8',
-            borderRadius: 14,
+            borderRadius: 12,
             padding: 12,
             borderWidth: showGradientBorder ? 0 : 1,
             borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
@@ -1082,6 +1143,15 @@ export function DailyStatus({
         >
           {/* Status Content - Flat Input Style */}
           <XStack alignItems="center" gap="$2">
+            {/* Plus icon - only show when no status exists */}
+            {!getStatusForSelectedDate() && (
+              <Feather
+                name="edit-2"
+                size={16}
+                color={colorScheme === 'dark' ? '#38fdbf' : '#999'}
+              />
+            )}
+
             <YStack flex={1}>
               <Text
                 fontSize="$3"
@@ -1092,14 +1162,14 @@ export function DailyStatus({
                       ? '#FFF'
                       : '#000'
                     : colorScheme === 'dark'
-                      ? '#666'
-                      : '#999'
+                      ? '#AAA'
+                      : '#666'
                 }
                 numberOfLines={1}
               >
                 {getStatusForSelectedDate()
                   ? getStatusText()
-                  : 'Did you drive today? Share your thoughts!'}
+                  : t('dailyStatus.placeholder') || 'Did you drive today? Share your thoughts!'}
               </Text>
 
               {getStatusForSelectedDate()?.how_it_went && (
@@ -1115,17 +1185,16 @@ export function DailyStatus({
             </YStack>
             <XStack gap="$2" alignItems="center">
               {getStatusForSelectedDate()?.media_uri && (
+                <Feather name="image" size={20} color={colorScheme === 'dark' ? '#666' : '#999'} />
+              )}
+              {/* Message-circle icon - only show if there's a comment */}
+              {getStatusForSelectedDate()?.how_it_went && (
                 <Feather
-                  name="image"
+                  name="message-circle"
                   size={20}
-                  color={colorScheme === 'dark' ? '#03FFBB' : '#0CA27A'}
+                  color={colorScheme === 'dark' ? '#666' : '#999'}
                 />
               )}
-              <Feather
-                name="message-circle"
-                size={20}
-                color={colorScheme === 'dark' ? '#666' : '#999'}
-              />
             </XStack>
           </XStack>
         </TouchableOpacity>
@@ -1184,14 +1253,17 @@ export function DailyStatus({
                         color={colorScheme === 'dark' ? '#FFF' : '#000'}
                       >
                         {isToday
-                          ? 'Har du kört idag?'
-                          : `Har du kört ${selectedDate.toLocaleDateString('sv-SE')}?`}
+                          ? t('dailyStatus.didYouDriveToday') || 'Did you drive today?'
+                          : t('dailyStatus.didYouDriveOnDate')?.replace(
+                              '{date}',
+                              selectedDate.toLocaleDateString(lang === 'sv' ? 'sv-SE' : 'en-US'),
+                            ) || `Did you drive on ${selectedDate.toLocaleDateString('en-US')}?`}
                       </Text>
                       {!isToday && (
                         <Text fontSize="$2" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
                           {isFuture
-                            ? 'Framtida datum - kan inte spara'
-                            : 'Redigera tidigare status'}
+                            ? t('dailyStatus.futureDateCannotSave') || 'Future date - cannot save'
+                            : t('dailyStatus.editPreviousStatus') || 'Edit previous status'}
                         </Text>
                       )}
                     </YStack>
@@ -1230,65 +1302,40 @@ export function DailyStatus({
                           fontWeight="600"
                           color={colorScheme === 'dark' ? '#FFF' : '#000'}
                         >
-                          Status
+                          {t('dailyStatus.status') || 'Status'}
                         </Text>
 
                         <XStack gap="$2">
-                          <TouchableOpacity
+                          <IconButton
+                            icon="check-circle"
+                            label={t('dailyStatus.yesIDrove') || 'Yes, I drove'}
                             onPress={() => {
                               const newStatus = formData.status === 'drove' ? null : 'drove';
                               console.log('✅ [DailyStatus] Status toggled:', newStatus);
                               setFormData((prev) => ({ ...prev, status: newStatus }));
                               if (newStatus) setStatusError(''); // Clear error when status is selected
                             }}
-                            style={{
-                              flex: 1,
-                              padding: 10,
-                              borderRadius: 6,
-                              backgroundColor:
-                                formData.status === 'drove'
-                                  ? '#4CAF50'
-                                  : colorScheme === 'dark'
-                                    ? '#333'
-                                    : '#E5E5E5',
-                              borderWidth: 1,
-                              borderColor:
-                                formData.status === 'drove'
-                                  ? '#4CAF50'
-                                  : colorScheme === 'dark'
-                                    ? '#555'
-                                    : '#CCC',
-                            }}
-                          >
-                            <XStack alignItems="center" justifyContent="center" gap="$1.5">
-                              <Feather
-                                name="check-circle"
-                                size={14}
-                                color={
-                                  formData.status === 'drove'
-                                    ? '#FFF'
-                                    : colorScheme === 'dark'
-                                      ? '#CCC'
-                                      : '#666'
-                                }
-                              />
-                              <Text
-                                fontSize="$2"
-                                fontWeight="600"
-                                color={
-                                  formData.status === 'drove'
-                                    ? '#FFF'
-                                    : colorScheme === 'dark'
-                                      ? '#CCC'
-                                      : '#666'
-                                }
-                              >
-                                Ja, jag körde
-                              </Text>
-                            </XStack>
-                          </TouchableOpacity>
+                            selected={formData.status === 'drove'}
+                            backgroundColor={
+                              formData.status === 'drove'
+                                ? 'transparent'
+                                : colorScheme === 'dark'
+                                  ? 'transparent'
+                                  : 'transparent'
+                            }
+                            borderColor={
+                              formData.status === 'drove'
+                                ? 'transparent'
+                                : colorScheme === 'dark'
+                                  ? 'transparent'
+                                  : 'transparent'
+                            }
+                            flex={1}
+                          />
 
-                          <TouchableOpacity
+                          <IconButton
+                            icon="x-circle"
+                            label={t('dailyStatus.noDidntDrive') || "No, I didn't drive"}
                             onPress={() => {
                               const newStatus =
                                 formData.status === 'didnt_drive' ? null : 'didnt_drive';
@@ -1296,52 +1343,23 @@ export function DailyStatus({
                               setFormData((prev) => ({ ...prev, status: newStatus }));
                               if (newStatus) setStatusError(''); // Clear error when status is selected
                             }}
-                            style={{
-                              flex: 1,
-                              padding: 10,
-                              borderRadius: 6,
-                              backgroundColor:
-                                formData.status === 'didnt_drive'
-                                  ? '#F44336'
-                                  : colorScheme === 'dark'
-                                    ? '#333'
-                                    : '#E5E5E5',
-                              borderWidth: 1,
-                              borderColor:
-                                formData.status === 'didnt_drive'
-                                  ? '#F44336'
-                                  : colorScheme === 'dark'
-                                    ? '#555'
-                                    : '#CCC',
-                            }}
-                          >
-                            <XStack alignItems="center" justifyContent="center" gap="$1.5">
-                              <Feather
-                                name="x-circle"
-                                size={14}
-                                color={
-                                  formData.status === 'didnt_drive'
-                                    ? '#FFF'
-                                    : colorScheme === 'dark'
-                                      ? '#CCC'
-                                      : '#666'
-                                }
-                              />
-                              <Text
-                                fontSize="$2"
-                                fontWeight="600"
-                                color={
-                                  formData.status === 'didnt_drive'
-                                    ? '#FFF'
-                                    : colorScheme === 'dark'
-                                      ? '#CCC'
-                                      : '#666'
-                                }
-                              >
-                                Nej, körde inte
-                              </Text>
-                            </XStack>
-                          </TouchableOpacity>
+                            selected={formData.status === 'didnt_drive'}
+                            backgroundColor={
+                              formData.status === 'didnt_drive'
+                                ? 'transparent'
+                                : colorScheme === 'dark'
+                                  ? 'transparent'
+                                  : 'transparent'
+                            }
+                            borderColor={
+                              formData.status === 'didnt_drive'
+                                ? 'transparent'
+                                : colorScheme === 'dark'
+                                  ? 'transparent'
+                                  : 'transparent'
+                            }
+                            flex={1}
+                          />
                         </XStack>
 
                         {/* Inline error message for status validation */}
@@ -1364,74 +1382,42 @@ export function DailyStatus({
                       </YStack>
 
                       {/* How it went */}
-                      <YStack gap="$1.5">
-                        <Text
-                          fontSize="$3"
-                          fontWeight="600"
-                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                        >
-                          Hur gick det?
-                        </Text>
-                        <Input
-                          placeholder="Berätta hur det gick..."
-                          value={formData.how_it_went}
-                          onChangeText={(text) =>
-                            setFormData((prev) => ({ ...prev, how_it_went: text }))
-                          }
-                          multiline
-                          numberOfLines={2}
-                          backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
-                          borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                          padding="$2"
-                        />
-                      </YStack>
+                      <FormField
+                        label={t('dailyStatus.howItWent') || 'How did it go?'}
+                        placeholder={
+                          t('dailyStatus.howItWentPlaceholder') || 'Tell us how it went...'
+                        }
+                        value={formData.how_it_went}
+                        onChangeText={(text) =>
+                          setFormData((prev) => ({ ...prev, how_it_went: text }))
+                        }
+                        multiline
+                        numberOfLines={2}
+                      />
 
                       {/* Challenges */}
-                      <YStack gap="$1.5">
-                        <Text
-                          fontSize="$3"
-                          fontWeight="600"
-                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                        >
-                          Utmaningar?
-                        </Text>
-                        <Input
-                          placeholder="Vad var utmanande?"
-                          value={formData.challenges}
-                          onChangeText={(text) =>
-                            setFormData((prev) => ({ ...prev, challenges: text }))
-                          }
-                          multiline
-                          numberOfLines={2}
-                          backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
-                          borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                          padding="$2"
-                        />
-                      </YStack>
+                      <FormField
+                        label={t('dailyStatus.challenges') || 'Challenges?'}
+                        placeholder={
+                          t('dailyStatus.challengesPlaceholder') || 'What was challenging?'
+                        }
+                        value={formData.challenges}
+                        onChangeText={(text) =>
+                          setFormData((prev) => ({ ...prev, challenges: text }))
+                        }
+                        multiline
+                        numberOfLines={2}
+                      />
 
                       {/* Notes */}
-                      <YStack gap="$1.5">
-                        <Text
-                          fontSize="$3"
-                          fontWeight="600"
-                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                        >
-                          Anteckningar
-                        </Text>
-                        <Input
-                          placeholder="Ytterligare anteckningar..."
-                          value={formData.notes}
-                          onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
-                          multiline
-                          numberOfLines={2}
-                          backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
-                          borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                          padding="$2"
-                        />
-                      </YStack>
+                      <FormField
+                        label={t('dailyStatus.notes') || 'Notes'}
+                        placeholder={t('dailyStatus.notesPlaceholder') || 'Additional notes...'}
+                        value={formData.notes}
+                        onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
+                        multiline
+                        numberOfLines={2}
+                      />
 
                       {/* Driving Details - Show only if drove */}
                       {formData.status === 'drove' && (
@@ -1443,7 +1429,7 @@ export function DailyStatus({
                               fontWeight="600"
                               color={colorScheme === 'dark' ? '#FFF' : '#000'}
                             >
-                              Tid (minuter)
+                              {t('dailyStatus.timeMinutes') || 'Time (minutes)'}
                             </Text>
                             <XStack gap="$2" flexWrap="wrap">
                               {[10, 15, 20, 30, 45, 60, 90, 120].map((minutes) => (
@@ -1508,7 +1494,7 @@ export function DailyStatus({
                               fontWeight="600"
                               color={colorScheme === 'dark' ? '#FFF' : '#000'}
                             >
-                              Distans (km)
+                              {t('dailyStatus.distanceKm') || 'Distance (km)'}
                             </Text>
                             <XStack gap="$2" flexWrap="wrap">
                               {[1, 3, 5, 10, 15, 20, 30, 50].map((km) => (
@@ -1567,7 +1553,7 @@ export function DailyStatus({
                               fontWeight="600"
                               color={colorScheme === 'dark' ? '#FFF' : '#000'}
                             >
-                              Betyg (1-5 stjärnor)
+                              {t('dailyStatus.ratingStars') || 'Rating (1-5 stars)'}
                             </Text>
                             <XStack gap="$2" alignItems="center">
                               {[1, 2, 3, 4, 5].map((star) => (
@@ -1608,7 +1594,7 @@ export function DailyStatus({
                           fontWeight="600"
                           color={colorScheme === 'dark' ? '#FFF' : '#000'}
                         >
-                          Memory (Photo/Video)
+                          {t('dailyStatus.memoryPhotoVideo') || 'Memory (Photo/Video)'}
                         </Text>
 
                         {formData.media_uri ? (
@@ -1685,7 +1671,7 @@ export function DailyStatus({
                               color={colorScheme === 'dark' ? '#CCC' : '#666'}
                               marginTop="$2"
                             >
-                              Add Photo or Video
+                              {t('dailyStatus.addPhotoOrVideo') || 'Add Photo or Video'}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1699,7 +1685,10 @@ export function DailyStatus({
                             fontWeight="600"
                             color={colorScheme === 'dark' ? '#FFF' : '#000'}
                           >
-                            Selected Exercises ({selectedExercises.length})
+                            {t('dailyStatus.selectedExercises')?.replace(
+                              '{count}',
+                              selectedExercises.length.toString(),
+                            ) || `Selected Exercises (${selectedExercises.length})`}
                           </Text>
                           {selectedExercises.map((exercise, index) => (
                             <XStack
@@ -1779,8 +1768,17 @@ export function DailyStatus({
                               color={colorScheme === 'dark' ? '#FFF' : '#000'}
                             >
                               {isToday
-                                ? 'Did you do any exercises today?'
-                                : `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`}
+                                ? t('dailyStatus.didYouDoExercisesToday') ||
+                                  'Did you do any exercises today?'
+                                : t('dailyStatus.didYouDoExercisesOnDate')?.replace(
+                                    '{date}',
+                                    selectedDate.toLocaleDateString('en-US', {
+                                      weekday: 'short',
+                                      month: 'short',
+                                      day: 'numeric',
+                                    }),
+                                  ) ||
+                                  `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`}
                             </Text>
                           </XStack>
                         </TouchableOpacity>
@@ -1808,7 +1806,7 @@ export function DailyStatus({
                               color={colorScheme === 'dark' ? '#FFF' : '#000'}
                               textAlign="center"
                             >
-                              Find Routes
+                              {t('dailyStatus.findRoutes') || 'Find Routes'}
                             </Text>
                           </XStack>
                         </TouchableOpacity>
@@ -1833,7 +1831,7 @@ export function DailyStatus({
                               color={colorScheme === 'dark' ? '#FFF' : '#000'}
                               textAlign="center"
                             >
-                              My Routes
+                              {t('dailyStatus.myRoutes') || 'My Routes'}
                             </Text>
                           </XStack>
                         </TouchableOpacity>
@@ -1858,7 +1856,7 @@ export function DailyStatus({
                             fontWeight="500"
                             color={colorScheme === 'dark' ? '#FFF' : '#000'}
                           >
-                            Create or Record Route
+                            {t('dailyStatus.createOrRecordRoute') || 'Create or Record Route'}
                           </Text>
                         </XStack>
                       </TouchableOpacity>
@@ -1884,7 +1882,11 @@ export function DailyStatus({
                       padding="$3"
                       borderRadius="$3"
                     >
-                      {loading ? 'Sparar...' : isFuture ? 'Come back on this day' : 'Spara status'}
+                      {loading
+                        ? t('dailyStatus.saving') || 'Saving...'
+                        : isFuture
+                          ? t('dailyStatus.comeBackOnThisDay') || 'Come back on this day'
+                          : t('dailyStatus.saveStatus') || 'Save Status'}
                     </Button>
 
                     {/* Reset Button - Only show if not future and not currently saving */}
@@ -1903,7 +1905,7 @@ export function DailyStatus({
                           color={colorScheme === 'dark' ? '#FF6B6B' : '#D32F2F'}
                           fontWeight="600"
                         >
-                          Reset Status
+                          {t('dailyStatus.resetStatus') || 'Reset Status'}
                         </Text>
                       </Button>
                     )}
