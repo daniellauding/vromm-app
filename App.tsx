@@ -103,6 +103,8 @@ export default function App() {
     );
   }
 
+  console.log('🎯 [App] Rendering');
+
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>

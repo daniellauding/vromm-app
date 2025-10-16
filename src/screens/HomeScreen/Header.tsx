@@ -23,8 +23,6 @@ import { NotificationsSheet } from '../../components/NotificationsSheet';
 import { EventsSheet } from '../../components/EventsSheet';
 
 import { useAuth } from '@/src/context/AuthContext';
-import { NavigationProp } from '@/src/types/navigation';
-import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { supabase } from '../../lib/supabase';
@@ -65,7 +63,7 @@ const ProgressCircle = ({ percent, size = 44, color = '#00E6C3', bg = '#333' }) 
   );
 };
 
-export const HomeHeader = () => {
+export const HomeHeader = React.memo(function HomeHeader() {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const { profile, signOut } = useAuth();
@@ -863,4 +861,4 @@ export const HomeHeader = () => {
       </Modal>
     </YStack>
   );
-};
+});

@@ -261,6 +261,8 @@ function AuthenticatedAppContent() {
     });
   }, [authData?.user?.id, showToast, t]);
 
+  console.log('🎯 [AuthenticatedAppContent] Rendering');
+
   return (
     <Stack.Navigator
       initialRouteName="MainTabs"
@@ -925,6 +927,7 @@ function AppContent() {
   // Only return null during initial app startup, not during login attempts
   // This prevents navigation stack from being destroyed during authentication
 
+  console.log('🎯 [AppContent] Rendering', authLoading, initialized);
   if (authLoading && !initialized) {
     return (
       <LoadingScreen
