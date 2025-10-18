@@ -74,18 +74,19 @@ class NotificationService {
     console.log('🔖 markAsRead completed for:', notificationId);
   }
 
-  // Mark all notifications as read
+  // Mark all notifications as read AND archive them (hide from view)
   async markAllAsRead(): Promise<void> {
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
+    // Mark as read AND archive in one operation
     const { error } = await supabase
       .from('notifications')
-      .update({ is_read: true })
+      .update({ is_read: true, archived: true })
       .eq('user_id', user.id)
-      .eq('is_read', false);
+      .or('archived.is.null,archived.eq.false'); // Only update non-archived notifications
 
     if (error) throw error;
   }

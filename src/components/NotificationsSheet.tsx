@@ -7,7 +7,7 @@ import ReanimatedAnimated, {
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
-import { YStack, XStack, Text, Spinner, useTheme, Button as TamaguiButton } from 'tamagui';
+import { YStack, XStack, Text, Spinner, useTheme } from 'tamagui';
 import { TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -60,7 +60,6 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
     return points;
   }, []);
 
-  const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
   const currentState = useSharedValue(snapPoints.large);
 
   // Bulk action handlers
@@ -70,7 +69,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
       await notificationService.markAllAsRead();
       showToast({
         title: 'Success',
-        message: 'All notifications marked as read',
+        message: 'All notifications cleared',
         type: 'success',
       });
       setShowBulkActions(false);
@@ -80,7 +79,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
       console.error('Error marking all as read:', error);
       showToast({
         title: 'Error',
-        message: 'Failed to mark all notifications as read',
+        message: 'Failed to clear notifications',
         type: 'error',
       });
     } finally {
@@ -134,14 +133,6 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
     });
     setTimeout(() => onClose(), 200);
   }, [onClose, snapPoints.dismissed, translateY]);
-
-  const snapTo = useCallback(
-    (point: number) => {
-      currentState.value = point;
-      setCurrentSnapPoint(point);
-    },
-    [currentState],
-  );
 
   // Pan gesture for drag-to-resize
   const panGesture = Gesture.Pan()
@@ -200,7 +191,6 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
       });
 
       currentState.value = boundedTarget;
-      runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
   const animatedGestureStyle = useAnimatedStyle(() => ({
@@ -220,7 +210,6 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
         restSpeedThreshold: 0.01,
       });
       currentState.value = snapPoints.large;
-      setCurrentSnapPoint(snapPoints.large);
 
       Animated.timing(backdropOpacity, {
         toValue: 1,
@@ -264,12 +253,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                 animatedGestureStyle,
               ]}
             >
-              <YStack
-                padding="$4"
-                paddingBottom={insets.bottom || 20}
-                gap="$4"
-                flex={1}
-              >
+              <YStack padding="$4" paddingBottom={insets.bottom || 20} gap="$4" flex={1}>
                 {/* Drag Handle */}
                 <View
                   style={{
@@ -287,107 +271,107 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                     }}
                   />
                 </View>
-              {/* Header */}
-              <XStack justifyContent="space-between" alignItems="center">
-                <Text fontSize="$6" fontWeight="bold" color="$color">
-                  {showArchived ? 'Archived Notifications' : 'Notifications'}
-                </Text>
+                {/* Header */}
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="$6" fontWeight="bold" color="$color">
+                    {showArchived ? 'Archived Notifications' : 'Notifications'}
+                  </Text>
 
-                <XStack alignItems="center" gap="$2">
-                  {/* View Toggle: Active/Archived */}
-                  <TouchableOpacity
-                    onPress={() => setShowArchived(!showArchived)}
-                    style={{
-                      padding: 8,
-                      // backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
-                      borderRadius: 6,
-                    }}
-                  >
-                    <Feather
-                      name={showArchived ? 'inbox' : 'archive'}
-                      size={18}
-                      color={iconColor}
-                    />
-                  </TouchableOpacity>
-
-                  {/* Actions Menu - only show for active notifications */}
-                  {!showArchived && (
+                  <XStack alignItems="center" gap="$2">
+                    {/* View Toggle: Active/Archived */}
                     <TouchableOpacity
-                      onPress={() => setShowBulkActions(!showBulkActions)}
+                      onPress={() => setShowArchived(!showArchived)}
                       style={{
                         padding: 8,
                         // backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
                         borderRadius: 6,
                       }}
-                      disabled={isProcessing}
                     >
                       <Feather
-                        name="more-vertical"
+                        name={showArchived ? 'inbox' : 'archive'}
                         size={18}
-                        color={isProcessing ? '#666' : iconColor}
+                        color={iconColor}
                       />
                     </TouchableOpacity>
-                  )}
 
-                  {/* Close */}
-                  {/* <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+                    {/* Actions Menu - only show for active notifications */}
+                    {!showArchived && (
+                      <TouchableOpacity
+                        onPress={() => setShowBulkActions(!showBulkActions)}
+                        style={{
+                          padding: 8,
+                          // backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                          borderRadius: 6,
+                        }}
+                        disabled={isProcessing}
+                      >
+                        <Feather
+                          name="more-vertical"
+                          size={18}
+                          color={isProcessing ? '#666' : iconColor}
+                        />
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Close */}
+                    {/* <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
                     <Feather name="x" size={24} color={iconColor} />
                   </TouchableOpacity> */}
+                  </XStack>
                 </XStack>
-              </XStack>
 
-              {/* Actions Dropdown */}
-              {showBulkActions && (
-                <YStack
-                  // backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
-                  borderRadius="$3"
-                  padding="$2"
-                  gap="$2"
-                  borderWidth={1}
-                  // borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                >
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onPress={handleMarkAllAsRead}
-                    disabled={isProcessing}
+                {/* Actions Dropdown */}
+                {showBulkActions && (
+                  <YStack
+                    // backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
+                    borderRadius="$3"
+                    padding="$2"
+                    gap="$2"
+                    borderWidth={1}
+                    // borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                   >
-                    Mark All as Read
-                  </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onPress={handleMarkAllAsRead}
+                      disabled={isProcessing}
+                    >
+                      <Text>Clear All</Text>
+                    </Button>
 
-                  <Button
-                    variant="outlined"
-                    size="sm"
-                    onPress={handleArchiveAll}
-                    disabled={isProcessing}
-                  >
-                    Archive All
-                  </Button>
+                    <Button
+                      variant="outlined"
+                      size="sm"
+                      onPress={handleArchiveAll}
+                      disabled={isProcessing}
+                    >
+                      <Text>Archive All</Text>
+                    </Button>
 
-                  {isProcessing && (
-                    <XStack alignItems="center" gap="$2" padding="$2">
-                      <Spinner size="small" color="#00FFBC" />
-                      <Text fontSize="$2" color="$gray11">
-                        Processing...
-                      </Text>
-                    </XStack>
-                  )}
+                    {isProcessing && (
+                      <XStack alignItems="center" gap="$2" padding="$2">
+                        <Spinner size="small" color="#00FFBC" />
+                        <Text fontSize="$2" color="$gray11">
+                          Processing...
+                        </Text>
+                      </XStack>
+                    )}
+                  </YStack>
+                )}
+
+                {/* Notifications Content */}
+                <YStack flex={1}>
+                  <NotificationsScreen
+                    key={`notifications-${refreshKey}-${showArchived}`}
+                    showArchived={showArchived}
+                    isModal={true}
+                  />
                 </YStack>
-              )}
-
-              {/* Notifications Content */}
-              <YStack flex={1}>
-                <NotificationsScreen
-                  key={`notifications-${refreshKey}-${showArchived}`}
-                  showArchived={showArchived}
-                  isModal={true}
-                />
               </YStack>
-            </YStack>
-          </ReanimatedAnimated.View>
-        </GestureDetector>
-      </View>
-    </Animated.View>
+            </ReanimatedAnimated.View>
+          </GestureDetector>
+        </View>
+      </Animated.View>
 
       {/* Custom Archive Confirmation Modal */}
       <Modal
@@ -427,18 +411,17 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                 onPress={handleArchiveCancel}
                 disabled={isProcessing}
                 flex={1}
-                size="$3"
+                size="md"
               >
                 <Text color="$color">Cancel</Text>
               </Button>
 
               <Button
                 backgroundColor="#EF4444"
-                color="white"
                 onPress={handleArchiveConfirm}
                 disabled={isProcessing}
                 flex={1}
-                size="$3"
+                size="md"
               >
                 {isProcessing ? (
                   <XStack alignItems="center" gap="$2">
