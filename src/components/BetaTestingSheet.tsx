@@ -6,14 +6,16 @@ import {
   Dimensions,
   Animated,
   Platform,
-  Alert,
   ScrollView,
   Pressable,
 } from 'react-native';
-import { Text, XStack, YStack, useTheme, Button, Input, Card } from 'tamagui';
+import { Text, XStack, YStack, useTheme, Card } from 'tamagui';
+import { Button } from './Button';
+import { FormField } from './FormField';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
+import { useToast } from '../contexts/ToastContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -24,7 +26,6 @@ import ReanimatedAnimated, {
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BetaTestingSheetProps {
   isVisible: boolean;
@@ -36,15 +37,6 @@ interface BetaTestingSheetProps {
 }
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
-
-// Snap points for resizing (like RouteDetailSheet)
-const snapPoints = {
-  large: screenHeight * 0.1, // Top at 10% of screen (show 90% - largest)
-  medium: screenHeight * 0.4, // Top at 40% of screen (show 60% - medium)
-  small: screenHeight * 0.7, // Top at 70% of screen (show 30% - small)
-  mini: screenHeight * 0.85, // Top at 85% of screen (show 15% - just title)
-  dismissed: screenHeight, // Completely off-screen
-};
 
 // Dynamic checklist items will be loaded from database
 
@@ -121,14 +113,116 @@ export function BetaTestingSheet({
   const { t } = useTranslation();
   const theme = useTheme();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const backgroundColor = theme.background?.val || '#FFFFFF';
   const textColor = theme.color?.val || '#000000';
   const borderColor = theme.borderColor?.val || '#DDD';
   const primaryColor = theme.primary?.val || '#69e3c4';
 
+  // Snap points for resizing (like RouteDetailSheet)
+  const snapPoints = useMemo(() => {
+    const points = {
+      large: screenHeight * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: screenHeight * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: screenHeight * 0.7, // Top at 70% of screen (show 30% - small)
+      mini: screenHeight * 0.85, // Top at 85% of screen (show 15% - just title)
+      dismissed: screenHeight, // Completely off-screen
+    };
+    return points;
+  }, [screenHeight]);
+
+  const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
+  const currentState = useSharedValue(snapPoints.large);
+  const isDragging = useRef(false);
+
   // Animation values
-  const translateY = useRef(new Animated.Value(screenHeight)).current;
+  const translateY = useSharedValue(screenHeight);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  // Snap functions
+  const dismissSheet = useCallback(() => {
+    translateY.value = withSpring(snapPoints.dismissed, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    setTimeout(() => onClose(), 200);
+  }, [onClose, snapPoints.dismissed]);
+
+  const snapTo = useCallback(
+    (point: number) => {
+      currentState.value = point;
+      setCurrentSnapPoint(point);
+    },
+    [currentState],
+  );
+
+  // Pan gesture for drag-to-dismiss and snap points
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      isDragging.current = true;
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentState.value + translationY;
+
+        // Constrain to snap points range
+        const minPosition = snapPoints.large;
+        const maxPosition = snapPoints.mini + 100;
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+
+        translateY.value = boundedPosition;
+      } catch (error) {
+        console.log('panGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      isDragging.current = false;
+
+      const currentPosition = currentState.value + translationY;
+
+      // Dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
+        runOnJS(dismissSheet)();
+        return;
+      }
+
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        targetSnapPoint = snapPoints.large;
+      } else if (velocityY > 500) {
+        targetSnapPoint = snapPoints.mini;
+      } else {
+        const positions = [snapPoints.large, snapPoints.medium, snapPoints.small, snapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+
+      const boundedTarget = Math.min(Math.max(targetSnapPoint, snapPoints.large), snapPoints.mini);
+
+      translateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+
+      currentState.value = boundedTarget;
+      runOnJS(setCurrentSnapPoint)(boundedTarget);
+    });
+
+  const animatedGestureStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'checklist' | 'feedback' | 'pricing' | 'video'>(
@@ -586,43 +680,31 @@ export function BetaTestingSheet({
   // Animate when visibility changes
   useEffect(() => {
     if (isVisible) {
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0,
-          damping: 20,
-          mass: 1,
-          stiffness: 100,
-          overshootClamping: true,
-          restDisplacementThreshold: 0.01,
-          restSpeedThreshold: 0.01,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Reset gesture translateY when opening and set to large snap point
+      translateY.value = withSpring(snapPoints.large, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      currentState.value = snapPoints.large;
+      setCurrentSnapPoint(snapPoints.large);
+
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
     } else {
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: screenHeight,
-          damping: 20,
-          mass: 1,
-          stiffness: 100,
-          overshootClamping: true,
-          restDisplacementThreshold: 0.01,
-          restSpeedThreshold: 0.01,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
     }
-  }, [isVisible, translateY, backdropOpacity]);
+  }, [isVisible, backdropOpacity, snapPoints.large, currentState]);
 
   // Handle checklist toggle
   const toggleChecklistItem = async (id: string) => {
@@ -661,7 +743,11 @@ export function BetaTestingSheet({
         console.error('Error saving checklist completion:', error);
         // Revert local state on error
         setChecklistItems(checklistItems);
-        Alert.alert('Error', 'Failed to save progress. Please try again.');
+        showToast({
+          title: 'Error',
+          message: 'Failed to save progress. Please try again.',
+          type: 'error',
+        });
       }
     } catch (error) {
       console.error('Error toggling checklist item:', error);
@@ -693,7 +779,11 @@ export function BetaTestingSheet({
   // Submit feedback
   const submitFeedback = async () => {
     if (!feedbackForm.name || !feedbackForm.feedback || feedbackForm.rating === 0) {
-      Alert.alert('Missing Information', 'Please provide your name, rating, and feedback.');
+      showToast({
+        title: 'Missing Information',
+        message: 'Please provide your name, rating, and feedback.',
+        type: 'error',
+      });
       return;
     }
 
@@ -737,7 +827,11 @@ export function BetaTestingSheet({
       submissions.push(feedbackData);
       await AsyncStorage.setItem('beta_feedback_submissions', JSON.stringify(submissions));
 
-      Alert.alert('Thank You!', 'Your feedback has been saved and will help us improve Vromm.');
+      showToast({
+        title: 'Thank You!',
+        message: 'Your feedback has been saved and will help us improve Vromm.',
+        type: 'success',
+      });
 
       // Reset form
       setFeedbackForm({
@@ -750,17 +844,22 @@ export function BetaTestingSheet({
       });
     } catch (error) {
       console.error('Feedback submission error:', error);
-      Alert.alert('Error', 'Could not save feedback. Please try again.');
+      showToast({
+        title: 'Error',
+        message: 'Could not save feedback. Please try again.',
+        type: 'error',
+      });
     }
   };
 
   // Submit pricing feedback
   const submitPricing = async () => {
     if (!pricingForm.name || !pricingForm.suggestedPrice || !pricingForm.reasoning) {
-      Alert.alert(
-        'Missing Information',
-        'Please provide your name, suggested price, and reasoning.',
-      );
+      showToast({
+        title: 'Missing Information',
+        message: 'Please provide your name, suggested price, and reasoning.',
+        type: 'error',
+      });
       return;
     }
 
@@ -806,10 +905,11 @@ export function BetaTestingSheet({
       submissions.push(pricingData);
       await AsyncStorage.setItem('beta_pricing_submissions', JSON.stringify(submissions));
 
-      Alert.alert(
-        'Thank You!',
-        'Your pricing feedback has been saved and will help us set the right price for Vromm.',
-      );
+      showToast({
+        title: 'Thank You!',
+        message: 'Your pricing feedback has been saved and will help us set the right price for Vromm.',
+        type: 'success',
+      });
 
       // Reset form
       setPricingForm({
@@ -824,35 +924,50 @@ export function BetaTestingSheet({
       });
     } catch (error) {
       console.error('Pricing feedback submission error:', error);
-      Alert.alert('Error', 'Could not save pricing feedback. Please try again.');
+      showToast({
+        title: 'Error',
+        message: 'Could not save pricing feedback. Please try again.',
+        type: 'error',
+      });
     }
   };
 
   // Render tabs
   const renderTabs = () => {
     const tabs = [
-      { key: 'checklist', label: 'Checklist', icon: 'check-square' },
-      { key: 'feedback', label: 'Feedback', icon: 'message-square' },
-      { key: 'pricing', label: 'Pricing', icon: 'dollar-sign' },
-      { key: 'video', label: 'How It Works', icon: 'play-circle' },
+      { key: 'checklist', label: 'Checklist' },
+      { key: 'feedback', label: 'Feedback' },
+      { key: 'pricing', label: 'Pricing' },
+      { key: 'video', label: 'Resources' },
     ];
 
     return (
       <XStack gap="$2" marginBottom="$4" flexWrap="wrap">
         {tabs.map((tab) => (
-          <Button
+          <TouchableOpacity
             key={tab.key}
             onPress={() => setActiveTab(tab.key as any)}
-            variant={activeTab === tab.key ? 'primary' : 'tertiary'}
-            size="sm"
-            flex={1}
-            minWidth={80}
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 10,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: borderColor,
+              backgroundColor: activeTab === tab.key ? primaryColor : 'transparent',
+              flex: 1,
+              minWidth: 80,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <XStack alignItems="center" gap="$1">
-              <Feather name={tab.icon as any} size={14} />
-              <Text size="xs">{tab.label}</Text>
-            </XStack>
-          </Button>
+            <Text
+              fontSize="$3"
+              fontWeight={activeTab === tab.key ? '600' : '500'}
+              color={activeTab === tab.key ? '#000000' : textColor}
+            >
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
         ))}
       </XStack>
     );
@@ -961,7 +1076,7 @@ export function BetaTestingSheet({
       </Text>
 
       <YStack gap="$3">
-        <Input
+        <FormField
           placeholder="Your name"
           value={feedbackForm.name}
           onChangeText={(text) => {
@@ -969,9 +1084,10 @@ export function BetaTestingSheet({
             setFeedbackForm(newForm);
             saveFeedback(newForm);
           }}
+          size="md"
         />
 
-        <Input
+        <FormField
           placeholder="Email (optional)"
           value={feedbackForm.email}
           onChangeText={(text) => {
@@ -979,6 +1095,9 @@ export function BetaTestingSheet({
             setFeedbackForm(newForm);
             saveFeedback(newForm);
           }}
+          size="md"
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
 
         <YStack gap="$2">
@@ -1050,7 +1169,7 @@ export function BetaTestingSheet({
           </YStack>
         </YStack>
 
-        <Input
+        <FormField
           placeholder="Your detailed feedback..."
           value={feedbackForm.feedback}
           onChangeText={(text) => {
@@ -1061,12 +1180,11 @@ export function BetaTestingSheet({
           multiline
           numberOfLines={4}
           textAlignVertical="top"
+          size="md"
         />
 
-        <Button onPress={submitFeedback} backgroundColor={primaryColor}>
-          <Text color="#FFFFFF" fontWeight="600">
-            Submit Feedback
-          </Text>
+        <Button variant="primary" onPress={submitFeedback}>
+          Submit Feedback
         </Button>
       </YStack>
     </YStack>
@@ -1083,7 +1201,7 @@ export function BetaTestingSheet({
       </Text>
 
       <YStack gap="$3">
-        <Input
+        <FormField
           placeholder="Your name"
           value={pricingForm.name}
           onChangeText={(text) => {
@@ -1091,9 +1209,10 @@ export function BetaTestingSheet({
             setPricingForm(newForm);
             savePricing(newForm);
           }}
+          size="md"
         />
 
-        <Input
+        <FormField
           placeholder="Email (optional)"
           value={pricingForm.email}
           onChangeText={(text) => {
@@ -1101,9 +1220,12 @@ export function BetaTestingSheet({
             setPricingForm(newForm);
             savePricing(newForm);
           }}
+          size="md"
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
 
-        <Input
+        <FormField
           placeholder="What do you currently pay for driving lessons? (e.g., 500 SEK/hour)"
           value={pricingForm.currentPrice}
           onChangeText={(text) => {
@@ -1111,9 +1233,10 @@ export function BetaTestingSheet({
             setPricingForm(newForm);
             savePricing(newForm);
           }}
+          size="md"
         />
 
-        <Input
+        <FormField
           placeholder="What would you be willing to pay for Vromm? (e.g., 99 SEK/month)"
           value={pricingForm.suggestedPrice}
           onChangeText={(text) => {
@@ -1121,6 +1244,7 @@ export function BetaTestingSheet({
             setPricingForm(newForm);
             savePricing(newForm);
           }}
+          size="md"
         />
 
         <YStack gap="$2">
@@ -1203,7 +1327,7 @@ export function BetaTestingSheet({
           </YStack>
         </YStack>
 
-        <Input
+        <FormField
           placeholder="Explain your reasoning for the suggested price..."
           value={pricingForm.reasoning}
           onChangeText={(text) => {
@@ -1214,12 +1338,11 @@ export function BetaTestingSheet({
           multiline
           numberOfLines={4}
           textAlignVertical="top"
+          size="md"
         />
 
-        <Button onPress={submitPricing} backgroundColor={primaryColor}>
-          <Text color="#FFFFFF" fontWeight="600">
-            Submit Pricing Feedback
-          </Text>
+        <Button variant="primary" onPress={submitPricing}>
+          Submit Pricing Feedback
         </Button>
       </YStack>
     </YStack>
@@ -1249,67 +1372,51 @@ export function BetaTestingSheet({
       {/* Action buttons */}
       <YStack gap="$3">
         <Button
+          variant="primary"
+          size="lg"
           onPress={() => {
             onOpenBetaWebView();
             onClose();
           }}
-          backgroundColor={primaryColor}
-          size="lg"
+          icon={<Feather name="globe" size={20} color="#FFFFFF" />}
         >
-          <XStack alignItems="center" gap="$2">
-            <Feather name="globe" size={20} color="#FFFFFF" />
-            <Text color="#FFFFFF" fontWeight="600">
-              Visit Beta Website
-            </Text>
-          </XStack>
+          Visit Beta Website
         </Button>
 
         <Button
+          variant="primary"
+          size="lg"
           onPress={() => {
             onOpenBuyCoffee();
             onClose();
           }}
-          backgroundColor="#FF6B6B"
-          size="lg"
+          icon={<Feather name="coffee" size={20} color="#FFFFFF" />}
         >
-          <XStack alignItems="center" gap="$2">
-            <Feather name="coffee" size={20} color="#FFFFFF" />
-            <Text color="#FFFFFF" fontWeight="600">
-              Buy Me a Coffee
-            </Text>
-          </XStack>
+          Buy Me a Coffee
         </Button>
 
         <Button
+          variant="primary"
+          size="lg"
           onPress={() => {
             onShareApp();
             onClose();
           }}
-          backgroundColor="#4ECDC4"
-          size="lg"
+          icon={<Feather name="share-2" size={20} color="#FFFFFF" />}
         >
-          <XStack alignItems="center" gap="$2">
-            <Feather name="share-2" size={20} color="#FFFFFF" />
-            <Text color="#FFFFFF" fontWeight="600">
-              Share Vromm
-            </Text>
-          </XStack>
+          Share Vromm
         </Button>
 
         <Button
+          variant="outlined"
+          size="lg"
           onPress={() => {
             onOpenAbout();
             onClose();
           }}
-          variant="outlined"
-          size="lg"
+          icon={<Feather name="info" size={20} />}
         >
-          <XStack alignItems="center" gap="$2">
-            <Feather name="info" size={20} color={textColor} />
-            <Text color={textColor} fontWeight="600">
-              About Vromm
-            </Text>
-          </XStack>
+          About Vromm
         </Button>
       </YStack>
     </YStack>
@@ -1344,43 +1451,69 @@ export function BetaTestingSheet({
         <TouchableOpacity style={{ flex: 1 }} onPress={onClose} />
       </Animated.View>
 
-      <Animated.View
-        style={[
-          styles.sheet,
-          {
-            backgroundColor,
-            transform: [{ translateY }],
-          },
-        ]}
-      >
-        <YStack padding="$4" gap="$4" maxHeight={screenHeight * 0.9}>
-          {/* Header */}
-          <XStack justifyContent="space-between" alignItems="center">
-            <YStack flex={1}>
-              <Text fontSize="$6" fontWeight="700" color={textColor}>
-                Beta Testing
-              </Text>
-              <Text fontSize="$3" color={textColor} opacity={0.7}>
-                Help us perfect Vromm
-              </Text>
-            </YStack>
-            <Button onPress={onClose} variant="outlined" size="sm">
-              <Feather name="x" size={16} />
-            </Button>
-          </XStack>
+      <GestureDetector gesture={panGesture}>
+        <ReanimatedAnimated.View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor,
+            },
+            animatedGestureStyle,
+          ]}
+        >
+          <YStack padding="$4" gap="$4" flex={1}>
+            {/* Drag Handle */}
+            <View
+              style={{
+                alignItems: 'center',
+                paddingVertical: 8,
+                paddingBottom: 16,
+              }}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: borderColor,
+                }}
+              />
+            </View>
 
-          {/* Tabs */}
-          {renderTabs()}
+            {/* Show content only if not in mini mode */}
+            {currentSnapPoint !== snapPoints.mini && (
+              <View style={{ flex: 1 }}>
+                {/* Header */}
+                <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
+                  <YStack flex={1}>
+                    <Text fontSize="$6" fontWeight="700" color={textColor}>
+                      Beta Testing
+                    </Text>
+                    <Text fontSize="$3" color={textColor} opacity={0.7}>
+                      Help us perfect Vromm
+                    </Text>
+                  </YStack>
+                  <Button onPress={onClose} variant="outlined" size="sm">
+                    <Feather name="x" size={16} />
+                  </Button>
+                </XStack>
 
-          {/* Content */}
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            style={{ maxHeight: screenHeight * 0.6 }}
-          >
-            {renderTabContent()}
-          </ScrollView>
-        </YStack>
-      </Animated.View>
+                {/* Tabs */}
+                {renderTabs()}
+
+                {/* Content */}
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                >
+                  {renderTabContent()}
+                </ScrollView>
+              </View>
+            )}
+          </YStack>
+        </ReanimatedAnimated.View>
+      </GestureDetector>
     </View>
   );
 }
@@ -1404,9 +1537,10 @@ const styles = StyleSheet.create({
   },
   sheet: {
     position: 'absolute',
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
+    height: screenHeight,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     shadowColor: '#000',

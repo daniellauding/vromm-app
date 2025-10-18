@@ -54,6 +54,8 @@ import { useModal } from '../contexts/ModalContext';
 import { IconButton } from './IconButton';
 import { useToast } from '../contexts/ToastContext';
 import { PIN_COLORS } from '../styles/mapStyles';
+import { CreateRouteSheet } from './CreateRouteSheet';
+import { UserProfileSheet } from './UserProfileSheet';
 
 const { height, width } = Dimensions.get('window');
 
@@ -460,6 +462,10 @@ export function RouteDetailSheet({
   const [showDeleteConfirmSheet, setShowDeleteConfirmSheet] = useState(false);
   const [showAdminDeleteConfirmSheet, setShowAdminDeleteConfirmSheet] = useState(false);
   const [showOptionsSheet, setShowOptionsSheet] = useState(false);
+  const [showCreateRouteSheet, setShowCreateRouteSheet] = useState(false);
+  const [showMediaDetails, setShowMediaDetails] = useState(false);
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
 
   // Exercise-related state
   const [exerciseStats, setExerciseStats] = useState<{
@@ -920,28 +926,9 @@ export function RouteDetailSheet({
     if (onNavigateToProfile) {
       onNavigateToProfile(userId);
     } else {
-      if (navigation) {
-        try {
-          navigation.navigate('PublicProfile', { userId });
-          onClose();
-        } catch (error) {
-          console.warn('Navigation not available in modal context:', error);
-          showToast({
-            title: t('common.error') || 'Error',
-            message:
-              t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
-            type: 'error',
-          });
-        }
-      } else {
-        console.warn('Navigation not available in modal context');
-        showToast({
-          title: t('common.error') || 'Error',
-          message:
-            t('routeDetail.navigationNotAvailable') || 'Navigation not available in this context',
-          type: 'error',
-        });
-      }
+      // Show ProfileSheet as modal instead of navigating
+      setSelectedProfileUserId(userId);
+      setShowProfileSheet(true);
     }
   };
 
@@ -1147,6 +1134,11 @@ export function RouteDetailSheet({
       metadata.push({ label: 'Region', value: routeData.region, icon: 'map' });
     }
 
+    // Brand info
+    if (routeData.brand) {
+      metadata.push({ label: 'Brand', value: routeData.brand, icon: 'tag' });
+    }
+
     // Duration and status
     if (routeData.estimated_duration_minutes) {
       const hours = Math.floor(routeData.estimated_duration_minutes / 60);
@@ -1218,12 +1210,26 @@ export function RouteDetailSheet({
 
       const routePath = waypoints.length > 2 ? waypoints : undefined;
 
+      // Extract pins from route data
+      const pins =
+        routeData.pins && Array.isArray(routeData.pins)
+          ? routeData.pins
+              .map((pin: any) => ({
+                latitude: pin.lat,
+                longitude: pin.lng,
+                title: pin.title,
+                description: pin.description,
+              }))
+              .filter((pin) => pin.latitude && pin.longitude)
+          : [];
+
       items.push({
         type: 'map',
         waypoints,
         region,
         routePath,
         showStartEndMarkers: true,
+        pins,
       });
     }
 
@@ -1269,6 +1275,7 @@ export function RouteDetailSheet({
           zoomEnabled={true}
           scrollEnabled={false}
           routePath={item.routePath}
+          pins={item.pins}
           routePathColor={PIN_COLORS.ROUTE_PATH}
           showStartEndMarkers={item.showStartEndMarkers}
         />
@@ -1750,41 +1757,8 @@ export function RouteDetailSheet({
                                         route_id: routeData?.id,
                                       },
                                     ).catch(() => {});
-                                    if (navigation) {
-                                      try {
-                                        navigation.navigate('CreateRoute', {
-                                          routeId: routeData?.id,
-                                          onClose: () => {
-                                            // When user presses back from CreateRoute, reopen the RouteDetailSheet
-                                            if (onReopen) {
-                                              onReopen();
-                                            }
-                                          },
-                                        });
-                                        onClose();
-                                      } catch (error) {
-                                        console.warn(
-                                          'Navigation not available in modal context:',
-                                          error,
-                                        );
-                                        showToast({
-                                          title: t('common.error') || 'Error',
-                                          message:
-                                            t('routeDetail.navigationNotAvailable') ||
-                                            'Navigation not available in this context',
-                                          type: 'error',
-                                        });
-                                      }
-                                    } else {
-                                      console.warn('Navigation not available in modal context');
-                                      showToast({
-                                        title: t('common.error') || 'Error',
-                                        message:
-                                          t('routeDetail.navigationNotAvailable') ||
-                                          'Navigation not available in this context',
-                                        type: 'error',
-                                      });
-                                    }
+                                    // Show CreateRouteSheet as modal
+                                    setShowCreateRouteSheet(true);
                                   }}
                                   backgroundColor={isSaved ? 'transparent' : 'transparent'}
                                   borderColor={isSaved ? 'transparent' : 'transparent'}
@@ -1805,7 +1779,7 @@ export function RouteDetailSheet({
                           {/* Basic Info Card */}
                           <Card backgroundColor="$backgroundStrong" bordered padding="$4">
                             <YStack gap="$2">
-                              <XStack gap="$2" alignItems="center">
+                              <XStack gap="$2" alignItems="center" flexWrap="wrap">
                                 <Text fontSize="$5" fontWeight="600" color="$color">
                                   {routeData.difficulty?.toUpperCase() || ''}
                                 </Text>
@@ -1815,6 +1789,16 @@ export function RouteDetailSheet({
                                 <Text fontSize="$5" color="$gray11">
                                   {routeData.spot_type || ''}
                                 </Text>
+                                {routeData.spot_subtype && (
+                                  <>
+                                    <Text fontSize="$4" color="$gray11">
+                                      •
+                                    </Text>
+                                    <Text fontSize="$5" color="$gray11">
+                                      {routeData.spot_subtype}
+                                    </Text>
+                                  </>
+                                )}
                                 <Text fontSize="$4" color="$gray11">
                                   •
                                 </Text>
@@ -2472,6 +2456,44 @@ export function RouteDetailSheet({
           </GestureDetector>
         </View>
       </Animated.View>
+
+      {/* CreateRouteSheet Modal for Editing */}
+      {showCreateRouteSheet && routeData && (
+        <CreateRouteSheet
+          visible={showCreateRouteSheet}
+          onClose={() => {
+            setShowCreateRouteSheet(false);
+            // Refresh route data after editing
+            handleRefresh();
+          }}
+          routeId={routeData.id}
+          onRouteUpdated={(updatedRouteId) => {
+            console.log('Route updated:', updatedRouteId);
+            setShowCreateRouteSheet(false);
+            // Refresh route data
+            handleRefresh();
+          }}
+          isModal={true}
+        />
+      )}
+
+      {/* UserProfileSheet Modal - reopens RouteDetailSheet on close */}
+      {showProfileSheet && selectedProfileUserId && (
+        <UserProfileSheet
+          visible={showProfileSheet}
+          onClose={() => {
+            setShowProfileSheet(false);
+            setSelectedProfileUserId(null);
+            // Reopen RouteDetailSheet after ProfileSheet closes
+            if (onReopen) {
+              setTimeout(() => {
+                onReopen();
+              }, 300);
+            }
+          }}
+          userId={selectedProfileUserId}
+        />
+      )}
     </Modal>
   );
 }

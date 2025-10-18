@@ -303,7 +303,7 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
                         width: 40,
                         height: 40,
                         borderRadius: 20,
-                        backgroundColor: exercise.progress_percent === 1 ? '#00E6C3' : '#4B6BFF',
+                        backgroundColor: exercise.progress_percent === 1 ? '#00E6C3' : (colorScheme === 'dark' ? '#00E6C320' : '#00E6C315'),
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
@@ -312,10 +312,10 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
                         <Feather
                           name={exercise.icon as keyof typeof Feather.glyphMap}
                           size={20}
-                          color="white"
+                          color={exercise.progress_percent === 1 ? 'white' : '#00E6C3'}
                         />
                       ) : (
-                        <Feather name="book-open" size={20} color="white" />
+                        <Feather name="book-open" size={20} color={exercise.progress_percent === 1 ? 'white' : '#00E6C3'} />
                       )}
                     </View>
 
@@ -324,7 +324,7 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
                     ) : exercise.is_locked ? (
                       <Feather name="lock" size={20} color="#FF9500" />
                     ) : (
-                      <Feather name="play-circle" size={20} color="#4B6BFF" />
+                      <Feather name="play-circle" size={20} color="#00E6C3" />
                     )}
                   </XStack>
 
@@ -345,7 +345,7 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
                       style={{
                         width: '100%',
                         height: 6,
-                        backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                        backgroundColor: colorScheme === 'dark' ? '#00E6C320' : '#00E6C315',
                         borderRadius: 3,
                         overflow: 'hidden',
                       }}
@@ -354,7 +354,7 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
                         style={{
                           width: `${Math.round(exercise.progress_percent * 100)}%`,
                           height: '100%',
-                          backgroundColor: exercise.progress_percent === 1 ? '#00E6C3' : '#4B6BFF',
+                          backgroundColor: '#00E6C3',
                           borderRadius: 3,
                         }}
                       />
@@ -366,7 +366,7 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
                         {exercise.completed_repeats}/{exercise.total_repeats}{' '}
                         {exercise.total_repeats > 1 ? 'repeats' : 'completed'}
                       </Text>
-                      <Text fontSize="$1" color="$gray11" fontWeight="600">
+                      <Text fontSize="$1" color="#00E6C3" fontWeight="600">
                         {Math.round(exercise.progress_percent * 100)}%
                       </Text>
                     </XStack>

@@ -604,10 +604,10 @@ export function FeaturedContent2() {
                   <Feather
                     name={item.icon as keyof typeof Feather.glyphMap}
                     size={20}
-                    color={isExercise ? '#4B6BFF' : '#00FFBC'}
+                    color={isExercise ? '#00E6C3' : '#00FFBC'}
                   />
                 )}
-                <Text fontSize="$3" fontWeight="600" color={isExercise ? '#4B6BFF' : '#00FFBC'}>
+                <Text fontSize="$3" fontWeight="600" color={isExercise ? '#00E6C3' : '#00FFBC'}>
                   {isExercise
                     ? t('home.exercise') || 'Exercise'
                     : t('home.learningPath') || 'Learning Path'}

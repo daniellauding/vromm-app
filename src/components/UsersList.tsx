@@ -165,12 +165,12 @@ function UserItem({
       activeOpacity={0.8}
     >
       <YStack
-        width={130}
-        borderRadius={16}
+        width={90}
+        borderRadius={12}
         backgroundColor="$backgroundStrong"
-        padding="$3"
+        padding="$2"
         alignItems="center"
-        gap="$2"
+        gap="$1.5"
         borderWidth={1}
         borderColor="$borderColor"
       >
@@ -178,114 +178,53 @@ function UserItem({
         {user.avatar_url ? (
           <Image
             source={{ uri: user.avatar_url }}
-            style={{ width: 70, height: 70, borderRadius: 35 }}
+            style={{ width: 50, height: 50, borderRadius: 25 }}
           />
         ) : (
           <View
             style={{
-              width: 70,
-              height: 70,
-              borderRadius: 35,
-              backgroundColor: colorScheme === 'dark' ? '#444' : '#eee',
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              backgroundColor: colorScheme === 'dark' ? '#333' : '#f5f5f5',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Feather name="user" size={30} color={colorScheme === 'dark' ? '#ddd' : '#666'} />
+            <Feather name="user" size={22} color={colorScheme === 'dark' ? '#888' : '#999'} />
           </View>
         )}
 
         {/* Name */}
         <Text
           textAlign="center"
-          fontWeight="bold"
-          fontSize="$3"
+          fontWeight="600"
+          fontSize="$2"
           numberOfLines={1}
           ellipsizeMode="tail"
+          color="$color"
         >
           {user.full_name || 'Unknown'}
         </Text>
 
-        {/* Role badge */}
+        {/* Role badge - minimalistic */}
         {user.role && (
           <View
             style={{
-              backgroundColor:
-                user.role === 'student'
-                  ? '#4B6BFF33'
-                  : user.role === 'instructor'
-                    ? '#34C75933'
-                    : '#AF52DE33',
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 12,
+              backgroundColor: colorScheme === 'dark' ? '#2a2a2a' : '#f0f0f0',
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderRadius: 8,
             }}
           >
             <Text
-              fontSize="$2"
-              color={
-                user.role === 'student'
-                  ? '#4B6BFF'
-                  : user.role === 'instructor'
-                    ? '#34C759'
-                    : '#AF52DE'
-              }
-              fontWeight="bold"
+              fontSize="$1"
+              color={colorScheme === 'dark' ? '#888' : '#666'}
+              fontWeight="500"
             >
-              {user.role.toUpperCase()}
+              {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
             </Text>
           </View>
-        )}
-
-        {/* Location (if available) */}
-        {user.location && (
-          <XStack alignItems="center" gap="$1">
-            <Feather name="map-pin" size={10} color={colorScheme === 'dark' ? '#ddd' : '#666'} />
-            <Text fontSize="$2" color="$gray11" numberOfLines={1} ellipsizeMode="tail">
-              {user.location}
-            </Text>
-          </XStack>
-        )}
-
-        {/* Follow/Unfollow or Invited indicator */}
-        {!user.isCurrentUser && (
-          <Button
-            size="xs"
-            variant={isInvited ? 'secondary' : isFollowing ? 'secondary' : 'primary'}
-            backgroundColor={isInvited ? '$gray7' : isFollowing ? '$red5' : '$blue10'}
-            onPress={handleFollow}
-            disabled={isFollowLoading || isInvited}
-            marginTop="$2"
-            width="100%"
-          >
-            {isFollowLoading ? (
-              <Text color={isFollowing ? '$red11' : 'white'} fontSize="$1">
-                ...
-              </Text>
-            ) : (
-              <XStack gap="$1" alignItems="center">
-                {isInvited ? (
-                  <>
-                    <Feather name="clock" size={10} color="#F59E0B" />
-                    <Text color="#F59E0B" fontSize="$1" fontWeight="500">
-                      Invited
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Feather
-                      name={isFollowing ? 'user-minus' : 'user-plus'}
-                      size={10}
-                      color={isFollowing ? '#EF4444' : 'white'}
-                    />
-                    <Text color={isFollowing ? '$red11' : 'white'} fontSize="$1" fontWeight="500">
-                      {isFollowing ? 'Unfollow' : 'Follow'}
-                    </Text>
-                  </>
-                )}
-              </XStack>
-            )}
-          </Button>
         )}
       </YStack>
     </TouchableOpacity>

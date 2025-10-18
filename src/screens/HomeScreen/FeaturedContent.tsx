@@ -633,10 +633,10 @@ export function FeaturedContent() {
                       <Feather
                         name={exercise.icon as keyof typeof Feather.glyphMap}
                         size={20}
-                        color="#4B6BFF"
+                        color="#00E6C3"
                       />
                     )}
-                    <Text fontSize="$3" fontWeight="600" color="#4B6BFF">
+                    <Text fontSize="$3" fontWeight="600" color="#00E6C3">
                       {(() => {
                         const translated = t('home.exercise');
                         return translated === 'home.exercise' ? 'Exercise' : translated;
