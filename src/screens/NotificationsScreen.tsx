@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import { FlatList, RefreshControl, TouchableOpacity, Alert, Modal } from 'react-native';
 import { YStack, XStack, Text, Avatar, Spinner } from 'tamagui';
 import {
   Bell,
@@ -17,6 +17,9 @@ import {
   ArchiveRestore,
 } from '@tamagui/lucide-icons';
 import { notificationService, Notification } from '../services/notificationService';
+import { Button } from '../components/Button';
+import { RouteDetailSheet } from '../components/RouteDetailSheet';
+import { UserProfileSheet } from '../components/UserProfileSheet';
 import {
   getIncomingInvitations,
   acceptInvitationById,
@@ -43,6 +46,12 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   const [showArchived, setShowArchived] = useState(propShowArchived || false);
   const navigation = useNavigation();
   const { showToast } = useToast();
+  
+  // Sheet modals
+  const [showRouteSheet, setShowRouteSheet] = useState(false);
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   // Helper function to safely get data from notification
   const getNotificationData = (notification: Notification): Record<string, unknown> => {
@@ -168,9 +177,11 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           (navigation as any).navigate('Messages');
           break;
 
+        case 'route_created':
         case 'route_saved':
         case 'route_driven':
-        case 'route_reviewed': {
+        case 'route_reviewed':
+        case 'follow_new_route': {
           // Try multiple locations for route id
           const notificationData = getNotificationData(notification);
           const routeId =
@@ -179,8 +190,9 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
             notification.target_id;
 
           if (routeId) {
-            console.log('📍 Navigating to RouteDetail:', routeId);
-            (navigation as any).navigate('RouteDetail', { routeId });
+            console.log('📍 Opening RouteDetailSheet:', routeId);
+            setSelectedRouteId(routeId);
+            setShowRouteSheet(true);
             break;
           }
 
@@ -197,8 +209,9 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                 .limit(1)
                 .single();
               if (data?.id) {
-                console.log('📍 Navigating to RouteDetail (resolved by name):', data.id);
-                (navigation as any).navigate('RouteDetail', { routeId: data.id });
+                console.log('📍 Opening RouteDetailSheet (resolved by name):', data.id);
+                setSelectedRouteId(data.id);
+                setShowRouteSheet(true);
               }
             } catch (e) {
               console.log('No route found by name for notification');
@@ -212,8 +225,9 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           const userId =
             notification.actor_id || notificationData.follower_id || notificationData.from_user_id;
           if (userId) {
-            console.log('📍 Navigating to PublicProfile:', userId);
-            (navigation as any).navigate('PublicProfile', { userId });
+            console.log('📍 Opening UserProfileSheet:', userId);
+            setSelectedUserId(userId);
+            setShowProfileSheet(true);
           }
           break;
         }
@@ -223,8 +237,9 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           const notificationData = getNotificationData(notification);
           const inviterUserId = notificationData.from_user_id || notification.actor_id;
           if (inviterUserId) {
-            console.log('📍 Navigating to PublicProfile for invitation:', inviterUserId);
-            (navigation as any).navigate('PublicProfile', { userId: inviterUserId });
+            console.log('📍 Opening UserProfileSheet for invitation:', inviterUserId);
+            setSelectedUserId(inviterUserId);
+            setShowProfileSheet(true);
           }
           break;
         }
@@ -273,12 +288,13 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         }
 
         case 'route_liked': {
-          // If it's a route like, navigate to the route
+          // If it's a route like, open route sheet
           const notificationData = getNotificationData(notification);
           if (notificationData.route_id || (notification.metadata as any)?.route_id) {
             const routeId = notificationData.route_id || (notification.metadata as any)?.route_id;
-            console.log('📍 Navigating to RouteDetail for like:', routeId);
-            (navigation as any).navigate('RouteDetail', { routeId });
+            console.log('📍 Opening RouteDetailSheet for like:', routeId);
+            setSelectedRouteId(routeId);
+            setShowRouteSheet(true);
           }
           break;
         }
@@ -374,14 +390,15 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           // Check if this is actually a relationship review notification
           const notificationData = getNotificationData(notification);
           if (notificationData.notification_subtype === 'relationship_review') {
-            // Navigate to the profile where the review was left
+            // Open profile sheet where the review was left
             const reviewedUserId = notificationData.reviewed_user_id || notification.target_id;
             if (reviewedUserId) {
               console.log(
-                '📍 Navigating to PublicProfile for relationship review:',
+                '📍 Opening UserProfileSheet for relationship review:',
                 reviewedUserId,
               );
-              (navigation as any).navigate('PublicProfile', { userId: reviewedUserId });
+              setSelectedUserId(reviewedUserId);
+              setShowProfileSheet(true);
               break;
             }
           }
@@ -743,11 +760,11 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       <TouchableOpacity onPress={() => handleNotificationPress(item)}>
         <XStack
           padding={16}
-          borderBottomWidth={1}
-          borderBottomColor="rgba(255, 255, 255, 0.1)"
+          // borderBottomWidth={1}
+          // borderBottomColor="rgba(255, 255, 255, 0.1)"
           alignItems="flex-start"
           gap={12}
-          backgroundColor={item.is_read ? 'transparent' : 'rgba(0, 255, 188, 0.05)'}
+          // backgroundColor={item.is_read ? 'transparent' : 'rgba(0, 255, 188, 0.05)'}
         >
           <Avatar circular size={40}>
             <Avatar.Image
@@ -762,7 +779,6 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
           <YStack flex={1} gap={4}>
             <XStack alignItems="center" gap={8}>
-              {getNotificationIcon(item.type, item.metadata)}
               <Text fontSize={14} fontWeight="bold" color="$color" flex={1}>
                 {item.message}
               </Text>
@@ -789,12 +805,12 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
             {(item.type === 'supervisor_invitation' || item.type === 'student_invitation') &&
               !!allData?.customMessage && (
                 <YStack
-                  backgroundColor="rgba(0, 123, 255, 0.15)"
+                  // backgroundColor="rgba(0, 123, 255, 0.15)"
                   padding={12}
                   borderRadius={8}
                   marginTop={8}
                   borderLeftWidth={4}
-                  borderLeftColor="#007BFF"
+                  // borderLeftColor="#007BFF"
                 >
                   <XStack alignItems="center" gap={6} marginBottom={4}>
                     <Text fontSize={14} color="#007BFF" fontWeight="700">
@@ -805,15 +821,6 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                     "{allData.customMessage}"
                   </Text>
                 </YStack>
-              )}
-
-            {/* Show other metadata for debugging (but hide for invitations with custom messages) */}
-            {item.metadata &&
-              Object.keys(item.metadata).length > 0 &&
-              !(item.type === 'supervisor_invitation' || item.type === 'student_invitation') && (
-                <Text fontSize={12} color="$gray11" lineHeight={16}>
-                  {JSON.stringify(item.metadata)}
-                </Text>
               )}
 
             <Text fontSize={12} color="$gray11">
@@ -828,48 +835,30 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
               item.type === 'supervisor_invitation' ||
               item.type === 'student_invitation' ||
               item.type === 'collection_invitation') && (
-              <XStack gap={8} marginTop={8}>
-                <TouchableOpacity
-                  onPress={(e) => {
+              <XStack gap="$2" marginTop="$2">
+                <Button
+                  variant="primary"
+                  size="xs"
+                  onPress={(e: any) => {
                     e.stopPropagation();
                     handleAcceptInvitation(item);
                   }}
-                  style={{
-                    backgroundColor: '#00FFBC',
-                    borderRadius: 6,
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
+                  // icon={<Check size={14} />}
                 >
-                  <Check size={14} color="#000" />
-                  <Text fontSize={12} fontWeight="600" color="#000">
-                    Accept
-                  </Text>
-                </TouchableOpacity>
+                  Accept
+                </Button>
 
-                <TouchableOpacity
-                  onPress={(e) => {
+                <Button
+                  variant="outlined"
+                  size="xs"
+                  onPress={(e: any) => {
                     e.stopPropagation();
                     handleRejectInvitation(item);
                   }}
-                  style={{
-                    backgroundColor: '#EF4444',
-                    borderRadius: 6,
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
+                  // icon={<X size={14} />}
                 >
-                  <X size={14} color="#FFF" />
-                  <Text fontSize={12} fontWeight="600" color="#FFF">
-                    Decline
-                  </Text>
-                </TouchableOpacity>
+                  Decline
+                </Button>
               </XStack>
             )}
           </YStack>
@@ -890,56 +879,56 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   }
 
   return (
-    <YStack flex={1} backgroundColor="$background">
-      {/* Header */}
-      <XStack
-        padding={16}
-        borderBottomWidth={1}
-        borderBottomColor="rgba(255, 255, 255, 0.1)"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <XStack alignItems="center" gap={12} flex={1}>
-          {!isModal && (
+    <YStack flex={1}>
+      {/* Header - Only show when not in modal (modal has its own header) */}
+      {!isModal && (
+        <XStack
+          padding={16}
+          // borderBottomWidth={1}
+          // borderBottomColor="rgba(255, 255, 255, 0.1)"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <XStack alignItems="center" gap={12} flex={1}>
             <TouchableOpacity onPress={handleBack}>
               <ArrowLeft size={24} color="#FFFFFF" />
             </TouchableOpacity>
-          )}
 
-          <Text fontSize={24} fontWeight="bold" color="$color">
-            Notifications
-          </Text>
+            <Text fontSize={24} fontWeight="bold" color="$color">
+              Notifications
+            </Text>
 
-          <TouchableOpacity
-            onPress={() => setShowArchived(!showArchived)}
-            style={{ marginLeft: 8 }}
-          >
-            <XStack alignItems="center" gap={4}>
-              {showArchived ? (
-                <ArchiveRestore size={16} color="#00FFBC" />
-              ) : (
-                <Archive size={16} color="#666" />
-              )}
-              <Text fontSize={12} color={showArchived ? '#00FFBC' : '#666'}>
-                {showArchived ? 'Active' : 'Archived'}
-              </Text>
-            </XStack>
-          </TouchableOpacity>
-        </XStack>
-
-        <XStack alignItems="center" gap={8}>
-          {notifications.some((n) => !n.is_read) && !showArchived && (
-            <TouchableOpacity onPress={handleMarkAllAsRead}>
+            <TouchableOpacity
+              onPress={() => setShowArchived(!showArchived)}
+              style={{ marginLeft: 8 }}
+            >
               <XStack alignItems="center" gap={4}>
-                <Check size={16} color="#00FFBC" />
-                <Text fontSize={14} color="#00FFBC">
-                  Mark all read
+                {showArchived ? (
+                  <ArchiveRestore size={16} color="#00FFBC" />
+                ) : (
+                  <Archive size={16} color="#666" />
+                )}
+                <Text fontSize={12} color={showArchived ? '#00FFBC' : '#666'}>
+                  {showArchived ? 'Active' : 'Archived'}
                 </Text>
               </XStack>
             </TouchableOpacity>
-          )}
+          </XStack>
+
+          <XStack alignItems="center" gap={8}>
+            {notifications.some((n) => !n.is_read) && !showArchived && (
+              <TouchableOpacity onPress={handleMarkAllAsRead}>
+                <XStack alignItems="center" gap={4}>
+                  <Check size={16} color="#00FFBC" />
+                  <Text fontSize={14} color="#00FFBC">
+                    Mark all read
+                  </Text>
+                </XStack>
+              </TouchableOpacity>
+            )}
+          </XStack>
         </XStack>
-      </XStack>
+      )}
 
       {/* Notifications List */}
       {notifications.length === 0 ? (
@@ -968,6 +957,47 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           }
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: getTabContentPadding() }}
+        />
+      )}
+      
+      {/* Route Detail Sheet */}
+      {selectedRouteId && (
+        <RouteDetailSheet
+          visible={showRouteSheet}
+          onClose={() => {
+            setShowRouteSheet(false);
+            setSelectedRouteId(null);
+          }}
+          routeId={selectedRouteId}
+          onStartRoute={(routeId) => {
+            console.log('Route started:', routeId);
+          }}
+          onNavigateToProfile={(userId) => {
+            setShowRouteSheet(false);
+            setSelectedUserId(userId);
+            setShowProfileSheet(true);
+          }}
+          onReopen={() => {
+            setShowRouteSheet(true);
+          }}
+        />
+      )}
+      
+      {/* User Profile Sheet */}
+      {selectedUserId && (
+        <UserProfileSheet
+          visible={showProfileSheet}
+          onClose={() => {
+            setShowProfileSheet(false);
+            setSelectedUserId(null);
+          }}
+          userId={selectedUserId}
+          onViewAllRoutes={() => {
+            console.log('View all routes');
+          }}
+          onEditProfile={() => {
+            console.log('Edit profile');
+          }}
         />
       )}
     </YStack>

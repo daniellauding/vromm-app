@@ -47,7 +47,6 @@ import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector'
 import { AdvancedExerciseCreator } from '../components/AdvancedExerciseCreator';
 import * as mediaUtils from '../utils/mediaUtils';
 import { AddToPresetSheet } from '../components/AddToPresetSheet';
-import { RouteDetailSheet } from '../components/RouteDetailSheet';
 
 // Helper function to extract YouTube video ID
 const extractYoutubeVideoId = (url: string): string | null => {
@@ -366,8 +365,6 @@ export function CreateRouteSheet({
   const [youtubeLink, setYoutubeLink] = useState('');
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
-  const [showRouteDetailSheet, setShowRouteDetailSheet] = useState(false);
-  const [createdRouteId, setCreatedRouteId] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Drawing modes system - set to 'record' if coming from recorded route
@@ -462,7 +459,8 @@ export function CreateRouteSheet({
             }
           }
         } catch (err) {
-          console.error('Error getting current location:', err);
+          // Silently handle location errors (common on iOS simulator)
+          console.log('Location not available, using default region');
           // Fallback to default location if there's an error
           setRegion({
             latitude: 55.7047,
@@ -1891,24 +1889,23 @@ export function CreateRouteSheet({
         }
       }
 
-      // Set loading to false before navigation
+      // Set loading to false before closing
       setLoading(false);
 
-      // Show toast notification
+      // Show toast notification without auto-navigation (user stays on HomeScreen)
+      // Pass empty custom action to prevent navigating to RouteDetailScreen
       if (route?.id && route?.name) {
-        showRouteCreatedToast(route.id, route.name, isEditing);
-      }
-
-      // Set the created route ID and show RouteDetailSheet
-      if (route?.id) {
-        setCreatedRouteId(route.id);
-        setShowRouteDetailSheet(true);
+        showRouteCreatedToast(route.id, route.name, isEditing, false, () => {
+          // No-op: prevents auto-navigation to RouteDetailScreen
+          // User can view route from their routes list or via parent callback
+          console.log('Toast clicked for route:', route.id);
+        });
       }
 
       // Close the create sheet
       onClose();
 
-      // Call onRouteCreated callback if provided (for backward compatibility)
+      // Call onRouteCreated callback if provided (parent can handle opening RouteDetailSheet)
       if (onRouteCreated && route?.id) {
         onRouteCreated(route.id);
       }
@@ -3895,28 +3892,6 @@ export function CreateRouteSheet({
                   });
                 }}
                 onClose={() => setShowCollectionSelector(false)}
-              />
-
-              {/* Route Detail Sheet - shown after successful route creation */}
-              <RouteDetailSheet
-                visible={showRouteDetailSheet}
-                onClose={() => {
-                  setShowRouteDetailSheet(false);
-                  setCreatedRouteId(null);
-                }}
-                routeId={createdRouteId || undefined}
-                onStartRoute={(routeId) => {
-                  // Handle route start if needed
-                  console.log('Route started:', routeId);
-                }}
-                onNavigateToProfile={(userId) => {
-                  // Handle profile navigation if needed
-                  console.log('Navigate to profile:', userId);
-                }}
-                onReopen={() => {
-                  // Handle reopen if needed
-                  console.log('Route detail sheet reopened');
-                }}
               />
             </Screen>
           </ReanimatedAnimated.View>

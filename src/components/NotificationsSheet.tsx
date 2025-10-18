@@ -1,15 +1,22 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Modal, Animated, Pressable, Easing, View, Dimensions, Alert } from 'react-native';
-import { YStack, XStack, Text, Spinner, Button } from 'tamagui';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { Modal, Animated, Pressable, View, Dimensions } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
+import { YStack, XStack, Text, Spinner, useTheme, Button as TamaguiButton } from 'tamagui';
 import { TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
 import { useColorScheme } from 'react-native';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
-import { AppAnalytics } from '../utils/analytics';
 import { notificationService } from '../services/notificationService';
 import { useToast } from '../contexts/ToastContext';
+import { Button } from './Button';
 
 const { height } = Dimensions.get('window');
 
@@ -18,16 +25,14 @@ interface NotificationsSheetProps {
   onClose: () => void;
 }
 
-type NotificationSheetView = 'list';
-
 export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps) {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const { showToast } = useToast();
+  const theme = useTheme();
 
-  // Sheet navigation state (for future expansion)
-  const [currentView, setCurrentView] = useState<NotificationSheetView>('list');
+  // State
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -38,7 +43,25 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
 
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Gesture handling for drag-to-dismiss and snap points
+  const translateY = useSharedValue(height);
+  const isDragging = useRef(false);
+
+  // Snap points for resizing (top Y coordinates like RoutesDrawer)
+  const snapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: height * 0.6, // Top at 60% of screen (show 40% - small)
+      mini: height * 0.85, // Top at 85% of screen (show 15% - just title)
+      dismissed: height, // Completely off-screen
+    };
+    return points;
+  }, []);
+
+  const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
+  const currentState = useSharedValue(snapPoints.large);
 
   // Bulk action handlers
   const handleMarkAllAsRead = async () => {
@@ -100,18 +123,108 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
     setShowArchiveConfirm(false);
   };
 
+  const dismissSheet = useCallback(() => {
+    translateY.value = withSpring(snapPoints.dismissed, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    setTimeout(() => onClose(), 200);
+  }, [onClose, snapPoints.dismissed, translateY]);
+
+  const snapTo = useCallback(
+    (point: number) => {
+      currentState.value = point;
+      setCurrentSnapPoint(point);
+    },
+    [currentState],
+  );
+
+  // Pan gesture for drag-to-resize
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      isDragging.current = true;
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentState.value + translationY;
+
+        // Constrain to snap points range
+        const minPosition = snapPoints.large;
+        const maxPosition = snapPoints.mini + 100;
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+
+        translateY.value = boundedPosition;
+      } catch (error) {
+        console.log('panGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      isDragging.current = false;
+
+      const currentPosition = currentState.value + translationY;
+
+      // Dismiss if dragged down past mini with reasonable velocity
+      if (currentPosition > snapPoints.mini + 30 && velocityY > 200) {
+        runOnJS(dismissSheet)();
+        return;
+      }
+
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        targetSnapPoint = snapPoints.large;
+      } else if (velocityY > 500) {
+        targetSnapPoint = snapPoints.mini;
+      } else {
+        const positions = [snapPoints.large, snapPoints.medium, snapPoints.small, snapPoints.mini];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+
+      const boundedTarget = Math.min(Math.max(targetSnapPoint, snapPoints.large), snapPoints.mini);
+
+      translateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+
+      currentState.value = boundedTarget;
+      runOnJS(setCurrentSnapPoint)(boundedTarget);
+    });
+
+  const animatedGestureStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
   // Animation effects
   useEffect(() => {
     if (visible) {
+      // Reset gesture translateY when opening and set to large snap point
+      translateY.value = withSpring(snapPoints.large, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+      currentState.value = snapPoints.large;
+      setCurrentSnapPoint(snapPoints.large);
+
       Animated.timing(backdropOpacity, {
         toValue: 1,
         duration: 200,
-        useNativeDriver: true,
-      }).start();
-      Animated.timing(sheetTranslateY, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start();
     } else {
@@ -120,14 +233,8 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
         duration: 200,
         useNativeDriver: true,
       }).start();
-      Animated.timing(sheetTranslateY, {
-        toValue: 300,
-        duration: 300,
-        easing: Easing.in(Easing.ease),
-        useNativeDriver: true,
-      }).start();
     }
-  }, [visible, backdropOpacity, sheetTranslateY]);
+  }, [visible, backdropOpacity, snapPoints.large, currentState, translateY]);
 
   if (!visible) return null;
 
@@ -136,150 +243,126 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
       <Animated.View
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          opacity: backdropOpacity,
+          backgroundColor: 'transparent',
         }}
       >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1 }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <Animated.View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              transform: [{ translateY: sheetTranslateY }],
-            }}
-          >
-            <YStack
-              backgroundColor={backgroundColor}
-              padding="$4"
-              paddingBottom={insets.bottom || 20}
-              borderTopLeftRadius="$4"
-              borderTopRightRadius="$4"
-              gap="$4"
-              height={height * 0.9}
-              maxHeight={height * 0.9}
+          <GestureDetector gesture={panGesture}>
+            <ReanimatedAnimated.View
+              style={[
+                {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: height,
+                  backgroundColor: backgroundColor,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                },
+                animatedGestureStyle,
+              ]}
             >
+              <YStack
+                padding="$4"
+                paddingBottom={insets.bottom || 20}
+                gap="$4"
+                flex={1}
+              >
+                {/* Drag Handle */}
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: theme.gray8?.val || '#CCC',
+                    }}
+                  />
+                </View>
               {/* Header */}
               <XStack justifyContent="space-between" alignItems="center">
-                <XStack alignItems="center" gap="$3" flex={1}>
-                  <Text fontSize="$6" fontWeight="bold" color="$color" flex={1}>
-                    {showArchived ? 'Archived Notifications' : 'Notifications'}
-                  </Text>
-                </XStack>
+                <Text fontSize="$6" fontWeight="bold" color="$color">
+                  {showArchived ? 'Archived Notifications' : 'Notifications'}
+                </Text>
 
-                <XStack alignItems="center" gap="$3">
-                  {/* Archive Toggle */}
+                <XStack alignItems="center" gap="$2">
+                  {/* View Toggle: Active/Archived */}
                   <TouchableOpacity
                     onPress={() => setShowArchived(!showArchived)}
                     style={{
                       padding: 8,
-                      backgroundColor: showArchived
-                        ? colorScheme === 'dark'
-                          ? '#00FFBC'
-                          : '#00CC99'
-                        : colorScheme === 'dark'
-                          ? '#2A2A2A'
-                          : '#F5F5F5',
+                      // backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
                       borderRadius: 6,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 4,
                     }}
                   >
                     <Feather
-                      name={showArchived ? 'archive-restore' : 'archive'}
-                      size={16}
-                      color={showArchived ? '#000' : iconColor}
+                      name={showArchived ? 'inbox' : 'archive'}
+                      size={18}
+                      color={iconColor}
                     />
-                    <Text fontSize="$2" color={showArchived ? '#000' : iconColor} fontWeight="500">
-                      {showArchived ? 'Active' : 'Archived'}
-                    </Text>
                   </TouchableOpacity>
 
-                  {/* Bulk Actions Dropdown - only show for active notifications */}
+                  {/* Actions Menu - only show for active notifications */}
                   {!showArchived && (
                     <TouchableOpacity
                       onPress={() => setShowBulkActions(!showBulkActions)}
                       style={{
                         padding: 8,
-                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                        // backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
                         borderRadius: 6,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 4,
                       }}
                       disabled={isProcessing}
                     >
                       <Feather
-                        name="more-horizontal"
-                        size={16}
+                        name="more-vertical"
+                        size={18}
                         color={isProcessing ? '#666' : iconColor}
                       />
-                      <Text
-                        fontSize="$2"
-                        color={isProcessing ? '#666' : iconColor}
-                        fontWeight="500"
-                      >
-                        Actions
-                      </Text>
                     </TouchableOpacity>
                   )}
 
-                  <TouchableOpacity onPress={onClose}>
+                  {/* Close */}
+                  {/* <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
                     <Feather name="x" size={24} color={iconColor} />
-                  </TouchableOpacity>
+                  </TouchableOpacity> */}
                 </XStack>
               </XStack>
 
-              {/* Bulk Actions Dropdown */}
+              {/* Actions Dropdown */}
               {showBulkActions && (
                 <YStack
-                  backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
+                  // backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
                   borderRadius="$3"
-                  padding="$3"
+                  padding="$2"
                   gap="$2"
                   borderWidth={1}
-                  borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                  // borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                 >
-                  <TouchableOpacity
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onPress={handleMarkAllAsRead}
                     disabled={isProcessing}
-                    style={{
-                      padding: 12,
-                      borderRadius: 6,
-                      backgroundColor: 'transparent',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      opacity: isProcessing ? 0.5 : 1,
-                    }}
                   >
-                    <Feather name="check" size={16} color="#00FFBC" />
-                    <Text fontSize="$3" color="$color" fontWeight="500">
-                      Mark All as Read
-                    </Text>
-                  </TouchableOpacity>
+                    Mark All as Read
+                  </Button>
 
-                  <TouchableOpacity
+                  <Button
+                    variant="outlined"
+                    size="sm"
                     onPress={handleArchiveAll}
                     disabled={isProcessing}
-                    style={{
-                      padding: 12,
-                      borderRadius: 6,
-                      backgroundColor: 'transparent',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      opacity: isProcessing ? 0.5 : 1,
-                    }}
                   >
-                    <Feather name="archive" size={16} color="#EF4444" />
-                    <Text fontSize="$3" color="$color" fontWeight="500">
-                      Archive All
-                    </Text>
-                  </TouchableOpacity>
+                    Archive All
+                  </Button>
 
                   {isProcessing && (
                     <XStack alignItems="center" gap="$2" padding="$2">
@@ -301,9 +384,10 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                 />
               </YStack>
             </YStack>
-          </Animated.View>
-        </View>
-      </Animated.View>
+          </ReanimatedAnimated.View>
+        </GestureDetector>
+      </View>
+    </Animated.View>
 
       {/* Custom Archive Confirmation Modal */}
       <Modal

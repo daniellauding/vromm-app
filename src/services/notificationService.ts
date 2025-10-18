@@ -16,7 +16,7 @@ class NotificationService {
   async getNotifications(
     limit: number = 50,
     offset: number = 0,
-    includeArchived: boolean = false,
+    showArchived: boolean = false,
   ): Promise<Notification[]> {
     const {
       data: { user },
@@ -26,7 +26,7 @@ class NotificationService {
       throw new Error('User not authenticated');
     }
 
-    console.log('📬 Fetching notifications for user:', user.id);
+    console.log('📬 Fetching notifications for user:', user.id, showArchived ? '(archived only)' : '(active only)');
 
     let query = supabase
       .from('notifications')
@@ -38,9 +38,12 @@ class NotificationService {
       )
       .eq('user_id', user.id);
 
-    // Filter by archived status if column exists
-    if (!includeArchived) {
-      // Try to filter out archived notifications, but gracefully handle if column doesn't exist
+    // Filter by archived status
+    if (showArchived) {
+      // Show ONLY archived notifications
+      query = query.eq('archived', true);
+    } else {
+      // Show ONLY active (non-archived) notifications
       query = query.or('archived.is.null,archived.eq.false');
     }
 
@@ -50,8 +53,9 @@ class NotificationService {
 
     console.log('📊 Notifications query result:', {
       count: data?.length || 0,
+      showArchived,
       error,
-      firstFew: data?.slice(0, 3).map((n) => ({ id: n.id, type: n.type, message: n.message })),
+      firstFew: data?.slice(0, 3).map((n) => ({ id: n.id, type: n.type, message: n.message, archived: (n as any).archived })),
     });
 
     if (error) throw error;

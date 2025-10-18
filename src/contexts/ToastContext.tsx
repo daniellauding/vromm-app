@@ -26,6 +26,7 @@ interface ToastContextType {
     routeName: string,
     isUpdate?: boolean,
     isDraft?: boolean,
+    customAction?: () => void,
   ) => void;
   showEventCreatedToast: (eventId: string, eventName: string, isUpdate?: boolean) => void;
   showEventInviteToast: (eventId: string, eventName: string, inviteCount: number) => void;
@@ -81,7 +82,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
   );
 
   const showRouteCreatedToast = React.useCallback(
-    (routeId: string, routeName: string, isUpdate = false, isDraft = false) => {
+    (routeId: string, routeName: string, isUpdate = false, isDraft = false, customAction?: () => void) => {
       const getTitle = () => {
         if (isDraft) return 'Draft Saved!';
         if (isUpdate) return 'Route Updated!';
@@ -100,9 +101,9 @@ export function ToastProvider({ children }: ToastProviderProps) {
         type: 'success',
         action: {
           label: isDraft ? 'View Draft' : 'View',
-          onPress: () => {
+          onPress: customAction || (() => {
             navigation.navigate('RouteDetail', { routeId });
-          },
+          }),
         },
         routeId,
         duration: 5000,
