@@ -1058,7 +1058,7 @@ export function DailyStatus({
 
   const getStatusColor = () => {
     if (!todayStatus) return colorScheme === 'dark' ? '#666' : '#999';
-    return todayStatus.status === 'drove' ? '#4CAF50' : '#F44336';
+    return todayStatus.status === 'drove' ? '#01E6C3' : '#F44336';
   };
 
   const getStatusText = () => {
@@ -1257,7 +1257,7 @@ export function DailyStatus({
                   />
                   {/* Header */}
                   <XStack justifyContent="space-between" alignItems="center">
-                    <YStack>
+                    {/* <YStack>
                       <Text
                         fontSize="$5"
                         fontWeight="bold"
@@ -1277,8 +1277,8 @@ export function DailyStatus({
                             : t('dailyStatus.editPreviousStatus') || 'Edit previous status'}
                         </Text>
                       )}
-                    </YStack>
-                    <TouchableOpacity
+                    </YStack> */}
+                    {/* <TouchableOpacity
                       onPress={() => {
                         console.log('❌ [DailyStatus] Close button clicked - Current form data:', {
                           status: formData.status,
@@ -1296,7 +1296,7 @@ export function DailyStatus({
                         size={20}
                         color={colorScheme === 'dark' ? '#FFF' : '#666'}
                       />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                   </XStack>
 
                   {/* Scrollable Content */}
@@ -1308,13 +1308,13 @@ export function DailyStatus({
                     <YStack gap="$3">
                       {/* Status Selection */}
                       <YStack gap="$2">
-                        <Text
+                        {/* <Text
                           fontSize="$3"
                           fontWeight="600"
                           color={colorScheme === 'dark' ? '#FFF' : '#000'}
                         >
                           {t('dailyStatus.status') || 'Status'}
-                        </Text>
+                        </Text> */}
 
                         <XStack gap="$2">
                           <IconButton
@@ -1371,6 +1371,45 @@ export function DailyStatus({
                             }
                             flex={1}
                           />
+
+{!isFuture && (
+                            <IconButton
+                              icon="book-open"
+                              label={
+                                isToday
+                                  ? t('dailyStatus.didYouDoExercisesToday') ||
+                                    'Did you do any exercises today?'
+                                  : t('dailyStatus.didYouDoExercisesOnDate')?.replace(
+                                      '{date}',
+                                      selectedDate.toLocaleDateString('en-US', {
+                                        weekday: 'short',
+                                        month: 'short',
+                                        day: 'numeric',
+                                      }),
+                                    ) ||
+                                    `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`
+                              }
+                              onPress={() => {
+                                console.log(
+                                  '🎯 [DailyStatus] Opening learning paths from modal - hiding DailyStatus modal',
+                                );
+
+                                // Hide DailyStatus modal first
+                                setShowSheet(false);
+
+                                // Set flag to remember we came from DailyStatus
+                                setCameFromDailyStatus(true);
+
+                                // Show learning paths sheet after a brief delay for smooth transition
+                                setTimeout(() => {
+                                  setShowLearningPathsSheet(true);
+                                }, 200);
+                              }}
+                              backgroundColor="transparent"
+                              borderColor="transparent"
+                              flex={1}
+                            />
+                          )}
                         </XStack>
 
                         {/* Inline error message for status validation */}
@@ -1742,77 +1781,56 @@ export function DailyStatus({
                         </YStack>
                       )}
 
-                      {/* Exercise Learning Button - Show for today and past dates */}
-                      {!isFuture && (
-                        <IconButton
-                          icon="book-open"
-                          label={
-                            isToday
-                              ? t('dailyStatus.didYouDoExercisesToday') ||
-                                'Did you do any exercises today?'
-                              : t('dailyStatus.didYouDoExercisesOnDate')?.replace(
-                                  '{date}',
-                                  selectedDate.toLocaleDateString('en-US', {
-                                    weekday: 'short',
-                                    month: 'short',
-                                    day: 'numeric',
-                                  }),
-                                ) ||
-                                `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`
-                          }
-                          onPress={() => {
-                            console.log(
-                              '🎯 [DailyStatus] Opening learning paths from modal - hiding DailyStatus modal',
-                            );
+                      {/* Route Integration Buttons - 2x2 Grid */}
+                      <YStack gap="$2">
+                        {/* First Row */}
+                        <XStack gap="$2">
 
-                            // Hide DailyStatus modal first
-                            setShowSheet(false);
+                          {/* Add Memory Button */}
+                          <IconButton
+                            icon="camera"
+                            label={t('dailyStatus.addMemory') || 'Add Memory'}
+                            onPress={handleAddMedia}
+                            flex={1}
+                            backgroundColor="transparent"
+                            borderColor="transparent"
+                          />
 
-                            // Set flag to remember we came from DailyStatus
-                            setCameFromDailyStatus(true);
+                          {/* Find Routes Button */}
+                          <IconButton
+                            icon="map-pin"
+                            label={t('dailyStatus.findRoutes') || 'Find Routes'}
+                            onPress={handleNavigateToMap}
+                            flex={1}
+                            backgroundColor="transparent"
+                            borderColor="transparent"
+                          />
+                        </XStack>
 
-                            // Show learning paths sheet after a brief delay for smooth transition
-                            setTimeout(() => {
-                              setShowLearningPathsSheet(true);
-                            }, 200);
-                          }}
-                          backgroundColor="transparent"
-                          borderColor="transparent"
-                        />
-                      )}
+                        {/* Second Row */}
+                        <XStack gap="$2">
 
-                      {/* Route Integration Buttons */}
-                      <XStack gap="$2">
-                        {/* Find Routes Button */}
-                        <IconButton
-                          icon="map-pin"
-                          label={t('dailyStatus.findRoutes') || 'Find Routes'}
-                          onPress={handleNavigateToMap}
-                          flex={1}
-                          backgroundColor="transparent"
-                          borderColor="transparent"
-                        />
+                          {/* My Routes Button */}
+                          <IconButton
+                            icon="list"
+                            label={t('dailyStatus.myRoutes') || 'My Routes'}
+                            onPress={handleOpenRouteList}
+                            flex={1}
+                            backgroundColor="transparent"
+                            borderColor="transparent"
+                          />
 
-                        {/* My Routes Button */}
-                        <IconButton
-                          icon="list"
-                          label={t('dailyStatus.myRoutes') || 'My Routes'}
-                          onPress={handleOpenRouteList}
-                          flex={1}
-                          backgroundColor="transparent"
-                          borderColor="transparent"
-                        />
-
-                        {/* Create or Record Route Button */}
-                        <IconButton
-                          icon="plus"
-                          label={t('dailyStatus.createOrRecordRoute') || 'Create or Record Route'}
-                          onPress={handleOpenActionSheet}
-                          flex={1}
-                          backgroundColor="transparent"
-                          borderColor="transparent"
-                        />
-                      </XStack>
+                          {/* Create or Record Route Button */}
+                          <IconButton
+                            icon="plus"
+                            label={t('dailyStatus.createOrRecordRoute') || 'Create or Record Route'}
+                            onPress={handleOpenActionSheet}
+                            flex={1}
+                            backgroundColor="transparent"
+                            borderColor="transparent"
+                          />
+                        </XStack>
+                      </YStack>
                     </YStack>
                   </ScrollView>
 

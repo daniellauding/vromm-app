@@ -68,7 +68,7 @@ const DayProgressCircle = ({
         cx={size / 2}
         cy={size / 2}
         r={radius}
-        stroke={completed ? '#4CAF50' : color}
+        stroke={completed ? '#01E6C3' : color}
         strokeWidth={strokeWidth}
         fill="none"
         strokeDasharray={`${circumference},${circumference}`}
@@ -548,7 +548,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                                   ? '#333'
                                   : '#DDD'
                                 : day.completed
-                                  ? '#4CAF50'
+                                  ? '#01E6C3'
                                   : '#00E6C3'
                             }
                             bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
@@ -558,7 +558,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                             <Text
                               fontSize={9}
                               fontWeight="bold"
-                              color={day.completed ? '#4CAF50' : '#00E6C3'}
+                              color={day.completed ? '#01E6C3' : '#00E6C3'}
                               style={{ position: 'absolute', top: isToday ? 9 : 9 }}
                             >
                               {day.exercises}
