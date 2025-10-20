@@ -40,6 +40,7 @@ import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { ActionSheet } from '../../components/ActionSheet';
 import { IconButton } from '../../components/IconButton';
 import { FormField } from '../../components/FormField';
+import { DropdownButton } from '../../components/SelectButton';
 
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 
@@ -901,8 +902,19 @@ export function DailyStatus({
     const loadTranslations = async () => {
       try {
         console.log('🌍 [DailyStatus] Refreshing translations on mount');
+        
+        // FORCE CLEAR AsyncStorage cache completely
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.removeItem('translations_cache');
+        await AsyncStorage.removeItem('translations_version');
+        console.log('🗑️ [DailyStatus] FORCE CLEARED translation cache');
+        
         await refreshTranslations();
         console.log('✅ [DailyStatus] Translations refreshed successfully');
+        
+        // Wait for React context to update
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log('🔍 [DailyStatus] learningExercises translation:', t('dailyStatus.learningExercises'));
       } catch (error) {
         console.error('❌ [DailyStatus] Error refreshing translations:', error);
       }
@@ -1371,45 +1383,6 @@ export function DailyStatus({
                             }
                             flex={1}
                           />
-
-{!isFuture && (
-                            <IconButton
-                              icon="book-open"
-                              label={
-                                isToday
-                                  ? t('dailyStatus.didYouDoExercisesToday') ||
-                                    'Did you do any exercises today?'
-                                  : t('dailyStatus.didYouDoExercisesOnDate')?.replace(
-                                      '{date}',
-                                      selectedDate.toLocaleDateString('en-US', {
-                                        weekday: 'short',
-                                        month: 'short',
-                                        day: 'numeric',
-                                      }),
-                                    ) ||
-                                    `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`
-                              }
-                              onPress={() => {
-                                console.log(
-                                  '🎯 [DailyStatus] Opening learning paths from modal - hiding DailyStatus modal',
-                                );
-
-                                // Hide DailyStatus modal first
-                                setShowSheet(false);
-
-                                // Set flag to remember we came from DailyStatus
-                                setCameFromDailyStatus(true);
-
-                                // Show learning paths sheet after a brief delay for smooth transition
-                                setTimeout(() => {
-                                  setShowLearningPathsSheet(true);
-                                }, 200);
-                              }}
-                              backgroundColor="transparent"
-                              borderColor="transparent"
-                              flex={1}
-                            />
-                          )}
                         </XStack>
 
                         {/* Inline error message for status validation */}
@@ -1431,43 +1404,140 @@ export function DailyStatus({
                         )}
                       </YStack>
 
-                      {/* How it went */}
-                      <FormField
-                        label={t('dailyStatus.howItWent') || 'How did it go?'}
-                        placeholder={
-                          t('dailyStatus.howItWentPlaceholder') || 'Tell us how it went...'
-                        }
-                        value={formData.how_it_went}
-                        onChangeText={(text) =>
-                          setFormData((prev) => ({ ...prev, how_it_went: text }))
-                        }
-                        multiline
-                        numberOfLines={2}
-                      />
+                      {/* Text Fields - Only show when status is selected */}
+                      {formData.status && (
+                        <>
+                          {/* How it went */}
+                          <FormField
+                            label={t('dailyStatus.howItWent') || 'How did it go?'}
+                            placeholder={
+                              t('dailyStatus.howItWentPlaceholder') || 'Tell us how it went...'
+                            }
+                            value={formData.how_it_went}
+                            onChangeText={(text) =>
+                              setFormData((prev) => ({ ...prev, how_it_went: text }))
+                            }
+                            multiline
+                            numberOfLines={2}
+                          />
 
-                      {/* Challenges */}
-                      <FormField
-                        label={t('dailyStatus.challenges') || 'Challenges?'}
-                        placeholder={
-                          t('dailyStatus.challengesPlaceholder') || 'What was challenging?'
-                        }
-                        value={formData.challenges}
-                        onChangeText={(text) =>
-                          setFormData((prev) => ({ ...prev, challenges: text }))
-                        }
-                        multiline
-                        numberOfLines={2}
-                      />
+                          {/* Challenges */}
+                          <FormField
+                            label={t('dailyStatus.challenges') || 'Challenges?'}
+                            placeholder={
+                              t('dailyStatus.challengesPlaceholder') || 'What was challenging?'
+                            }
+                            value={formData.challenges}
+                            onChangeText={(text) =>
+                              setFormData((prev) => ({ ...prev, challenges: text }))
+                            }
+                            multiline
+                            numberOfLines={2}
+                          />
 
-                      {/* Notes */}
-                      <FormField
-                        label={t('dailyStatus.notes') || 'Notes'}
-                        placeholder={t('dailyStatus.notesPlaceholder') || 'Additional notes...'}
-                        value={formData.notes}
-                        onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
-                        multiline
-                        numberOfLines={2}
-                      />
+                          {/* Notes */}
+                          <FormField
+                            label={t('dailyStatus.notes') || 'Notes'}
+                            placeholder={t('dailyStatus.notesPlaceholder') || 'Additional notes...'}
+                            value={formData.notes}
+                            onChangeText={(text) =>
+                              setFormData((prev) => ({ ...prev, notes: text }))
+                            }
+                            multiline
+                            numberOfLines={2}
+                          />
+                        </>
+                      )}
+
+                      {/* {formData.status && !isFuture && (
+                        <IconButton
+                          icon="book-open"
+                          label={
+                            isToday
+                              ? t('dailyStatus.didYouDoExercisesToday') ||
+                                'Did you do any exercises today?'
+                              : t('dailyStatus.didYouDoExercisesOnDate')?.replace(
+                                  '{date}',
+                                  selectedDate.toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  }),
+                                ) ||
+                                `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`
+                          }
+                          onPress={() => {
+                            console.log(
+                              '🎯 [DailyStatus] Opening learning paths from modal - hiding DailyStatus modal',
+                            );
+
+                            // Hide DailyStatus modal first
+                            setShowSheet(false);
+
+                            // Set flag to remember we came from DailyStatus
+                            setCameFromDailyStatus(true);
+
+                            // Show learning paths sheet after a brief delay for smooth transition
+                            setTimeout(() => {
+                              setShowLearningPathsSheet(true);
+                            }, 200);
+                          }}
+                          backgroundColor="transparent"
+                          borderColor="transparent"
+                          flex={1}
+                        />
+                      )} */}
+
+                      {/* Learning Exercises Dropdown - Show when status is selected */}
+                      {formData.status && !isFuture && (
+                        <YStack gap="$1.5">
+                          <Text
+                            fontSize="$3"
+                            fontWeight="600"
+                            color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                          >
+                            {t('dailyStatus.learningExercises') || 'Learning Exercises'}
+                          </Text>
+                          <DropdownButton
+                            onPress={() => {
+                              console.log(
+                                '🎯 [DailyStatus] Opening learning paths from dropdown - hiding DailyStatus modal',
+                              );
+
+                              // Hide DailyStatus modal first
+                              setShowSheet(false);
+
+                              // Set flag to remember we came from DailyStatus
+                              setCameFromDailyStatus(true);
+
+                              // Show learning paths sheet after a brief delay for smooth transition
+                              setTimeout(() => {
+                                setShowLearningPathsSheet(true);
+                              }, 200);
+                            }}
+                            placeholder={
+                              isToday
+                                ? t('dailyStatus.didYouDoExercisesToday') ||
+                                  'Did you do any exercises today?'
+                                : t('dailyStatus.didYouDoExercisesOnDate')?.replace(
+                                    '{date}',
+                                    selectedDate.toLocaleDateString('en-US', {
+                                      weekday: 'short',
+                                      month: 'short',
+                                      day: 'numeric',
+                                    }),
+                                  ) ||
+                                  `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`
+                            }
+                            value={
+                              selectedExercises.length > 0
+                                ? `${selectedExercises.length} exercise${selectedExercises.length > 1 ? 's' : ''} selected`
+                                : ''
+                            }
+                            size="xl"
+                          />
+                        </YStack>
+                      )}
 
                       {/* Driving Details - Show only if drove */}
                       {formData.status === 'drove' && (
@@ -1639,13 +1709,13 @@ export function DailyStatus({
 
                       {/* Memory (Photo/Video) Section */}
                       <YStack gap="$2" marginTop="$2">
-                        <Text
+                        {/* <Text
                           fontSize="$3"
                           fontWeight="600"
                           color={colorScheme === 'dark' ? '#FFF' : '#000'}
                         >
                           {t('dailyStatus.memoryPhotoVideo') || 'Memory (Photo/Video)'}
-                        </Text>
+                        </Text> */}
 
                         {formData.media_uri ? (
                           <YStack gap="$2">
@@ -1699,31 +1769,7 @@ export function DailyStatus({
                             </View>
                           </YStack>
                         ) : (
-                          <TouchableOpacity
-                            onPress={handleAddMedia}
-                            style={{
-                              padding: 16,
-                              borderRadius: 12,
-                              borderWidth: 2,
-                              borderStyle: 'dashed',
-                              borderColor: colorScheme === 'dark' ? '#444' : '#CCC',
-                              backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <Feather
-                              name="camera"
-                              size={32}
-                              color={colorScheme === 'dark' ? '#888' : '#AAA'}
-                            />
-                            <Text
-                              fontSize="$2"
-                              color={colorScheme === 'dark' ? '#CCC' : '#666'}
-                              marginTop="$2"
-                            >
-                              {t('dailyStatus.addPhotoOrVideo') || 'Add Photo or Video'}
-                            </Text>
-                          </TouchableOpacity>
+                          <></>
                         )}
                       </YStack>
 
@@ -1785,7 +1831,6 @@ export function DailyStatus({
                       <YStack gap="$2">
                         {/* First Row */}
                         <XStack gap="$2">
-
                           {/* Add Memory Button */}
                           <IconButton
                             icon="camera"
@@ -1809,7 +1854,6 @@ export function DailyStatus({
 
                         {/* Second Row */}
                         <XStack gap="$2">
-
                           {/* My Routes Button */}
                           <IconButton
                             icon="list"
