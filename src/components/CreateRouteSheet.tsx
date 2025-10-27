@@ -3588,12 +3588,14 @@ export function CreateRouteSheet({
                               <Text weight="medium" color="$color">
                                 {getTranslation(t, 'createRoute.difficulty', 'Difficulty')}
                               </Text>
-                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                              <View
+                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                              >
                                 {['beginner', 'intermediate', 'advanced'].map((level) => {
                                   const isSelected = formData.difficulty === (level as DifficultyLevel);
                                   const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
                                   const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
-                                  
+
                                   return (
                                     <TouchableOpacity
                                       key={level}
@@ -3638,12 +3640,14 @@ export function CreateRouteSheet({
                               <Text weight="medium" color="$color">
                                 {t('createRoute.spotType')}
                               </Text>
-                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                              <View
+                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                              >
                                 {['city', 'highway', 'rural', 'track', 'parking'].map((type) => {
                                   const isSelected = formData.spot_type === (type as SpotType);
                                   const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
                                   const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
-                                  
+
                                   return (
                                     <TouchableOpacity
                                       key={type}
@@ -3688,12 +3692,14 @@ export function CreateRouteSheet({
                               <Text weight="medium" color="$color">
                                 {t('createRoute.visibility')}
                               </Text>
-                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                              <View
+                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                              >
                                 {['public', 'private'].map((vis) => {
                                   const isSelected = formData.visibility === (vis as SpotVisibility);
                                   const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
                                   const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
-                                  
+
                                   return (
                                     <TouchableOpacity
                                       key={vis}
@@ -3724,6 +3730,248 @@ export function CreateRouteSheet({
                                         {vis === 'public'
                                           ? getTranslation(t, 'createRoute.public', 'Public')
                                           : getTranslation(t, 'createRoute.private', 'Private')}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                            </YStack>
+
+                            {/* Category */}
+                            <YStack gap="$2">
+                              <Text weight="medium" color="$color">
+                                {t('filters.category')}
+                              </Text>
+                              <View
+                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                              >
+                                {['parking', 'incline_start'].map((cat) => {
+                                  const isSelected = formData.category === (cat as Category);
+                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                                  return (
+                                    <TouchableOpacity
+                                      key={cat}
+                                      style={{
+                                        marginRight: 8,
+                                        marginBottom: 8,
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 8,
+                                        borderRadius: 20,
+                                        borderWidth: 1,
+                                        borderColor,
+                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                                      }}
+                                      onPress={() =>
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          category: cat as Category,
+                                        }))
+                                      }
+                                    >
+                                      <Text
+                                        style={{
+                                          fontSize: 14,
+                                          fontWeight: isSelected ? '600' : '500',
+                                          color: isSelected ? '#000000' : textColor,
+                                        }}
+                                      >
+                                        {t(`filters.category.${cat}`)}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                            </YStack>
+
+                            {/* Transmission Type */}
+                            <YStack gap="$2">
+                              <Text weight="medium" color="$color">
+                                {t('filters.transmissionType')}
+                              </Text>
+                              <View
+                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                              >
+                                {['automatic', 'manual', 'both'].map((trans) => {
+                                  const isSelected = formData.transmission_type === trans;
+                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                                  return (
+                                    <TouchableOpacity
+                                      key={trans}
+                                      style={{
+                                        marginRight: 8,
+                                        marginBottom: 8,
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 8,
+                                        borderRadius: 20,
+                                        borderWidth: 1,
+                                        borderColor,
+                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                                      }}
+                                      onPress={() =>
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          transmission_type: trans,
+                                        }))
+                                      }
+                                    >
+                                      <Text
+                                        style={{
+                                          fontSize: 14,
+                                          fontWeight: isSelected ? '600' : '500',
+                                          color: isSelected ? '#000000' : textColor,
+                                        }}
+                                      >
+                                        {t(`filters.transmissionType.${trans}`)}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                            </YStack>
+
+                            {/* Activity Level */}
+                            <YStack gap="$2">
+                              <Text weight="medium" color="$color">
+                                {t('filters.activityLevel')}
+                              </Text>
+                              <View
+                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                              >
+                                {['moderate', 'high'].map((level) => {
+                                  const isSelected = formData.activity_level === level;
+                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                                  return (
+                                    <TouchableOpacity
+                                      key={level}
+                                      style={{
+                                        marginRight: 8,
+                                        marginBottom: 8,
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 8,
+                                        borderRadius: 20,
+                                        borderWidth: 1,
+                                        borderColor,
+                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                                      }}
+                                      onPress={() =>
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          activity_level: level,
+                                        }))
+                                      }
+                                    >
+                                      <Text
+                                        style={{
+                                          fontSize: 14,
+                                          fontWeight: isSelected ? '600' : '500',
+                                          color: isSelected ? '#000000' : textColor,
+                                        }}
+                                      >
+                                        {t(`filters.activityLevel.${level}`)}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                            </YStack>
+
+                            {/* Best Season */}
+                            <YStack gap="$2">
+                              <Text weight="medium" color="$color">
+                                {t('filters.bestSeason')}
+                              </Text>
+                              <View
+                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                              >
+                                {['all', 'year-round', 'avoid-winter'].map((season) => {
+                                  const isSelected = formData.best_season === season;
+                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                                  return (
+                                    <TouchableOpacity
+                                      key={season}
+                                      style={{
+                                        marginRight: 8,
+                                        marginBottom: 8,
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 8,
+                                        borderRadius: 20,
+                                        borderWidth: 1,
+                                        borderColor,
+                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                                      }}
+                                      onPress={() =>
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          best_season: season,
+                                        }))
+                                      }
+                                    >
+                                      <Text
+                                        style={{
+                                          fontSize: 14,
+                                          fontWeight: isSelected ? '600' : '500',
+                                          color: isSelected ? '#000000' : textColor,
+                                        }}
+                                      >
+                                        {t(`filters.bestSeason.${season}`)}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                            </YStack>
+
+                            {/* Vehicle Types */}
+                            <YStack gap="$2">
+                              <Text weight="medium" color="$color">
+                                {t('filters.vehicleTypes')}
+                              </Text>
+                              <View
+                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                              >
+                                {['passenger_car', 'rv'].map((vehicle) => {
+                                  const isSelected = formData.vehicle_types.includes(vehicle);
+                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                                  return (
+                                    <TouchableOpacity
+                                      key={vehicle}
+                                      style={{
+                                        marginRight: 8,
+                                        marginBottom: 8,
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 8,
+                                        borderRadius: 20,
+                                        borderWidth: 1,
+                                        borderColor,
+                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                                      }}
+                                      onPress={() =>
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          vehicle_types: prev.vehicle_types.includes(vehicle)
+                                            ? prev.vehicle_types.filter((v) => v !== vehicle)
+                                            : [...prev.vehicle_types, vehicle],
+                                        }))
+                                      }
+                                    >
+                                      <Text
+                                        style={{
+                                          fontSize: 14,
+                                          fontWeight: isSelected ? '600' : '500',
+                                          color: isSelected ? '#000000' : textColor,
+                                        }}
+                                      >
+                                        {t(`filters.vehicleTypes.${vehicle}`)}
                                       </Text>
                                     </TouchableOpacity>
                                   );
