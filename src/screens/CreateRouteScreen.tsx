@@ -3256,26 +3256,49 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       <Text weight="medium" color="$color">
                         {getTranslation(t, 'createRoute.difficulty', 'Difficulty')}
                       </Text>
-                      <XStack gap="$2" flexWrap="wrap">
-                        {['beginner', 'intermediate', 'advanced'].map((level) => (
-                          <Chip
-                            key={level}
-                            active={formData.difficulty === (level as DifficultyLevel)}
-                            onPress={() =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                difficulty: level as DifficultyLevel,
-                              }))
-                            }
-                          >
-                            {level === 'beginner'
-                              ? t('profile.experienceLevels.beginner')
-                              : level === 'intermediate'
-                                ? t('profile.experienceLevels.intermediate')
-                                : t('profile.experienceLevels.advanced')}
-                          </Chip>
-                        ))}
-                      </XStack>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                        {['beginner', 'intermediate', 'advanced'].map((level) => {
+                          const isSelected = formData.difficulty === (level as DifficultyLevel);
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+                          
+                          return (
+                            <TouchableOpacity
+                              key={level}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
+                              onPress={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  difficulty: level as DifficultyLevel,
+                                }))
+                              }
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
+                              >
+                                {level === 'beginner'
+                                  ? t('profile.experienceLevels.beginner')
+                                  : level === 'intermediate'
+                                    ? t('profile.experienceLevels.intermediate')
+                                    : t('profile.experienceLevels.advanced')}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     </YStack>
 
                     {/* Spot Type */}
@@ -3283,24 +3306,46 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       <Text weight="medium" color="$color">
                         {t('createRoute.spotType')}
                       </Text>
-                      <XStack gap="$2" flexWrap="wrap">
-                        {['city', 'highway', 'rural', 'track', 'parking'].map((type) => (
-                          <Chip
-                            key={type}
-                            active={formData.spot_type === (type as SpotType)}
-                            onPress={() =>
-                              setFormData((prev) => ({ ...prev, spot_type: type as SpotType }))
-                            }
-                          >
-                            {/* Try to use the spot type translation with fallback */}
-                            {getTranslation(
-                              t,
-                              `createRoute.spotTypes.${type}`,
-                              type.charAt(0).toUpperCase() + type.slice(1),
-                            )}
-                          </Chip>
-                        ))}
-                      </XStack>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                        {['city', 'highway', 'rural', 'track', 'parking'].map((type) => {
+                          const isSelected = formData.spot_type === (type as SpotType);
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+                          
+                          return (
+                            <TouchableOpacity
+                              key={type}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
+                              onPress={() =>
+                                setFormData((prev) => ({ ...prev, spot_type: type as SpotType }))
+                              }
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
+                              >
+                                {getTranslation(
+                                  t,
+                                  `createRoute.spotTypes.${type}`,
+                                  type.charAt(0).toUpperCase() + type.slice(1),
+                                )}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     </YStack>
 
                     {/* Visibility */}
@@ -3308,24 +3353,47 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       <Text weight="medium" color="$color">
                         {t('createRoute.visibility')}
                       </Text>
-                      <XStack gap="$2" flexWrap="wrap">
-                        {['public', 'private'].map((vis) => (
-                          <Chip
-                            key={vis}
-                            active={formData.visibility === (vis as SpotVisibility)}
-                            onPress={() =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                visibility: vis as SpotVisibility,
-                              }))
-                            }
-                          >
-                            {vis === 'public'
-                              ? getTranslation(t, 'createRoute.public', 'Public')
-                              : getTranslation(t, 'createRoute.private', 'Private')}
-                          </Chip>
-                        ))}
-                      </XStack>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                        {['public', 'private'].map((vis) => {
+                          const isSelected = formData.visibility === (vis as SpotVisibility);
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+                          
+                          return (
+                            <TouchableOpacity
+                              key={vis}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
+                              onPress={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  visibility: vis as SpotVisibility,
+                                }))
+                              }
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
+                              >
+                                {vis === 'public'
+                                  ? getTranslation(t, 'createRoute.public', 'Public')
+                                  : getTranslation(t, 'createRoute.private', 'Private')}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     </YStack>
 
                     {/* Delete Button (only when editing) */}
