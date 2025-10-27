@@ -172,7 +172,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
             <HomeHeader />
 
             {/* Tab Switcher */}
-            <XStack
+            {/* <XStack
               paddingHorizontal="$4"
               paddingVertical="$3"
               gap="$2"
@@ -225,7 +225,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
                   Community
                 </Text>
               </TouchableOpacity>
-            </XStack>
+            </XStack> */}
 
             {isViewingAsStudent && (
               <YStack

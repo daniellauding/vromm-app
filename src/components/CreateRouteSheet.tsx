@@ -2346,14 +2346,14 @@ export function CreateRouteSheet({
               >
                 {/* Existing Content */}
                 <YStack f={1} gap={2}>
-                  <Header
+                  {/* <Header
                     title={
                       isEditing
                         ? getTranslation(t, 'createRoute.editTitle', 'Edit Route')
                         : getTranslation(t, 'createRoute.createTitle', 'Create Route')
                     }
                     showBack={false}
-                  />
+                  /> */}
                   <XStack padding="$4" gap="$2" flexWrap="wrap">
                     <IconButton
                       icon="info"
@@ -2408,9 +2408,9 @@ export function CreateRouteSheet({
                           <YStack gap="$4">
                             {/* Basic Information */}
                             <YStack>
-                              <Text size="lg" weight="medium" mb="$2" color="$color">
+                              {/* <Text size="lg" weight="medium" mb="$2" color="$color">
                                 {getTranslation(t, 'createRoute.routeName', 'Route Name')}
-                              </Text>
+                              </Text> */}
                               <FormField
                                 value={formData.name}
                                 onChangeText={(text) =>
@@ -3017,11 +3017,11 @@ export function CreateRouteSheet({
                                     }}
                                   >
                                     <XStack alignItems="center" gap="$2">
-                                      <Feather
+                                      {/* <Feather
                                         name="map-pin"
                                         size={20}
                                         color={iconColor}
-                                      />
+                                      /> */}
                                       <Text fontSize="$5" fontWeight="600" color="$color">
                                         {t('createRoute.waypoints') || 'Waypoints'}
                                       </Text>
@@ -3543,10 +3543,10 @@ export function CreateRouteSheet({
 
                         {activeSection === 'media' && (
                           <YStack gap="$4">
-                            <Heading>{getTranslation(t, 'createRoute.media', 'Media')}</Heading>
+                            {/* <Heading>{getTranslation(t, 'createRoute.media', 'Media')}</Heading>
                             <Text size="sm" color="$gray11">
                               {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
-                            </Text>
+                            </Text> */}
 
                             <XStack gap="$3" flexWrap="wrap">
                               <Button
@@ -3622,7 +3622,7 @@ export function CreateRouteSheet({
                             </XStack>
 
                             {/* YouTube Link */}
-                            <YStack gap="$2">
+                            {/* <YStack gap="$2">
                               <Heading marginTop="$4">
                                 {getTranslation(t, 'createRoute.youtubeLink', 'YouTube Link')}
                               </Heading>
@@ -3653,7 +3653,7 @@ export function CreateRouteSheet({
                                   </XStack>
                                 </Button>
                               </XStack>
-                            </YStack>
+                            </YStack> */}
 
                             {/* Media Preview List */}
                             {media.length > 0 ? (
@@ -4171,7 +4171,7 @@ export function CreateRouteSheet({
                 gap="$3"
               >
                 {/* Collection Selector Button */}
-                <Button
+                {/* <Button
                   onPress={handleSelectCollection}
                   backgroundColor="transparent"
                   borderColor="$borderColor"
@@ -4191,7 +4191,7 @@ export function CreateRouteSheet({
                           )}
                     </Text>
                   </XStack>
-                </Button>
+                </Button> */}
 
                 {/* Create Route Button */}
                 <Button
@@ -4202,7 +4202,7 @@ export function CreateRouteSheet({
                   width="100%"
                 >
                   <XStack gap="$2" alignItems="center">
-                    {!loading && <Feather name="check" size={20} color="white" />}
+                    {/* {!loading && <Feather name="check" size={20} color="white" />} */}
                     <Text color="white">
                       {loading
                         ? getTranslation(t, 'createRoute.saving', 'Saving...')

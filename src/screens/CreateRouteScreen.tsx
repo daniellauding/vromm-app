@@ -2076,7 +2076,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       >
         {/* Existing Content */}
         <YStack f={1} gap={2}>
-          {!hideHeader && (
+          {/* {!hideHeader && (
             <Header
               title={
                 isEditing
@@ -2086,7 +2086,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
               showBack={!isModal}
               onBackPress={isModal && onCloseModal ? onCloseModal : undefined}
             />
-          )}
+          )} */}
           <XStack padding="$4" gap="$2" flexWrap="wrap">
             <IconButton
               icon="info"
@@ -2140,9 +2140,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                   <YStack gap="$4">
                     {/* Basic Information */}
                     <YStack>
-                      <Text size="lg" weight="medium" mb="$2" color="$color">
+                      {/* <Text size="lg" weight="medium" mb="$2" color="$color">
                         {getTranslation(t, 'createRoute.routeName', 'Route Name')}
-                      </Text>
+                      </Text> */}
                       <FormField
                         value={formData.name}
                         onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
@@ -3295,7 +3295,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                     </XStack>
 
                     {/* YouTube Link */}
-                    <YStack gap="$2">
+                    {/* <YStack gap="$2">
                       <Heading marginTop="$4">
                         {getTranslation(t, 'createRoute.youtubeLink', 'YouTube Link')}
                       </Heading>
@@ -3322,7 +3322,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           </XStack>
                         </Button>
                       </XStack>
-                    </YStack>
+                    </YStack> */}
 
                     {/* Media Preview List */}
                     {media.length > 0 ? (
@@ -3833,7 +3833,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         gap="$3"
       >
         {/* Collection Selector Button */}
-        <Button
+        {/* <Button
           onPress={handleSelectCollection}
           backgroundColor="transparent"
           borderColor="$borderColor"
@@ -3849,7 +3849,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                 : getTranslation(t, 'createRoute.selectCollection', 'Select Collection (Optional)')}
             </Text>
           </XStack>
-        </Button>
+        </Button> */}
 
         {/* Create Route Button */}
         <Button
@@ -3860,7 +3860,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           width="100%"
         >
           <XStack gap="$2" alignItems="center">
-            {!loading && <Feather name="check" size={20} color="white" />}
+            {/* {!loading && <Feather name="check" size={20} color="white" />} */}
             <Text color="white">
               {loading
                 ? getTranslation(t, 'createRoute.saving', 'Saving...')
