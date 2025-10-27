@@ -20,7 +20,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 // Navigation imports removed for sheet component
-import { Map, Waypoint, Screen, Button, Text, Header, FormField, Chip } from '../components';
+import { Map, Waypoint, Screen, Button, Text, Header, FormField, Chip, IconButton } from '../components';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
@@ -2365,34 +2365,43 @@ export function CreateRouteSheet({
                     showBack={false}
                   />
                   <XStack padding="$4" gap="$2" flexWrap="wrap">
-                    <Chip
-                      active={activeSection === 'basic'}
-                      onPress={() => setActiveSection('basic')}
+                    <IconButton
                       icon="info"
-                    >
-                      {getTranslation(t, 'createRoute.routeName', 'Route Name')}
-                    </Chip>
-                    <Chip
-                      active={activeSection === 'exercises'}
-                      onPress={() => setActiveSection('exercises')}
+                      label={getTranslation(t, 'createRoute.routeName', 'Route Name')}
+                      onPress={() => setActiveSection('basic')}
+                      selected={activeSection === 'basic'}
+                      backgroundColor="transparent"
+                      borderColor="transparent"
+                      flex={1}
+                    />
+                    {/* Exercises tab temporarily disabled - will be re-enabled later */}
+                    {/* <IconButton
                       icon="activity"
-                    >
-                      {getTranslation(t, 'createRoute.exercises', 'Exercises')}
-                    </Chip>
-                    <Chip
-                      active={activeSection === 'media'}
-                      onPress={() => setActiveSection('media')}
+                      label={getTranslation(t, 'createRoute.exercises', 'Exercises')}
+                      onPress={() => setActiveSection('exercises')}
+                      selected={activeSection === 'exercises'}
+                      backgroundColor="transparent"
+                      borderColor="transparent"
+                      flex={1}
+                    /> */}
+                    <IconButton
                       icon="image"
-                    >
-                      {getTranslation(t, 'createRoute.media', 'Media')}
-                    </Chip>
-                    <Chip
-                      active={activeSection === 'details'}
-                      onPress={() => setActiveSection('details')}
+                      label={getTranslation(t, 'createRoute.media', 'Media')}
+                      onPress={() => setActiveSection('media')}
+                      selected={activeSection === 'media'}
+                      backgroundColor="transparent"
+                      borderColor="transparent"
+                      flex={1}
+                    />
+                    <IconButton
                       icon="settings"
-                    >
-                      {getTranslation(t, 'common.details', 'Details')}
-                    </Chip>
+                      label={getTranslation(t, 'common.details', 'Details')}
+                      onPress={() => setActiveSection('details')}
+                      selected={activeSection === 'details'}
+                      backgroundColor="transparent"
+                      borderColor="transparent"
+                      flex={1}
+                    />
                   </XStack>
 
                   {/* Section Content */}
