@@ -377,6 +377,7 @@ export function CreateRouteSheet({
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const pendingToastRef = useRef<{ id: string; name: string; isEditing: boolean } | null>(null);
 
   // Drawing modes system - set to 'record' if coming from recorded route
   const [drawingMode, setDrawingMode] = useState<'pin' | 'waypoint' | 'pen' | 'record'>(
@@ -676,6 +677,23 @@ export function CreateRouteSheet({
     const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => backHandler.remove();
   }, [hasUnsavedChanges]);
+
+  // Show toast when modal is closed and we have pending toast data
+  useEffect(() => {
+    if (!visible && pendingToastRef.current) {
+      const { id, name, isEditing } = pendingToastRef.current;
+      console.log('🍞 [CreateRouteSheet] Modal closed, showing pending toast:', id, name);
+      
+      // Use a longer delay to ensure modal is fully unmounted
+      setTimeout(() => {
+        showRouteCreatedToast(id, name, isEditing, false, () => {
+          // No-op: prevents auto-navigation to RouteDetailScreen
+          console.log('🍞 [CreateRouteSheet] Toast clicked for route:', id);
+        });
+        pendingToastRef.current = null; // Clear the pending toast
+      }, 500);
+    }
+  }, [visible, showRouteCreatedToast]);
 
   // ==================== CONTEXT STATE INTEGRATION ====================
 
@@ -1976,25 +1994,13 @@ export function CreateRouteSheet({
       // Set loading to false before closing
       setLoading(false);
 
-      // Store route data for toast
-      const routeData = { id: route?.id, name: route?.name, isEditing };
-
-      // Close the create sheet FIRST
-      onClose();
-
-      // Show toast notification AFTER sheet has closed (delay to ensure modal is fully dismissed)
-      // Pass empty custom action to prevent navigating to RouteDetailScreen
-      if (routeData.id && routeData.name) {
-        setTimeout(() => {
-          console.log('🍞 [CreateRouteSheet] Showing toast for route:', routeData.id, routeData.name);
-          showRouteCreatedToast(routeData.id, routeData.name, routeData.isEditing, false, () => {
-            // No-op: prevents auto-navigation to RouteDetailScreen
-            // User can view route from their routes list or via parent callback
-            console.log('🍞 [CreateRouteSheet] Toast clicked for route:', routeData.id);
-          });
-          console.log('🍞 [CreateRouteSheet] Toast call completed');
-        }, 300); // Delay to ensure sheet modal is fully closed before showing toast
+      // Store route data for toast - will be shown after modal unmounts
+      if (route?.id && route?.name) {
+        pendingToastRef.current = { id: route.id, name: route.name, isEditing };
       }
+
+      // Close the create sheet
+      onClose();
 
       // Don't call onRouteCreated to prevent navigation away from HomeScreen
       // User stays on HomeScreen with toast notification showing route was created
@@ -2990,11 +2996,8 @@ export function CreateRouteSheet({
                                       const isFirst = index === 0;
                                       const isLast =
                                         index === waypoints.length - 1 && waypoints.length > 1;
-                                      const markerColor = isFirst
-                                        ? 'green'
-                                        : isLast
-                                          ? 'red'
-                                          : 'blue';
+                                      // Use consistent app color #38fdbf for all markers
+                                      const markerColor = '#38fdbf';
 
                                       return (
                                         <Marker
@@ -3028,7 +3031,7 @@ export function CreateRouteSheet({
                                         <Polyline
                                           coordinates={penPath}
                                           strokeWidth={8}
-                                          strokeColor="#FF6B35"
+                                          strokeColor="#38fdbf"
                                           lineJoin="round"
                                           lineCap="round"
                                           geodesic={false}
@@ -3047,7 +3050,7 @@ export function CreateRouteSheet({
                                         longitude: wp.longitude,
                                       }))}
                                       strokeWidth={3}
-                                      strokeColor="#1A73E8"
+                                      strokeColor="#38fdbf"
                                       lineJoin="round"
                                     />
                                   )}
@@ -3057,7 +3060,7 @@ export function CreateRouteSheet({
                                     <Polyline
                                       coordinates={routePath}
                                       strokeWidth={drawingMode === 'record' ? 5 : 3}
-                                      strokeColor={drawingMode === 'record' ? '#22C55E' : '#1A73E8'}
+                                      strokeColor="#38fdbf"
                                       lineJoin="round"
                                       lineCap="round"
                                     />
@@ -3175,7 +3178,7 @@ export function CreateRouteSheet({
                                     transform: [{ translateX: -50 }],
                                     backgroundColor:
                                       drawingMode === 'pen'
-                                        ? 'rgba(255,107,53,0.9)'
+                                        ? 'rgba(56,253,191,0.9)'
                                         : 'rgba(0,0,0,0.8)',
                                     paddingHorizontal: 12,
                                     paddingVertical: 6,
@@ -3392,18 +3395,12 @@ export function CreateRouteSheet({
                                       >
                                         <YStack flex={1} gap="$2">
                                           <XStack alignItems="center" gap="$2">
-                                            <View
+                                                            <View
                                               style={{
                                                 width: 24,
                                                 height: 24,
                                                 borderRadius: 12,
-                                                backgroundColor:
-                                                  index === 0
-                                                    ? '#22C55E'
-                                                    : index === waypoints.length - 1 &&
-                                                        waypoints.length > 1
-                                                      ? '#EF4444'
-                                                      : '#3B82F6',
+                                                backgroundColor: '#38fdbf',
                                                 justifyContent: 'center',
                                                 alignItems: 'center',
                                               }}

@@ -2697,7 +2697,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                             waypoints.map((waypoint, index) => {
                               const isFirst = index === 0;
                               const isLast = index === waypoints.length - 1 && waypoints.length > 1;
-                              const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
+                              // Use consistent app color #38fdbf for all markers
+                              const markerColor = '#38fdbf';
 
                               return (
                                 <Marker
@@ -2731,7 +2732,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                 <Polyline
                                   coordinates={penPath}
                                   strokeWidth={8}
-                                  strokeColor="#FF6B35"
+                                  strokeColor="#38fdbf"
                                   lineJoin="round"
                                   lineCap="round"
                                   geodesic={false}
@@ -2742,29 +2743,29 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
                           {/* Orange dots removed - only showing continuous orange lines */}
 
-                          {/* Render connecting lines for waypoints (not in pen mode) */}
-                          {drawingMode === 'waypoint' && waypoints.length > 1 && (
-                            <Polyline
-                              coordinates={waypoints.map((wp) => ({
-                                latitude: wp.latitude,
-                                longitude: wp.longitude,
-                              }))}
-                              strokeWidth={3}
-                              strokeColor="#1A73E8"
-                              lineJoin="round"
-                            />
-                          )}
+                        {/* Render connecting lines for waypoints (not in pen mode) */}
+                        {drawingMode === 'waypoint' && waypoints.length > 1 && (
+                          <Polyline
+                            coordinates={waypoints.map((wp) => ({
+                              latitude: wp.latitude,
+                              longitude: wp.longitude,
+                            }))}
+                            strokeWidth={3}
+                            strokeColor="#38fdbf"
+                            lineJoin="round"
+                          />
+                        )}
 
-                          {/* Render route path if provided */}
-                          {routePath && routePath.length > 1 && (
-                            <Polyline
-                              coordinates={routePath}
-                              strokeWidth={drawingMode === 'record' ? 5 : 3}
-                              strokeColor={drawingMode === 'record' ? '#22C55E' : '#1A73E8'}
-                              lineJoin="round"
-                              lineCap="round"
-                            />
-                          )}
+                        {/* Render route path if provided */}
+                        {routePath && routePath.length > 1 && (
+                          <Polyline
+                            coordinates={routePath}
+                            strokeWidth={drawingMode === 'record' ? 5 : 3}
+                            strokeColor="#38fdbf"
+                            lineJoin="round"
+                            lineCap="round"
+                          />
+                        )}
                         </MapView>
 
                         {/* Map Controls - Top Right */}
@@ -3055,12 +3056,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                         width: 24,
                                         height: 24,
                                         borderRadius: 12,
-                                        backgroundColor:
-                                          index === 0
-                                            ? '#22C55E'
-                                            : index === waypoints.length - 1 && waypoints.length > 1
-                                              ? '#EF4444'
-                                              : '#3B82F6',
+                                        backgroundColor: '#38fdbf',
                                         justifyContent: 'center',
                                         alignItems: 'center',
                                       }}
