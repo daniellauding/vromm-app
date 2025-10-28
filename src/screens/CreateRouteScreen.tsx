@@ -3221,78 +3221,53 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
                     </Text>
 
-                    <XStack gap="$3" flexWrap="wrap">
+                    <YStack gap="$3">
                       <Button
-                        flex={1}
                         onPress={() => pickMedia(false)}
                         variant="secondary"
-                        size="md"
-                        marginTop="$2"
+                        size="lg"
+                        backgroundColor="transparent"
+                        borderColor="$borderColor"
+                        borderWidth={1}
                       >
                         <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="$blue10" />
-                          <Text color="$blue10">
+                          <Feather name="image" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                          <Text color="$color">
                             {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
                           </Text>
                         </XStack>
                       </Button>
                       <Button
-                        flex={1}
                         onPress={takePhoto}
                         variant="secondary"
-                        size="md"
-                        marginTop="$2"
+                        size="lg"
+                        backgroundColor="transparent"
+                        borderColor="$borderColor"
+                        borderWidth={1}
                       >
                         <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="$blue10" />
-                          <Text color="$blue10">
+                          <Feather name="camera" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                          <Text color="$color">
                             {getTranslation(t, 'createRoute.takePicture', 'Take Picture')}
                           </Text>
                         </XStack>
                       </Button>
                       <Button
-                        flex={1}
-                        onPress={uploadPhoto}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="upload" size={18} color="$blue10" />
-                          <Text color="$blue10">
-                            {getTranslation(t, 'createRoute.uploadPhoto', 'Upload Photo')}
-                          </Text>
-                        </XStack>
-                      </Button>
-                      <Button
-                        flex={1}
                         onPress={recordVideo}
                         variant="secondary"
-                        size="md"
-                        marginTop="$2"
+                        size="lg"
+                        backgroundColor="transparent"
+                        borderColor="$borderColor"
+                        borderWidth={1}
                       >
                         <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="$blue10" />
-                          <Text color="$blue10">
+                          <Feather name="video" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                          <Text color="$color">
                             {getTranslation(t, 'createRoute.takeVideo', 'Take Video')}
                           </Text>
                         </XStack>
                       </Button>
-                      <Button
-                        flex={1}
-                        onPress={uploadVideo}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="upload" size={18} color="$blue10" />
-                          <Text color="$blue10">
-                            {getTranslation(t, 'createRoute.uploadVideo', 'Upload Video')}
-                          </Text>
-                        </XStack>
-                      </Button>
-                    </XStack>
+                    </YStack>
 
                     {/* YouTube Link */}
                     {/* <YStack gap="$2">
@@ -3390,7 +3365,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         ))}
                       </YStack>
                     ) : (
-                      <Text color="$gray11" textAlign="center">
+                      <Text color="$gray11" textAlign="center" display="none">
                         {getTranslation(t, 'createRoute.noMedia', 'No media added yet')}
                       </Text>
                     )}
