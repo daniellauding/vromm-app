@@ -1976,22 +1976,25 @@ export function CreateRouteSheet({
       // Set loading to false before closing
       setLoading(false);
 
-      // Show toast notification BEFORE closing (so component is still mounted)
-      // Pass empty custom action to prevent navigating to RouteDetailScreen
-      if (route?.id && route?.name) {
-        console.log('🍞 [CreateRouteSheet] Showing toast for route:', route.id, route.name);
-        showRouteCreatedToast(route.id, route.name, isEditing, false, () => {
-          // No-op: prevents auto-navigation to RouteDetailScreen
-          // User can view route from their routes list or via parent callback
-          console.log('🍞 [CreateRouteSheet] Toast clicked for route:', route.id);
-        });
-        console.log('🍞 [CreateRouteSheet] Toast call completed');
-      }
+      // Store route data for toast
+      const routeData = { id: route?.id, name: route?.name, isEditing };
 
-      // Close the create sheet AFTER showing toast (small delay for animation)
-      setTimeout(() => {
-        onClose();
-      }, 100); // Small delay to ensure toast is rendered before sheet closes
+      // Close the create sheet FIRST
+      onClose();
+
+      // Show toast notification AFTER sheet has closed (delay to ensure modal is fully dismissed)
+      // Pass empty custom action to prevent navigating to RouteDetailScreen
+      if (routeData.id && routeData.name) {
+        setTimeout(() => {
+          console.log('🍞 [CreateRouteSheet] Showing toast for route:', routeData.id, routeData.name);
+          showRouteCreatedToast(routeData.id, routeData.name, routeData.isEditing, false, () => {
+            // No-op: prevents auto-navigation to RouteDetailScreen
+            // User can view route from their routes list or via parent callback
+            console.log('🍞 [CreateRouteSheet] Toast clicked for route:', routeData.id);
+          });
+          console.log('🍞 [CreateRouteSheet] Toast call completed');
+        }, 300); // Delay to ensure sheet modal is fully closed before showing toast
+      }
 
       // Don't call onRouteCreated to prevent navigation away from HomeScreen
       // User stays on HomeScreen with toast notification showing route was created
