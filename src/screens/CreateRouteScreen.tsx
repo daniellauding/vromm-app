@@ -7,13 +7,15 @@ import {
   useColorScheme,
   Dimensions,
   TouchableOpacity,
+  Pressable,
   Platform,
   PanResponder,
   BackHandler,
   Modal,
   Animated,
+  Easing,
 } from 'react-native';
-import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group, Heading } from 'tamagui';
+import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group, Heading, useTheme } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -167,6 +169,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const searchInputRef = useRef<any>(null);
+  
+  // Use proper theming for search results
+  const theme = useTheme();
+  const textColor = theme.color?.val || '#11181C';
+  const borderColor = theme.borderColor?.val || '#E5E5E5';
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Location.LocationGeocodedAddress[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -176,6 +183,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const navigation = useNavigation<NavigationProp>();
   const [loading, setLoading] = useState(false);
   const [loadingMedia, setLoadingMedia] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const spinValue = useRef(new Animated.Value(0)).current;
   const [error, setError] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
     console.log('🏗️ Initializing waypoints state:', {
@@ -370,6 +379,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     category: 'parking' as Category,
   });
 
+  // Validation helper
+  const isBasicInfoComplete = formData.name.trim().length > 0;
+
   // ==================== UNSAVED CHANGES DETECTION ====================
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -406,6 +418,27 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     const hasChanges = JSON.stringify(currentState) !== JSON.stringify(initialStateSnapshot);
     setHasUnsavedChanges(hasChanges);
   }, [formData, waypoints, exercises, media, youtubeLink, initialStateSnapshot]);
+
+  // Location loading animation effect (similar to MapScreen)
+  useEffect(() => {
+    if (locationLoading) {
+      const spin = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      );
+      spin.start();
+
+      return () => {
+        spin.stop();
+      };
+    } else {
+      spinValue.setValue(0);
+    }
+  }, [locationLoading, spinValue]);
 
   // Handle back button press
   useFocusEffect(
@@ -931,6 +964,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const handleLocateMe = async () => {
     try {
+      setLocationLoading(true);
       let location;
       try {
         location = await Location.getCurrentPositionAsync({});
@@ -983,6 +1017,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     } catch (err) {
       console.error('Error getting location:', err);
       Alert.alert(t('common.error'), t('createRoute.locationPermissionMsg'));
+    } finally {
+      setLocationLoading(false);
     }
   };
 
@@ -2099,15 +2135,34 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             />
           )} */}
           <XStack padding="$4" gap="$2" flexWrap="wrap">
-            <IconButton
-              icon="info"
-              label={getTranslation(t, 'createRoute.routeName', 'Route Name')}
-              onPress={() => setActiveSection('basic')}
-              selected={activeSection === 'basic'}
-              backgroundColor="transparent"
-              borderColor="transparent"
-              flex={1}
-            />
+            <View style={{ flex: 1, position: 'relative' }}>
+              <IconButton
+                icon="info"
+                label={getTranslation(t, 'createRoute.routeName', 'Route Name')}
+                onPress={() => setActiveSection('basic')}
+                selected={activeSection === 'basic'}
+                backgroundColor="transparent"
+                borderColor="transparent"
+                flex={1}
+              />
+              {!isBasicInfoComplete && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor: '#EF4444',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>!</Text>
+                </View>
+              )}
+            </View>
             {/* Exercises tab temporarily disabled - will be re-enabled later */}
             {/* <IconButton
               icon="activity"
@@ -2169,6 +2224,71 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         )}
                         autoCapitalize="none"
                       />
+                      
+                      {/* Quick name suggestions */}
+                      {waypoints.length > 0 && waypoints[0]?.title && (
+                        <XStack gap="$2" marginTop="$2" flexWrap="wrap">
+                          <Pressable
+                            onPress={() => {
+                              const locationName = waypoints[0]?.title?.split(',')[0].trim() || '';
+                              setFormData((prev) => ({ ...prev, name: locationName }));
+                            }}
+                            style={({ pressed }) => {
+                              const chipText = waypoints[0].title.split(',')[0].trim();
+                              const isSelected = formData.name === chipText;
+                              return {
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                backgroundColor: (pressed || isSelected) ? '#00E6C3' : 'transparent',
+                              };
+                            }}
+                          >
+                            {({ pressed }) => {
+                              const chipText = waypoints[0].title.split(',')[0].trim();
+                              const isSelected = formData.name === chipText;
+                              return (
+                                <Text fontSize={14} color={(pressed || isSelected) ? '#000000' : '$color'}>
+                                  {chipText}
+                                </Text>
+                              );
+                            }}
+                          </Pressable>
+                          
+                          {waypoints[0]?.title?.includes(',') && waypoints[0]?.title?.split(',')[1] && (
+                            <Pressable
+                              onPress={() => {
+                                const cityName = waypoints[0]?.title?.split(',').slice(0, 2).join(',').trim() || '';
+                                setFormData((prev) => ({ ...prev, name: cityName }));
+                              }}
+                              style={({ pressed }) => {
+                                const chipText = waypoints[0].title.split(',').slice(0, 2).join(',').trim();
+                                const isSelected = formData.name === chipText;
+                                return {
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 8,
+                                  borderRadius: 20,
+                                  borderWidth: 1,
+                                  borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                  backgroundColor: (pressed || isSelected) ? '#00E6C3' : 'transparent',
+                                };
+                              }}
+                            >
+                              {({ pressed }) => {
+                                const chipText = waypoints[0].title.split(',').slice(0, 2).join(',').trim();
+                                const isSelected = formData.name === chipText;
+                                return (
+                                  <Text fontSize={14} color={(pressed || isSelected) ? '#000000' : '$color'}>
+                                    {chipText}
+                                  </Text>
+                                );
+                              }}
+                            </Pressable>
+                          )}
+                        </XStack>
+                      )}
                       <TextArea
                         value={formData.description}
                         onChangeText={(text) =>
@@ -2426,6 +2546,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           </View>
                           <TouchableOpacity
                             onPress={handleLocateMe}
+                            disabled={locationLoading}
                             style={{
                               width: 48,
                               height: 48,
@@ -2437,34 +2558,78 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                               backgroundColor: 'transparent',
                             }}
                           >
-                            <Feather
-                              name="navigation"
-                              size={20}
-                              color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
-                            />
+                            {locationLoading ? (
+                              <Animated.View
+                                style={{
+                                  transform: [
+                                    {
+                                      rotate: spinValue.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: ['0deg', '360deg'],
+                                      }),
+                                    },
+                                  ],
+                                }}
+                              >
+                                <Feather
+                                  name="loader"
+                                  size={20}
+                                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                                />
+                              </Animated.View>
+                            ) : (
+                              <Feather
+                                name="navigation"
+                                size={20}
+                                color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                              />
+                            )}
                           </TouchableOpacity>
                         </XStack>
 
                         {showSearchResults && searchResults.length > 0 && (
-                          <Card elevate>
-                            <YStack padding="$2" gap="$1">
-                              {searchResults.map((result, index) => (
-                                <Button
-                                  key={index}
-                                  onPress={() => handleLocationSelect(result)}
-                                  variant="secondary"
-                                  size="md"
-                                  justifyContent="flex-start"
-                                >
-                                  <Text numberOfLines={1} color="$color">
-                                    {[result.street, result.city, result.country]
-                                      .filter(Boolean)
-                                      .join(', ')}
-                                  </Text>
-                                </Button>
-                              ))}
-                            </YStack>
-                          </Card>
+                          <YStack
+                            overflow="hidden"
+                            marginBottom="$4"
+                            borderTopWidth={1}
+                            borderBottomWidth={1}
+                            borderLeftWidth={1}
+                            borderRightWidth={1}
+                            borderColor={borderColor}
+                            borderRadius="$2"
+                          >
+                            <ScrollView>
+                              {searchResults.map((result, index, array) => {
+                                const isLastItem = index === array.length - 1;
+                                return (
+                                  <TouchableOpacity
+                                    key={index}
+                                    onPress={() => handleLocationSelect(result)}
+                                    style={{
+                                      paddingVertical: 12,
+                                      paddingHorizontal: 12,
+                                      borderBottomWidth: isLastItem ? 0 : 1,
+                                      borderBottomColor: borderColor,
+                                    }}
+                                  >
+                                    <XStack alignItems="center" gap="$2">
+                                      <YStack flex={1}>
+                                        <Text numberOfLines={1} fontWeight="600" color={textColor}>
+                                          {[result.street, result.city].filter(Boolean).join(', ') ||
+                                            'Unknown location'}
+                                        </Text>
+                                        {result.country && (
+                                          <Text numberOfLines={1} fontSize="$3" color="$gray10">
+                                            {result.country}
+                                          </Text>
+                                        )}
+                                      </YStack>
+                                    </XStack>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </ScrollView>
+                          </YStack>
                         )}
                       </YStack>
 
@@ -2629,6 +2794,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
                         <TouchableOpacity
                           onPress={handleLocateMe}
+                          disabled={locationLoading}
                           style={{
                             position: 'absolute',
                             bottom: 16,
@@ -2644,11 +2810,32 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                               colorScheme === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
                           }}
                         >
-                          <Feather
-                            name="navigation"
-                            size={20}
-                            color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
-                          />
+                          {locationLoading ? (
+                            <Animated.View
+                              style={{
+                                transform: [
+                                  {
+                                    rotate: spinValue.interpolate({
+                                      inputRange: [0, 1],
+                                      outputRange: ['0deg', '360deg'],
+                                    }),
+                                  },
+                                ],
+                              }}
+                            >
+                              <Feather
+                                name="loader"
+                                size={20}
+                                color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                              />
+                            </Animated.View>
+                          ) : (
+                            <Feather
+                              name="navigation"
+                              size={20}
+                              color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                            />
+                          )}
                         </TouchableOpacity>
 
                         {/* Drawing Mode Indicator */}
@@ -3871,24 +4058,29 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           </XStack>
         </Button> */}
 
+        {/* Validation message */}
+        {!isBasicInfoComplete && (
+          <XStack gap="$2" alignItems="center" justifyContent="center" paddingHorizontal="$2">
+            <Feather name="alert-circle" size={16} color="#EF4444" />
+            <Text size="sm" color="#EF4444" fontWeight="500">
+              {getTranslation(t, 'createRoute.nameRequired', 'Route name is required')}
+            </Text>
+          </XStack>
+        )}
+
         {/* Create Route Button */}
         <Button
           onPress={handleCreate}
           disabled={loading || !formData.name.trim()}
           variant="primary"
-          size="lg"
+          size="md"
           width="100%"
         >
-          <XStack gap="$2" alignItems="center">
-            {/* {!loading && <Feather name="check" size={20} color="white" />} */}
-            <Text color="white">
-              {loading
-                ? getTranslation(t, 'createRoute.saving', 'Saving...')
-                : isEditing
-                  ? getTranslation(t, 'createRoute.save', 'Save')
-                  : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
-            </Text>
-          </XStack>
+          {loading
+            ? getTranslation(t, 'createRoute.saving', 'Saving...')
+            : isEditing
+              ? getTranslation(t, 'createRoute.save', 'Save')
+              : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
         </Button>
       </YStack>
 
@@ -3969,43 +4161,27 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
               <YStack gap="$3">
                 {/* Save as Draft Button */}
-                <Button
+                {/* <Button
                   onPress={saveAsDraft}
                   variant="secondary"
                   size="lg"
                   backgroundColor="$blue5"
                 >
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="save" size={20} color="$blue11" />
-                    <Text color="$blue11" fontSize="$4" fontWeight="500">
-                      {t('createRoute.saveAsDraft') || 'Save as Draft'}
-                    </Text>
-                  </XStack>
-                </Button>
+                  {t('createRoute.saveAsDraft') || 'Save as Draft'}
+                </Button> */}
 
                 {/* Continue Editing Button */}
-                <Button onPress={handleContinueEditing} variant="primary" size="lg">
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="edit-3" size={20} color="white" />
-                    <Text color="white" fontSize="$4" fontWeight="500">
-                      {t('createRoute.continueEditing') || 'Continue Editing'}
-                    </Text>
-                  </XStack>
+                <Button onPress={handleContinueEditing} variant="primary" size="md">
+                  {t('createRoute.continueEditing') || 'Continue Editing'}
                 </Button>
 
                 {/* Exit Without Saving Button */}
                 <Button
                   onPress={handleExitWithoutSaving}
-                  variant="secondary"
-                  size="lg"
-                  backgroundColor="$red5"
+                  variant="outline"
+                  size="md"
                 >
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="x" size={20} color="#EF4444" />
-                    <Text color="#EF4444" fontSize="$4" fontWeight="500">
-                      {t('createRoute.exitWithoutSaving') || 'Exit Without Saving'}
-                    </Text>
-                  </XStack>
+                  {t('createRoute.exitWithoutSaving') || 'Exit Without Saving'}
                 </Button>
               </YStack>
             </YStack>
