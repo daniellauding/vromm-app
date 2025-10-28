@@ -2695,11 +2695,6 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           {/* Render waypoints as individual markers (not in pen drawing mode) */}
                           {drawingMode !== 'pen' &&
                             waypoints.map((waypoint, index) => {
-                              const isFirst = index === 0;
-                              const isLast = index === waypoints.length - 1 && waypoints.length > 1;
-                              // Use consistent app color #38fdbf for all markers
-                              const markerColor = '#38fdbf';
-
                               return (
                                 <Marker
                                   key={`waypoint-${index}`}
@@ -2707,10 +2702,44 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                     latitude: waypoint.latitude,
                                     longitude: waypoint.longitude,
                                   }}
-                                  title={waypoint.title}
-                                  description={waypoint.description}
-                                  pinColor={markerColor}
-                                />
+                                  anchor={{ x: 0.5, y: 0.5 }}
+                                  tracksViewChanges={false}
+                                >
+                                  {/* Circular marker like MapScreen */}
+                                  <View
+                                    style={{
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
+                                  >
+                                    {/* Circular marker */}
+                                    <View
+                                      style={{
+                                        width: 32,
+                                        height: 32,
+                                        backgroundColor: '#38fdbf',
+                                        borderRadius: 16,
+                                        shadowColor: '#000',
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.3,
+                                        shadowRadius: 4,
+                                        elevation: 5,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                    >
+                                      {/* Inner dot */}
+                                      <View
+                                        style={{
+                                          width: 8,
+                                          height: 8,
+                                          backgroundColor: '#333333',
+                                          borderRadius: 4,
+                                        }}
+                                      />
+                                    </View>
+                                  </View>
+                                </Marker>
                               );
                             })}
 
